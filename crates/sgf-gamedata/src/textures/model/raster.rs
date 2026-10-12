@@ -11,10 +11,16 @@ use super::space::{GROUND_RIGHT, GROUND_UP, Vec3, WORLD_PER_SAVE, cross, dot, no
 /// The editor's camera tilt from straight down, in degrees: its map is seen from above, with
 /// a little tilt for depth.
 const TILT_DEGREES: f32 = 15.0;
-/// The sprite's longer side, in pixels.
-const LONG_SIDE: f32 = 256.0;
-/// Samples per pixel along each axis.
-const SS: usize = 3;
+/// Screen pixels per save unit at the system view's closest zoom, where the largest body fills
+/// the view's short side: a G star of size 27 in a view 1000 pixels high.
+const CLOSEST_PX_PER_SAVE: f32 = 40.0;
+/// The least and the most pixels along the sprite's longer side.
+const MIN_LONG_SIDE: u32 = 256;
+const MAX_LONG_SIDE: u32 = 2048;
+/// The most samples per pixel along each axis.
+const MAX_SS: u32 = 3;
+/// The most samples along the frame's longer side, so a larger sprite takes fewer per pixel.
+const MAX_SAMPLES_ALONG: u32 = 2048;
 /// Space left round the model, as a share of its longer side.
 const MARGIN: f32 = 0.01;
 /// A stand-in empire colour for what the ship shader recolours.
@@ -46,7 +52,7 @@ impl Blend {
 pub(super) struct Map {
     width: usize,
     height: usize,
-    texels: Vec<[f32; 4]>,
+    texels: Vec<[u8; 4]>,
 }
 
 impl Map {
@@ -54,10 +60,7 @@ impl Map {
         Self {
             width: image.width() as usize,
             height: image.height() as usize,
-            texels: image
-                .pixels()
-                .map(|p| p.0.map(|c| f32::from(c) / 255.0))
-                .collect(),
+            texels: image.pixels().map(|p| p.0).collect(),
         }
     }
 
@@ -72,6 +75,7 @@ impl Map {
         let wrap = |i: f32, n: usize| (i as i64).rem_euclid(n as i64) as usize;
         let at = |xi: f32, yi: f32| {
             self.texels[wrap(yi, self.height) * self.width + wrap(xi, self.width)]
+                .map(|c| f32::from(c) / 255.0)
         };
         let (a, b, c, d) = (
             at(x0, y0),
@@ -134,13 +138,12 @@ impl Camera {
     }
 }
 
-/// The surfaces drawn into a sprite whose longer side is [`LONG_SIDE`] pixels, with where the
-/// model's origin falls in it; `None` when they have no vertices.
-pub(super) fn render(surfaces: &[Surface<'_>]) -> Option<(RgbaImage, ModelPlacement)> {
-    let camera = Camera::tilted();
+/// The corners of what the camera sees of `positions`, with the margin round it, and its
+/// longer side; `None` when they have no extent.
+fn framed(camera: &Camera, positions: impl IntoIterator<Item = Vec3>) -> Option<Framed> {
     let (mut lo, mut hi) = ([f32::MAX; 2], [f32::MIN; 2]);
-    for p in surfaces.iter().flat_map(|s| &s.positions) {
-        let s = camera.screen(*p);
+    for p in positions {
+        let s = camera.screen(p);
         for k in 0..2 {
             lo[k] = lo[k].min(s[k]);
             hi[k] = hi[k].max(s[k]);
@@ -154,12 +157,52 @@ pub(super) fn render(surfaces: &[Surface<'_>]) -> Option<(RgbaImage, ModelPlacem
         lo[k] -= span * MARGIN;
         hi[k] += span * MARGIN;
     }
-    let scale = LONG_SIDE * SS as f32 / (span * (1.0 + 2.0 * MARGIN));
-    let side = |k: usize| (((hi[k] - lo[k]) * scale / SS as f32).ceil() as usize).max(1) * SS;
+    Some(Framed {
+        lo,
+        hi,
+        span: span * (1.0 + 2.0 * MARGIN),
+    })
+}
+
+struct Framed {
+    lo: [f32; 2],
+    hi: [f32; 2],
+    span: f32,
+}
+
+/// The sprite's longer side in pixels for a model whose vertices are `positions`: about what
+/// it covers at the system view's closest zoom, within [`MIN_LONG_SIDE`] and
+/// [`MAX_LONG_SIDE`].
+pub(super) fn long_side(positions: impl IntoIterator<Item = Vec3>) -> u32 {
+    let covered = framed(&Camera::tilted(), positions)
+        .map_or(0.0, |f| f.span / WORLD_PER_SAVE * CLOSEST_PX_PER_SAVE);
+    (covered.round() as u32).clamp(MIN_LONG_SIDE, MAX_LONG_SIDE)
+}
+
+/// The surfaces drawn into a sprite whose longer side is `long_side` pixels, with where the
+/// model's origin falls in it; `None` when they have no vertices.
+pub(super) fn render(
+    surfaces: &[Surface<'_>],
+    long_side: u32,
+) -> Option<(RgbaImage, ModelPlacement)> {
+    let camera = Camera::tilted();
+    let Framed { lo, hi, span } = framed(
+        &camera,
+        surfaces.iter().flat_map(|s| s.positions.iter().copied()),
+    )?;
+    let ss = (MAX_SAMPLES_ALONG / long_side.max(1)).clamp(1, MAX_SS) as usize;
+    let scale = long_side as f32 * ss as f32 / span;
+    let side = |k: usize| {
+        let pixels = ((hi[k] - lo[k]) * scale / ss as f32)
+            .ceil()
+            .min(long_side as f32);
+        (pixels as usize).max(1) * ss
+    };
     let (w, h) = (side(0), side(1));
     let mut frame = Frame {
         w,
         h,
+        ss,
         depth: vec![f32::MAX; w * h],
         colour: vec![[0.0; 4]; w * h],
     };
@@ -233,6 +276,8 @@ fn faces_away(camera: &Camera, surface: &Surface<'_>, ids: [usize; 3], mirrored:
 struct Frame {
     w: usize,
     h: usize,
+    /// Samples per pixel along each axis.
+    ss: usize,
     depth: Vec<f32>,
     colour: Vec<[f32; 4]>,
 }
@@ -293,12 +338,13 @@ impl Frame {
     }
 
     fn downsample(&self) -> RgbaImage {
-        let (ow, oh) = (self.w / SS, self.h / SS);
+        let ss = self.ss;
+        let (ow, oh) = (self.w / ss, self.h / ss);
         RgbaImage::from_fn(ow as u32, oh as u32, |x, y| {
             let mut acc = [0f32; 4];
-            for dy in 0..SS {
-                for dx in 0..SS {
-                    let c = self.colour[(y as usize * SS + dy) * self.w + x as usize * SS + dx];
+            for dy in 0..ss {
+                for dx in 0..ss {
+                    let c = self.colour[(y as usize * ss + dy) * self.w + x as usize * ss + dx];
                     for k in 0..3 {
                         acc[k] += c[k] * c[3];
                     }
@@ -312,7 +358,7 @@ impl Frame {
                     0
                 }
             };
-            let alpha = (acc[3] / (SS * SS) as f32 * 255.0).round() as u8;
+            let alpha = (acc[3] / (ss * ss) as f32 * 255.0).round() as u8;
             Rgba([channel(acc[0]), channel(acc[1]), channel(acc[2]), alpha])
         })
     }
