@@ -750,6 +750,55 @@ fn the_installs_megastructures_and_starport_have_their_game_sizes() {
     );
 }
 
+/// The longer side of the sprite `key` bakes to, in pixels.
+fn long_side(gd: &GameData, textures: &Textures, key: &str) -> u32 {
+    let (image, _) = sprite(gd, textures, key);
+    image.width().max(image.height())
+}
+
+#[test]
+fn a_models_sprite_grows_with_what_it_covers_at_the_closest_zoom() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let (_cache, textures) = common::temp_textures();
+    let starport = long_side(
+        gd,
+        &textures,
+        "model:mammalian_01:starbase_starport_section_entity",
+    );
+    assert_eq!(
+        starport, 256,
+        "a model under 3 units across keeps the least size"
+    );
+    let nexus = long_side(
+        gd,
+        &textures,
+        "model:mammalian_01:thinktank_phase_03_entity",
+    );
+    // 36 units long, it covers about 1460 pixels at the closest zoom.
+    assert!((1300..2048).contains(&nexus), "{nexus}");
+}
+
+/// Gigastructural Engineering's Hyperstructural Assembly Yard, 157 units across, is baked at
+/// the largest size. Runs with `SGF_PLAYSET=1` when the enabled mods include Giga.
+#[test]
+fn a_system_sized_model_bakes_at_the_largest_sprite_size() {
+    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
+        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+        return;
+    }
+    let gd = sgf_gamedata::load(&sgf_gamedata::LoadOptions::default(), &mut |_| {})
+        .expect("SGF_PLAYSET needs an install");
+    let key = "model:mammalian_01:giga_shipyard_full_entity";
+    if gd.model_bounds(key).is_err() {
+        eprintln!("skipped: Gigastructural Engineering is not enabled");
+        return;
+    }
+    let (_cache, textures) = common::temp_textures();
+    assert_eq!(long_side(&gd, &textures, key), 2048);
+}
+
 #[test]
 fn a_yaw_in_the_key_turns_the_model_about_its_up_axis() {
     let (_dir, gd) = boxes();

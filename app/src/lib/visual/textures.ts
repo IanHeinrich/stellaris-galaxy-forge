@@ -170,7 +170,9 @@ async function decodePng(view: TextureView): Promise<Texture> {
   const source = new ImageSource({
     resource: bitmap,
     scaleMode: "linear",
-    autoGenerateMipmaps: isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height),
+    // A model is drawn far smaller than it was baked when zoomed out; WebGL 2 mips any size.
+    autoGenerateMipmaps:
+      view.model !== undefined || (isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height)),
   });
   return new Texture({ source });
 }

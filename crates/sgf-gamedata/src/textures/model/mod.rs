@@ -87,8 +87,13 @@ const PLANET_TEXTURES: &str = "gfx/models/planets/";
 const SPHERE_SPREAD: f32 = 1.3;
 /// How far a planet's centre may be from the model's origin, as a share of its radius.
 const PLANET_OFF_CENTRE: f32 = 0.15;
-/// The width a texture is decoded at, or the nearest mip level to it.
-const TEXTURE_WIDTH: u32 = 512;
+/// The least and the most width a texture is decoded at, or the nearest mip level to it: the
+/// sprite's longer side, within these.
+const MIN_TEXTURE_WIDTH: u32 = 512;
+const MAX_TEXTURE_WIDTH: u32 = 2048;
+/// Part of a model's cache name, raised when only how models are baked changes, so a sprite
+/// baked at another size is not served from the disk cache.
+const MODEL_BAKE: u32 = 1;
 
 /// Where a model sprite goes: its size in save units, and where the model's origin falls in
 /// it, as a share of its width and height from the top left.
@@ -170,6 +175,7 @@ impl Hash for ModelJob {
         }
         self.parts.hash(state);
         self.yaw.hash(state);
+        MODEL_BAKE.hash(state);
     }
 }
 
@@ -353,6 +359,8 @@ impl ModelJob {
 
     fn bake(&self) -> Result<(RgbaImage, ModelPlacement), TextureError> {
         let loaded = self.load()?;
+        let long_side = raster::long_side(loaded.iter().flat_map(Loaded::positions));
+        let texture_width = long_side.clamp(MIN_TEXTURE_WIDTH, MAX_TEXTURE_WIDTH);
         let mut maps: HashMap<&PathBuf, Option<raster::Map>> = HashMap::new();
         for path in loaded
             .iter()
@@ -360,7 +368,7 @@ impl ModelJob {
             .flat_map(|l| [&l.diffuse, &l.normal, &l.specular].into_iter().flatten())
         {
             maps.entry(path).or_insert_with(|| {
-                let image = Input::at(path.clone()).and_then(|i| i.decode_near(TEXTURE_WIDTH));
+                let image = Input::at(path.clone()).and_then(|i| i.decode_near(texture_width));
                 image.ok().map(|i| raster::Map::new(&i))
             });
         }
@@ -402,7 +410,8 @@ impl ModelJob {
                 })
             })
             .collect();
-        raster::render(&surfaces).ok_or_else(|| TextureError::EmptyModel(self.entity.clone()))
+        raster::render(&surfaces, long_side)
+            .ok_or_else(|| TextureError::EmptyModel(self.entity.clone()))
     }
 
     pub(super) fn render(&self) -> Result<RgbaImage, TextureError> {
