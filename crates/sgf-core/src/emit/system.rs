@@ -115,6 +115,7 @@ pub fn habitat_entry(indent: &[u8], h: &HabitatEntry<'_>) -> Vec<u8> {
             flags: h.flags,
             flag_date: h.flag_date,
             entity_name: h.entity_name,
+            modifiers: &[],
         },
     )
 }
@@ -138,6 +139,8 @@ pub struct SegmentEntry<'a> {
     pub flag_date: &'a str,
     pub entity_name: Option<&'a str>,
     pub megastructure_icon: bool,
+    /// Timed modifiers, each with its days.
+    pub modifiers: &'a [(&'a str, i32)],
 }
 
 pub fn segment_entry(indent: &[u8], s: &SegmentEntry<'_>) -> Vec<u8> {
@@ -161,6 +164,7 @@ pub fn segment_entry(indent: &[u8], s: &SegmentEntry<'_>) -> Vec<u8> {
             flags: s.flags,
             flag_date: s.flag_date,
             entity_name: s.entity_name,
+            modifiers: s.modifiers,
         },
     )
 }
@@ -179,6 +183,7 @@ struct Made<'a> {
     flags: &'a [String],
     flag_date: &'a str,
     entity_name: Option<&'a str>,
+    modifiers: &'a [(&'a str, i32)],
 }
 
 fn made_entry(indent: &[u8], m: &Made<'_>) -> Vec<u8> {
@@ -203,6 +208,9 @@ fn made_entry(indent: &[u8], m: &Made<'_>) -> Vec<u8> {
     w.open(1, keys::PLANET_ORBITALS);
     w.close(1);
     w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
+    if !m.modifiers.is_empty() {
+        w.timed_modifiers(1, m.modifiers);
+    }
     if !m.flags.is_empty() {
         w.flags(1, m.flags, m.flag_date);
     }

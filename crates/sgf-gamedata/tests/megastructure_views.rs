@@ -260,28 +260,57 @@ fn the_ring_worlds_stages_are_added_whole_in_the_view() {
     }
 }
 
-/// A ring world whose chain lays out no ring of four quadrants says why in the view.
+/// A ring world is a chain whose frame spawns rows that a stage builds into ring world
+/// segments, whatever its keys. Its view asks for as many finished quadrants as the frame
+/// spawns rows, and says why when its chain lays out no ring of that many.
 #[test]
 fn a_ring_world_that_lays_out_no_ring_says_why() {
     let (_dir, gd) = common::hand_written(&[
         ("common/scripted_variables/00_fx.txt", ""),
         (
             "common/megastructures/fx.txt",
-            "ring_world_fx_site = {
+            "fx_site = {
 }
-ring_world_fx_frame = {
-	upgrade_from = { ring_world_fx_site }
+fx_frame = {
+	upgrade_from = { fx_site }
+	on_build_complete = {
+		spawn_megastructure = { type = fx_section orbit_angle = 0 orbit_distance = 60 }
+		spawn_megastructure = { type = fx_section orbit_angle = 180 orbit_distance = 60 }
+		remove_megastructure = fromfrom
+	}
+}
+fx_section = { upgrade_from = { fx_frame } }
+fx_built = {
+	upgrade_from = { fx_section }
+	on_build_complete = {
+		spawn_planet = { class = pc_ringworld_seam location = fromfrom size = 10 init_effect = { set_name = NAME_Fx } }
+		remove_megastructure = fromfrom
+	}
+}
+fy_frame = {
+	on_build_complete = {
+		spawn_megastructure = { type = fy_section orbit_angle = 0 orbit_distance = @nowhere }
+		spawn_megastructure = { type = fy_section orbit_angle = 180 orbit_distance = @nowhere }
+		remove_megastructure = fromfrom
+	}
+}
+fy_section = { upgrade_from = { fy_frame } }
+fy_built = {
+	upgrade_from = { fy_section }
+	on_build_complete = {
+		spawn_planet = { class = pc_ringworld_seam location = fromfrom size = 10 }
+	}
 }
 ",
         ),
     ]);
     let views = gd.megastructure_views();
-    assert_eq!(view(&views, "ring_world_fx_site").ring_world_refused, None);
+    for key in ["fx_site", "fx_frame", "fx_section", "fx_built"] {
+        assert_eq!(view(&views, key).ring_world_refused, None, "{key}");
+    }
     assert_eq!(
-        view(&views, "ring_world_fx_frame")
-            .ring_world_refused
-            .as_deref(),
-        Some("no stage of its chain lays out a ring world of 4 quadrants")
+        view(&views, "fy_section").ring_world_refused.as_deref(),
+        Some("no stage of its chain lays out a ring world of 2 quadrants")
     );
 }
 

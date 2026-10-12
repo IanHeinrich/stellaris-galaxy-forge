@@ -513,6 +513,24 @@
   border-radius: 4px;
 }
 
+/* The grid's height, kept while a refused size's reason or the Site tile shows in its place. */
+.ring-world-picks-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 176px;
+}
+
+.ring-world-picks-refused {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.ring-world-picks-refused p {
+  margin: 0;
+}
+
 .ring-world-quadrants {
   border-collapse: collapse;
 }
@@ -533,6 +551,7 @@
   text-align: left;
 }
 
+.ring-world-size,
 .ring-world-set-all,
 .ring-world-planets {
   display: flex;
@@ -546,6 +565,7 @@
   font-size: 11.5px;
 }
 
+.ring-world-size label,
 .ring-world-planets label {
   display: inline-flex;
   align-items: center;
