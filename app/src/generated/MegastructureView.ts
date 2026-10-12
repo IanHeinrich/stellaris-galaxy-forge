@@ -34,7 +34,17 @@ habitat_orbital: boolean,
  * For a ring world past its site, why the editor cannot add its chain's ring whole with
  * every quadrant finished; `None` when it can, and for any other type.
  */
-ring_world_refused: string | null, key: string, 
+ring_world_refused: string | null, 
+/**
+ * The texture key of the picture the game's construction card shows for the type; `None`
+ * when it names none or the install has no file for it.
+ */
+portrait: string | null, 
+/**
+ * The kind and categories its build tooltip opens with, such as "Kilostructure · Science
+ * Production"; `None` when the tooltip's first line is anything else.
+ */
+category: string | null, key: string, 
 /**
  * The model, without the graphical culture prefix the game puts before it; `None` when
  * the type names none or `""`.

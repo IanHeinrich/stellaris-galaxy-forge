@@ -149,7 +149,9 @@ describe("the Add megastructure dialog", () => {
     const html = dialog();
 
     expect(html).toContain('aria-label="Megastructures"');
-    expect(html).toMatch(/aria-selected="true"[^>]*><span[^>]*>Dyson Sphere<\/span>/);
+    expect(html).toMatch(
+      /aria-selected="true"[^>]*><span[^>]*><\/span><span[^>]*><span[^>]*>Dyson Sphere<\/span>/,
+    );
     expect(html).toContain('aria-label="Dyson Sphere stages"');
     expect(html).toMatch(/aria-selected="false"[^>]*title="Dyson Sphere Site">.*?>Site<\/span>/);
     expect(html).toMatch(/aria-selected="true"[^>]*title="Dyson Sphere">.*?>Finished<\/span>/);
@@ -168,6 +170,30 @@ describe("the Add megastructure dialog", () => {
     html = dialog();
     expect(html).toMatch(/title="Loom Frame">.*?>2 of 6<\/span><span[^>]*>Frame<\/span>/);
     expect(html).toMatch(/>6 of 6<\/span><span[^>]*>Finished<\/span>/);
+  });
+
+  it("shows a list option's picture and category beside its name, and an empty square for one without", () => {
+    const types = new Map(useGameDataStore.getState().megastructureTypes);
+    const category = "Megastructure · Basic Resource Production";
+    types.set("dyson_sphere_0", { ...types.get("dyson_sphere_0")!, category });
+    types.set("dyson_sphere_5", { ...types.get("dyson_sphere_5")!, portrait: "sprite:GFX_dyson" });
+    useGameDataStore.setState({ megastructureTypes: types });
+    const html = dialog();
+
+    expect(html).toContain(
+      '<span class="megastructure-add-portrait"><img src="tex:sprite:GFX_dyson" alt=""/></span>' +
+        '<span class="megastructure-add-entry"><span class="megastructure-add-name">Dyson Sphere</span>' +
+        `<span class="megastructure-add-category muted" title="${category}">${category}</span>`,
+    );
+    expect(html).toContain(
+      '<span class="megastructure-add-portrait"></span>' +
+        '<span class="megastructure-add-entry"><span class="megastructure-add-name">Loom</span>' +
+        '<span class="megastructure-add-summary muted">',
+    );
+    expect(html).toContain(
+      '<span class="megastructure-add-banner"><img src="tex:sprite:GFX_dyson" alt=""/></span>' +
+        "<h2>Dyson Sphere</h2>",
+    );
   });
 
   it("renders the game's description with its colours, and puts the preview's parts in order", () => {
@@ -458,7 +484,9 @@ describe("the Add megastructure dialog on a ring world", () => {
 
   it("offers the site and the Ring on a star, with a grid of quadrants A to D, all finished", () => {
     const page = html();
-    expect(page).toMatch(/aria-selected="true"[^>]*><span[^>]*>Ring World<\/span>/);
+    expect(page).toMatch(
+      /aria-selected="true"[^>]*><span[^>]*><\/span><span[^>]*><span[^>]*>Ring World<\/span>/,
+    );
     expect(page).toMatch(/title="Ring World Site">.*?>Site<\/span>/);
     expect(page).toMatch(/aria-selected="true"[^>]*title="Ring World">.*?>Ring<\/span>/);
     expect(page).not.toContain('aria-disabled="true"');

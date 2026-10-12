@@ -117,6 +117,10 @@ pub struct MegastructureDef {
     #[serde(skip)]
     #[ts(skip)]
     pub build: Build,
+    /// `portrait`: the `GFX_` sprite the game's construction card shows for it.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub portrait: Option<String>,
 }
 
 /// What a stage's `on_build_complete` writes beyond its own row.
@@ -421,6 +425,7 @@ impl FromDef for MegastructureDef {
             family: None,
             completes,
             build: Build::default(),
+            portrait: model("portrait"),
         }
     }
 }

@@ -73,8 +73,9 @@ function columnsOf(grid: HTMLElement): number {
 
 /**
  * The megastructure list: a filter over every megastructure and stage name, and the
- * megastructures that match under their section's heading, the base game's first, each with its
- * name and a summary of its stages. Up and Down move the selection.
+ * megastructures that match under their section's heading, the base game's first, each with the
+ * game's picture of it or an empty square, its name, its kind and categories where the game gives
+ * them, and a summary of its stages. Up and Down move the selection.
  */
 export function MegastructureList({
   entries,
@@ -149,8 +150,20 @@ export function MegastructureList({
               onClick={() => onSelect(entry)}
               onDoubleClick={onConfirm}
             >
-              <span className="megastructure-add-name">{entry.label}</span>
-              <span className="megastructure-add-summary muted">{entry.summary}</span>
+              {entry.portrait === null ? (
+                <span className="megastructure-add-portrait" />
+              ) : (
+                <Thumb className="megastructure-add-portrait" keys={[entry.portrait]} lazy />
+              )}
+              <span className="megastructure-add-entry">
+                <span className="megastructure-add-name">{entry.label}</span>
+                {entry.category !== null && (
+                  <span className="megastructure-add-category muted" title={entry.category}>
+                    {entry.category}
+                  </span>
+                )}
+                <span className="megastructure-add-summary muted">{entry.summary}</span>
+              </span>
             </li>
           );
           return heading === null ? [option] : [heading, option];
@@ -330,7 +343,7 @@ function Lines({ title, lines }: { title: string; lines: string[] }) {
 }
 
 /**
- * The selected stage: its picture, full name and stage, why the save would refuse it here, the
+ * The selected stage: its model, the game's picture of it, its full name and stage, why the save would refuse it here, the
  * game's description, what it produces each month, what it gives its owner and what adding it
  * also writes. A part with nothing to say is left out.
  */
@@ -345,7 +358,11 @@ export function MegastructurePreviewPane({
 }) {
   return (
     <aside className="megastructure-add-preview" aria-label="Selected megastructure">
-      <Thumb className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
+      {type?.portrait ? (
+        <Thumb className="megastructure-add-banner" keys={[type.portrait]} />
+      ) : (
+        <Thumb className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
+      )}
       <h2>{preview.label}</h2>
       {preview.stage !== null && <div className="muted">{preview.stage}</div>}
       {preview.refused !== null && <p className="megastructure-add-refusal">{preview.refused}</p>}

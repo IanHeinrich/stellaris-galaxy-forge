@@ -50,8 +50,12 @@ construction added.
 The list shows each megastructure once, under Base game or the name of
 the mod that adds it. Its build stages, ruins and variants are inside
 it, so a Dyson Sphere is one entry in the list and not one for each
-stage. Under each name, a line says how many stages it has and what else
-it comes in, such as "4 stages · by star class" or "3 stages · ruins".
+stage. Each entry shows the megastructure's picture from the game's
+construction menu on the left. Under the name, mods that give a
+megastructure a type and category show them, such as "Kilostructure ·
+Science Production" in Gigastructural Engineering. The base game gives
+none. The last line says how many stages it has and what else it comes
+in, such as "4 stages · by star class" or "3 stages · ruins".
 Type in the box above the list to filter it by megastructure or stage
 name.
 
@@ -77,11 +81,13 @@ into a ship, so it isn't listed.
 Click a stage to see it in the details panel beside the tiles. From the
 top, the panel shows:
 
-1. The stage's name, and a line such as "Stage 3 of 4: Maturity".
-2. The game's description, with its colours and icons.
-3. Produces each month.
-4. Empire effects, which the megastructure gives its owner.
-5. Adding it also writes, which lists the modifiers and deposits its
+1. The stage's picture from the game's construction menu, or its model
+   when the game gives no picture.
+2. The stage's name, and a line such as "Stage 3 of 4: Maturity".
+3. The game's description, with its colours and icons.
+4. Produces each month.
+5. Empire effects, which the megastructure gives its owner.
+6. Adding it also writes, which lists the modifiers and deposits its
    construction adds.
 
 A part the stage has nothing for is left out. The Add button names what
