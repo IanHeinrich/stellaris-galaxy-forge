@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use sgf_core::cst::{self, Node, Value};
+use sgf_core::span::Span;
 
 use crate::Diagnostic;
 use crate::install::layers::Layout;
@@ -52,68 +53,72 @@ impl Def {
 
     /// `key`'s value as a number, through [`Self::number_of`].
     pub fn number(&self, key: &str) -> Option<f64> {
-        self.number_of(&self.written_in(&self.node, key)?)
+        self.number_in(&self.node, key)
+    }
+
+    /// The first direct child of `node` named `key`, as a number through [`Self::number_of`].
+    pub fn number_in(&self, node: &Node, key: &str) -> Option<f64> {
+        self.number_of(&self.written_in(node, key)?)
+    }
+
+    /// `node.children()[at]` as a number through [`Self::number_of`]: its spaced inline maths
+    /// is the keyless statements that follow it, so a child is read from its parent.
+    pub fn number_at(&self, node: &Node, at: usize) -> Option<f64> {
+        self.number_of(&written(node.children(), at, &self.src)?)
     }
 
     /// A number as written, the `@variable` it names, or inline maths `@[ … ]` over numbers
     /// and variables: a variable from the defining file's own first, then
     /// `common/scripted_variables`.
     pub fn number_of(&self, text: &str) -> Option<f64> {
-        if let Some(expr) = text.strip_prefix("@[").and_then(|t| t.strip_suffix(']')) {
-            return maths::evaluate(expr, &|name| self.variable(name)?.parse().ok());
-        }
-        match text.strip_prefix('@') {
-            Some(name) => self.variable(name)?.parse().ok(),
-            None => text.parse().ok(),
-        }
+        self.names().number_of(text)
     }
 
-    fn variable(&self, name: &str) -> Option<&str> {
-        self.vars
-            .get(name)
-            .map(|own| own.value.as_str())
-            .or_else(|| self.globals.get(name))
+    /// The `@variables` a number in this definition's file can name.
+    pub(crate) fn names(&self) -> Names {
+        Names {
+            vars: Arc::clone(&self.vars),
+            globals: Arc::clone(&self.globals),
+        }
     }
 
     /// The scalar value of the first direct child of `node` named `key`, as [`written`] reads it.
-    fn written_in(&self, node: &Node, key: &str) -> Option<Cow<'_, str>> {
-        let children = node.children();
-        let at = children
+    pub(crate) fn written_in(&self, node: &Node, key: &str) -> Option<Cow<'_, str>> {
+        written(node.children(), self.position(node, key)?, &self.src)
+    }
+
+    fn position(&self, node: &Node, key: &str) -> Option<usize> {
+        node.children()
             .iter()
-            .position(|child| child.key_str(&self.src) == Some(key))?;
-        written(children, at, &self.src)
+            .position(|child| child.key_str(&self.src) == Some(key))
     }
 
     /// `key` below `node` as a [`Range`]: `key = n` or `key = { min = a max = b }`,
     /// `@variables` substituted; one no file defines gives `None`.
     pub fn range_in(&self, node: &Node, key: &str) -> Option<Range> {
-        let found = node.find(key, &self.src)?;
+        self.range_at(node, self.position(node, key)?)
+    }
+
+    /// `node.children()[at]` as a [`Range`], as [`Self::range_in`] reads it.
+    pub fn range_at(&self, node: &Node, at: usize) -> Option<Range> {
+        let found = node.children().get(at)?;
         match found.scalar_span() {
-            Some(_) => self
-                .number_of(&self.written_in(node, key)?)
-                .map(Range::fixed),
-            None => self.range_of(found),
+            Some(_) => self.number_at(node, at).map(Range::fixed),
+            None => Some(Range {
+                min: self.bound(found, "min")?,
+                max: self.bound(found, "max")?,
+            }),
         }
     }
 
-    /// `found`'s value as a [`Range`], as [`Self::range_in`] reads it.
-    pub fn range_of(&self, found: &Node) -> Option<Range> {
-        if let Some(text) = found.scalar_str(&self.src) {
-            return self.number_of(text).map(Range::fixed);
-        }
-        Some(Range {
-            min: self.bound(found, "min")?,
-            max: self.bound(found, "max")?,
-        })
-    }
-
-    /// An initializer's own value `found` (a `count`, `size`, `orbit_distance`, `orbit_angle`,
-    /// `change_orbit` or belt `radius`) as a [`Range`]: as [`Self::range_of`] reads it, but a
-    /// block that writes one bound only is that number, fixed. No game file says what the game
-    /// does with the missing bound, so this is assumed.
-    pub fn initializer_range_of(&self, found: &Node) -> Option<Range> {
+    /// An initializer's own value (a `count`, `size`, `orbit_distance`, `orbit_angle`,
+    /// `change_orbit` or belt `radius`) `node.children()[at]` as a [`Range`]: as
+    /// [`Self::range_at`] reads it, but a block that writes one bound only is that number,
+    /// fixed. No game file says what the game does with the missing bound, so this is assumed.
+    pub fn initializer_range_at(&self, node: &Node, at: usize) -> Option<Range> {
+        let found = node.children().get(at)?;
         if found.scalar_span().is_some() {
-            return self.range_of(found);
+            return self.range_at(node, at);
         }
         match (self.bound(found, "min"), self.bound(found, "max")) {
             (Some(min), Some(max)) => Some(Range { min, max }),
@@ -122,14 +127,14 @@ impl Def {
         }
     }
 
-    /// `key` below `node` as [`Self::initializer_range_of`] reads it.
+    /// `key` below `node` as [`Self::initializer_range_at`] reads it.
     pub fn initializer_range_in(&self, node: &Node, key: &str) -> Option<Range> {
-        self.initializer_range_of(node.find(key, &self.src)?)
+        self.initializer_range_at(node, self.position(node, key)?)
     }
 
     /// The number `found`'s `key` bound writes.
     fn bound(&self, found: &Node, key: &str) -> Option<f64> {
-        self.number_of(&self.written_in(found, key)?)
+        self.number_in(found, key)
     }
 
     /// The definition's own `key` as a [`Range`].
@@ -160,25 +165,97 @@ impl Def {
     }
 }
 
+/// The `@variables` a script file can name: its own top-level ones first, then
+/// `common/scripted_variables`.
+#[derive(Debug, Clone)]
+pub(crate) struct Names {
+    vars: Arc<BTreeMap<String, Variable>>,
+    globals: Arc<Variables>,
+}
+
+impl Names {
+    /// The names of the parsed file whose top-level statements are `children`, over `globals`.
+    pub(crate) fn of_file(children: &[Node], src: &[u8], globals: Arc<Variables>) -> Self {
+        Self {
+            vars: Arc::new(file_vars(children, src)),
+            globals,
+        }
+    }
+
+    pub(crate) fn globals(&self) -> Arc<Variables> {
+        Arc::clone(&self.globals)
+    }
+
+    /// A number as written, the `@variable` it names, or inline maths `@[ … ]` over numbers
+    /// and variables.
+    pub(crate) fn number_of(&self, text: &str) -> Option<f64> {
+        if let Some(expr) = text.strip_prefix("@[").and_then(|t| t.strip_suffix(']')) {
+            return maths::evaluate(expr, &|name| self.variable(name)?.parse().ok());
+        }
+        match text.strip_prefix('@') {
+            Some(name) => self.variable(name)?.parse().ok(),
+            None => text.parse().ok(),
+        }
+    }
+
+    fn variable(&self, name: &str) -> Option<&str> {
+        self.vars
+            .get(name)
+            .map(|own| own.value.as_str())
+            .or_else(|| self.globals.get(name))
+    }
+}
+
+/// The scalar value of the first child of `node` named `key`, as [`written`] reads it.
+pub(crate) fn written_key<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<Cow<'a, str>> {
+    let children = node.children();
+    let at = children
+        .iter()
+        .position(|child| child.key_str(src) == Some(key))?;
+    written(children, at, src)
+}
+
 /// `children[at]`'s scalar value. Inline maths written with spaces, `@[ 4 * x ]`, parses as
 /// `@[` and then one list item per word up to `]`, so those items are joined back onto it.
-fn written<'a>(children: &[Node], at: usize, src: &'a [u8]) -> Option<Cow<'a, str>> {
+pub(crate) fn written<'a>(children: &[Node], at: usize, src: &'a [u8]) -> Option<Cow<'a, str>> {
     let first = children.get(at)?.scalar_str(src)?;
-    if !first.starts_with("@[") || first.ends_with(']') {
+    let words = continuation(children, at, src);
+    if words == 0 {
         return Some(Cow::Borrowed(first));
     }
     let mut text = first.to_owned();
-    for item in &children[at + 1..] {
-        let Some(word) = item.key.map_or_else(|| item.scalar_str(src), |_| None) else {
-            break;
-        };
+    for item in &children[at + 1..=at + words] {
         text.push(' ');
-        text.push_str(word);
+        text.push_str(item.scalar_str(src).unwrap_or_default());
+    }
+    Some(Cow::Owned(text))
+}
+
+/// How many keyless statements after `children[at]` are the rest of its inline maths written
+/// with spaces, up to the word that ends in `]`; none when it is not one or never closes.
+pub fn continuation(children: &[Node], at: usize, src: &[u8]) -> usize {
+    let Some(first) = children.get(at).and_then(|child| child.scalar_str(src)) else {
+        return 0;
+    };
+    if !first.starts_with("@[") || first.ends_with(']') {
+        return 0;
+    }
+    for (n, item) in children[at + 1..].iter().enumerate() {
+        let Some(word) = item.key.map_or_else(|| item.scalar_str(src), |_| None) else {
+            return 0;
+        };
         if word.ends_with(']') {
-            return Some(Cow::Owned(text));
+            return n + 1;
         }
     }
-    Some(Cow::Borrowed(first))
+    0
+}
+
+/// `children[at]` as written: the statement itself, and the rest of its inline maths when it
+/// is written with spaces.
+pub fn statement_span(children: &[Node], at: usize, src: &[u8]) -> Span {
+    let last = at + continuation(children, at, src);
+    Span::new(children[at].span().start, children[last].span().end)
 }
 
 /// Stellaris inline maths: numbers, variable names with or without `@`, `+ - * /`,

@@ -29,21 +29,23 @@ pub struct WeightModifier {
 }
 
 impl Weight {
-    /// `node`'s `weight` or `base`, or `base` when it writes neither. A `node` that is a
-    /// number is a fixed weight.
-    pub(crate) fn read(node: &Node, def: &Def, base: f64) -> Self {
+    /// The weight `parent`'s `key` writes, `None` when it writes none. Its `weight` or `base`,
+    /// or `base` when it writes neither. A `key` that is a number is a fixed weight.
+    pub(crate) fn read(parent: &Node, key: &str, def: &Def, base: f64) -> Option<Self> {
         let src = &def.src;
-        if let Some(text) = node.scalar_str(src) {
-            return Self::fixed(def.number_of(text).unwrap_or(base));
+        let node = parent.find(key, src)?;
+        if node.scalar_str(src).is_some() {
+            return Some(Self::fixed(def.number_in(parent, key).unwrap_or(base)));
         }
-        let number = |node: &Node, key: &str| def.number_of(node.find(key, src)?.scalar_str(src)?);
-        Self {
+        let number = |node: &Node, key: &str| def.number_in(node, key);
+        let children = node.children();
+        Some(Self {
             base: number(node, "weight")
                 .or_else(|| number(node, "base"))
                 .unwrap_or(base),
-            factor: node
-                .find_all("factor", src)
-                .filter_map(|f| def.number_of(f.scalar_str(src)?))
+            factor: (0..children.len())
+                .filter(|&at| children[at].key_str(src) == Some("factor"))
+                .filter_map(|at| def.number_at(node, at))
                 .product(),
             modifiers: node
                 .find_all("modifier", src)
@@ -54,7 +56,7 @@ impl Weight {
                     weight: number(m, "weight"),
                 })
                 .collect(),
-        }
+        })
     }
 
     /// A fixed weight with no modifiers.

@@ -38,10 +38,8 @@ impl FromDef for DigSiteTypeDef {
                 })
                 .collect(),
             on_create: def.node.find("on_create", src).is_some(),
-            rolled: def
-                .node
-                .find("weight", src)
-                .is_some_and(|weight| Weight::read(weight, def, 0.0).ever_positive()),
+            rolled: Weight::read(&def.node, "weight", def, 0.0)
+                .is_some_and(|weight| weight.ever_positive()),
             desc: def.node.find("desc", src).and_then(|desc| {
                 desc.scalar_str(src)
                     .or_else(|| desc.find("text", src)?.scalar_str(src))
