@@ -25,9 +25,16 @@ export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can
 
 /** What the dialog says before Add. */
 export const WRITTEN_FINISHED = "The megastructure is added finished.";
-/** What the dialog says before Add of a type whose finished stage is a habitat. */
-export const WRITTEN_AS_HABITAT =
-  "The habitat is added finished, as a planet with no colony. It has the habitat skin of the empire that owns the system.";
+/**
+ * What the dialog says before Add of a type whose finished stage is a habitat, in a system an
+ * empire owns when `owned`.
+ */
+export function writtenAsHabitat(owned: boolean): string {
+  const skin = owned
+    ? "It has the habitat skin of the empire that owns the system."
+    : "No one owns the system, so it has the habitat class's default skin.";
+  return `The habitat is added finished, as a planet with no colony. ${skin}`;
+}
 /** What the dialog says of a habitat's owner. */
 export const HABITAT_OWNER_NOTE = "A habitat is added with no owner.";
 /** Why no habitat goes round a body. */

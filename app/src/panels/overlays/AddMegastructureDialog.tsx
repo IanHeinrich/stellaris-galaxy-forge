@@ -5,7 +5,6 @@ import {
   NO_OWNER,
   NO_OWNER_NOTE,
   OWNER_NOTE,
-  WRITTEN_AS_HABITAT,
   WRITTEN_FINISHED,
   addLabel,
   entryDefault,
@@ -14,6 +13,7 @@ import {
   megastructureRefusal,
   selectedStage,
   whereText,
+  writtenAsHabitat,
 } from "../../lib/megastructurePicks";
 import {
   megastructureDescriptionKeys,
@@ -182,7 +182,9 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               )}
             </div>
           )}
-          <div className="muted">{type?.habitat ? WRITTEN_AS_HABITAT : WRITTEN_FINISHED}</div>
+          <div className="muted">
+            {type?.habitat ? writtenAsHabitat(owner !== null) : WRITTEN_FINISHED}
+          </div>
         </div>
         <div className="open-dialog-foot">
           <div className="setup-actions">
