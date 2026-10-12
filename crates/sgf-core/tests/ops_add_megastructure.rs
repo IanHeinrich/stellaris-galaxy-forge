@@ -3,37 +3,30 @@
 
 use sgf_core::entity::views::EntityKind;
 use sgf_core::format::save::details::{HeuristicResolver, MegastructureSummary};
-use sgf_core::ops::{
-    ClassChange, ConstructionDeposit, ConstructionModifier, MegastructureConstruction,
-    MegastructureDismantle, MegastructurePlace, ModifierHost, NewBypass, Op, PlanetClassRule,
-    VariableDrop, VariableRaise,
-};
+use sgf_core::ops::{MegastructurePlace, NewBypass, Op};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
+use common::edit::ALARI;
 use common::examples::sol_nexus;
-use common::{assert_refusals, current, entity_text, open_3_4, open_4_5};
-
-/// The 4.5 sample's capital system, Sol, holds gas giant 6, barren planet 4 and the capital
-/// 2, the only one of the three with a `flags` block. Country 0 lists no megastructure.
-const SOL: u32 = 169;
+use common::{assert_refusals, current, entity_text, open_4_5};
 
 /// One row: the bypass as kind and whether it is open.
-struct Row<'a> {
-    system: u32,
-    kind: &'a str,
-    at: MegastructurePlace,
-    owner: Option<u32>,
-    bypass: Option<(&'a str, bool)>,
-    ruin: bool,
-    flag: bool,
-    star_only: bool,
+pub(crate) struct Row<'a> {
+    pub(crate) system: u32,
+    pub(crate) kind: &'a str,
+    pub(crate) at: MegastructurePlace,
+    pub(crate) owner: Option<u32>,
+    pub(crate) bypass: Option<(&'a str, bool)>,
+    pub(crate) ruin: bool,
+    pub(crate) flag: bool,
+    pub(crate) star_only: bool,
 }
 
 impl Row<'_> {
-    fn op(&self) -> Op {
+    pub(crate) fn op(&self) -> Op {
         Op::AddMegastructure {
             system: self.system,
             kind: self.kind.to_owned(),
@@ -54,7 +47,7 @@ impl Row<'_> {
     }
 }
 
-fn body_row(system: u32, kind: &str, body: u32) -> Row<'_> {
+pub(crate) fn body_row(system: u32, kind: &str, body: u32) -> Row<'_> {
     Row {
         system,
         kind,
@@ -67,7 +60,7 @@ fn body_row(system: u32, kind: &str, body: u32) -> Row<'_> {
     }
 }
 
-fn free_row<'a>(system: u32, kind: &'a str, bypass: &'a str, active: bool) -> Row<'a> {
+pub(crate) fn free_row<'a>(system: u32, kind: &'a str, bypass: &'a str, active: bool) -> Row<'a> {
     Row {
         system,
         kind,
@@ -80,7 +73,7 @@ fn free_row<'a>(system: u32, kind: &'a str, bypass: &'a str, active: bool) -> Ro
     }
 }
 
-fn on_body(system: u32, kind: &str, body: u32) -> Op {
+pub(crate) fn on_body(system: u32, kind: &str, body: u32) -> Op {
     body_row(system, kind, body).op()
 }
 
@@ -92,15 +85,11 @@ fn ruin(system: u32, body: u32) -> Op {
     .op()
 }
 
-fn nexus() -> Op {
-    sol_nexus()
-}
-
 fn free(system: u32, kind: &str, bypass: &str, active: bool) -> Op {
     free_row(system, kind, bypass, active).op()
 }
 
-fn remove(megastructure: u32) -> Op {
+pub(crate) fn remove(megastructure: u32) -> Op {
     Op::RemoveMegastructure {
         megastructure,
         construction: None,
@@ -120,34 +109,34 @@ fn megastructures(session: &Session, system: u32) -> Vec<MegastructureSummary> {
 #[test]
 fn a_science_nexus_added_on_a_gas_giant() {
     let mut session = open_4_5();
-    let result = snapshot_step(&mut session, "megastructure_nexus_added", nexus());
+    let result = snapshot_step(&mut session, "megastructure_nexus_added", sol_nexus());
     assert_eq!(result.inverse, remove(16));
-    assert_eq!(result.details_stale, [SOL]);
-    let added = megastructures(&session, SOL);
+    assert_eq!(result.details_stale, [ALARI]);
+    let added = megastructures(&session, ALARI);
     let nexus = added.iter().find(|m| m.id == 16).expect("row 16");
     assert_eq!(nexus.kind, "think_tank_3");
     assert_eq!((nexus.owner, nexus.planet), (Some(0), Some(6)));
     assert_eq!(nexus.culture.as_deref(), Some("mammalian_01"));
     assert!(entity_text(&session, EntityKind::Megastructure, 16).contains("think_tank_3"));
 
-    let planet = common::planets(&session, SOL)
+    let planet = common::planets(&session, ALARI)
         .into_iter()
         .find(|p| p.id == 6)
         .expect("planet 6");
     assert_eq!(nexus.at, planet.at, "the row stands at the planet's point");
     session
         .apply(Op::MoveBody {
-            system: SOL,
+            system: ALARI,
             body: 6,
             radius: 140.0,
             angle: 90.0,
         })
         .expect("move the gas giant");
-    let moved = common::planets(&session, SOL)
+    let moved = common::planets(&session, ALARI)
         .into_iter()
         .find(|p| p.id == 6)
         .expect("planet 6");
-    let row = megastructures(&session, SOL)
+    let row = megastructures(&session, ALARI)
         .into_iter()
         .find(|m| m.id == 16)
         .expect("row 16");
@@ -160,13 +149,13 @@ fn a_ruined_orbital_ring_flags_its_planet() {
     snapshot_step(
         &mut session,
         "megastructure_ruin_flags_created",
-        ruin(SOL, 4),
+        ruin(ALARI, 4),
     );
     let mut session = open_4_5();
     snapshot_step(
         &mut session,
         "megastructure_ruin_flags_appended",
-        ruin(SOL, 2),
+        ruin(ALARI, 2),
     );
 }
 
@@ -226,7 +215,7 @@ fn a_dyson_sphere_on_a_star_round_trips() {
 #[test]
 fn an_added_row_gives_its_slot_back() {
     let mut session = open_4_5();
-    session.apply(nexus()).expect("16");
+    session.apply(sol_nexus()).expect("16");
     session
         .apply(on_body(1, "dyson_sphere_5", 584))
         .expect("17");
@@ -240,10 +229,10 @@ fn an_added_row_gives_its_slot_back() {
     let removed = session
         .apply(remove(16))
         .expect("take 16 out while 17 stands");
-    assert_eq!(removed.inverse, nexus());
+    assert_eq!(removed.inverse, sol_nexus());
     let text = String::from_utf8(current(&session)).expect("text");
     assert!(text.contains("\n\t16=none\n"), "16 is left as a tombstone");
-    assert!(megastructures(&session, SOL).iter().all(|m| m.id != 16));
+    assert!(megastructures(&session, ALARI).iter().all(|m| m.id != 16));
 
     session.apply(remove(17)).expect("take 17 out");
     assert_eq!(
@@ -255,7 +244,7 @@ fn an_added_row_gives_its_slot_back() {
 
 #[test]
 fn an_inverse_puts_back_the_ruin_flag_and_the_bypass() {
-    for op in [ruin(SOL, 2), free(1, "gateway_final", "gateway", true)] {
+    for op in [ruin(ALARI, 2), free(1, "gateway_final", "gateway", true)] {
         let mut session = open_4_5();
         let added = session.apply(op.clone()).expect("the add");
         let removed = session.apply(added.inverse).expect("the removal");
@@ -278,7 +267,7 @@ fn what_an_add_and_a_removal_refuse() {
     .op();
     let owned = Row {
         owner: Some(999),
-        ..body_row(SOL, "think_tank_3", 6)
+        ..body_row(ALARI, "think_tank_3", 6)
     }
     .op();
     let nan = Row {
@@ -314,23 +303,23 @@ fn what_an_add_and_a_removal_refuse() {
                 "a hyper_relay cannot be added there: it stands on or around a planet or star, and a free point has none",
             ),
             (nan, "value is not a finite number"),
-            (on_body(SOL, "", 6), "a megastructure type may not be empty"),
+            (
+                on_body(ALARI, "", 6),
+                "a megastructure type may not be empty",
+            ),
             (
                 remove(4),
                 "megastructure 4 was in the save when it was opened: only one added since then can be taken out again",
             ),
         ],
     );
-    let mut old = open_3_4();
-    let error = old.apply(nexus()).expect_err("a 3.4 save");
-    assert!(error.to_string().contains("3.4"), "{error}");
 }
 
 #[test]
 fn deleting_an_added_row_removes_it() {
     for op in [
-        nexus(),
-        ruin(SOL, 2),
+        sol_nexus(),
+        ruin(ALARI, 2),
         free(1, "gateway_final", "gateway", true),
     ] {
         let mut session = open_4_5();
@@ -467,493 +456,10 @@ fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
 #[test]
 fn a_flagged_add_is_read_back_by_its_removal() {
     let mut session = open_4_5();
-    session.apply(nexus()).expect("the Nexus");
+    session.apply(sol_nexus()).expect("the Nexus");
     let planet = entity_text(&session, EntityKind::Planet, 6);
     assert!(planet.contains("has_megastructure=62818656"), "{planet}");
     let removed = session.apply(remove(16)).expect("the removal");
-    assert_eq!(removed.inverse, nexus());
+    assert_eq!(removed.inverse, sol_nexus());
     assert_eq!(current(&session), session.doc().original());
-}
-
-/// Sol's bodies but its star, 0, and its colonised continental world, 2.
-const SOL_FURNACE_PLANETS: [u32; 13] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
-
-fn modifier(on: ModifierHost, modifier: &str) -> ConstructionModifier {
-    ConstructionModifier {
-        on,
-        modifier: modifier.to_owned(),
-        days: -1,
-    }
-}
-
-fn raise(variable: &str, by: u32) -> VariableRaise {
-    VariableRaise {
-        variable: variable.to_owned(),
-        by,
-    }
-}
-
-fn furnace_construction() -> MegastructureConstruction {
-    MegastructureConstruction {
-        modifiers: SOL_FURNACE_PLANETS
-            .iter()
-            .map(|&body| modifier(ModifierHost::Body { body }, "orbital_arc_furnace_4_mod"))
-            .collect(),
-        deposits: SOL_FURNACE_PLANETS
-            .iter()
-            .map(|&body| ConstructionDeposit {
-                body,
-                kind: "d_arc_furnace_4".to_owned(),
-            })
-            .collect(),
-        variables: vec![raise("arc_furnace_counter", 1)],
-    }
-}
-
-/// A finished Arc Furnace round Sol's molten planet 1, owned by country 0.
-fn furnace() -> Op {
-    with_construction(
-        Row {
-            owner: Some(0),
-            flag: true,
-            ..body_row(SOL, "orbital_arc_furnace_4", 1)
-        },
-        furnace_construction(),
-    )
-}
-
-/// A finished Dyson Swarm round Sol's star, owned by country 16, which has no `variables`.
-fn swarm() -> Op {
-    with_construction(
-        Row {
-            owner: Some(16),
-            flag: true,
-            ..body_row(SOL, "dyson_swarm_3", 0)
-        },
-        MegastructureConstruction {
-            modifiers: vec![modifier(
-                ModifierHost::Body { body: 0 },
-                "dyson_swarm_3_mod",
-            )],
-            deposits: Vec::new(),
-            variables: vec![raise("dyson_swarm_counter", 1)],
-        },
-    )
-}
-
-fn with_construction(row: Row<'_>, construction: MegastructureConstruction) -> Op {
-    match row.op() {
-        Op::AddMegastructure {
-            system,
-            kind,
-            name,
-            at,
-            owner,
-            bypass,
-            ruined_orbital_ring,
-            megastructure_flag,
-            orbital_flag,
-            star_only,
-            ..
-        } => Op::AddMegastructure {
-            system,
-            kind,
-            name,
-            at,
-            owner,
-            bypass,
-            ruined_orbital_ring,
-            megastructure_flag,
-            orbital_flag,
-            star_only,
-            construction: Some(construction),
-            left_out: 0,
-        },
-        other => other,
-    }
-}
-
-/// Country 0's `variables` starts with `astral_threads_scripted_rewards_mult`, so the
-/// counter goes first. Of the 13 planets, 1, 5, 8, 10, 11, 13 and 14 list deposits already.
-#[test]
-fn an_arc_furnace_writes_its_mining_bonus_deposits_and_counter() {
-    let mut session = open_4_5();
-    let result = snapshot_step(&mut session, "megastructure_furnace_constructed", furnace());
-    assert_eq!(
-        result.inverse,
-        Op::RemoveMegastructure {
-            megastructure: 16,
-            construction: Some(furnace_construction()),
-        }
-    );
-    let country = entity_text(&session, EntityKind::Country, 0);
-    assert!(
-        country.contains("arc_furnace_counter=1\n\t\t\tastral_threads_scripted_rewards_mult=1"),
-        "{country}"
-    );
-    for body in SOL_FURNACE_PLANETS {
-        let planet = entity_text(&session, EntityKind::Planet, body);
-        assert!(
-            planet.contains("orbital_arc_furnace_4_mod"),
-            "{body}: {planet}"
-        );
-    }
-
-    let removed = session.apply(remove(16)).expect("the removal");
-    assert_eq!(removed.inverse, furnace(), "read back from the add");
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// The add's inverse carries what it wrote; its inverse adds it all again, twice over.
-#[test]
-fn an_arc_furnace_and_its_inverse_undo_each_other_twice() {
-    let mut session = open_4_5();
-    let added = session.apply(furnace()).expect("the furnace").inverse;
-    let after_add = current(&session);
-    let removed = session.apply_inverse(added).expect("its inverse").inverse;
-    assert_eq!(current(&session), session.doc().original());
-    assert_eq!(removed, furnace());
-    let again = session.apply_inverse(removed).expect("added again").inverse;
-    assert_eq!(current(&session), after_add);
-    session.apply_inverse(again).expect("removed again");
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// Country 16 lists no variables, so it gains the block after its `flags`. Deleted, the
-/// added row goes as its removal does, whatever the dismantle says.
-#[test]
-fn a_dyson_swarm_writes_its_star_modifier_and_counter() {
-    let mut session = open_4_5();
-    snapshot_step(&mut session, "megastructure_swarm_constructed", swarm());
-    let deleted = session
-        .apply(Op::DeleteMegastructure {
-            megastructure: 16,
-            dismantle: Some(MegastructureDismantle {
-                modifiers: vec!["dyson_swarm_3_mod".to_owned()],
-                deposits: Vec::new(),
-                variables: vec![VariableDrop {
-                    variable: "dyson_swarm_counter".to_owned(),
-                    by: 1,
-                }],
-            }),
-        })
-        .expect("the delete");
-    assert_eq!(deleted.inverse, swarm());
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// A modifier on the system itself, and a counter the owner holds already at 0, which goes
-/// back to 0 rather than out.
-#[test]
-fn a_system_modifier_and_a_held_counter_are_taken_back_exactly() {
-    let seal = with_construction(
-        Row {
-            owner: Some(0),
-            bypass: None,
-            ..free_row(SOL, "shroud_seal", "", false)
-        },
-        MegastructureConstruction {
-            modifiers: vec![modifier(ModifierHost::System, "shroud_seal_modifier")],
-            deposits: Vec::new(),
-            variables: vec![raise("conquest_subjects", 2)],
-        },
-    );
-    round_trip(open_4_5(), seal.clone());
-    let mut session = open_4_5();
-    session.apply(seal.clone()).expect("the seal");
-    let system = entity_text(&session, EntityKind::System, SOL);
-    assert!(
-        system.contains("modifier=\"shroud_seal_modifier\""),
-        "{system}"
-    );
-    assert!(entity_text(&session, EntityKind::Country, 0).contains("conquest_subjects=2"));
-    let removed = session.apply(remove(16)).expect("the removal");
-    assert_eq!(removed.inverse, seal);
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// Planet 2 has `prosp_uni_mod` already, and Xu Nur's star 584 stands in another system.
-#[test]
-fn a_construction_the_add_cannot_write_is_refused() {
-    let built = |construction: MegastructureConstruction| {
-        with_construction(
-            Row {
-                owner: Some(0),
-                ..body_row(SOL, "orbital_arc_furnace_4", 1)
-            },
-            construction,
-        )
-    };
-    let modifiers = |on, name: &str, days| MegastructureConstruction {
-        modifiers: vec![ConstructionModifier {
-            on,
-            modifier: name.to_owned(),
-            days,
-        }],
-        ..MegastructureConstruction::default()
-    };
-    let unowned = with_construction(
-        body_row(SOL, "dyson_swarm_3", 0),
-        MegastructureConstruction {
-            variables: vec![raise("dyson_swarm_counter", 1)],
-            ..MegastructureConstruction::default()
-        },
-    );
-    let mut session = open_4_5();
-    assert_refusals(
-        &mut session,
-        [
-            (
-                built(modifiers(
-                    ModifierHost::Body { body: 2 },
-                    "prosp_uni_mod",
-                    -1,
-                )),
-                "a orbital_arc_furnace_4 cannot be added there: planet 2 already has modifier prosp_uni_mod",
-            ),
-            (
-                built(modifiers(ModifierHost::System, "shroud_seal_modifier", 0)),
-                "a orbital_arc_furnace_4 cannot be added there: modifier shroud_seal_modifier would last 0 days",
-            ),
-            (
-                built(modifiers(
-                    ModifierHost::Body { body: 584 },
-                    "dyson_swarm_3_mod",
-                    -1,
-                )),
-                "planet 584 is not a body of system 169",
-            ),
-            (
-                unowned,
-                "a dyson_swarm_3 cannot be added there: variable dyson_swarm_counter needs an owner to count it",
-            ),
-        ],
-    );
-}
-
-/// Planet 12 deleted after the furnace is added leaves its added deposit behind, as the
-/// game leaves a deleted body's deposits; the furnace's removal finds it by its holder and
-/// takes it back with the other twelve, and the modifier went with the planet.
-#[test]
-fn a_furnace_removed_after_a_body_takes_back_the_deleted_bodys_deposit() {
-    let mut session = open_4_5();
-    session.apply(furnace()).expect("the furnace");
-    let after_add = current(&session);
-    session
-        .apply(Op::DeleteBody { body: 12 })
-        .expect("planet 12");
-    let removed = session.apply(remove(16)).expect("the removal");
-    let Op::AddMegastructure {
-        construction: Some(taken),
-        ..
-    } = &removed.inverse
-    else {
-        panic!("{:?}", removed.inverse);
-    };
-    assert_eq!(taken.deposits.len(), 13, "{:?}", taken.deposits);
-    assert_eq!(taken.modifiers.len(), 12, "{:?}", taken.modifiers);
-    assert!(
-        removed
-            .entry
-            .description
-            .ends_with(", with 12 modifiers, 13 deposits and 1 counter"),
-        "{}",
-        removed.entry.description
-    );
-    session.undo().expect("undo the removal");
-    let after_delete = current(&session);
-    session.undo().expect("undo the delete");
-    assert_eq!(current(&session), after_add);
-    session.redo().expect("redo the delete");
-    session.redo().expect("redo the removal");
-    session
-        .apply_inverse(removed.inverse.clone())
-        .expect("the removal's inverse adds the deleted body's deposit back");
-    let back = entity_text(&session, EntityKind::Planet, 12);
-    assert_eq!(
-        back.trim(),
-        "12=none",
-        "the deleted body is not listed again"
-    );
-    session.undo().expect("undo the inverse");
-    session.undo().expect("undo the removal");
-    assert_eq!(current(&session), after_delete);
-    session.undo().expect("undo the delete");
-    session.undo().expect("undo the add");
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// Planet 12's `coordinate` has no `origin`, so the removal cannot tell where it stands.
-/// It stops there instead of leaving the planet's modifier behind.
-#[test]
-fn a_removal_stops_on_a_planet_it_cannot_read() {
-    let mut session = common::open_edited_sample(common::SAMPLE_4_5, |gamestate, _| {
-        let from = "x=-165.3322\n\t\t\t\ty=-59.0354\n\t\t\t\torigin=169\n";
-        assert!(gamestate.contains(from));
-        *gamestate = gamestate.replacen(from, "x=-165.3322\n\t\t\t\ty=-59.0354\n", 1);
-    });
-    session
-        .apply(body_row(SOL, "think_tank_3", 6).op())
-        .expect("the nexus");
-    let refused = session
-        .apply_inverse(Op::RemoveMegastructure {
-            megastructure: 16,
-            construction: Some(MegastructureConstruction {
-                modifiers: vec![modifier(
-                    ModifierHost::Body { body: 12 },
-                    "orbital_arc_furnace_4_mod",
-                )],
-                ..MegastructureConstruction::default()
-            }),
-        })
-        .expect_err("planet 12 cannot be read");
-    assert!(refused.to_string().contains("origin"), "{refused}");
-}
-
-/// A furnace added and deleted in one batch: the delete finds what the add earlier in the
-/// batch wrote, and takes it all back.
-#[test]
-fn a_furnace_added_and_deleted_in_one_batch_leaves_nothing() {
-    let mut session = open_4_5();
-    session
-        .apply(Op::Batch {
-            description: "Added and deleted a furnace".to_owned(),
-            ops: vec![
-                furnace(),
-                Op::DeleteMegastructure {
-                    megastructure: 16,
-                    dismantle: None,
-                },
-            ],
-        })
-        .expect("the batch");
-    let after = current(&session);
-    assert_eq!(after, session.doc().original());
-    session.undo().expect("undo the batch");
-    assert_eq!(current(&session), session.doc().original());
-    session.redo().expect("redo the batch");
-    assert_eq!(current(&session), after);
-}
-
-/// The furnace's add undone and redone through the history still knows what it wrote, so
-/// deleting the row afterwards takes it all back.
-#[test]
-fn an_added_furnace_redone_is_deleted_with_its_construction() {
-    let mut session = open_4_5();
-    session.apply(furnace()).expect("the furnace");
-    session.undo().expect("undo");
-    session.redo().expect("redo");
-    let deleted = session
-        .apply(Op::DeleteMegastructure {
-            megastructure: 16,
-            dismantle: None,
-        })
-        .expect("the delete");
-    assert_eq!(deleted.inverse, furnace());
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// A deposit added after the furnace takes the id past the furnace's thirteen, so taking
-/// the furnace out frees ids below a live one. Undo and redo put back each state byte for
-/// byte.
-#[test]
-fn a_deposit_added_after_a_furnace_survives_its_removal_and_undo() {
-    let mut session = open_4_5();
-    session.apply(furnace()).expect("the furnace");
-    session
-        .apply(Op::AddDeposit {
-            body: 2,
-            kind: "d_minerals_1".to_owned(),
-        })
-        .expect("the deposit");
-    let with_deposit = current(&session);
-    session.apply(remove(16)).expect("the removal");
-    let removed = current(&session);
-    assert!(
-        entity_text(&session, EntityKind::Planet, 2).contains("deposits"),
-        "the added deposit stays listed"
-    );
-    session.undo().expect("undo the removal");
-    assert_eq!(current(&session), with_deposit);
-    session.redo().expect("redo the removal");
-    assert_eq!(current(&session), removed);
-    session.undo().expect("undo the removal");
-    session.undo().expect("undo the deposit");
-    session.undo().expect("undo the furnace");
-    assert_eq!(current(&session), session.doc().original());
-}
-
-/// A Yggdrasil Orchid's last stage makes its gas giant a food giant as it finishes. Added
-/// with that change, Sol's gas giant 6 changes class and takes the row in one edit, named as
-/// the session names it, and undo gives the bytes back. The class goes first: the class op refuses a planet that has a
-/// megastructure, which the game's own order, row first, would meet. Added without the
-/// change, only the row is written and the planet stays a gas giant.
-#[test]
-fn a_megastructure_that_changes_its_planet_is_added_with_the_change_in_one_edit() {
-    let rule = |class: &str, models| PlanetClassRule {
-        class: class.to_owned(),
-        change: ClassChange::Uncolonised,
-        models,
-    };
-    let change = Op::SetBodyClass {
-        body: 6,
-        from: rule("pc_gas_giant", 5),
-        to: rule("pc_food_giant", 1),
-        look: None,
-    };
-    let add = on_body(SOL, "yggdrasil_orchid_3", 6);
-    let said = |class: Option<&str>, size: Option<u32>| {
-        open_4_5()
-            .megastructure_planet_change_description("Yggdrasil Orchid", 6, class, size)
-            .expect("planet 6")
-    };
-    let description = said(Some("Food Giant"), None);
-    assert_eq!(
-        description, "Added the Yggdrasil Orchid at planet #6 and made it a Food Giant",
-        "a planet whose name reads as no name is called by its id"
-    );
-    assert_eq!(
-        said(Some("Food Giant"), Some(6)),
-        "Added the Yggdrasil Orchid at planet #6 and made it a Food Giant and size 6"
-    );
-    assert_eq!(
-        said(None, Some(6)),
-        "Added the Yggdrasil Orchid at planet #6 and made it size 6"
-    );
-    assert_eq!(
-        said(Some("Ocean World"), None),
-        "Added the Yggdrasil Orchid at planet #6 and made it an Ocean World"
-    );
-    let batch = |ops: Vec<Op>| Op::Batch {
-        description: description.clone(),
-        ops,
-    };
-    round_trip(open_4_5(), batch(vec![change.clone(), add.clone()]));
-
-    let mut changed = open_4_5();
-    changed
-        .apply(batch(vec![change.clone(), add.clone()]))
-        .expect("the Orchid and its food giant");
-    let planet = entity_text(&changed, EntityKind::Planet, 6);
-    assert!(
-        planet.contains("planet_class=\"pc_food_giant\""),
-        "{planet}"
-    );
-    assert!(planet.contains("megastructure=16"), "{planet}");
-    assert_eq!(changed.history().undo.len(), 1, "one edit");
-    assert_eq!(changed.history().undo[0].description, description);
-
-    let mut kept = open_4_5();
-    kept.apply(add.clone()).expect("the Orchid alone");
-    let planet = entity_text(&kept, EntityKind::Planet, 6);
-    assert!(planet.contains("planet_class=\"pc_gas_giant\""), "{planet}");
-    assert!(planet.contains("megastructure=16"), "{planet}");
-
-    assert_refusals(
-        &mut open_4_5(),
-        [(
-            batch(vec![add, change]),
-            "planet 6 has a megastructure, so it keeps its class",
-        )],
-    );
 }

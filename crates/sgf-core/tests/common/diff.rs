@@ -15,7 +15,7 @@ use similar::{Algorithm, ChangeTag, TextDiff};
 
 use super::fixture::from_scenario_text;
 use super::line_diff::{line_diff, middle, renumbered};
-use super::{current, issues_at_open, reprojected};
+use super::{current, holds, issues_at_open, reprojected};
 
 /// Description, the systems the op touched, the inverse, the issues that name one of
 /// those systems or the galaxy as a whole and were not there, word for word, when the
@@ -37,7 +37,7 @@ fn report_head(session: &Session, result: &OpResult) -> String {
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
     writeln!(out, "touched: {:?}", result.touched).unwrap();
-    writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
+    writeln!(out, "inverse: {}", inverse_text(&result.inverse)).unwrap();
     let mut others = 0;
     for issue in &result.issues {
         let about_the_galaxy = issue.systems.is_empty();
@@ -58,7 +58,7 @@ fn report_head(session: &Session, result: &OpResult) -> String {
 pub fn plain_report(session: &Session, result: &OpResult) -> String {
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
-    writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
+    writeln!(out, "inverse: {}", inverse_text(&result.inverse)).unwrap();
     write!(out, "{}", unified_diff(session, None)).unwrap();
     write!(out, "{}", meta_diff(session)).unwrap();
     out
@@ -87,7 +87,7 @@ pub fn step_report(session: &mut Session, op: Op) -> String {
     let after = String::from_utf8_lossy(&current(session)).into_owned();
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
-    writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
+    writeln!(out, "inverse: {}", inverse_text(&result.inverse)).unwrap();
     if !result.renumbered.is_empty() {
         writeln!(out, "renumbered: {:?}", result.renumbered).unwrap();
     }
@@ -143,10 +143,8 @@ pub fn snapshot_step(session: &mut Session, name: &str, op: Op) -> OpResult {
 /// [`round_trip_step`]. The second undo too puts back the bytes and the galaxy the
 /// session was opened with, and leaves nothing in the overlay.
 pub fn round_trip(mut session: Session, op: Op) {
-    let original = session.doc().original().to_vec();
-    assert_eq!(
-        current(&session),
-        original,
+    assert!(
+        holds(&session, session.doc().original()),
         "a round trip starts from the document as it was opened"
     );
     let opened = GalaxyView::from(session.graph());
@@ -155,9 +153,8 @@ pub fn round_trip(mut session: Session, op: Op) {
     round_trip_step(&mut session, &label, op);
 
     session.undo().expect("undo again").expect("an op to undo");
-    assert_eq!(
-        current(&session),
-        original,
+    assert!(
+        holds(&session, session.doc().original()),
         "{label}: the second undo drifted"
     );
     assert_eq!(
@@ -202,9 +199,8 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
 
     let undone = session.undo().expect("undo").expect("an op to undo");
     assert_eq!(undone.entry.description, applied.entry.description);
-    assert_eq!(
-        current(session),
-        before,
+    assert!(
+        holds(session, &before),
         "{label}: undo is not byte-identical"
     );
     assert_eq!(
@@ -226,9 +222,8 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
 
     let redone = session.redo().expect("redo").expect("an op to redo");
     assert_eq!(redone.entry.description, applied.entry.description);
-    assert_eq!(
-        current(session),
-        edited,
+    assert!(
+        holds(session, &edited),
         "{label}: redo wrote different bytes"
     );
     assert_eq!(
@@ -467,6 +462,40 @@ fn blocks(index: &Index, bytes: &[u8], key: &str) -> Vec<Range<usize>> {
 
 fn within(ranges: &[Range<usize>], line: usize) -> bool {
     ranges.iter().any(|range| range.contains(&line))
+}
+
+/// `op` as the reports print an inverse: its debug form, but a `RestoreEntities` as its
+/// description and one `table id (n bytes)` line per entity, alone or in a batch.
+fn inverse_text(op: &Op) -> String {
+    match op {
+        Op::RestoreEntities {
+            description,
+            entities,
+        } => {
+            let mut out = format!("RestoreEntities {description:?}");
+            for entity in entities {
+                let bytes = entity.text.len();
+                write!(out, "\n  {:?} {} ({bytes} bytes)", entity.table, entity.id).unwrap();
+            }
+            out
+        }
+        Op::Batch { description, ops } if ops.iter().any(restores) => {
+            let mut out = format!("Batch {description:?}");
+            for op in ops {
+                write!(out, "\n  {}", inverse_text(op).replace('\n', "\n  ")).unwrap();
+            }
+            out
+        }
+        other => steady(&format!("{other:?}")),
+    }
+}
+
+fn restores(op: &Op) -> bool {
+    match op {
+        Op::RestoreEntities { .. } => true,
+        Op::Batch { ops, .. } => ops.iter().any(restores),
+        _ => false,
+    }
 }
 
 /// `debug` with every number of more than nine decimals rounded to nine: a radius computed with

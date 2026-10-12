@@ -8,7 +8,8 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::current;
-use common::fixture::{EXPORTED, PAINTED, from_scenario_text};
+use common::examples::{self, one_of_each};
+use common::fixture::{EXPORTED, from_scenario_text};
 use common::paint::zone;
 
 fn to_crlf(bytes: &[u8]) -> Vec<u8> {
@@ -127,7 +128,8 @@ fn linked_pair(session: &Session) -> (u32, u32) {
         .expect("two systems with a lane")
 }
 
-/// The ops any scenario takes that insert or remove lines.
+/// The ops any scenario takes that insert or remove lines, in the sequences the exported
+/// scenario is checked with.
 fn common_ops(session: &Session) -> Vec<(&'static str, Vec<Op>)> {
     let ids = session.graph().order.clone();
     let next = session.graph().systems.keys().max().unwrap() + 1;
@@ -268,14 +270,17 @@ fn an_exported_scenario_with_windows_line_endings_keeps_them() {
 }
 
 #[test]
-fn a_painted_scenario_with_windows_line_endings_keeps_them() {
-    let session = PAINTED.open();
-    for (label, ops) in common_ops(&session) {
-        crlf_matches_lf(label, &PAINTED.bytes(), ops);
+fn every_scenario_op_keeps_windows_line_endings() {
+    let original = current(&examples::scenario());
+    for example in one_of_each() {
+        let name = example.name();
+        if let Some(op) = example.scenario {
+            crlf_matches_lf(name, &original, vec![op]);
+        }
     }
     crlf_matches_lf(
         "spawn scripts",
-        &PAINTED.bytes(),
+        &original,
         vec![
             Op::SetSpawnScript {
                 system: 10,
@@ -289,7 +294,7 @@ fn a_painted_scenario_with_windows_line_endings_keeps_them() {
     );
     crlf_matches_lf(
         "fallen empire zones and links",
-        &PAINTED.bytes(),
+        &original,
         vec![
             Op::SetFeLinks {
                 anchor: 9,

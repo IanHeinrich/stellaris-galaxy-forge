@@ -7,6 +7,7 @@ use sgf_core::ops::{
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
+use std::sync::{LazyLock, Mutex, MutexGuard};
 use strum::VariantNames;
 
 use super::fixture::PAINTED;
@@ -131,13 +132,21 @@ pub fn save() -> Session {
 /// The sample save with Dorellion added as system 791, which only the removal of a system
 /// added in the session needs.
 pub fn save_with_added() -> Session {
-    let mut session = open();
-    session
-        .apply(Op::AddSystemFromSpec {
-            spec: super::spec::dorellion(),
-        })
-        .expect("add Dorellion");
-    session
+    static ADDED: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        let mut session = open();
+        session
+            .apply(Op::AddSystemFromSpec {
+                spec: super::spec::dorellion(),
+            })
+            .expect("add Dorellion");
+        Mutex::new(session)
+    });
+    held(&ADDED).clone()
+}
+
+/// What `cell` holds, which each binary builds once.
+fn held<T>(cell: &'static LazyLock<Mutex<T>>) -> MutexGuard<'static, T> {
+    cell.lock().unwrap_or_else(|held| held.into_inner())
 }
 
 /// The 4.5 sample, which the save examples that need its six-entry flag colours apply to.
@@ -147,16 +156,22 @@ pub fn save_4_5() -> Session {
 
 /// The 4.5 sample with [`meissa_v`] added to Meissa as planet [`ADDED_BODY`].
 pub fn save_4_5_with_added_body() -> Session {
-    let mut session = save_4_5();
-    session.apply(meissa_v()).expect("add Meissa V");
-    session
+    static ADDED: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        let mut session = save_4_5();
+        session.apply(meissa_v()).expect("add Meissa V");
+        Mutex::new(session)
+    });
+    held(&ADDED).clone()
 }
 
 /// The 4.5 sample with [`sol_nexus`] added as row [`ADDED_MEGASTRUCTURE`].
 pub fn save_4_5_with_added_megastructure() -> Session {
-    let mut session = save_4_5();
-    session.apply(sol_nexus()).expect("add the Science Nexus");
-    session
+    static ADDED: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        let mut session = save_4_5();
+        session.apply(sol_nexus()).expect("add the Science Nexus");
+        Mutex::new(session)
+    });
+    held(&ADDED).clone()
 }
 
 /// The id the 4.5 sample's first added megastructure takes: the slot past its highest, 15.
@@ -451,22 +466,25 @@ pub fn chors_ring(owner: Option<u32>) -> Op {
     }
 }
 
-/// The 4.5 sample with [`chors_ring`] added for country 0, and the op that takes it out.
-pub fn save_4_5_with_added_ring_world() -> Session {
+/// The 4.5 sample with [`chors_ring`] added for country 0, and the op that takes it out,
+/// built once per binary.
+static ADDED_RING_WORLD: LazyLock<Mutex<(Session, Op)>> = LazyLock::new(|| {
     let mut session = save_4_5();
-    session
+    let removal = session
         .apply(chors_ring(Some(0)))
-        .expect("add the ring world");
-    session
+        .expect("add the ring world")
+        .inverse;
+    Mutex::new((session, removal))
+});
+
+/// The 4.5 sample with [`chors_ring`] added for country 0.
+pub fn save_4_5_with_added_ring_world() -> Session {
+    held(&ADDED_RING_WORLD).0.clone()
 }
 
 /// The inverse of [`chors_ring`] for country 0 on the 4.5 sample.
 pub fn chors_ring_removal() -> Op {
-    let mut session = save_4_5();
-    session
-        .apply(chors_ring(Some(0)))
-        .expect("add the ring world")
-        .inverse
+    held(&ADDED_RING_WORLD).1.clone()
 }
 
 /// The id the 4.5 sample's first added planet takes: dead slot 57, one generation on.

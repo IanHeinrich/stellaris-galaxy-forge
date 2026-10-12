@@ -11,7 +11,7 @@ use crate::common;
 use common::diff::snapshot_step;
 use common::{current, open, open_3_4, open_4_5};
 
-/// Gas giant 10 of Alaria (169) has moons 11, 12 and 13, a deposit and the extensive moon
+/// Gas giant 10 of Alari (169) has moons 11, 12 and 13, a deposit and the extensive moon
 /// system feature with no timed item. Kazam (216) has 14 bodies and nobody's colony.
 const GIANT: u32 = 10;
 const KAZAM: u32 = 216;

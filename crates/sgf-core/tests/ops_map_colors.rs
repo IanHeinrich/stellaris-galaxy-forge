@@ -8,7 +8,7 @@ use sgf_core::projections::galaxy::CountryNode;
 
 use crate::common;
 use common::diff::snapshot_step;
-use common::{current, meta_flag, names, open, open_4_5, reprojected};
+use common::{assert_country_edit, meta_flag, names, open, open_4_5};
 
 /// The player empire, created with Independent Map Color on.
 const PLAYER: u32 = 0;
@@ -49,36 +49,9 @@ fn change(
     };
     let mut session = open_4_5();
     let result = snapshot_step(&mut session, snapshot, op);
-    assert_eq!(
-        country(&session.graph().countries, id),
-        expected,
-        "{snapshot}"
-    );
-    assert_eq!(
-        country(&reprojected(&session).countries, id),
-        expected,
-        "{snapshot}: reload"
-    );
-    let edit = session.edit_result(result.clone());
-    assert_eq!(
-        country(&edit.delta.countries, id),
-        expected,
-        "{snapshot}: reaches the app"
-    );
     assert_eq!(result.inverse, inverse, "{snapshot}");
-    let edited_meta = session.doc().meta().to_vec();
-    session.apply(result.inverse).expect("apply the inverse");
-    assert_eq!(
-        current(&session),
-        session.doc().original(),
-        "{snapshot}: the inverse"
-    );
-    assert_eq!(
-        session.doc().meta(),
-        session.doc().original_meta(),
-        "{snapshot}: the inverse puts meta back"
-    );
-    edited_meta
+    let read = |countries: &[CountryNode]| country(countries, id);
+    assert_country_edit(session, result, read, &expected, snapshot)
 }
 
 #[test]

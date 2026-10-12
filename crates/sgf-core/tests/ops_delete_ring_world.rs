@@ -11,11 +11,9 @@ use crate::ops_bodies::{move_body, set_parent};
 use crate::ops_move_planet::move_planet;
 use crate::ops_remove_planet::footprint;
 use common::diff::{round_trip, snapshot_step};
+use common::edit::{insert_after, megastructure_row, open_4_5_edited, system_text};
 use common::examples::titanic_ring;
-use common::{
-    SAMPLE_4_5, assert_refusals, current, entity_text, open, open_3_4, open_4_5,
-    open_edited_sample, reopened,
-};
+use common::{assert_refusals, current, entity_text, open, open_4_5, reopened};
 
 /// Lachium, 4.5: two ruined sections, six segments with colony 25 of pre-FTL country 42 on
 /// planet 2447, and the Interloper at orbit 40, which is no segment.
@@ -42,27 +40,6 @@ fn delete_at(system: u32, radius: f64) -> Op {
         system,
         radius: Some(radius),
     }
-}
-
-/// `text` with `insert` written after the last of `anchors`, each found after the one
-/// before.
-fn insert_after(text: &mut String, anchors: &[&str], insert: &str) {
-    let mut at = 0;
-    for anchor in anchors {
-        at += text[at..]
-            .find(anchor)
-            .unwrap_or_else(|| panic!("{anchor:?}"))
-            + anchor.len();
-    }
-    text.insert_str(at, insert);
-}
-
-fn edited_4_5(edit: impl FnOnce(&mut String)) -> Session {
-    open_edited_sample(SAMPLE_4_5, |gamestate, _| edit(gamestate))
-}
-
-fn system_text(session: &Session, system: u32) -> String {
-    entity_text(session, EntityKind::System, system)
 }
 
 #[test]
@@ -154,18 +131,14 @@ fn a_radius_picks_one_ring() {
 /// The 4.5 sample with Lachium's star 2444 given `has_megastructure`; with `swarm`, a Dyson
 /// Swarm row 16 of the system names the star.
 fn flagged_star(swarm: bool) -> Session {
-    edited_4_5(|text| {
+    open_4_5_edited(|text| {
         insert_after(
             text,
             &["\n\t\t2444=\n\t\t{\n", "\t\t\tflags=\n\t\t\t{\n"],
             "\t\t\t\thas_megastructure=62808000\n",
         );
         if swarm {
-            insert_after(
-                text,
-                &["\nmegastructures=\n{\n", "\t16777231=none\n"],
-                "\t16=\n\t{\n\t\ttype=\"dyson_swarm_1\"\n\t\tcoordinate=\n\t\t{\n\t\t\tx=0\n\t\t\ty=0\n\t\t\torigin=203\n\t\t}\n\t\tplanet=2444\n\t\torbitals=\n\t\t{\n\t\t}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}\n",
-            );
+            megastructure_row(text, 16, "dyson_swarm_1", LACHIUM, "\t\tplanet=2444\n");
             insert_after(
                 text,
                 &["\ngalactic_object=\n{\n", "\n\t203=\n\t{\n", "\t\t\t10 11 "],
@@ -250,25 +223,13 @@ fn deleting_one_of_two_rings_keeps_the_others_flags() {
     assert!(star.contains("has_megastructure="), "{star}");
 }
 
-#[test]
-fn the_inverse_of_the_inverse_deletes_again() {
-    let mut session = open_4_5();
-    let result = session.apply(delete(LACHIUM)).expect("delete");
-    let edited = current(&session);
-    let restored = session.apply_inverse(result.inverse).expect("restore");
-    session
-        .apply_inverse(restored.inverse)
-        .expect("delete again");
-    assert_eq!(current(&session), edited);
-}
-
 /// Segment 2446 of Lachium names no megastructure row of its own.
 const SEGMENT_2446_STAYS: &str =
     "planet 2446 is part of a ring world, so it cannot be moved or copied on its own";
 
 #[test]
 fn what_is_refused() {
-    let mut ownerless = edited_4_5(|text| {
+    let mut ownerless = open_4_5_edited(|text| {
         let owned = "\t\t\towner=42\n\t\t\toriginal_owner=42\n";
         let at = text.find("\n\t\t2447=\n\t\t{\n").expect("planet 2447");
         let at = at + text[at..].find(owned).expect("its owner");
@@ -319,19 +280,12 @@ fn what_is_refused() {
     );
     let error = open_4_5().copy_bodies(&[2446]).expect_err("a segment");
     assert_eq!(error.to_string(), SEGMENT_2446_STAYS);
-    assert_refusals(
-        &mut open_3_4(),
-        [(
-            delete(0),
-            "this edit needs a save from Stellaris 4.0 or later, not Cepheus v3.4.5",
-        )],
-    );
 }
 
 /// The 4.5 sample with Ithomes Gate's three habitats named by their hosts' flags, as a built
 /// habitat's host is, and the system's `has_habitat`.
 fn flagged_habitats() -> Session {
-    edited_4_5(|text| {
+    open_4_5_edited(|text| {
         for (host, habitat) in [(6267, 6268), (6269, 6270), (6271, 6272)] {
             insert_after(
                 text,

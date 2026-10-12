@@ -9,9 +9,9 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
+use common::edit::{insert_after, megastructure_row, open_4_5_edited};
 use common::{
-    SAMPLE, SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5,
-    open_edited_sample, text,
+    SAMPLE, assert_refusals, current, entity_text, holds, open_4_5, open_edited_sample, text,
 };
 
 fn delete(megastructure: u32) -> Op {
@@ -21,28 +21,11 @@ fn delete(megastructure: u32) -> Op {
     }
 }
 
-/// The 4.5 sample with `edit` applied to its gamestate.
-fn edited_4_5(edit: impl FnOnce(&mut String)) -> Session {
-    open_edited_sample(SAMPLE_4_5, |gamestate, _| edit(gamestate))
-}
-
-/// `text` with `insert` written after the first `after` that follows `from`.
-fn insert_after(text: &mut String, from: &str, after: &str, insert: &str) {
-    let start = text.find(from).unwrap_or_else(|| panic!("{from:?}"));
-    let at = start
-        + text[start..]
-            .find(after)
-            .unwrap_or_else(|| panic!("{after:?}"))
-        + after.len();
-    text.insert_str(at, insert);
-}
-
 /// Row `id` of the top-level `megastructures` given `save_on_death=1`.
 fn save_on_death(text: &mut String, id: u32) {
     insert_after(
         text,
-        "\nmegastructures=\n{\n",
-        &format!("\n\t{id}=\n\t{{\n"),
+        &["\nmegastructures=\n{\n", &format!("\n\t{id}=\n\t{{\n")],
         "\t\tsave_on_death=1\n",
     );
 }
@@ -90,7 +73,7 @@ fn a_ruin_on_a_star_and_an_owned_seal_leave_their_lists() {
 
 #[test]
 fn a_row_saved_on_death_is_logged_in_the_dead_table() {
-    let mut session = edited_4_5(|text| save_on_death(text, 2));
+    let mut session = open_4_5_edited(|text| save_on_death(text, 2));
     snapshot_step(&mut session, "logged", delete(2));
     let text = text(&session);
     assert!(
@@ -108,26 +91,28 @@ fn an_empty_dead_table_gets_both_blocks() {
 /// The 4.5 sample with a cosmogenesis world row 16 tied to planet 517, which holds colony
 /// 18; with `made`, the planet has the flag a body the structure made has.
 fn on_colony(made: bool) -> Session {
-    edited_4_5(|text| {
+    open_4_5_edited(|text| {
         insert_after(
             text,
-            "\n\t\t517=\n\t\t{\n",
-            "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+            &[
+                "\n\t\t517=\n\t\t{\n",
+                "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+            ],
             "\t\t\tmegastructure=16\n",
         );
         if made {
             insert_after(
                 text,
-                "\n\t\t517=\n\t\t{\n",
-                "\t\t\tflags=\n\t\t\t{\n",
+                &["\n\t\t517=\n\t\t{\n", "\t\t\tflags=\n\t\t\t{\n"],
                 "\t\t\t\tmegastructure=62808000\n",
             );
         }
-        insert_after(
+        megastructure_row(
             text,
-            "\nmegastructures=\n{\n",
-            "\t16777231=none\n",
-            "\t16=\n\t{\n\t\ttype=\"cosmogenesis_world_0\"\n\t\tcoordinate=\n\t\t{\n\t\t\tx=36.6864\n\t\t\ty=114.372\n\t\t\torigin=174\n\t\t}\n\t\towner=11\n\t\tplanet=517\n\t\torbitals=\n\t\t{\n\t\t}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}\n",
+            16,
+            "cosmogenesis_world_0",
+            174,
+            "\t\towner=11\n\t\tplanet=517\n",
         );
     })
 }
@@ -168,18 +153,11 @@ fn what_is_refused() {
             (delete(999), "Megastructure 999 does not exist"),
         ],
     );
-    assert_refusals(
-        &mut open_3_4(),
-        [(
-            delete(0),
-            "this edit needs a save from Stellaris 4.0 or later, not Cepheus v3.4.5",
-        )],
-    );
 }
 
 #[test]
 fn a_ring_world_quadrant_is_refused() {
-    let mut session = edited_4_5(|text| {
+    let mut session = open_4_5_edited(|text| {
         let ruined = "
 	4=
 	{
@@ -200,56 +178,29 @@ fn a_ring_world_quadrant_is_refused() {
     );
 }
 
-#[test]
-fn the_inverse_of_the_inverse_deletes_again() {
-    let mut session = open_4_5();
-    let result = session.apply(delete(6)).expect("delete");
-    let edited = current(&session);
-    let restored = session.apply_inverse(result.inverse).expect("restore");
-    session
-        .apply_inverse(restored.inverse)
-        .expect("delete again");
-    assert_eq!(current(&session), edited);
-}
-
-/// A row of `megastructures` tied to nothing, `kind` in `system`, written after the last.
-fn row(text: &mut String, id: u32, kind: &str, system: u32, tie: &str) {
-    insert_after(
-        text,
-        "\nmegastructures=\n{\n",
-        "\t16777231=none\n",
-        &format!(
-            "\t{id}=\n\t{{\n\t\ttype=\"{kind}\"\n\t\tcoordinate=\n\t\t{{\n\t\t\tx=10\n\t\t\ty=20\n\t\t\torigin={system}\n\t\t}}\n{tie}\t\torbitals=\n\t\t{{\n\t\t}}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}}\n"
-        ),
-    );
-}
-
 /// The 4.5 sample with Arc Furnace row 16 around planet 517, which keeps its other flags;
 /// with `another`, row 17 names the planet too.
 fn furnace(another: bool) -> Session {
-    edited_4_5(|text| {
+    open_4_5_edited(|text| {
         let planet = "\n\t\t517=\n\t\t{\n";
         insert_after(
             text,
-            planet,
-            "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+            &[planet, "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n"],
             "\t\t\tmegastructure=16\n",
         );
         insert_after(
             text,
-            planet,
-            "\t\t\tflags=\n\t\t\t{\n",
+            &[planet, "\t\t\tflags=\n\t\t\t{\n"],
             "\t\t\t\thas_megastructure=62808000\n\t\t\t\thas_arc_furnace=62808000\n",
         );
         insert_after(
             text,
-            planet,
-            "\t\t\tentity=2\n",
+            &[planet, "\t\t\tentity=2\n"],
             "\t\t\tentity_name=\"invisible_turret_entity\"\n",
         );
-        row(text, 16, "orbital_arc_furnace_4", 174, "\t\tplanet=517\n");
+        megastructure_row(text, 16, "orbital_arc_furnace_4", 174, "\t\tplanet=517\n");
         if another {
-            row(text, 17, "orbital_ring_tier_1", 174, "\t\tplanet=517\n");
+            megastructure_row(text, 17, "orbital_ring_tier_1", 174, "\t\tplanet=517\n");
         }
     })
 }
@@ -280,14 +231,14 @@ fn a_planet_another_row_names_keeps_its_flags_and_model() {
 /// The 4.5 sample with Hyper Relays 16, 17 and 18 in systems 0, 148 and 358, their relay
 /// bypasses 23, 24 and 25 linked in a chain through 24.
 fn relays() -> Session {
-    edited_4_5(|text| {
+    open_4_5_edited(|text| {
         let relays = [
             (16, 0, 23, "24 "),
             (17, 148, 24, "23 25 "),
             (18, 358, 25, "24 "),
         ];
         for (id, system, bypass, linked) in relays {
-            row(
+            megastructure_row(
                 text,
                 id,
                 "hyper_relay",
@@ -296,8 +247,7 @@ fn relays() -> Session {
             );
             insert_after(
                 text,
-                "\ngalactic_object=\n{\n",
-                &format!("\n\t{system}=\n\t{{\n"),
+                &["\ngalactic_object=\n{\n", &format!("\n\t{system}=\n\t{{\n")],
                 &format!(
                     "\t\tmegastructures=\n\t\t{{\n\t\t\t{id} \n\t\t}}\n\t\tbypasses=\n\t\t{{\n\t\t\t{bypass} \n\t\t}}\n"
                 ),
@@ -323,12 +273,14 @@ fn a_hyper_relay_leaves_the_relay_network() {
 
 #[test]
 fn a_megastructure_key_naming_no_row_refuses_nothing() {
-    let session = edited_4_5(|text| {
+    let session = open_4_5_edited(|text| {
         for (planet, row) in [(99, 14), (517, 999)] {
             insert_after(
                 text,
-                &format!("\n\t\t{planet}=\n\t\t{{\n"),
-                "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+                &[
+                    &format!("\n\t\t{planet}=\n\t\t{{\n"),
+                    "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+                ],
                 &format!("\t\t\tmegastructure={row}\n"),
             );
         }
@@ -339,11 +291,10 @@ fn a_megastructure_key_naming_no_row_refuses_nothing() {
 
 #[test]
 fn a_row_mid_upgrade_goes_with_its_upgrade() {
-    let mut session = edited_4_5(|text| {
+    let mut session = open_4_5_edited(|text| {
         insert_after(
             text,
-            "\nmegastructures=\n{\n",
-            "\n\t2=\n\t{\n",
+            &["\nmegastructures=\n{\n", "\n\t2=\n\t{\n"],
             "\t\tupgrade=\n\t\t{\n\t\t\tupgrade_to=\"shroud_seal_2\"\n\t\t\tprogress=461\n\t\t\thalted=0\n\t\t\tindefinitely_halted=no\n\t\t}\n",
         );
     });
@@ -384,8 +335,10 @@ fn modifiers_block(modifiers: &[&str]) -> String {
 fn after_bombardment(text: &mut String, planet: u32, block: &str) {
     insert_after(
         text,
-        &format!("\n\t\t{planet}=\n\t\t{{\n"),
-        "\t\t\tbombardment_damage=0\n",
+        &[
+            &format!("\n\t\t{planet}=\n\t\t{{\n"),
+            "\t\t\tbombardment_damage=0\n",
+        ],
         block,
     );
 }
@@ -428,21 +381,19 @@ country=
 /// furnace's modifier on 514, 515 and 517, which keeps a modifier of its own, deposit 790
 /// of 517's eleven and 802, 520's only one, made furnace deposits, and the owner's counter.
 fn furnace_system() -> Session {
-    edited_4_5(|text| {
+    open_4_5_edited(|text| {
         let planet = "\n\t\t517=\n\t\t{\n";
         insert_after(
             text,
-            planet,
-            "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+            &[planet, "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n"],
             "\t\t\tmegastructure=16\n",
         );
         insert_after(
             text,
-            planet,
-            "\t\t\tflags=\n\t\t\t{\n",
+            &[planet, "\t\t\tflags=\n\t\t\t{\n"],
             "\t\t\t\thas_megastructure=62808000\n\t\t\t\thas_arc_furnace=62808000\n",
         );
-        row(
+        megastructure_row(
             text,
             16,
             "orbital_arc_furnace_4",
@@ -482,26 +433,23 @@ fn an_arc_furnace_takes_back_its_modifiers_deposits_and_counter() {
         result.entry.description,
         "Deleted megastructure #16 (orbital_arc_furnace_4) in Vinh #174, and took back 3 modifiers, 2 deposits and 1 counter"
     );
-    round_trip(furnace_system(), delete_furnace());
-}
-
-#[test]
-fn the_inverse_of_a_dismantles_inverse_deletes_again() {
-    let mut session = furnace_system();
-    let result = session.apply(delete_furnace()).expect("delete");
     let edited = current(&session);
     let restored = session.apply_inverse(result.inverse).expect("restore");
     session
         .apply_inverse(restored.inverse)
         .expect("delete again");
-    assert_eq!(current(&session), edited);
+    assert!(
+        holds(&session, &edited),
+        "the inverse's inverse deletes again"
+    );
+    round_trip(furnace_system(), delete_furnace());
 }
 
 #[test]
 fn a_dyson_swarm_takes_back_its_stars_modifier() {
     let swarm = || {
-        edited_4_5(|text| {
-            row(
+        open_4_5_edited(|text| {
+            megastructure_row(
                 text,
                 16,
                 "dyson_swarm_3",
@@ -550,17 +498,19 @@ fn a_dismantle_names_identifiers() {
 /// inverse, puts it back.
 #[test]
 fn a_habitat_orbital_takes_its_bodys_flag() {
-    let mut session = edited_4_5(|gamestate| {
+    let mut session = open_4_5_edited(|gamestate| {
         insert_after(
             gamestate,
-            "
+            &[
+                "
 megastructures=
 {
 ",
-            "
+                "
 	1=
 	{
 ",
+            ],
             "		name=
 		{
 			key=\"TARGET_ORBITAL_NAME\"
@@ -574,13 +524,15 @@ megastructures=
         );
         insert_after(
             gamestate,
-            "
+            &[
+                "
 		631=
 		{
 ",
-            "			megastructure=1
+                "			megastructure=1
 			bombardment_damage=0
 ",
+            ],
             "			flags=
 			{
 				has_orbital=62808000

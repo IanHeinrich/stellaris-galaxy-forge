@@ -139,6 +139,30 @@ fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
     }
 }
 
+/// An op whose row makes it only an inverse is refused when it is sent, with nothing
+/// written; undo and `apply_inverse` still take it.
+#[test]
+fn an_inverse_only_op_is_refused_from_outside() {
+    let mut refused = Vec::new();
+    for example in one_of_each() {
+        let op = example.op().clone();
+        if !op.reach().inverse_only {
+            continue;
+        }
+        let message = format!("{} is only an inverse: undo writes it back", op.name());
+        let mut session = match example.save {
+            Some(_) => (example.open_save)(),
+            None => examples::scenario(),
+        };
+        common::assert_refusals(&mut session, [(op.clone(), message.as_str())]);
+        session
+            .apply_inverse(op)
+            .unwrap_or_else(|e| panic!("{}: {e}", example.name()));
+        refused.push(example.name());
+    }
+    assert!(!refused.is_empty(), "some row is only an inverse");
+}
+
 /// An op that rereads a save's details in place keeps them built, and they equal a fresh
 /// build after its apply. Undo and redo stale the systems the apply did, and read back the
 /// details from before and after it.

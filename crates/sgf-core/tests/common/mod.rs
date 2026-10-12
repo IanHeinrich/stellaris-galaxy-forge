@@ -4,6 +4,7 @@
 pub mod batch;
 pub mod brush;
 pub mod diff;
+pub mod edit;
 pub mod examples;
 pub mod export;
 pub mod fixture;
@@ -12,13 +13,14 @@ pub mod paint;
 pub mod spec;
 
 use std::collections::BTreeSet;
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex, MutexGuard, OnceLock};
 
 use sgf_core::archive::{self, MetaFlag};
 use sgf_core::document::Document;
 use sgf_core::entity::{EntityAddr, EntityKind, get_entity_source};
-use sgf_core::format::save::details::RawPlanet;
+use sgf_core::format::save::details::{HeuristicResolver, RawPlanet, WormholeSummary};
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph};
 use sgf_core::session::{OpResult, Session};
@@ -107,6 +109,19 @@ pub fn open_3_4() -> Session {
 
 pub fn current(session: &Session) -> Vec<u8> {
     session.doc().pieces().collect::<Vec<_>>().concat()
+}
+
+/// Whether the session's current bytes are `bytes`, read in place: a sample is too large to
+/// copy for every comparison.
+pub fn holds(session: &Session, bytes: &[u8]) -> bool {
+    let mut rest = bytes;
+    for piece in session.doc().pieces() {
+        match rest.strip_prefix(piece) {
+            Some(after) => rest = after,
+            None => return false,
+        }
+    }
+    rest.is_empty()
 }
 
 /// The session's current bytes as text, for a scenario.
@@ -256,6 +271,64 @@ pub fn pooled(session: &Session, list: &str, name: &str) -> usize {
     text[start..end]
         .matches(&format!("\t\t\"{name}\"\n"))
         .count()
+}
+
+/// The wormholes the details read in system `system`.
+pub fn wormholes(session: &Session, system: u32) -> Vec<WormholeSummary> {
+    let details = session.details().expect("details");
+    details
+        .resolve(system, &HeuristicResolver, false)
+        .expect("the system's details")
+        .wormholes
+}
+
+/// A natural wormhole, as the details read it.
+pub fn wormhole(id: u32, bypass: u32, partner: u32, x: f64, y: f64) -> WormholeSummary {
+    WormholeSummary {
+        id,
+        bypass,
+        kind: "wormhole".to_owned(),
+        partner: Some(partner),
+        x,
+        y,
+    }
+}
+
+/// `read` finds `expected` in the session's countries, in a reload of its bytes and in the
+/// app's delta; then `result`'s inverse, applied, writes back the gamestate and `meta` as
+/// they were opened. Returns `meta` as the op left it.
+#[track_caller]
+pub fn assert_country_edit<T: PartialEq + Debug>(
+    mut session: Session,
+    result: OpResult,
+    read: impl Fn(&[CountryNode]) -> T,
+    expected: &T,
+    label: &str,
+) -> Vec<u8> {
+    assert_eq!(&read(&session.graph().countries), expected, "{label}");
+    assert_eq!(
+        &read(&reprojected(&session).countries),
+        expected,
+        "{label}: reload"
+    );
+    let edit = session.edit_result(result.clone());
+    assert_eq!(
+        &read(&edit.delta.countries),
+        expected,
+        "{label}: reaches the app"
+    );
+    let edited_meta = session.doc().meta().to_vec();
+    session.apply(result.inverse).expect("apply the inverse");
+    assert!(
+        holds(&session, session.doc().original()),
+        "{label}: the inverse"
+    );
+    assert_eq!(
+        session.doc().meta(),
+        session.doc().original_meta(),
+        "{label}: the inverse puts meta back"
+    );
+    edited_meta
 }
 
 /// The whole sample gamestate, decompressed straight from the archive.
