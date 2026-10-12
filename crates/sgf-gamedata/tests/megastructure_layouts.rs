@@ -638,3 +638,78 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
         assert_eq!(habitat(gd, key, false, None), None, "{key}");
     }
 }
+
+/// A mod's restored complex that picks the ruin's body by a carrier flag and spawns its
+/// habitat without tying it to the host is still added as a habitat: the one its working
+/// type leaves, with the orbital it spawns at the host.
+#[test]
+fn a_mod_restored_complex_falls_back_to_its_working_types_habitat() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        r#"mod_complex = {
+	on_build_complete = {
+		spawn_planet = {
+			class = pc_habitat location = fromfrom.planet orbit_location = yes
+			orbit_angle_offset = 135 orbit_distance_offset = 9.899 size = 6
+			init_effect = {
+				set_name = { key = HABITAT_PLANET_NAME variable_string = "\[prev.solar_system.GetName]" }
+				set_planet_flag = habitat
+				fromfrom.planet = { set_planet_flag = habitat@PREV }
+			}
+		}
+		fromfrom.solar_system = { set_star_flag = has_habitat }
+		remove_megastructure = fromfrom
+	}
+}
+mod_complex_ruined = { }
+mod_complex_restored = {
+	upgrade_from = { mod_complex_ruined }
+	on_build_complete = {
+		solar_system = {
+			random_system_planet = {
+				limit = { has_carrier_flag = mod_build_site }
+				save_event_target_as = target_planet
+			}
+		}
+		spawn_planet = {
+			class = pc_habitat location = event_target:target_planet orbit_location = yes
+			orbit_angle_offset = 135 orbit_distance_offset = 9.899 size = 6
+			init_effect = {
+				set_name = { key = HABITAT_PLANET_NAME variable_string = "\[prev.solar_system.GetName]" }
+				set_planet_flag = habitat
+			}
+		}
+		spawn_megastructure = {
+			type = mod_orbital
+			owner = from
+			graphical_culture = from
+			planet = event_target:target_planet
+			coords_from = event_target:target_planet
+		}
+		fromfrom.solar_system = { set_star_flag = has_habitat }
+		remove_megastructure = fromfrom
+	}
+}
+mod_orbital = {
+	on_build_complete = {
+		fromfrom.planet = { set_carrier_flag = has_orbital }
+	}
+}
+"#,
+    )]);
+    let complex = habitat(&gd, "mod_complex", false, None).expect("mod_complex");
+    assert_eq!(complex.orbital, None);
+    let restored = habitat(&gd, "mod_complex_restored", false, None).expect("the restored type");
+    assert_eq!(
+        restored,
+        NewHabitat {
+            orbital: Some(HabitatOrbital {
+                kind: "mod_orbital".to_owned(),
+                owner: None,
+                name: None,
+                system_name: None,
+            }),
+            ..complex
+        }
+    );
+}

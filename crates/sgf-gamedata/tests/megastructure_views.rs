@@ -220,3 +220,20 @@ fn a_giga_category_text_resolves() {
     );
     assert!(!text.contains('$'), "every reference resolves: {text}");
 }
+
+/// The Habitat Central Complex and its restored version are offered as habitats, so the
+/// dialog adds them with `AddHabitat`. The ruin is a row.
+#[test]
+fn the_complex_and_its_restored_version_are_habitats_in_the_view() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let views = gd.megastructure_views();
+    for (key, habitat) in [
+        ("habitat_central_complex", true),
+        ("habitat_central_complex_restored", true),
+        ("habitat_central_complex_ruined", false),
+    ] {
+        assert_eq!(view(&views, key).habitat, habitat, "{key}");
+    }
+}

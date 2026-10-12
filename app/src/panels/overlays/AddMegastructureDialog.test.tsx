@@ -11,6 +11,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
 import {
+  BODY_HAS_MEGASTRUCTURE,
   HABITAT_OWNER_NOTE,
   NO_MODEL,
   NO_OWNER_NOTE,
@@ -306,5 +307,26 @@ describe("the Add megastructure dialog on a habitat", () => {
     expect(html).toContain(writtenAsHabitat(false));
     expect(html).toContain("No one owns the system, so it has the habitat class's default skin.");
     expect(html).not.toContain("the empire that owns the system");
+  });
+  it("keeps the restored complex a habitat round a planet that has a megastructure", () => {
+    const restored = megastructureTypeView("habitat_central_complex_restored", { habitat: true });
+    useGameDataStore.setState({
+      megastructureTypes: new Map([[restored.key, restored]]),
+      names: new Map([["habitat_central_complex_restored", "Restored Habitat Central Complex"]]),
+    });
+    useMegastructureAddStore.setState({ last: restored.key });
+    inSystem(
+      systemDetails({
+        id: SYSTEM,
+        megastructures: [megastructureSummary({ kind: "think_tank_3", planet: 2 })],
+      }),
+    );
+    ownSystem(OWNER);
+    const html = footer();
+    expect(html).toContain(writtenAsHabitat(true));
+    expect(html).toContain(HABITAT_OWNER_NOTE);
+    expect(html).not.toContain(BODY_HAS_MEGASTRUCTURE);
+    expect(html).not.toContain('aria-disabled="true"');
+    expect(html).not.toContain('type="submit" disabled=""');
   });
 });

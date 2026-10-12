@@ -996,7 +996,7 @@ impl<'d> Walk<'d> {
 
     /// Whether `random_system_planet` block `node` picks the body the structure stands at:
     /// a stage that restores a ruin picks the ruin's body by the one planet flag its limit
-    /// tests, which the ruin's spawn set there.
+    /// tests, which the ruin's spawn set there. Mods test it as a carrier flag.
     fn picks_ruin_body(&self, st: &State<'d>, node: &Node) -> bool {
         let src = self.src();
         let restores = st
@@ -1005,7 +1005,10 @@ impl<'d> Walk<'d> {
             .get(&self.origin)
             .is_some_and(|def| def.upgrade_from.iter().any(|from| from.ends_with(RUINED)));
         let flagged = node.find("limit", src).is_some_and(|limit| {
-            matches!(limit.children(), [test] if test.key_str(src) == Some("has_planet_flag"))
+            matches!(
+                limit.children(),
+                [test] if matches!(test.key_str(src), Some("has_planet_flag" | "has_carrier_flag"))
+            )
         });
         restores && flagged && self.this() == Scope::System && self.frame[2] == Scope::Row(0)
     }

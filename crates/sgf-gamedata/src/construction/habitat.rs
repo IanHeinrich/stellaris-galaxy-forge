@@ -19,11 +19,15 @@ const SYSTEM_FLAG: &str = "has_habitat";
 const SYSTEM_NAME: &str = "solar_system.GetName";
 /// The flag an orbital's own completion sets on its body.
 const ORBITAL_FLAG: &str = "has_orbital";
+/// The suffix of a restored type's key.
+const RESTORED: &str = "_restored";
 
 /// The habitat finishing type `key` leaves round a star when `on_star` and round any other
 /// body otherwise, its model drawn in `culture`; `None` when the type's finished stage is not
 /// a habitat. The orbital it leaves, if any, has no owner: the caller gives it the one whose
-/// culture it drew the model in.
+/// culture it drew the model in. A restored type whose own walk lays out no habitat, as a mod's
+/// restored complex can, is the habitat of the type it restores, with the orbital its walk
+/// spawns at the host if there is one.
 pub fn habitat(
     gd: &GameData,
     key: &str,
@@ -35,7 +39,21 @@ pub fn habitat(
         return None;
     }
     let laid = layout::lay_out(gd, key, &plan(on_star))?;
-    of_layout(gd, &laid, on_star, culture)
+    match of_layout(gd, &laid, on_star, culture) {
+        Some(habitat) => Some(habitat),
+        None if key.ends_with(RESTORED) && laid.row.is_none() => {
+            let restored = habitat(gd, def.variant_of.as_deref()?, on_star, culture)?;
+            let orbital = match &laid.sections[..] {
+                [section] => orbital(gd, section, on_star),
+                _ => None,
+            };
+            Some(NewHabitat {
+                orbital,
+                ..restored
+            })
+        }
+        None => None,
+    }
 }
 
 fn plan(on_star: bool) -> Plan {
