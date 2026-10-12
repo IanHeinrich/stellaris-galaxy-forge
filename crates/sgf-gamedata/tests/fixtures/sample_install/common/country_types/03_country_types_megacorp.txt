@@ -1,0 +1,3 @@
+caravaneer_home = { }
+
+caravaneer_fleet = { }

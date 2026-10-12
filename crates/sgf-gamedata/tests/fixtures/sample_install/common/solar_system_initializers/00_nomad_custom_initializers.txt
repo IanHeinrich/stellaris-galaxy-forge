@@ -1,0 +1,71 @@
+black_hole_nomad_init = {
+	class = "sc_black_hole"
+	usage = nomad_init
+	flags = {
+			empire_home_system
+		}
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+blue_giant_nomad_init = {
+	class = "sc_b"
+	usage = nomad_init
+	flags = {
+			empire_home_system
+		}
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+neutron_star_nomad_init = {
+	class = "sc_neutron_star"
+	usage = nomad_init
+	flags = {
+			empire_home_system
+		}
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+protoplanetary_nomad_init = {
+	class = "sc_t"
+	usage = nomad_init
+	flags = {
+			empire_home_system
+		}
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+twin_blue_star_nomad_init = {
+	class = "sc_binary_5"
+	usage = nomad_init
+	flags = {
+			empire_home_system
+		}
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+xray_binary_nomad_init = {
+	class = "sc_binary_2"
+	usage = nomad_init
+	flags = {
+			empire_home_system
+		}
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}

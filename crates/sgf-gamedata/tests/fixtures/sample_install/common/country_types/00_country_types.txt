@@ -1,0 +1,21 @@
+default = { }
+
+faction = { }
+
+neutral_faction = {
+	is_space_critter = yes
+}
+
+primitive = { }
+
+enclave = {
+	is_enclave = yes
+}
+
+mindwarden_enclave = {
+	is_enclave = yes
+}
+
+amoeba_garrison = {
+	is_space_critter = yes
+}

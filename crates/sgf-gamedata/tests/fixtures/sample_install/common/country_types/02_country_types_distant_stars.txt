@@ -1,0 +1,9 @@
+guardian_scavenger_bot = {
+	is_space_critter = yes
+	destroys_starbases = yes
+}
+
+guardian_elderly_tiyanki = {
+	is_space_critter = yes
+	destroys_starbases = yes
+}

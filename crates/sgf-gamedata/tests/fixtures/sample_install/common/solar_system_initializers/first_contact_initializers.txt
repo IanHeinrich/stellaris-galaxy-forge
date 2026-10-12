@@ -1,0 +1,60 @@
+fear_of_the_dark_system = {
+	class = "sc_a"
+	flags = { empire_home_system fotd_system }
+	usage = origin
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+msi_home_system = {
+	class = "rl_starting_stars"
+	flags = { empire_home_system MSI_home_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				NOT = { exists = event_target:MSI_country }
+				any_country = {
+					has_slave_origin = yes
+					NOR = {
+						has_country_flag = slavers_assigned
+						# don't spawn if AI-generated and adv start disabled
+						# see game_start.1
+						AND = {
+							is_ai = yes
+							check_galaxy_setup_value = { setting = num_advanced_empires value < 1 }
+						}
+					}
+				}
+				NOT = { has_star_flag = empire_cluster }
+				add = @spawn_system_max
+			}
+			modifier = {
+				NOT = { exists = event_target:MSI_country }
+				any_system = {
+					exists = owner
+					owner = {
+						has_slave_origin = yes
+					}
+					distance = {
+						max_jumps = 5
+					}
+				}
+				factor = 0
+			}
+		}
+	init_effect = {
+		spawn_system = { initializer = slavers_neighbor_t1 }
+		spawn_system = { initializer = slavers_neighbor_t1_first_colony }
+	}
+}
+
+slavers_neighbor_t1_first_colony = {
+	class = "rl_standard_stars"
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t2 }
+	}
+}

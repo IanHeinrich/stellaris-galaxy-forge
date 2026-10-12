@@ -1,0 +1,513 @@
+asteroid_system = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { asteroid_system }
+}
+
+big_rip_system = {
+	class = sc_f
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { big_rip_system }
+}
+
+collapse_system = {
+	class = "sc_m"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	primitive_system = yes
+	max_instances = 1
+	flags = { collapse_system }
+	planet = {
+		init_effect = {
+			create_country = { name = "random" type = primitive }
+		}
+	}
+}
+
+distantstars_init_00 = {
+	class = sc_black_hole
+	flags = { hostile_system lgate }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_distar = yes
+				lgate_enabled = yes
+				add = 2
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0										# we don't want gateways too close to each other
+				any_neighbor_system = {
+					has_megastructure = lgate_base
+				}
+			}
+			modifier = {
+				factor = 0										# we don't want gateways too close to each other
+				any_neighbor_system = {
+					has_megastructure = gateway_ruined
+				}
+			}
+		}
+	max_instances = 9
+	init_effect = { }
+}
+
+distantstars_init_06 = {
+	class = sc_black_hole
+	flags = { hostile_system lgate lgate_guaranteed }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_distar = yes
+				lgate_enabled = yes
+				add = @spawn_system_max
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0										# we don't want gateways too close to each other
+				any_neighbor_system = {
+					has_megastructure = lgate_base
+				}
+			}
+			modifier = {
+				factor = 0										# we don't want gateways too close to each other
+				any_neighbor_system = {
+					has_megastructure = gateway_ruined
+				}
+			}
+		}
+	max_instances = 1
+	init_effect = { }
+}
+
+distar_crystal_system = {
+	class = "sc_b"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+		}
+	max_instances = 2
+	flags = { crystal_system }
+}
+
+distar_phaseshift_system = {
+	class = "sc_binary_5"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { phaseshift_system natural_spectacle_system }
+}
+
+distar_pod_system = {
+	class = "sc_binary_7"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { escape_pod_system }
+}
+
+distar_sealed_1_1 = {
+	class = "rl_all_stars"
+	flags = { sealed_entry_system }
+	init_effect = { }
+}
+
+distar_sealed_1_2 = {
+	class = "rl_trinary_stars"
+	flags = { sealed_system crisis_spawn_exclude antique_threat_system }
+	init_effect = { }
+}
+
+elderly_tiyanki_system = {
+	class = "rl_all_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { elderly_tiyanki_system guardian hostile_system antique_threat_system }
+	init_effect = {
+		create_country = { name = "NAME_Tiyanki_Space_Whale_Ancient" type = guardian_elderly_tiyanki }
+	}
+}
+
+great_wound_system = {
+	class = sc_black_hole
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { great_wound natural_spectacle_system }
+	init_effect = { }
+}
+
+high_energy_system = {
+	class = sc_b
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { high_energy_system }
+}
+
+hostile_init_amoeba = {
+	class = "rl_standard_stars"
+	max_instances = 2
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system amoeba_4_system }
+	init_effect = { }
+}
+
+hostile_init_mining_drones = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 2
+	flags = { hostile_system drone_system_4 }
+	init_effect = { }
+}
+
+hostile_init_void_cloud = {
+	class = sc_black_hole
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system void3_system }
+	max_instances = 1
+	init_effect = { }
+}
+
+ice_system = {
+	class = sc_m
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { ice_system }
+}
+
+living_planet_system = {
+	class = "sc_binary_3"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { living_planet_system natural_spectacle_system }
+}
+
+primitive_robot_system = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	primitive_system = yes
+	flags = { primitive_robot_system }
+}
+
+ratling_1_1 = {
+	class = "sc_pulsar"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				any_playable_country = {
+					is_ai = no
+					species_portrait = mam_rat
+				}
+			}
+			inline_script = {
+				script = solar_system_initializers/initializer_modifiers_habitable_world_systems_mult
+				VALUE = 0.4
+			}
+		}
+	max_instances = 1
+	flags = { ruined_empire ratling_home_system ratling_system }
+	neighbor_system = { initializer = ratling_1_2 }
+	neighbor_system = { initializer = ratling_1_3 }
+}
+
+ratling_1_2 = {
+	class = "sc_m"
+	flags = { ruined_empire ratling_system }
+}
+
+ratling_1_3 = {
+	class = "sc_k"
+	flags = { ruined_empire ratling_system }
+}
+
+scavenger_system = {
+	class = "sc_m_giant"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { scavenger_bot_system guardian hostile_system antique_threat_system }
+	init_effect = {
+		create_country = { name = "NAME_Autonomous_Repurposer" type = guardian_scavenger_bot }
+	}
+}
+
+shattered_world_system = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { shattered_world_system }
+}
+
+star_lifting_system = {
+	class = sc_pulsar
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { star_lifting_system }
+	init_effect = { }
+}
+
+time_loop_world_system = {
+	class = sc_b
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				blocks_disruptive_gameplay = yes
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { time_loop_world_system }
+}
+
+toxic_planet_toxic_moon = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_distar = no
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { toxic_moon_system }
+}

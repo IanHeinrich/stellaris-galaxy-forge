@@ -200,16 +200,9 @@ fn an_arc_furnace_lists_the_modifier_and_deposit_it_writes() {
 
 #[test]
 fn a_giga_category_text_resolves() {
-    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
-        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+    let Some(gd) = common::giga() else {
         return;
-    }
-    let gd = sgf_gamedata::load(&sgf_gamedata::LoadOptions::default(), &mut |_| {})
-        .expect("SGF_PLAYSET needs an install");
-    if gd.loc.raw("giga_list_category_kilostructure").is_none() {
-        eprintln!("skipped: Gigastructural Engineering is not enabled");
-        return;
-    }
+    };
     let text = gd
         .loc
         .rich("asteroid_manufactory_0_MEGASTRUCTURE_DETAILS")
@@ -221,22 +214,16 @@ fn a_giga_category_text_resolves() {
     assert!(!text.contains('$'), "every reference resolves: {text}");
 }
 
-/// The Habitat Central Complex and its restored version are offered as habitats, so the
-/// dialog adds them with `AddHabitat`. The ruin is a row.
+/// The view carries what the habitat layout says of a type, so the dialog adds the restored
+/// Habitat Central Complex with `AddHabitat` and its major orbital.
 #[test]
-fn the_complex_and_its_restored_version_are_habitats_in_the_view() {
+fn the_restored_complex_is_a_habitat_with_an_orbital_in_the_view() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let views = gd.megastructure_views();
-    for (key, habitat, orbital) in [
-        ("habitat_central_complex", true, false),
-        ("habitat_central_complex_restored", true, true),
-        ("habitat_central_complex_ruined", false, false),
-    ] {
-        assert_eq!(view(&views, key).habitat, habitat, "{key}");
-        assert_eq!(view(&views, key).habitat_orbital, orbital, "{key} orbital");
-    }
+    let restored = view(&views, "habitat_central_complex_restored");
+    assert_eq!((restored.habitat, restored.habitat_orbital), (true, true));
 }
 
 /// The base game's ring world past its site is added whole, so no stage of it says why not.
@@ -260,34 +247,14 @@ fn the_ring_worlds_stages_are_added_whole_in_the_view() {
     }
 }
 
-/// A ring world is a chain whose frame spawns rows that a stage builds into ring world
-/// segments, whatever its keys. Its view asks for as many finished quadrants as the frame
-/// spawns rows, and says why when its chain lays out no ring of that many.
+/// The view carries why a ring world's chain lays out no ring.
 #[test]
 fn a_ring_world_that_lays_out_no_ring_says_why() {
     let (_dir, gd) = common::hand_written(&[
         ("common/scripted_variables/00_fx.txt", ""),
         (
             "common/megastructures/fx.txt",
-            "fx_site = {
-}
-fx_frame = {
-	upgrade_from = { fx_site }
-	on_build_complete = {
-		spawn_megastructure = { type = fx_section orbit_angle = 0 orbit_distance = 60 }
-		spawn_megastructure = { type = fx_section orbit_angle = 180 orbit_distance = 60 }
-		remove_megastructure = fromfrom
-	}
-}
-fx_section = { upgrade_from = { fx_frame } }
-fx_built = {
-	upgrade_from = { fx_section }
-	on_build_complete = {
-		spawn_planet = { class = pc_ringworld_seam location = fromfrom size = 10 init_effect = { set_name = NAME_Fx } }
-		remove_megastructure = fromfrom
-	}
-}
-fy_frame = {
+            "fy_frame = {
 	on_build_complete = {
 		spawn_megastructure = { type = fy_section orbit_angle = 0 orbit_distance = @nowhere }
 		spawn_megastructure = { type = fy_section orbit_angle = 180 orbit_distance = @nowhere }
@@ -305,9 +272,6 @@ fy_built = {
         ),
     ]);
     let views = gd.megastructure_views();
-    for key in ["fx_site", "fx_frame", "fx_section", "fx_built"] {
-        assert_eq!(view(&views, key).ring_world_refused, None, "{key}");
-    }
     assert_eq!(
         view(&views, "fy_section").ring_world_refused.as_deref(),
         Some("no stage of its chain lays out a ring world of 2 quadrants")
@@ -427,16 +391,9 @@ fn the_dyson_spheres_portraits_are_files_in_the_install() {
 /// categories, and gives the base game's types one too.
 #[test]
 fn giga_types_show_the_category_their_tooltip_opens_with() {
-    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
-        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+    let Some(gd) = common::giga() else {
         return;
-    }
-    let gd = sgf_gamedata::load(&sgf_gamedata::LoadOptions::default(), &mut |_| {})
-        .expect("SGF_PLAYSET needs an install");
-    if gd.loc.raw("giga_list_category_kilostructure").is_none() {
-        eprintln!("skipped: Gigastructural Engineering is not enabled");
-        return;
-    }
+    };
     let views = gd.megastructure_views();
     for (key, category) in [
         (

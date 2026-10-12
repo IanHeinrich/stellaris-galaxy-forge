@@ -1,0 +1,20 @@
+origin_unplugged_starting_system_init = {
+	class = "rl_starting_stars"
+	usage = origin
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+sol_system_unplugged_initializer = {
+	usage = origin
+	class = "sc_g"
+	flags = { empire_home_system sol_system sol }
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t1 }
+		spawn_system = { initializer = sol_neighbor_t1_first_colony }
+		spawn_system = { initializer = sol_neighbor_t1_no_guaranteed_colony }
+	}
+}

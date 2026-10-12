@@ -1,0 +1,69 @@
+custom_starting_init_01 = {
+	class = "rl_trinary_stars"
+	usage = custom_empire
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+custom_starting_init_02 = {
+	class = "rl_trinary_stars"
+	usage = custom_empire
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+custom_starting_init_03 = {
+	class = "rl_binary_starting_stars"
+	usage = custom_empire
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+custom_starting_init_04 = {
+	class = "rl_binary_starting_stars"
+	usage = custom_empire
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+custom_starting_init_05 = {
+	class = "rl_starting_stars"
+	usage = custom_empire
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+custom_starting_init_06 = {
+	class = "rl_starting_stars"
+	usage = custom_empire
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+titawin_init = {
+	class = "rl_binary_starting_stars"
+	usage = custom_empire
+	flags = { empire_home_system theian_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}

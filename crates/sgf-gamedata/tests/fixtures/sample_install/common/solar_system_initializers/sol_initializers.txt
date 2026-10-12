@@ -1,0 +1,176 @@
+ai_sol_system = {
+	class = "sc_g"
+	flags = { sol_system com_sol sol empire_home_system }
+	usage = misc_system_init
+	init_effect = {
+		create_country = { name = "NAME_United_Nations_of_Earth" type = default }
+		spawn_system = { initializer = com_sol_neighbor_t1 }
+		spawn_system = { initializer = com_sol_neighbor_t1_first_colony }
+	}
+}
+
+com_sol_neighbor_t1 = {
+	class = sc_m
+	flags = { com_barnards_star }
+	init_effect = {
+		spawn_system = { initializer = com_sol_neighbor_t2_second_colony }
+		spawn_system = { initializer = sol_neighbor_t2_no_guaranteed_colony }
+	}
+}
+
+com_sol_neighbor_t1_first_colony = {
+	class = sc_trinary_1
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t2 }
+	}
+}
+
+com_sol_system = {
+	class = "sc_g"
+	flags = { sol_system com_sol sol empire_home_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				any_playable_country = {
+					is_human_species = yes
+					OR = {
+						has_country_flag = human_2
+						has_country_flag = human_3
+					}
+				}
+				NOR = {
+					any_country = { has_country_flag = human_1 }
+					any_system = { has_star_flag = sol }
+					has_star_flag = empire_cluster
+				}
+				is_fe_cluster = no
+				is_marauder_cluster = no
+				add = 99999
+			}
+		}
+	max_instances = 1
+	init_effect = {
+		create_country = { name = "NAME_United_Nations_of_Earth" type = default }
+		spawn_system = { initializer = com_sol_neighbor_t1 }
+		spawn_system = { initializer = com_sol_neighbor_t1_first_colony }
+	}
+}
+
+init_sol_geocentric = {
+	class = "sc_g"
+	flags = { geocentric_sol sol suppress_archaeological_sites }
+}
+
+lost_colony_sol_neighbor_t1 = {
+	class = sc_m
+	flags = { lost_colony_barnards_star }
+	init_effect = {
+		spawn_system = { initializer = lost_colony_sol_neighbor_t2_second_colony }
+		spawn_system = { initializer = sol_neighbor_t2_no_guaranteed_colony }
+	}
+}
+
+lost_colony_sol_neighbor_t1_first_colony = {
+	class = sc_trinary_1
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t2 }
+	}
+}
+
+lost_colony_sol_system = {
+	class = "sc_g"
+	flags = { sol_system lost_colony_sol sol empire_home_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				any_playable_country = {
+					has_origin = origin_lost_colony
+					is_human_species = yes
+					NOR = {
+						has_country_flag = human_2
+						has_country_flag = human_3
+					}
+				}
+				NOT = { any_system = { has_star_flag = sol } }
+				NOT = { has_star_flag = empire_cluster }
+				is_fe_cluster = no
+				is_marauder_cluster = no
+				add = 99999
+			}
+		}
+	max_instances = 1
+	init_effect = {
+		spawn_system = { initializer = lost_colony_sol_neighbor_t1 }
+		spawn_system = { initializer = lost_colony_sol_neighbor_t1_first_colony }
+	}
+}
+
+sol_neighbor_t1 = {
+	class = sc_m
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t2_second_colony }
+		spawn_system = { initializer = sol_neighbor_t2_no_guaranteed_colony }
+	}
+}
+
+sol_neighbor_t1_first_colony = {
+	class = sc_trinary_1
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t2 }
+	}
+}
+
+sol_neighbor_t1_no_guaranteed_colony = {
+	class = sc_trinary_1
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t2 }
+	}
+}
+
+sol_neighbor_t2 = {
+	class = sc_binary_8
+	init_effect = { }
+}
+
+sol_neighbor_t2_no_guaranteed_colony = {
+	class = sc_binary_9
+	init_effect = { }
+}
+
+sol_system_fear_of_the_dark_system = {
+	class = "sc_g"
+	flags = { empire_home_system sol_system sol }
+	usage = origin
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t1 }
+		spawn_system = { initializer = sol_neighbor_t1_first_colony }
+		spawn_system = { initializer = sol_neighbor_t1_no_guaranteed_colony }
+	}
+}
+
+sol_system_initializer = {
+	class = "sc_g"
+	flags = { empire_home_system sol_system sol galactic_landmark_system }
+	usage = custom_empire
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t1 }
+		spawn_system = { initializer = sol_neighbor_t1_first_colony }
+		spawn_system = { initializer = sol_neighbor_t1_no_guaranteed_colony }
+	}
+}
+
+toxic_knights_sol_start = {
+	usage = origin
+	class = "sc_g"
+	flags = { empire_home_system sol_system sol }
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t1 }
+		spawn_system = { initializer = sol_neighbor_t1_first_colony }
+		spawn_system = { initializer = sol_neighbor_t1_no_guaranteed_colony }
+	}
+}

@@ -1,0 +1,9 @@
+ocean_paradise_start = {
+	class = "sc_a"
+	flags = { empire_home_system }
+	usage = origin
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}

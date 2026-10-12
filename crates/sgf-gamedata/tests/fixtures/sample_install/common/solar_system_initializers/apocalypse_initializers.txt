@@ -1,0 +1,26 @@
+abandoned_gateways_01 = {
+	class = "rl_standard_stars"
+	flags = { abandoned_gateway galactic_landmark_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0										# we don't want gateways too close to each other
+				closest_system = {
+					has_megastructure = gateway_ruined
+					distance = {
+						source = prev
+						max_distance <= 200
+					}
+				}
+			}
+			modifier = {
+				factor = 0										# we don't want gateways too close to each other
+				any_neighbor_system = {
+					has_megastructure = gateway_ruined
+				}
+			}
+		}
+	max_instances = 15
+	init_effect = { }
+}

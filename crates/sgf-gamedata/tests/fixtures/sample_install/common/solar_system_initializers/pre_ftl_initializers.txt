@@ -1,0 +1,121 @@
+pre_ftl_deneb_system = {
+	class = "sc_a"
+	flags = { deneb_system primitive_system }
+	max_instances = 1
+	usage = misc_system_init
+	usage_odds = {
+			base = 5
+			modifier = {
+				factor = 0
+				any_system = {
+					has_star_flag = deneb_system
+				}
+			}
+			modifier = {
+				factor = 0
+				any_country = {
+					has_country_flag = human_3
+				}
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_first_contact_dlc = no
+			}
+		}
+	primitive_system = yes
+	init_effect = { }
+	planet = { class = ideal_planet_class init_effect = { generate_pre_ftls_on_planet = yes } }
+}
+
+pre_ftl_hive_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0.4
+			modifier = {
+				factor = 0
+				has_first_contact_dlc = no
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+		}
+	primitive_system = yes
+	flags = { primitive_system }
+	planet = { class = rl_habitable_normal init_effect = { generate_pre_ftls_on_planet = yes } }
+}
+
+pre_ftl_inf_init_01 = {
+	class = "rl_red_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0.6
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_infernals = no
+			}
+		}
+	primitive_system = yes
+	flags = { primitive_system }
+}
+
+pre_ftl_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 2.6
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+		}
+	primitive_system = yes
+	flags = { primitive_system }
+	planet = { class = rl_habitable_normal init_effect = { generate_pre_ftls_on_planet = yes } }
+}
+
+pre_ftl_init_sol = {
+	class = "sc_g"
+	flags = { primitive_sol sol ancient_wonders_system }
+	planet = {
+		init_effect = {
+			create_country = { name = "random" type = primitive }
+			create_country = { name = "random" type = primitive }
+			create_country = { name = "random" type = primitive }
+		}
+	}
+}
+
+pre_ftl_shattered_ring = {
+	class = "sc_g"
+	flags = { ring_world_built shattered_ring_system }
+	max_instances = 1
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_slightlycommon
+			modifier = {
+				factor = 0
+				any_system = {
+					has_star_flag = shattered_ring_system
+				}
+			}
+			modifier = {
+				factor = 0
+				has_federations_dlc = no
+				has_first_contact_dlc = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	primitive_system = yes
+	init_effect = { }
+	planet = { class = pc_shattered_ring_habitable init_effect = { generate_pre_ftls_on_planet = yes } }
+}
