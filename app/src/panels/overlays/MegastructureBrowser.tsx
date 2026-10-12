@@ -160,6 +160,14 @@ export function MegastructureList({
   );
 }
 
+/**
+ * A tile's caption: its stage's short name, as the row's label already names the megastructure.
+ * A megastructure of one stage has no shorter name than its own.
+ */
+function tileCaption(stage: MegastructureStage, chain: MegastructureChain): string {
+  return chain.kind === "build" && stage.count === 1 ? stage.label : stage.short;
+}
+
 function Tile({
   stage,
   chain,
@@ -204,7 +212,7 @@ function Tile({
           {stage.index} of {stage.count}
         </span>
       )}
-      <span className="megastructure-add-caption">{numbered ? stage.short : stage.label}</span>
+      <span className="megastructure-add-caption">{tileCaption(stage, chain)}</span>
       {!hasModel(type) && <span className="megastructure-add-mark muted">{NO_MODEL}</span>}
     </li>
   );
