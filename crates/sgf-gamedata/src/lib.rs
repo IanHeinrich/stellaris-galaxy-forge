@@ -373,6 +373,7 @@ impl GameData {
             megastructures::placed(
                 megastructures::load(&megastructure_defs, &scripts, &scripted_triggers, &layout),
                 &scripts,
+                &planet_classes,
             ),
             &scripted_triggers,
         );

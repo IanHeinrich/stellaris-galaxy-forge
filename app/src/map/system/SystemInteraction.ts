@@ -3,6 +3,7 @@ import { beltLabel, shownBodyName } from "../../lib/details/labels";
 import { capabilityFor } from "../../lib/entities";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
+import type { MegastructureMove } from "../../lib/details/megastructureMoves";
 import { isEditableTarget } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
 import {
@@ -102,12 +103,30 @@ function tipFor(
       const shown = ctx.structures.find((s) => s.kind === target.kind && s.id === target.id);
       if (!shown) return null;
       const lines = shown.level === null ? [] : [{ label: "Level", value: shown.level }];
-      return { title: shown.name, lines };
+      const hint = moveHint(shown.move);
+      return { title: shown.name, lines: hint === null ? lines : [...lines, hint] };
     }
   }
 }
 
-/** Whether a left drag from `target` moves something: a body or wormhole that can move, or a handle. */
+/** What a megastructure's tooltip says of moving it: how, or why it stays; null where it says nothing. */
+function moveHint(move: MegastructureMove | null): string | null {
+  switch (move?.place) {
+    case undefined:
+      return null;
+    case "free":
+      return DRAG_HINTS.movableMegastructure;
+    case "body":
+      return move.floats ? DRAG_HINTS.movableFloating : DRAG_HINTS.movableToBody;
+    case "fixed":
+      return move.why;
+  }
+}
+
+/**
+ * Whether a left drag from `target` moves something: a body, wormhole or megastructure that can
+ * move, or a handle.
+ */
 function movable(ctx: SystemContext, target: SceneTarget | null): boolean {
   if (target === null) return false;
   switch (target.kind) {
@@ -119,8 +138,11 @@ function movable(ctx: SystemContext, target: SceneTarget | null): boolean {
       return ctx.wormholes.some((hole) => hole.id === target.id && hole.movable);
     case "handle":
       return true;
+    case "megastructure": {
+      const shown = ctx.structures.find((s) => s.kind === "megastructure" && s.id === target.id);
+      return shown?.move != null && shown.move.place !== "fixed";
+    }
     case "exit":
-    case "megastructure":
     case "starbase":
       return false;
   }

@@ -270,8 +270,12 @@ pub enum OpError {
     PlanetKept { body: u32, reason: String },
     #[error("the colony on planet {body} cannot be removed: {reason}")]
     ColonyKept { body: u32, reason: String },
-    #[error("megastructure {megastructure} cannot be deleted: {reason}")]
-    MegastructureKept { megastructure: u32, reason: String },
+    #[error("megastructure {megastructure} cannot be {edit}: {reason}")]
+    MegastructureKept {
+        megastructure: u32,
+        edit: MegastructureEdit,
+        reason: String,
+    },
     #[error("{table:?} {id} does not exist")]
     UnknownEntity { table: SavedTable, id: u32 },
     #[error("the text for {table:?} {id} is not one entity with that id")]
@@ -458,6 +462,22 @@ impl fmt::Display for ParseAt {
             Self::Meta => f.write_str("save meta"),
             Self::Record => f.write_str("save statement"),
         }
+    }
+}
+
+/// The edit [`OpError::MegastructureKept`] turns away from a megastructure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MegastructureEdit {
+    Delete,
+    Move,
+}
+
+impl fmt::Display for MegastructureEdit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Delete => "deleted",
+            Self::Move => "moved",
+        })
     }
 }
 

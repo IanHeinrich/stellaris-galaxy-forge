@@ -9,6 +9,7 @@
 import type { BodyLayout } from "../../generated/BodyLayout";
 import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { Bounds } from "../../generated/Bounds";
+import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { RolledBody } from "../../generated/RolledBody";
@@ -133,6 +134,8 @@ export interface LayoutOverride {
   belts?: readonly { kind: string; radius: number }[];
   innerRadius?: number;
   wormholes?: ReadonlyMap<number, Point>;
+  /** Where each megastructure moved stands: a point, or a body it is drawn on. */
+  megastructures?: ReadonlyMap<number, MegastructurePlace>;
 }
 
 export interface Bearing {

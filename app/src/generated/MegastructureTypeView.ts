@@ -71,6 +71,11 @@ sets_has_megastructure: boolean,
  */
 planet_possible_star: boolean, 
 /**
+ * The first stage of its build chain, or of its working type's for a variant, asks for a
+ * body that is not a star: the editor never places it on a star.
+ */
+planet_only: boolean, 
+/**
  * `potential = { always = no }`: the game makes it only from script, never as a build.
  */
 script_only: boolean, 

@@ -271,6 +271,83 @@ fn a_fixture_type_is_placed_by_its_build_type() {
     );
 }
 
+/// A type that asks only for a star class, as a crossing built on a black hole does, may stand
+/// on that star; one that asks for a planet class may not stand on any star.
+#[test]
+fn a_rule_naming_a_star_class_keeps_its_type_on_stars() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/planet_classes/mod.txt",
+            "pc_black_hole = {
+	star = yes
+}
+pc_molten = {
+	colonizable = no
+}
+",
+        ),
+        (
+            "common/megastructures/mod.txt",
+            "mod_crossing = {
+	placement_rules = { planet_possible = { is_planet_class = pc_black_hole } }
+}
+             mod_forge = {
+	placement_rules = { planet_possible = { is_planet_class = pc_molten } }
+}
+             mod_unknown = {
+	placement_rules = { planet_possible = { is_planet_class = pc_nowhere } }
+}
+",
+        ),
+    ]);
+    let planet_only = |key: &str| gd.megastructures.get(key).expect(key).planet_only;
+    assert!(!planet_only("mod_crossing"), "a star class");
+    assert!(planet_only("mod_forge"), "a planet class");
+    assert!(
+        !planet_only("mod_unknown"),
+        "a class the install does not define"
+    );
+}
+
+/// The types whose first stage the game never builds on a star, which the editor keeps off
+/// stars: by `is_star = no`, or by one planet class, as the Arc Furnace asks for molten
+/// worlds.
+#[test]
+fn the_installs_planet_types_are_kept_off_stars() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let planet_only = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .planet_only
+    };
+    for key in [
+        "think_tank_3",
+        "strategic_coordination_center_3",
+        "strategic_coordination_center_ruined",
+        "orbital_arc_furnace_1",
+        "orbital_arc_furnace_4",
+        "orbital_arc_furnace_destroyed",
+        "spy_orb_ruined",
+        "grand_archive_0",
+        "behemoth_egg",
+    ] {
+        assert!(planet_only(key), "{key}");
+    }
+    for key in [
+        "dyson_sphere_5",
+        "dyson_sphere_ruined",
+        "dyson_swarm_1",
+        "gateway_final",
+        "hyper_relay",
+        "orbital_ring_ruined",
+    ] {
+        assert!(!planet_only(key), "{key}");
+    }
+}
+
 #[test]
 fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     let Some(gd) = common::INSTALL.as_ref() else {

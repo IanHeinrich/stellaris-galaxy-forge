@@ -18,6 +18,7 @@ use crate::format::save::write::place::{Place, insert_key};
 use crate::format::save::write::restore::{Saved, live};
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
+use crate::ops::rules::FURNACE_ENTITY;
 use crate::ops::{Edit, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
@@ -26,11 +27,8 @@ use crate::session::Session;
 /// The `megastructures` table.
 pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure);
 
-/// The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace.
-const FURNACE_ENTITY: &str = "invisible_turret_entity";
-
 /// The planet flags a built or ruined megastructure leaves on its body.
-const BODY_FLAGS: [&str; 3] = [
+pub(crate) const BODY_FLAGS: [&str; 3] = [
     keys::HAS_MEGASTRUCTURE,
     keys::HAS_ARC_FURNACE,
     keys::RUINED_ORBITAL_RING_PLANET,
@@ -148,7 +146,7 @@ fn distinct(rows: &[Tied], pick: fn(&Tied) -> Option<u32>) -> Vec<u32> {
 
 /// Take the keys rows `named` left on `planet` away; the flags and model too unless a live
 /// row other than those `going` names it.
-fn unlink_body(
+pub(crate) fn unlink_body(
     plan: &mut Plan,
     s: &Session,
     named: &[u32],

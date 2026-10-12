@@ -37,7 +37,7 @@ pub async fn add_megastructure<R: Runtime>(
     check_place(def, place)?;
     let def = def.clone();
     let host = match place {
-        MegastructurePlace::Body { body } => Some(body),
+        MegastructurePlace::Body { body } | MegastructurePlace::Beside { body, .. } => Some(body),
         MegastructurePlace::Free { .. } => None,
     };
     with_session(app, move |mut guard| {
@@ -81,9 +81,10 @@ fn check_place(def: &MegastructureDef, place: MegastructurePlace) -> Result<(), 
         (Placement::Body { .. }, MegastructurePlace::Free { .. }) => {
             Err(refuse("it stands on or around a planet or star".to_owned()))
         }
-        (Placement::Free { .. }, MegastructurePlace::Body { .. }) => {
-            Err(refuse("it stands at a point of its own".to_owned()))
-        }
+        (
+            Placement::Free { .. },
+            MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. },
+        ) => Err(refuse("it stands at a point of its own".to_owned())),
         _ => Ok(()),
     }
 }
