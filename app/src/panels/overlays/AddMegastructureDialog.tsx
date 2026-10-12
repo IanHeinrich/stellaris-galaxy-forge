@@ -1,9 +1,11 @@
 import { useMemo, useState, type FormEvent } from "react";
 import {
+  HABITAT_OWNER_NOTE,
   NO_MEGASTRUCTURE_FITS,
   NO_OWNER,
   NO_OWNER_NOTE,
   OWNER_NOTE,
+  WRITTEN_AS_HABITAT,
   WRITTEN_FINISHED,
   addLabel,
   entryDefault,
@@ -120,12 +122,20 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
           <div className="field">
             <span>Owner</span>
             <output>
-              {owner === null
-                ? NO_OWNER
-                : ownerCountry
-                  ? templateName(ownerCountry)
-                  : `Empire #${owner}`}{" "}
-              <span className="muted">{owner === null ? NO_OWNER_NOTE : OWNER_NOTE}</span>
+              {type?.habitat ? (
+                <>
+                  {NO_OWNER} <span className="muted">{HABITAT_OWNER_NOTE}</span>
+                </>
+              ) : (
+                <>
+                  {owner === null
+                    ? NO_OWNER
+                    : ownerCountry
+                      ? templateName(ownerCountry)
+                      : `Empire #${owner}`}{" "}
+                  <span className="muted">{owner === null ? NO_OWNER_NOTE : OWNER_NOTE}</span>
+                </>
+              )}
             </output>
           </div>
           {entries.length === 0 ? (
@@ -172,7 +182,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               )}
             </div>
           )}
-          <div className="muted">{WRITTEN_FINISHED}</div>
+          <div className="muted">{type?.habitat ? WRITTEN_AS_HABITAT : WRITTEN_FINISHED}</div>
         </div>
         <div className="open-dialog-foot">
           <div className="setup-actions">

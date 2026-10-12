@@ -26,6 +26,7 @@ type AddSystemActions = Pick<
   | "addSpecialSystemAt"
   | "addBodyAt"
   | "addMegastructure"
+  | "addHabitat"
   | "rerollSystem"
   | "renameAddedSystem"
 >;
@@ -142,6 +143,16 @@ export function addSystemActions(
         return edit;
       });
       return result === null ? null : added;
+    },
+
+    async addHabitat(system, body, kind) {
+      let planet: number | null = null;
+      const result = await runEdit(async () => {
+        const added = await ipc.addHabitat(system, body, kind);
+        planet = added.planet;
+        return added.edit;
+      });
+      return result === null ? null : planet;
     },
 
     rerollSystem(id, starClass) {

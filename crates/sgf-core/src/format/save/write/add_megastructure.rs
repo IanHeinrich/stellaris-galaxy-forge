@@ -14,7 +14,6 @@ use crate::archive;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::megastructure::{BypassRow, MegastructureRow, bypass_row, megastructure_row};
-use crate::emit::{Lines, inline};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
@@ -23,7 +22,9 @@ use crate::format::save::write::add_system::{day_one, write_slot};
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::construction;
 use crate::format::save::write::id_list::append;
-use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, drop_bypass, unlink};
+use crate::format::save::write::megastructure_links::{
+    self, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
+};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::{planet_entity, planet_system};
@@ -331,8 +332,9 @@ fn is_star_body(
 }
 
 /// The save's current date as the game dates a planet flag it sets: hours counted from a
-/// fixed origin, in years of 365 days. The save's `meta` holds the date it was written on.
-fn today(doc: &Document) -> Result<String, OpError> {
+/// fixed origin, in the game's years of twelve 30-day months. The save's `meta` holds the
+/// date it was written on.
+pub(crate) fn today(doc: &Document) -> Result<String, OpError> {
     let date = archive::parse_meta(doc.meta())
         .map(|meta| meta.date)
         .map_err(|_| OpError::MissingKey(keys::meta::DATE))?;
@@ -341,18 +343,21 @@ fn today(doc: &Document) -> Result<String, OpError> {
         .ok_or_else(|| OpError::parse(ParseAt::Meta, 0, format!("date {date:?} is not a date")))
 }
 
-/// The day before each month starts, in a 365-day year.
-const MONTH_STARTS: [u64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+/// Days in each of the game's months and years.
+const MONTH_DAYS: u64 = 30;
+const YEAR_DAYS: u64 = 360;
 /// The hour count of year 0's first day: `2200.01.01` is 62808000, the date of
 /// `game_started` in both 4.x samples.
-const FLAG_ORIGIN: u64 = 43_536_000;
+const FLAG_ORIGIN: u64 = 43_800_000;
 
 /// `yyyy.mm.dd` as a planet flag's date.
 fn flag_hours(date: &str) -> Option<u64> {
     let mut parts = date.split('.').map(|part| part.parse::<u64>().ok());
     let (year, month, day) = (parts.next()??, parts.next()??, parts.next()??);
-    let start = *MONTH_STARTS.get(usize::try_from(month.checked_sub(1)?).ok()?)?;
-    let days = year * 365 + start + day.checked_sub(1)?;
+    if !(1..=12).contains(&month) || !(1..=MONTH_DAYS).contains(&day) {
+        return None;
+    }
+    let days = year * YEAR_DAYS + (month - 1) * MONTH_DAYS + day - 1;
     Some(days * 24 + FLAG_ORIGIN)
 }
 
@@ -434,41 +439,7 @@ fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError
     insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
         format!("{}={id}", keys::MEGASTRUCTURE)
     })?;
-    if flags.is_empty() {
-        return Ok(());
-    }
-    let lines: Vec<String> = flags
-        .iter()
-        .map(|(flag, date)| format!("{flag}={date}"))
-        .collect();
-    let block = edit.entity()?.find(keys::FLAGS, &edit.buf).cloned();
-    match block.as_ref().and_then(|block| block.children().last()) {
-        Some(last) => {
-            let end = last.span().end;
-            for line in &lines {
-                edit.bytes().insert_after(end, line);
-            }
-        }
-        None => {
-            let write = |indent: &[u8]| {
-                let mut w = Lines::new(indent);
-                w.open(0, keys::FLAGS);
-                for line in &lines {
-                    w.line(1, line);
-                }
-                w.close(0);
-                inline(indent, &w.into_bytes())
-            };
-            match block {
-                Some(block) => {
-                    let text = write(&edit.indent(block.span().start));
-                    edit.bytes().replace_statement(block.span(), &text);
-                }
-                None => insert_key(edit, &[], &place::planet::FLAGS, write)?,
-            }
-        }
-    }
-    Ok(())
+    add_flags(edit, flags, &place::planet::FLAGS)
 }
 
 /// One live `bypasses` row, and the system its megastructure stands in.

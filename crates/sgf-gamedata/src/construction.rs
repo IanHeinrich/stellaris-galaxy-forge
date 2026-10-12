@@ -17,6 +17,7 @@
 //! spawns and the ones it removes, is read by [`layout`] from each stage's own definition,
 //! kept as [`Construction::script`].
 
+pub mod habitat;
 pub mod layout;
 
 use std::collections::BTreeMap;

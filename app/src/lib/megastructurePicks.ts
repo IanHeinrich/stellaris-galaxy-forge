@@ -25,6 +25,14 @@ export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can
 
 /** What the dialog says before Add. */
 export const WRITTEN_FINISHED = "The megastructure is added finished.";
+/** What the dialog says before Add of a type whose finished stage is a habitat. */
+export const WRITTEN_AS_HABITAT =
+  "The habitat is added finished, as a planet with no colony. It has the habitat skin of the empire that owns the system.";
+/** What the dialog says of a habitat's owner. */
+export const HABITAT_OWNER_NOTE = "A habitat is added with no owner.";
+/** Why no habitat goes round a body. */
+export const HABITAT_ROUND_SATELLITE =
+  "It orbits a planet, and Galaxy Forge puts no habitat round a body that orbits a planet.";
 
 /**
  * Where in the system view the Add megastructure menu was opened: on a body, with its class when
@@ -36,6 +44,8 @@ export type MegastructureSpot =
       readonly body: number;
       readonly star: boolean;
       readonly class?: string | null;
+      /** The body orbits a planet, as a moon or a habitat does: no habitat goes round it. */
+      readonly orbitsPlanet?: boolean;
     }
   | { readonly kind: "space"; readonly x: number; readonly y: number };
 
@@ -766,7 +776,8 @@ const BYPASS_NAMES: Readonly<Record<string, string>> = {
 
 /**
  * Why the save would refuse a row of `type` at `spot` of a system whose rows are `rows`: a second
- * gateway or relay in the system, or a body that has a megastructure already. Null when it fits.
+ * gateway or relay in the system, or a body that has a megastructure already. A habitat is no
+ * row, and is refused only round a body that orbits a planet. Null when it fits.
  */
 export function megastructureRefusal(
   type: MegastructureView,
@@ -774,6 +785,9 @@ export function megastructureRefusal(
   rows: readonly MegastructureSummary[],
   types: ReadonlyMap<string, MegastructureView>,
 ): string | null {
+  if (type.habitat && spot.kind === "body") {
+    return spot.orbitsPlanet === true ? HABITAT_ROUND_SATELLITE : null;
+  }
   const bypass = type.bypass_type;
   if (bypass !== null && bypass in BYPASS_NAMES) {
     if (rows.some((row) => types.get(row.kind)?.bypass_type === bypass)) {

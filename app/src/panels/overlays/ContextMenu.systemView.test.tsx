@@ -450,25 +450,25 @@ describe("adding a megastructure in the system view", () => {
     menuItem(<BodyMenu target={body(2)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
     expect(prompt()).toEqual({
       system: 0,
-      spot: { kind: "body", body: 2, star: false, class: "pc_continental" },
+      spot: { kind: "body", body: 2, star: false, class: "pc_continental", orbitsPlanet: false },
     });
 
     menuItem(<BodyMenu target={body(1)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
     expect(prompt()).toEqual({
       system: 0,
-      spot: { kind: "body", body: 1, star: true, class: "pc_g_star" },
+      spot: { kind: "body", body: 1, star: true, class: "pc_g_star", orbitsPlanet: false },
     });
   });
 
-  it("stays disabled, with the reason under it, on a body that has one and without game data", () => {
+  it("opens on a body that has one, where the dialog greys out the rows, and stays disabled without game data", () => {
     const read = useDetailsStore.getState().details.get(0)!;
     const ring = megastructureSummary({ kind: "orbital_ring_ruined", planet: 2 });
     useDetailsStore.setState({
       details: new Map([[0, { ...read, megastructures: [ring] }]]),
     });
     let html = menuOn(body(2));
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
-    expect(html).toContain(BODY_HAS_MEGASTRUCTURE);
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
+    expect(html).not.toContain(BODY_HAS_MEGASTRUCTURE);
 
     useGameDataStore.setState({ status: "idle" });
     html = menuOn(space);

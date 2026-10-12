@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::GameData;
+use crate::construction::habitat::habitat;
 use crate::construction::{SummaryKind, SummaryLine, SummaryOn};
 use crate::planet_views::ModifierLineView;
 use crate::registries::megastructures::MegastructureDef;
@@ -40,6 +41,10 @@ pub struct MegastructureView {
     /// What building the type adds to its system and bodies.
     #[serde(default)]
     pub construction_summary: Vec<ConstructionLineView>,
+    /// Its finished stage is a habitat beside the body it is built at, which the editor adds
+    /// as a planet in place of a row.
+    #[serde(default)]
+    pub habitat: bool,
 }
 
 impl GameData {
@@ -55,6 +60,7 @@ impl GameData {
                     .into_iter()
                     .map(|line| self.construction_line(line))
                     .collect(),
+                habitat: habitat(self, &def.key, true, None).is_some(),
                 def: def.clone(),
             })
             .collect()

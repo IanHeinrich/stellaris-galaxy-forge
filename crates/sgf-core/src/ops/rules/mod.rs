@@ -144,6 +144,15 @@ pub(crate) fn named_body(name: &NameTemplate, body: u32) -> String {
     }
 }
 
+/// [`named_body`] for a body of kind `kind` ("star Alari #0"), or the kind and id alone
+/// ("star #0") when no word of its name reads as a name.
+pub(crate) fn named_as(kind: &str, name: &NameTemplate, body: u32) -> String {
+    match shown_template(name) {
+        shown if shown.is_empty() => format!("{kind} #{body}"),
+        shown => format!("{kind} {shown} #{body}"),
+    }
+}
+
 /// `name` as [`named_body`] shows it, without the id; empty when nothing reads as a name.
 fn shown_template(name: &NameTemplate) -> String {
     if name.literal {

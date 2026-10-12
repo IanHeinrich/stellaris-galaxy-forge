@@ -33,6 +33,7 @@ export const getModelUses = command("getModelUses");
 export const applyOp = command("applyOp");
 export const addRandomSystem = command("addRandomSystem");
 export const addBody = command("addBody");
+export const addHabitat = command("addHabitat");
 export const addMegastructure = command("addMegastructure");
 export const deleteMegastructure = command("deleteMegastructure");
 export const deleteRingWorld = command("deleteRingWorld");

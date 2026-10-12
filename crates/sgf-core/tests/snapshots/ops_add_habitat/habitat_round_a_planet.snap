@@ -1,0 +1,96 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added habitat #16777273 round planet #4 in Alari system #169
+inverse: RemoveBody { body: 16777273 }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,7 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		planet=16777273
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -41052,6 +41053,7 @@
+ 			empire_cluster=62808000
+ 			precursor_adakkaria=62808000
+ 			resource_region_not_resource_rich=62808000
++			has_habitat=62818656
+ 		}
+ 		initializer="random_empire_init_04"
+ 		fleet_presence=
+@@ -80173,10 +80175,18 @@
+ 			}
+ 			orbit=95
+ 			last_bombardment=			"0.01.01"
++			moons=
++			{
++				16777273 
++			}
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
++			flags=
++			{
++				habitat16777273=62818656
++			}
+ 			entity=2
+ 		}
+ 		5=
+@@ -82369,7 +82379,50 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_habitat"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="HABITAT_PLANET_NAME"
++				variables=
++				{
++					
++					{
++						key="prev.solar_system.GetName"
++						value=
++						{
++							key="SPEC_Alari_system"
++						}
++					}
++ 
++				}
++			}
++			binary_flags=65
++			coordinate=
++			{
++				x=40.58215
++				y=81.9365
++				origin=169
++			}
++			orbit=9.899
++			last_bombardment=			"0.01.01"
++			moon_of=4
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				megastructure=62818656
++				habitat=62818656
++				habitat_level_1=62818656
++			}
++			entity=0
++			entity_name="mammalian_01_habitat_phase_03_entity"
++		}
+ 		58=
+ 		{
+ 			colony=30

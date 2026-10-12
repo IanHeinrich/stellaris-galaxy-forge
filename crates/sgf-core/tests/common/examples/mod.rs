@@ -1,6 +1,6 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
-use sgf_core::ops::{LanePair, MegastructurePlace, NewBody, Op, SystemMove};
+use sgf_core::ops::{LanePair, MegastructurePlace, NewBody, NewHabitat, Op, SystemMove};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
@@ -164,6 +164,28 @@ pub fn sol_nexus() -> Op {
         star_only: false,
         construction: None,
         left_out: 0,
+    }
+}
+
+/// A habitat round barren planet 4 of the 4.5 sample's capital system, Alari (169), as the
+/// install's Habitat Central Complex makes one round a planet.
+pub fn sol_habitat() -> Op {
+    Op::AddHabitat {
+        body: 4,
+        habitat: NewHabitat {
+            class: "pc_habitat".to_owned(),
+            size: 6,
+            at: OrbitPlacement {
+                radius: 9.899,
+                angle: 315.0,
+            },
+            name: "HABITAT_PLANET_NAME".to_owned(),
+            system_name: Some("prev.solar_system.GetName".to_owned()),
+            model: Some("mammalian_01_habitat_phase_03_entity".to_owned()),
+            flags: ["megastructure", "habitat", "habitat_level_1"]
+                .map(str::to_owned)
+                .to_vec(),
+        },
     }
 }
 
