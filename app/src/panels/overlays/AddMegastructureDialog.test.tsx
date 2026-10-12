@@ -183,7 +183,7 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain(
       '<span class="megastructure-add-portrait"><img src="tex:sprite:GFX_dyson" alt=""/></span>' +
         '<span class="megastructure-add-entry"><span class="megastructure-add-name">Dyson Sphere</span>' +
-        `<span class="megastructure-add-category muted">${category}</span>`,
+        `<span class="megastructure-add-category muted" title="${category}">${category}</span>`,
     );
     expect(html).toContain(
       '<span class="megastructure-add-portrait"></span>' +

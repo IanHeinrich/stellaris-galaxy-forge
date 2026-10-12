@@ -158,7 +158,9 @@ export function MegastructureList({
               <span className="megastructure-add-entry">
                 <span className="megastructure-add-name">{entry.label}</span>
                 {entry.category !== null && (
-                  <span className="megastructure-add-category muted">{entry.category}</span>
+                  <span className="megastructure-add-category muted" title={entry.category}>
+                    {entry.category}
+                  </span>
                 )}
                 <span className="megastructure-add-summary muted">{entry.summary}</span>
               </span>
@@ -356,8 +358,11 @@ export function MegastructurePreviewPane({
 }) {
   return (
     <aside className="megastructure-add-preview" aria-label="Selected megastructure">
-      <Thumb className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
-      {type?.portrait && <Thumb className="megastructure-add-banner" keys={[type.portrait]} />}
+      {type?.portrait ? (
+        <Thumb className="megastructure-add-banner" keys={[type.portrait]} />
+      ) : (
+        <Thumb className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
+      )}
       <h2>{preview.label}</h2>
       {preview.stage !== null && <div className="muted">{preview.stage}</div>}
       {preview.refused !== null && <p className="megastructure-add-refusal">{preview.refused}</p>}

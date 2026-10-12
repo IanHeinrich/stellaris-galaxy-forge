@@ -454,6 +454,12 @@
   overflow-wrap: anywhere;
 }
 
+.megastructure-add-category {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .megastructure-add-list > [role="option"]:hover {
   background: var(--bg-panel);
 }
