@@ -22,7 +22,7 @@ export const NULL_ID = 4294967295;
 export const RING_WORLD_SEGMENT_PREFIXES = ["pc_ringworld", "pc_shattered_ring"] as const;
 
 /** What the type of a ring world's megastructure row starts with. */
-export const RING_WORLD_ROW_PREFIX = "ring_world";
+export const RING_WORLD_ROW_PREFIXES = ["ring_world", "ringworld"] as const;
 
 /** The first major version whose saves take an added system. */
 export const ADDED_SYSTEMS_FROM_MAJOR = 4;

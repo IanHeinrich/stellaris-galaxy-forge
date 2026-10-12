@@ -92,6 +92,10 @@ pub struct Plan {
     /// The graphical culture of the structure's owner, which a condition or a `switch` on
     /// `graphical_culture` reads; `None` when it has none.
     pub culture: Option<String>,
+    /// The flags the system holds already, which `has_star_flag` finds set: the
+    /// `ring_01` to `ring_04` of a ring world standing there, which the next ring's habitable
+    /// sections are named after.
+    pub held_flags: Vec<String>,
 }
 
 /// What finishing a type leaves in its system.
@@ -161,6 +165,8 @@ pub struct LaidPlanet {
     pub flags: Vec<LaidFlag>,
     /// `trigger_megastructure_icon = yes`.
     pub megastructure_icon: bool,
+    /// Each `add_modifier` with its days, `-1` for one with no end, in the order added.
+    pub modifiers: Vec<(String, i32)>,
     /// What the walk listed in [`SystemLayout::unfollowed`] while it ran the planet's own
     /// `init_effect`.
     pub unfollowed: Vec<String>,
@@ -237,6 +243,7 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
         gd,
         on_star: plan.on_star,
         culture: plan.culture.clone(),
+        held_flags: plan.held_flags.iter().cloned().collect(),
         variables: BTreeMap::new(),
         rows: vec![Row {
             laid: LaidRow {
@@ -322,6 +329,7 @@ struct State<'g> {
     gd: &'g GameData,
     on_star: bool,
     culture: Option<String>,
+    held_flags: BTreeSet<String>,
     /// Each system variable a script the walk reached sets, with its value when the walk can
     /// follow it.
     variables: BTreeMap<String, Option<f64>>,
@@ -410,24 +418,34 @@ impl<'g> State<'g> {
     ///
     /// The game spawns ruins from system initializers, never from a construction, so nothing
     /// in the files says where a ruin stands. The rule here: a `_ruined` type with no
-    /// `upgrade_from` stands where a row of its working type stands, its working type being
-    /// one whose key is the ruin's with `_ruined` taken off, or that followed by `_` and more
+    /// `upgrade_from` stands where a row of its working type stands. Its working type is the
+    /// first stage of the row's chain when the registry joins the ruin to that stage
+    /// (`ring_world_titanic_ruined` at a `ringworld_t_3x_segment` frame point), else one whose
+    /// key is the ruin's with `_ruined` taken off, or that followed by `_` and more
     /// (`ring_world_ruined` at a `ring_world_2` frame point). The ruin has no name and no
     /// culture of its own.
     fn ruin(&mut self, row: usize) -> bool {
         let kind = self.rows[row].laid.kind.clone();
-        let ruin = self
-            .gd
-            .megastructures
-            .iter()
-            .filter(|def| def.upgrade_from.is_empty())
-            .filter_map(|def| {
-                let stem = def.key.strip_suffix(RUINED)?;
-                let rest = kind.strip_prefix(stem)?;
-                (rest.is_empty() || rest.starts_with('_')).then_some((stem.len(), &def.key))
-            })
-            .max_by_key(|(stem, _)| *stem)
-            .map(|(_, key)| key.clone());
+        let ruins = || {
+            self.gd
+                .megastructures
+                .iter()
+                .filter(|def| def.upgrade_from.is_empty() && def.key.ends_with(RUINED))
+        };
+        let first = chain(self.gd, &kind).and_then(|stages| stages.first().map(|s| s.key.clone()));
+        let joined = ruins()
+            .find(|def| def.variant_of.is_some() && def.variant_of == first)
+            .map(|def| def.key.clone());
+        let ruin = joined.or_else(|| {
+            ruins()
+                .filter_map(|def| {
+                    let stem = def.key.strip_suffix(RUINED)?;
+                    let rest = kind.strip_prefix(stem)?;
+                    (rest.is_empty() || rest.starts_with('_')).then_some((stem.len(), &def.key))
+                })
+                .max_by_key(|(stem, _)| *stem)
+                .map(|(_, key)| key.clone())
+        });
         let Some(ruin) = ruin else {
             self.note(format!("{kind}: no ruined type stands in its place"));
             return false;
@@ -775,6 +793,7 @@ impl<'d> Walk<'d> {
                 self.planet_flag(st, key, value);
             }
             "set_name" => self.name(st, node),
+            "add_modifier" if matches!(this, Scope::Planet(_)) => self.modifier(st, value, node),
             "set_planet_entity" => self.model(st, node),
             "trigger_megastructure_icon" => match this {
                 Scope::Planet(planet) => {
@@ -888,9 +907,7 @@ impl<'d> Walk<'d> {
             None => false,
         };
         let owned = self.resolved(st, node, "owner", &spawn) == Some(Scope::Owner);
-        let (cultured, culture) = self
-            .resolved(st, node, "graphical_culture", &spawn)
-            .map_or((false, None), |s| st.culture_of(s));
+        let (cultured, culture) = self.row_culture(st, node, &spawn);
         let row = st.rows.len();
         st.rows.push(Row {
             laid: LaidRow {
@@ -908,6 +925,49 @@ impl<'d> Walk<'d> {
         st.sections.push((row, at));
         if let Some(init) = node.find("init_effect", self.src()) {
             self.within(Scope::Row(row)).block(st, init);
+        }
+    }
+
+    /// Whether a spawned row takes the structure's culture, and a culture of its own: what its
+    /// `graphical_culture` names, a scope or a culture written out, such as the
+    /// `mammalian_01` Gigastructural Engineering spawns its larger rings' frames in.
+    fn row_culture(&self, st: &mut State<'d>, node: &Node, spawn: &str) -> (bool, Option<String>) {
+        let Some(written) = self.written(node, "graphical_culture") else {
+            return (false, None);
+        };
+        if let Some(scope) = self.scope_of(st, &written) {
+            return st.culture_of(scope);
+        }
+        let value = node.find("graphical_culture", self.src());
+        if value.is_some_and(|value| self.is_culture(st, &written, value)) {
+            return (false, Some(written));
+        }
+        self.note(st, &format!("{spawn} with graphical_culture = {written}"));
+        (false, None)
+    }
+
+    /// `add_modifier` on a spawned planet: its modifier and its days, `-1` when it gives none.
+    fn modifier(&self, st: &mut State<'d>, value: Option<String>, node: &Node) {
+        let Scope::Planet(planet) = self.this() else {
+            return;
+        };
+        let read = match value {
+            Some(modifier) => Some((modifier, -1)),
+            None => self.field(node, "modifier").and_then(|modifier| {
+                match self.numbers(node, ["days"]) {
+                    Ok([None]) => Some((modifier, -1)),
+                    Ok([Some(days)])
+                        if days.fract() == 0.0 && days.abs() <= f64::from(i32::MAX) =>
+                    {
+                        Some((modifier, days as i32))
+                    }
+                    _ => None,
+                }
+            }),
+        };
+        match read {
+            Some(item) => st.planets[planet].modifiers.push(item),
+            None => self.note(st, "add_modifier with no modifier or days"),
         }
     }
 
@@ -992,6 +1052,7 @@ impl<'d> Walk<'d> {
             model: None,
             flags: Vec::new(),
             megastructure_icon: false,
+            modifiers: Vec::new(),
             unfollowed: Vec::new(),
         });
         if let Some(init) = node.find("init_effect", self.src()) {
@@ -1222,6 +1283,9 @@ impl<'d> Walk<'d> {
             },
             "has_star_flag" => {
                 let flag = value?;
+                if st.held_flags.contains(&flag) {
+                    return Some(true);
+                }
                 st.written_flags
                     .contains(&flag)
                     .then(|| st.system_flags.contains(&flag))

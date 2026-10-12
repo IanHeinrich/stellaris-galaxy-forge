@@ -32,7 +32,7 @@ habitat: boolean,
 habitat_orbital: boolean, 
 /**
  * For a ring world past its site, why the editor cannot add its chain's ring whole with
- * four finished quadrants; `None` when it can, and for any other type.
+ * every quadrant finished; `None` when it can, and for any other type.
  */
 ring_world_refused: string | null, key: string, 
 /**

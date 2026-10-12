@@ -730,12 +730,16 @@ pub enum Op {
     /// A save system's ring world, whole: each segment, a body whose class starts with
     /// `pc_ringworld` (the damaged ones too) or `pc_shattered_ring`, goes as
     /// [`Op::DeleteBody`] takes a body, with its moons, its colony and the station working
-    /// it, and each `megastructures` row whose type starts with `ring_world` goes as
-    /// [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and rows
-    /// standing within 5 of it from the system's centre go; without it, every ring of the
-    /// system. The system loses the flags `ring_world_built` and `ring_section_1` to
-    /// `ring_section_3`, and its star the planet flag `has_megastructure` unless a row left
-    /// names the star. A fleet of the system that orbits a deleted segment and does not go
+    /// it, and each `megastructures` row whose type starts with `ring_world` or `ringworld`
+    /// goes as [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and
+    /// rows standing within 5 of it from the system's centre go; without it, every ring of
+    /// the system. The system loses the flags of each size of ring deleted: for a ring
+    /// within 5 of 90, 134 or 179, Gigastructural Engineering's titanic, behemoth or
+    /// gargantuan ring, `ring_world_built_one` and `giga_has_titanic_ring`, `_two` and
+    /// `giga_has_behemoth_ring`, or `_three` and `giga_has_gargantuan_ring`; for any other,
+    /// `ring_world_built` and `ring_section_1` to `ring_section_3`. Its star loses the planet
+    /// flag `has_megastructure` unless a ring world segment or row is left in the system or
+    /// a row left names the star. A fleet of the system that orbits a deleted segment and does not go
     /// with it, such as a fallen empire's deep-space citadel, stays where it stands and
     /// orbits the star instead: its `movement_manager.orbit.orbitable.planet` names the star.
     /// The system's other bodies and flags, its debris and the owners' flags stay. Refused
@@ -836,11 +840,14 @@ pub enum Op {
     /// belt stays, and so does every other megastructure, a Dyson Sphere round the star included:
     /// [`Op::DeleteBody`] and [`Op::RemoveBelt`] in the same [`Op::Batch`] clear the system
     /// first, as the game's frame does, after [`Op::DeleteMegastructure`] for each row that names
-    /// a body they delete. The owner's country flags are not written.
+    /// a body they delete; a ring world the system holds already stays. Each segment's timed
+    /// modifiers are written with their days. The owner's country flags are not written.
     /// The inner radius grows when a segment lies past it. A system with no star or more than
-    /// one, one that already has a ring world segment or row, an unknown owner, no sections, a section with no planets, a size
-    /// of 0, a placement that is not finite or not past 0, and a class, name, model, flag or
-    /// type that cannot be written are refused. The inverse is [`Op::RemoveRingWorld`],
+    /// one, one with a ring world segment or row standing within 5 of a radius the new ring's
+    /// sections stand at, an unknown owner, no sections, a section with no planets, a size
+    /// of 0, a placement that is not finite or not past 0, a modifier of 0 days, under -1 or
+    /// listed twice, and a class, name, model, flag, modifier or type that cannot be written
+    /// are refused. The inverse is [`Op::RemoveRingWorld`],
     /// batched with the old inner radius when it grew. Stellaris 4.x save documents only.
     AddRingWorld {
         system: u32,
@@ -1495,6 +1502,19 @@ pub struct RingSegment {
     /// It shows the ring's megastructure icon: `trigger_megastructure_icon = yes`.
     #[serde(default)]
     pub megastructure_icon: bool,
+    /// Its timed modifiers, in the order they are added: Gigastructural Engineering's
+    /// `giga_titanic_housing` on a titanic ring's habitable section.
+    #[serde(default)]
+    pub modifiers: Vec<RingModifier>,
+}
+
+/// A timed modifier of a [`RingSegment`], as `add_modifier` gives it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RingModifier {
+    pub modifier: String,
+    /// How many days it lasts, `-1` for no end.
+    pub days: i32,
 }
 
 /// The `megastructures` row of a [`RingQuadrant`].

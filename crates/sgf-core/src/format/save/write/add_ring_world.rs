@@ -14,10 +14,10 @@ use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::rows;
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::ring_world::{is_ring_row, is_segment};
+use crate::format::save::ring_world::{RING_SLACK, is_ring_row, is_segment};
 use crate::format::save::write::add_megastructure::today;
 use crate::format::save::write::add_system::write_slot;
-use crate::format::save::write::bodies::{Stored, frame, grow_past};
+use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
 use crate::format::save::write::id_list::{append, list_planets, unlist_planets};
 use crate::format::save::write::megastructure_links::{
     self, MEGASTRUCTURES, Tied, add_flags, drop_flags, unlink_all,
@@ -33,7 +33,7 @@ use crate::ops::{
     Edit, Emitted, NewRingWorld, Op, OpError, Plan, Planned, RingQuadrant, RingRow, RingSegment,
     RingVariable, RingWorldWritten, Subject,
 };
-use crate::projections::geometry::{Body, normalised, point, reach};
+use crate::projections::geometry::{Body, descendants, normalised, point, reach};
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
@@ -83,7 +83,7 @@ pub(crate) fn plan_add(
     system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     let stored = frame(s, system)?;
     let star = the_star(s, system, &stored)?;
-    check_room(s, system, &stored)?;
+    check_room(s, system, &stored, ring)?;
     if let Some(owner) = owner {
         plan.edit_country(&s.doc, owner)?;
     }
@@ -105,6 +105,11 @@ pub(crate) fn plan_add(
                     let id = slot.id();
                     let (at, orbit) = spawned(&SEGMENT_POINTS, segment.at.radius, segment.at.angle);
                     let name = NameTemplate::plain(&segment.name);
+                    let modifiers: Vec<(&str, i32)> = segment
+                        .modifiers
+                        .iter()
+                        .map(|m| (m.modifier.as_str(), m.days))
+                        .collect();
                     let entry = SegmentEntry {
                         id,
                         class: &segment.class,
@@ -118,6 +123,7 @@ pub(crate) fn plan_add(
                         flag_date: &date,
                         entity_name: segment.model.as_deref(),
                         megastructure_icon: segment.megastructure_icon,
+                        modifiers: &modifiers,
                     };
                     let emitted = Emitted::Planet { id, system };
                     write_slot(plan, &s.doc, slot, &mut planets, emitted, |indent| {
@@ -288,17 +294,24 @@ pub(crate) fn plan_remove(
 /// What clearing `system` for a ring world takes, as the game's frame clears it: every body
 /// that is not a star and every belt, with the megastructure rows that name them, which go
 /// first, and the uncolonised bodies a starbase orbits, which [`add_op`] refuses to clear.
+/// The segments of a ring world the system holds already stay, with what orbits them, and
+/// so do its rows.
 pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, OpError> {
     let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     let stored = frame(s, system)?;
     let bodies: Vec<Body> = stored.iter().map(|b| b.body).collect();
+    let mut kept = Vec::new();
     let mut going = Vec::new();
     for (i, body) in stored.iter().enumerate() {
         let (node, src) = planet_entity(&s.doc, body.body.id)?;
-        if !is_star(role(&node, src, i == 0, s.star_classes())) {
+        if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) {
+            kept.push(body.body.id);
+            kept.extend(descendants(&bodies, body.body.id));
+        } else if !is_star(role(&node, src, i == 0, s.star_classes())) {
             going.push(body.body.id);
         }
     }
+    going.retain(|id| !kept.contains(id));
     // Moons go before the planets they orbit, so that a body added this session, which
     // `DeleteBody` refuses while it has moons, has none left when its turn comes.
     let mut depths: Vec<(u32, usize)> = going
@@ -320,9 +333,10 @@ pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, Op
     }
     let mut megastructures = Vec::new();
     for row in rows(&s.doc, MEGASTRUCTURES)? {
-        if let Some(body) = megastructure::read(&row.node, row.src)
+        let facts = megastructure::read(&row.node, row.src);
+        if let Some(body) = facts
             .planet
-            .filter(|body| going.contains(body))
+            .filter(|body| going.contains(body) && !is_ring_row(&facts.kind))
         {
             megastructures.push(ClearedMegastructure { id: row.id, body });
         }
@@ -522,6 +536,24 @@ fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
     if let Some(model) = &segment.model {
         check_text("a model", model, Form::Bare)?;
     }
+    for (i, item) in segment.modifiers.iter().enumerate() {
+        check_text("a modifier", &item.modifier, Form::Bare)?;
+        if item.days == 0 || item.days < -1 {
+            return Err(OpError::MegastructureRefused {
+                kind: RING_WORLD.to_owned(),
+                reason: format!("modifier {} would last {} days", item.modifier, item.days),
+            });
+        }
+        if segment.modifiers[..i]
+            .iter()
+            .any(|earlier| earlier.modifier == item.modifier)
+        {
+            return Err(OpError::InvalidText {
+                what: "a modifier listed once",
+                text: item.modifier.clone(),
+            });
+        }
+    }
     check_flags("a planet flag", &segment.flags)
 }
 
@@ -577,8 +609,20 @@ fn the_star(s: &Session, system: u32, stored: &[Stored]) -> Result<u32, OpError>
     }
 }
 
-/// Refuse a system that holds a ring world already.
-fn check_room(s: &Session, system: u32, stored: &[Stored]) -> Result<(), OpError> {
+/// Refuse a ring that would overlap a ring world of the system: one with a segment or row
+/// standing within [`RING_SLACK`] of a radius the new ring's sections stand at.
+fn check_room(
+    s: &Session,
+    system: u32,
+    stored: &[Stored],
+    ring: &NewRingWorld,
+) -> Result<(), OpError> {
+    let radii = radii(ring);
+    let overlaps = |distance: f64| {
+        radii
+            .iter()
+            .any(|radius| (distance - radius).abs() <= RING_SLACK)
+    };
     let refuse = |reason: String| OpError::MegastructureRefused {
         kind: RING_WORLD.to_owned(),
         reason,
@@ -586,26 +630,51 @@ fn check_room(s: &Session, system: u32, stored: &[Stored]) -> Result<(), OpError
     let place = named(&s.graph, system);
     for body in stored {
         let (node, src) = planet_entity(&s.doc, body.body.id)?;
-        if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) {
+        let distance = body.body.at.0.hypot(body.body.at.1);
+        if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) && overlaps(distance) {
             return Err(refuse(format!(
-                "planet {} of {place} is a ring world segment",
-                body.body.id
+                "planet {} of {place} is a segment of the ring world at orbit {}",
+                body.body.id,
+                number(distance)
             )));
         }
     }
     for row in rows(&s.doc, MEGASTRUCTURES)? {
         let facts = megastructure::read(&row.node, row.src);
-        if facts.origin != Some(system) {
+        if facts.origin != Some(system) || !is_ring_row(&facts.kind) {
             continue;
         }
-        if is_ring_row(&facts.kind) {
+        if let Some((x, y)) = facts.at
+            && overlaps(x.hypot(y))
+        {
             return Err(refuse(format!(
-                "megastructure {} ({}) of {place} is part of a ring world",
-                row.id, facts.kind
+                "megastructure {} ({}) of {place} is part of the ring world at orbit {}",
+                row.id,
+                facts.kind,
+                number(x.hypot(y))
             )));
         }
     }
     Ok(())
+}
+
+/// Each radius a section of `ring` stands at, once.
+fn radii(ring: &NewRingWorld) -> Vec<f64> {
+    let mut radii: Vec<f64> = Vec::new();
+    for quadrant in &ring.quadrants {
+        let placed: Vec<f64> = match quadrant {
+            RingQuadrant::Finished { segments }
+            | RingQuadrant::Restored { segments }
+            | RingQuadrant::Damaged { segments } => segments.iter().map(|s| s.at.radius).collect(),
+            RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => vec![row.at.radius],
+        };
+        for radius in placed {
+            if !radii.contains(&radius) {
+                radii.push(radius);
+            }
+        }
+    }
+    radii
 }
 
 /// Each variable a ring sets, with the value the system held, as written; `None` where it held

@@ -8,7 +8,7 @@ use sgf_core::emit::DEFAULT_SYSTEM_HEIGHT;
 use sgf_core::export::ScenarioProfile;
 use sgf_core::export::policy::LCLUSTER_PREFIX;
 use sgf_core::format::save::WHOLE_ENTRIES_FROM_MAJOR;
-use sgf_core::format::save::ring_world::{ROW_TYPE_PREFIX, SEGMENT_CLASS_PREFIXES};
+use sgf_core::format::save::ring_world::{ROW_TYPE_PREFIXES, SEGMENT_CLASS_PREFIXES};
 use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
@@ -89,10 +89,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "RING_WORLD_SEGMENT_PREFIXES",
         format!("[{}] as const", prefixes.join(", ")),
     );
+    let row_prefixes: Vec<String> = ROW_TYPE_PREFIXES.iter().map(|p| format!("{p:?}")).collect();
     constant(
         "What the type of a ring world's megastructure row starts with.",
-        "RING_WORLD_ROW_PREFIX",
-        format!("{ROW_TYPE_PREFIX:?}"),
+        "RING_WORLD_ROW_PREFIXES",
+        format!("[{}] as const", row_prefixes.join(", ")),
     );
     constant(
         "The first major version whose saves take an added system.",

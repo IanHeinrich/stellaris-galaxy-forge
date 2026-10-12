@@ -6,7 +6,9 @@
 
 use crate::entity::facts::megastructure;
 use crate::format::save::added::rows;
-use crate::format::save::ring_world::{is_ring_row, is_segment, on_ring};
+use crate::format::save::ring_world::{
+    BASE_RING, RING_SLACK, is_ring_row, is_segment, on_ring, size_at,
+};
 use crate::format::save::write::bodies::{frame_bodies, number};
 use crate::format::save::write::fleets::{orbited_planet, present_fleets};
 use crate::format::save::write::megastructure_links::{
@@ -22,14 +24,6 @@ use crate::plural;
 use crate::projections::geometry::{Body, descendants};
 use crate::projections::read;
 use crate::session::Session;
-
-/// The system flags that say a ring world stands or is being built there.
-const SYSTEM_FLAGS: [&str; 4] = [
-    "ring_world_built",
-    "ring_section_1",
-    "ring_section_2",
-    "ring_section_3",
-];
 
 pub(crate) fn plan_delete(
     plan: &mut Plan,
@@ -60,6 +54,8 @@ pub(crate) fn plan_delete(
         ));
     }
     let going: Vec<u32> = rows.iter().map(|tied| tied.id).collect();
+    let flags = sizes_flags(s, &frame, &bodies, &going)?;
+    let standing = rings_left(s, system, &frame, &bodies, &going)?;
     let deletion = Deletion::read(s, system, &frame, bodies, Segments::Taken, &going)?;
 
     let mut saved = Saved::default();
@@ -69,10 +65,12 @@ pub(crate) fn plan_delete(
         plan.replace(doc, Subject::Record(tied.anchor), tied.anchor, bytes)?;
     }
     unlink_all(plan, s, &rows, Some(&mut saved))?;
-    deletion.write(plan, s, &mut saved, &SYSTEM_FLAGS)?;
+    deletion.write(plan, s, &mut saved, &flags)?;
     let mut reorbited = 0;
     if let Some(star) = frame.first() {
-        free_star(plan, s, &mut saved, system, star.id)?;
+        if !standing {
+            free_star(plan, s, &mut saved, system, star.id)?;
+        }
         let gone = deletion.gone_fleets();
         reorbited = reorbit(
             plan,
@@ -115,6 +113,65 @@ pub(crate) fn plan_delete(
         description: format!("Deleted the ring world{at} in {place}{what}{colonies}{dug}{fleets}"),
         inverse: deletion.inverse(saved, restored),
     })
+}
+
+/// The system flags of each size of ring the segments `bodies` and the rows `going` are part
+/// of, by how far each stands from the system's centre; the base game's ring's when none
+/// stands off the star.
+fn sizes_flags(
+    s: &Session,
+    frame: &[Body],
+    bodies: &[u32],
+    going: &[u32],
+) -> Result<Vec<&'static str>, OpError> {
+    let mut distances: Vec<f64> = frame
+        .iter()
+        .filter(|body| bodies.contains(&body.id))
+        .map(|body| body.at.0.hypot(body.at.1))
+        .collect();
+    for row in rows(&s.doc, MEGASTRUCTURES)? {
+        if going.contains(&row.id)
+            && let Some((x, y)) = megastructure::read(&row.node, row.src).at
+        {
+            distances.push(x.hypot(y));
+        }
+    }
+    let mut flags: Vec<&'static str> = Vec::new();
+    for distance in distances.into_iter().filter(|d| *d > RING_SLACK) {
+        for flag in size_at(distance).flags {
+            if !flags.contains(flag) {
+                flags.push(flag);
+            }
+        }
+    }
+    if flags.is_empty() {
+        flags.extend(BASE_RING.flags);
+    }
+    Ok(flags)
+}
+
+/// Whether a ring world segment or row of `system` stays: one not among the segments
+/// `bodies` and the rows `going`.
+fn rings_left(
+    s: &Session,
+    system: u32,
+    frame: &[Body],
+    bodies: &[u32],
+    going: &[u32],
+) -> Result<bool, OpError> {
+    for body in frame.iter().filter(|body| !bodies.contains(&body.id)) {
+        let (node, src) = planet_entity(&s.doc, body.id)?;
+        if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) {
+            return Ok(true);
+        }
+    }
+    for row in rows(&s.doc, MEGASTRUCTURES)? {
+        let facts = megastructure::read(&row.node, row.src);
+        if facts.origin == Some(system) && is_ring_row(&facts.kind) && !going.contains(&row.id) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// The segments of the system whose bodies are `frame` on the ring of `radius`, or of every

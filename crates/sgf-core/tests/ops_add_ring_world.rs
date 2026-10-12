@@ -2,7 +2,9 @@
 //! its planets left in place, taking it out again, and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::{MegastructurePlace, NewRingWorld, Op, RingQuadrant, RingVariable};
+use sgf_core::ops::{
+    MegastructurePlace, NewRingWorld, Op, RingModifier, RingQuadrant, RingVariable,
+};
 use sgf_core::session::Session;
 use sgf_core::views::ClearedMegastructure;
 
@@ -10,6 +12,7 @@ use crate::common;
 use common::diff::snapshot_step;
 use common::examples::{
     CHORS_COMPASS, HABRAQ, chors_ring, finished_quadrant, finished_ring, mixed_ring, sol_nexus,
+    titanic_ring,
 };
 use common::{
     SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5, open_edited_sample,
@@ -190,7 +193,7 @@ fn what_an_add_refuses() {
         [
             (
                 add(LACHIUM, finished_ring()),
-                "a ring world cannot be added there: planet 2445 of Lachium #203 is a ring world segment",
+                "a ring world cannot be added there: planet 2445 of Lachium #203 is a segment of the ring world at orbit 45.01",
             ),
             (
                 add(TUZHIK, finished_ring()),
@@ -230,7 +233,7 @@ fn what_an_add_refuses() {
         &mut session,
         [(
             chors_ring(None),
-            "a ring world cannot be added there: planet 16777273 of Chors Compass #23 is a ring world segment",
+            "a ring world cannot be added there: planet 16777273 of Chors Compass #23 is a segment of the ring world at orbit 45.21",
         )],
     );
     let mut old = open_3_4();
@@ -424,4 +427,121 @@ galactic_object=
         session.apply_inverse(added.inverse).expect("the removal");
         assert_eq!(current(&session), before, "{held}");
     }
+}
+
+/// A titanic ring goes round Lachium's star beside the base game's ring the file holds at 45:
+/// its segments stand at 90.4, its habitable sections have the housing modifier with no end,
+/// and the system and the star get the flags its chain leaves. A second ring at 45 is
+/// refused. Undo puts back the bytes.
+#[test]
+fn a_titanic_ring_beside_a_ring_the_file_holds() {
+    let mut session = open_4_5();
+    let op = session
+        .ring_world_op(LACHIUM, None, titanic_ring(), false)
+        .expect("the op");
+    let result = snapshot_step(&mut session, "titanic_ring_beside_lachiums", op);
+    assert_eq!(
+        result.entry.description,
+        "Added a ring world round Lachium #203"
+    );
+    let system = system_text(&session, LACHIUM);
+    for flag in [
+        "giga_has_titanic_ring=",
+        "ring_world_built_one=",
+        "ring_08=",
+    ] {
+        assert!(system.contains(flag), "{flag}: {system}");
+    }
+    assert!(planet_text(&session, 2444).contains("has_megastructure="));
+    assert_refusals(
+        &mut session,
+        [(
+            Op::AddRingWorld {
+                system: LACHIUM,
+                owner: None,
+                ring: titanic_ring(),
+            },
+            "a ring world cannot be added there: planet 16777273 of Lachium #203 is a segment of the ring world at orbit 90.43",
+        )],
+    );
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// Clearing a system that holds a ring world leaves its segments and rows standing: only the
+/// other bodies and the belts go before the new ring is added. Undo puts back the bytes.
+#[test]
+fn clearing_for_a_second_ring_keeps_the_first() {
+    let mut session = open_4_5();
+    session
+        .apply(chors_ring(None))
+        .expect("the base game's ring");
+    let with_ring = current(&session);
+    let segments: Vec<u32> = common::planet_ids(&session, CHORS_COMPASS)
+        .into_iter()
+        .filter(|&id| planet_text(&session, id).contains("pc_ringworld"))
+        .collect();
+    assert_eq!(segments.len(), 6, "{segments:?}");
+    let clearing = session
+        .ring_world_clearing(CHORS_COMPASS)
+        .expect("the clearing");
+    assert_eq!(clearing.bodies.len(), 4, "{:?}", clearing.bodies);
+    assert!(
+        clearing.bodies.iter().all(|id| !segments.contains(id)),
+        "{clearing:?}"
+    );
+    let op = session
+        .ring_world_op(CHORS_COMPASS, None, titanic_ring(), true)
+        .expect("the batch");
+    let result = session.apply(op).expect("the cleared titanic ring");
+    assert_eq!(
+        result.entry.description,
+        "Added a ring world round Chors Compass #23, removing 4 planets and 2 belts"
+    );
+    let ids = common::planet_ids(&session, CHORS_COMPASS);
+    assert!(segments.iter().all(|id| ids.contains(id)), "{ids:?}");
+    assert_eq!(ids.len(), 1 + 6 + 12, "{ids:?}");
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), with_ring);
+}
+
+/// A segment's timed modifier is checked as an added modifier is: a day count of 0, one under
+/// -1 and a modifier listed twice are refused.
+#[test]
+fn what_a_segments_modifiers_refuse() {
+    let mut session = open_4_5();
+    let with = |days: &[i32]| {
+        let mut ring = titanic_ring();
+        if let RingQuadrant::Finished { segments } = &mut ring.quadrants[0] {
+            segments[2].modifiers = days
+                .iter()
+                .map(|&days| RingModifier {
+                    modifier: "giga_titanic_housing".to_owned(),
+                    days,
+                })
+                .collect();
+        }
+        Op::AddRingWorld {
+            system: HABRAQ,
+            owner: None,
+            ring,
+        }
+    };
+    assert_refusals(
+        &mut session,
+        [
+            (
+                with(&[0]),
+                "a ring world cannot be added there: modifier giga_titanic_housing would last 0 days",
+            ),
+            (
+                with(&[-2]),
+                "a ring world cannot be added there: modifier giga_titanic_housing would last -2 days",
+            ),
+            (
+                with(&[-1, 360]),
+                "\"giga_titanic_housing\" cannot be written as a modifier listed once",
+            ),
+        ],
+    );
 }

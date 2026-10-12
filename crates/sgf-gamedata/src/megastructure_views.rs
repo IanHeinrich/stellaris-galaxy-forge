@@ -7,7 +7,7 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::construction::habitat::habitat;
-use crate::construction::ring_world::{RingStage, ring_world};
+use crate::construction::ring_world::{RingStage, quadrants, ring_world};
 use crate::construction::{SummaryKind, SummaryLine, SummaryOn};
 use crate::planet_views::ModifierLineView;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
@@ -51,7 +51,7 @@ pub struct MegastructureView {
     #[serde(default)]
     pub habitat_orbital: bool,
     /// For a ring world past its site, why the editor cannot add its chain's ring whole with
-    /// four finished quadrants; `None` when it can, and for any other type.
+    /// every quadrant finished; `None` when it can, and for any other type.
     #[serde(default)]
     pub ring_world_refused: Option<String>,
 }
@@ -87,7 +87,8 @@ impl GameData {
         else {
             return None;
         };
-        ring_world(self, &def.key, &[RingStage::Finished; 4], None).err()
+        let stages = vec![RingStage::Finished; quadrants(self, &def.key).unwrap_or(4)];
+        ring_world(self, &def.key, &stages, None, &[]).err()
     }
 
     fn construction_line(&self, line: SummaryLine) -> ConstructionLineView {

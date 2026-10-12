@@ -2,7 +2,7 @@
  * The op that deletes a save's ring world whole, which bodies and megastructures of a system
  * belong to one, and the sentence the confirm asks.
  */
-import { RING_WORLD_ROW_PREFIX, RING_WORLD_SEGMENT_PREFIXES } from "../../generated/constants";
+import { RING_WORLD_ROW_PREFIXES, RING_WORLD_SEGMENT_PREFIXES } from "../../generated/constants";
 import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { SystemDetails } from "../../generated/SystemDetails";
@@ -23,7 +23,7 @@ export function isRingSegment(planetClass: string): boolean {
 
 /** Whether a megastructure of `kind` is part of a ring world. */
 export function isRingRow(kind: string): boolean {
-  return kind.startsWith(RING_WORLD_ROW_PREFIX);
+  return RING_WORLD_ROW_PREFIXES.some((prefix) => kind.startsWith(prefix));
 }
 
 /** What deleting the ring worlds of a system takes. */
