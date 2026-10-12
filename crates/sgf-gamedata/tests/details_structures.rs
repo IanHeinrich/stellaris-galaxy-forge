@@ -277,7 +277,10 @@ fn a_parameterless_scripted_effect_gives_the_starbase_it_creates() {
         .initializer_details(8, "citadel_init", None)
         .expect("the citadel fixture");
     let starbase = details.starbase.expect("create_fixture_citadel = yes");
-    assert_eq!(starbase.level, "starbase_fixture");
+    assert_eq!(
+        starbase.level, "starbase_level_fixture",
+        "the level of its ship size"
+    );
     assert!(starbase.shipyard);
     assert_eq!(starbase.at, Some((21.6, -21.6)), "a = 11.7 + 0.33 × 30");
     let spawned = starbase.spawn.as_ref().expect("its spawn");
@@ -484,11 +487,7 @@ fn a_scenario_systems_megastructures_stand_where_the_saves_do() {
         }
 
         if let (Some(made), Some(held)) = (&details.starbase, &saved.starbase) {
-            assert_eq!(
-                held.level.replace("starbase_level_", "starbase_"),
-                made.level,
-                "{report}"
-            );
+            assert_eq!(held.level, made.level, "{report}");
             let Some(SpawnPlace::Starbase { star_size }) = made.spawn.as_ref().map(|s| &s.place)
             else {
                 panic!("a starbase beside the star\n{report}");

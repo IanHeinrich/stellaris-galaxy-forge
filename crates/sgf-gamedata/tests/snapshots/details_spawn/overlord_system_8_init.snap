@@ -143,7 +143,7 @@ expression: out
     "hull": 0.0,
     "id": 1879048193,
     "kind": "",
-    "level": "starbase_starhold",
+    "level": "starbase_level_starhold",
     "max_hull": 0.0,
     "modules": [
       "shipyard",

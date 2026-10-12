@@ -100,7 +100,7 @@ expression: out
     "hull": 0.0,
     "id": 1879048193,
     "kind": "",
-    "level": "starbase_outpost",
+    "level": "starbase_level_outpost",
     "max_hull": 0.0,
     "modules": [],
     "name": {

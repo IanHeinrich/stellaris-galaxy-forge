@@ -452,6 +452,7 @@ function freshArt(
     model,
     shatterSeed: seed,
     bodyModel,
+    segment: view?.ringworld === true,
   });
   const sprite = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const small = view?.hidden_model === true ? [...sprite, ...PLANET_ICON_KEYS] : sprite;

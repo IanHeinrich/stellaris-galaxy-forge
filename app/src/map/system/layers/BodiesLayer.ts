@@ -388,7 +388,8 @@ export class BodiesLayer implements SystemLayer {
   /**
    * Shows a habitat's or a ring world segment's model at its own size once it lands, with nothing
    * else of the body drawn; false, with the model hidden and the rest shown, while it bakes or
-   * where it cannot. Runs after the ring is dressed, which shows the ring's parts again.
+   * where it cannot. A body that waits for its model shows nothing while it bakes. Runs after the
+   * ring is dressed, which shows the ring's parts again.
    */
   private dressModel(drawn: Drawn): boolean {
     const { body, model } = drawn;
@@ -398,25 +399,27 @@ export class BodiesLayer implements SystemLayer {
     if (texture === undefined) requestTextures([key]);
     const placement = getModelPlacement(key);
     const shown = Boolean(texture && placement);
+    const waiting = texture === undefined && body.look.waitsForModel;
     model.visible = shown;
     // Each of these is sized to the disc, which now reaches as far as the model.
     for (const part of [drawn.glow, drawn.shade, drawn.rim]) {
-      if (part) part.visible = !shown;
+      if (part) part.visible = !shown && !waiting;
     }
-    if (!texture || !placement) return false;
+    if (!waiting && (!texture || !placement)) return false;
     if (drawn.ring) {
       const { back, front, backStrip, frontStrip } = drawn.ring;
       for (const half of [back, front, backStrip, frontStrip]) half.visible = false;
     }
+    for (const part of [drawn.disc, drawn.art, drawn.lit, drawn.glaze]) {
+      if (part) part.visible = false;
+    }
+    if (!texture || !placement) return true;
     model.texture = texture;
     model.anchor.set(placement.anchor_x, placement.anchor_y);
     model.scale.set(
       placement.width / Math.max(texture.width, 1),
       placement.height / Math.max(texture.height, 1),
     );
-    for (const part of [drawn.disc, drawn.art, drawn.lit, drawn.glaze]) {
-      if (part) part.visible = false;
-    }
     return true;
   }
 

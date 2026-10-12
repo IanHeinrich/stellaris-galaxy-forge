@@ -160,13 +160,25 @@ impl GameData {
             None => init.starbase.as_ref().map(|s| (s, true)),
         };
         let star_size = self.star_size(init, &cx);
-        out.starbase = starbase.map(|(s, always)| cx.starbase(s, always, star_size));
+        out.starbase = starbase.map(|(s, always)| {
+            let level = self.starbase_level(&s.size);
+            cx.starbase(s, level, always, star_size)
+        });
         out.modelled_calls = called
             .iter()
             .filter(|c| whole(c, from_call.is_some_and(|f| std::ptr::eq(f, *c))))
             .map(|c| c.call.clone())
             .collect();
         out
+    }
+
+    /// The starbase level whose ship size is `size`, as a save names a station's level; `size`
+    /// as written when no level has that ship size.
+    fn starbase_level(&self, size: &str) -> String {
+        self.starbase_levels
+            .iter()
+            .find(|level| level.ship_size.as_deref() == Some(size))
+            .map_or_else(|| size.to_owned(), |level| level.key.clone())
     }
 
     /// The size range of the system's first star: its block's own `size`, else for a block
@@ -363,9 +375,11 @@ impl Context<'_> {
         (territory, territory.is_none().then(|| written.to_owned()))
     }
 
+    /// The starbase `s` creates, at `level`.
     fn starbase(
         &self,
         s: &InitStarbase,
+        level: String,
         always: bool,
         star_size: Option<Bounds>,
     ) -> StarbaseSummary {
@@ -386,7 +400,7 @@ impl Context<'_> {
             id: STARBASE_BASE.saturating_add(self.id).min(u32::MAX - 1),
             hull: 0.0,
             max_hull: 0.0,
-            level: s.size.clone(),
+            level,
             kind: String::new(),
             name: NameTemplate::default(),
             name_key: String::new(),
