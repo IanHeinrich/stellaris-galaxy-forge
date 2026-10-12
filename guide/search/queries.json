@@ -166,6 +166,7 @@
   {"q": "move megastructure", "expect": "system/megastructures#move-within-a-system"},
   {"q": "move hyper relay", "expect": "system/megastructures#move-within-a-system"},
   {"q": "move arc furnace", "expect": "system/megastructures#move-within-a-system"},
+  {"q": "snap science nexus", "expect": "system/megastructures#move-within-a-system"},
   {"q": "move dyson sphere to another star", "expect": "system/megastructures#move-within-a-system"},
   {"q": "megastructure ruins", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "dyson sphere star class", "expect": "system/megastructures#add-a-megastructure"},

@@ -59,7 +59,7 @@ function greyedOut(type: MegastructureView): string | null {
 function fits(type: MegastructureView, spot: MegastructureSpot): boolean {
   const { placement } = type;
   if (spot.kind === "space") return placement.place === "free";
-  if (placement.place === "body") return !placement.star_only || spot.star;
+  if (placement.place === "body") return spot.star ? !type.planet_only : !placement.star_only;
   if (placement.place !== "unsupported") return false;
   const { why } = placement;
   if (why.kind === "changes_body") return true;

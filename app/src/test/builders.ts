@@ -417,6 +417,7 @@ export function megastructureTypeView(
     activates_gateway: false,
     sets_has_megastructure: false,
     planet_possible_star: false,
+    planet_only: false,
     script_only: false,
     turns_into: [],
     swaps: [],

@@ -21,6 +21,11 @@ at: [number, number] | null,
  */
 culture: string | null, 
 /**
+ * Its planet has the planet flag `megastructure`: the structure made the planet, as a
+ * cosmogenesis world's did, and stays on it.
+ */
+made_body?: boolean, 
+/**
  * What only a scenario's initializer says of it. `None` in a save.
  */
 spawn?: StructureSpawn, };

@@ -683,13 +683,23 @@ for planets or deposits.
   gets `megastructure=<id>`. The planet's `megastructure=` can name an
   id the table no longer holds (a 4.5.2 save), so the tie is read from
   the row's `planet`.
+- The game keeps a tied row's coordinate wherever it is, and draws most
+  types there: a Science Nexus tied to an asteroid with its coordinate
+  20 units away, and one with its coordinate on the far side of its
+  system (x=-115 with the asteroid near x=115), both held after load
+  and a month, drawn at their coordinate. A type that wraps its body is
+  drawn on the body whatever its coordinate: a ruined Orbital Ring with
+  an off-planet coordinate was still drawn round its planet. Tested in
+  Stellaris 4.5.2.
 - When the editor moves a row within its system, a row at a point of
   its own gets new x and y only, as a moved relay keeps in game. A row
-  tied to a body gets the new body's `planet` and coordinate, and the
-  old body's `megastructure` key, the flags a structure leaves and an
-  Arc Furnace's hiding model go to the new body, each flag with its
-  date. A `megastructure` key on the new body that names a row the table
-  no longer holds takes the moved row's id.
+  tied to a body keeps its `planet` and gets new x and y when it moves
+  beside its body. On another body it gets that body's `planet`, and its
+  coordinate is the body's or the point it was dropped at. The old
+  body's `megastructure` key, the flags a structure leaves and an Arc
+  Furnace's hiding model go to the new body, each flag with its date. A
+  `megastructure` key on the new body that names a row the table no
+  longer holds takes the moved row's id.
 - A row's `bypass=<id>` and that bypass's `owner={ type=6 id=<row> }`
   agree in all 299 bypass rows of a 4.5.1 save. Natural wormholes and the
   Shroud tunnel have `owner={ type=7 … }`.

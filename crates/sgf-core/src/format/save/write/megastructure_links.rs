@@ -16,6 +16,7 @@ use crate::format::save::write::id_list::{Emptied, unlist};
 use crate::format::save::write::restore::{Saved, live};
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
+use crate::ops::rules::FURNACE_ENTITY;
 use crate::ops::{Edit, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
@@ -23,9 +24,6 @@ use crate::session::Session;
 
 /// The `megastructures` table.
 pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure);
-
-/// The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace.
-pub(crate) const FURNACE_ENTITY: &str = "invisible_turret_entity";
 
 /// The planet flags a built or ruined megastructure leaves on its body.
 pub(crate) const BODY_FLAGS: [&str; 3] = [

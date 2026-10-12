@@ -116,14 +116,42 @@ const part = (drawn: Container, label: string) =>
   drawn.children.find((c) => c.label === label) as Sprite;
 
 describe("where a megastructure or a starbase is drawn", () => {
-  it("draws a row tied to a body where the body is drawn, plus its type's offset, not at the row's own point", () => {
+  it("draws a floating row at its own point plus its type's offset, and a wrapping one on its body", () => {
     const nexus = megastructureSummary({
       id: 7,
       kind: "think_tank_3",
       planet: EARTH.id,
       at: [40, 40],
     });
-    expect(only(system([nexus]))).toMatchObject({ x: 90, y: -20 });
+    expect(only(system([nexus]))).toMatchObject({ x: 40, y: 20 });
+    const furnace = megastructureSummary({
+      kind: "orbital_arc_furnace_1",
+      planet: MARS.id,
+      at: [40, 40],
+    });
+    const mars = system([furnace]).bodyById.get(MARS.id)!.placement;
+    expect(only(system([furnace]))).toMatchObject({ x: mars.x, y: mars.y });
+  });
+
+  it("carries a floating row with its body while a drag moves the body", () => {
+    const nexus = megastructureSummary({
+      id: 7,
+      kind: "think_tank_3",
+      planet: EARTH.id,
+      at: [40, 40],
+    });
+    const base = system([nexus]);
+    const was = base.bodyById.get(EARTH.id)!.placement;
+    const override = SAVE_GEOMETRY.preview(
+      { kind: "move", system: SYSTEM, body: EARTH.id, radius: 200, angle: 0 },
+      base,
+    );
+    const moved = systemContext(base, { override, marks: null });
+    const earth = moved.bodyById.get(EARTH.id)!.placement;
+    expect(only(moved)).toMatchObject({
+      x: 40 + earth.x - was.x,
+      y: 20 + earth.y - was.y,
+    });
   });
 
   it("puts a row drawn on its body under the body's plate, and one drawn off it under its own", () => {

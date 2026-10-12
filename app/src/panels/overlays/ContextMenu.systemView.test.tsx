@@ -35,6 +35,7 @@ import { buttons, escaped, menuItem } from "../../test/elements";
 import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
 import {
   megastructureSummary,
+  megastructureTypeView,
   namedPlanets,
   orbitClasses,
   orbitSystem,
@@ -271,6 +272,32 @@ describe("a megastructure in the system view", () => {
     const html = menu();
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete megastructure<span/);
     expect(html).toContain(`<span class="muted">${refusal}</span>`);
+  });
+
+  it("offers to snap a floating megastructure standing away from its planet back to it", async () => {
+    const [planet] = namedPlanets([saveBody(5, "pc_arid", [100, 0], 100, 12)]);
+    const away = megastructureSummary({ id: 6, kind: "think_tank_3", planet: 5, at: [-40, 30] });
+    inSystem(systemDetails({ id: 0, planets: [planet], megastructures: [away] }));
+    useGameDataStore.setState({
+      names: new Map([["think_tank_3", "Science Nexus"]]),
+      megastructureTypes: new Map([["think_tank_3", megastructureTypeView("think_tank_3")]]),
+    });
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+    const item = menuItem(<MegastructureMenu target={target} frame={{}} />, "Snap to P5");
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    item.props.onClick();
+    await until(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({
+        type: "MoveMegastructure",
+        megastructure: 6,
+        at: { place: "body", body: 5 },
+      }),
+    );
+  });
+
+  it("offers no snap to a megastructure at its planet's point", () => {
+    atTheNexus();
+    expect(menu()).not.toContain("Snap to");
   });
 
   it("offers no deletion on a scenario", async () => {

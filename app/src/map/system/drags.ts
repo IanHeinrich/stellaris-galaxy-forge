@@ -7,6 +7,9 @@ import type { Pt } from "../../lib/geometry/pt";
 import {
   change,
   degrees,
+  heldAbout,
+  holdFrom,
+  holdHint,
   nearestRing,
   NO_MARKS,
   ORIGIN,
@@ -18,6 +21,8 @@ import {
   type DragPointer,
   type DragStep,
   type HandleRef,
+  type Hold,
+  type Polar,
 } from "./bodyDrag";
 import type { SceneBody, SceneWormhole, SystemContext } from "./context";
 import { drawnDisc } from "./geometry";
@@ -132,8 +137,10 @@ type Moving = Exclude<MegastructureMove, { place: "fixed" }>;
 
 /**
  * A megastructure dragged: one at a point of its own freely about the centre, in whole units and
- * degrees or Shift's steps; one tied to a body onto
- * another body of the system, the bodies its type may stand on ringed while it is held.
+ * degrees or Shift's steps; one tied to a body onto another body of the system, the bodies its
+ * type may stand on ringed while it is held. Each follows the pointer. A tied one settles on a body
+ * that takes it; released anywhere else, one the game draws at its own point stays there, still
+ * tied to its body, as a moon does, and one the game draws on its body goes back to it.
  */
 export class MegastructureDrag implements Drag {
   private constructor(
@@ -151,6 +158,11 @@ export class MegastructureDrag implements Drag {
     /** The bodies that will take it. */
     private readonly targets: readonly number[],
   ) {}
+
+  /** Ctrl's hold on a floating structure, while Ctrl is down. */
+  private hold: Hold | null = null;
+  /** Where the last move put a floating structure about its body. */
+  private last: Polar | null = null;
 
   /** The drag of megastructure `id`, pressed at `from`, or null when it may not move. */
   static start(frame: MegastructureFrame, id: number, from: Pt): MegastructureDrag | null {
@@ -188,11 +200,16 @@ export class MegastructureDrag implements Drag {
 
   move(pointer: DragPointer): DragStep {
     const how = this.how;
-    return how.place === "free" ? this.toPoint(pointer) : this.toBody(pointer, how.on);
+    return how.place === "free" ? this.toPoint(pointer) : this.toBody(pointer, how.on, how.floats);
   }
 
-  private intent(at: MegastructurePlace): GeometryIntent {
-    return { kind: "moveMegastructure", system: this.system, megastructure: this.id, at };
+  private intent(at: MegastructurePlace) {
+    return {
+      kind: "moveMegastructure" as const,
+      system: this.system,
+      megastructure: this.id,
+      at,
+    } satisfies GeometryIntent;
   }
 
   private toPoint(pointer: DragPointer): DragStep {
@@ -211,11 +228,14 @@ export class MegastructureDrag implements Drag {
     };
   }
 
-  private toBody(pointer: DragPointer, on: number): DragStep {
+  private toBody(pointer: DragPointer, on: number, floats: boolean): DragStep {
     const marks = { ...NO_MARKS, megastructure: this.id, targets: this.targets };
-    const stay = this.intent({ place: "body", body: on });
-    const over = this.over(pointer);
+    const held = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
+    const stay = { ...this.intent({ place: "body", body: on }), shown: held };
+    this.hold = floats && pointer.ctrl ? this.holdAbout(on, held) : null;
+    const over = this.hold === null ? this.over(pointer) : null;
     if (over === null || over.placement.id === on) {
+      if (floats) return this.beside(on, held, pointer, marks);
       const readout = { text: this.name };
       return { intent: stay, marks, readout, hint: DRAG_HINTS.toBody, changed: false };
     }
@@ -237,6 +257,43 @@ export class MegastructureDrag implements Drag {
       readout: { text: `${this.name} · to ${over.name}` },
       hint: toStructureHint(over.name),
       changed: true,
+    };
+  }
+
+  /** Body `on`'s point, about which a floating structure moves as a moon about its planet. */
+  private homeOf(on: number): Pt {
+    const home = this.bodies.find((b) => b.placement.id === on)?.placement;
+    return home ? { x: home.x, y: home.y } : ORIGIN;
+  }
+
+  /** Ctrl's hold about body `on`, taken from where the last move put the structure. */
+  private holdAbout(on: number, held: Pt): Hold {
+    if (this.hold !== null) return this.hold;
+    const last = this.last ?? polarAbout(this.at, this.homeOf(on));
+    return holdFrom(last, this.at, held);
+  }
+
+  /**
+   * Where a floating structure stands while it stays tied to body `on`, moved as a moon about its
+   * planet: in whole units and degrees about the body, Shift's steps, or Ctrl's axis.
+   */
+  private beside(on: number, held: Pt, pointer: DragPointer, marks: DragMarks): DragStep {
+    const home = this.homeOf(on);
+    const radiusOf = () => ({
+      radius: Math.max(1, Math.round(Math.hypot(held.x - home.x, held.y - home.y))),
+      shared: null,
+    });
+    const { radius, angle } = heldAbout(held, home, this.hold, pointer.shift, radiusOf);
+    this.last = { radius, angle };
+    const was = polarAbout(this.at, home);
+    const { x, y } = polar(home.x, home.y, radius, angle);
+    const name = this.bodies.find((b) => b.placement.id === on)?.name ?? `#${on}`;
+    return {
+      intent: this.intent({ place: "beside", body: on, x, y }),
+      marks,
+      readout: { text: `r ${change(was.radius, radius)} · ${degrees(angle)} about ${name}` },
+      hint: holdHint(this.hold, DRAG_HINTS.floating),
+      changed: !(near(x, this.at.x) && near(y, this.at.y)),
     };
   }
 

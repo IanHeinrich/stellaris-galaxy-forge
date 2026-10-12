@@ -1,5 +1,6 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
+import { FURNACE_ENTITY } from "../../generated/constants";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
@@ -20,7 +21,11 @@ import {
   wormholePlateName,
 } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
-import { megastructureMove, type MegastructureMove } from "../../lib/details/megastructureMoves";
+import {
+  floatsFree,
+  megastructureMove,
+  type MegastructureMove,
+} from "../../lib/details/megastructureMoves";
 import {
   inspectedBody,
   isNaturalWormhole,
@@ -707,13 +712,17 @@ function sceneWormholes(
   });
 }
 
-/** Where a structure drawn as `look` stands: about `body` where it has one, else at `at`. */
+/**
+ * Where a structure drawn as `look` stands: about `body` where it has one, else at `at`. One that
+ * `grows` with its planet takes the size of `sizedBy`, its body unless a drag holds it off it.
+ */
 function placeStructure(
   look: Exclude<StructureLook, { kind: "none" }>,
   body: SceneBody | undefined,
   at: readonly [number, number] | null,
   offset: readonly [number, number],
   grows: boolean,
+  sizedBy: SceneBody | undefined = body,
 ): Pick<SceneStructure, "x" | "y" | "scale"> | null {
   const point = body ? [body.placement.x, body.placement.y] : at;
   if (point == null) return null;
@@ -721,13 +730,17 @@ function placeStructure(
   return {
     x: point[0] + offset[0],
     y: point[1] + offset[1],
-    scale: grows && body ? scale * planetScale(body.placement.disc) : scale,
+    scale: grows && sizedBy ? scale * planetScale(sizedBy.placement.disc) : scale,
   };
 }
+
+/** Within this many save units of its body's point, a floating row stands at its standard spot. */
+const ON_BODY = 1e-3;
 
 function megastructure(
   src: SystemSources,
   bodyById: ReadonlyMap<number, SceneBody>,
+  base: SystemLayout,
   row: MegastructureSummary,
   movable: boolean,
   moved: MegastructurePlace | undefined,
@@ -735,12 +748,35 @@ function megastructure(
   const type = src.megastructureTypes.get(row.kind);
   const look = megastructureLook(type);
   if (look.kind === "none") return null;
-  const planet = moved ? (moved.place === "body" ? moved.body : null) : row.planet;
-  const body = planet === null ? undefined : bodyById.get(planet);
-  const at: readonly [number, number] | null =
-    moved?.place === "free" ? [moved.x, moved.y] : row.at;
+  const homeBody = row.planet === null ? undefined : bodyById.get(row.planet);
+  const home = {
+    star: homeBody?.placement.star === true,
+    hidden: homeBody?.planet?.entity_name === FURNACE_ENTITY,
+  };
+  const floats = row.planet !== null && floatsFree(type, home.star);
   const offset = type?.entity_offset ?? [0, 0];
-  const placed = placeStructure(look, body, at, offset, type?.scales_with_planet === true);
+  const centred = offset[0] === 0 && offset[1] === 0;
+  let body: SceneBody | undefined;
+  let at: readonly [number, number] | null;
+  let on: number | null;
+  if (moved !== undefined && moved.place !== "body") {
+    [body, at, on] = [undefined, [moved.x, moved.y], null];
+  } else if (moved !== undefined) {
+    body = bodyById.get(moved.body);
+    [at, on] = [null, centred ? (body?.placement.id ?? null) : null];
+  } else if (floats && homeBody) {
+    const was = base.bodies.find((b) => b.id === homeBody.placement.id);
+    const point = row.at ?? (was ? ([was.x, was.y] as const) : null);
+    at = drifted(point, homeBody.placement, was);
+    body = undefined;
+    const standard = point !== null && was !== undefined && atBody(point, was);
+    on = centred && standard ? homeBody.placement.id : null;
+  } else {
+    [body, at] = [homeBody, row.at];
+    on = centred ? (body?.placement.id ?? null) : null;
+  }
+  const grows = type?.scales_with_planet === true;
+  const placed = placeStructure(look, body, at, offset, grows, body ?? homeBody);
   if (placed === null) return null;
   // Turned from where the save puts it, so a drag does not bake it again at every step.
   const yaw = megastructureYaw(type, row.at);
@@ -753,10 +789,25 @@ function megastructure(
     name: src.names.get(row.kind) ?? megastructureLabel(row.kind),
     level: null,
     // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
-    on: offset[0] === 0 && offset[1] === 0 ? (body?.placement.id ?? null) : null,
+    on,
     resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
-    move: movable ? megastructureMove(row, type) : null,
+    move: movable ? megastructureMove(row, type, home) : null,
   };
+}
+
+/** `point`, moved by as much as its body was moved from `was` to `now`, as a preview moves it. */
+function drifted(
+  point: readonly [number, number] | null,
+  now: BodyPlacement,
+  was: BodyPlacement | undefined,
+): readonly [number, number] | null {
+  if (point === null || was === undefined) return point;
+  return [point[0] + now.x - was.x, point[1] + now.y - was.y];
+}
+
+/** Whether `point` is `body`'s own point. */
+function atBody(point: readonly [number, number], body: BodyPlacement): boolean {
+  return Math.abs(point[0] - body.x) < ON_BODY && Math.abs(point[1] - body.y) < ON_BODY;
 }
 
 function starbase(
@@ -792,6 +843,7 @@ function starbase(
 function sceneStructures(
   src: SystemSources,
   bodyById: ReadonlyMap<number, SceneBody>,
+  base: SystemLayout,
   editing: SceneEditing,
   moved: LayoutOverride["megastructures"],
 ): SceneStructure[] {
@@ -800,7 +852,7 @@ function sceneStructures(
   const stations = details.starbase ? [details.starbase, ...details.other_starbases] : [];
   return [
     ...details.megastructures.map((row) =>
-      megastructure(src, bodyById, row, editing.megastructures, moved?.get(row.id)),
+      megastructure(src, bodyById, base, row, editing.megastructures, moved?.get(row.id)),
     ),
     ...stations.map((station) => starbase(src, bodyById, station)),
   ].filter((s): s is SceneStructure => s !== null);
@@ -883,7 +935,7 @@ export function systemContext(
         editing,
         preview?.override.megastructures,
       ],
-      () => sceneStructures(src, bodyById, editing, preview?.override.megastructures),
+      () => sceneStructures(src, bodyById, base, editing, preview?.override.megastructures),
     ),
     viewRadius: Math.max(
       layout.fitRadius,

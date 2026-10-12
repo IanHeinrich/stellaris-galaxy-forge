@@ -1,9 +1,11 @@
+import type { MegastructureSummary } from "../../../generated/MegastructureSummary";
 import { documentCapabilities } from "../../../lib/capabilities";
 import {
   DELETE_MEGASTRUCTURE,
   deleteMegastructureOp,
   megastructureName,
 } from "../../../lib/details/megastructureRemoval";
+import { snapBody, snapLabel } from "../../../lib/details/megastructureMoves";
 import { isRingRow } from "../../../lib/details/ringWorldRemoval";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -13,14 +15,16 @@ import { megastructureEntry, useInspectorStore } from "../../../store/inspectorS
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { deleteMegastructure } from "../../../store/megastructureRemoval";
 import { useSceneStore } from "../../../store/sceneStore";
+import { applyGeometry, useSystemGeometry } from "../../../store/systemGeometry";
+import { useSystemBodyNames } from "../../inspector/entity/useBodyName";
 import { useOpCheck } from "../../useOpCheck";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 import { RingWorldItem } from "./RingWorldItem";
 
 /**
- * The menu on a megastructure in the system view: its page, its deletion or its ring world's, and
- * the way out.
+ * The menu on a megastructure in the system view: its page, a floating one's way back to its
+ * planet's point, its deletion or its ring world's, and the way out.
  */
 export function MegastructureMenu({
   target,
@@ -47,6 +51,7 @@ export function MegastructureMenu({
       <MenuItem disabled={name === undefined} run={inspect}>
         Inspect
       </MenuItem>
+      {row !== undefined && <SnapItem system={target.system} row={row} />}
       {removable &&
         name !== undefined &&
         row !== undefined &&
@@ -76,4 +81,18 @@ function DeleteItem({ system, id, name }: { system: number; id: number; name: st
       {refusal && <span className="muted">{refusal}</span>}
     </MenuItem>
   );
+}
+
+/** Stands a floating megastructure back at its planet's point, where it stands away from it. */
+function SnapItem({ system, row }: { system: number; row: MegastructureSummary }) {
+  const { editing, layout } = useSystemGeometry(system);
+  const type = useGameDataStore((s) => s.megastructureTypes.get(row.kind));
+  const named = useSystemBodyNames(system);
+  const body = editing.megastructures ? snapBody(row, type, layout.bodies) : null;
+  if (body === null) return null;
+  const at = { place: "body", body } as const;
+  const run = () => {
+    void applyGeometry({ kind: "moveMegastructure", system, megastructure: row.id, at });
+  };
+  return <MenuItem run={run}>{snapLabel(named(body)?.text ?? `#${body}`)}</MenuItem>;
 }

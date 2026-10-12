@@ -6,12 +6,13 @@
 //! a structure leaves and an Arc Furnace's hiding model, goes to the new body with it.
 
 use crate::cst::Node;
-use crate::emit::coord;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::ring_world;
-use crate::format::save::write::add_megastructure::{add_flags, planet_flag};
+use crate::format::save::write::add_megastructure::{
+    add_flags, is_star_body, planet_flag, same_point,
+};
 use crate::format::save::write::megastructure_links::{
-    self, BODY_FLAGS, FURNACE_ENTITY, MEGASTRUCTURES, Tied, unlink_body,
+    self, BODY_FLAGS, MEGASTRUCTURES, Tied, unlink_body,
 };
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place::{self, insert_key};
@@ -19,7 +20,7 @@ use crate::format::save::write::planet_entity::write_entity_name;
 use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
-use crate::ops::rules::named;
+use crate::ops::rules::{FURNACE_ENTITY, named};
 use crate::ops::{
     MegastructureEdit, MegastructurePlace, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
 };
@@ -69,9 +70,23 @@ pub(crate) fn plan_move(
     let description = match (tied.planet, at) {
         (None, MegastructurePlace::Free { x, y }) => to_point(plan, s, &tied, system, (x, y))?,
         (Some(from), MegastructurePlace::Body { body }) => {
-            to_body(plan, s, &mut saved, &tied, system, from, body)?
+            to_body(plan, s, &mut saved, &tied, system, from, (body, None))?
         }
-        (None, MegastructurePlace::Body { .. }) => {
+        (Some(from), MegastructurePlace::Beside { body, x, y }) => {
+            if !(x.is_finite() && y.is_finite()) {
+                return Err(OpError::NotFinite);
+            }
+            to_body(
+                plan,
+                s,
+                &mut saved,
+                &tied,
+                system,
+                from,
+                (body, Some((x, y))),
+            )?
+        }
+        (None, MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. }) => {
             return Err(refused(
                 id,
                 "it stands at a point of its own, not on a planet or star".to_owned(),
@@ -81,7 +96,7 @@ pub(crate) fn plan_move(
             return Err(refused(
                 id,
                 format!(
-                    "it stands on or around planet {from}, so it moves only to another planet or star"
+                    "it stands on or around planet {from}, so it stays tied to a planet or star"
                 ),
             ));
         }
@@ -115,7 +130,7 @@ fn to_point(
     let edit = plan.edit_record(&s.doc, tied.anchor)?;
     let from = read::coordinate(edit.entity()?, &edit.buf)
         .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
-    if (coord(from.0), coord(from.1)) == (coord(to.0), coord(to.1)) {
+    if same_point(from, to) {
         return Err(OpError::unchanged(
             format!("megastructure {id}"),
             "already stands there",
@@ -138,8 +153,8 @@ fn polar(at: (f64, f64)) -> String {
     format!("{} at {}°", number(radius), number(angle))
 }
 
-/// Tie row `tied` to `body` in place of `from`, keeping each entity rewritten in `saved`, and
-/// say what moved.
+/// Tie row `tied` to `body` in place of `from`, standing at `point` or at the body's point,
+/// keeping each entity rewritten in `saved`, and say what moved.
 fn to_body(
     plan: &mut Plan,
     s: &Session,
@@ -147,19 +162,25 @@ fn to_body(
     tied: &Tied,
     system: u32,
     from: u32,
-    body: u32,
+    (body, point): (u32, Option<(f64, f64)>),
 ) -> Result<String, OpError> {
     let doc = &s.doc;
     let id = tied.id;
-    if body == from {
-        return Err(OpError::unchanged(
-            format!("megastructure {id}"),
-            format!("already stands at planet {body}"),
-        ));
-    }
     let (target, src) = planet_entity(doc, body)?;
     if planet_system(&target, src, body)? != system {
         return Err(OpError::NotABody { body, system });
+    }
+    let to_at = read::coordinate(&target, src)
+        .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
+    let (old, old_src) = planet_entity(doc, from)?;
+    if planet_flag(&old, old_src, keys::MEGASTRUCTURE) {
+        return Err(refused(
+            id,
+            format!("it made planet {from}, which stays where it is"),
+        ));
+    }
+    if body == from {
+        return beside(plan, s, tied, system, body, point.unwrap_or(to_at), to_at);
     }
     let held = rows(doc, MEGASTRUCTURES)?.into_iter().find(|row| {
         row.id != id && read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(body)
@@ -173,16 +194,7 @@ fn to_body(
     let target_flags = flags_of(&target, src);
     let target_model = read::scalar(&target, keys::ENTITY_NAME, src).map(str::to_owned);
     let stale_key = target.find(keys::MEGASTRUCTURE, src).is_some();
-    let to_at = read::coordinate(&target, src)
-        .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
 
-    let (old, old_src) = planet_entity(doc, from)?;
-    if planet_flag(&old, old_src, keys::MEGASTRUCTURE) {
-        return Err(refused(
-            id,
-            format!("it made planet {from}, which stays where it is"),
-        ));
-    }
     let carried: Vec<(&str, String)> = flags_of(&old, old_src)
         .into_iter()
         .filter_map(|(flag, date)| {
@@ -192,10 +204,17 @@ fn to_body(
         .filter(|(flag, _)| !target_flags.iter().any(|(held, _)| held == flag))
         .collect();
     let furnace = read::scalar(&old, keys::ENTITY_NAME, old_src) == Some(FURNACE_ENTITY);
+    if furnace && is_star_body(s, system, body, &target, src)? {
+        return Err(refused(
+            id,
+            format!("an Arc Furnace hides the planet it stands at, and planet {body} is a star"),
+        ));
+    }
 
     let edit = plan.edit_record(doc, tied.anchor)?;
     edit.set_scalar(&[keys::PLANET], body.to_string())?;
-    splice_coordinate(edit, to_at.0, to_at.1)?;
+    let at = point.unwrap_or(to_at);
+    splice_coordinate(edit, at.0, at.1)?;
     unlink_body(plan, s, &[id], &[id], from, &mut Some(&mut *saved))?;
     let anchor = planet_statement(doc, body)?.ok_or(OpError::UnknownPlanet(body))?;
     saved.keep(doc, SavedTable::Planet, body, anchor)?;
@@ -212,8 +231,52 @@ fn to_body(
     if furnace && target_model.as_deref() != Some(FURNACE_ENTITY) {
         write_entity_name(edit, Some(FURNACE_ENTITY))?;
     }
+    let standing = match point {
+        Some(at) if !same_point(at, to_at) => format!(", standing at {}", polar(at)),
+        _ => String::new(),
+    };
     Ok(format!(
-        "Moved megastructure #{id} ({}) in {} from planet #{from} to planet #{body}",
+        "Moved megastructure #{id} ({}) in {} from planet #{from} to planet #{body}{standing}",
+        tied.kind,
+        named(&s.graph, system)
+    ))
+}
+
+/// Stand row `tied`, which stays tied to `body`, at `at`: back at the body's point `home`, or
+/// a point of its own. Say what moved.
+fn beside(
+    plan: &mut Plan,
+    s: &Session,
+    tied: &Tied,
+    system: u32,
+    body: u32,
+    at: (f64, f64),
+    home: (f64, f64),
+) -> Result<String, OpError> {
+    let id = tied.id;
+    let edit = plan.edit_record(&s.doc, tied.anchor)?;
+    let from = read::coordinate(edit.entity()?, &edit.buf)
+        .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
+    if same_point(from, at) {
+        let state = if same_point(at, home) {
+            format!("already stands at planet {body}")
+        } else {
+            "already stands there".to_owned()
+        };
+        return Err(OpError::unchanged(format!("megastructure {id}"), state));
+    }
+    splice_coordinate(edit, at.0, at.1)?;
+    let to = if same_point(at, home) {
+        format!("back to planet #{body}")
+    } else {
+        format!(
+            "from {} to {}, tied to planet #{body}",
+            polar(from),
+            polar(at)
+        )
+    };
+    Ok(format!(
+        "Moved megastructure #{id} ({}) in {} {to}",
         tied.kind,
         named(&s.graph, system)
     ))

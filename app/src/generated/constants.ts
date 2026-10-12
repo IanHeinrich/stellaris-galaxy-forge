@@ -60,6 +60,9 @@ export const STORED_ORBIT_SLACK = 0.01;
 /** How far out, as a share of its system's inner radius, a megastructure built outside the gravity well stands. */
 export const RELAY_RADIUS_FACTOR = 1.05;
 
+/** The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace. */
+export const FURNACE_ENTITY = "invisible_turret_entity";
+
 /** The height above the galactic plane the game gives every system it generates. */
 export const DEFAULT_SYSTEM_HEIGHT = 3.65056;
 

@@ -3,6 +3,7 @@
 //! session added, and what is refused.
 
 use sgf_core::entity::views::EntityKind;
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::{MegastructurePlace, Op};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
@@ -23,6 +24,13 @@ fn to_body(megastructure: u32, body: u32) -> Op {
     Op::MoveMegastructure {
         megastructure,
         at: MegastructurePlace::Body { body },
+    }
+}
+
+fn beside(megastructure: u32, body: u32, x: f64, y: f64) -> Op {
+    Op::MoveMegastructure {
+        megastructure,
+        at: MegastructurePlace::Beside { body, x, y },
     }
 }
 
@@ -268,6 +276,131 @@ fn a_row_the_session_added_moves_too() {
     assert!(!old.contains("has_megastructure="), "{old}");
 }
 
+/// The Science Nexus added to gas giant 6 of Alari (169) stands at a point of its own and
+/// keeps its planet, then goes back to the planet's point.
+#[test]
+fn a_row_tied_to_a_planet_stands_at_a_point_of_its_own_and_back() {
+    let mut session = save_4_5_with_added_megastructure();
+    let opened = entity_text(&session, EntityKind::Planet, 6);
+    let result = round_trip_step(
+        &mut session,
+        "beside",
+        beside(ADDED_MEGASTRUCTURE, 6, 40.0, -30.0),
+    );
+    assert_eq!(
+        result.entry.description,
+        format!(
+            "Moved megastructure #16 (think_tank_3) in Alari system #169 from {} to 50 at 323.13°, tied to planet #6",
+            described_point(&session_before_move())
+        )
+    );
+    let row = entity_text(&session, EntityKind::Megastructure, ADDED_MEGASTRUCTURE);
+    assert!(row.contains("planet=6"), "{row}");
+    assert!(
+        row.contains(
+            "x=40
+"
+        ) && row.contains(
+            "y=-30
+"
+        ),
+        "{row}"
+    );
+    assert_eq!(
+        entity_text(&session, EntityKind::Planet, 6),
+        opened,
+        "the planet stays as it was"
+    );
+
+    let back = round_trip_step(&mut session, "back", to_body(ADDED_MEGASTRUCTURE, 6));
+    assert_eq!(
+        back.entry.description,
+        "Moved megastructure #16 (think_tank_3) in Alari system #169 back to planet #6"
+    );
+    assert_refusals(
+        &mut session,
+        [(
+            to_body(ADDED_MEGASTRUCTURE, 6),
+            "megastructure 16 already stands at planet 6",
+        )],
+    );
+}
+
+/// The added Science Nexus as it stands before any move.
+fn session_before_move() -> Session {
+    save_4_5_with_added_megastructure()
+}
+
+/// "r at a°" for the added Science Nexus's point, as a description names it.
+fn described_point(session: &Session) -> String {
+    let row = entity_text(session, EntityKind::Megastructure, ADDED_MEGASTRUCTURE);
+    let axis = |key: &str| -> f64 {
+        let start = row.find(&format!("	{key}=")).expect(key) + key.len() + 2;
+        row[start..].lines().next().unwrap().parse().unwrap()
+    };
+    let (x, y) = (axis("x"), axis("y"));
+    let radius = x.hypot(y);
+    let angle = (y.atan2(x).to_degrees() + 360.0) % 360.0;
+    format!("{} at {}°", trimmed(radius), trimmed(angle))
+}
+
+fn trimmed(v: f64) -> String {
+    let text = format!("{v:.2}");
+    text.trim_end_matches('0').trim_end_matches('.').to_owned()
+}
+
+#[test]
+fn a_row_dropped_on_another_planet_at_its_own_point_takes_it_as_its_planet() {
+    let mut session = save_4_5_with_added_megastructure();
+    round_trip_step(
+        &mut session,
+        "rehomed",
+        beside(ADDED_MEGASTRUCTURE, 7, 40.0, -30.0),
+    );
+    let row = entity_text(&session, EntityKind::Megastructure, ADDED_MEGASTRUCTURE);
+    assert!(
+        row.contains("planet=7")
+            && row.contains(
+                "x=40
+"
+            ),
+        "{row}"
+    );
+    assert!(entity_text(&session, EntityKind::Planet, 7).contains("megastructure=16"));
+}
+
+/// A row added beside its planet is taken out with an inverse that adds it back there.
+#[test]
+fn a_row_added_beside_its_planet_comes_back_there() {
+    let mut session = open_4_5();
+    let mut nexus = common::examples::sol_nexus();
+    if let Op::AddMegastructure { at, .. } = &mut nexus {
+        *at = MegastructurePlace::Beside {
+            body: 6,
+            x: 40.0,
+            y: -30.0,
+        };
+    }
+    session.apply(nexus).expect("the add");
+    let removed = session
+        .apply(Op::RemoveMegastructure {
+            megastructure: ADDED_MEGASTRUCTURE,
+            construction: None,
+        })
+        .expect("the removal");
+    let Op::AddMegastructure { at, .. } = removed.inverse else {
+        panic!("an add, not {:?}", removed.inverse);
+    };
+    assert_eq!(
+        at,
+        MegastructurePlace::Beside {
+            body: 6,
+            x: 40.0,
+            y: -30.0
+        }
+    );
+}
+
 #[test]
 fn what_is_refused() {
     assert_refusals(
@@ -292,7 +425,7 @@ fn what_is_refused() {
             ),
             (
                 to_point(4, 30.0, 30.0),
-                "megastructure 4 cannot be moved: it stands on or around planet 936, so it moves only to another planet or star",
+                "megastructure 4 cannot be moved: it stands on or around planet 936, so it stays tied to a planet or star",
             ),
             (to_body(4, 517), "planet 517 is not a body of system 38"),
             (
@@ -304,6 +437,14 @@ fn what_is_refused() {
                 "megastructure 6 already stands there",
             ),
             (to_point(6, f64::NAN, 0.0), "value is not a finite number"),
+            (
+                beside(6, 1646, 10.0, 10.0),
+                "megastructure 6 cannot be moved: it stands at a point of its own, not on a planet or star",
+            ),
+            (
+                beside(4, 933, f64::NAN, 0.0),
+                "value is not a finite number",
+            ),
         ],
     );
     assert_refusals(
@@ -354,6 +495,18 @@ fn a_planet_the_game_counts_a_megastructure_at_takes_one() {
     assert!(planet.contains("megastructure=16"), "{planet}");
 }
 
+/// Star 511 is Vinh's: the furnace's model would hide it.
+#[test]
+fn an_arc_furnace_is_refused_a_star() {
+    assert_refusals(
+        &mut furnace(|_| {}),
+        [(
+            to_body(16, 511),
+            "megastructure 16 cannot be moved: an Arc Furnace hides the planet it stands at, and planet 511 is a star",
+        )],
+    );
+}
+
 #[test]
 fn a_structure_on_the_body_it_made_is_refused() {
     let mut session = edited_4_5(|text| {
@@ -366,11 +519,26 @@ fn a_structure_on_the_body_it_made_is_refused() {
         );
         row(text, 16, "cosmogenesis_world_0", 174, "\t\tplanet=517\n");
     });
+    let details = session.details().expect("details");
+    let made = details
+        .resolve(174, &HeuristicResolver, false)
+        .expect("Vinh's details")
+        .megastructures
+        .into_iter()
+        .find(|row| row.id == 16)
+        .expect("row 16");
+    assert!(made.made_body, "the details say it made its planet");
     assert_refusals(
         &mut session,
-        [(
-            to_body(16, 516),
-            "megastructure 16 cannot be moved: it made planet 517, which stays where it is",
-        )],
+        [
+            (
+                to_body(16, 516),
+                "megastructure 16 cannot be moved: it made planet 517, which stays where it is",
+            ),
+            (
+                beside(16, 517, 10.0, 10.0),
+                "megastructure 16 cannot be moved: it made planet 517, which stays where it is",
+            ),
+        ],
     );
 }

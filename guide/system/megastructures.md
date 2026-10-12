@@ -92,8 +92,10 @@ you right-clicked. Otherwise it opens on a Dyson Sphere on a star, a
 Science Nexus on a planet, or a Hyper Relay in empty space.
 
 A Dyson Sphere and the other megastructures the game builds only around
-a star are offered only on a star. A second Hyper Relay or Gateway in a
-system is greyed out, and the preview says why.
+a star are offered only on a star. A Science Nexus, an Arc Furnace and
+the others the game never builds on a star aren't offered on a star. A
+second Hyper Relay or Gateway in a system is greyed out, and the preview
+says why.
 
 A Hyper Relay or a Gateway stands just outside the system's
 [inner radius](../reference/glossary.md#inner-radius), in the direction
@@ -150,10 +152,22 @@ own. Drag it to where it should stand, anywhere in its system. It moves
 in whole units and degrees, and <kbd>Shift</kbd> snaps the angle to 15°
 steps. Its links to other relays or gateways stay as they are.
 
-A megastructure built on or around a body, such as a Science Nexus, an
-Arc Furnace or a ruined Orbital Ring, moves to another planet, moon or
-star of the same system. Drag it, and the bodies it can move to are
-ringed. Drop it on one of them.
+A megastructure built on or around a body belongs to that body. It
+moves in one of two ways:
+
+- A Science Nexus and most others stand beside their planet, and you
+  drag them as you drag a moon. Drop one anywhere in the system and it
+  stays there, still belonging to its planet. When you move the planet,
+  it moves with it. To put it back beside its planet, right-click it and
+  select the Snap to item that names the planet.
+- An Orbital Ring, an Arc Furnace, a Dyson Sphere and the others the
+  game draws wrapped round their planet or star always sit on it. Drag
+  one and drop it on another body to move it there. Dropped anywhere
+  else, it goes back to its body.
+
+Either kind moves to another planet, moon or star of the same system
+when you drop it on one. While you drag, the bodies it can move to are
+ringed.
 
 An Arc Furnace hides its new planet, and its old planet shows again. The
 modifiers and deposits its construction added stay where they are, so an
@@ -166,6 +180,8 @@ red when the pointer is over it, and the status bar says why:
 - The megastructure is built only around a star, such as a Dyson
   Sphere, and the body is a planet or a moon. In a system with one star,
   such a megastructure has nowhere to go.
+- The game never builds the megastructure on a star, as with a Science
+  Nexus or an Arc Furnace, and the body is a star.
 
 Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to move it back.
 

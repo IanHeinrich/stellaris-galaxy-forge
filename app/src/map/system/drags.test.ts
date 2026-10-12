@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MEGASTRUCTURE_REFUSALS } from "../../lib/details/megastructureMoves";
-import { DRAG_HINTS } from "../../lib/details/orbitIntent";
-import { polar } from "../../lib/details/orbits";
+import { DRAG_HINTS, type GeometryIntent } from "../../lib/details/orbitIntent";
+import { polar, polarAbout } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import { megastructureSummary, megastructureTypeView } from "../../test/builders";
 import { sceneRecorder as recorder } from "../../test/mapIntent";
@@ -10,6 +10,7 @@ import {
   BESIDE,
   lastStep,
   LONE,
+  MOON,
   named,
   on,
   ORBITS,
@@ -112,6 +113,9 @@ describe("a megastructure dragged in the system scene", () => {
   const NEXUS = 41;
   const SPHERE = 42;
   const RING = 43;
+  const FURNACE = 44;
+  /** The second moon of planet 2, which the furnace stands at. */
+  const FURNACE_MOON = 4;
   const structure = (id: number) => ({ kind: "megastructure" as const, id });
   const types = new Map(
     [
@@ -121,7 +125,8 @@ describe("a megastructure dragged in the system scene", () => {
       }),
       megastructureTypeView("think_tank_3"),
       megastructureTypeView("dyson_sphere_5", { placement: { place: "body", star_only: true } }),
-      megastructureTypeView("orbital_ring_ruined"),
+      megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true }),
+      megastructureTypeView("orbital_arc_furnace_4", { planet_only: true }),
     ].map((t) => [t.key, t]),
   );
 
@@ -132,6 +137,12 @@ describe("a megastructure dragged in the system scene", () => {
       megastructureSummary({ id: NEXUS, kind: "think_tank_3", planet: LONE, at: null }),
       megastructureSummary({ id: SPHERE, kind: "dyson_sphere_5", planet: STAR }),
       megastructureSummary({ id: RING, kind: "orbital_ring_ruined", planet: PLANET, at: null }),
+      megastructureSummary({
+        id: FURNACE,
+        kind: "orbital_arc_furnace_4",
+        planet: FURNACE_MOON,
+        at: null,
+      }),
     ];
     return systemContext({
       ...frame,
@@ -177,7 +188,8 @@ describe("a megastructure dragged in the system scene", () => {
     model.handle(on("move", pointOf(frame, BESIDE)), intent);
     const step = lastStep(intent);
     const others = frame.bodies.map((b) => b.placement.id).filter((id) => id !== LONE);
-    expect(step?.marks.targets).toEqual(others.filter((id) => id !== PLANET && id !== STAR));
+    const taken = [PLANET, STAR, FURNACE_MOON];
+    expect(step?.marks.targets).toEqual(others.filter((id) => !taken.includes(id)));
     expect(step?.marks.host).toBe(BESIDE);
     expect(step?.changed).toBe(true);
     model.handle(on("up", pointOf(frame, BESIDE)), intent);
@@ -213,5 +225,183 @@ describe("a megastructure dragged in the system scene", () => {
     expect(lastStep(intent)?.marks.targets).toEqual([]);
     const sphere = frame.structures.find((s) => s.id === SPHERE)!.name;
     expect(lastStep(intent)?.refused).toBe(MEGASTRUCTURE_REFUSALS.starOnly(sphere));
+  });
+
+  it("says why the star refuses an Arc Furnace, which the game never builds on a star", () => {
+    const frame = structureFrame();
+    const { model, intent } = press(FURNACE, pointOf(frame, FURNACE_MOON));
+    model.handle(on("move", pointOf(frame, STAR)), intent);
+    const name = frame.structures.find((s) => s.id === FURNACE)!.name;
+    const why = MEGASTRUCTURE_REFUSALS.planetOnly(name);
+    expect(lastStep(intent)?.readout).toEqual({ text: why, tone: "warn" });
+    expect(lastStep(intent)?.marks).toMatchObject({ tone: "refused", other: STAR });
+    expect(lastStep(intent)?.marks.targets).not.toContain(STAR);
+    model.handle(on("up", pointOf(frame, STAR)), intent);
+    expect(named(intent.calls, "commit")).toEqual([]);
+    expect(named(intent.calls, "refuse")).toEqual([["refuse", why]]);
+  });
+
+  /** Where the scene draws structure `id` while `intent`'s last step is shown. */
+  function drawnAt(intent: ReturnType<typeof recorder>, id: number): Pt {
+    const frame = intent.frame();
+    const step = lastStep(intent)!;
+    const ctx = systemContext(frame, {
+      override: frame.geometry.preview(step.intent, frame),
+      marks: step.marks,
+    });
+    const shown = ctx.structures.find((s) => s.kind === "megastructure" && s.id === id)!;
+    return { x: shown.x, y: shown.y };
+  }
+
+  it("draws a free structure under the pointer at each move", () => {
+    const { model, intent } = press(GATEWAY, { x: 0, y: 250 });
+    for (const [x, y] of [
+      [0, 260],
+      [40, 200],
+      [-120, -80],
+    ]) {
+      model.handle(on("move", [x, y]), intent);
+      const at = drawnAt(intent, GATEWAY);
+      expect(Math.hypot(at.x - x, at.y - y)).toBeLessThan(2.5);
+    }
+  });
+
+  it("draws a wrapping structure under the pointer, on a body that takes it, and back on its body when released elsewhere", () => {
+    const frame = structureFrame();
+    const home = pointOf(frame, PLANET);
+    const { model, intent } = press(RING, home);
+    for (const [x, y] of [
+      [home.x + 30, home.y],
+      [0, -160],
+      [-140, 20],
+    ]) {
+      model.handle(on("move", [x, y]), intent);
+      expect(drawnAt(intent, RING)).toEqual({ x, y });
+    }
+    model.handle(on("move", pointOf(frame, BESIDE)), intent);
+    expect(drawnAt(intent, RING)).toEqual(pointOf(frame, BESIDE));
+    model.handle(on("move", [-140, 20]), intent);
+    model.handle(on("up", [-140, 20]), intent);
+    expect(named(intent.calls, "commit")).toEqual([]);
+    expect(lastStep(intent)).toBeNull();
+  });
+
+  it("keeps a wrapping structure the size of its planet while a drag holds it off it", () => {
+    const frame = structureFrame();
+    const home = pointOf(frame, PLANET);
+    const before = frame.structures.find((s) => s.id === RING)!.scale;
+    const { model, intent } = press(RING, home);
+    model.handle(on("move", [-140, 20]), intent);
+    const step = lastStep(intent)!;
+    const shown = systemContext(frame, {
+      override: frame.geometry.preview(step.intent, frame),
+      marks: step.marks,
+    }).structures.find((s) => s.id === RING)!;
+    expect(shown.scale).toBe(before);
+    expect(before).not.toBe(1);
+  });
+
+  it("leaves a floating structure where it is dropped, still tied to its planet, as a moon", () => {
+    const frame = structureFrame();
+    const home = pointOf(frame, LONE);
+    const { model, intent } = press(NEXUS, home);
+    model.handle(on("move", [-140.3, 20.4]), intent);
+    const about = polarAbout({ x: -140.3, y: 20.4 }, home);
+    const radius = Math.round(about.radius);
+    const angle = Math.round(about.angle) % 360;
+    const to = polar(home.x, home.y, radius, angle);
+    expect(drawnAt(intent, NEXUS)).toEqual({ x: to.x, y: to.y });
+    expect(lastStep(intent)?.hint).toBe(DRAG_HINTS.floating);
+    expect(lastStep(intent)?.readout.text).toBe(
+      `r 0 → ${radius} · ${angle}° about ${frame.bodyById.get(LONE)!.name}`,
+    );
+    model.handle(on("up", [-140.3, 20.4]), intent);
+    expect(named(intent.calls, "commit")).toEqual([
+      [
+        "commit",
+        {
+          kind: "moveMegastructure",
+          system: ORBITS,
+          megastructure: NEXUS,
+          at: { place: "beside", body: LONE, x: to.x, y: to.y },
+        },
+      ],
+    ]);
+  });
+
+  it("lands a floating structure on the radius and angle a moon dragged the same way lands on", () => {
+    const frame = structureFrame();
+    const planet = pointOf(frame, PLANET);
+    const to = polar(planet.x, planet.y, 37.4, 33.4);
+
+    const moon = new SystemGestureModel();
+    const moonIntent = recorder(frame);
+    const moonAt = pointOf(frame, MOON);
+    moon.handle(on("down", moonAt, { target: over("body", MOON), draggable: true }), moonIntent);
+    moon.handle(on("move", [to.x, to.y], { shift: true }), moonIntent);
+    const moved = lastStep(moonIntent)?.intent;
+    expect(moved).toMatchObject({ kind: "move", body: MOON });
+
+    const nexusOnPlanet = systemContext({
+      ...frame,
+      details: {
+        ...frame.details!,
+        megastructures: frame.details!.megastructures.map((row) =>
+          row.id === NEXUS
+            ? { ...row, planet: PLANET }
+            : row.id === RING
+              ? { ...row, planet: null }
+              : row,
+        ),
+      },
+    });
+    const model = new SystemGestureModel();
+    const intent = recorder(nexusOnPlanet);
+    model.handle(on("down", planet, { target: structure(NEXUS), draggable: true }), intent);
+    model.handle(on("move", [to.x, to.y], { shift: true }), intent);
+    const step = lastStep(intent)!;
+    const at = (step.intent as Extract<GeometryIntent, { kind: "moveMegastructure" }>).at;
+    expect(at.place).toBe("beside");
+    if (at.place !== "beside" || moved?.kind !== "move") return;
+    const about = polarAbout(at, planet);
+    expect(about.radius).toBeCloseTo(moved.radius as number, 6);
+    expect(about.angle).toBeCloseTo(moved.angle as number, 6);
+    expect(moved.angle).toBe(30);
+    expect(step.hint).toBe(DRAG_HINTS.floating);
+  });
+
+  it("holds a floating structure's angle with Ctrl, as a moon's", () => {
+    const frame = structureFrame();
+    const home = pointOf(frame, LONE);
+    const { model, intent } = press(NEXUS, home);
+    model.handle(on("move", [home.x + 30, home.y]), intent);
+    model.handle(on("move", [home.x + 34, home.y + 1], { ctrl: true }), intent);
+    model.handle(on("move", [home.x + 10, home.y + 50], { ctrl: true }), intent);
+    const step = lastStep(intent)!;
+    const at = (step.intent as Extract<GeometryIntent, { kind: "moveMegastructure" }>).at;
+    if (at.place !== "beside") throw new Error(`beside, not ${at.place}`);
+    const about = polarAbout(at, home);
+    expect(about.angle).toBeCloseTo(0, 6);
+    expect(about.radius).toBe(51);
+    expect(step.hint).toBe(DRAG_HINTS.across);
+  });
+
+  it("ties a floating structure dropped on another planet to that planet", () => {
+    const frame = structureFrame();
+    const { model, intent } = press(NEXUS, pointOf(frame, LONE));
+    model.handle(on("move", pointOf(frame, BESIDE)), intent);
+    expect(lastStep(intent)?.marks.host).toBe(BESIDE);
+    model.handle(on("up", pointOf(frame, BESIDE)), intent);
+    expect(named(intent.calls, "commit")).toEqual([
+      [
+        "commit",
+        {
+          kind: "moveMegastructure",
+          system: ORBITS,
+          megastructure: NEXUS,
+          at: { place: "body", body: BESIDE },
+        },
+      ],
+    ]);
   });
 });

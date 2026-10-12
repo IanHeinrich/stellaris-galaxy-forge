@@ -14,8 +14,21 @@ const MOVED_BYPASSES: ReadonlySet<string> = new Set(["gateway", "relay_bypass"])
 export type MegastructureMove =
   /** Dragged to any point, where the game keeps it. */
   | { readonly place: "free" }
-  /** Dragged onto another body of the system; `starOnly` for a type built only around a star. */
-  | { readonly place: "body"; readonly on: number; readonly starOnly: boolean }
+  /**
+   * Dragged onto another body of the system: only a star for `starOnly`, a type built only
+   * around a star; never a star for `planetOnly`, a type the game never builds on one.
+   */
+  | {
+      readonly place: "body";
+      readonly on: number;
+      readonly starOnly: boolean;
+      readonly planetOnly: boolean;
+      /**
+       * It stands at a point of its own about its body, as a moon does, and is dragged freely;
+       * false for one the game draws on its body wherever its point is.
+       */
+      readonly floats: boolean;
+    }
   /** It stays where it is, for the reason given. */
   | { readonly place: "fixed"; readonly why: string };
 
@@ -26,19 +39,43 @@ export const MEGASTRUCTURE_FIXED = {
   starbase: "It stands with a starbase, which stays where it is",
   whole: "It is part of a larger structure, which stays where it is",
   centre: "It stands at the system's centre without naming a body, so it stays where it is",
+  made: "It made the planet it stands on, so it stays with it",
 } as const;
 
 /** Why a body will not take a dragged row. */
 export const MEGASTRUCTURE_REFUSALS = {
   elsewhere: "That body is not in this system",
   starOnly: (name: string) => `${name} stands only around a star`,
+  planetOnly: (name: string) => `${name} can't stand on a star`,
   taken: (body: string) => `${body} already has a megastructure`,
 } as const;
 
-/** How row `row` of `type` moves. */
+/** What a row's move reads of the body it is tied to. */
+export interface HomeBody {
+  readonly star: boolean;
+  /** It is drawn as an Arc Furnace's hidden model. */
+  readonly hidden: boolean;
+}
+
+/**
+ * Whether a row of `type` tied to a body stands at its own point: false for a type the game
+ * draws on its body wherever its point is, one that grows with its planet or stands on its star
+ * with no offset, as an Orbital Ring or a Dyson Sphere does. Without the type, false.
+ */
+export function floatsFree(type: MegastructureView | undefined, onStar: boolean): boolean {
+  if (type === undefined || type.scales_with_planet) return false;
+  const [dx, dy] = type.entity_offset;
+  return !(onStar && dx === 0 && dy === 0);
+}
+
+/**
+ * How row `row` of `type` moves. A body drawn as the furnace's hidden model keeps it off a star
+ * whatever the game data says.
+ */
 export function megastructureMove(
   row: MegastructureSummary,
   type: MegastructureView | undefined,
+  home: HomeBody = { star: false, hidden: false },
 ): MegastructureMove {
   if (row.kind.startsWith("ring_world")) return fixed("ringWorld");
   const bypass = type?.bypass_type ?? (row.kind.startsWith("lgate") ? "lgate" : null);
@@ -48,9 +85,12 @@ export function megastructureMove(
     if (placement.why.kind === "becomes_starbase") return fixed("starbase");
     if (placement.why.kind === "whole_structure") return fixed("whole");
   }
+  if (row.made_body === true) return fixed("made");
   if (row.planet !== null) {
     const starOnly = placement?.place === "body" && placement.star_only;
-    return { place: "body", on: row.planet, starOnly };
+    const planetOnly = type?.planet_only === true || home.hidden;
+    const floats = floatsFree(type, home.star);
+    return { place: "body", on: row.planet, starOnly, planetOnly, floats };
   }
   if (placement?.place === "body") return fixed("centre");
   return { place: "free" };
@@ -58,6 +98,26 @@ export function megastructureMove(
 
 function fixed(why: keyof typeof MEGASTRUCTURE_FIXED): MegastructureMove {
   return { place: "fixed", why: MEGASTRUCTURE_FIXED[why] };
+}
+
+/** The label of the menu item that stands a floating structure back at its planet's point. */
+export function snapLabel(planet: string): string {
+  return `Snap to ${planet}`;
+}
+
+/**
+ * The body a floating row of `type` goes back to the point of, among `bodies`: its own, when it
+ * stands away from it; null for any other row.
+ */
+export function snapBody(
+  row: MegastructureSummary,
+  type: MegastructureView | undefined,
+  bodies: readonly { id: number; x: number; y: number; star: boolean }[],
+): number | null {
+  const home = bodies.find((b) => b.id === row.planet);
+  if (!home || row.at === null || row.made_body === true) return null;
+  if (!floatsFree(type, home.star)) return null;
+  return samePoint(row.at, [home.x, home.y]) ? null : home.id;
 }
 
 /** What a body of the system is to a row dragged onto it. */
@@ -79,18 +139,33 @@ export function targetRefusal(
   body: TargetBody,
   rows: readonly MegastructureSummary[],
 ): string | null {
+  if (move.starOnly && !body.star) return MEGASTRUCTURE_REFUSALS.starOnly(name);
+  if (move.planetOnly && body.star) return MEGASTRUCTURE_REFUSALS.planetOnly(name);
   if (rows.some((row) => row.id !== id && row.planet === body.id)) {
     return MEGASTRUCTURE_REFUSALS.taken(body.name);
   }
-  if (move.starOnly && !body.star) return MEGASTRUCTURE_REFUSALS.starOnly(name);
   return null;
 }
 
-/** The op that moves row `id` to `at`, or null where it stands there already. */
-export function moveMegastructureOp(row: MegastructureSummary, at: MegastructurePlace): Op | null {
-  if (at.place === "body" && row.planet === at.body) return null;
-  if (at.place === "free" && row.at !== null && samePoint(row.at, [at.x, at.y])) return null;
+/**
+ * The op that moves row `row` to `at`, or null where it stands there already. `home` is where its
+ * body stands, which a row sent back to its own body may already stand at; null when unknown.
+ */
+export function moveMegastructureOp(
+  row: MegastructureSummary,
+  at: MegastructurePlace,
+  home: readonly [number, number] | null = null,
+): Op | null {
+  if (at.place === "body" && row.planet === at.body && atOwnBody(row, home)) return null;
+  const point = at.place === "body" ? null : ([at.x, at.y] as const);
+  const sameBody = at.place !== "beside" || row.planet === at.body;
+  if (point !== null && sameBody && row.at !== null && samePoint(row.at, point)) return null;
   return { type: "MoveMegastructure", megastructure: row.id, at };
+}
+
+/** Whether `row` stands at its body's point `home`, or is taken to where that is unknown. */
+function atOwnBody(row: MegastructureSummary, home: readonly [number, number] | null): boolean {
+  return home === null || row.at === null || samePoint(row.at, home);
 }
 
 /** The same point as the save writes it, to five decimals. */

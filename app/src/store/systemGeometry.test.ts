@@ -99,7 +99,7 @@ describe("a megastructure's move", () => {
   function withStructures(): void {
     const megastructures = [
       megastructureSummary({ id: 40, kind: "gateway_final", at: [0, 250] }),
-      megastructureSummary({ id: 41, kind: "think_tank_3", planet: LONE }),
+      megastructureSummary({ id: 41, kind: "think_tank_3", planet: LONE, at: null }),
     ];
     useDetailsStore.setState({
       details: new Map([[SOL, orbitSystem({ id: SOL, megastructures })]]),

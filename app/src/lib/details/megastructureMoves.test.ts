@@ -5,6 +5,7 @@ import {
   MEGASTRUCTURE_REFUSALS,
   megastructureMove,
   moveMegastructureOp,
+  snapBody,
   targetRefusal,
 } from "./megastructureMoves";
 
@@ -29,13 +30,64 @@ describe("how a megastructure moves", () => {
 
   it("moves a structure tied to a body onto another body, a star-only type only onto a star", () => {
     const tied = megastructureSummary({ kind: "think_tank_3", planet: 5 });
-    expect(megastructureMove(tied, nexus)).toEqual({ place: "body", on: 5, starOnly: false });
+    expect(megastructureMove(tied, nexus)).toEqual({
+      place: "body",
+      on: 5,
+      starOnly: false,
+      planetOnly: false,
+      floats: true,
+    });
     const onStar = megastructureSummary({ kind: "dyson_sphere_5", planet: 1 });
-    expect(megastructureMove(onStar, sphere)).toEqual({
+    expect(megastructureMove(onStar, sphere, { star: true, hidden: false })).toEqual({
       place: "body",
       on: 1,
       starOnly: true,
+      planetOnly: false,
+      floats: false,
     });
+  });
+
+  it("keeps a planet-only type, or a furnace hiding its planet, off stars", () => {
+    const tied = megastructureSummary({ kind: "orbital_arc_furnace_4", planet: 5 });
+    const furnace = megastructureTypeView("orbital_arc_furnace_4", { planet_only: true });
+    expect(megastructureMove(tied, furnace)).toMatchObject({ planetOnly: true });
+    expect(megastructureMove(tied, undefined, { star: false, hidden: true })).toMatchObject({
+      planetOnly: true,
+    });
+    expect(megastructureMove(tied, undefined)).toMatchObject({ planetOnly: false, floats: false });
+  });
+
+  it("floats a structure the game draws at its own point, and keeps a wrapping one on its body", () => {
+    const tied = megastructureSummary({ kind: "think_tank_3", planet: 5 });
+    expect(megastructureMove(tied, nexus)).toMatchObject({ floats: true });
+    const ring = megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true });
+    expect(megastructureMove({ ...tied, kind: ring.key }, ring)).toMatchObject({ floats: false });
+    const onStar = megastructureSummary({ kind: "dyson_sphere_5", planet: 1 });
+    expect(megastructureMove(onStar, sphere, { star: true, hidden: false })).toMatchObject({
+      floats: false,
+    });
+    const centre = megastructureTypeView("strategic_coordination_center_ruined", {
+      entity_offset: [0, -20],
+    });
+    const beside = megastructureSummary({ kind: centre.key, planet: 1 });
+    expect(megastructureMove(beside, centre, { star: true, hidden: false })).toMatchObject({
+      floats: true,
+    });
+  });
+
+  it("keeps a structure on the planet it made", () => {
+    const world = megastructureSummary({
+      kind: "cosmogenesis_world_0",
+      planet: 5,
+      made_body: true,
+    });
+    expect(megastructureMove(world, nexus)).toEqual({
+      place: "fixed",
+      why: MEGASTRUCTURE_FIXED.made,
+    });
+    const bodies = [{ id: 5, x: 100, y: 0, star: false }];
+    expect(snapBody({ ...world, at: [-40, 30] }, nexus, bodies)).toBeNull();
+    expect(snapBody({ ...world, at: [-40, 30], made_body: false }, nexus, bodies)).toBe(5);
   });
 
   it("moves a tied row by its own shape without game data", () => {
@@ -44,6 +96,8 @@ describe("how a megastructure moves", () => {
       place: "body",
       on: 5,
       starOnly: false,
+      planetOnly: false,
+      floats: false,
     });
     const free = megastructureSummary({ kind: "gateway_ruined", at: [10, 0] });
     expect(megastructureMove(free, undefined)).toEqual({ place: "free" });
@@ -72,7 +126,7 @@ describe("which bodies take a dragged megastructure", () => {
     megastructureSummary({ id: 41, kind: "think_tank_3", planet: 5 }),
     megastructureSummary({ id: 43, kind: "orbital_ring_ruined", planet: 2 }),
   ];
-  const tied = { place: "body", on: 5, starOnly: false } as const;
+  const tied = { place: "body", on: 5, starOnly: false, planetOnly: false, floats: true } as const;
   const starOnly = { ...tied, starOnly: true } as const;
   const body = (id: number, star = false) => ({ id, star, name: `P${id}` });
 
@@ -92,6 +146,14 @@ describe("which bodies take a dragged megastructure", () => {
       MEGASTRUCTURE_REFUSALS.starOnly("Dyson Sphere"),
     );
     expect(targetRefusal(starOnly, 41, "Dyson Sphere", body(1, true), rows)).toBeNull();
+  });
+
+  it("refuses a star for a type the game never builds on one, as an Arc Furnace is", () => {
+    const furnace = { ...tied, planetOnly: true } as const;
+    expect(targetRefusal(furnace, 41, "Arc Furnace", body(1, true), rows)).toBe(
+      MEGASTRUCTURE_REFUSALS.planetOnly("Arc Furnace"),
+    );
+    expect(targetRefusal(furnace, 41, "Arc Furnace", body(7), rows)).toBeNull();
   });
 });
 

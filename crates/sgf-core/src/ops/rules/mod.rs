@@ -25,6 +25,9 @@ use crate::projections::name::{NameTemplate, looks_like_key};
 /// gravity well stands: where the game puts its relays and gateways.
 pub const RELAY_RADIUS_FACTOR: f64 = 1.05;
 
+/// The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace.
+pub const FURNACE_ENTITY: &str = "invisible_turret_entity";
+
 /// How a text stands in the file: between quotes, which the game reads with no escaping,
 /// or as a key the game looks up, one token of printable ASCII whether quoted or not.
 #[derive(Clone, Copy, Debug)]

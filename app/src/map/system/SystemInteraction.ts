@@ -109,7 +109,7 @@ function moveHint(move: MegastructureMove | null): string | null {
     case "free":
       return DRAG_HINTS.movableMegastructure;
     case "body":
-      return DRAG_HINTS.movableToBody;
+      return move.floats ? DRAG_HINTS.movableFloating : DRAG_HINTS.movableToBody;
     case "fixed":
       return move.why;
   }

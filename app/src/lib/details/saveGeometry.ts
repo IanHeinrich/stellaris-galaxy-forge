@@ -5,6 +5,7 @@
  */
 import type { Bounds } from "../../generated/Bounds";
 import type { Capabilities } from "../../generated/Capabilities";
+import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { Op } from "../../generated/Op";
 import { BELT_SCATTER, VANILLA_SYSTEM_RADII } from "../../generated/constants";
@@ -255,8 +256,11 @@ export function layoutPreview(intent: GeometryIntent, frame: GeometryFrame): Lay
       return {
         wormholes: new Map([[intent.wormhole, polar(0, 0, intent.radius, intent.angle)]]),
       };
-    case "moveMegastructure":
-      return { megastructures: new Map([[intent.megastructure, intent.at]]) };
+    case "moveMegastructure": {
+      const { shown } = intent;
+      const at: MegastructurePlace = shown ? { place: "free", ...shown } : intent.at;
+      return { megastructures: new Map([[intent.megastructure, at]]) };
+    }
   }
 }
 
@@ -363,13 +367,15 @@ function megastructureOp(
   const row = frame.details?.megastructures.find((m) => m.id === intent.megastructure);
   if (!row) return { refused: GEOMETRY_REASONS.megastructureElsewhere };
   const { at } = intent;
-  if (at.place === "free" && !(Number.isFinite(at.x) && Number.isFinite(at.y))) {
+  if (at.place !== "body" && !(Number.isFinite(at.x) && Number.isFinite(at.y))) {
     return { refused: GEOMETRY_REASONS.notANumber };
   }
-  if (at.place === "body" && !frame.layout.bodies.some((b) => b.id === at.body)) {
+  const bodies = frame.layout.bodies;
+  if (at.place !== "free" && !bodies.some((b) => b.id === at.body)) {
     return { refused: GEOMETRY_REASONS.elsewhere };
   }
-  const op = moveMegastructureOp(row, at);
+  const home = bodies.find((b) => b.id === row.planet);
+  const op = moveMegastructureOp(row, at, home ? [home.x, home.y] : null);
   return op === null ? null : { op };
 }
 

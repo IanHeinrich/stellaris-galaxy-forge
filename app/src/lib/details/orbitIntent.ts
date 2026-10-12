@@ -50,7 +50,14 @@ export type GeometryIntent =
   | { kind: "removeBelt"; system: number; index: number }
   | { kind: "innerRadius"; system: number; radius: number }
   | { kind: "moveWormhole"; system: number; wormhole: number; radius: number; angle: number }
-  | { kind: "moveMegastructure"; system: number; megastructure: number; at: MegastructurePlace };
+  | {
+      kind: "moveMegastructure";
+      system: number;
+      megastructure: number;
+      at: MegastructurePlace;
+      /** Where the scene draws it while a drag holds it away from where it lands; the op ignores it. */
+      shown?: { x: number; y: number };
+    };
 
 /** Why a body may not move, host or be given another parent; `GEOMETRY_REASONS` has the words. */
 export type BodyRefusal =
@@ -175,10 +182,15 @@ export const DRAG_HINTS = {
   megastructure: "drag to move · Shift snaps to 15° · Esc cancels",
   /** A megastructure tied to a body, before it is over one that takes it. */
   toBody: "drop it on a highlighted planet or star · Esc cancels",
+  /** A megastructure tied to a body that stands at a point of its own. */
+  floating:
+    "drag to move · Ctrl holds the distance or the angle · Shift snaps to 15° · drop it on a highlighted planet or star to tie it there · Esc cancels",
   /** Under the name of a megastructure at a point of its own. */
   movableMegastructure: "drag to move",
   /** Under the name of a megastructure tied to a body. */
   movableToBody: "drag onto another planet or star to move",
+  /** Under the name of a megastructure tied to a body that stands at a point of its own. */
+  movableFloating: "drag to move, or onto another planet or star",
 } as const;
 
 /** Whether a `natural_wormholes` entry is a natural wormhole, the only kind that may be moved. */

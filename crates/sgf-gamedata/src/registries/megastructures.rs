@@ -20,6 +20,7 @@ use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
 use crate::registries::megastructure_offers::{Build, Offer};
 use crate::registries::megastructure_swaps::{self, Swap};
+use crate::registries::planet_classes::PlanetClasses;
 use crate::registries::registry::{FromDef, Registry};
 use crate::registries::scripted_triggers::ScriptedTriggers;
 
@@ -65,6 +66,18 @@ pub struct MegastructureDef {
     pub sets_has_megastructure: bool,
     /// `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
     pub planet_possible_star: bool,
+    /// `placement_rules.planet_possible` asks of the body itself for `is_star = no`.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub planet_possible_no_star: bool,
+    /// The planet classes `placement_rules.planet_possible` asks of the body itself with
+    /// `is_planet_class`, when it does not also ask for `is_star = yes`.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub planet_possible_classes: Vec<String>,
+    /// The first stage of its build chain, or of its working type's for a variant, asks for a
+    /// body that is not a star: the editor never places it on a star.
+    pub planet_only: bool,
     /// `potential = { always = no }`: the game makes it only from script, never as a build.
     pub script_only: bool,
     /// The types its `on_build_complete` turns the finished row into, such as one per star
@@ -373,6 +386,11 @@ impl FromDef for MegastructureDef {
             activates_gateway: activates_gateway(def),
             sets_has_megastructure: sets_has_megastructure(def),
             planet_possible_star: planet_possible_star(def),
+            planet_possible_no_star: planet_possible_asks(def, "is_star")
+                .iter()
+                .any(|value| value == "no"),
+            planet_possible_classes: planet_possible_classes(def),
+            planet_only: false,
             script_only: script_only(def),
             turns_into: Vec::new(),
             swaps: Vec::new(),
@@ -414,7 +432,11 @@ fn script_only(def: &Def) -> bool {
 /// it belongs to, as [`families`] links them, when that stage too stands around a body.
 /// Every stage and variant of a gateway or a relay stands where its bypass does. A stage
 /// whose completion always swaps it for another type takes that type's placement.
-pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> MegastructureTypes {
+pub(crate) fn placed(
+    mut types: MegastructureTypes,
+    scripts: &ScriptIndex,
+    classes: &PlanetClasses,
+) -> MegastructureTypes {
     let families = families(&types, scripts);
     let bypassed = bypass_groups(&types, &families);
     let whole = whole_structures(&types);
@@ -462,6 +484,23 @@ pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> Me
             def.sets_has_megastructure = flags;
             def.family = family;
             def.variant_of = variant_of;
+        }
+    }
+    let off_stars: Vec<String> = types
+        .iter()
+        .filter(|def| {
+            let working = def
+                .family
+                .as_ref()
+                .and_then(|family| types.get(&family.working))
+                .unwrap_or(def);
+            off_stars(first_stage(&types, working), classes)
+        })
+        .map(|def| def.key.clone())
+        .collect();
+    for key in off_stars {
+        if let Some(def) = types.get_mut(&key) {
+            def.planet_only = true;
         }
     }
     let swapped: Vec<(String, Placement)> = types
@@ -810,6 +849,62 @@ fn planet_possible_star(def: &Def) -> bool {
         .find("placement_rules", &def.src)
         .and_then(|rules| rules.find("planet_possible", &def.src))
         .is_some_and(|block| asks_star(block, &def.src))
+}
+
+/// Whether the game never builds `def` on a star: its `planet_possible` asks for `is_star =
+/// no`, or only for planet classes the install defines as no star.
+fn off_stars(def: &MegastructureDef, classes: &PlanetClasses) -> bool {
+    let named = &def.planet_possible_classes;
+    def.planet_possible_no_star
+        || (!named.is_empty()
+            && named
+                .iter()
+                .all(|class| classes.get(class).is_some_and(|c| !c.star)))
+}
+
+/// The values `placement_rules.planet_possible` asks of the body itself for `key`.
+fn planet_possible_asks(def: &Def, key: &str) -> Vec<String> {
+    def.node
+        .find("placement_rules", &def.src)
+        .and_then(|rules| rules.find("planet_possible", &def.src))
+        .map(|block| {
+            own_asks(block, &def.src)
+                .into_iter()
+                .filter(|(asked, _)| asked == key)
+                .map(|(_, value)| value)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The planet classes `planet_possible` asks of the body itself, unless it also asks for a
+/// star.
+fn planet_possible_classes(def: &Def) -> Vec<String> {
+    if planet_possible_asks(def, "is_star")
+        .iter()
+        .any(|v| v == "yes")
+    {
+        return Vec::new();
+    }
+    planet_possible_asks(def, "is_planet_class")
+}
+
+/// The scalar statements `block` asks of the body itself: its own, and those of the
+/// `custom_tooltip` and `AND` blocks in it, but none under a scope change, a `NOT`, an `OR`
+/// or an `if`.
+fn own_asks(block: &Node, src: &[u8]) -> Vec<(String, String)> {
+    let mut asked = Vec::new();
+    for child in block.children() {
+        let Some(key) = child.key_str(src) else {
+            continue;
+        };
+        if let Some(value) = child.scalar_str(src) {
+            asked.push((key.to_owned(), value.to_owned()));
+        } else if key == "custom_tooltip" || key.eq_ignore_ascii_case("and") {
+            asked.extend(own_asks(child, src));
+        }
+    }
+    asked
 }
 
 /// Whether `block` holds `is_star = yes` outside a `NOT`.

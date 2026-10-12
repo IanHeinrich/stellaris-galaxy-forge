@@ -198,10 +198,53 @@ const REFUSING_HOST: Readonly<Record<BodyRefusal, string>> = {
 type Axis = "along" | "across";
 
 /** Where Ctrl holds a body: the axis it moves on, and the radius and angle it had as Ctrl went down. */
-interface Hold {
+export interface Hold {
   axis: Axis;
   radius: number;
   angle: number;
+}
+
+/** A radius and angle about a centre, in `polar`'s degrees. */
+export interface Polar {
+  radius: number;
+  angle: number;
+}
+
+/**
+ * Ctrl's hold from `last`, where the last move put a thing about its centre: across when the
+ * travel from `start` to `at` runs more out from the centre than round it, else along.
+ */
+export function holdFrom(last: Polar, start: Pt, at: Pt): Hold {
+  const { radius, angle } = last;
+  const { x: ux, y: uy } = polar(0, 0, 1, angle);
+  const dx = at.x - start.x;
+  const dy = at.y - start.y;
+  const radial = Math.abs(dx * ux + dy * uy);
+  const round = Math.abs(dx * uy - dy * ux);
+  return { axis: radial > round ? "across" : "along", radius, angle };
+}
+
+/**
+ * Where a thing held at `at` lands about `centre`: freely, at the radius `radiusOf` gives and the
+ * angle in whole degrees or Shift's steps, or on Ctrl's `hold` axis.
+ */
+export function heldAbout(
+  at: Pt,
+  centre: Pt,
+  hold: Hold | null,
+  shift: boolean,
+  radiusOf: () => { radius: number; shared: number | null },
+): Polar & { shared: number | null } {
+  const turned = () => snapAngle(polarAbout(at, centre).angle, shift);
+  if (hold === null) return { angle: turned(), ...radiusOf() };
+  if (hold.axis === "along") return { radius: hold.radius, angle: turned(), shared: null };
+  return { angle: hold.angle, ...radiusOf() };
+}
+
+/** What the status bar says while a thing moves freely or on Ctrl's `hold` axis. */
+export function holdHint(hold: Hold | null, free: string): string {
+  if (hold === null) return free;
+  return hold.axis === "along" ? DRAG_HINTS.along : DRAG_HINTS.across;
 }
 
 /** Where a drag would put the body, before what it is marked with. */
@@ -306,14 +349,7 @@ export class BodyDrag implements Drag {
    * more out from its ring's centre than round it, else along its orbit.
    */
   private holdAt(pointer: DragPointer): Hold {
-    const { radius, angle } = this.last;
-    const { x: ux, y: uy } = polar(0, 0, 1, angle);
-    const at = this.held(pointer);
-    const dx = at.x - this.body.x;
-    const dy = at.y - this.body.y;
-    const radial = Math.abs(dx * ux + dy * uy);
-    const round = Math.abs(dx * uy - dy * ux);
-    return { axis: radial > round ? "across" : "along", radius, angle };
+    return holdFrom(this.last, this.body, this.held(pointer));
   }
 
   /**
@@ -425,14 +461,9 @@ export class BodyDrag implements Drag {
   private landing(pointer: DragPointer): Landing {
     const { parent, ring } = this.body;
     const centre = { x: ring.cx, y: ring.cy };
-    const hold = this.hold;
-    const turned = () => snapAngle(polarAbout(this.held(pointer), centre).angle, pointer.shift);
-    const landing: Landing =
-      hold === null
-        ? { parent, angle: turned(), ...this.radiusAbout(parent, centre, pointer) }
-        : hold.axis === "along"
-          ? { parent, radius: hold.radius, angle: turned(), shared: null }
-          : { parent, angle: hold.angle, ...this.radiusAbout(parent, centre, pointer) };
+    const radiusOf = () => this.radiusAbout(parent, centre, pointer);
+    const at = heldAbout(this.held(pointer), centre, this.hold, pointer.shift, radiusOf);
+    const landing: Landing = { parent, ...at };
     this.last = landing;
     return landing;
   }
@@ -470,8 +501,7 @@ export class BodyDrag implements Drag {
   }
 
   private hint(): string {
-    if (this.hold === null) return DRAG_HINTS.free;
-    return this.hold.axis === "along" ? DRAG_HINTS.along : DRAG_HINTS.across;
+    return holdHint(this.hold, DRAG_HINTS.free);
   }
 
   /** `landing` marked as overlapping another body before sharing its ring. */
