@@ -1,0 +1,55 @@
+ai_system_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 2000000
+				is_in_cluster = resource_cluster_1
+			}
+		}
+	max_instances = 1
+	flags = { AI_hub AI_system_1 }
+}
+
+ai_system_02 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 2000000
+				is_in_cluster = resource_cluster_2
+			}
+		}
+	max_instances = 1
+	flags = { AI_hub AI_system_2 }
+}
+
+ai_system_03 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 2000000
+				is_in_cluster = resource_cluster_3
+			}
+		}
+	max_instances = 1
+	flags = { AI_hub AI_system_3 }
+}
+
+ai_system_04 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 2000000
+				is_in_cluster = resource_cluster_4
+			}
+		}
+	max_instances = 1
+	flags = { AI_hub AI_system_4 }
+}

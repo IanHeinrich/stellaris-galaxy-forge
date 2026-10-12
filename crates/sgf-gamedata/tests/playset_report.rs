@@ -3,8 +3,8 @@
 
 use crate::common;
 
+use sgf_gamedata::Diagnostic;
 use sgf_gamedata::report::PlaysetReport;
-use sgf_gamedata::{Diagnostic, LoadOptions, load};
 
 #[test]
 fn vanilla_shows_every_class_it_can_roll() {
@@ -54,13 +54,11 @@ fn vanilla_shows_every_class_it_can_roll() {
 
 #[test]
 fn the_enabled_mods_load_without_a_parse_error() {
-    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
-        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+    let Some(gd) = common::PLAYSET.as_ref() else {
         return;
-    }
-    let gd = load(&LoadOptions::default(), &mut |_| {}).expect("SGF_PLAYSET needs an install");
+    };
     let (_cache, textures) = common::temp_textures();
-    let report = PlaysetReport::new(&gd, &textures);
+    let report = PlaysetReport::new(gd, &textures);
     println!("{} mods\n{}", gd.mods.len(), report.text(None));
     let broken: Vec<String> = gd
         .diagnostics

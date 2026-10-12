@@ -1,0 +1,13 @@
+@spawn_system_base = 1
+
+@spawn_system_slightlycommon = 2
+
+@spawn_system_common = 4
+
+@spawn_system_verycommon = 8
+
+@spawn_system_extreme = 16
+
+@spawn_system_max = 99999
+
+@spawn_system_enclave = 100

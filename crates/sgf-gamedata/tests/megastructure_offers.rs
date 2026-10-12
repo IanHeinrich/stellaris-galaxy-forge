@@ -420,17 +420,9 @@ fn the_installs_types_are_offered_as_a_player_builds_them() {
 /// `SGF_PLAYSET=1` when the enabled mods include Giga.
 #[test]
 fn gigas_types_are_offered_as_the_audit_sorts_them() {
-    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
-        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+    let Some(gd) = common::giga() else {
         return;
-    }
-    let gd = sgf_gamedata::load(&sgf_gamedata::LoadOptions::default(), &mut |_| {})
-        .expect("SGF_PLAYSET needs an install");
-    if gd.megastructures.get("star_lifter_0").is_none() {
-        eprintln!("skipped: Gigastructural Engineering is not enabled");
-        return;
-    }
-    let gd = &gd;
+    };
     let offered = |key: &str| mega(gd, key).offer == Offer::Offered;
     for key in [
         "orbital_elysium_origin_platform_1",

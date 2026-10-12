@@ -3,6 +3,7 @@
 pub mod deposits;
 pub mod generate;
 pub mod layouts;
+pub mod prepare;
 pub mod scripts;
 
 use std::fs;
@@ -123,6 +124,15 @@ pub fn cached_fixture() -> &'static GameData {
 pub fn cached_fixture_with_mods() -> &'static GameData {
     static FIXTURE: LazyLock<GameData> = LazyLock::new(|| load_fixture(true));
     &FIXTURE
+}
+
+/// The initializers the sample saves' scenarios use, cut down to what Prepare reads of them,
+/// beside the plain layouts it draws from and the classes those name. Parsed once, so
+/// Prepare's tests run without a Stellaris install.
+pub fn sample_install() -> &'static GameData {
+    static SAMPLE_INSTALL: LazyLock<GameData> =
+        LazyLock::new(|| load_tree(&fixture("sample_install"), None, false));
+    &SAMPLE_INSTALL
 }
 
 /// `files`, each a path under the install and its text, written into a temporary install
@@ -320,6 +330,35 @@ fn load_real() -> Option<GameData> {
         ..LoadOptions::default()
     };
     Some(sgf_gamedata::load(&opts, &mut |_| {}).expect("the real install loads"))
+}
+
+/// The real install with the user's enabled mods, read once for the whole test binary when
+/// `SGF_PLAYSET=1` asks for it. `None`, with a message, otherwise.
+pub static PLAYSET: LazyLock<Option<GameData>> = LazyLock::new(load_playset);
+
+fn load_playset() -> Option<GameData> {
+    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
+        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+        return None;
+    }
+    let gd = sgf_gamedata::load(&LoadOptions::default(), &mut |_| {});
+    Some(gd.expect("SGF_PLAYSET needs an install"))
+}
+
+/// [`PLAYSET`] when Gigastructural Engineering won the layered load, its ring world standing
+/// over the base game's. `None`, with a message, otherwise.
+pub fn giga() -> Option<&'static GameData> {
+    let gd = PLAYSET.as_ref()?;
+    let giga = gd
+        .megastructures
+        .get("ring_world_2_intermediate")
+        .and_then(|def| def.source.as_deref())
+        .is_some_and(|source| source.starts_with("Gigastructural"));
+    if !giga {
+        eprintln!("skipped: Gigastructural Engineering is not enabled");
+        return None;
+    }
+    Some(gd)
 }
 
 /// Runs `f(i)` for every `i` in `0..n` on its own thread and returns the results in order. A

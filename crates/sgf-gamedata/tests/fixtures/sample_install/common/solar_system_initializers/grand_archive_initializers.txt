@@ -1,0 +1,35 @@
+voidworms_spawn_system_large = {
+	usage = misc_system_init
+	usage_odds = { base = 1 }
+	class = sc_black_hole
+	max_instances = 1
+	flags = { voidworms_system space_ecology_system }
+	init_effect = { }
+}
+
+voidworms_spawn_system_medium = {
+	usage = misc_system_init
+	usage_odds = { base = 1 }
+	class = sc_black_hole
+	max_instances = 1
+	flags = { voidworms_system space_ecology_system }
+	init_effect = { }
+}
+
+voidworms_spawn_system_small = {
+	usage = misc_system_init
+	usage_odds = { base = 1 }
+	class = sc_black_hole
+	max_instances = 1
+	flags = { voidworms_system space_ecology_system }
+	init_effect = { }
+}
+
+voidworms_spawn_system_tiny = {
+	usage = misc_system_init
+	usage_odds = { base = 1 }
+	class = sc_black_hole
+	max_instances = 1
+	flags = { voidworms_system space_ecology_system }
+	init_effect = { }
+}

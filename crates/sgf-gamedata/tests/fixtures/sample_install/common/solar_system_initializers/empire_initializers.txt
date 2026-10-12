@@ -1,0 +1,73 @@
+neighbor_t1_first_colony = {
+	class = "rl_standard_stars"
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t2 }
+	}
+}
+
+neighbor_t2 = {
+	class = "rl_standard_stars"
+	flags = { neighbor_t2 }
+	init_effect = { }
+}
+
+random_empire_init_01 = {
+	class = "rl_starting_stars"
+	usage = empire_init
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+random_empire_init_02 = {
+	class = "rl_starting_stars"
+	usage = empire_init
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+random_empire_init_03 = {
+	class = "rl_starting_stars"
+	usage = empire_init
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+random_empire_init_04 = {
+	class = "rl_starting_stars"
+	usage = empire_init
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+random_empire_init_05 = {
+	class = "rl_trinary_stars"
+	usage = empire_init
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+random_empire_init_06 = {
+	class = "rl_binary_starting_stars"
+	usage = empire_init
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}

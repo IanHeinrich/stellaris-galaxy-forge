@@ -1,0 +1,406 @@
+guardians_artist_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_artists_system enclave }
+	init_effect = {
+		create_country = { name = "NAME_Artisan_Troupe" type = enclave }
+	}
+}
+
+guardians_artist_init_02 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_artists_system enclave }
+	init_effect = {
+		create_country = { name = "NAME_Artisan_Troupe" type = enclave }
+	}
+}
+
+guardians_curator_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				OR = {
+					has_leviathans = yes
+					has_distar = yes
+					has_grand_archive_dlc = yes
+				}
+				add = @spawn_system_enclave
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_curators_system enclave }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Curator_Order" type = enclave }
+		}
+	}
+}
+
+guardians_curator_init_02 = {
+	class = sc_black_hole
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				OR = {
+					has_leviathans = yes
+					has_distar = yes
+					has_grand_archive_dlc = yes
+				}
+				add = @spawn_system_enclave
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_curators_system enclave }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Curator_Order" type = enclave }
+		}
+	}
+}
+
+guardians_curator_init_03 = {
+	class = sc_pulsar
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				OR = {
+					has_leviathans = yes
+					has_distar = yes
+					has_grand_archive_dlc = yes
+				}
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_curators_system enclave }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Curator_Order" type = enclave }
+		}
+	}
+}
+
+guardians_init_dragon = {
+	class = sc_k
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { guardians_dragon_system guardian hostile_system antique_threat_system }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Voidwyrm" type = guardian_dragon }
+		}
+	}
+}
+
+guardians_init_dreadnought = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	flags = { guardians_dreadnought_system guardian hostile_system antique_threat_system }
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Automated_Dreadnought" type = guardian_dreadnought }
+		}
+	}
+}
+
+guardians_init_fortress = {
+	class = sc_a
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { guardians_fortress_system guardian enigmatic_system hostile_system antique_threat_system }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Enigmatic_Fortress" type = guardian_fortress }
+		}
+	}
+}
+
+guardians_init_hive = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	flags = { guardians_hive_system guardian hostile_system antique_threat_system }
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+		}
+	max_instances = 1
+}
+
+guardians_init_horror = {
+	class = "sc_black_hole"
+	usage = misc_system_init
+	flags = { guardians_horror_system guardian hostile_system antique_threat_system }
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+}
+
+guardians_init_stellarites = {
+	class = rl_dwarf_stars
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { guardians_stellarite_system guardian hostile_system antique_threat_system }
+	init_effect = { }
+}
+
+guardians_init_wraith = {
+	class = "sc_pulsar"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = 100
+			}
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+		}
+	max_instances = 1
+	flags = { guardians_wraith_system guardian hostile_system antique_threat_system }
+}
+
+guardians_trader_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = @spawn_system_enclave
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_traders_system enclave }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_XuraCorp" type = enclave }
+		}
+	}
+}
+
+guardians_trader_init_02 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_traders_system enclave }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Riggan_Commerce_Exchange" type = enclave }
+		}
+	}
+}
+
+guardians_trader_init_03 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_leviathans = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { guardians_traders_system enclave }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Muutagan_Merchant_Guild" type = enclave }
+		}
+	}
+}

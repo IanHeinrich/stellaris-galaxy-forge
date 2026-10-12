@@ -11,9 +11,7 @@ use sgf_gamedata::special::{SpecialKind, SpecialSystems};
 use sgf_gamedata::views::{GameDataSummary, SystemRoll};
 
 use crate::common;
-use common::{
-    PAINTED, SAMPLE, SCENARIO, have_install, invoke, kind, open, opened, webview, with_game_data,
-};
+use common::{PAINTED, SAMPLE, SCENARIO, invoke, kind, open, opened, webview, with_game_data};
 
 #[test]
 fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the_op() {
@@ -52,14 +50,9 @@ fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the
 /// initializer defines, so this needs the install's definitions.
 #[test]
 fn a_scenario_systems_details_come_from_its_initializer() {
-    if !have_install() {
+    let Some((w, _)) = with_game_data(SCENARIO) else {
         return;
-    }
-    let w = webview();
-    // Vanilla only: a mod in the playset may shadow the file that defines the initializer.
-    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
-        .expect("load game data");
-    open(&w, SCENARIO);
+    };
     invoke::<Vec<sgf_core::validate::Issue>>(&w, "warm_details", json!({}))
         .expect("warming a scenario builds nothing");
 
@@ -155,16 +148,17 @@ fn a_scenario_systems_details_come_from_its_initializer() {
 /// A scenario system's scripts and territories come from the loaded game data; a save has none.
 #[test]
 fn a_scenario_systems_scripts_and_owners_are_read_from_game_data() {
-    if !have_install() {
-        return;
-    }
-    let w = opened(SCENARIO);
-    let none: Option<serde_json::Value> =
-        invoke(&w, "get_system_scripts", json!({ "id": 3018 })).expect("without game data");
+    let none: Option<serde_json::Value> = invoke(
+        &opened(SCENARIO),
+        "get_system_scripts",
+        json!({ "id": 3018 }),
+    )
+    .expect("without game data");
     assert!(none.is_none(), "no game data, no scripts");
 
-    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
-        .expect("load game data");
+    let Some((w, _)) = with_game_data(SCENARIO) else {
+        return;
+    };
     let scripts: Option<serde_json::Value> =
         invoke(&w, "get_system_scripts", json!({ "id": 3018 })).expect("scripts");
     let scripts = scripts.expect("a scenario system has a script list");
@@ -209,12 +203,12 @@ fn a_scenario_systems_scripts_and_owners_are_read_from_game_data() {
 /// takes every system at once, and asking again answers the same without reloading.
 #[test]
 fn a_scenario_systems_colonies_name_their_territory_and_asking_again_answers_the_same() {
-    if !have_install() {
+    let Some((w, _)) = with_game_data(SCENARIO) else {
         return;
-    }
-    let w = opened(SCENARIO);
-    let loaded: GameDataSummary =
-        invoke(&w, "load_game_data", json!({ "mods": false })).expect("load game data");
+    };
+    let loaded: Option<GameDataSummary> =
+        invoke(&w, "game_data_summary", json!({})).expect("summary");
+    let loaded = loaded.expect("loaded");
 
     let before: Option<ScenarioOwners> =
         invoke(&w, "get_scenario_owners", json!({})).expect("owners");

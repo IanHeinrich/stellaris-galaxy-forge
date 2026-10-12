@@ -1,0 +1,46 @@
+cosmic_dawn_start = {
+	class = "sc_a"
+	flags = { empire_home_system }
+	usage = origin
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_inf_colony }
+	}
+}
+
+neighbor_t1_first_inf_colony = {
+	class = "rl_standard_stars"
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t2 }
+	}
+}
+
+oasis_system = {
+	class = "sc_m"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 15
+				host_has_dlc = "Infernals Species Pack"
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { unique_system }
+	init_effect = { }
+}
+
+red_giant_start = {
+	class = "sc_m_giant"
+	flags = { empire_home_system conduit_excluded }
+	usage = origin
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_inf_colony }
+	}
+}

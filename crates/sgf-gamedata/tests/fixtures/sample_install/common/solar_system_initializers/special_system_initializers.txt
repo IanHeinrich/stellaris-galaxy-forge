@@ -1,0 +1,220 @@
+debris_belt_initializer = {
+	class = "sc_m"
+	usage = misc_system_init
+	usage_odds = 8
+	max_instances = 1
+}
+
+fumongus_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { fumongus_system hostile_system }
+	init_effect = { }
+}
+
+ghost_ship_system_initializer_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			complex_trigger_modifier = {
+				trigger = check_galaxy_setup_value
+				parameters = {
+				  setting = habitable_worlds_scale
+				}
+				mode = factor
+				mult = 0.4 # e.g. 0.5x habitable = factor of 0.2; 5x habitable worlds = factor of 2
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Hillos_fleet" type = neutral_faction }
+		}
+	}
+}
+
+holibrae_initializer = {
+	class = "sc_m"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_base
+			inline_script = {
+				script = solar_system_initializers/initializer_modifiers_habitable_world_systems_mult
+				VALUE = 0.4
+			}
+		}
+	max_instances = 1
+	flags = { holibrae_system hostile_system }
+	init_effect = { }
+}
+
+locust_system_initializer_01 = {
+	class = "rl_standard_stars"
+	flags = { lost_swarm_system hostile_system natural_spectacle_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			inline_script = {
+				script = solar_system_initializers/initializer_modifiers_habitable_world_systems_mult
+				VALUE = 0.4
+			}
+		}
+	max_instances = 1
+	init_effect = {
+		create_country = { name = "NAME_Lost_Swarm" type = faction }
+	}
+}
+
+previously_terraformed_planet_system_initializer = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_cosmic_storms_dlc = no
+			}
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+}
+
+special_init_01 = {
+	class = sc_black_hole
+	usage = misc_system_init
+	usage_odds = 2
+}
+
+special_init_07 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system space_ecology_system }
+}
+
+special_init_08 = {
+	class = sc_neutron_star
+	usage = misc_system_init
+	usage_odds = 2
+}
+
+special_init_09 = {
+	class = sc_pulsar
+	usage = misc_system_init
+	usage_odds = 2
+}
+
+surveillance_supercomputer_system = {
+	class = "sc_neutron_star"
+	usage = misc_system_init
+	usage_odds = 0
+	flags = { surveillance_supercomputer_system hostile_system crisis_spawn_exclude ancient_wonders_system }
+	init_effect = {
+		create_country = { name = "NAME_Eternal_Watchers" type = faction }
+	}
+}
+
+the_chosen_escapee_initializer = {
+	class = sc_g
+	flags = {
+			chosen_system
+			crisis_spawn_exclude
+		}
+	usage = misc_system_init
+	usage_odds = 0
+	planet = { class = pc_gaia init_effect = { generate_pre_ftls_on_planet = yes } }
+}
+
+the_chosen_gate_initializer = {
+	class = sc_black_hole
+	flags = {
+			chosen_system
+			crisis_spawn_exclude
+			ithomes_gate
+			antique_threat_system
+		}
+	usage = misc_system_init
+	usage_odds = 0
+	init_effect = { }
+}
+
+the_chosen_home_initializer = {
+	class = sc_g
+	flags = {
+			chosen_system
+			crisis_spawn_exclude
+		}
+	usage = misc_system_init
+	usage_odds = 0
+	init_effect = {
+		create_country = { name = "NAME_The_Chosen" type = default }
+		spawn_system = { initializer = the_chosen_escapee_initializer }
+		spawn_system = { initializer = the_chosen_resources_initializer }
+		spawn_system = { initializer = random }
+	}
+}
+
+the_chosen_resources_initializer = {
+	class = rl_standard_stars
+	flags = {
+			chosen_system
+			crisis_spawn_exclude
+		}
+	usage = misc_system_init
+	usage_odds = 0
+	init_effect = {
+		spawn_system = { initializer = the_chosen_resources_initializer2 }
+	}
+}
+
+the_chosen_resources_initializer2 = {
+	class = rl_standard_stars
+	flags = {
+			chosen_system
+			crisis_spawn_exclude
+		}
+	usage = misc_system_init
+	usage_odds = 0
+	init_effect = {
+		spawn_system = { initializer = the_chosen_gate_initializer }
+		spawn_system = { initializer = random }
+	}
+}
+
+trappist_initializer = {
+	class = "sc_m"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			inline_script = {
+				script = solar_system_initializers/initializer_modifiers_habitable_world_systems_mult
+				VALUE = 0.4
+			}
+		}
+	max_instances = 1
+}

@@ -1,0 +1,99 @@
+hauer_system_initializer = {
+	flags = { hostile_system precursor_system }
+	class = "sc_g"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+}
+
+lost_colony_1 = {
+	class = "rl_starting_stars"
+	flags = { empire_home_system lost_colony_home_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				any_playable_country = {
+					has_origin = origin_lost_colony
+					OR = {
+						is_human_species = no
+						AND = {
+							is_human_species = yes
+							capital_scope = { has_planet_flag = planet_earth }
+						}
+					}
+					NOT = {
+						has_country_flag = parent_system_spawned
+						# don't spawn if AI-generated and adv start disabled
+						# see game_start.1
+						AND = {
+							is_ai = yes
+							check_galaxy_setup_value = { setting = num_advanced_empires value < 1 }
+						}
+					}
+				}
+				NOT = { has_star_flag = empire_cluster }
+				add = @spawn_system_max
+			}
+		}
+	init_effect = {
+		spawn_system = { initializer = lost_colony_neighbor_t1 }
+		spawn_system = { initializer = lost_colony_neighbor_t1_first_colony }
+	}
+}
+
+lost_colony_neighbor_t1_first_colony = {
+	class = "rl_standard_stars"
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t2 }
+	}
+}
+
+shattered_ring_start = {
+	flags = { empire_home_system ring_world_built shattered_ring_system }
+	usage = origin
+	class = "sc_g"
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+sol_system_void_dweller_system = {
+	class = "sc_g"
+	usage = origin
+	flags = { empire_home_system sol_system sol }
+	init_effect = {
+		spawn_system = { initializer = sol_neighbor_t1 }
+		spawn_system = { initializer = sol_neighbor_t1_first_colony }
+		spawn_system = { initializer = sol_neighbor_t1_no_guaranteed_colony }
+	}
+}
+
+void_dweller_system = {
+	class = "rl_trinary_stars"
+	usage = origin
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+wenkwort_initializer = {
+	class = "rl_starting_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_slightlycommon
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { wenkwort_system natural_spectacle_system }
+}

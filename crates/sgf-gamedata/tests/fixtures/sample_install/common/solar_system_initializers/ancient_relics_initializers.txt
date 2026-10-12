@@ -1,0 +1,17 @@
+mechanocalibrator_system = {
+	class = "sc_binary_10"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				has_ancrel = no
+			}
+			inline_script = {
+				script = solar_system_initializers/initializer_modifiers_habitable_world_systems_mult
+				VALUE = 0.4 # e.g. 0.5x habitable = factor of 0.2; 5x habitable worlds = factor of 2
+			}
+		}
+	max_instances = 1
+	flags = { mechanocalibrator_system }
+}
