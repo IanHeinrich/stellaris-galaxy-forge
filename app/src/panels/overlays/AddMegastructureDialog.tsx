@@ -55,14 +55,16 @@ import "./overlays.css";
 const NO_KEYS: readonly string[] = [];
 
 /**
- * The preview of a whole ring world named as its Ring tile names its size, with no stage line,
- * as the grid shows its picks.
+ * The preview of a whole ring world named as its Ring tile names its size, with no stage line and
+ * no refusal, as the picks under the tiles show both.
  */
 function ringPreview(
   preview: MegastructurePreview,
   stage: MegastructureStage,
 ): MegastructurePreview {
-  return stage.ring === true ? { ...preview, label: stage.label, stage: null } : preview;
+  return stage.ring === true
+    ? { ...preview, label: stage.label, stage: null, refused: null }
+    : preview;
 }
 
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
@@ -127,7 +129,6 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
   const ring = found?.stage.ring === true;
   const size = found?.chain.kind === "ring" ? found.entry.size : null;
-  const whole = ring && found.stage.refused === null;
   const nameOf = (body: number) => bodyName(body)?.text ?? `#${body}`;
   const clearBlocked =
     clearingError !== null
@@ -218,11 +219,11 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                     onSelect={setPicked}
                     onConfirm={confirm}
                   />
-                  {size !== null && (whole || found.entry.sizes.length > 1) && (
+                  {size !== null && (ring || found.entry.sizes.length > 1) && (
                     <RingWorldPicks
                       sizes={found.entry.sizes}
                       size={size}
-                      whole={whole}
+                      ring={ring}
                       clearBlocked={clearBlocked}
                     />
                   )}

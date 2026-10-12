@@ -27,6 +27,7 @@ import {
 import {
   CLEAR_PLANETS,
   LEAVE_PLANETS,
+  OTHER_SIZE,
   QUADRANTS,
   RING_WRITTEN,
   SET_ALL,
@@ -597,6 +598,16 @@ describe("the Add megastructure dialog on a ring world", () => {
       });
     });
 
+    /** The picks area under the Size row, which keeps one height whatever it shows. */
+    const picksArea = (page: string) => {
+      const start = page.indexOf('<div class="ring-world-picks-area');
+      expect(start).toBeGreaterThan(-1);
+      return page.slice(start, page.indexOf('<aside class="megastructure-add-preview', start));
+    };
+    const sizeFirst = (page: string) =>
+      page.indexOf('class="ring-world-picks"') < page.indexOf('aria-label="Size"') &&
+      page.indexOf('aria-label="Size"') < page.indexOf("ring-world-picks-area");
+
     const checked = (page: string, label: string) =>
       new RegExp(`<input type="radio" name="ring-size" checked=""/><span>${label}</span>`).test(
         page,
@@ -634,16 +645,23 @@ describe("the Add megastructure dialog on a ring world", () => {
       );
       const refused = "This ring would overlap the Ring World at orbit 45.";
       const page = html();
-      expect(page).toContain(refused);
       expect(page).toContain('aria-label="Size"');
       expect(page).toContain(`aria-disabled="true" title="${refused}"`);
-      expect(page).not.toContain(SET_ALL);
       expect(page).toContain(">Add Ring World Site</button>");
+      const area = picksArea(page);
+      expect(area).toContain("ring-world-picks-refused");
+      expect(area).toContain(`<p class="megastructure-add-refusal">${refused}</p>`);
+      expect(area).toContain(OTHER_SIZE);
+      expect(area).not.toContain("ring-world-quadrants");
+      expect(page).not.toContain(SET_ALL);
+      expect(sizeFirst(page)).toBe(true);
 
       useMegastructureAddStore.setState({ ringSize: "ringworld_titanic_1" });
       const titanic = html();
       expect(titanic).not.toContain(refused);
+      expect(picksArea(titanic)).toContain("ring-world-quadrants");
       expect(titanic).toContain(SET_ALL);
+      expect(sizeFirst(titanic)).toBe(true);
       expect(titanic).not.toContain('type="submit" disabled=""');
     });
   });
