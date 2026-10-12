@@ -15,8 +15,9 @@ const ONLY_A_SAVE_ADDS: &str = "only a save takes an added habitat";
 /// leaves, as one `AddHabitat`: a planet round the body, placed as the install's habitat
 /// effect places one round a star or round any other body, with no owner. Its model is drawn
 /// in the culture of the system's owner, and the class's own model is drawn when the system
-/// has none. A type whose finished stage is not a habitat, and one the install does not
-/// define, are refused.
+/// has none. The orbital a restored complex leaves is owned by the system's owner, and by
+/// nobody when the system has none. A type whose finished stage is not a habitat, and one
+/// the install does not define, are refused.
 #[tauri::command]
 pub async fn add_habitat<R: Runtime>(
     app: AppHandle<R>,
@@ -41,18 +42,19 @@ pub async fn add_habitat<R: Runtime>(
             )
         })?;
         let graph = session.graph();
-        let culture = graph
-            .systems
-            .get(&system)
-            .and_then(|node| node.owner)
+        let owner = graph.systems.get(&system).and_then(|node| node.owner);
+        let culture = owner
             .and_then(|owner| graph.countries.iter().find(|c| c.id == owner))
             .and_then(|country| country.graphical_culture.clone());
-        let habitat = habitat(&gd, &kind, host.star, culture.as_deref()).ok_or_else(|| {
+        let mut habitat = habitat(&gd, &kind, host.star, culture.as_deref()).ok_or_else(|| {
             SgfError::new(
                 ErrorKind::Op,
                 format!("a {kind} is not finished as a habitat"),
             )
         })?;
+        if let Some(orbital) = &mut habitat.orbital {
+            orbital.owner = owner;
+        }
         let result = session.apply(Op::AddHabitat { body, habitat })?;
         let planet = match &result.inverse {
             Op::RemoveBody { body } => Some(*body),

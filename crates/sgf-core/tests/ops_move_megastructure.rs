@@ -480,11 +480,13 @@ fn a_planet_the_game_counts_a_megastructure_at_takes_one() {
         .apply(Op::AddMegastructure {
             system: 596,
             kind: "think_tank_3".to_owned(),
+            name: None,
             at: MegastructurePlace::Body { body: 6266 },
             owner: None,
             bypass: None,
             ruined_orbital_ring: false,
             megastructure_flag: false,
+            orbital_flag: false,
             star_only: false,
             construction: None,
             left_out: 0,

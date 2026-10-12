@@ -37,6 +37,28 @@ export function writtenAsHabitat(owned: boolean): string {
 }
 /** What the dialog says of a habitat's owner. */
 export const HABITAT_OWNER_NOTE = "A habitat is added with no owner.";
+/** What the dialog says of the owner of the major orbital that comes with a habitat. */
+export const HABITAT_ORBITAL_OWNER_NOTE =
+  "Its major orbital goes to the empire that owns the system.";
+/** Why a habitat comes with no major orbital. */
+export const HABITAT_ORBITAL_HOST_TAKEN =
+  "Its host already has a megastructure, so no major orbital is added.";
+/**
+ * What the dialog says of the major orbital that comes with a habitat, in a system an empire
+ * owns when `owned`, and `hostTaken` when the habitat's host holds a megastructure already.
+ */
+export function habitatOrbitalNote(owned: boolean, hostTaken: boolean): string {
+  if (hostTaken) return HABITAT_ORBITAL_HOST_TAKEN;
+  const owner = owned ? "owned by the empire that owns the system" : "with no owner";
+  return `A major orbital is added at its host, ${owner}.`;
+}
+/** Whether `spot` is a body that a row of `rows` stands at. */
+export function hostHasMegastructure(
+  spot: MegastructureSpot,
+  rows: readonly MegastructureSummary[],
+): boolean {
+  return spot.kind === "body" && rows.some((row) => row.planet === spot.body);
+}
 /** Why no habitat goes round a body. */
 export const HABITAT_ROUND_SATELLITE =
   "It orbits a planet, and Galaxy Forge puts no habitat round a body that orbits a planet.";
@@ -801,7 +823,7 @@ export function megastructureRefusal(
       return `The system already has a ${BYPASS_NAMES[bypass]}.`;
     }
   }
-  if (spot.kind === "body" && rows.some((row) => row.planet === spot.body)) {
+  if (hostHasMegastructure(spot, rows)) {
     return BODY_HAS_MEGASTRUCTURE;
   }
   return null;

@@ -9,6 +9,7 @@ import type { MapColorPair } from "./MapColorPair";
 import type { MegastructureConstruction } from "./MegastructureConstruction";
 import type { MegastructureDismantle } from "./MegastructureDismantle";
 import type { MegastructurePlace } from "./MegastructurePlace";
+import type { NameTemplate } from "./NameTemplate";
 import type { NebulaFootprint } from "./NebulaFootprint";
 import type { NewBody } from "./NewBody";
 import type { NewBypass } from "./NewBypass";
@@ -42,7 +43,12 @@ custom_name?: boolean, } | { "type": "AddSystemFromSpec", spec: SystemSpec, } | 
  * The two ends' points in place of the ones the op picks: what the inverse of
  * [`Op::RemoveWormholePair`] carries, so that the pair comes back where it stood.
  */
-at?: PairPoints, } | { "type": "RemoveWormholePair", a: number, b: number, } | { "type": "SetBodyRing", body: number, ring: boolean, } | { "type": "SetBodyModel", body: number, entity: string | null, } | { "type": "SetBodyClass", body: number, from: PlanetClassRule, to: PlanetClassRule, look?: PlanetLook, } | { "type": "AddBelt", system: number, kind: string, radius: number, } | { "type": "RemoveBelt", system: number, index: number, } | { "type": "SetBeltRadius", system: number, index: number, radius: number, } | { "type": "SetBeltKind", system: number, index: number, kind: string, } | { "type": "SetInnerRadius", system: number, radius: number, } | { "type": "MoveBodyToSystem", body: number, to: number, at?: OrbitPlacement, } | { "type": "RenameBody", body: number, name: NewName, } | { "type": "RemoveColony", body: number, } | { "type": "DeleteBody", body: number, } | { "type": "DeleteMegastructure", megastructure: number, dismantle?: MegastructureDismantle, } | { "type": "DeleteRingWorld", system: number, radius?: number, } | { "type": "AddBody", system: number, spec: NewBody, at: OrbitPlacement, } | { "type": "RemoveBody", body: number, } | { "type": "AddHabitat", body: number, habitat: NewHabitat, } | { "type": "AddDigSite", body: number, site_type: string, difficulty: number, } | { "type": "RemoveDigSite", site: number, } | { "type": "AddMegastructure", system: number, kind: string, at: MegastructurePlace, owner?: number, bypass?: NewBypass, 
+at?: PairPoints, } | { "type": "RemoveWormholePair", a: number, b: number, } | { "type": "SetBodyRing", body: number, ring: boolean, } | { "type": "SetBodyModel", body: number, entity: string | null, } | { "type": "SetBodyClass", body: number, from: PlanetClassRule, to: PlanetClassRule, look?: PlanetLook, } | { "type": "AddBelt", system: number, kind: string, radius: number, } | { "type": "RemoveBelt", system: number, index: number, } | { "type": "SetBeltRadius", system: number, index: number, radius: number, } | { "type": "SetBeltKind", system: number, index: number, kind: string, } | { "type": "SetInnerRadius", system: number, radius: number, } | { "type": "MoveBodyToSystem", body: number, to: number, at?: OrbitPlacement, } | { "type": "RenameBody", body: number, name: NewName, } | { "type": "RemoveColony", body: number, } | { "type": "DeleteBody", body: number, } | { "type": "DeleteMegastructure", megastructure: number, dismantle?: MegastructureDismantle, } | { "type": "DeleteRingWorld", system: number, radius?: number, } | { "type": "AddBody", system: number, spec: NewBody, at: OrbitPlacement, } | { "type": "RemoveBody", body: number, } | { "type": "AddHabitat", body: number, habitat: NewHabitat, } | { "type": "AddDigSite", body: number, site_type: string, difficulty: number, } | { "type": "RemoveDigSite", site: number, } | { "type": "AddMegastructure", system: number, kind: string, 
+/**
+ * The row's name, written first as the game writes one; filled only by the inverse
+ * of [`Op::RemoveMegastructure`] for a row that had one.
+ */
+name?: NameTemplate, at: MegastructurePlace, owner?: number, bypass?: NewBypass, 
 /**
  * The body gets the planet flag `ruined_orbital_ring_planet`, dated day one.
  */
@@ -52,6 +58,11 @@ ruined_orbital_ring?: boolean,
  * as a type whose build sets it leaves its body.
  */
 megastructure_flag?: boolean, 
+/**
+ * The body gets the planet flag `has_orbital`, dated the save's current date, as a
+ * habitat orbital leaves its body.
+ */
+orbital_flag?: boolean, 
 /**
  * The type is built only around a star: a body that is not one is refused.
  */

@@ -11,11 +11,15 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
 import {
+  BODY_HAS_MEGASTRUCTURE,
+  HABITAT_ORBITAL_HOST_TAKEN,
+  HABITAT_ORBITAL_OWNER_NOTE,
   HABITAT_OWNER_NOTE,
   NO_MODEL,
   NO_OWNER_NOTE,
   OWNER_NOTE,
   WRITTEN_FINISHED,
+  habitatOrbitalNote,
   writtenAsHabitat,
   type MegastructureSpot,
 } from "../../lib/megastructurePicks";
@@ -306,5 +310,85 @@ describe("the Add megastructure dialog on a habitat", () => {
     expect(html).toContain(writtenAsHabitat(false));
     expect(html).toContain("No one owns the system, so it has the habitat class's default skin.");
     expect(html).not.toContain("the empire that owns the system");
+  });
+  it("keeps the restored complex a habitat round a planet that has a megastructure", () => {
+    const restored = megastructureTypeView("habitat_central_complex_restored", { habitat: true });
+    useGameDataStore.setState({
+      megastructureTypes: new Map([[restored.key, restored]]),
+      names: new Map([["habitat_central_complex_restored", "Restored Habitat Central Complex"]]),
+    });
+    useMegastructureAddStore.setState({ last: restored.key });
+    inSystem(
+      systemDetails({
+        id: SYSTEM,
+        megastructures: [megastructureSummary({ kind: "think_tank_3", planet: 2 })],
+      }),
+    );
+    ownSystem(OWNER);
+    const html = footer();
+    expect(html).toContain(writtenAsHabitat(true));
+    expect(html).toContain(HABITAT_OWNER_NOTE);
+    expect(html).not.toContain(BODY_HAS_MEGASTRUCTURE);
+    expect(html).not.toContain('aria-disabled="true"');
+    expect(html).not.toContain('type="submit" disabled=""');
+  });
+
+  describe("with a major orbital", () => {
+    beforeEach(() => {
+      const restored = megastructureTypeView("habitat_central_complex_restored", {
+        habitat: true,
+        habitat_orbital: true,
+      });
+      useGameDataStore.setState({
+        megastructureTypes: new Map([[restored.key, restored]]),
+        names: new Map([[restored.key, "Restored Habitat Central Complex"]]),
+      });
+      useMegastructureAddStore.setState({ last: restored.key });
+    });
+
+    it("says the orbital goes to the system's owner, in the footer and the Owner line", () => {
+      ownSystem(OWNER);
+      const html = footer();
+      expect(html).toContain(
+        "A major orbital is added at its host, owned by the empire that owns the system.",
+      );
+      expect(html).toContain(habitatOrbitalNote(true, false));
+      expect(html).toContain(HABITAT_ORBITAL_OWNER_NOTE);
+      expect(html).not.toContain(HABITAT_ORBITAL_HOST_TAKEN);
+    });
+
+    it("says the orbital has no owner in a system no one owns", () => {
+      ownSystem(null);
+      const html = footer();
+      expect(html).toContain("A major orbital is added at its host, with no owner.");
+      expect(html).not.toContain(HABITAT_ORBITAL_OWNER_NOTE);
+    });
+
+    it("says no orbital is added round a planet that has a megastructure", () => {
+      inSystem(
+        systemDetails({
+          id: SYSTEM,
+          megastructures: [megastructureSummary({ kind: "think_tank_3", planet: 2 })],
+        }),
+      );
+      ownSystem(OWNER);
+      const html = footer();
+      expect(html).toContain(HABITAT_ORBITAL_HOST_TAKEN);
+      expect(html).not.toContain("A major orbital is added");
+      expect(html).not.toContain(HABITAT_ORBITAL_OWNER_NOTE);
+    });
+
+    it("says nothing of an orbital for the base complex", () => {
+      const complex = megastructureTypeView("habitat_central_complex", { habitat: true });
+      useGameDataStore.setState({
+        megastructureTypes: new Map([[complex.key, complex]]),
+        names: new Map([[complex.key, "Habitat Central Complex"]]),
+      });
+      useMegastructureAddStore.setState({ last: complex.key });
+      ownSystem(OWNER);
+      const html = footer();
+      expect(html).not.toContain("major orbital");
+      expect(html).not.toContain(HABITAT_ORBITAL_HOST_TAKEN);
+    });
   });
 });

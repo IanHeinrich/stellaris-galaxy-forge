@@ -8,6 +8,7 @@ use crate::format::save::system_spec::SystemSpec;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::ops::OpError;
 use crate::projections::galaxy::{LGateOutcome, SpawnScript};
+use crate::projections::name::NameTemplate;
 use crate::views::{DocumentKind, OrbitPlacement};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr, VariantNames)]
@@ -697,8 +698,8 @@ pub enum Op {
     /// becomes `<id>=none`, and its id leaves its system's `megastructures` and its owner's
     /// `owned_megastructures`, each list going with its last id. Its body loses the
     /// `megastructure` key, and unless another row names the body, the planet flags
-    /// `has_megastructure`, `has_arc_furnace` and `ruined_orbital_ring_planet` and an Arc
-    /// Furnace's `entity_name="invisible_turret_entity"`. A row with `save_on_death=1` is
+    /// `has_megastructure`, `has_arc_furnace`, `ruined_orbital_ring_planet` and `has_orbital`
+    /// and an Arc Furnace's `entity_name="invisible_turret_entity"`. A row with `save_on_death=1` is
     /// logged in `dead_mega_structure` as the game logs it: a `map` line from its id to a new
     /// `objects` entry holding its type and system. A row with a `gateway` or `relay_bypass`
     /// bypass takes it along: the bypass row is emptied, and its id leaves the system's
@@ -791,8 +792,10 @@ pub enum Op {
     /// asteroid's name goes back to the pool it came from. A body the file held, and one
     /// with moons, are refused. The inverse adds it back, read as a spec,
     /// at the radius and angle it stood at. An added habitat goes with its host's `habitat<id>`
-    /// flag, and with its system's `has_habitat` flag once no habitat is left in it; its
-    /// inverse is the [`Op::AddHabitat`] that adds it back. Stellaris 4.x save documents only.
+    /// flag, and with its system's `has_habitat` flag once no habitat is left in it. The
+    /// orbital it was added with goes too: the host's `megastructure` row added since the
+    /// file was opened, when the host has `has_orbital`, with that flag. Its inverse is the
+    /// [`Op::AddHabitat`] that adds it back. Stellaris 4.x save documents only.
     RemoveBody {
         body: u32,
     },
@@ -803,11 +806,16 @@ pub enum Op {
     /// the save's date. `body` lists it in `moons` and gets the flag `habitat<id>`, the system
     /// lists it after its last `planet=` line and gets `has_habitat` when it has none, and the
     /// inner radius grows when the habitat lies past it. The game builds its construction queue
-    /// when it loads. A body that orbits a planet, as a moon or a habitat does, a body that
+    /// when it loads. With `habitat.orbital`, as a restored Habitat Central Complex leaves
+    /// one, a finished `megastructures` row of that type also stands at `body`'s coordinates,
+    /// named with the system's name, with the owner and its culture: the system and the
+    /// owner list it, and `body` gets `megastructure=<id>` and the flag `has_orbital`. A body
+    /// that has a megastructure already gets the habitat without the orbital, since a planet
+    /// holds one. A body that orbits a planet, as a moon or a habitat does, a body that
     /// already has a `habitat<id>` flag, a placement that is not finite or not past 0, a size
-    /// of 0, and a class, name, variable, model or flag that cannot be written are refused.
-    /// The inverse is [`Op::RemoveBody`], batched with the old inner radius when it grew.
-    /// Stellaris 4.x save documents only.
+    /// of 0, and a class, name, variable, model, type or flag that cannot be written are
+    /// refused. The inverse is [`Op::RemoveBody`], batched
+    /// with the old inner radius when it grew. Stellaris 4.x save documents only.
     AddHabitat {
         body: u32,
         habitat: NewHabitat,
@@ -838,8 +846,8 @@ pub enum Op {
     /// owner lists it in `owned_megastructures`; on load the game gives every row to the
     /// owner of its system, whatever the row names. A row on a [`MegastructurePlace::Body`]
     /// stands at the body's point and names it, one [`MegastructurePlace::Beside`] a body at
-    /// its own point, and the body gets `megastructure=<id>`, with
-    /// the planet flags `has_megastructure` and `ruined_orbital_ring_planet` when asked. The
+    /// its own point, and the body gets `megastructure=<id>`, with the planet flags
+    /// `has_megastructure`, `ruined_orbital_ring_planet` and `has_orbital` when asked. The
     /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
     /// new row is written past the highest, connected both ways to the relays of the systems
     /// a lane joins to `system` or to every other gateway, and the system lists it in
@@ -863,6 +871,11 @@ pub enum Op {
     AddMegastructure {
         system: u32,
         kind: String,
+        /// The row's name, written first as the game writes one; filled only by the inverse
+        /// of [`Op::RemoveMegastructure`] for a row that had one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        name: Option<NameTemplate>,
         at: MegastructurePlace,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -879,6 +892,11 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         #[ts(optional, as = "Option<bool>")]
         megastructure_flag: bool,
+        /// The body gets the planet flag `has_orbital`, dated the save's current date, as a
+        /// habitat orbital leaves its body.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        orbital_flag: bool,
         /// The type is built only around a star: a body that is not one is refused.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         #[ts(optional, as = "Option<bool>")]
@@ -892,8 +910,9 @@ pub enum Op {
         #[ts(optional, as = "Option<u32>")]
         left_out: u32,
     },
-    /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
-    /// taken out again: it gives its slot back as an added body does, and it is unlinked as
+    /// A `megastructures` row [`Op::AddMegastructure`] or [`Op::AddHabitat`] added since the
+    /// file was opened, taken out again: it gives its slot back as an added body does, and it
+    /// is unlinked as
     /// [`Op::DeleteMegastructure`] unlinks a row: its id leaves the system's
     /// `megastructures`, the owner's `owned_megastructures` and the body's `megastructure`,
     /// and unless another row names the body, the body loses the flags a structure leaves.
@@ -903,8 +922,9 @@ pub enum Op {
     /// its slot back as [`Op::RemoveDeposit`] gives back an added one, and each variable
     /// lowered, its line going at 0 and the owner's `variables` with its last line when the
     /// file held neither.
-    /// A row the file held is refused. The inverse adds it back as it stood, with what was
-    /// taken back as its construction. Stellaris 4.x save documents only.
+    /// A row the file held is refused. The inverse is the [`Op::AddMegastructure`] that adds
+    /// it back as it stood: its type, name, place, owner and bypass, the body flags it left,
+    /// and what was taken back as its construction. Stellaris 4.x save documents only.
     RemoveMegastructure {
         megastructure: u32,
         /// What the add's construction wrote; filled only by the inverse of
@@ -1340,6 +1360,29 @@ pub struct NewHabitat {
     /// Its planet flags, in the order they are set: `megastructure`, `habitat`,
     /// `habitat_level_1`.
     pub flags: Vec<String>,
+    /// The orbital a restored Habitat Central Complex leaves round the same body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub orbital: Option<HabitatOrbital>,
+}
+
+/// The finished `megastructures` row [`Op::AddHabitat`] writes round the habitat's body, as
+/// the game's `spawn_orbital_effect` leaves one.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct HabitatOrbital {
+    /// `habitat_major_orbital`.
+    pub kind: String,
+    /// The country that owns it, whose graphical culture it takes; `None` for none.
+    #[serde(default)]
+    pub owner: Option<u32>,
+    /// The localisation key of its name, `TARGET_ORBITAL_NAME`; `None` for no name.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// The variable of the name that the system's name fills in, `prevprev.GetName`;
+    /// `None` for a name with none.
+    #[serde(default)]
+    pub system_name: Option<String>,
 }
 
 /// The name a [`NewBody`] is written with.
