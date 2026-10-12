@@ -12,6 +12,12 @@
 //! construction does, such as a flag, a planet's class or model, an event chain or a country
 //! modifier, is not written, and a kept effect the walk cannot place is listed as
 //! unfollowed rather than guessed.
+//!
+//! What a finished structure does to the shape of its system, the rows and planets it
+//! spawns and the ones it removes, is read by [`layout`] from each stage's own definition,
+//! kept as [`Construction::script`].
+
+pub mod layout;
 
 use std::collections::BTreeMap;
 
@@ -56,6 +62,18 @@ pub struct Construction {
     pub steps: Vec<Step>,
     /// Each kept effect the walk could not place.
     pub unfollowed: Vec<Unfollowed>,
+    /// The type's own definition, which [`layout::lay_out`] walks.
+    pub script: Option<StageScript>,
+}
+
+/// A megastructure type's definition as the install has it.
+#[derive(Debug, Clone)]
+pub struct StageScript(Def);
+
+impl PartialEq for StageScript {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.file == other.0.file && self.0.node == other.0.node
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -254,7 +272,10 @@ fn first_upgrade(def: &Def) -> Option<String> {
 /// What the build chain of type `key` keeps, as `scripts` resolve the effects and events
 /// it calls.
 pub(crate) fn read(defs: &BTreeMap<String, Def>, key: &str, scripts: &ScriptIndex) -> Construction {
-    let mut out = Construction::default();
+    let mut out = Construction {
+        script: defs.get(key).cloned().map(StageScript),
+        ..Construction::default()
+    };
     for stage in chain(defs, key) {
         for hook in HOOKS {
             if let Some(block) = stage.node.find(hook, &stage.src) {

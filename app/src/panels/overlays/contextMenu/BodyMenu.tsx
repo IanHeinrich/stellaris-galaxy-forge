@@ -27,8 +27,9 @@ import { RingWorldItem } from "./RingWorldItem";
 import { CopyItem, CutItem } from "./PlanetMoveItems";
 
 /**
- * The menu on a body in the system view: its page, the selection's cut and copy, its lock, a
- * new moon or megastructure on it, its deletion or its ring world's, and the way back out.
+ * The menu on a body in the system view: its page, the selection's cut and copy unless it is a
+ * ring world segment, its lock, a new moon or megastructure on it, its deletion or its ring
+ * world's, and the way back out.
  */
 export function BodyMenu({
   target,
@@ -56,6 +57,7 @@ export function BodyMenu({
   const moon = planet?.moon === true;
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const star = planet !== undefined && isStarBody(planet.class, planetClasses, starClasses);
+  const segment = planet !== undefined && isRingSegment(planet.class);
   const offers = planetPageOffers(capabilities, {
     star,
     ringable: false,
@@ -88,8 +90,8 @@ export function BodyMenu({
       >
         Inspect
       </MenuItem>
-      <CutItem system={target.system} />
-      {!star && <CopyItem system={target.system} />}
+      {!segment && <CutItem system={target.system} />}
+      {!star && !segment && <CopyItem system={target.system} />}
       {lockable &&
         (locked ? (
           <MenuItem run={() => unlockBody(target.id)}>Unlock</MenuItem>
@@ -113,7 +115,7 @@ export function BodyMenu({
       )}
       {offers.deleteBody &&
         name !== undefined &&
-        (planet !== undefined && isRingSegment(planet.class) ? (
+        (segment ? (
           <RingWorldItem system={target.system} />
         ) : (
           <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />

@@ -652,6 +652,24 @@ describe("moving planets", () => {
     expect(menu()).not.toContain("Paste");
   });
 
+  it("offers no Cut or Copy on a ring world segment", async () => {
+    const SEGMENT = 14;
+    const segment = planetSummary({
+      id: SEGMENT,
+      name: name("Ring Section"),
+      name_key: "Ring Section",
+      class: "pc_ringworld_seam",
+    });
+    inSystem(systemDetails({ id: SOL, planets: [segment] }));
+    useSceneStore.getState().selectBody(SOL, SEGMENT);
+    await flush();
+    openOn({ kind: "body", system: SOL, id: SEGMENT });
+    const html = menu();
+    expect(html).toContain(">Delete ring world</button>");
+    expect(html).not.toContain("Cut");
+    expect(html).not.toContain("Copy");
+  });
+
   it("offers no Paste without a cut", () => {
     openOn({ kind: "system", id: CENTAURI });
     expect(menu()).not.toContain("Paste");

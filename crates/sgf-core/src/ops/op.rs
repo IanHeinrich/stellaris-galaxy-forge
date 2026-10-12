@@ -467,10 +467,10 @@ pub enum Op {
     /// names the body, moves by the body's step with its ships: stations, an Orbital Ring's
     /// station fleet and fleets parked there alike. So does each `megastructures` row tied
     /// to a body that moves. A fleet on its way stays where it is. `system` must be the
-    /// body's own. A body at the system's centre is refused. When the body now reaches
-    /// further than the system did, or outside its `inner_radius`, that radius grows to the
-    /// body's reach plus its margin, and the inverse is a [`Op::Batch`] that also puts it
-    /// back. Stellaris 4.x save documents only.
+    /// body's own. A body at the system's centre and a ring world segment are refused. When
+    /// the body now reaches further than the system did, or outside its `inner_radius`,
+    /// that radius grows to the body's reach plus its margin, and the inverse is a
+    /// [`Op::Batch`] that also puts it back. Stellaris 4.x save documents only.
     MoveBody {
         system: u32,
         body: u32,
@@ -483,8 +483,8 @@ pub enum Op {
     /// [`Op::MoveBody`] puts it. `moon_of` and both parents' `moons` are written, and
     /// the moon bit of `binary_flags` is set for a moon and cleared otherwise. A parent
     /// outside the system, a moon, the body itself or one of its moons, and a parent at the
-    /// system's centre are refused, and so are the primary body and a body with moons made
-    /// a moon of a planet. The inverse puts the old parent back. Stellaris 4.x save
+    /// system's centre are refused, and so are the primary body, a ring world segment and a
+    /// body with moons made a moon of a planet. The inverse puts the old parent back. Stellaris 4.x save
     /// documents only.
     SetBodyParent {
         system: u32,
@@ -629,8 +629,8 @@ pub enum Op {
     /// moves between the two systems' `colonies`, and the station fleet of each body with
     /// one between their `fleet_presence`, it and its ships taking the new `origin`, their
     /// points shifted with the body. No other fleet is touched. A star, a system with no
-    /// bodies to join and a planet or moon with a megastructure are refused, and so is an
-    /// owned planet or moon another country controls. The
+    /// bodies to join, a ring world segment and a planet or moon with a megastructure are
+    /// refused, and so is an owned planet or moon another country controls. The
     /// inverse moves it back to its old point, batched with the old inner radius when it
     /// grew. Stellaris 4.x save documents only.
     MoveBodyToSystem {

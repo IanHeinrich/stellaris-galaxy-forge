@@ -34,6 +34,7 @@ mod install;
 mod layering;
 mod localisation;
 mod look_only_classes;
+mod megastructure_layouts;
 mod megastructure_offers;
 mod megastructure_views;
 mod megastructures;
