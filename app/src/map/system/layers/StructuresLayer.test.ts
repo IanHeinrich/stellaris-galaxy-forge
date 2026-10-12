@@ -5,7 +5,7 @@ vi.mock("../../../api/gamedata", () => import("../../../test/textures"));
 
 import type { Container, Sprite } from "pixi.js";
 import type { MegastructureSummary } from "../../../generated/MegastructureSummary";
-import type { MegastructureTypeView } from "../../../generated/MegastructureTypeView";
+import type { MegastructureView } from "../../../generated/MegastructureView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { StarbaseLevelView } from "../../../generated/StarbaseLevelView";
 import type { StarbaseSummary } from "../../../generated/StarbaseSummary";
@@ -63,7 +63,7 @@ const MARAUDER = starbaseLevelView("starbase_level_marauder", {
   station_entity: "empty_section_entity",
 });
 
-const TYPES = new Map<string, MegastructureTypeView>(
+const TYPES = new Map<string, MegastructureView>(
   [NEXUS, RELAY, FURNACE, FURNACE_SITE, RING, ART].map((t) => [t.key, t]),
 );
 const LEVELS = new Map<string, StarbaseLevelView>(

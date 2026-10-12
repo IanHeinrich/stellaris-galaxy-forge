@@ -50,21 +50,46 @@ construction added.
 The list shows each megastructure once, under Base game or the name of
 the mod that adds it. Its build stages, ruins and variants are inside
 it, so a Dyson Sphere is one entry in the list and not one for each
-stage. Type in the box above the list to filter it by megastructure or
-stage name.
+stage. Under each name, a line says how many stages it has and what else
+it comes in, such as "4 stages · by star class" or "3 stages · ruins".
+Type in the box above the list to filter it by megastructure or stage
+name.
 
 The tiles show the stages of the megastructure you picked, each with its
-model, in the order they are built. Its ruined and restored versions come
-after them. A mod that has several versions of one megastructure, such
-as the Dyson Sphere for each star class in Gigastructural Engineering,
-shows one row of tiles for each, with a label above the row. A tile
-marked No model yet is a megastructure the app can't draw yet.
+model, in the order they are built. Above a stage's short name, a tile
+shows its place in the row, such as "3 of 4". Its ruined and restored
+versions come after the stages. A mod that has several versions of one
+megastructure shows one row of tiles for each, with a label above the
+row. A tile marked No model yet is a megastructure the app can't draw
+yet.
 
-The preview beside the tiles shows the stage you clicked, with the
-game's description and what it produces each month. The dialog opens on
-the megastructure you added last, if it fits where you right-clicked.
-Otherwise it opens on a Dyson Sphere on a star, a Science Nexus on a
-planet, or a Hyper Relay in empty space.
+With Gigastructural Engineering, a Dyson Sphere, Dyson Swarm,
+Matrioshka Brain or Star Lifter is one row, not one for each star
+class. Add writes the version the game builds at the star you
+right-clicked. It picks that version from the star's class and from the
+save's Gigastructural Engineering settings for star scaling. In a save
+without star scaling, Add writes the generic version. Types switched off
+in those settings, such as Maginot worlds, are still in the list.
+
+Giga's wrecked warships are listed as wrecks. Their repaired stage turns
+into a ship, so it isn't listed.
+
+Click a stage to see it in the details panel beside the tiles. From the
+top, the panel shows:
+
+1. The stage's name, and a line such as "Stage 3 of 4: Maturity".
+2. The game's description, with its colours and icons.
+3. Produces each month.
+4. Empire effects, which the megastructure gives its owner.
+5. Adding it also writes, which lists the modifiers and deposits its
+   construction adds.
+
+A part the stage has nothing for is left out. The Add button names what
+it adds, such as "Add Maturity, stage 3 of 4".
+
+The dialog opens on the megastructure you added last, if it fits where
+you right-clicked. Otherwise it opens on a Dyson Sphere on a star, a
+Science Nexus on a planet, or a Hyper Relay in empty space.
 
 A Dyson Sphere and the other megastructures the game builds only around
 a star are offered only on a star. A second Hyper Relay or Gateway in a
@@ -93,14 +118,26 @@ the preview. Galaxy Forge can't add these yet:
 - Megastructures that are built as a whole with more planets or
   sections, such as an Alderson Disk.
 
-Types the game gives no name are left out of the list. Type part of the
-type's key in the filter to find one.
+Types the game gives no name are listed last, under Unnamed types. They
+show only when what you type in the filter is part of the key of one of
+their stages.
 
 Galaxy Forge can't add these yet, and they aren't in the list:
 
 - L-Gates and the later stages of the Quantum Catapult.
 - Megastructures that become a starbase when they are built: the Deep
   Space Citadel and the Nomads' waystations.
+- Some Gigastructural Engineering types that Galaxy Forge doesn't
+  support yet.
+
+The list also leaves out types you can't build or that aren't
+structures:
+
+- Placeholders.
+- Arkships and other structures that are really ships.
+- Crisis and event structures, such as the Galactic Crucible, the
+  Behemoth egg and the Shroud Seal.
+- Ruins that have no repair.
 
 ## Delete a megastructure
 

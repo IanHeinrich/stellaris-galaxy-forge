@@ -29,6 +29,8 @@ export interface GalaxyState {
   bypasses: BypassLink[];
   /** A save's L-Gate outcome as it now reads, on its own so an edit of it leaves `galaxy` alone. */
   lgate: LGate | null;
+  /** The save's global flags as they now read; empty for a scenario. */
+  globalFlags: ReadonlySet<string>;
   /** Current nodes by id, in file order. The truth for positions after deltas. */
   systems: Map<number, SystemNode>;
   /** In file order; `SystemNode.nebula` indexes into it. The truth for nebulae after deltas. */
@@ -74,6 +76,7 @@ function empty() {
     waylines: [],
     bypasses: [],
     lgate: null,
+    globalFlags: new Set<string>(),
     systems: new Map(),
     nebulae: [],
     countries: new Map(),
@@ -102,6 +105,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       waylines: view.waylines,
       bypasses: view.bypasses,
       lgate: view.lgate,
+      globalFlags: new Set(view.global_flags),
       systems,
       nebulae: view.nebulae,
       countries: countryMap(view.countries, []),
@@ -138,6 +142,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     const waylines = delta.waylines ?? get().waylines;
     const bypasses = delta.bypasses ?? get().bypasses;
     const lgate = delta.lgate ?? get().lgate;
+    const globalFlags = delta.global_flags ? new Set(delta.global_flags) : get().globalFlags;
     const countries = withCountries(get().countries, delta.countries);
     set({
       systems,
@@ -146,6 +151,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       waylines,
       bypasses,
       lgate,
+      globalFlags,
       countries,
       lastDelta: delta,
       version: version + 1,

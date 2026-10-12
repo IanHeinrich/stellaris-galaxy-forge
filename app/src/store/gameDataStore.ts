@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { create } from "zustand";
 import { onGameDataChanged, onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
@@ -10,7 +11,7 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { KindCount } from "../generated/KindCount";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
@@ -30,6 +31,7 @@ import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { setMapNameFont } from "../lib/visual/mapFont";
 import { clearTextures } from "../lib/visual/textures";
+import { NAMES_BATCH } from "./batching";
 import { useDetailsStore } from "./detailsStore";
 import { useScriptsStore } from "./scriptsStore";
 import { documentActions, NO_DOCUMENT } from "./gameDataStore.document";
@@ -64,6 +66,8 @@ export interface GameDataState {
   scenarioBypasses: ScenarioBypasses | null;
   /** What the UI shows a name as, by localisation key or by [`templateKey`]. */
   names: Map<string, string>;
+  /** Localised game texts by key with their `£icon£` and `§Y…§!` markup kept, for `GameText`. */
+  texts: Map<string, string>;
   starClasses: Map<string, StarClassView>;
   mapColors: Map<string, MapColor>;
   /** The mod whose `flags/colors.txt` `mapColors` comes from; null for the game's own. */
@@ -80,7 +84,7 @@ export interface GameDataState {
   bypasses: Map<string, BypassView>;
   starbaseLevels: Map<string, StarbaseLevelView>;
   /** Megastructure type key → its models, offset and how it is sized. */
-  megastructureTypes: Map<string, MegastructureTypeView>;
+  megastructureTypes: Map<string, MegastructureView>;
   /** Ship size key → its `common/ship_sizes` icon, for the badge a fleet wears. */
   shipSizes: Map<string, ShipSizeView>;
   countryTypes: Map<string, CountryTypeView>;
@@ -140,6 +144,8 @@ export interface GameDataState {
   refreshScenarioOwners(alive?: () => boolean): Promise<void>;
   /** Resolves the keys not yet known, in batches; a no-op without game data, or once `alive` says no. */
   fetchNames(keys: string[], alive?: () => boolean): Promise<void>;
+  /** Resolves the texts not yet known, in batches; a key the install has no text for is cached as empty. */
+  fetchTexts(keys: string[], alive?: () => boolean): Promise<void>;
   /** Resolves the templates not yet known, in batches; stops once `alive` says no. */
   resolveNames(names: NameTemplate[], alive?: () => boolean): Promise<void>;
   /** Asks for one template's text, with every other asked for on the same tick. */
@@ -156,6 +162,7 @@ const UNLOADED = {
   error: null,
   progress: null,
   names: new Map<string, string>(),
+  texts: new Map<string, string>(),
   starClasses: new Map<string, StarClassView>(),
   mapColors: new Map<string, MapColor>(),
   mapColorSource: null as string | null,
@@ -166,7 +173,7 @@ const UNLOADED = {
   deposits: new Map<string, DepositView>(),
   bypasses: new Map<string, BypassView>(),
   starbaseLevels: new Map<string, StarbaseLevelView>(),
-  megastructureTypes: new Map<string, MegastructureTypeView>(),
+  megastructureTypes: new Map<string, MegastructureView>(),
   shipSizes: new Map<string, ShipSizeView>(),
   countryTypes: new Map<string, CountryTypeView>(),
   lgateMods: [] as LGateModTouch[],
@@ -206,14 +213,35 @@ const GALAXY_DATA = { galaxyShapes: null, galaxyShapesPending: false };
  * The fields game data that has just landed starts from, with the details and scripts read from
  * what it replaces dropped.
  */
-function freshData(): typeof FRESH_DATA & { names: Map<string, string> } {
+/** How the game's texts are fetched: the backend's `get_game_texts` once the API has it. */
+export type GameTextSource = (keys: string[]) => Promise<Record<string, string>>;
+
+let gameTextSource: GameTextSource = (keys) => ipc.getGameTexts(keys);
+
+/** Sets where `fetchTexts` asks for texts. */
+export function setGameTextSource(source: GameTextSource): void {
+  gameTextSource = source;
+}
+
+/** Every text already asked for, so a miss is asked for once however often it is shown. */
+const requestedTexts = new Set<string>();
+
+function forgetTexts(): Map<string, string> {
+  requestedTexts.clear();
+  return new Map();
+}
+
+function freshData(): typeof FRESH_DATA & {
+  names: Map<string, string>;
+  texts: Map<string, string>;
+} {
   useDetailsStore.getState().clear();
   useScriptsStore.getState().clear();
-  return { ...FRESH_DATA, names: forgetNames() };
+  return { ...FRESH_DATA, names: forgetNames(), texts: forgetTexts() };
 }
 
 function unloaded(): typeof UNLOADED {
-  return { ...UNLOADED, names: forgetNames() };
+  return { ...UNLOADED, names: forgetNames(), texts: forgetTexts() };
 }
 
 function isAutoLoad(value: unknown): value is AutoLoad {
@@ -359,7 +387,54 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
 
   ...documentActions(set, get),
   ...nameActions(set, get),
+
+  async fetchTexts(keys, alive) {
+    const { status, version } = get();
+    if (status !== "ready") return;
+    const wanted = [...new Set(keys)].filter(
+      (key) => key !== "" && !get().texts.has(key) && !requestedTexts.has(key),
+    );
+    const still =
+      alive ??
+      (() => {
+        const now = get();
+        return now.status === status && now.version === version;
+      });
+    for (let i = 0; i < wanted.length; i += NAMES_BATCH) {
+      const batch = wanted.slice(i, i + NAMES_BATCH);
+      for (const key of batch) requestedTexts.add(key);
+      try {
+        const resolved = await gameTextSource(batch);
+        if (!still()) return;
+        const texts = new Map(get().texts);
+        for (const key of batch) texts.set(key, resolved[key] ?? "");
+        set({ texts });
+      } catch (e) {
+        for (const key of batch) requestedTexts.delete(key);
+        if (still()) set({ error: ipc.errorMessage(e) });
+        return;
+      }
+    }
+  },
 }));
+
+/**
+ * The game texts for `keys` as the game writes them, markup kept, asking for any not yet fetched
+ * and again when game data is reloaded. A key with no text reads as `fallback` makes it, empty by
+ * default.
+ */
+export function useGameTexts(
+  keys: readonly string[],
+  fallback: (key: string) => string = () => "",
+): (key: string) => string {
+  const texts = useGameDataStore((s) => s.texts);
+  const loaded = useGameDataStore((s) => `${s.status}/${s.version}`);
+  const list = keys.filter(Boolean).join("|");
+  useEffect(() => {
+    if (list !== "") void useGameDataStore.getState().fetchTexts(list.split("|"));
+  }, [list, loaded]);
+  return (key) => texts.get(key) || fallback(key);
+}
 
 /** The lists the game data reads on first use. */
 type FirstUse = "initializers" | "galaxyShapes" | "planetModels";

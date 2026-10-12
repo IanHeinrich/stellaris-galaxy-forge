@@ -16,7 +16,8 @@ amount: number | null, category: DepositCategory,
  */
 usual: boolean, 
 /**
- * Its localised `<key>_desc`, when the install has one.
+ * Its localised `<key>_desc`, when the install has one, with the game's `£icon£` and
+ * `§X` … `§!` markup kept.
  */
 description: string | null, 
 /**

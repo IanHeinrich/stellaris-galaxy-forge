@@ -40,7 +40,8 @@ pub struct DepositChoice {
     pub category: DepositCategory,
     /// The game's roll could place it on the planet asked about.
     pub usual: bool,
-    /// Its localised `<key>_desc`, when the install has one.
+    /// Its localised `<key>_desc`, when the install has one, with the game's `£icon£` and
+    /// `§X` … `§!` markup kept.
     pub description: Option<String>,
     /// No roll ever places it: only events and scripts do. A blocker is filed under
     /// [`DepositCategory::Blockers`] all the same, so this says it.
@@ -77,7 +78,7 @@ impl GameData {
                 amount: d.produces.first().map(|&(_, amount)| amount),
                 category: category(self, d),
                 usual: usual.contains(d.key.as_str()),
-                description: self.loc.description(&format!("{}_desc", d.key)),
+                description: self.loc.rich(&format!("{}_desc", d.key)),
                 event_only: !d.roll.drop_weight.ever_positive(),
             })
             .collect();

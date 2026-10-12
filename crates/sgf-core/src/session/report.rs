@@ -93,7 +93,10 @@ impl Session {
                     delta.header = Some(self.graph.header.clone());
                 }
                 Subject::Header(_) => {}
-                Subject::Flags => delta.lgate = self.graph.lgate,
+                Subject::Flags => {
+                    delta.lgate = self.graph.lgate;
+                    delta.global_flags = Some(self.graph.global_flags.clone());
+                }
                 Subject::Country(id) => {
                     let country = self.graph.countries.iter().find(|c| c.id == id);
                     delta.countries.extend(country.cloned());

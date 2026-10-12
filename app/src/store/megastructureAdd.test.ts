@@ -86,6 +86,14 @@ describe("adding a megastructure from the system view", () => {
     expect(useFileSessionStore.getState().notice).toBeNull();
   });
 
+  it("adds the type the game makes of a stage at the star, and remembers the stage", async () => {
+    adds().open(SYSTEM, { kind: "body", body: 12, star: false });
+    await adds().add("think_tank_3_variant", "think_tank_3");
+
+    expect(mockedIpc.addMegastructure.mock.calls[0][1]).toBe("think_tank_3_variant");
+    expect(adds().last).toBe("think_tank_3");
+  });
+
   it("says in the status bar how many effects of its construction were left out", async () => {
     mockedIpc.addMegastructure.mockResolvedValue({
       edit: editResult({ details_stale: [SYSTEM] }),

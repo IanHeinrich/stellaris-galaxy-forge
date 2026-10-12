@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   countryNode,
   megastructureSummary,
+  megastructureSwap,
   megastructureTypeView,
   starbaseSummary,
   systemDetails,
@@ -9,7 +10,7 @@ import {
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
 import { megastructureEntries } from "./megastructurePicks";
 import {
-  descriptionText,
+  constructionLines,
   hasModel,
   megastructureDescriptionKeys,
   megastructurePreview,
@@ -90,14 +91,11 @@ describe("the picture a megastructure's tile shows", () => {
 });
 
 describe("the preview of the selected type", () => {
-  it("reads the stage's description, cleaned of the game's markup, its stage and what it produces", () => {
+  it("reads the stage's description with the game's markup kept, its stage and what it produces", () => {
     const names = new Map([
       ["mega_shipyard_restored", "Mega Shipyard"],
       ["mega_shipyard_restored_DESC", ""],
-      [
-        "mega_shipyard_0_MEGASTRUCTURE_DETAILS",
-        "A massive §YStarbase§! with £alloys£  20 berths.\nBuilt $UNKNOWN_REF$ once.",
-      ],
+      ["mega_shipyard_0_MEGASTRUCTURE_DETAILS", "A massive §YStarbase§! with £alloys£ 20 berths."],
     ]);
     const entry = shipyard(names);
     const chain = entry.chains[1];
@@ -112,11 +110,13 @@ describe("the preview of the selected type", () => {
     const preview = megastructurePreview(stage, chain, entry, TYPES.get(stage.key), names);
     expect(preview).toMatchObject({
       key: "mega_shipyard_restored",
+      variant: "mega_shipyard_restored",
       label: "Mega Shipyard (Restored)",
       stage: null,
+      add: "Add Mega Shipyard (Restored)",
       model: true,
       refused: null,
-      description: "A massive Starbase with 20 berths.\nBuilt once.",
+      description: "A massive §YStarbase§! with £alloys£ 20 berths.",
     });
     expect(preview.produces.map((row) => [row.resource, row.amount])).toEqual([
       ["energy", -5],
@@ -124,23 +124,128 @@ describe("the preview of the selected type", () => {
     ]);
   });
 
-  it("prefers the stage's own description, and has none when the game gives none", () => {
+  it("prefers the stage's own description from the game texts, and has none when the game gives none", () => {
     const names = new Map([
-      ["mega_shipyard_1_DESC", "The initial framework."],
+      ["mega_shipyard_1", "Mega Shipyard"],
       ["mega_shipyard_0_MEGASTRUCTURE_DETAILS", "A massive Starbase."],
     ]);
+    const texts = new Map([["mega_shipyard_1_DESC", "The §Ginitial§! framework."]]);
     const entry = shipyard(names);
     const chain = entry.chains[0];
-    expect(megastructurePreview(chain.stages[1], chain, entry, undefined, names).description).toBe(
-      "The initial framework.",
+    const text = (key: string) => texts.get(key) ?? "";
+    expect(
+      megastructurePreview(chain.stages[1], chain, entry, undefined, names, new Map(), text)
+        .description,
+    ).toBe("The §Ginitial§! framework.");
+    const bare = megastructurePreview(
+      chain.stages[1],
+      chain,
+      entry,
+      undefined,
+      names,
+      new Map(),
+      () => "",
     );
-    expect(megastructurePreview(chain.stages[1], chain, entry, undefined, new Map())).toMatchObject(
-      {
-        description: null,
-        stage: "Stage 2 of 2",
-        produces: [],
-      },
+    expect(bare).toMatchObject({
+      description: null,
+      stage: "Stage 2 of 2: Finished",
+      produces: [],
+      effects: [],
+      writes: [],
+    });
+  });
+
+  it("names the variant Add writes, with its description first, its empire effects and what it also writes", () => {
+    const types = new Map(
+      [
+        megastructureTypeView("dyson_swarm_0", { placement: { place: "body", star_only: true } }),
+        megastructureTypeView("dyson_swarm_3", {
+          upgrade_from: ["dyson_swarm_0"],
+          placement: { place: "body", star_only: true },
+          swaps: [megastructureSwap("dyson_swarm_3_b_star", { classes: ["pc_b_star"] })],
+        }),
+        megastructureTypeView("dyson_swarm_3_b_star", {
+          upgrade_from: ["dyson_swarm_3"],
+          placement: { place: "body", star_only: true },
+          country_effects: [
+            { key: "country_energy_produces_mult", value: 0.1, text: "+10% Energy Credits" },
+          ],
+          construction_summary: [
+            {
+              on: "body",
+              kind: "modifier",
+              key: "dyson_swarm_3_mod",
+              name: "Dyson Swarm",
+              permanent: true,
+              conditional: false,
+            },
+          ],
+        }),
+      ].map((t) => [t.key, t]),
     );
-    expect(descriptionText("§R§!")).toBeNull();
+    const names = new Map([
+      ["dyson_swarm_0", "Dyson Swarm Site"],
+      ["dyson_swarm_3", "Dyson Swarm"],
+      ["dyson_swarm_3_b_star", "Blue Dyson Swarm"],
+    ]);
+    const [entry] = megastructureEntries(types, names, {
+      kind: "body",
+      body: 1,
+      star: true,
+      class: "pc_b_star",
+    });
+    expect(entry.label).toBe("Dyson Swarm");
+    const chain = entry.chains[0];
+    const stage = chain.stages[1];
+    const preview = megastructurePreview(stage, chain, entry, types.get(stage.variant), names);
+    expect(preview).toMatchObject({
+      key: "dyson_swarm_3",
+      variant: "dyson_swarm_3_b_star",
+      label: "Blue Dyson Swarm",
+      stage: "Stage 2 of 2: Finished",
+      add: "Add Dyson Swarm, stage 2 of 2",
+      effects: ["+10% Energy Credits"],
+      writes: ["A Dyson Swarm modifier on the planet or star it orbits"],
+    });
+    expect(preview.descriptionKeys.slice(0, 3)).toEqual([
+      "dyson_swarm_3_b_star_DESC",
+      "dyson_swarm_3_b_star_MEGASTRUCTURE_DETAILS",
+      "dyson_swarm_3_DESC",
+    ]);
+  });
+});
+
+describe("what adding a megastructure also writes", () => {
+  it("joins a modifier and deposit of one name in one place, and says where and when each lands", () => {
+    const line = (over: Partial<Parameters<typeof constructionLines>[0][number]>) => ({
+      on: "planets" as const,
+      kind: "modifier" as const,
+      key: "k",
+      name: "Arc Furnace",
+      permanent: true,
+      conditional: false,
+      ...over,
+    });
+    expect(
+      constructionLines([
+        line({ kind: "deposit", key: "d_arc_furnace_4" }),
+        line({ key: "orbital_arc_furnace_4_mod" }),
+      ]),
+    ).toEqual(["An Arc Furnace modifier and deposit on every planet in the system"]);
+    expect(
+      constructionLines([
+        line({ kind: "deposit", conditional: true }),
+        line({ on: "system", name: "Burning Brightly", permanent: false }),
+        line({ on: "system", name: "Stellar Haze", conditional: true }),
+        line({ on: "owner", name: "Grand Archive", conditional: true }),
+        line({ on: "body", name: "Shielded", conditional: true }),
+      ]),
+    ).toEqual([
+      "An Arc Furnace deposit on some planets in the system",
+      "A Burning Brightly modifier on the system, for a limited time",
+      "A Stellar Haze modifier on the system, when it has an owner",
+      "A Grand Archive modifier for the empire that owns it",
+      "A Shielded modifier on the planet or star it orbits, in some cases",
+    ]);
   });
 });

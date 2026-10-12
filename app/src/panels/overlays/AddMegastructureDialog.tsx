@@ -5,6 +5,7 @@ import {
   NO_OWNER_NOTE,
   OWNER_NOTE,
   WRITTEN_FINISHED,
+  addLabel,
   entryDefault,
   matchingEntries,
   megastructureEntries,
@@ -21,7 +22,7 @@ import { templateName } from "../../lib/names";
 import { useSystemNames } from "../../store/browserRows";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { useGameDataStore } from "../../store/gameDataStore";
+import { useGameDataStore, useGameTexts } from "../../store/gameDataStore";
 import {
   useMegastructureAddStore,
   type MegastructureAddPrompt,
@@ -35,6 +36,8 @@ import {
   MegastructureStages,
 } from "./MegastructureBrowser";
 import "./overlays.css";
+
+const NO_KEYS: readonly string[] = [];
 
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
 export function AddMegastructureDialog() {
@@ -55,6 +58,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const types = useGameDataStore((s) => s.megastructureTypes);
   const names = useGameDataStore((s) => s.names);
   const countries = useGalaxyStore((s) => s.countries);
+  const globalFlags = useGalaxyStore((s) => s.globalFlags);
   const owner = useGalaxyStore((s) => s.systems.get(system)?.owner ?? null);
   const details = useDetailsStore((s) => s.details);
   const icons = useDetailsStore((s) => s.resourceIcons);
@@ -65,25 +69,32 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const rows = details.get(system)?.megastructures;
   const entries = useMemo(
     () =>
-      megastructureEntries(types, names, spot, (type) =>
-        megastructureRefusal(type, spot, rows ?? [], types),
+      megastructureEntries(
+        types,
+        names,
+        spot,
+        (type) => megastructureRefusal(type, spot, rows ?? [], types),
+        { globalFlags },
       ),
-    [types, names, spot, rows],
+    [types, names, spot, rows, globalFlags],
   );
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const visible = useMemo(() => matchingEntries(entries, query), [entries, query]);
   const found = selectedStage(entries, visible, picked, spot, last);
-  useNamed(found === null ? [] : megastructureDescriptionKeys(found.stage.key, found.entry));
-  const kind = found?.stage.key;
-  const type = kind === undefined ? undefined : types.get(kind);
+  const text = useGameTexts(
+    found === null
+      ? NO_KEYS
+      : megastructureDescriptionKeys(found.stage.key, found.entry, found.stage.variant),
+  );
+  const type = found === null ? undefined : types.get(found.stage.variant);
   const culture = ownerCulture(owner, details.values(), countries);
   const ownerCountry = owner === null ? undefined : countries.get(owner);
   const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
   const addable = found !== null && found.stage.refused === null;
 
   const confirm = () => {
-    if (addable) void add(found.stage.key);
+    if (addable) void add(found.stage.variant, found.stage.key);
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -153,8 +164,8 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                     type,
                     names,
                     icons,
+                    text,
                   )}
-                  row={found.chain.label}
                   type={type}
                   culture={culture}
                 />
@@ -169,7 +180,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               Cancel
             </button>
             <button type="submit" disabled={!addable}>
-              Add
+              {found === null ? "Add" : addLabel(found.stage, found.chain)}
             </button>
           </div>
         </div>

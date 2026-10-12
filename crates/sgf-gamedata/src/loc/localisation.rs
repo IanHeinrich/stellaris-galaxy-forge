@@ -123,6 +123,14 @@ impl Localisation {
         (!text.is_empty()).then_some(text)
     }
 
+    /// The text of a description with the game's markup kept: as [`Self::description`], but
+    /// `£icon£` and `§X` … `§!` colour codes stay in the text for the caller to draw.
+    pub fn rich(&self, key: &str) -> Option<String> {
+        let resolved = self.resolve_key(key, &mut Vec::new())?;
+        let text = markup(&resolved, Scopes::StandIn, true).trim().to_owned();
+        (!text.is_empty()).then_some(text)
+    }
+
     /// `key`'s entry with references substituted and markup intact.
     pub(crate) fn resolved(&self, key: &str) -> Option<String> {
         self.resolve_key(key, &mut Vec::new())
@@ -255,6 +263,11 @@ pub(crate) enum Scopes {
 /// inside colour spans, and `[…]` substitutions without a space, or put a
 /// stand-in for one as `scopes` says.
 pub(crate) fn strip_markup(text: &str, scopes: Scopes) -> String {
+    markup(text, scopes, false)
+}
+
+/// [`strip_markup`], leaving `£icon£` and `§X` … `§!` in the text when `keep` is set.
+fn markup(text: &str, scopes: Scopes, keep: bool) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.char_indices().peekable();
     while let Some((i, c)) = chars.next() {
@@ -262,12 +275,22 @@ pub(crate) fn strip_markup(text: &str, scopes: Scopes) -> String {
             '£' => {
                 let rest = &text[i + c.len_utf8()..];
                 match rest.find('£') {
-                    Some(end) => skip_to(&mut chars, i + c.len_utf8() + end + '£'.len_utf8()),
+                    Some(end) => {
+                        let close = i + c.len_utf8() + end + '£'.len_utf8();
+                        if keep {
+                            out.push_str(&text[i..close]);
+                        }
+                        skip_to(&mut chars, close);
+                    }
                     None => out.push(c),
                 }
             }
             '§' => {
-                chars.next();
+                let code = chars.next();
+                if keep {
+                    out.push(c);
+                    out.extend(code.map(|(_, code)| code));
+                }
             }
             '[' => {
                 let rest = &text[i + 1..];

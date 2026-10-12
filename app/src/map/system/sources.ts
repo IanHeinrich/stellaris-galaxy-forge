@@ -1,7 +1,7 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { DocumentKind } from "../../generated/DocumentKind";
-import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { NameTemplate } from "../../generated/NameTemplate";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
@@ -77,7 +77,7 @@ export interface SystemSources extends SceneSubject {
   /** Each bypass kind the game data defines, for the glyph a wormhole's plate shows. */
   readonly bypassKinds: BypassKinds;
   /** Each megastructure type the game data defines, for the model its rows draw. */
-  readonly megastructureTypes: ReadonlyMap<string, MegastructureTypeView>;
+  readonly megastructureTypes: ReadonlyMap<string, MegastructureView>;
   /** Each starbase level the game data defines, for the model its station draws. */
   readonly starbaseLevels: ReadonlyMap<string, StarbaseLevelView>;
   /**
@@ -120,7 +120,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   starClasses: new Map<string, StarClassView>(),
   beltKinds: new Map<string, BeltKindView>(),
   bypassKinds: new Map(),
-  megastructureTypes: new Map<string, MegastructureTypeView>(),
+  megastructureTypes: new Map<string, MegastructureView>(),
   starbaseLevels: new Map<string, StarbaseLevelView>(),
   rolledLayout: false,
   gameDataReady: false,

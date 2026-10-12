@@ -1,5 +1,5 @@
 /** Which model a megastructure or a starbase is drawn from, in which culture, and at what size. */
-import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { ModelPlacement } from "../../generated/ModelPlacement";
 import type { ModelUse } from "../../generated/ModelUse";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
@@ -42,7 +42,7 @@ export function facingYaw(x: number, y: number): number {
 
 /** The turn a row of `type` standing at `at` is drawn with: it faces the star unless its type says not. */
 export function megastructureYaw(
-  type: MegastructureTypeView | undefined,
+  type: MegastructureView | undefined,
   at: readonly [number, number] | null,
 ): number {
   if (at === null || type?.rotate_to_center === false) return 0;
@@ -68,7 +68,7 @@ export function bodyModelKey(
 
 /** The game data each of a save's model keys is chosen by. */
 export interface ModelSources {
-  readonly megastructureTypes: ReadonlyMap<string, MegastructureTypeView>;
+  readonly megastructureTypes: ReadonlyMap<string, MegastructureView>;
   readonly starbaseLevels: ReadonlyMap<string, StarbaseLevelView>;
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
 }
@@ -121,7 +121,7 @@ const NONE: StructureLook = { kind: "none" };
  * construction scale. A type with neither, such as `orbital_ring`, whose rings are starbases,
  * draws nothing; a type the game data does not define keeps the map icon.
  */
-export function megastructureLook(type: MegastructureTypeView | undefined): StructureLook {
+export function megastructureLook(type: MegastructureView | undefined): StructureLook {
   if (type === undefined) return ICON;
   if (type.entity) return { kind: "model", entity: type.entity, scale: 1 };
   if (type.construction_entity) {

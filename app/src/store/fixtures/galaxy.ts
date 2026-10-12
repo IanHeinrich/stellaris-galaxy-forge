@@ -80,6 +80,7 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
     lgate: null,
     settings: null,
     kaleidoscope: false,
+    global_flags: [],
   },
   issues: [
     {

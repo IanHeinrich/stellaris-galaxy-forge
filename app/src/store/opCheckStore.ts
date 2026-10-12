@@ -19,19 +19,23 @@ export interface OpCheckState {
   /** How many edits, undos and redos there have been: the generation of an op about no system. */
   edits: number;
   /**
-   * Asks the core why `op` would be refused, its system at `generation`, unless that has been
-   * asked already. An answer older than the one held, or for the document before, is dropped.
+   * Asks the core why `op` would be refused, `system` at `generation` (or every edit, for no
+   * system), unless that has been asked already. An answer older than the one held, or for the
+   * document before, is dropped.
    */
-  ask(op: Op, generation: number): void;
+  ask(op: Op, system: number | null, generation: number): void;
   /** Notes an edit, undo or redo, which staled the details of `systems`. */
   staled(systems: readonly number[]): void;
   /** Forgets what was asked and answered, as for a new document. */
   reset(): void;
 }
 
-/** What an answer about `op` is held under. */
-export function opCheckKey(op: Op): string {
-  return JSON.stringify(op);
+/**
+ * What an answer about `op` is held under. A system's generations and the edit count run apart,
+ * so an answer counted on one is never compared with the other.
+ */
+export function opCheckKey(op: Op, system: number | null): string {
+  return `${system ?? "edits"}|${JSON.stringify(op)}`;
 }
 
 /** The ops asked about, each with the generation it was asked at, so each is asked once. */
@@ -44,8 +48,8 @@ export const useOpCheckStore = create<OpCheckState>((set, get) => ({
   generations: new Map(),
   edits: 0,
 
-  ask(op, generation) {
-    const key = opCheckKey(op);
+  ask(op, system, generation) {
+    const key = opCheckKey(op, system);
     const tag = `${generation}:${key}`;
     if (asked.has(tag)) return;
     asked.add(tag);

@@ -4,6 +4,7 @@
  */
 import type { DepositTypeView } from "../../generated/DepositTypeView";
 import type { ResourceAmountView } from "../../generated/ResourceAmountView";
+import { plainGameText } from "../gameText";
 import { counted, keyWords } from "../text";
 import { formatAmount } from "./resources";
 import { NEUTRAL_RAMP, resourceRamp, shadeIndex, textOn } from "./resourceColors";
@@ -68,11 +69,11 @@ function amountsWords(amounts: readonly number[]): string {
 }
 
 /**
- * A deposit's own name with the `£icon£` tokens of its localisation taken out; null where nothing
+ * A deposit's own name with the markup of its localisation taken out; null where nothing
  * but the amount is left.
  */
 function ownName(view: DepositTypeView | undefined): string | null {
-  const named = view?.name.replace(/£[^£]*£/g, "").trim() ?? "";
+  const named = plainGameText(view?.name ?? "");
   return /[a-z]/i.test(named) ? named : null;
 }
 

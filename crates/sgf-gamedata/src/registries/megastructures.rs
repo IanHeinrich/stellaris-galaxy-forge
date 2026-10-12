@@ -1,7 +1,7 @@
 //! `common/megastructures`: the model each megastructure type is drawn with, where that
 //! model stands against the row's coordinate and whether it turns to face the star, how the
-//! type is placed when built, what it produces, the types it links to, and where the editor
-//! can add one.
+//! type is placed when built, what it produces, the types it links to, where the editor
+//! can add one and whether the add dialog offers it.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,7 +18,10 @@ use crate::scripts::ScriptIndex;
 use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
+use crate::registries::megastructure_offers::{Build, Offer};
+use crate::registries::megastructure_swaps::{self, Swap};
 use crate::registries::registry::{FromDef, Registry};
+use crate::registries::scripted_triggers::ScriptedTriggers;
 
 pub type MegastructureTypes = Registry<MegastructureDef>;
 
@@ -49,6 +52,8 @@ pub struct MegastructureDef {
     pub rotate_to_center: bool,
     /// What `resources = { produces = { … } }` gives each month, per resource, in file order.
     pub produces: Vec<(String, f64)>,
+    /// What `country_modifier` gives its owner, per modifier, in file order.
+    pub country_modifier: Vec<(String, f64)>,
     /// `is_ruined_orbital_ring = yes`: the planet it stands on carries the ruin flag.
     pub ruined_orbital_ring: bool,
     /// The type names a `starbase` level, so building it makes a starbase.
@@ -63,8 +68,12 @@ pub struct MegastructureDef {
     /// `potential = { always = no }`: the game makes it only from script, never as a build.
     pub script_only: bool,
     /// The types its `on_build_complete` turns the finished row into, such as one per star
-    /// class, in file order.
+    /// class, in file order: each [`Self::swaps`]' type once.
     pub turns_into: Vec<String>,
+    /// Each swap of the finished row its `on_build_complete` makes, in the order it is written.
+    pub swaps: Vec<Swap>,
+    /// Whether the add dialog offers it.
+    pub offer: Offer,
     /// Where the editor adds a row of this type, read once every type is loaded.
     pub placement: Placement,
     /// What its `on_dismantle_complete` takes back from its system and owner.
@@ -90,6 +99,10 @@ pub struct MegastructureDef {
     #[serde(skip)]
     #[ts(skip)]
     pub completes: Completes,
+    /// What its files say about building it from the build menu.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub build: Build,
 }
 
 /// What a stage's `on_build_complete` writes beyond its own row.
@@ -256,9 +269,16 @@ const VARIANT_SUFFIXES: [&str; 5] = [
     "_derelict",
 ];
 
+/// A ruined, destroyed or derelict variant: one a restore is built over.
+pub(crate) fn is_ruin(key: &str) -> bool {
+    VARIANT_SUFFIXES
+        .iter()
+        .any(|suffix| *suffix != "_restored" && key.contains(suffix))
+}
+
 /// The stem of a variant's key: what stands before its variant suffix. `None` for a
 /// working type.
-fn variant_stem(key: &str) -> Option<&str> {
+pub(crate) fn variant_stem(key: &str) -> Option<&str> {
     VARIANT_SUFFIXES
         .iter()
         .filter_map(|suffix| key.find(suffix))
@@ -347,13 +367,16 @@ impl FromDef for MegastructureDef {
             upgrade_from: script::list_items(&def.node, "upgrade_from", &def.src),
             rotate_to_center: def.scalar("rotate_to_center") != Some("no"),
             produces: produces(def),
+            country_modifier: country_modifier(def),
             ruined_orbital_ring: def.flag("is_ruined_orbital_ring"),
             spawns_starbase: def.node.find("starbase", &def.src).is_some(),
             activates_gateway: activates_gateway(def),
             sets_has_megastructure: sets_has_megastructure(def),
             planet_possible_star: planet_possible_star(def),
             script_only: script_only(def),
-            turns_into: unique(&completes.replaced_by),
+            turns_into: Vec::new(),
+            swaps: Vec::new(),
+            offer: Offer::Offered,
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
             source: None,
@@ -362,12 +385,13 @@ impl FromDef for MegastructureDef {
             construction: Construction::default(),
             family: None,
             completes,
+            build: Build::default(),
         }
     }
 }
 
 /// `keys` in order, each once.
-fn unique(keys: &[String]) -> Vec<String> {
+fn unique<'k>(keys: impl Iterator<Item = &'k String>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for key in keys {
         if !out.contains(key) {
@@ -388,7 +412,8 @@ fn script_only(def: &Def) -> bool {
 /// `types` with each type's [`Placement`] resolved; the first rule that matches wins. A
 /// variant placed around a body takes the placement of the first stage of the working type
 /// it belongs to, as [`families`] links them, when that stage too stands around a body.
-/// Every stage and variant of a gateway or a relay stands where its bypass does.
+/// Every stage and variant of a gateway or a relay stands where its bypass does. A stage
+/// whose completion always swaps it for another type takes that type's placement.
 pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> MegastructureTypes {
     let families = families(&types, scripts);
     let bypassed = bypass_groups(&types, &families);
@@ -437,6 +462,18 @@ pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> Me
             def.sets_has_megastructure = flags;
             def.family = family;
             def.variant_of = variant_of;
+        }
+    }
+    let swapped: Vec<(String, Placement)> = types
+        .iter()
+        .filter_map(|def| {
+            let swap = def.swaps.iter().find(|swap| swap.always())?;
+            Some((def.key.clone(), types.get(&swap.into)?.placement.clone()))
+        })
+        .collect();
+    for (key, placement) in swapped {
+        if let Some(def) = types.get_mut(&key) {
+            def.placement = placement;
         }
     }
     types
@@ -790,12 +827,14 @@ fn asks_star(block: &Node, src: &[u8]) -> bool {
 }
 
 /// Every type `defs`, the definitions of `common/megastructures`, holds, each read with the
-/// inline scripts it calls in place of the calls, with what its dismantle takes back and its
-/// build chain adds as `scripts` resolve the effects they call, and the mod of `layout` whose
-/// file defines it.
+/// inline scripts it calls in place of the calls, with what its dismantle takes back, its
+/// build chain adds and its completion leaves as `scripts` resolve the effects they call, the
+/// swaps it makes as `triggers` name star classes, and the mod of `layout` whose file defines
+/// it.
 pub(crate) fn load(
     defs: &BTreeMap<String, Def>,
     scripts: &ScriptIndex,
+    triggers: &ScriptedTriggers,
     layout: &Layout,
 ) -> MegastructureTypes {
     let vanilla = vanilla_keys(layout);
@@ -816,6 +855,9 @@ pub(crate) fn load(
             kind.base_game = kind.source.is_none() || vanilla.contains(key);
             kind.dismantle = dismantle::read(def, scripts);
             kind.construction = construction::read(&defs, key, scripts);
+            kind.swaps = megastructure_swaps::read(def, triggers);
+            kind.turns_into = unique(kind.swaps.iter().map(|swap| &swap.into));
+            kind.build = Build::read(def, scripts, triggers);
             (key.clone(), kind)
         })
         .collect()
@@ -835,6 +877,19 @@ fn vanilla_keys(layout: &Layout) -> BTreeSet<String> {
         }
     }
     keys
+}
+
+fn country_modifier(def: &Def) -> Vec<(String, f64)> {
+    let mut out: Vec<(String, f64)> = Vec::new();
+    for block in def.node.find_all("country_modifier", &def.src) {
+        for (key, amount) in def.numbers(block) {
+            match out.iter_mut().find(|(k, _)| *k == key) {
+                Some(entry) => entry.1 += amount,
+                None => out.push((key, amount)),
+            }
+        }
+    }
+    out
 }
 
 fn produces(def: &Def) -> Vec<(String, f64)> {

@@ -8,12 +8,12 @@ import { opCheckKey, useOpCheckStore } from "../store/opCheckStore";
  * from the render rather than an effect, so a menu drawn once still asks.
  */
 export function useOpCheck(op: Op, system: number | null): string | null | undefined {
-  const key = opCheckKey(op);
+  const key = opCheckKey(op, system);
   const generation = useOpCheckStore((s) =>
     system === null ? s.edits : (s.generations.get(system) ?? 0),
   );
   const check = useOpCheckStore((s) => s.answers.get(key));
   if (check?.generation === generation) return check.refusal;
-  useOpCheckStore.getState().ask(op, generation);
+  useOpCheckStore.getState().ask(op, system, generation);
   return undefined;
 }

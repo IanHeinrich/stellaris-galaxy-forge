@@ -94,6 +94,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::workshop_links,
             commands::get_system_scripts,
             commands::get_names,
+            commands::get_game_texts,
             commands::get_raw_names,
             commands::resolve_names,
             commands::get_star_classes,

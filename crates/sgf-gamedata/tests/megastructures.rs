@@ -54,6 +54,44 @@ fn a_megastructure_type_names_its_models_offset_and_placement() {
     assert_eq!(relay.bypass_type.as_deref(), Some("relay_bypass"));
 }
 
+const INLINE_MATHS: &str = "@local = 2
+fx_maths = {
+	resources = {
+		produces = {
+			energy = @[ 4 * mult * 1000 ]
+			minerals = @[ ( 1 + local ) * -2 ]
+			alloys = @[ -( mult + 0.25 ) / 4 ]
+			influence = @[10/@local]
+			food = @[ unknown * 2 ]
+			unity = @[ 4 * ]
+			exotic_gases = @[ 1 / 0 ]
+			volatile_motes = 3
+		}
+	}
+}
+";
+
+/// A number written as inline maths, `@[ … ]`, is worked out, its names read as `@variables`.
+/// One with a name no file defines, or that does not parse, is left out.
+#[test]
+fn a_produced_amount_written_as_inline_maths_is_worked_out() {
+    let (_dir, gd) = common::hand_written(&[
+        ("common/megastructures/00_fx.txt", INLINE_MATHS),
+        ("common/scripted_variables/00_fx.txt", "@mult = 0.75\n"),
+    ]);
+    let maths = gd.megastructures.get("fx_maths").expect("fx_maths");
+    assert_eq!(
+        maths.produces,
+        [
+            ("energy".to_owned(), 3000.0),
+            ("minerals".to_owned(), -6.0),
+            ("alloys".to_owned(), -0.25),
+            ("influence".to_owned(), 5.0),
+            ("volatile_motes".to_owned(), 3.0),
+        ]
+    );
+}
+
 #[test]
 fn a_starbase_level_names_the_model_of_its_sizes_first_section_slot() {
     let gd = common::cached_fixture();
@@ -887,6 +925,16 @@ fn gigas_types_read_through_their_inline_scripts() {
         mega("dyson_sphere_restored_a_star").upgrade_from,
         ["dyson_sphere_ruined_a_star"]
     );
+    for (key, energy) in [
+        ("dyson_sphere_5_g_star", 4000.0),
+        ("dyson_sphere_5_k_star", 3000.0),
+    ] {
+        assert_eq!(
+            mega(key).produces,
+            [("energy".to_owned(), energy)],
+            "{key}: inline maths over the star class's production multiplier"
+        );
+    }
     assert_eq!(
         mega("dyson_sphere_5").placement,
         Placement::Body { star_only: true },

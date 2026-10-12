@@ -13,6 +13,7 @@ import {
   visibleSpan,
   type Span,
 } from "../../../lib/details/picker";
+import { GameText } from "../../GameText";
 
 export const NO_DESCRIPTION = "No description";
 export const NO_EFFECT = "No effect";
@@ -26,7 +27,10 @@ export interface CardItem {
   category?: string;
   /** A line under its effects, such as how long it lasts. */
   note?: string;
-  /** What it says under its effects; `null` says there is none, and without it the card leaves it out. */
+  /**
+   * What it says under its effects, with the game's icon and colour markup; `null` says there is
+   * none, and without it the card leaves it out.
+   */
   description?: string | null;
 }
 
@@ -69,7 +73,7 @@ function PickerCardBody({ item, lead }: { item: CardItem; lead?: ReactNode }) {
           {item.description === null ? (
             <span className="muted">{NO_DESCRIPTION}</span>
           ) : (
-            item.description
+            <GameText text={item.description} />
           )}
         </span>
       )}

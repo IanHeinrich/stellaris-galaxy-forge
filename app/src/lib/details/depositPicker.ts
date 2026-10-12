@@ -16,6 +16,7 @@ import {
   type CommonChip,
   type PickerSection,
 } from "./picker";
+import { plainGameText } from "../gameText";
 import { formatAmount } from "./resources";
 import { effectText } from "./planetEdits";
 
@@ -96,16 +97,17 @@ function signed(n: number): string {
 function typeLabel(key: string, view: DepositTypeView | undefined): string {
   if (view === undefined) return key;
   if (view.yields.length > 0) return view.yields.map((y) => y.name).join(" and ");
-  return view.name || key;
+  return plainGameText(view.name) || key;
 }
 
 /**
- * `text` when it describes a type, `null` when it is empty or only an amount ("+1", "£energy£ +5"
- * reads as "+5"), as an orbital deposit's localisation is.
+ * `text`, markup kept, when it describes a type; `null` when it is empty or only an amount ("+1",
+ * "£energy£ +5" reads as "+5"), as an orbital deposit's localisation is.
  */
 export function describes(text: string | null): string | null {
   const trimmed = text?.trim() ?? "";
-  return trimmed === "" || /^[+-]?\d+(\.\d+)?$/.test(trimmed) ? null : trimmed;
+  const plain = plainGameText(trimmed);
+  return plain === "" || /^[+-]?\d+(\.\d+)?$/.test(plain) ? null : trimmed;
 }
 
 /** What one type gives: each yield with its amount, then each effect. */
@@ -158,7 +160,11 @@ export function depositRows(
         const amount = sorted.length > 1 ? m.amount : null;
         const own = describes(m.description);
         const gives = amount === null ? label : `${signed(amount)} ${label}`;
-        return { key: m.key, amount, title: own === null ? gives : `${gives}. ${own}` };
+        return {
+          key: m.key,
+          amount,
+          title: own === null ? gives : `${gives}. ${plainGameText(own)}`,
+        };
       }),
       search: searchText([label, effects.join(", "), category]),
     };
