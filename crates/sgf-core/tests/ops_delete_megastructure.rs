@@ -195,7 +195,7 @@ fn a_ring_world_quadrant_is_refused() {
         &mut session,
         [(
             delete(4),
-            "megastructure 4 cannot be deleted: a ring world is deleted whole, with its segments, and that isn't supported yet",
+            "megastructure 4 cannot be deleted: it is part of a ring world: delete the ring world",
         )],
     );
 }

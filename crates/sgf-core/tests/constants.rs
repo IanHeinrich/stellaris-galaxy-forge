@@ -8,6 +8,7 @@ use sgf_core::emit::DEFAULT_SYSTEM_HEIGHT;
 use sgf_core::export::ScenarioProfile;
 use sgf_core::export::policy::LCLUSTER_PREFIX;
 use sgf_core::format::save::WHOLE_ENTRIES_FROM_MAJOR;
+use sgf_core::format::save::ring_world::{ROW_TYPE_PREFIX, SEGMENT_CLASS_PREFIXES};
 use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
@@ -77,6 +78,20 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "The id a save writes where an entity names none.",
         "NULL_ID",
         NULL_ID.to_string(),
+    );
+    let prefixes: Vec<String> = SEGMENT_CLASS_PREFIXES
+        .iter()
+        .map(|p| format!("{p:?}"))
+        .collect();
+    constant(
+        "What the planet class of a ring world segment starts with.",
+        "RING_WORLD_SEGMENT_PREFIXES",
+        format!("[{}] as const", prefixes.join(", ")),
+    );
+    constant(
+        "What the type of a ring world's megastructure row starts with.",
+        "RING_WORLD_ROW_PREFIX",
+        format!("{ROW_TYPE_PREFIX:?}"),
     );
     constant(
         "The first major version whose saves take an added system.",

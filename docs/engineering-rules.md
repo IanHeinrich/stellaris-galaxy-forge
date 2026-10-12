@@ -75,7 +75,7 @@ format sees it.
   `BodySize`, `BodyClass`, `BodyModel`, `BodyRing`, `BodyParent`,
   `BodyModifier`, `Belt`, `BeltRadius`, `BeltKind`, `InnerRadius`,
   `Wormhole`, `WormholePair`, `WormholeEnds`, `Deposit`, `Anomaly`,
-  `DigSite`, `Colony`, `Megastructure`, `Entities`, `Empire`, `EmpireFlag`,
+  `DigSite`, `Colony`, `Megastructure`, `RingWorld`, `Entities`, `Empire`, `EmpireFlag`,
   `EmpireMapColors`, `LGateOutcome`, `Initializer`, `HomeSystem`, `SpawnWeight`,
   `SpawnScript`, `HeaderField`, `HeaderKeys`, `HeaderList`, `FeZone`,
   `FeLinks` and `FeLinkFlags`. A new subject takes the word the game or

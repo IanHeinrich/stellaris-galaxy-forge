@@ -1,0 +1,91 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted the ring world in Lachium #203, its 6 planets and 2 sections, with the colony on Lachium I #2447
+details stale: [203]
+inverse: Restored the ring world in Lachium #203
+
+  System: 203
+  Planet: 2445 2446 2447 2448 2449 2451
+  Country: 42
+  Colony: 25
+  PopGroup: 179 180 181
+  PopJob: 710 711 712 713 714 715 716 717 718 719 720 721 722 723 724 725 726 727 728
+  District: 91
+  Zone: 109
+  Building: 214 215 216
+  Army: 331 332
+  ConstructionQueue: 124 125
+  Megastructure: 10 11
+@@ -43464,19 +43085,9 @@
+ 		}
+ 		planet=2444
+-		planet=2445
+-		planet=2446
+-		planet=2447
+-		planet=2448
+-		planet=2449
+ 		planet=2450
+-		planet=2451
+ 		ambient_object=
+ 		{
+ 			280 
+ 		}
+-		megastructures=
+-		{
+-			10 11 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+@@ -43502,5 +43113,4 @@
+ 		flags=
+ 		{
+-			ring_world_built=62808000
+ 			shattered_ring_system=62808000
+ 			precursor_2=62808000
+@@ -43516,8 +43126,4 @@
+ 		sector=4294967295
+ 		index=45
+-		colonies=
+-		{
+-			25 
+-		}
+ 		storm=4294967295
+ 	}
+@@ -600803,17 +600034,17 @@
+ 		owned_armies=
+ 		{
+-			331 332 
++			
+ 		}
+ 		owned_planets=
+ 		{
+-			25 
++			
+ 		}
+ 		controlled_colonies=
+ 		{
+-			25 
++			
+ 		}
+ 		controlled_planets=
+ 		{
+-			2447 
++			
+ 		}
+ 		ship_design_collection=
+@@ -621248,5 +620479,5 @@
+ 			124=
+ 			{
+-				owner=42
++				owner=4294967295
+ 				location=
+ 				{
+@@ -621259,5 +620490,5 @@
+ 			125=
+ 			{
+-				owner=42
++				owner=4294967295
+ 				location=
+ 				{

@@ -720,6 +720,39 @@ for planets or deposits.
   four furnace modifiers and deposits whatever the stage. Types without
   `on_dismantle_complete`, such as the Dyson Sphere and the Science
   Nexus, add no such modifier.
+- A ring world is its segment planets (`pc_ringworld_*`, the damaged
+  classes too, and `pc_shattered_ring_habitable`) and its `ring_world_*`
+  rows. A section row has `planet=4294967295` and stands at radius
+  45.20385, and no row or segment names another. Lachium (203) in the
+  4.5 sample is mixed: two `ring_world_ruined` rows, six segments with a
+  pre-FTL colony on 2447, and the Interloper at orbit 40, which is no
+  segment. The 4.4 sample's fallen machine empire homes are Alpha Refuge
+  (246, nine segments and one ruined row) and Gamma and Beta Refuge
+  (ruined rows of country 15). The two damaged segments at Ter Meku (100)
+  stand at orbit 100. The system gets `ring_world_built` when the site
+  finishes and `ring_section_1..3` while sections finish. No vanilla
+  ring type has `save_on_death`.
+- When the editor deletes a ring world, each segment goes as a deleted
+  planet does, its colony first, and each row as a deleted row does. Its
+  system loses `ring_world_built` and `ring_section_1..3`, and the star
+  `has_megastructure` when no row names it. `ruined_ring_system`,
+  `galactic_landmark_system`, the debris ambient objects and the
+  owners' `has_ring_world` stay. A deleted body a country controls with
+  no station leaves its `controlled_planets`, as Alpha Refuge's
+  uncolonised segments are listed by their empire.
+- A station orbits a body through its fleet's
+  `movement_manager.orbit.orbitable.planet`, and the body names the
+  station's fleet in `orbital_defence`. At Alpha Refuge three deep-space
+  citadels (starbases 23, 24 and 25, fleets 71, 79 and 80) orbit
+  uncolonised segments 624, 627 and 630, and the system's citadel
+  (starbase 26, fleet 81) orbits the star 622. Nothing else in the save
+  names the segment. When the editor deletes the ring, such a fleet stays
+  where it stands and its `orbitable.planet` names the star.
+- A built habitat's host has the planet flag `habitat<id>` and its
+  system `has_habitat`. When the editor deletes a habitat, the host loses
+  the flag, and the system loses `has_habitat` once no habitat is left.
+  The game's World Cracker leaves a `habitat_central_complex_ruined` row
+  in its place. The editor leaves none.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

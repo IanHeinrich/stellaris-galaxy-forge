@@ -14,7 +14,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { symmetricIds } from "./symmetricEdits";
 
-type RemoveActions = Pick<EditorState, "removeSystems" | "deleteMegastructure">;
+type RemoveActions = Pick<EditorState, "removeSystems" | "deleteMegastructure" | "deleteRingWorld">;
 
 export function removeActions(
   _set: StoreApi<EditorState>["setState"],
@@ -43,6 +43,11 @@ export function removeActions(
 
     async deleteMegastructure(megastructure) {
       const result = await runEdit(() => ipc.deleteMegastructure(megastructure));
+      return result !== null;
+    },
+
+    async deleteRingWorld(system) {
+      const result = await runEdit(() => ipc.deleteRingWorld(system));
       return result !== null;
     },
   };

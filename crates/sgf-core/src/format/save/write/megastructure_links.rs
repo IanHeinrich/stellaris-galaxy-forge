@@ -16,7 +16,7 @@ use crate::format::save::write::id_list::{Emptied, unlist};
 use crate::format::save::write::restore::{Saved, live};
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
-use crate::ops::{OpError, Plan, SavedTable, Subject};
+use crate::ops::{Edit, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
@@ -78,42 +78,79 @@ pub(crate) fn unlink(
     plan: &mut Plan,
     s: &Session,
     tied: &Tied,
+    saved: Option<&mut Saved>,
+) -> Result<(), OpError> {
+    unlink_all(plan, s, std::slice::from_ref(tied), saved)
+}
+
+/// [`unlink`] for rows that go together, so that a list goes with the last of them and a
+/// body they all name keeps nothing they left.
+pub(crate) fn unlink_all(
+    plan: &mut Plan,
+    s: &Session,
+    rows: &[Tied],
     mut saved: Option<&mut Saved>,
 ) -> Result<(), OpError> {
     let doc = &s.doc;
-    if let Some(system) = tied.system {
+    let naming = |pick: fn(&Tied) -> Option<u32>, id: u32| -> Vec<u32> {
+        rows.iter()
+            .filter(|tied| pick(tied) == Some(id))
+            .map(|tied| tied.id)
+            .collect()
+    };
+    for system in distinct(rows, |tied| tied.system) {
         let anchor = system_statement(doc, system).ok_or(OpError::UnknownSystem(system))?;
         keep(&mut saved, doc, SavedTable::System, system, anchor)?;
         unlist(
             plan.edit(doc, system)?,
             keys::MEGASTRUCTURES,
-            &[tied.id],
+            &naming(|tied| tied.system, system),
             Emptied::Drop,
         )?;
     }
-    if let Some(owner) = tied.owner
-        && let Some(country) = live(doc, SavedTable::Country, owner)?
-        && read::ids(&country.node, keys::OWNED_MEGASTRUCTURES, country.src).contains(&tied.id)
-    {
+    for owner in distinct(rows, |tied| tied.owner) {
+        let Some(country) = live(doc, SavedTable::Country, owner)? else {
+            continue;
+        };
+        let listed = read::ids(&country.node, keys::OWNED_MEGASTRUCTURES, country.src);
+        let gone: Vec<u32> = naming(|tied| tied.owner, owner)
+            .into_iter()
+            .filter(|id| listed.contains(id))
+            .collect();
+        if gone.is_empty() {
+            continue;
+        }
         keep(&mut saved, doc, SavedTable::Country, owner, country.anchor)?;
         unlist(
             plan.edit_country(doc, owner)?,
             keys::OWNED_MEGASTRUCTURES,
-            &[tied.id],
+            &gone,
             Emptied::Drop,
         )?;
     }
-    if let Some(planet) = tied.planet {
-        unlink_body(plan, s, tied, planet, &mut saved)?;
+    let going: Vec<u32> = rows.iter().map(|tied| tied.id).collect();
+    for planet in distinct(rows, |tied| tied.planet) {
+        let named = naming(|tied| tied.planet, planet);
+        unlink_body(plan, s, &named, &going, planet, &mut saved)?;
     }
     Ok(())
 }
 
-/// Take the keys row `tied` left on `planet` away.
+/// The ids `pick` reads from `rows`, each once, in order.
+fn distinct(rows: &[Tied], pick: fn(&Tied) -> Option<u32>) -> Vec<u32> {
+    let mut ids: Vec<u32> = rows.iter().filter_map(pick).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+/// Take the keys rows `named` left on `planet` away; the flags and model too unless a live
+/// row other than those `going` names it.
 fn unlink_body(
     plan: &mut Plan,
     s: &Session,
-    tied: &Tied,
+    named: &[u32],
+    going: &[u32],
     planet: u32,
     saved: &mut Option<&mut Saved>,
 ) -> Result<(), OpError> {
@@ -128,9 +165,10 @@ fn unlink_body(
     };
     let system = planet_system(&node, src, planet)?;
     let alone = !rows(doc, MEGASTRUCTURES)?.iter().any(|row| {
-        row.id != tied.id && read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(planet)
+        !going.contains(&row.id)
+            && read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(planet)
     });
-    let spans = body_keys(&node, src, tied.id, alone);
+    let spans = body_keys(&node, src, named, alone);
     if spans.is_empty() {
         return Ok(());
     }
@@ -142,42 +180,57 @@ fn unlink_body(
     Ok(())
 }
 
-/// The statements of planet `node` that name row `id`: its `megastructure` key, and when
-/// `alone`, the flags a structure leaves (the whole `flags` block when nothing else is in
-/// it) and an Arc Furnace's hiding model.
-fn body_keys(node: &Node, src: &[u8], id: u32, alone: bool) -> Vec<Span> {
+/// The statements of planet `node` that name one of rows `ids`: its `megastructure` keys,
+/// and when `alone`, the flags a structure leaves (the whole `flags` block when nothing else
+/// is in it) and an Arc Furnace's hiding model.
+fn body_keys(node: &Node, src: &[u8], ids: &[u32], alone: bool) -> Vec<Span> {
     let mut spans: Vec<Span> = node
         .find_all(keys::MEGASTRUCTURE, src)
-        .filter(|key| key.scalar_str(src).and_then(|t| t.parse().ok()) == Some(id))
+        .filter(|key| {
+            key.scalar_str(src)
+                .and_then(|t| t.parse().ok())
+                .is_some_and(|id| ids.contains(&id))
+        })
         .map(Node::span)
         .collect();
     if !alone {
         return spans;
     }
-    if let Some(flags) = node.find(keys::FLAGS, src) {
-        let left: Vec<&Node> = flags
-            .children()
-            .iter()
-            .filter(|flag| !flag.key_str(src).is_some_and(|k| BODY_FLAGS.contains(&k)))
-            .collect();
-        if left.is_empty() {
-            spans.push(flags.span());
-        } else if left.len() < flags.children().len() {
-            spans.extend(
-                flags
-                    .children()
-                    .iter()
-                    .filter(|flag| flag.key_str(src).is_some_and(|k| BODY_FLAGS.contains(&k)))
-                    .map(Node::span),
-            );
-        }
-    }
+    spans.extend(flag_spans(node, src, |flag| BODY_FLAGS.contains(&flag)));
     spans.extend(
         node.find_all(keys::ENTITY_NAME, src)
             .filter(|name| name.scalar_str(src) == Some(FURNACE_ENTITY))
             .map(Node::span),
     );
     spans
+}
+
+/// The flags of entity `node` that `gone` picks, or its whole `flags` block when they are
+/// all it holds.
+pub(crate) fn flag_spans(node: &Node, src: &[u8], gone: impl Fn(&str) -> bool) -> Vec<Span> {
+    let Some(flags) = node.find(keys::FLAGS, src) else {
+        return Vec::new();
+    };
+    let picked: Vec<Span> = flags
+        .children()
+        .iter()
+        .filter(|flag| flag.key_str(src).is_some_and(&gone))
+        .map(Node::span)
+        .collect();
+    if !picked.is_empty() && picked.len() == flags.children().len() {
+        return vec![flags.span()];
+    }
+    picked
+}
+
+/// Take the flags `gone` picks off the entity `edit` holds, as [`flag_spans`] finds them.
+/// Whether any went.
+pub(crate) fn drop_flags(edit: &mut Edit, gone: impl Fn(&str) -> bool) -> Result<bool, OpError> {
+    let spans = flag_spans(edit.entity()?, &edit.buf, gone);
+    for &span in &spans {
+        edit.bytes().remove_statement(span);
+    }
+    Ok(!spans.is_empty())
 }
 
 /// Take bypass `bypass` of system `system` out: the row is emptied when the file held it

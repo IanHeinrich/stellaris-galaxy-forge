@@ -4,13 +4,14 @@ import {
   deleteMegastructureOp,
   systemOfMegastructure,
 } from "../../../lib/details/megastructureRemoval";
+import { isRingRow } from "../../../lib/details/ringWorldRemoval";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { deleteMegastructure } from "../../../store/megastructureRemoval";
 import { useOpCheck } from "../../useOpCheck";
 import { EntityView } from "./EntityView";
-import { RemovalAction } from "./PlanetRemoval";
+import { DeleteRingWorldAction, RemovalAction } from "./PlanetRemoval";
 
 /** Deletes megastructure `id`, named `name`, or says why the core refuses. */
 function DeleteMegastructureAction({ id, name }: { id: number; name: string }) {
@@ -25,6 +26,20 @@ function DeleteMegastructureAction({ id, name }: { id: number; name: string }) {
   );
 }
 
+/** Deletes megastructure `id`, or the ring world it belongs to, whole. */
+function DeleteAction({ id, name }: { id: number; name: string }) {
+  const system = useDetailsStore((s) => systemOfMegastructure(s.details, id));
+  const kind = useDetailsStore((s) =>
+    system === null
+      ? undefined
+      : s.details.get(system)?.megastructures.find((m) => m.id === id)?.kind,
+  );
+  if (system !== null && kind !== undefined && isRingRow(kind)) {
+    return <DeleteRingWorldAction system={system} />;
+  }
+  return <DeleteMegastructureAction id={id} name={name} />;
+}
+
 /** A megastructure: the generic entity view, with its deletion under the Overview. */
 export function MegastructureView({ entry }: { entry: Entry }) {
   const tab = useInspectorStore((s) => s.tab);
@@ -36,7 +51,7 @@ export function MegastructureView({ entry }: { entry: Entry }) {
   return (
     <>
       <EntityView entry={entry} />
-      <DeleteMegastructureAction id={ref.id} name={entry.label} />
+      <DeleteAction id={ref.id} name={entry.label} />
     </>
   );
 }

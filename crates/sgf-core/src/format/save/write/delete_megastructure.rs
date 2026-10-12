@@ -8,9 +8,10 @@
 use crate::cst::Node;
 use crate::document::Document;
 use crate::format::save::added::{Table, row};
+use crate::format::save::ring_world;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{self, Tied, drop_bypass, unlink};
-use crate::format::save::write::remove_planet::check_segment;
+use crate::format::save::write::remove_planet::{SEGMENT_KEEPS_COLONY, check_segment};
 use crate::format::save::write::restore::{Saved, tombstoned};
 use crate::format::save::write::teardown::Teardown;
 use crate::format::save::{entity_at, planet_statement, planet_system};
@@ -20,6 +21,9 @@ use crate::ops::{Edit, MegastructureDismantle, OpError, Plan, Planned, SavedTabl
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
+
+/// Why a ring world's row is not deleted alone.
+pub(crate) const RING_ROW: &str = "it is part of a ring world: delete the ring world";
 
 /// The bypass kinds a deletion takes along; another has not been tried in game.
 const DROPPED_BYPASSES: [&str; 2] = ["gateway", "relay_bypass"];
@@ -42,11 +46,8 @@ pub(crate) fn plan_delete(
         megastructure: id,
         reason,
     };
-    if tied.kind.starts_with("ring_world") {
-        return Err(refuse(
-            "a ring world is deleted whole, with its segments, and that isn't supported yet"
-                .to_owned(),
-        ));
+    if ring_world::is_ring_row(&tied.kind) {
+        return Err(refuse(RING_ROW.to_owned()));
     }
     let system = tied
         .system
@@ -132,7 +133,7 @@ fn made_colony(s: &Session, tied: &Tied) -> Result<Option<Teardown>, OpError> {
         body: planet,
         reason,
     };
-    check_segment(&node, src, refuse)?;
+    check_segment(&node, src, SEGMENT_KEEPS_COLONY, refuse)?;
     Teardown::read(s, planet, system, &node, src).map(Some)
 }
 
