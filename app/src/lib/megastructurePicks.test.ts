@@ -13,7 +13,6 @@ import {
   FIXED_CLASS,
   RING_STAGE,
   RING_WORLD_LABEL,
-  RING_WORLD_ROWS,
   RING_WORLD_SUMMARY,
   RING_WORLD_THERE,
   ringLayoutRefusal,
@@ -445,7 +444,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         megastructureRefusal(t, star, rows, TYPES, bodies);
     expect(ringTile(TYPES, refusal([]))?.refused).toBeNull();
     const nexus = megastructureSummary({ kind: "think_tank_3", planet: 12 });
-    expect(ringTile(TYPES, refusal([nexus]))?.refused).toBe(RING_WORLD_ROWS);
+    expect(ringTile(TYPES, refusal([nexus]))?.refused).toBeNull();
     const site = megastructureSummary({ kind: "ring_world_1", planet: 1 });
     expect(ringTile(TYPES, refusal([site]))?.refused).toBe(RING_WORLD_THERE);
     const twin = [...planets, planetSummary({ id: 2, role: "star", class: "pc_k_star" })];

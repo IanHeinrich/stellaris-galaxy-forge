@@ -277,13 +277,14 @@ You choose whether to clear it in step 6.
      dialog opens with this picked.
    - Clear system deletes every planet, moon and asteroid belt first,
      as the game does when it builds the frame.
-     The stars stay. The line above the Add button says what goes, such
+     The stars stay. A megastructure on a planet that is deleted goes
+     with it. The line above the Add button says what goes, such
      as "Clearing deletes 6 planets, 2 moons and 1 belt, and the colony
      on Lachium I."
 7. Click Add Ring World.
 
 Clear system is off when a starbase orbits one of the planets it would delete,
-and the dialog names that planet.
+and the dialog names that planet. A Dyson Sphere round the star stays.
 
 A finished quadrant is three sections, as the game builds them: a tech
 section, a seam and a habitable section. The sections have no colony,
@@ -300,8 +301,6 @@ Ring is greyed out, and the details panel says why, in a system that:
 
 - has more than one star, or none
 - already has a ring world or a ring world site
-- has another megastructure, except a Hyper Relay, a Gateway or an
-  L-Gate
 
 A mod's ring world that Galaxy Forge can't build from the game files is
 greyed out too, with the reason.

@@ -161,6 +161,7 @@
   {"q": "ring world quadrants", "expect": "system/megastructures#add-a-ring-world"},
   {"q": "ruined ring world", "expect": "system/megastructures#add-a-ring-world"},
   {"q": "clear system for ring world", "expect": "system/megastructures#add-a-ring-world"},
+  {"q": "ring world and dyson sphere in the same system", "expect": "system/megastructures#add-a-ring-world"},
   {"q": "added megastructure modifiers", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add dyson sphere", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add hyper relay", "expect": "system/megastructures#add-a-megastructure"},
