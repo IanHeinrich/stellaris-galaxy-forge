@@ -9,6 +9,7 @@ vi.mock("../useTextureUrl", () => ({
 }));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
+import type { RingWorldClearing } from "../../generated/RingWorldClearing";
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
 import {
   BODY_HAS_MEGASTRUCTURE,
@@ -23,7 +24,15 @@ import {
   writtenAsHabitat,
   type MegastructureSpot,
 } from "../../lib/megastructurePicks";
+import {
+  CLEAR_PLANETS,
+  LEAVE_PLANETS,
+  QUADRANTS,
+  RING_WRITTEN,
+  SET_ALL,
+} from "../../lib/ringWorldAdd";
 import { bindStores } from "../../store/bindStores";
+import { useDetailsStore } from "../../store/detailsStore";
 import { OPEN_RESULT } from "../../store/fixture";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
@@ -33,6 +42,7 @@ import {
   megastructureSummary,
   megastructureSwap,
   megastructureTypeView,
+  planetSummary,
   starbaseSummary,
   systemDetails,
 } from "../../test/builders";
@@ -390,5 +400,132 @@ describe("the Add megastructure dialog on a habitat", () => {
       expect(html).not.toContain("major orbital");
       expect(html).not.toContain(HABITAT_ORBITAL_HOST_TAKEN);
     });
+  });
+});
+
+describe("the Add megastructure dialog on a ring world", () => {
+  const ringWorld = { place: "unsupported", why: { kind: "ring_world" } } as const;
+  const literal = (text: string) => ({
+    name: { key: text, literal: true, variables: [] },
+    name_key: text,
+  });
+  const html = () => dialog().replace(/&#x27;/g, "'");
+  const clearing = (over: Partial<RingWorldClearing> = {}): RingWorldClearing => ({
+    system: SYSTEM,
+    bodies: [5, 4, 2, 3],
+    moons: 1,
+    colonies: [2],
+    belts: 1,
+    starbase_bodies: [],
+    ...over,
+  });
+
+  beforeEach(() => {
+    const types = [
+      megastructureTypeView("ring_world_1", { placement: { place: "body", star_only: true } }),
+      megastructureTypeView("ring_world_2_intermediate", {
+        upgrade_from: ["ring_world_1"],
+        placement: ringWorld,
+      }),
+    ];
+    useGameDataStore.setState({
+      megastructureTypes: new Map(types.map((t) => [t.key, t])),
+      names: new Map([
+        ["ring_world_1", "Ring World Site"],
+        ["ring_world_2_intermediate", "Ring World Frame"],
+      ]),
+    });
+    inSystem(
+      systemDetails({
+        id: SYSTEM,
+        planets: [
+          planetSummary({ id: 1, role: "primary", class: "pc_g_star", ...literal("Lachium") }),
+          planetSummary({ id: 2, ...literal("Lachium I"), colonised: true }),
+          planetSummary({ id: 3, ...literal("Lachium II") }),
+        ],
+      }),
+    );
+    useMegastructureAddStore.setState({
+      last: "ring_world_2_intermediate",
+      ringStages: ["finished", "finished", "finished", "finished"],
+      ringClear: false,
+      clearing: clearing(),
+      clearingError: null,
+    });
+    openAt(star);
+  });
+
+  it("offers the site and the Ring on a star, with a grid of quadrants A to D, all finished", () => {
+    const page = html();
+    expect(page).toMatch(/aria-selected="true"[^>]*><span[^>]*>Ring World<\/span>/);
+    expect(page).toMatch(/title="Ring World Site">.*?>Site<\/span>/);
+    expect(page).toMatch(/aria-selected="true"[^>]*title="Ring World">.*?>Ring<\/span>/);
+    expect(page).not.toContain('aria-disabled="true"');
+    for (const quadrant of QUADRANTS) {
+      expect(page).toMatch(new RegExp(`aria-label="${quadrant} Finished"[^>]*checked=""`));
+      expect(page).toContain(`aria-label="${quadrant} Damaged"`);
+    }
+    expect(page).not.toContain("Restored");
+    expect(page).toContain(SET_ALL);
+    expect(page).toContain("All 4 quadrants are finished.");
+    expect(page).toContain(LEAVE_PLANETS);
+    expect(page).toContain(CLEAR_PLANETS);
+    expect(page).toContain(RING_WRITTEN);
+    expect(page).toContain(">Add Ring World</button>");
+    expect(page).not.toContain("Clearing deletes");
+
+    useMegastructureAddStore.setState({
+      ringStages: ["finished", "finished", "ruined", "damaged"],
+    });
+    expect(html()).toContain("A and B finished, C ruined, D damaged.");
+  });
+
+  it("warns before Add what clearing deletes, colonies by planet name", () => {
+    useMegastructureAddStore.setState({ ringClear: true });
+    const page = html();
+    expect(page).toContain(
+      "Clearing deletes 3 planets, 1 moon and 1 belt, and the colony on Lachium I.",
+    );
+    expect(page.indexOf("Clearing deletes")).toBeLessThan(page.indexOf(">Add Ring World</button>"));
+    expect(page).not.toContain('type="submit" disabled=""');
+  });
+
+  it("turns Clear off with the planet a starbase orbits, which the core refuses to clear", () => {
+    useMegastructureAddStore.setState({
+      ringClear: true,
+      clearing: clearing({ starbase_bodies: [3] }),
+    });
+    const page = html();
+    expect(page).toContain(
+      "Galaxy Forge can't clear this system: a starbase orbits Lachium II, which clearing would delete.",
+    );
+    expect(page).toMatch(/<input type="radio" disabled="" name="ring-planets"\/>/);
+    expect(page).not.toContain("Clearing deletes");
+    expect(page).toContain('type="submit" disabled=""');
+  });
+
+  it("greys out a ring world the game data lays out no ring for, with the reason", () => {
+    const types = new Map(useGameDataStore.getState().megastructureTypes);
+    const frame = types.get("ring_world_2_intermediate")!;
+    types.set(frame.key, { ...frame, ring_world_refused: "it lays out no ring" });
+    useGameDataStore.setState({ megastructureTypes: types });
+    const page = html();
+    expect(page).toContain(
+      "Galaxy Forge can't build this ring world from the game data: it lays out no ring.",
+    );
+    expect(page).toContain('aria-disabled="true"');
+    expect(page).not.toContain(SET_ALL);
+    expect(page).toContain(">Add Ring World Site</button>");
+  });
+
+  it("refuses the Ring in a system of two stars, as the core does", () => {
+    const planets = useDetailsStore.getState().details.get(SYSTEM)!.planets;
+    inSystem(
+      systemDetails({
+        id: SYSTEM,
+        planets: [...planets, planetSummary({ id: 9, role: "star", class: "pc_k_star" })],
+      }),
+    );
+    expect(html()).toContain("The system has 2 stars, and a ring world stands round one.");
   });
 });

@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { MegastructureView } from "../generated/MegastructureView";
-import { megastructureSummary, megastructureSwap, megastructureTypeView } from "../test/builders";
+import type { MegastructureSummary } from "../generated/MegastructureSummary";
+import {
+  megastructureSummary,
+  megastructureSwap,
+  megastructureTypeView,
+  planetSummary,
+} from "../test/builders";
 import {
   BODY_HAS_MEGASTRUCTURE,
   CHANGES_BODY,
-  RING_WORLD,
+  RING_STAGE,
+  RING_WORLD_LABEL,
+  RING_WORLD_ROWS,
+  RING_WORLD_SUMMARY,
+  RING_WORLD_THERE,
+  ringLayoutRefusal,
   UNNAMED_TYPES,
   WHOLE_STRUCTURE,
   addLabel,
@@ -27,6 +38,7 @@ const onStar = { place: "body", star_only: true } as const;
 const onAny = { place: "body", star_only: false } as const;
 const outside = { place: "free", outside_gravity_well: true } as const;
 const inside = { place: "free", outside_gravity_well: false } as const;
+const ringWorld = { place: "unsupported", why: { kind: "ring_world" } } as const;
 const GIGA = "Gigastructural Engineering";
 const giga = { source: GIGA, base_game: false } as const;
 
@@ -169,8 +181,20 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
     megastructureTypeView("lgate_base", {
       placement: { place: "unsupported", why: { kind: "bypass", bypass: "lgate" } },
     }),
-    megastructureTypeView("ring_world_1", {
-      placement: { place: "unsupported", why: { kind: "ring_world" } },
+    megastructureTypeView("ring_world_1", { placement: onStar }),
+    megastructureTypeView("ring_world_2_intermediate", {
+      upgrade_from: ["ring_world_1"],
+      placement: ringWorld,
+    }),
+    megastructureTypeView("ring_world_2", {
+      upgrade_from: ["ring_world_2_intermediate"],
+      placement: ringWorld,
+      script_only: true,
+    }),
+    megastructureTypeView("ring_world_ruined", { placement: ringWorld, script_only: true }),
+    megastructureTypeView("ring_world_restored", {
+      upgrade_from: ["ring_world_ruined"],
+      placement: ringWorld,
     }),
   ].map((t) => [t.key, t]),
 );
@@ -202,7 +226,10 @@ const NAMES = new Map([
   ["star_lifter_0_o_star", "O-Class Star Lifter Site"],
   ["star_lifter_5_o_star", "O-Class Star Lifter"],
   ["automated_stripmine_1", "Automated Strip Mine"],
-  ["ring_world_1", "Ring World"],
+  ["ring_world_1", "Ring World Site"],
+  ["ring_world_2_intermediate", "Ring World Frame"],
+  ["ring_world_2", "Ring World Frame Section"],
+  ["ring_world_ruined", "Ruined Ring Section"],
   ["alderson_disk_1", "Alderson Disk Frame"],
   ["gateway_0", "Gateway Site"],
   ["gateway_final", "Gateway"],
@@ -327,10 +354,24 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(stage(planet, "alderson_disk_1")).toBeUndefined();
   });
 
-  it("lists a ring world greyed out on a star, hides it on a planet and in space, and never opens on it", () => {
+  it("lists a ring world on a star as its site and a Ring tile, opens it on the ring, hides it on a planet and in space, and never opens the dialog on it", () => {
     const listed = entries(star);
-    const ring = listed.find((entry) => entry.chains[0].first === "ring_world_1");
-    expect(ring?.chains[0].stages[0].refused).toBe(RING_WORLD);
+    const ring = named(listed, RING_WORLD_LABEL);
+    expect(shape(ring)?.rows).toEqual([
+      ["ring", null, ["ring_world_1", "ring_world_2_intermediate"]],
+    ]);
+    expect(titles(ring)).toEqual([
+      ["Ring World Site | Site", `${RING_WORLD_LABEL} | ${RING_STAGE}`],
+    ]);
+    expect(ring?.summary).toBe(RING_WORLD_SUMMARY);
+    expect(ring?.chains[0].stages.map((s) => [s.ring === true, s.refused])).toEqual([
+      [false, null],
+      [true, null],
+    ]);
+    expect(findStage(listed, "ring_world_2_intermediate")?.stage.ring).toBe(true);
+    expect(addLabel(ring!.chains[0].stages[0], ring!.chains[0])).toBe("Add Ring World Site");
+    expect(addLabel(ring!.chains[0].stages[1], ring!.chains[0])).toBe("Add Ring World");
+    expect(stageLine(ring!.chains[0].stages[1], ring!.chains[0])).toBeNull();
     expect(
       entries(planet)
         .flatMap(entryStages)
@@ -348,7 +389,45 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         star,
         null,
       ),
-    ).toBe("ring_world_1");
+    ).toBe("ring_world_2_intermediate");
+  });
+
+  it("greys out the Ring tile with the reason the game data lays out no ring, or the save refuses one", () => {
+    const types = new Map(TYPES);
+    for (const key of [
+      "ring_world_2_intermediate",
+      "ring_world_2",
+      "ring_world_ruined",
+      "ring_world_restored",
+    ]) {
+      types.set(key, { ...types.get(key)!, ring_world_refused: "it lays out no ring" });
+    }
+    const ringTile = (
+      list: ReadonlyMap<string, MegastructureView>,
+      refusalOf?: (t: MegastructureView) => string | null,
+    ) =>
+      megastructureEntries(list, NAMES, star, refusalOf)
+        .flatMap(entryStages)
+        .find((s) => s.ring === true);
+    expect(ringTile(types)?.refused).toBe(ringLayoutRefusal("it lays out no ring"));
+    expect(ringLayoutRefusal("it lays out no ring")).toBe(
+      "Galaxy Forge can't build this ring world from the game data: it lays out no ring.",
+    );
+
+    const planets = [planetSummary({ id: 1, role: "primary", class: "pc_g_star" })];
+    const refusal =
+      (rows: MegastructureSummary[], bodies = planets) =>
+      (t: MegastructureView) =>
+        megastructureRefusal(t, star, rows, TYPES, bodies);
+    expect(ringTile(TYPES, refusal([]))?.refused).toBeNull();
+    const nexus = megastructureSummary({ kind: "think_tank_3", planet: 12 });
+    expect(ringTile(TYPES, refusal([nexus]))?.refused).toBe(RING_WORLD_ROWS);
+    const site = megastructureSummary({ kind: "ring_world_1", planet: 1 });
+    expect(ringTile(TYPES, refusal([site]))?.refused).toBe(RING_WORLD_THERE);
+    const twin = [...planets, planetSummary({ id: 2, role: "star", class: "pc_k_star" })];
+    expect(ringTile(TYPES, refusal([], twin))?.refused).toBe(
+      "The system has 2 stars, and a ring world stands round one.",
+    );
   });
 
   it("shows a type no localisation names only to a filter on its key, last, under Unnamed types", () => {

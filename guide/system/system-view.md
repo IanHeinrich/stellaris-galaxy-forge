@@ -157,7 +157,9 @@ sections turn to face their star, so the pieces of a ring world join up.
 Habitats and ring world segments are planets, and they show as their
 models from the game too. You select, move and name them as you do any
 other planet. To add a habitat, see
-[Add a habitat](megastructures.md#add-a-habitat).
+[Add a habitat](megastructures.md#add-a-habitat). To add a ring world
+with its segments, see
+[Add a ring world](megastructures.md#add-a-ring-world).
 
 Each megastructure and starbase shows its name on a plate under it
 while Names is on. One drawn over a star or a planet, such as a Dyson

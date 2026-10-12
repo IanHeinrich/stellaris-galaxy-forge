@@ -29,7 +29,12 @@ habitat: boolean,
  * The habitat also comes with a major orbital at its host, which the editor adds where
  * the host holds no megastructure.
  */
-habitat_orbital: boolean, key: string, 
+habitat_orbital: boolean, 
+/**
+ * For a ring world past its site, why the editor cannot add its chain's ring whole with
+ * four finished quadrants; `None` when it can, and for any other type.
+ */
+ring_world_refused: string | null, key: string, 
 /**
  * The model, without the graphical culture prefix the game puts before it; `None` when
  * the type names none or `""`.

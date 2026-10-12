@@ -238,3 +238,49 @@ fn the_complex_and_its_restored_version_are_habitats_in_the_view() {
         assert_eq!(view(&views, key).habitat_orbital, orbital, "{key} orbital");
     }
 }
+
+/// The base game's ring world past its site is added whole, so no stage of it says why not.
+/// The site is a row, and a type of another chain is no ring world.
+#[test]
+fn the_ring_worlds_stages_are_added_whole_in_the_view() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let views = gd.megastructure_views();
+    for key in [
+        "ring_world_1",
+        "ring_world_2_intermediate",
+        "ring_world_2",
+        "ring_world_3_intermediate",
+        "ring_world_ruined",
+        "ring_world_restored",
+        "dyson_sphere_5",
+    ] {
+        assert_eq!(view(&views, key).ring_world_refused, None, "{key}");
+    }
+}
+
+/// A ring world whose chain lays out no ring of four quadrants says why in the view.
+#[test]
+fn a_ring_world_that_lays_out_no_ring_says_why() {
+    let (_dir, gd) = common::hand_written(&[
+        ("common/scripted_variables/00_fx.txt", ""),
+        (
+            "common/megastructures/fx.txt",
+            "ring_world_fx_site = {
+}
+ring_world_fx_frame = {
+	upgrade_from = { ring_world_fx_site }
+}
+",
+        ),
+    ]);
+    let views = gd.megastructure_views();
+    assert_eq!(view(&views, "ring_world_fx_site").ring_world_refused, None);
+    assert_eq!(
+        view(&views, "ring_world_fx_frame")
+            .ring_world_refused
+            .as_deref(),
+        Some("no stage of its chain lays out a ring world of 4 quadrants")
+    );
+}

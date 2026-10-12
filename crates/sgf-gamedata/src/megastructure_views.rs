@@ -7,9 +7,10 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::construction::habitat::habitat;
+use crate::construction::ring_world::{RingStage, ring_world};
 use crate::construction::{SummaryKind, SummaryLine, SummaryOn};
 use crate::planet_views::ModifierLineView;
-use crate::registries::megastructures::MegastructureDef;
+use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 
 /// One modifier or deposit that adding a row of the type writes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -49,6 +50,10 @@ pub struct MegastructureView {
     /// the host holds no megastructure.
     #[serde(default)]
     pub habitat_orbital: bool,
+    /// For a ring world past its site, why the editor cannot add its chain's ring whole with
+    /// four finished quadrants; `None` when it can, and for any other type.
+    #[serde(default)]
+    pub ring_world_refused: Option<String>,
 }
 
 impl GameData {
@@ -68,10 +73,21 @@ impl GameData {
                         .collect(),
                     habitat: finished.is_some(),
                     habitat_orbital: finished.is_some_and(|habitat| habitat.orbital.is_some()),
+                    ring_world_refused: self.ring_world_refused(def),
                     def: def.clone(),
                 }
             })
             .collect()
+    }
+
+    fn ring_world_refused(&self, def: &MegastructureDef) -> Option<String> {
+        let Placement::Unsupported {
+            why: Unsupported::RingWorld,
+        } = def.placement
+        else {
+            return None;
+        };
+        ring_world(self, &def.key, &[RingStage::Finished; 4], None).err()
     }
 
     fn construction_line(&self, line: SummaryLine) -> ConstructionLineView {
