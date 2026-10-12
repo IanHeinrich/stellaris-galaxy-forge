@@ -179,5 +179,6 @@
   {"q": "delete ring world", "expect": "system/megastructures#delete-a-ring-world"},
   {"q": "remove ring world", "expect": "system/megastructures#delete-a-ring-world"},
   {"q": "delete ring world segment", "expect": "system/megastructures#delete-a-ring-world"},
-  {"q": "delete shattered ring", "expect": "system/megastructures#delete-a-ring-world"}
+  {"q": "delete shattered ring", "expect": "system/megastructures#delete-a-ring-world"},
+  {"q": "move ring world section", "expect": "system/copy-and-move-planets#move-planets-to-another-system"}
 ]

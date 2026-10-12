@@ -9,7 +9,7 @@ use crate::format::save::write::add_body::{placement, spec_of};
 use crate::format::save::write::bodies::{Stored, frame};
 use crate::format::save::write::move_planet::normalised_set;
 use crate::format::save::write::planet_entry::{is_star, role};
-use crate::format::save::write::remove_planet::check_planet;
+use crate::format::save::write::remove_planet::{check_planet, check_segment_stays};
 use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::named;
@@ -135,6 +135,7 @@ fn star(s: &Session, stored: &[Stored], id: u32) -> Result<bool, OpError> {
 /// Refuse a body a copy leaves out: a ring world segment, a megastructure on or around it,
 /// and a habitat, whose flags name the megastructure it is.
 fn copyable(s: &Session, body: u32, node: &Node, src: &[u8]) -> Result<(), OpError> {
+    check_segment_stays(node, src, body)?;
     check_planet(s, body, node, src, |_| OpError::MegastructurePlanet(body))?;
     let built = node
         .find(keys::FLAGS, src)

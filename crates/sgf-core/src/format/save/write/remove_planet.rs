@@ -469,6 +469,14 @@ pub(crate) fn check_segment(
     Ok(())
 }
 
+/// Refuse moving or copying ring world segment `body` on its own.
+pub(crate) fn check_segment_stays(node: &Node, src: &[u8], body: u32) -> Result<(), OpError> {
+    if ring_world::is_segment(&read::text(node, keys::PLANET_CLASS, src)) {
+        return Err(OpError::RingSegment(body));
+    }
+    Ok(())
+}
+
 /// Refuse `planet` when a live row of `megastructures` other than those in `going` names it.
 fn check_megastructures(
     doc: &Document,

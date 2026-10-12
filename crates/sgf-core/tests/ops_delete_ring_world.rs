@@ -7,6 +7,8 @@ use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
+use crate::ops_bodies::{move_body, set_parent};
+use crate::ops_move_planet::move_planet;
 use crate::ops_remove_planet::footprint;
 use common::diff::{round_trip, snapshot_step};
 use common::{
@@ -199,6 +201,10 @@ fn the_inverse_of_the_inverse_deletes_again() {
     assert_eq!(current(&session), edited);
 }
 
+/// Segment 2446 of Lachium names no megastructure row of its own.
+const SEGMENT_2446_STAYS: &str =
+    "planet 2446 is part of a ring world, so it cannot be moved or copied on its own";
+
 #[test]
 fn what_is_refused() {
     let mut ownerless = edited_4_5(|text| {
@@ -242,8 +248,16 @@ fn what_is_refused() {
                 Op::RemoveColony { body: 2447 },
                 "the colony on planet 2447 cannot be removed: it is a ring world segment, which has not been tried in game",
             ),
+            (move_body(LACHIUM, 2446, 45.0, 10.0), SEGMENT_2446_STAYS),
+            (
+                set_parent(LACHIUM, 2446, Some(2450), 5.0, 0.0),
+                SEGMENT_2446_STAYS,
+            ),
+            (move_planet(2446, 216), SEGMENT_2446_STAYS),
         ],
     );
+    let error = open_4_5().copy_bodies(&[2446]).expect_err("a segment");
+    assert_eq!(error.to_string(), SEGMENT_2446_STAYS);
     assert_refusals(
         &mut open_3_4(),
         [(

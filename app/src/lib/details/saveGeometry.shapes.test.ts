@@ -157,6 +157,14 @@ describe("a ring world segment", () => {
     });
   });
 
+  it("stays where it is when the install does not list its class", () => {
+    const unlisted = new Map(orbitClasses());
+    const bare = systemLayout(details, null, unlisted, VANILLA_MOON_SCALE);
+    const known: GeometryFrame = { ...frame, layout: bare, planetClasses: unlisted };
+    expect(SAVE_GEOMETRY.editing(known).bodies.get(SEGMENT)?.move).toBe(false);
+    expect(op(move(SEGMENT, 190, 90), known)).toEqual({ refused: GEOMETRY_REASONS.ringworld });
+  });
+
   it("refuses a move, a new parent and a moon, saying why", () => {
     const refused = { refused: GEOMETRY_REASONS.ringworld };
     expect(op(move(SEGMENT, 190, 90), frame)).toEqual(refused);
