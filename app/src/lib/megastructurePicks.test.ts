@@ -1,19 +1,24 @@
 import { describe, expect, it } from "vitest";
 import type { MegastructureView } from "../generated/MegastructureView";
-import { megastructureSummary, megastructureTypeView } from "../test/builders";
+import { megastructureSummary, megastructureSwap, megastructureTypeView } from "../test/builders";
 import {
   BODY_HAS_MEGASTRUCTURE,
   CHANGES_BODY,
   RING_WORLD,
+  UNNAMED_TYPES,
   WHOLE_STRUCTURE,
+  addLabel,
   defaultStage,
+  entryHeading,
   entryStages,
+  findStage,
   matchingEntries,
   megastructureEntries,
   selectedStage,
   megastructurePlace,
   megastructureRefusal,
   RELAY_RADIUS_FACTOR,
+  stageLine,
   type MegastructureEntry,
   type MegastructureSpot,
 } from "./megastructurePicks";
@@ -27,6 +32,9 @@ const giga = { source: GIGA, base_game: false } as const;
 
 const ruin = (key: string, of: string, over: Partial<MegastructureView> = {}) =>
   megastructureTypeView(key, { variant_of: of, ...over });
+const hidden = (why: "not_built" | "ship_entity" | "leaves_fleet" | "not_offered_yet") =>
+  ({ offer: "hidden", why }) as const;
+const lifters = { hidden_by_global_flags: ["lifters_disabled"] };
 
 /** Types each built over the one before, the first over `first`. */
 function chain(
@@ -53,7 +61,17 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
       upgrade_from: ["think_tank_3"],
       placement: onAny,
       script_only: true,
+      offer: hidden("not_built"),
     }),
+    ...chain(
+      [
+        "mega_art_installation_0",
+        "mega_art_installation_1",
+        "mega_art_installation_2",
+        "mega_art_installation_3",
+      ],
+      { placement: onAny },
+    ),
     ruin("think_tank_ruined", "think_tank_1", { placement: onAny }),
     ruin("think_tank_permanently_ruined", "think_tank_1", { placement: onAny }),
     ruin("think_tank_restored", "think_tank_1", {
@@ -94,11 +112,14 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
     megastructureTypeView("star_lifter_0", {
       placement: onStar,
       turns_into: ["star_lifter_0_o_star"],
+      swaps: [megastructureSwap("star_lifter_0_o_star", { classes: ["pc_o_star"] })],
+      ...lifters,
       ...giga,
     }),
     megastructureTypeView("star_lifter_5", {
       upgrade_from: ["star_lifter_0"],
       placement: onStar,
+      ...lifters,
       ...giga,
     }),
     ...chain(["star_lifter_0_o_star", "star_lifter_5_o_star"], { placement: onStar, ...giga }),
@@ -118,7 +139,11 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
       bypass_type: "gateway",
       source: GIGA,
     }),
-    ruin("gateway_derelict", "gateway_0", { placement: outside, bypass_type: "gateway" }),
+    ruin("gateway_derelict", "gateway_0", {
+      placement: outside,
+      bypass_type: "gateway",
+      offer: hidden("not_built"),
+    }),
     megastructureTypeView("blokkat_dummy_mega", {
       upgrade_from: ["gateway_final"],
       placement: outside,
@@ -126,7 +151,19 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
       source: GIGA,
     }),
     megastructureTypeView("hyper_relay", { placement: outside, bypass_type: "relay_bypass" }),
-    megastructureTypeView("shroud_seal", { placement: inside }),
+    megastructureTypeView("shroud_seal", { placement: inside, offer: hidden("not_offered_yet") }),
+    megastructureTypeView("colossus_dummy", {
+      placement: onStar,
+      script_only: true,
+      offer: hidden("ship_entity"),
+    }),
+    megastructureTypeView("giga_battleship_ruined", { placement: inside, ...giga }),
+    megastructureTypeView("giga_battleship_restored", {
+      upgrade_from: ["giga_battleship_ruined"],
+      placement: inside,
+      offer: hidden("leaves_fleet"),
+      ...giga,
+    }),
     megastructureTypeView("mod_beacon", {
       placement: onStar,
       source: "Zeta Structures",
@@ -176,6 +213,13 @@ const NAMES = new Map([
   ["hyper_relay", "Hyper Relay"],
   ["shroud_seal", "Shroud Seal"],
   ["mod_beacon", "Dyson Sphere"],
+  ["mega_art_installation_0", "Mega Art Installation Site"],
+  ["mega_art_installation_1", "Mega Art Installation: Nascency"],
+  ["mega_art_installation_2", "Mega Art Installation: Maturity"],
+  ["mega_art_installation_3", "Mega Art Installation"],
+  ["colossus_dummy", "Colossus"],
+  ["giga_battleship_ruined", "Wrecked Battleship"],
+  ["giga_battleship_restored", "Battleship"],
 ]);
 
 const entries = (spot: MegastructureSpot, refusalOf?: (t: MegastructureView) => string | null) =>
@@ -198,7 +242,7 @@ const named = (list: readonly MegastructureEntry[], label: string, section: stri
   list.find((entry) => entry.label === label && entry.section === section);
 
 describe("the megastructures the Add megastructure dialog lists", () => {
-  it("lists every Dyson Sphere as one base game megastructure, Giga's star classes as labelled rows", () => {
+  it("lists every Dyson Sphere as one base game megastructure, star classes a mod builds over its site as labelled rows", () => {
     const sphere = named(entries(star), "Dyson Sphere");
     expect(shape(sphere)).toEqual({
       label: "Dyson Sphere",
@@ -249,26 +293,28 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect([frame.index, frame.count]).toEqual([2, 4]);
   });
 
-  it("names a megastructure after its main chain, with an event's stage and the ruins in rows of their own", () => {
+  it("names a megastructure after its main chain's finished stage, with the ruins in rows of their own and no type the game data hides", () => {
     const nexus = named(entries(planet), "Science Nexus");
     expect(shape(nexus)?.rows).toEqual([
       ["build", "Science Nexus", ["think_tank_0", "think_tank_1", "think_tank_3"]],
-      ["variant", "The Groik Nexus", ["think_tank_4"]],
       ["ruins", "Ruined", ["think_tank_ruined", "think_tank_restored"]],
       ["ruins", "Permanently ruined", ["think_tank_permanently_ruined"]],
     ]);
-    expect(titles(nexus)?.slice(2)).toEqual([
+    expect(nexus?.summary).toBe("3 stages · 2 variants");
+    expect(matchingEntries(entries(planet), "think_tank_4")).toEqual([]);
+    expect(matchingEntries(entries(star), "colossus")).toEqual([]);
+    expect(titles(nexus)?.slice(1)).toEqual([
       ["Ruined Science Nexus | Ruined", "Science Nexus (Restored) | Restored"],
       ["Ruined Science Nexus (Permanently ruined) | Ruined"],
     ]);
   });
 
-  it("joins the types a stage turns into by star class, and not a chain a later upgrade_from names", () => {
+  it("lists the stage a completion swaps by star class without the swapped chain, and not a chain a later upgrade_from names", () => {
     const listed = entries(star);
-    expect(shape(named(listed, "Star Lifter", GIGA))?.rows).toEqual([
-      ["build", "Star Lifter", ["star_lifter_0", "star_lifter_5"]],
-      ["variant", "O-class star", ["star_lifter_0_o_star", "star_lifter_5_o_star"]],
-    ]);
+    const lifter = named(listed, "Star Lifter", GIGA);
+    expect(shape(lifter)?.rows).toEqual([["build", null, ["star_lifter_0", "star_lifter_5"]]]);
+    expect(lifter?.summary).toBe("2 stages · by star class");
+    expect(matchingEntries(listed, "star_lifter_5_o")).toEqual([]);
     expect(shape(named(listed, "Dyson Swarm", GIGA))?.rows).toEqual([
       ["build", null, ["dyson_swarm_1", "dyson_swarm_3"]],
     ]);
@@ -308,8 +354,9 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     ).toBe("ring_world_1");
   });
 
-  it("shows a type no localisation names only to a filter on its key, last in its mod", () => {
+  it("shows a type no localisation names only to a filter on its key, last, under Unnamed types", () => {
     const listed = entries(star);
+    expect(listed.map(entryHeading).slice(-2)).toEqual(["Zeta Structures", UNNAMED_TYPES]);
     const giga = listed.filter((entry) => entry.section === GIGA);
     expect(giga.map((entry) => [entry.label, entry.unnamed])).toEqual([
       ["Alderson Disk Frame", false],
@@ -325,40 +372,64 @@ describe("the megastructures the Add megastructure dialog lists", () => {
   });
 
   it("offers star-only types on a star alone, any body's on a planet or star, free types in space alone, and never one that stands for a bypass", () => {
-    expect(entries(planet).map((e) => e.label)).toEqual(["Science Nexus", "Automated Strip Mine"]);
+    expect(entries(planet).map((e) => e.label)).toEqual([
+      "Mega Art Installation",
+      "Science Nexus",
+      "Automated Strip Mine",
+    ]);
     const offered = [planet, star, space].flatMap((spot) =>
       entries(spot).flatMap((e) => entryStages(e).map((s) => s.key)),
     );
     expect(offered).not.toContain("lgate_base");
   });
 
-  it("keeps a base game gateway in the base game's section though a mod's file won, with its derelict variant", () => {
+  it("keeps a base game gateway in the base game's section though a mod's file won, offers a wreck without its repair, and leaves out what the game data hides", () => {
     expect(entries(space).map(shape)).toEqual([
-      {
-        label: "Gateway",
-        section: null,
-        rows: [
-          ["build", "Gateway", ["gateway_0", "gateway_final"]],
-          ["ruins", "Derelict", ["gateway_derelict"]],
-        ],
-      },
+      { label: "Gateway", section: null, rows: [["build", null, ["gateway_0", "gateway_final"]]] },
       { label: "Hyper Relay", section: null, rows: [["build", null, ["hyper_relay"]]] },
-      { label: "Shroud Seal", section: null, rows: [["build", null, ["shroud_seal"]]] },
+      {
+        label: "Wrecked Battleship",
+        section: GIGA,
+        rows: [["ruins", null, ["giga_battleship_ruined"]]],
+      },
     ]);
   });
 
-  it("leaves out a row of script-only types no localisation names, but not a named one", () => {
-    const gateway = named(entries(space), "Gateway");
-    expect(gateway?.chains.map((chain) => chain.stages.map((s) => s.key))).toEqual([
-      ["gateway_0", "gateway_final"],
-      ["gateway_derelict"],
-    ]);
+  it("leaves out a row of script-only types no localisation names", () => {
     expect(matchingEntries(entries(space), "blokkat_dummy").flatMap(entryStages)).toEqual([]);
-    expect(
-      entries(planet)
-        .flatMap(entryStages)
-        .map((s) => s.key),
-    ).toContain("think_tank_4");
+  });
+
+  it("hides a megastructure the save's global flags hide, and shows it again without them", () => {
+    const lifter = (globalFlags: ReadonlySet<string>) =>
+      named(
+        megastructureEntries(TYPES, NAMES, star, undefined, { globalFlags }),
+        "Star Lifter",
+        GIGA,
+      );
+    expect(lifter(new Set(["lifters_disabled"]))).toBeUndefined();
+    expect(lifter(new Set(["giga_dyson_scaling"]))).toBeDefined();
+    expect(lifter(new Set())).toBeDefined();
+  });
+
+  it("states a stage's place in its build chain and names it on the Add button", () => {
+    const listed = entries(planet);
+    const at = (key: string) => {
+      const found = findStage(listed, key)!;
+      return [stageLine(found.stage, found.chain), addLabel(found.stage, found.chain)];
+    };
+    expect(named(listed, "Mega Art Installation")?.summary).toBe("4 stages");
+    expect(at("mega_art_installation_2")).toEqual([
+      "Stage 3 of 4: Maturity",
+      "Add Maturity, stage 3 of 4",
+    ]);
+    expect(at("mega_art_installation_3")).toEqual([
+      "Stage 4 of 4: Finished",
+      "Add Mega Art Installation, stage 4 of 4",
+    ]);
+    expect(at("think_tank_ruined")).toEqual([null, "Add Ruined Science Nexus"]);
+    const relay = findStage(entries(space), "hyper_relay")!;
+    expect(stageLine(relay.stage, relay.chain)).toBeNull();
+    expect(addLabel(relay.stage, relay.chain)).toBe("Add Hyper Relay");
   });
 
   it("filters the megastructures by their own and their stages' names and keys, ignoring case", () => {
@@ -367,10 +438,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
       "Dyson Sphere",
       "Science Nexus",
     ]);
-    expect(matchingEntries(listed, "o_star").map((e) => e.label)).toEqual([
-      "Dyson Sphere",
-      "Star Lifter",
-    ]);
+    expect(matchingEntries(listed, "o_star").map((e) => e.label)).toEqual(["Dyson Sphere"]);
     expect(matchingEntries(listed, "gateway")).toEqual([]);
   });
 
@@ -434,6 +502,7 @@ describe("why the save would refuse a megastructure that fits the spot", () => {
         index: 1,
         count: 1,
         refused: "The system already has a hyper relay.",
+        variant: "hyper_relay",
       },
     ]);
   });
