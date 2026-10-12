@@ -198,12 +198,6 @@ const TEST_FILE_LINES: usize = 700;
 
 /// Today's test files over the ceiling, each with the batch that splits it.
 const LONG_TEST_FILES: &[(&str, &str)] = &[
-    ("crates/sgf-gamedata/tests/prepare.rs", "1d"),
-    ("crates/sgf-gamedata/tests/megastructure_layouts.rs", "1d"),
-    ("crates/sgf-gamedata/tests/megastructures.rs", "1d"),
-    ("crates/sgf-gamedata/tests/details_spawn.rs", "1d"),
-    ("crates/sgf-gamedata/tests/model_sprites.rs", "1d"),
-    ("crates/sgf-core/tests/ops_add_megastructure.rs", "1c"),
     (
         "app/src/panels/inspector/entity/BodyPage.pools.test.tsx",
         "5f",
