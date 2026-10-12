@@ -475,6 +475,7 @@ describe("the Add megastructure dialog on a ring world", () => {
     useMegastructureAddStore.setState({
       last: "ring_world_2_intermediate",
       ringStages: ["finished", "finished", "finished", "finished"],
+      ringSize: null,
       ringClear: false,
       clearing: clearing(),
       clearingError: null,
@@ -495,6 +496,7 @@ describe("the Add megastructure dialog on a ring world", () => {
       expect(page).toContain(`aria-label="${quadrant} Damaged"`);
     }
     expect(page).not.toContain("Restored");
+    expect(page).not.toContain('aria-label="Size"');
     expect(page).toContain(SET_ALL);
     expect(page).not.toContain("quadrants are finished");
     expect(page).toContain(LEAVE_PLANETS);
@@ -561,5 +563,88 @@ describe("the Add megastructure dialog on a ring world", () => {
       }),
     );
     expect(html()).toContain("The system has 2 stars, and a ring world stands round one.");
+  });
+
+  describe("with Gigastructural Engineering's titanic ring", () => {
+    const giga = { source: "Gigastructural Engineering", base_game: false } as const;
+
+    beforeEach(() => {
+      const types = new Map(useGameDataStore.getState().megastructureTypes);
+      const frame = types.get("ring_world_2_intermediate")!;
+      types.set(frame.key, { ...frame, ring_world_radius: 45 });
+      for (const type of [
+        megastructureTypeView("ringworld_titanic_0", {
+          ...giga,
+          placement: { place: "body", star_only: true },
+        }),
+        megastructureTypeView("ringworld_titanic_1", {
+          ...giga,
+          upgrade_from: ["ringworld_titanic_0"],
+          placement: ringWorld,
+          ring_world_radius: 90,
+          ring_world_refused_stages: ["damaged", "restored"],
+        }),
+      ]) {
+        types.set(type.key, type);
+      }
+      useGameDataStore.setState({
+        megastructureTypes: types,
+        names: new Map([
+          ...useGameDataStore.getState().names,
+          ["ringworld_titanic_0", "Titanic Ringworld Site"],
+          ["ringworld_titanic_1", "Titanic Ringworld Frame"],
+        ]),
+      });
+    });
+
+    const checked = (page: string, label: string) =>
+      new RegExp(`<input type="radio" name="ring-size" checked=""/><span>${label}</span>`).test(
+        page,
+      );
+
+    it("offers the sizes beside the grid, the base game's ring first, its stage columns all four", () => {
+      const page = html();
+      expect(page).toContain('aria-label="Size"');
+      expect(checked(page, "Ring World")).toBe(true);
+      expect(page).toContain("<span>Titanic</span>");
+      expect(page).toContain('aria-label="A Damaged"');
+      expect(page).toContain(">Add Ring World</button>");
+    });
+
+    it("adds the titanic ring once picked, with no Damaged column, and its site from the Site tile", () => {
+      useMegastructureAddStore.setState({ ringSize: "ringworld_titanic_1" });
+      const page = html();
+      expect(checked(page, "Titanic")).toBe(true);
+      expect(page).toContain('aria-label="A Ruined"');
+      expect(page).not.toContain("Damaged");
+      expect(page).toContain(">Add Titanic Ringworld</button>");
+      expect(page).toMatch(/title="Titanic Ringworld Site">.*?>Site<\/span>/);
+    });
+
+    it("greys out the Ring at a size whose ring would overlap one standing there, and keeps the sizes to pick another", () => {
+      const planets = useDetailsStore.getState().details.get(SYSTEM)!.planets;
+      inSystem(
+        systemDetails({
+          id: SYSTEM,
+          planets: [
+            ...planets,
+            planetSummary({ id: 7, class: "pc_ringworld_habitable", orbit: 45.20385 }),
+          ],
+        }),
+      );
+      const refused = "This ring would overlap the Ring World at orbit 45.";
+      const page = html();
+      expect(page).toContain(refused);
+      expect(page).toContain('aria-label="Size"');
+      expect(page).toContain(`aria-disabled="true" title="${refused}"`);
+      expect(page).not.toContain(SET_ALL);
+      expect(page).toContain(">Add Ring World Site</button>");
+
+      useMegastructureAddStore.setState({ ringSize: "ringworld_titanic_1" });
+      const titanic = html();
+      expect(titanic).not.toContain(refused);
+      expect(titanic).toContain(SET_ALL);
+      expect(titanic).not.toContain('type="submit" disabled=""');
+    });
   });
 });

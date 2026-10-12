@@ -35,6 +35,8 @@ interface MegastructureAddState {
   last: string | null;
   /** The stage each quadrant of a whole ring world is added at, A to D; all finished on opening. */
   ringStages: readonly RingStage[];
+  /** The ring world type of the ring world size picked; null for the first size, as on opening. */
+  ringSize: string | null;
   /** A whole ring world clears the system first, as the game's frame does; off on opening. */
   ringClear: boolean;
   /** The system whose clearing is read, or being read; null before the Ring tile asks. */
@@ -50,6 +52,11 @@ interface MegastructureAddState {
   setRingStage(quadrant: number, stage: RingStage): void;
   /** Sets every quadrant to `stage`. */
   setRingStages(stage: RingStage): void;
+  /**
+   * Picks the ring world size whose ring world type is `ring`, whose quadrants are offered at
+   * `offered`: a quadrant at any other stage goes back to finished.
+   */
+  setRingSize(ring: string, offered: readonly RingStage[]): void;
   setRingClear(clear: boolean): void;
   /** Reads what clearing the dialog's system takes, once per opening. */
   loadClearing(): Promise<void>;
@@ -66,9 +73,10 @@ interface MegastructureAddState {
   /**
    * Closes the dialog and adds the ring world of type `kind`'s chain whole round its system's
    * star in one edit, each quadrant at its picked stage, owned by the system's owner, clearing
-   * the system first when picked. `kind` is remembered as the stage the dialog opens on next.
+   * the system first when picked. `stage` is the Ring tile picked, which the dialog opens on
+   * next; it differs from `kind` for a size other than the first.
    */
-  addRing(kind: string): Promise<boolean>;
+  addRing(kind: string, stage?: string): Promise<boolean>;
 }
 
 const CLOSED = { prompt: null, clearingFor: null, clearing: null, clearingError: null } as const;
@@ -77,6 +85,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   ...CLOSED,
   last: null,
   ringStages: ALL_FINISHED,
+  ringSize: null,
   ringClear: false,
 
   open(system, spot) {
@@ -84,7 +93,13 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
       useFileSessionStore.getState().setError(MEGASTRUCTURES_NEED_GAME_DATA);
       return false;
     }
-    set({ ...CLOSED, prompt: { system, spot }, ringStages: ALL_FINISHED, ringClear: false });
+    set({
+      ...CLOSED,
+      prompt: { system, spot },
+      ringStages: ALL_FINISHED,
+      ringSize: null,
+      ringClear: false,
+    });
     return true;
   },
 
@@ -98,6 +113,11 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
 
   setRingStages(stage) {
     set({ ringStages: get().ringStages.map(() => stage) });
+  },
+
+  setRingSize(ring, offered) {
+    const ringStages = get().ringStages.map((at) => (offered.includes(at) ? at : "finished"));
+    set({ ringSize: ring, ringStages });
   },
 
   setRingClear(clear) {
@@ -117,7 +137,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     }
   },
 
-  async addRing(kind) {
+  async addRing(kind, stage = kind) {
     const { prompt, ringStages, ringClear } = get();
     if (prompt === null) return false;
     set(CLOSED);
@@ -126,7 +146,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const editor = useEditorStore.getState();
     const added = await editor.addRingWorld(system, kind, ringStages, owner, ringClear);
     if (added === null) return false;
-    set({ last: kind });
+    set({ last: stage });
     return true;
   },
 

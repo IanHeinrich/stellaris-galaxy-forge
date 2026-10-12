@@ -251,7 +251,7 @@ In a Stellaris 4.x save, you can add a whole ring world round a star,
 with each quadrant at the stage you pick. You need the game data loaded.
 
 Clearing the system for a ring world deletes its planets and colonies.
-You choose whether to clear it in step 6.
+You choose whether to clear it in step 7.
 
 1. Open the system in the [system view](system-view.md).
 2. Right-click the star and select Add megastructure.
@@ -259,10 +259,13 @@ You choose whether to clear it in step 6.
 4. Click one of its two tiles:
    - Site adds the construction site, as for any other megastructure.
    - Ring adds the whole ring world.
-5. For Ring, pick a stage for each quadrant, A to D: Finished, Frame,
+5. With Gigastructural Engineering enabled, pick a size under Size:
+   Ring World, Titanic, Behemoth or Gargantuan. Site and Ring then add
+   that size's site or ring. Without the mod there is no size to pick.
+6. For Ring, pick a stage for each quadrant, A to D: Finished, Frame,
    Ruined or Damaged. The buttons after Set all give every quadrant the
-   same stage.
-6. Under Planets, pick what happens to the system's planets:
+   same stage. The larger rings have no Damaged stage.
+7. Under Planets, pick what happens to the system's planets:
    - Keep leaves every planet, moon and asteroid belt where it is. The
      dialog opens with this picked.
    - Clear system deletes every planet, moon and asteroid belt first,
@@ -271,10 +274,16 @@ You choose whether to clear it in step 6.
      with it. The line above the Add button says what goes, such
      as "Clearing deletes 6 planets, 2 moons and 1 belt, and the colony
      on Lachium I."
-7. Click Add Ring World.
+8. Click Add Ring World. For a larger size the button names it, such as
+   Add Titanic Ringworld.
 
 Clear system is off when a starbase orbits one of the planets it would delete,
 and the dialog names that planet. A Dyson Sphere round the star stays.
+Clearing leaves any ring already in the system.
+
+Rings of different sizes can share a system.
+Galaxy Forge doesn't ask for the smaller ring first, as Gigastructural
+Engineering does when you build them in the game.
 
 A finished quadrant is three sections, as the game builds them: a tech
 section, a seam and a habitable section. The sections have no colony,
@@ -290,7 +299,10 @@ owner.
 Ring is greyed out, and the details panel says why, in a system that:
 
 - has more than one star, or none
-- already has a ring world or a ring world site
+- already has a ring where the new one would stand. The reason names
+  that ring and its orbit.
+
+A site on the star doesn't stop you adding a ring.
 
 A mod's ring world that Galaxy Forge can't build from the game files is
 greyed out too, with the reason.

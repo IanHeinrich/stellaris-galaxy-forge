@@ -415,6 +415,8 @@ export function megastructureTypeView(
     habitat: false,
     habitat_orbital: false,
     ring_world_refused: null,
+    ring_world_radius: null,
+    ring_world_refused_stages: [],
     portrait: null,
     category: null,
     ruined_orbital_ring: false,

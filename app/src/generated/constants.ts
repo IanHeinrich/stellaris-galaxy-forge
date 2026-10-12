@@ -24,6 +24,9 @@ export const RING_WORLD_SEGMENT_PREFIXES = ["pc_ringworld", "pc_shattered_ring"]
 /** What the type of a ring world's megastructure row starts with. */
 export const RING_WORLD_ROW_PREFIXES = ["ring_world", "ringworld"] as const;
 
+/** How near a radius a ring world's segment or row stands for a new ring there to overlap it. */
+export const RING_WORLD_SLACK = 5;
+
 /** The first major version whose saves take an added system. */
 export const ADDED_SYSTEMS_FROM_MAJOR = 4;
 

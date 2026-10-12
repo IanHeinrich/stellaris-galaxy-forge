@@ -3,6 +3,7 @@
 //! localisation, and the picture and category line of the game's construction card.
 
 use serde::{Deserialize, Serialize};
+use sgf_core::ops::{NewRingWorld, RingQuadrant};
 use ts_rs::TS;
 
 use crate::GameData;
@@ -59,6 +60,15 @@ pub struct MegastructureView {
     /// every quadrant finished; `None` when it can, and for any other type.
     #[serde(default)]
     pub ring_world_refused: Option<String>,
+    /// For a ring world past its site, how far from the star its chain's ring stands: the
+    /// radius of its first section with every quadrant finished. `None` for any other type,
+    /// and when the editor cannot add that ring.
+    #[serde(default)]
+    pub ring_world_radius: Option<f64>,
+    /// For a ring world past its site, each stage no quadrant of its chain's ring can be
+    /// added at, in the order [`RingStage`] lists them; empty for any other type.
+    #[serde(default)]
+    pub ring_world_refused_stages: Vec<RingStage>,
     /// The texture key of the picture the game's construction card shows for the type; `None`
     /// when it names none or the install has no file for it.
     #[serde(default)]
@@ -69,6 +79,33 @@ pub struct MegastructureView {
     pub category: Option<String>,
 }
 
+/// Every stage a quadrant of a ring world can be asked for, in the order [`RingStage`] lists them.
+const RING_STAGES: [RingStage; 5] = [
+    RingStage::Finished,
+    RingStage::Frame,
+    RingStage::Ruined,
+    RingStage::Damaged,
+    RingStage::Restored,
+];
+
+/// What the add dialog reads of a ring world past its site.
+#[derive(Default)]
+struct RingFacts {
+    refused: Option<String>,
+    radius: Option<f64>,
+    refused_stages: Vec<RingStage>,
+}
+
+/// The radius `ring`'s first section stands at.
+fn radius(ring: &NewRingWorld) -> Option<f64> {
+    match ring.quadrants.first()? {
+        RingQuadrant::Finished { segments }
+        | RingQuadrant::Restored { segments }
+        | RingQuadrant::Damaged { segments } => segments.first().map(|s| s.at.radius),
+        RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => Some(row.at.radius),
+    }
+}
+
 impl GameData {
     /// Every megastructure type in key order, with its effects and construction named.
     pub fn megastructure_views(&self) -> Vec<MegastructureView> {
@@ -76,6 +113,7 @@ impl GameData {
             .iter()
             .map(|def| {
                 let finished = habitat(self, &def.key, true, None);
+                let ring = self.ring_facts(def);
                 MegastructureView {
                     country_effects: modifier_lines(self, &def.country_modifier),
                     construction_summary: def
@@ -86,7 +124,9 @@ impl GameData {
                         .collect(),
                     habitat: finished.is_some(),
                     habitat_orbital: finished.is_some_and(|habitat| habitat.orbital.is_some()),
-                    ring_world_refused: self.ring_world_refused(def),
+                    ring_world_refused: ring.refused,
+                    ring_world_radius: ring.radius,
+                    ring_world_refused_stages: ring.refused_stages,
                     portrait: def
                         .portrait
                         .as_deref()
@@ -98,15 +138,28 @@ impl GameData {
             .collect()
     }
 
-    fn ring_world_refused(&self, def: &MegastructureDef) -> Option<String> {
+    fn ring_facts(&self, def: &MegastructureDef) -> RingFacts {
         let Placement::Unsupported {
             why: Unsupported::RingWorld,
         } = def.placement
         else {
-            return None;
+            return RingFacts::default();
         };
-        let stages = vec![RingStage::Finished; quadrants(self, &def.key).unwrap_or(4)];
-        ring_world(self, &def.key, &stages, None, &[]).err()
+        let count = quadrants(self, &def.key).unwrap_or(4);
+        let all_at = |stage| ring_world(self, &def.key, &vec![stage; count], None, &[]);
+        let finished = all_at(RingStage::Finished);
+        let refused_stages = RING_STAGES
+            .into_iter()
+            .filter(|&stage| match stage {
+                RingStage::Finished => finished.is_err(),
+                _ => all_at(stage).is_err(),
+            })
+            .collect();
+        RingFacts {
+            radius: finished.as_ref().ok().and_then(radius),
+            refused: finished.err(),
+            refused_stages,
+        }
     }
 
     fn construction_line(&self, line: SummaryLine) -> ConstructionLineView {

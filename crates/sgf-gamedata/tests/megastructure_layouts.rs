@@ -1264,8 +1264,10 @@ fz_built = {
 /// `_sector_entity` models, frame rows named from Ring Section E, I and M in `mammalian_01`, and
 /// the flags each leaves. Beside a base game ring holding `ring_01` to `ring_04`, the
 /// habitable sections are named E to H. A damaged quadrant is refused: the game's ruin
-/// effect knows no row of theirs. Runs with `SGF_PLAYSET=1` when the enabled mods include
-/// Giga.
+/// effect knows no row of theirs. The add dialog's views give each ring its radius, the base
+/// game's 45 beside them, and refuse Damaged for the larger three only; each site's name, from
+/// which the dialog names its size, is plain text. Runs with `SGF_PLAYSET=1` when the enabled
+/// mods include Giga.
 #[test]
 fn gigas_larger_rings_are_added_whole() {
     if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
@@ -1282,6 +1284,19 @@ fn gigas_larger_rings_are_added_whole() {
     let held = ["ring_01", "ring_02", "ring_03", "ring_04"].map(str::to_owned);
     let culture = Some("biogenesis_01");
     let views = gd.megastructure_views();
+    let ring_view = |key: &str| {
+        let view = views.iter().find(|v| v.def.key == key).expect(key);
+        (
+            view.ring_world_radius,
+            view.ring_world_refused_stages.clone(),
+        )
+    };
+    let (vanilla, vanilla_refused) = ring_view("ring_world_2_intermediate");
+    assert!(
+        vanilla.is_some_and(|r| (r - 45.0).abs() < 1.0),
+        "{vanilla:?}"
+    );
+    assert!(!vanilla_refused.contains(&Damaged), "{vanilla_refused:?}");
     for (size, short, letter, radius, habitable, built) in [
         ("titanic", "tit", "E", 90.0, 20, "ring_world_built_one"),
         ("behemoth", "beh", "I", 134.0, 30, "ring_world_built_two"),
@@ -1297,6 +1312,19 @@ fn gigas_larger_rings_are_added_whole() {
         let site = format!("ringworld_{size}_0");
         let frame = format!("ringworld_{}_3x_segment", &size[..1]);
         let mega = |key: &str| gd.megastructures.get(key).expect(key);
+        let (view_radius, refused) = ring_view(&format!("ringworld_{size}_1"));
+        assert!(
+            view_radius.is_some_and(|r| (r - radius).abs() < 1.0),
+            "{size}: {view_radius:?}"
+        );
+        assert!(refused.contains(&Damaged), "{size}: {refused:?}");
+        let site_name = gd.loc.get(&site).expect("the site's name");
+        assert!(!site_name.contains('§'), "{site_name:?}");
+        let title = format!("{}{}", size[..1].to_uppercase(), &size[1..]);
+        assert_eq!(
+            site_name.replace('\u{200b}', "").trim(),
+            format!("{title} Ringworld Site")
+        );
         assert_eq!(mega(&site).placement, Placement::Body { star_only: true });
         for key in [
             format!("ringworld_{size}_1"),
