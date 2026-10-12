@@ -212,6 +212,7 @@ describe("adding a whole ring world from the system view", () => {
     colonies: [],
     belts: 0,
     starbase_bodies: [],
+    megastructures: [],
   };
 
   beforeEach(() => {

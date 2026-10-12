@@ -37,7 +37,7 @@ use crate::projections::geometry::{Body, normalised, point, reach};
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
-use crate::views::RingWorldClearing;
+use crate::views::{ClearedMegastructure, RingWorldClearing};
 use crate::{plural, plural_of};
 
 /// What a refusal calls the structure.
@@ -286,8 +286,8 @@ pub(crate) fn plan_remove(
 }
 
 /// What clearing `system` for a ring world takes, as the game's frame clears it: every body
-/// that is not a star and every belt, with the uncolonised bodies a starbase orbits, which
-/// [`add_op`] refuses to clear.
+/// that is not a star and every belt, with the megastructure rows that name them, which go
+/// first, and the uncolonised bodies a starbase orbits, which [`add_op`] refuses to clear.
 pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, OpError> {
     let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     let stored = frame(s, system)?;
@@ -318,6 +318,15 @@ pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, Op
             starbase_bodies.push(id);
         }
     }
+    let mut megastructures = Vec::new();
+    for row in rows(&s.doc, MEGASTRUCTURES)? {
+        if let Some(body) = megastructure::read(&row.node, row.src)
+            .planet
+            .filter(|body| going.contains(body))
+        {
+            megastructures.push(ClearedMegastructure { id: row.id, body });
+        }
+    }
     let (node, src) = entity(&s.doc, Subject::System(system), anchor)?;
     let belts = node.find(keys::ASTEROID_BELTS, src).map_or(0, |block| {
         block.children().iter().filter(|c| c.key.is_none()).count()
@@ -329,12 +338,13 @@ pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, Op
         colonies,
         belts: u32::try_from(belts).unwrap_or(u32::MAX),
         starbase_bodies,
+        megastructures,
     })
 }
 
 /// The op that adds `ring` round `system`'s star for `owner`: the [`Op::AddRingWorld`]
-/// alone, or with `clear`, a batch that first deletes every body that is not a star and
-/// every belt, last first, as the game's frame does. Clearing a body a starbase orbits is
+/// alone, or with `clear`, a batch that first deletes the rows that name a body going, then
+/// every body that is not a star and every belt, last first, as the game's frame does. Clearing a body a starbase orbits is
 /// refused before any op is built.
 pub(crate) fn add_op(
     s: &Session,
@@ -363,10 +373,14 @@ pub(crate) fn add_op(
         });
     }
     let mut ops: Vec<Op> = cleared
-        .bodies
+        .megastructures
         .iter()
-        .map(|&body| Op::DeleteBody { body })
+        .map(|row| Op::DeleteMegastructure {
+            megastructure: row.id,
+            dismantle: None,
+        })
         .collect();
+    ops.extend(cleared.bodies.iter().map(|&body| Op::DeleteBody { body }));
     ops.extend(
         (0..cleared.belts as usize)
             .rev()
@@ -380,8 +394,8 @@ pub(crate) fn add_op(
 }
 
 impl RingWorldClearing {
-    /// ", removing 4 planets, 1 moon and 1 belt, with the colony on planet #12", or nothing
-    /// when there is nothing to clear.
+    /// ", removing 4 planets, 1 moon and 1 belt, with the colony on planet #12 and megastructure
+    /// #3", or nothing when there is nothing to clear.
     fn removing(&self) -> String {
         let planets = self.bodies.len() - self.moons as usize;
         let parts: Vec<String> = [
@@ -399,11 +413,22 @@ impl RingWorldClearing {
             Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
         };
         let colonies = match self.colonies.as_slice() {
-            [] => String::new(),
-            [one] => format!(", with the colony on planet #{one}"),
-            many => format!(", with {} colonies", many.len()),
+            [] => None,
+            [one] => Some(format!("the colony on planet #{one}")),
+            many => Some(format!("{} colonies", many.len())),
         };
-        format!(", removing {listed}{colonies}")
+        let structures = match self.megastructures.as_slice() {
+            [] => None,
+            [one] => Some(format!("megastructure #{}", one.id)),
+            many => Some(format!("{} megastructures", many.len())),
+        };
+        let with: Vec<String> = [colonies, structures].into_iter().flatten().collect();
+        let with = if with.is_empty() {
+            String::new()
+        } else {
+            format!(", with {}", with.join(" and "))
+        };
+        format!(", removing {listed}{with}")
     }
 }
 
@@ -552,8 +577,7 @@ fn the_star(s: &Session, system: u32, stored: &[Stored]) -> Result<u32, OpError>
     }
 }
 
-/// Refuse a system that holds a ring world already, or a megastructure row other than a
-/// gateway's, relay's or L-Gate's, which stand for a bypass.
+/// Refuse a system that holds a ring world already.
 fn check_room(s: &Session, system: u32, stored: &[Stored]) -> Result<(), OpError> {
     let refuse = |reason: String| OpError::MegastructureRefused {
         kind: RING_WORLD.to_owned(),
@@ -577,12 +601,6 @@ fn check_room(s: &Session, system: u32, stored: &[Stored]) -> Result<(), OpError
         if is_ring_row(&facts.kind) {
             return Err(refuse(format!(
                 "megastructure {} ({}) of {place} is part of a ring world",
-                row.id, facts.kind
-            )));
-        }
-        if facts.bypass.is_none() {
-            return Err(refuse(format!(
-                "megastructure {} ({}) stands in {place}",
                 row.id, facts.kind
             )));
         }

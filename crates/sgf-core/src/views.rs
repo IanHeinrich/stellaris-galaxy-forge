@@ -394,6 +394,17 @@ pub struct RingWorldClearing {
     /// The uncolonised bodies of `bodies` a starbase orbits, which stop the clearing: no save
     /// shows what the game does with a starbase whose body its frame removes.
     pub starbase_bodies: Vec<u32>,
+    /// The `megastructures` rows that name a body of `bodies`, which go before it,
+    /// since a body a row names is not deleted.
+    pub megastructures: Vec<ClearedMegastructure>,
+}
+
+/// A megastructure row that clearing a system deletes with the body it names.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ClearedMegastructure {
+    pub id: u32,
+    pub body: u32,
 }
 
 /// Where a set of save planets may move together.
