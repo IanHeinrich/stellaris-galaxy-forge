@@ -449,6 +449,33 @@ describe("clicking a structure's model drawn over a body", () => {
 });
 
 describe("a drag that moves a body a structure stands on", () => {
+  it("keeps drawing the last bake while a turned model's is made", async () => {
+    const textureFor = decodeByKey();
+    textureFetch.model = () => PLACEMENT;
+    const layer = new StructuresLayer();
+    const at = (point: [number, number]) =>
+      system([megastructureSummary({ id: 7, kind: "think_tank_3", planet: EARTH.id, at: point })]);
+    const first = at([40, 0]);
+    layer.rebuild(first);
+    viewport(layer, 2);
+    await answerFetch();
+    const was = only(first).modelKey!;
+    await until(() =>
+      expect(part(holder(layer, "megastructure:7"), "model").texture).toBe(textureFor(was)),
+    );
+
+    const turned = at([0, 40]);
+    expect(only(turned).modelKey).not.toBe(was);
+    layer.rebuild(turned);
+    const model = part(holder(layer, "megastructure:7"), "model");
+    expect(model.visible).toBe(true);
+    expect(model.texture).toBe(textureFor(was));
+
+    await answerFetch();
+    await until(() => expect(model.texture).toBe(textureFor(only(turned).modelKey!)));
+    layer.destroy();
+  });
+
   it("moves the structure's sprite and keeps it, rebuilding nothing", () => {
     const furnace = megastructureSummary({ id: 9, kind: "orbital_arc_furnace_1", planet: MARS.id });
     const base = system([furnace]);

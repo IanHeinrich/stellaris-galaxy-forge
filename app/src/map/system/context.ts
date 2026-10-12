@@ -820,7 +820,7 @@ function megastructure(
   const grows = type?.scales_with_planet === true;
   const placed = placeStructure(look, body, at, offset, grows, body ?? homeBody);
   if (placed === null) return null;
-  // Turned from where its source puts it, so a drag does not bake it again at every step.
+  // Turned from where it is drawn, so a drag turns it as it goes.
   const yaw = megastructureYaw(type, at);
   const chance = structureChance(row.spawn);
   const name = src.names.get(row.kind) ?? megastructureLabel(row.kind);
