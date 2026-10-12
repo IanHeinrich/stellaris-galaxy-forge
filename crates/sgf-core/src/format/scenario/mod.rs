@@ -283,6 +283,7 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         player_country: None,
         lgate: None,
         kaleidoscope: false,
+        global_flags: Vec::new(),
         settings: None,
     };
     let everything = Changes {

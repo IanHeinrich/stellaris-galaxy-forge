@@ -1,11 +1,12 @@
 //! What each sample save was set up with, read off its setup screen, its player country,
 //! its Resource Abundance and its global flags, and their absence on a scenario.
 use sgf_core::archive::GalaxySettings;
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{GameSetup, LGate, LGateOutcome};
 
 use crate::common;
 use common::fixture::PAINTED;
-use common::{open, open_3_4, open_4_5};
+use common::{open, open_3_4, open_4_5, reprojected};
 
 #[test]
 fn the_4_4_sample_carries_its_setup_screen_and_player_country() {
@@ -139,4 +140,35 @@ fn a_scenario_carries_none_of_them() {
     assert_eq!(session.graph().player_country, None);
     assert_eq!(session.resource_abundance(), None);
     assert!(!session.graph().kaleidoscope);
+    assert!(session.graph().global_flags.is_empty());
+}
+
+#[test]
+fn global_flags_list_the_keys_of_the_flags_block_sorted() {
+    let session = open_4_5();
+    let flags = &session.graph().global_flags;
+    assert!(flags.contains(&"game_started".to_owned()), "{flags:?}");
+    assert!(
+        flags.contains(&"gray_goo_crisis_set".to_owned()),
+        "{flags:?}"
+    );
+    assert!(flags.is_sorted(), "{flags:?}");
+}
+
+#[test]
+fn setting_the_l_gate_outcome_changes_the_global_flags() {
+    let mut session = open_4_5();
+    session
+        .apply(Op::SetLGateOutcome {
+            outcome: LGateOutcome::LDrakes,
+        })
+        .expect("apply");
+    let flags = session.graph().global_flags.clone();
+    assert!(flags.contains(&"dragon_season".to_owned()), "{flags:?}");
+    assert!(
+        !flags.contains(&"gray_goo_crisis_set".to_owned()),
+        "{flags:?}"
+    );
+    assert!(flags.contains(&"game_started".to_owned()), "{flags:?}");
+    assert_eq!(reprojected(&session).global_flags, flags);
 }
