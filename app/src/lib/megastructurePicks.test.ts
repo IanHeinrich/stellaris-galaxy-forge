@@ -380,6 +380,18 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(offered).not.toContain("lgate_base");
   });
 
+  it("offers a type the game never builds on a star on a planet, not on a star", () => {
+    const furnace = megastructureTypeView("orbital_arc_furnace_4", {
+      placement: onAny,
+      planet_only: true,
+    });
+    const types = new Map([[furnace.key, furnace]]);
+    const keys = (spot: MegastructureSpot) =>
+      megastructureEntries(types, NAMES, spot).flatMap((e) => entryStages(e).map((s) => s.key));
+    expect(keys(planet)).toEqual(["orbital_arc_furnace_4"]);
+    expect(keys(star)).toEqual([]);
+  });
+
   it("keeps a base game gateway in the base game's section though a mod's file won, offers a wreck without its repair, and leaves out what the game data hides", () => {
     expect(entries(space).map(shape)).toEqual([
       { label: "Gateway", section: null, rows: [["build", null, ["gateway_0", "gateway_final"]]] },

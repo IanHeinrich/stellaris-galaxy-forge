@@ -5,10 +5,13 @@ vi.mock("../api/events");
 
 import { GEOMETRY_REASONS } from "../lib/details/orbitIntent";
 import { DETAILS_DEBOUNCE_MS } from "./batching";
+import { documentCapabilities } from "../lib/capabilities";
 import { useDetailsStore } from "./detailsStore";
+import { useFileSessionStore } from "./fileSessionStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { polar } from "../lib/details/orbits";
-import { saveBody } from "../test/builders";
+import type { MegastructurePlace } from "../generated/MegastructurePlace";
+import { megastructureSummary, saveBody } from "../test/builders";
 import { editResult, orbitClasses, orbitSystem } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
@@ -87,6 +90,68 @@ describe("applyGeometry", () => {
 
     expect(await applyGeometry(intent)).toBe(false);
     expect(useMapChromeStore.getState().sceneHint).toBe(GEOMETRY_REASONS.star);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("a megastructure's move", () => {
+  /** Sol with a gateway at a point of its own and a Science Nexus around planet 5. */
+  function withStructures(): void {
+    const megastructures = [
+      megastructureSummary({ id: 40, kind: "gateway_final", at: [0, 250] }),
+      megastructureSummary({ id: 41, kind: "think_tank_3", planet: LONE, at: null }),
+    ];
+    useDetailsStore.setState({
+      details: new Map([[SOL, orbitSystem({ id: SOL, megastructures })]]),
+    });
+  }
+  const moved = (megastructure: number, at: MegastructurePlace) =>
+    ({ kind: "moveMegastructure", system: SOL, megastructure, at }) as const;
+
+  it("sends the op that moves a structure to a point or onto another body", async () => {
+    withStructures();
+    expect(systemGeometry(SOL).editing.megastructures).toBe(true);
+    expect(await applyGeometry(moved(40, { place: "free", x: 10, y: 220 }))).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "MoveMegastructure",
+      megastructure: 40,
+      at: { place: "free", x: 10, y: 220 },
+    });
+    expect(await applyGeometry(moved(41, { place: "body", body: 2 }))).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "MoveMegastructure",
+      megastructure: 41,
+      at: { place: "body", body: 2 },
+    });
+  });
+
+  it("sends nothing where it stands already, and refuses a row or body not in the system", async () => {
+    withStructures();
+    expect(await applyGeometry(moved(41, { place: "body", body: LONE }))).toBe(false);
+    const said: string[] = [];
+    const say = (reason: string) => said.push(reason);
+    expect(await applyGeometry(moved(99, { place: "body", body: 2 }), say)).toBe(false);
+    expect(await applyGeometry(moved(41, { place: "body", body: 99 }), say)).toBe(false);
+    expect(said).toEqual([GEOMETRY_REASONS.megastructureElsewhere, GEOMETRY_REASONS.elsewhere]);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("moves nothing in a save before Stellaris 4.0, which the core refuses", async () => {
+    withStructures();
+    const session = useFileSessionStore.getState();
+    useFileSessionStore.setState({
+      capabilities: { ...documentCapabilities(session), geometry: false },
+    });
+    expect(systemGeometry(SOL).editing.megastructures).toBe(false);
+    expect(await applyGeometry(moved(40, { place: "free", x: 10, y: 220 }))).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("moves nothing on a scenario", async () => {
+    await openFixtureScenario();
+    withStructures();
+    expect(systemGeometry(SOL).editing.megastructures).toBe(false);
+    expect(await applyGeometry(moved(40, { place: "free", x: 10, y: 220 }))).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

@@ -252,6 +252,7 @@ impl Context<'_> {
             planet: placed.planet,
             at: placed.at,
             culture: spawn.culture.clone(),
+            made_body: false,
             spawn: Some(StructureSpawn {
                 at: Some(spawn.line.clone()),
                 always: always && spawn.always && body_always,

@@ -5,6 +5,7 @@
  */
 import type { Bounds } from "../../generated/Bounds";
 import type { Capabilities } from "../../generated/Capabilities";
+import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { Op } from "../../generated/Op";
 import { BELT_SCATTER, VANILLA_SYSTEM_RADII } from "../../generated/constants";
@@ -49,6 +50,7 @@ import {
   type LayoutOverride,
   type SystemLayout,
 } from "./orbits";
+import { moveMegastructureOp } from "./megastructureMoves";
 import { isRingSegment as isSegmentClass } from "./ringWorldRemoval";
 
 type Belt = { kind: string; radius: number };
@@ -59,6 +61,7 @@ const NOTHING_EDITABLE: SceneEditing = {
   innerRadius: false,
   innerFloor: VANILLA_SYSTEM_RADII.min_inner,
   wormholes: new Set(),
+  megastructures: false,
 };
 
 /** Nothing about the system's geometry may be edited. */
@@ -169,6 +172,7 @@ export function layoutEditing(frame: GeometryFrame): SceneEditing {
     innerRadius: details.inner_radius !== null,
     innerFloor: innerFloorOf(frame),
     wormholes: new Set(details.wormholes.filter(isNaturalWormhole).map((w) => w.id)),
+    megastructures: true,
   };
 }
 
@@ -252,6 +256,11 @@ export function layoutPreview(intent: GeometryIntent, frame: GeometryFrame): Lay
       return {
         wormholes: new Map([[intent.wormhole, polar(0, 0, intent.radius, intent.angle)]]),
       };
+    case "moveMegastructure": {
+      const { shown } = intent;
+      const at: MegastructurePlace = shown ? { place: "free", ...shown } : intent.at;
+      return { megastructures: new Map([[intent.megastructure, at]]) };
+    }
   }
 }
 
@@ -351,6 +360,25 @@ function wormholeOp(
   return { op: { type: "MoveWormhole", wormhole: id, radius, angle: wrapDegrees(angle) } };
 }
 
+function megastructureOp(
+  intent: Extract<GeometryIntent, { kind: "moveMegastructure" }>,
+  frame: GeometryFrame,
+): GeometryOp {
+  const row = frame.details?.megastructures.find((m) => m.id === intent.megastructure);
+  if (!row) return { refused: GEOMETRY_REASONS.megastructureElsewhere };
+  const { at } = intent;
+  if (at.place !== "body" && !(Number.isFinite(at.x) && Number.isFinite(at.y))) {
+    return { refused: GEOMETRY_REASONS.notANumber };
+  }
+  const bodies = frame.layout.bodies;
+  if (at.place !== "free" && !bodies.some((b) => b.id === at.body)) {
+    return { refused: GEOMETRY_REASONS.elsewhere };
+  }
+  const home = bodies.find((b) => b.id === row.planet);
+  const op = moveMegastructureOp(row, at, home ? [home.x, home.y] : null);
+  return op === null ? null : { op };
+}
+
 /** The class of body `id`, as the details give it. */
 function classOfBody(frame: GeometryFrame, id: number): string | undefined {
   return frame.details?.planets.find((p) => p.id === id)?.class;
@@ -426,6 +454,8 @@ function saveOp(asked: GeometryIntent, frame: GeometryFrame): GeometryOp {
     }
     case "moveWormhole":
       return wormholeOp(intent, frame);
+    case "moveMegastructure":
+      return megastructureOp(intent, frame);
   }
 }
 
