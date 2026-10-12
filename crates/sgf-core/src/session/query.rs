@@ -1,9 +1,11 @@
 use super::Session;
-use crate::format::save::write::{copy_bodies, megastructure_links, move_planet};
+use crate::format::save::write::{add_ring_world, copy_bodies, megastructure_links, move_planet};
 use crate::format::scenario::effect;
-use crate::ops::{NewBody, Op, OpError, Plan};
+use crate::ops::{NewBody, NewRingWorld, Op, OpError, Plan};
 use crate::search;
-use crate::views::{OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, SearchResult};
+use crate::views::{
+    OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, RingWorldClearing, SearchResult,
+};
 
 impl Session {
     /// A scenario system's own `effect = { … }` block and the line it starts on.
@@ -26,6 +28,27 @@ impl Session {
         system: u32,
     ) -> Result<crate::format::save::site::ConstructionSite, OpError> {
         crate::format::save::site::read(self, system)
+    }
+
+    /// What clearing save system `system` for a ring world takes, as the game's frame
+    /// clears it: every body that is not a star, with the colonies on them, and every belt.
+    pub fn ring_world_clearing(&self, system: u32) -> Result<RingWorldClearing, OpError> {
+        add_ring_world::clearing(self, system)
+    }
+
+    /// The op that adds `ring` round save system `system`'s star for `owner`: one
+    /// [`Op::AddRingWorld`], or with `clear` a batch that first deletes every body that is
+    /// not a star with [`Op::DeleteBody`], moons first, and every belt with
+    /// [`Op::RemoveBelt`], as [`Self::ring_world_clearing`] lists them. Clearing a body a
+    /// starbase orbits is refused.
+    pub fn ring_world_op(
+        &self,
+        system: u32,
+        owner: Option<u32>,
+        ring: NewRingWorld,
+        clear: bool,
+    ) -> Result<Op, OpError> {
+        add_ring_world::add_op(self, system, owner, ring, clear)
     }
 
     /// Every scenario system carrying an `effect = { … }` block, in file order: its id,

@@ -1,6 +1,9 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
-use sgf_core::ops::{LanePair, MegastructurePlace, NewBody, NewHabitat, Op, SystemMove};
+use sgf_core::ops::{
+    LanePair, MegastructurePlace, NewBody, NewHabitat, NewRingWorld, Op, RingQuadrant, RingRow,
+    RingSegment, SystemMove,
+};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
@@ -60,6 +63,15 @@ impl Example {
             save: Some(op),
             scenario: None,
             open_save: save_4_5_with_added_body,
+        }
+    }
+
+    /// A save example that needs a ring world added to the 4.5 sample in the session.
+    fn added_ring_world(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: save_4_5_with_added_ring_world,
         }
     }
 
@@ -187,6 +199,179 @@ pub fn sol_habitat() -> Op {
                 .to_vec(),
         },
     }
+}
+
+/// The 4.5 sample's Habraq: star 778, four planets, moon 783 of 782 and one belt, owned.
+pub const HABRAQ: u32 = 159;
+/// The 4.5 sample's Chors Compass: star 794, four planets and two belts, owned.
+pub const CHORS_COMPASS: u32 = 23;
+
+/// The save angles of the vanilla ring world's quadrants, A to D.
+pub const QUADRANT_ANGLES: [f64; 4] = [180.0, 270.0, 0.0, 90.0];
+
+fn segment(
+    class: &str,
+    angle: f64,
+    name: &str,
+    model: Option<&str>,
+    flags: &[&str],
+) -> RingSegment {
+    RingSegment {
+        class: class.to_owned(),
+        size: 10,
+        at: OrbitPlacement {
+            radius: 45.0,
+            angle: (angle + 360.0) % 360.0,
+        },
+        name: name.to_owned(),
+        model: model.map(|stem| format!("mammalian_01_{stem}")),
+        flags: flags.iter().map(|f| (*f).to_owned()).collect(),
+        megastructure_icon: class == "pc_ringworld_habitable",
+    }
+}
+
+/// A finished quadrant of the vanilla ring world at save angle `at`, as the install lays it
+/// out in the culture `mammalian_01`: tech 30 degrees on, the seam on the row's point and the
+/// habitable section, named `habitable`, 30 degrees back.
+pub fn finished_quadrant(at: f64, habitable: &str) -> RingQuadrant {
+    RingQuadrant::Finished {
+        segments: vec![
+            segment(
+                "pc_ringworld_tech",
+                at + 30.0,
+                "NAME_Ring_Section",
+                Some("ringworld_tech_entity_01_entity"),
+                &["megastructure"],
+            ),
+            segment(
+                "pc_ringworld_seam",
+                at,
+                "NAME_Ring_Section",
+                Some("ringworld_seam_entity_01_entity"),
+                &["megastructure"],
+            ),
+            segment(
+                "pc_ringworld_habitable",
+                at - 30.0,
+                habitable,
+                Some("ringworld_habitable_entity_01_entity"),
+                &["megastructure"],
+            ),
+        ],
+    }
+}
+
+/// A damaged quadrant at save angle `at`: the damaged classes with no model or flag.
+pub fn damaged_quadrant(at: f64) -> RingQuadrant {
+    let mut segments = vec![
+        segment(
+            "pc_ringworld_tech_damaged",
+            at + 30.0,
+            "NAME_Ring_Section",
+            None,
+            &[],
+        ),
+        segment(
+            "pc_ringworld_seam_damaged",
+            at,
+            "NAME_Ring_Section",
+            None,
+            &[],
+        ),
+        segment(
+            "pc_ringworld_habitable_damaged",
+            at - 30.0,
+            "NAME_Ring_Section",
+            None,
+            &[],
+        ),
+    ];
+    for segment in &mut segments {
+        segment.megastructure_icon = false;
+    }
+    RingQuadrant::Damaged { segments }
+}
+
+fn ring_row(kind: &str, at: f64, name: Option<&str>, culture: Option<&str>) -> RingRow {
+    RingRow {
+        kind: kind.to_owned(),
+        at: OrbitPlacement {
+            radius: 45.0,
+            angle: at,
+        },
+        name: name.map(str::to_owned),
+        owned: true,
+        culture: culture.map(str::to_owned),
+    }
+}
+
+/// The vanilla ring world with every quadrant finished, flagging its star as Gigastructural
+/// Engineering's does.
+pub fn finished_ring() -> NewRingWorld {
+    NewRingWorld {
+        quadrants: QUADRANT_ANGLES
+            .iter()
+            .zip(["A", "B", "C", "D"])
+            .map(|(&at, q)| finished_quadrant(at, &format!("NAME_Habitable_Section_{q}")))
+            .collect(),
+        system_flags: vec!["ring_world_built".to_owned()],
+        system_variables: Vec::new(),
+        star_flags: vec!["has_megastructure".to_owned()],
+    }
+}
+
+/// The vanilla ring world with A finished, B a frame, C ruined and D damaged.
+pub fn mixed_ring() -> NewRingWorld {
+    NewRingWorld {
+        quadrants: vec![
+            finished_quadrant(180.0, "NAME_Habitable_Section_A"),
+            RingQuadrant::Frame {
+                row: ring_row(
+                    "ring_world_2",
+                    270.0,
+                    Some("NAME_Ring_Section_B"),
+                    Some("mammalian_01"),
+                ),
+            },
+            RingQuadrant::Ruined {
+                row: ring_row("ring_world_ruined", 0.0, None, None),
+            },
+            damaged_quadrant(90.0),
+        ],
+        system_flags: ["ring_world_built", "ring_section_1"]
+            .map(str::to_owned)
+            .to_vec(),
+        system_variables: Vec::new(),
+        star_flags: Vec::new(),
+    }
+}
+
+/// The mixed ring round Chors Compass's star, owned by `owner`, with its planets left where
+/// they are.
+pub fn chors_ring(owner: Option<u32>) -> Op {
+    Op::AddRingWorld {
+        system: CHORS_COMPASS,
+        owner,
+        ring: mixed_ring(),
+    }
+}
+
+/// The 4.5 sample with [`chors_ring`] added for country 0, and the op that takes it out.
+pub fn save_4_5_with_added_ring_world() -> Session {
+    let mut session = save_4_5();
+    session
+        .apply(chors_ring(Some(0)))
+        .expect("add the ring world");
+    session
+}
+
+/// The inverse of [`chors_ring`] for country 0 on the 4.5 sample.
+pub fn chors_ring_removal() -> Op {
+    let mut session = save_4_5();
+    session
+        .apply(chors_ring(Some(0)))
+        .expect("add the ring world")
+        .inverse
 }
 
 /// The id the 4.5 sample's first added planet takes: dead slot 57, one generation on.

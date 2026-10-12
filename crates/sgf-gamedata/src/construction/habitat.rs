@@ -36,6 +36,7 @@ pub fn habitat(
     let plan = Plan {
         on_star,
         sections: Vec::new(),
+        culture: culture.map(str::to_owned),
     };
     let laid = layout::lay_out(gd, key, &plan)?;
     match of_layout(&laid, culture) {

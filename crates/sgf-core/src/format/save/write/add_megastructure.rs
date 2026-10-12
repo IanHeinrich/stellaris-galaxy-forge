@@ -140,6 +140,7 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
     };
     let row = MegastructureRow {
         id,
+        name: None,
         kind: new.kind,
         at,
         system,

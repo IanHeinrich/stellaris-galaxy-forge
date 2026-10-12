@@ -36,6 +36,7 @@ mod op_kinds;
 mod ops_add_body;
 mod ops_add_habitat;
 mod ops_add_megastructure;
+mod ops_add_ring_world;
 mod ops_add_special_system;
 mod ops_add_special_system_counts;
 mod ops_add_special_system_flags;

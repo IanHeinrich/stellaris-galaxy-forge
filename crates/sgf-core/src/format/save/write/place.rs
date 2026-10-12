@@ -66,6 +66,19 @@ pub(crate) mod system {
         before: &[keys::INITIALIZER],
         last: false,
     };
+    /// After `flags`, as Gigastructural Engineering's ring world leaves `ring_segments`.
+    pub(crate) const VARIABLES: Place = Place {
+        key: keys::VARIABLES,
+        after: &[
+            keys::FLAGS,
+            keys::ARM,
+            keys::DISCOVERY,
+            keys::ASTEROID_BELTS,
+            keys::BYPASSES,
+        ],
+        before: &[keys::INITIALIZER],
+        last: false,
+    };
     /// The game writes hyperlane, then asteroid_belts, then discovery, arm, flags and
     /// initializer.
     pub(crate) const ASTEROID_BELTS: Place = Place {

@@ -19,6 +19,7 @@
 
 pub mod habitat;
 pub mod layout;
+pub mod ring_world;
 
 use std::collections::BTreeMap;
 

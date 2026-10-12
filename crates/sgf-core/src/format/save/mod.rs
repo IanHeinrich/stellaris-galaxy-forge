@@ -23,11 +23,11 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_body, add_habitat, add_megastructure, add_system, anomaly, belts, bodies, bulk,
-    delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, flag, lanes, lgate,
-    map_colors, move_planet, move_system, nebula, planet_class, planet_entity, planet_modifier,
-    planet_ring, planet_size, remove_planet, remove_system, rename_planet, rename_system,
-    replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
+    add_body, add_habitat, add_megastructure, add_ring_world, add_system, anomaly, belts, bodies,
+    bulk, delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, flag, lanes,
+    lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
+    planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
+    rename_system, replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
@@ -244,6 +244,14 @@ impl Format for Save {
             Op::AddBody { system, spec, at } => add_body::plan_add(plan, s, *system, spec, *at),
             Op::RemoveBody { body } => add_body::plan_remove(plan, s, *body),
             Op::AddHabitat { body, habitat } => add_habitat::plan_add(plan, s, *body, habitat),
+            Op::AddRingWorld {
+                system,
+                owner,
+                ring,
+            } => add_ring_world::plan_add(plan, s, *system, *owner, ring),
+            Op::RemoveRingWorld { system, written } => {
+                add_ring_world::plan_remove(plan, s, *system, written)
+            }
             Op::SetBodyParent {
                 system,
                 body,

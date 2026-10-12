@@ -3,6 +3,7 @@
 
 use crate::emit::{Lines, coord, quoted};
 use crate::keys;
+use crate::projections::name::NameTemplate;
 
 /// `owner.type` of a bypass whose owner is a `megastructures` row.
 const MEGASTRUCTURE_OWNER: &str = "6";
@@ -13,6 +14,8 @@ const NOT_DISMANTLED: &str = "\"0.01.01\"";
 #[derive(Debug, Clone, PartialEq)]
 pub struct MegastructureRow<'a> {
     pub id: u32,
+    /// Written first, as the game writes a name `set_name` gave the row.
+    pub name: Option<&'a NameTemplate>,
     pub kind: &'a str,
     /// Relative to the system's centre.
     pub at: (f64, f64),
@@ -27,6 +30,10 @@ pub struct MegastructureRow<'a> {
 pub fn megastructure_row(indent: &[u8], row: &MegastructureRow<'_>) -> Vec<u8> {
     let mut w = Lines::new(indent);
     w.open(0, &row.id.to_string());
+    if let Some(name) = row.name {
+        w.line(1, &format!("{}=", keys::NAME));
+        w.name(1, name);
+    }
     w.pair(1, keys::TYPE, &quoted(row.kind));
     w.open(1, keys::COORDINATE);
     w.pair(2, keys::X, &coord(row.at.0));

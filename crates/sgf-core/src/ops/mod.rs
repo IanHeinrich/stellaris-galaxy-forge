@@ -35,8 +35,9 @@ pub use op::{
     BodyName, ClassChange, ConstructionDeposit, ConstructionModifier, DetailsReach, EmpireFlag,
     LaneLength, LanePair, MapColorPair, MegastructureConstruction, MegastructureDismantle,
     MegastructurePlace, ModifierHost, NebulaCloud, NebulaFootprint, NewBody, NewBypass, NewHabitat,
-    NewModifier, NewMoon, NewName, NewSystem, Op, OpReach, PairPoints, Parent, PlanetClassRule,
-    PlanetLook, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove, VariableDrop,
+    NewModifier, NewMoon, NewName, NewRingWorld, NewSystem, Op, OpReach, PairPoints, Parent,
+    PlanetClassRule, PlanetLook, RingQuadrant, RingRow, RingSegment, RingVariable,
+    RingWorldWritten, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove, VariableDrop,
     VariableRaise,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};

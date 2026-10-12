@@ -313,7 +313,7 @@ pub enum Placement {
 pub enum Unsupported {
     /// It stands for a bypass other than a gateway or a relay.
     Bypass { bypass: String },
-    /// A ring world quadrant, which the game writes as several rows and planets.
+    /// A ring world past its site, which the game writes as several rows and planets.
     RingWorld,
     /// Building it makes a starbase.
     BecomesStarbase,
@@ -429,12 +429,21 @@ pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> Me
     let resolved: Vec<(String, Placement, bool, Option<Family>)> = types
         .iter()
         .map(|def| {
-            let flags = stages(&types, def).any(|stage| stage.sets_has_megastructure);
+            let flags = stages(&types, def).any(|stage| {
+                stage.sets_has_megastructure
+                    || stage
+                        .completes
+                        .body_effects
+                        .iter()
+                        .any(|effect| flags_body(effect, scripts, 1))
+            });
             let own = match placement(&types, def, &on_stars) {
                 Placement::Body { .. } if bypassed.contains(&def.key) => Placement::Free {
                     outside_gravity_well: true,
                 },
-                Placement::Body { star_only } if whole.contains(&def.key) => {
+                Placement::Body { star_only }
+                    if whole.contains(&def.key) && !is_ring_world_site(&types, def) =>
+                {
                     Placement::Unsupported {
                         why: Unsupported::WholeStructure { star_only },
                     }
@@ -728,7 +737,7 @@ fn placement(
         };
         return Placement::Unsupported { why };
     }
-    if def.key.starts_with("ring_world") {
+    if def.key.starts_with("ring_world") && !is_ring_world_site(types, def) {
         return Placement::Unsupported {
             why: Unsupported::RingWorld,
         };
@@ -756,6 +765,17 @@ fn placement(
             star_only: on_stars.contains(&first_stage(types, def).key),
         },
     }
+}
+
+/// Whether `def` is a ring world's site, the one stage of a ring world the editor adds as a
+/// row: a working type no stage is built over and no stage spawns.
+fn is_ring_world_site(types: &MegastructureTypes, def: &MegastructureDef) -> bool {
+    def.key.starts_with("ring_world")
+        && def.upgrade_from.is_empty()
+        && !is_ruin(&def.key)
+        && !types
+            .iter()
+            .any(|other| other.completes.spawned.contains(&def.key))
 }
 
 /// The stage `def`'s chain starts from, following the first of each `upgrade_from`.
@@ -795,13 +815,35 @@ fn stages<'t>(
 
 /// `on_build_complete` sets the planet flag `has_megastructure`.
 fn sets_has_megastructure(def: &Def) -> bool {
+    def.node
+        .find("on_build_complete", &def.src)
+        .is_some_and(|block| flags_megastructure(block, &def.src))
+}
+
+/// The planet and carrier flag setters below `node` set `has_megastructure`.
+fn flags_megastructure(node: &Node, src: &[u8]) -> bool {
     let mut found = Vec::new();
-    if let Some(block) = def.node.find("on_build_complete", &def.src) {
-        script::find_deep(block, "set_planet_flag", &def.src, &mut found);
+    for key in ["set_planet_flag", "set_carrier_flag"] {
+        script::find_deep(node, key, src, &mut found);
     }
     found
         .iter()
-        .any(|flag| flag.scalar_str(&def.src) == Some("has_megastructure"))
+        .any(|flag| flag.scalar_str(src) == Some("has_megastructure"))
+}
+
+/// The scripted effect `effect`, run on a stage's body, sets `has_megastructure` on it, as
+/// Gigastructural Engineering's `giga_set_has_mega_flag` does, itself or through the effects
+/// it calls.
+fn flags_body(effect: &str, scripts: &ScriptIndex, depth: usize) -> bool {
+    let Some(def) = scripts.effect(effect) else {
+        return false;
+    };
+    if flags_megastructure(&def.node, &def.src) {
+        return true;
+    }
+    let mut called = Vec::new();
+    effects_called(&def.node, &def.src, &mut called);
+    depth < EFFECT_DEPTH && called.iter().any(|e| flags_body(e, scripts, depth + 1))
 }
 
 fn activates_gateway(def: &Def) -> bool {

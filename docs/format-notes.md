@@ -824,6 +824,66 @@ for planets or deposits.
   `habitat_phase_03_entity` without a culture, so the editor writes no
   `entity_name` for a habitat in a system no one owns. The editor writes
   no `build_queue`, as for any body it adds; the game builds one on load.
+- A ring world's quadrants, as the game's build chain leaves them and as
+  the editor adds them. Quadrants A to D stand at save angles 180, 270,
+  0 and 90, the game's `orbit_angle` 0, 90, 180 and 270. A finished
+  quadrant is three planets of size 10 round the system's centre, with
+  no `moon_of`: `pc_ringworld_tech` 30° on from the quadrant,
+  `pc_ringworld_seam` on it and `pc_ringworld_habitable` 30° back. A
+  restored quadrant mirrors that. Tech and seam are named
+  `NAME_Ring_Section`, and the habitable sections `NAME_Habitable_Section_A`
+  to `_D` in the order they finish. Each has the planet flag
+  `megastructure` and `entity_name="<culture>_ringworld_<part>_entity_01_entity"`,
+  or no `entity_name` with no culture. `binary_flags` is 65, and 81 on
+  the habitable section, whose `trigger_megastructure_icon` sets bit 16
+  (Acahuabene in a 4.5.2 save with Gigastructural Engineering). A
+  damaged quadrant is the `_damaged` classes at the same angles with no
+  model or flag; the editor names them `NAME_Ring_Section`, as Lachium's
+  are. A frame quadrant is a `ring_world_2` row with `name={ key=... }`
+  first, then `type`, its owner and its owner's culture, and
+  `planet=4294967295`. A ruined quadrant is a `ring_world_ruined` row
+  with no name and no culture. No owner or colony on any segment.
+- The game spawns a ring world's rows at radius 45.20385 and its
+  segments with `orbit=45.20385` and points up to 45.41 out: its polar
+  maths overshoots, by 0.45% on an axis and less between. Quadrant B's
+  row stands at (−0.00045, −45.20385) and its seam at (−0.00226,
+  −45.40862) (Acahuabene in a 4.5.2 save). Initializer segments have
+  `orbit=45`. The editor adds a ring as the game builds one: rows and
+  segments on the base game's angles take the points Acahuabene's ring
+  has, scaled to the ring's radius, and segments `orbit=45.20385`.
+- When the editor adds a ring world, the system gets the flags the build
+  chain leaves (`ring_world_built`, and `ring_section_1` to `_3` while
+  some quadrants stand unfinished), and the star the flags the chain
+  leaves on it: `has_megastructure` under Gigastructural Engineering,
+  none in the base game. The owner's `has_ring_world` and
+  `has_built_or_repaired_megastructure` are not written. The editor
+  clears the system only when asked: every body that is not a star and
+  every belt go as a deleted body and a removed belt do, and the segments
+  take the freed slots one generation on. No save shows what the game
+  does with a starbase whose planet the frame removes. Acahuabene's
+  outpost orbits its star throughout. The editor refuses to clear a
+  planet a starbase orbits.
+- A ring world's site (`ring_world_1`) is one row on the star with
+  `megastructure=<id>` on the star. Under Gigastructural Engineering the
+  site's `giga_set_has_mega_flag` also gives the star `has_megastructure`.
+  The base game's site script sets no such flag. No `ring_world_built`
+  is set at the site under Giga.
+- Gigastructural Engineering's vanilla-size ring world, as it built
+  Acahuabene: rows named `"Ring Section A"` to `"D"` (plain text, not
+  keys) in `mammalian_01` for any culture outside its ten, segments named
+  `"Ring Section"` and `"Habitable Section A"` to `"D"`, models
+  `<culture>_vanilla_{tech,seam,gaia_habitable}_entity` for its twenty
+  cultures and the base game's `<culture>_ringworld_*_entity_01_entity`
+  for others, segment flags `forbid_guillis_planet_modifiers`,
+  `megastructure`, `colony_event` (tech and habitable) and
+  `giga_ringworld_van` (habitable), system flags
+  `giga_forbid_planet_dismantlement` and `ring_01` to `ring_04`, with
+  `ring_world_built` set before `ring_04`, and the system variable
+  `ring_segments` counting finished sections, back to 0 at the fourth.
+  The system's `variables` block stands after `flags`, names in order.
+  The editor writes all of that. It leaves out the Bulk Matter Cache
+  planet, the `giga_system_bm*` variables, the country's flags and
+  counters, and the queues and survey entries the game adds.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the
