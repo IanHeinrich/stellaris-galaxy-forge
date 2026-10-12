@@ -241,6 +241,8 @@ pub enum OpError {
     HoldsBody { system: u32, body: u32 },
     #[error("planet {0} has a megastructure, so it cannot be moved or copied")]
     MegastructurePlanet(u32),
+    #[error("planet {0} is part of a ring world, so it cannot be moved or copied on its own")]
+    RingSegment(u32),
     #[error("planet {0} has a megastructure, so it keeps its class")]
     MegastructureClass(u32),
     #[error("{class} has {models} models, so planet {body} cannot take model {entity}")]
@@ -396,6 +398,7 @@ impl OpError {
             | Self::NoBodies { .. }
             | Self::HoldsBody { .. }
             | Self::MegastructurePlanet { .. }
+            | Self::RingSegment { .. }
             | Self::MegastructureClass { .. }
             | Self::PlanetModelIndex { .. }
             | Self::BodyNotAdded { .. }

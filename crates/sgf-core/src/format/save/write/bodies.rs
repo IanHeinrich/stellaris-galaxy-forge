@@ -11,6 +11,7 @@ use crate::format::save::write::belts;
 use crate::format::save::write::fleets::{move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
@@ -150,6 +151,7 @@ fn frame_of(
     if planet_system(&node, src, body)? != system {
         return Err(OpError::NotABody { body, system });
     }
+    check_segment_stays(&node, src, body)?;
     frame(s, system)
 }
 

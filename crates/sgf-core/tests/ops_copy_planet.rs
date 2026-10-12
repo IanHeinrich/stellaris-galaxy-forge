@@ -232,7 +232,7 @@ fn stars_megastructures_and_empty_pastes_are_refused() {
         ),
         (
             2445,
-            "planet 2445 has a megastructure, so it cannot be moved or copied",
+            "planet 2445 is part of a ring world, so it cannot be moved or copied on its own",
         ),
     ];
     for (body, message) in refusals {

@@ -49,6 +49,7 @@ import {
   type LayoutOverride,
   type SystemLayout,
 } from "./orbits";
+import { isRingSegment as isSegmentClass } from "./ringWorldRemoval";
 
 type Belt = { kind: string; radius: number };
 
@@ -73,9 +74,10 @@ function isAsteroid(planetClass: string | undefined, classes: GeometryFrame["pla
   return planetClass !== undefined && classes.get(planetClass)?.asteroid === true;
 }
 
-/** Whether the install's classes make `planetClass` a ring world segment. */
+/** Whether `planetClass` is a ring world segment, by the core's classes or the install's. */
 function isRingSegment(planetClass: string | undefined, classes: GeometryFrame["planetClasses"]) {
-  return planetClass !== undefined && classes.get(planetClass)?.ringworld === true;
+  if (planetClass === undefined) return false;
+  return isSegmentClass(planetClass) || classes.get(planetClass)?.ringworld === true;
 }
 
 const FIXED_RING_SEGMENT: BodyEditing = {

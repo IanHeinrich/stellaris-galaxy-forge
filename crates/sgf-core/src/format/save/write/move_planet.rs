@@ -18,6 +18,7 @@ use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{self, role};
 use crate::format::save::write::planet_entry::{and_its_moons, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
@@ -411,6 +412,7 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
     let mut claims = Vec::new();
     for &id in &moved {
         let (node, src) = planet_entity(&s.doc, id)?;
+        check_segment_stays(&node, src, id)?;
         if node.find(keys::MEGASTRUCTURE, src).is_some() {
             return Err(OpError::MegastructurePlanet(id));
         }

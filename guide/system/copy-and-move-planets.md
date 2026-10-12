@@ -38,6 +38,9 @@ move is one edit, so one undo puts it all back.
 - Planets keep their names, so Meissa II can end up in Gilprim.
 - Stars, planets with a megastructure, such as a habitat or an arc
   furnace, and occupied planets can't be moved.
+- Ring world sections can't be cut or copied. Their menu has no Cut or
+  Copy. A ring world can only be deleted whole: see
+  [Delete a ring world](megastructures.md#delete-a-ring-world).
 
 To move a single planet, you can also use the System field on its page.
 Type a system's name and pick it from the list. The nearest systems come
@@ -65,5 +68,5 @@ edit.
   Closing the app clears them.
 - A pasted planet with a numbered name, such as Meissa II, takes the
   next number in its new system.
-- Stars and planets with a megastructure can't be copied, and saves from
-  before Stellaris 4.0 can't take a copy.
+- Stars, ring world sections and planets with a megastructure can't be
+  copied, and saves from before Stellaris 4.0 can't take a copy.
