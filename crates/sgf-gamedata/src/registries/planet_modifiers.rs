@@ -29,10 +29,8 @@ impl FromDef for PlanetModifierDef {
         Self {
             modifier: def.scalar("modifier").map(str::to_owned),
             is_null: def.flag("is_null"),
-            spawn_chance: def
-                .node
-                .find("spawn_chance", src)
-                .map_or_else(|| Weight::fixed(0.0), |node| Weight::read(node, def, 0.0)),
+            spawn_chance: Weight::read(&def.node, "spawn_chance", def, 0.0)
+                .unwrap_or_else(|| Weight::fixed(0.0)),
             potential: def
                 .node
                 .find("potential", src)

@@ -18,7 +18,7 @@ use sgf_core::cst::Node;
 use super::{EVENT_KEYS, HOOKS, MAX_DEPTH};
 use crate::GameData;
 use crate::condition::Condition;
-use crate::install::script::{Def, find_deep, whole};
+use crate::install::script::{Def, find_deep, whole, written};
 use crate::registries::megastructures::MegastructureDef;
 
 /// The scripted effect the game ruins a megastructure row with, run in the row's scope.
@@ -1085,11 +1085,11 @@ impl<'d> Walk<'d> {
 
     /// What `name` is written as in `node`, a block shown as [`BLOCK`]; `None` when absent.
     fn written(&self, node: &Node, name: &str) -> Option<String> {
-        let found = node.find(name, self.src())?;
+        node.find(name, self.src())?;
         Some(
-            found
-                .scalar_str(self.src())
-                .map_or_else(|| BLOCK.to_owned(), |v| self.substitute(v)),
+            self.def
+                .written_in(node, name)
+                .map_or_else(|| BLOCK.to_owned(), |v| self.substitute(&v)),
         )
     }
 
@@ -1142,12 +1142,12 @@ impl<'d> Walk<'d> {
 
     fn arguments(&self, call: &Node) -> Vec<(String, String)> {
         let src = self.src();
-        call.children()
-            .iter()
-            .filter_map(|arg| {
-                let name = arg.key_str(src)?;
-                let value = arg.scalar_str(src)?;
-                Some((name.to_owned(), self.substitute(value)))
+        let args = call.children();
+        (0..args.len())
+            .filter_map(|at| {
+                let name = args[at].key_str(src)?;
+                let value = written(args, at, src)?;
+                Some((name.to_owned(), self.substitute(&value)))
             })
             .collect()
     }

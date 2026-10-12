@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashSet};
 use sgf_core::cst::Node;
 use sgf_core::format::save::details::{BodySpawn, RawStatement, SystemDetails, VariableUse};
 use sgf_core::span::Span;
-use sgf_gamedata::install::script::{Def, Range, whole};
+use sgf_gamedata::install::script::{Def, Range, continuation, statement_span, whole};
 
 /// Rows of a raw-key table.
 const TOP: usize = 20;
@@ -286,29 +286,32 @@ impl Walk<'_> {
             Scope::System => Scope::SystemEffect,
             _ => Scope::BodyEffect,
         };
-        for child in node.children() {
-            self.statement(scope, child, kept, copy);
+        for at in statements(node, &self.def.src) {
+            let child = &node.children()[at];
+            self.statement(scope, node, at, kept, copy);
             if child.key_str(&self.def.src) == Some("init_effect") {
-                for effect in child.children() {
-                    self.statement(effects, effect, kept, copy);
+                for effect in statements(child, &self.def.src) {
+                    self.statement(effects, child, effect, kept, copy);
                 }
             }
         }
     }
 
-    fn statement(&mut self, scope: Scope, node: &Node, kept: &mut Kept, copy: u32) {
+    fn statement(&mut self, scope: Scope, parent: &Node, at: usize, kept: &mut Kept, copy: u32) {
         let def = self.def;
         let src = &def.src;
+        let node = &parent.children()[at];
         let start = node.span().start;
         let first = self.counted.insert(start);
         let key = node.key_str(src);
-        let text = String::from_utf8_lossy(node.span().slice(src)).into_owned();
+        let text = String::from_utf8_lossy(statement_span(parent.children(), at, src).slice(src))
+            .into_owned();
 
         let read = key.is_some_and(|key| match scope {
-            Scope::System => system_key_read(def, key, node),
+            Scope::System => system_key_read(def, key, parent, at),
             Scope::SystemEffect => system_effect_read(def, key, node, self.starbase),
-            Scope::Body => body_key_read(def, key, node),
-            Scope::BodyEffect => body_effect_read(def, key, node),
+            Scope::Body => body_key_read(def, key, parent, at),
+            Scope::BodyEffect => body_effect_read(def, key, parent, at),
         });
         let by_variable =
             !read && scope.records_variables() && key.is_some_and(|key| kept.variable(key));
@@ -435,21 +438,33 @@ fn yes_or_no(scalar: Option<&str>) -> bool {
     matches!(scalar, Some("yes" | "no"))
 }
 
-/// `Def::initializer_range_of` of this statement: `key = n`, or a block with a `min`, a `max`
-/// or both, `@variable`s resolved.
-fn range_read(def: &Def, node: &Node) -> bool {
-    def.initializer_range_of(node).is_some()
+/// The positions in `node` of the statements that stand on their own. The words of inline
+/// maths written with spaces, `@[ 4 * x ]`, follow the statement they belong to as keyless
+/// ones, and are read with it.
+fn statements(node: &Node, src: &[u8]) -> Vec<usize> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    while at < node.children().len() {
+        out.push(at);
+        at += 1 + continuation(node.children(), at, src);
+    }
+    out
 }
 
-fn number_read(def: &Def, node: &Node) -> bool {
-    node.scalar_str(&def.src)
-        .and_then(|text| def.number_of(text))
-        .is_some()
+/// `Def::initializer_range_at` of the statement at `at` in `parent`: `key = n`, or a block
+/// with a `min`, a `max` or both, `@variable`s resolved.
+fn range_read(def: &Def, parent: &Node, at: usize) -> bool {
+    def.initializer_range_at(parent, at).is_some()
+}
+
+fn number_read(def: &Def, parent: &Node, at: usize) -> bool {
+    def.number_at(parent, at).is_some()
 }
 
 /// A key of the initializer's own block, in the shape the reader takes it in.
-fn system_key_read(def: &Def, key: &str, node: &Node) -> bool {
+fn system_key_read(def: &Def, key: &str, parent: &Node, at: usize) -> bool {
     let src = &def.src;
+    let node = &parent.children()[at];
     let scalar = node.scalar_str(src);
     let block = node.scalar_span().is_none();
     match key {
@@ -459,10 +474,10 @@ fn system_key_read(def: &Def, key: &str, node: &Node) -> bool {
         // `Initializer::read_spliced`: `max_instances` is read when it parses as a count.
         "max_instances" => scalar.is_some_and(|s| s.parse::<u32>().is_ok()),
         // `initializers::bodies`: the ranges of `change_orbit` before each `planet`, summed.
-        "change_orbit" => range_read(def, node),
+        "change_orbit" => range_read(def, parent, at),
         // `stated::system`: the numbers `spawn_chance`, `scaled_spawn_chance` and the offsets.
         "spawn_chance" | "scaled_spawn_chance" | "inner_radius_offset" | "outer_radius_offset" => {
-            number_read(def, node)
+            number_read(def, parent, at)
         }
         // `stated::system`: read as true when `yes`; `no` states nothing to keep.
         "prevent_anomalies" | "primitive_system" => yes_or_no(scalar),
@@ -505,7 +520,8 @@ fn system_effect_read(def: &Def, key: &str, node: &Node, starbase: Option<Span>)
 }
 
 /// A key of a `planet` or `moon` block, in the shape the reader takes it in.
-fn body_key_read(def: &Def, key: &str, node: &Node) -> bool {
+fn body_key_read(def: &Def, key: &str, parent: &Node, at: usize) -> bool {
+    let node = &parent.children()[at];
     let scalar = node.scalar_str(&def.src);
     let block = node.scalar_span().is_none();
     match key {
@@ -513,11 +529,11 @@ fn body_key_read(def: &Def, key: &str, node: &Node) -> bool {
         // `anomaly`.
         "name" | "class" | "entity" | "modifier" | "anomaly" => scalar.is_some(),
         // `initializers::body`: `Def::initializer_range_in`.
-        "size" | "orbit_distance" | "count" => range_read(def, node),
+        "size" | "orbit_distance" | "count" => range_read(def, parent, at),
         // `initializers::body`: `random` is read as any angle.
-        "orbit_angle" => scalar == Some("random") || range_read(def, node),
+        "orbit_angle" => scalar == Some("random") || range_read(def, parent, at),
         // `initializers::bodies`: the ranges of `change_orbit` before each moon, summed.
-        "change_orbit" => range_read(def, node),
+        "change_orbit" => range_read(def, parent, at),
         // `initializers::body`: `has_ring`; `stated::body`: `home_planet`, `starting_planet`.
         "has_ring" | "home_planet" | "starting_planet" => yes_or_no(scalar),
         // `stated::body`: `deposit_blockers = none`, `modifiers = none`.
@@ -531,8 +547,9 @@ fn body_key_read(def: &Def, key: &str, node: &Node) -> bool {
 }
 
 /// A statement of a body's `init_effect`, in the shape `stated::body_effect` reads.
-fn body_effect_read(def: &Def, key: &str, node: &Node) -> bool {
+fn body_effect_read(def: &Def, key: &str, parent: &Node, at: usize) -> bool {
     let src = &def.src;
+    let node = &parent.children()[at];
     let scalar = node.scalar_str(src);
     let field = |name: &str| node.find(name, src).and_then(|n| n.scalar_str(src));
     match key {
@@ -548,7 +565,7 @@ fn body_effect_read(def: &Def, key: &str, node: &Node) -> bool {
         "set_name" => scalar.or_else(|| field("key")).is_some(),
         "set_planet_entity" => field("entity").or_else(|| field("picture")).is_some(),
         "change_pc" => scalar.or_else(|| field("class")).is_some(),
-        "set_planet_size" => scalar.and_then(|s| def.number_of(s)).is_some(),
+        "set_planet_size" => def.number_at(parent, at).is_some(),
         "add_anomaly" => field("category").or(scalar).is_some(),
         "create_ambient_object" => field("type").is_some(),
         _ => false,

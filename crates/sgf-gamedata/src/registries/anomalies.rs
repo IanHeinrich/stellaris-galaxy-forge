@@ -44,8 +44,8 @@ impl FromDef for AnomalyCategoryDef {
                 .map_or_else(|| format!("{key}_desc"), str::to_owned),
             on_spawn: def.node.find("on_spawn", src).is_some(),
             chain,
-            spawn_chance: spawn_chance
-                .map_or_else(|| Weight::fixed(0.0), |node| Weight::read(node, def, 0.0)),
+            spawn_chance: Weight::read(&def.node, "spawn_chance", def, 0.0)
+                .unwrap_or_else(|| Weight::fixed(0.0)),
             key,
         }
     }

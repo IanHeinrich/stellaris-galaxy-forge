@@ -312,10 +312,7 @@ fn repeat(
     if node.find("limit", &def.src).is_some() {
         return None;
     }
-    let count = node
-        .find("count", &def.src)
-        .and_then(|c| c.scalar_str(&def.src))
-        .and_then(|text| def.number_of(text))?;
+    let count = def.number_in(node, "count")?;
     let mut inner = Vec::new();
     read_block(node, def, dropping, &mut inner, unwritten);
     Some(BodyEffect::Repeat(count.max(0.0).round() as u32, inner))

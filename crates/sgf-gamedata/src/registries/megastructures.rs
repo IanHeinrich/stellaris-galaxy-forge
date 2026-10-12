@@ -903,12 +903,6 @@ fn offset(def: &Def) -> (f64, f64) {
     let Some(block) = def.node.find("entity_offset", &def.src) else {
         return (0.0, 0.0);
     };
-    let axis = |key: &str| {
-        block
-            .find(key, &def.src)
-            .and_then(|n| n.scalar_str(&def.src))
-            .and_then(|text| def.number_of(text))
-            .unwrap_or(0.0)
-    };
+    let axis = |key: &str| def.number_in(block, key).unwrap_or(0.0);
     (axis("x"), axis("y"))
 }

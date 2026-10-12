@@ -390,7 +390,7 @@ impl Initializer {
             usage_weight: node
                 .find("usage_odds", src)
                 .filter(|odds| odds.scalar_span().is_none())
-                .map(|odds| Weight::read(odds, def, 0.0)),
+                .and_then(|_| Weight::read(node, "usage_odds", def, 0.0)),
             max_instances: def.scalar("max_instances").and_then(|s| s.parse().ok()),
             flags: script::list_items(node, "flags", src),
             init_effect: node.find("init_effect", src).is_some(),
@@ -618,10 +618,10 @@ fn icon(country: &Node, src: &[u8]) -> Option<FlagIcon> {
 fn bodies(parent: &Node, keys: &[&str], def: &Def, origin: &Origin) -> Vec<InitPlanet> {
     let mut out = Vec::new();
     let mut change_orbit = Range::fixed(0.0);
-    for child in parent.children() {
+    for (at, child) in parent.children().iter().enumerate() {
         match child.key_str(&def.src) {
             Some("change_orbit") => {
-                if let Some(step) = def.initializer_range_of(child) {
+                if let Some(step) = def.initializer_range_at(parent, at) {
                     change_orbit = Range {
                         min: change_orbit.min + step.min,
                         max: change_orbit.max + step.max,
@@ -686,7 +686,7 @@ fn orbit_angle(node: &Node, def: &Def) -> Option<Range> {
     let found = node.find("orbit_angle", &def.src)?;
     match found.scalar_str(&def.src) {
         Some(RANDOM) => Some(ANY_ANGLE),
-        _ => def.initializer_range_of(found),
+        _ => def.initializer_range_in(node, "orbit_angle"),
     }
 }
 
@@ -826,7 +826,7 @@ fn spawn_reach(def: &Def) -> Vec<(String, Option<f64>)> {
             let reach = def
                 .range_in(block, "distance")
                 .map(|r| r.max)
-                .or_else(|| def.number_of(block.find("max_distance", src)?.scalar_str(src)?));
+                .or_else(|| def.number_in(block, "max_distance"));
             Some((initializer.to_owned(), reach))
         })
         .collect()

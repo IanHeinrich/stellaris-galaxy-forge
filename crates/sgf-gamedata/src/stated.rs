@@ -190,20 +190,20 @@ pub(crate) fn body(node: &Node, def: &Def, origin: &Origin) -> StatedBody {
         variables: variables(node, def, &["moon", "planet", "init_effect"]),
         ..StatedBody::default()
     };
-    for child in node.children() {
+    for (at, child) in node.children().iter().enumerate() {
         let Some(key) = child.key_str(src) else {
             continue;
         };
         let scalar = child.scalar_str(src);
-        if BODY_KEYS.contains(&key) && !readable(child, key, def) {
+        if BODY_KEYS.contains(&key) && !readable(node, at, key, def) {
             out.unread_ring |= key == "has_ring";
-            out.other_keys.push(raw(child, key, src, origin, &[]));
+            out.other_keys.push(raw(node, at, key, src, origin, &[]));
             continue;
         }
         match key {
             "satellite_naming_policy" => {
                 out.satellite_naming = scalar.map(str::to_owned);
-                out.other_keys.push(raw(child, key, src, origin, &[]));
+                out.other_keys.push(raw(node, at, key, src, origin, &[]));
             }
             "flags" => out.flags.extend(items(child, src)),
             "deposit_blockers" => out.no_blockers = scalar == Some("none"),
@@ -215,7 +215,7 @@ pub(crate) fn body(node: &Node, def: &Def, origin: &Origin) -> StatedBody {
             "home_planet" => out.home_planet = scalar == Some("yes"),
             "init_effect" => body_effects(child, def, origin, &mut out),
             _ if BODY_KEYS.contains(&key) => {}
-            _ => out.other_keys.push(raw(child, key, src, origin, &[])),
+            _ => out.other_keys.push(raw(node, at, key, src, origin, &[])),
         }
     }
     out
@@ -223,25 +223,27 @@ pub(crate) fn body(node: &Node, def: &Def, origin: &Origin) -> StatedBody {
 
 fn body_effects(block: &Node, def: &Def, origin: &Origin, out: &mut StatedBody) {
     let src = &def.src;
-    for child in block.children() {
+    for (at, child) in block.children().iter().enumerate() {
         let Some(key) = child.key_str(src) else {
             continue;
         };
-        if !body_effect(child, key, def, out) {
+        if !body_effect(block, at, key, def, out) {
             if keeps_scope(key) {
                 out.class_by_script |= within(child, src, &["change_pc"]) > 0;
                 out.ambient_objects
                     .extend(ambient_objects(child, src, true));
             }
-            out.script.push(raw(child, key, src, origin, &BODY_EFFECTS));
+            out.script
+                .push(raw(block, at, key, src, origin, &BODY_EFFECTS));
         }
     }
 }
 
-/// Whether the statement `child`, keyed `key` the reader models, is written in a shape the
-/// reader takes. One that is not is kept as written rather than read as its default.
-fn readable(child: &Node, key: &str, def: &Def) -> bool {
+/// Whether the statement `node.children()[at]`, keyed `key` the reader models, is written in a
+/// shape the reader takes. One that is not is kept as written rather than read as its default.
+fn readable(node: &Node, at: usize, key: &str, def: &Def) -> bool {
     let src = &def.src;
+    let child = &node.children()[at];
     let scalar = child.scalar_str(src);
     let is_block = child.scalar_span().is_none();
     match key {
@@ -249,15 +251,15 @@ fn readable(child: &Node, key: &str, def: &Def) -> bool {
             scalar.is_some()
         }
         "size" | "orbit_distance" | "count" | "change_orbit" => {
-            def.initializer_range_of(child).is_some()
+            def.initializer_range_at(node, at).is_some()
         }
-        "orbit_angle" => scalar == Some("random") || def.initializer_range_of(child).is_some(),
+        "orbit_angle" => scalar == Some("random") || def.initializer_range_at(node, at).is_some(),
         "has_ring" | "home_planet" | "starting_planet" | "prevent_anomalies"
         | "primitive_system" => matches!(scalar, Some("yes" | "no")),
         "deposit_blockers" | "modifiers" => scalar == Some("none"),
         "max_instances" => scalar.is_some_and(|s| s.parse::<u32>().is_ok()),
         "spawn_chance" | "scaled_spawn_chance" | "inner_radius_offset" | "outer_radius_offset" => {
-            scalar.is_some_and(|s| def.number_of(s).is_some())
+            def.number_at(node, at).is_some()
         }
         "asteroid_belt" => {
             child
@@ -272,10 +274,11 @@ fn readable(child: &Node, key: &str, def: &Def) -> bool {
     }
 }
 
-/// Reads `child`, keyed `key`, into `out` when it is a statement the reader models in the
-/// shape it expects.
-fn body_effect(child: &Node, key: &str, def: &Def, out: &mut StatedBody) -> bool {
+/// Reads `block.children()[at]`, keyed `key`, into `out` when it is a statement the reader
+/// models in the shape it expects.
+fn body_effect(block: &Node, at: usize, key: &str, def: &Def, out: &mut StatedBody) -> bool {
     let src = &def.src;
+    let child = &block.children()[at];
     let scalar = child.scalar_str(src);
     let field = |name: &str| child.find(name, src).and_then(|n| n.scalar_str(src));
     let owned = |text: Option<&str>| text.map(str::to_owned);
@@ -314,7 +317,7 @@ fn body_effect(child: &Node, key: &str, def: &Def, out: &mut StatedBody) -> bool
             };
             out.added_modifiers.push(AddedModifier {
                 modifier,
-                days: field("days").and_then(|days| def.number_of(days)),
+                days: def.number_in(child, "days"),
             });
         }
         "clear_planet_modifiers" => out.clears_modifiers |= scalar == Some("yes"),
@@ -337,7 +340,7 @@ fn body_effect(child: &Node, key: &str, def: &Def, out: &mut StatedBody) -> bool
             out.changed_class = Some(class);
         }
         "set_planet_size" => {
-            let Some(size) = scalar.and_then(|s| def.number_of(s)) else {
+            let Some(size) = def.number_at(block, at) else {
                 return false;
             };
             out.changed_size = Some(script::whole(size));
@@ -401,14 +404,14 @@ pub(crate) fn system(node: &Node, def: &Def, origin: &Origin) -> StatedSystem {
         ..StatedSystem::default()
     };
     let starbase = read_starbase(node, src);
-    for child in node.children() {
+    for (at, child) in node.children().iter().enumerate() {
         let Some(key) = child.key_str(src) else {
             continue;
         };
         let scalar = child.scalar_str(src);
-        let number = || scalar.and_then(|s| def.number_of(s));
-        if SYSTEM_KEYS.contains(&key) && !readable(child, key, def) {
-            out.other_keys.push(raw(child, key, src, origin, &[]));
+        let number = || def.number_at(node, at);
+        if SYSTEM_KEYS.contains(&key) && !readable(node, at, key, def) {
+            out.other_keys.push(raw(node, at, key, src, origin, &[]));
             continue;
         }
         match key {
@@ -419,11 +422,11 @@ pub(crate) fn system(node: &Node, def: &Def, origin: &Origin) -> StatedSystem {
             "outer_radius_offset" => out.outer_radius_offset = number(),
             "spawn_chance" => out.spawn_chance = number(),
             "scaled_spawn_chance" => out.scaled_spawn_chance = number(),
-            "usage_odds" => out.usage_odds = Some(usage_odds(child, def)),
+            "usage_odds" => out.usage_odds = Some(usage_odds(node, at, def)),
             "neighbor_system" => out.neighbors.extend(neighbor(child, def)),
             "init_effect" => system_effects(child, src, origin, starbase, &mut out),
             _ if SYSTEM_KEYS.contains(&key) => {}
-            _ => out.other_keys.push(raw(child, key, src, origin, &[])),
+            _ => out.other_keys.push(raw(node, at, key, src, origin, &[])),
         }
     }
     out
@@ -441,7 +444,7 @@ fn system_effects(
 ) {
     out.ambient_objects
         .extend(ambient_objects(block, src, false));
-    for child in block.children() {
+    for (at, child) in block.children().iter().enumerate() {
         let Some(key) = child.key_str(src) else {
             continue;
         };
@@ -467,7 +470,7 @@ fn system_effects(
         };
         if !modelled {
             out.script
-                .push(raw(child, key, src, origin, &SYSTEM_EFFECTS));
+                .push(raw(block, at, key, src, origin, &SYSTEM_EFFECTS));
         }
     }
 }
@@ -492,22 +495,20 @@ fn first_below<'n>(node: &'n Node, key: &str, src: &[u8]) -> Option<&'n Node> {
         })
 }
 
-fn usage_odds(node: &Node, def: &Def) -> UsageOdds {
+fn usage_odds(parent: &Node, at: usize, def: &Def) -> UsageOdds {
     let src = &def.src;
-    if let Some(written) = node.scalar_str(src) {
-        return match def.number_of(written) {
+    let node = &parent.children()[at];
+    if let Some(written) = script::written(parent.children(), at, src) {
+        return match def.number_of(&written) {
             Some(value) => UsageOdds::Number { value },
             None => UsageOdds::Unknown {
-                written: written.to_owned(),
+                written: written.into_owned(),
             },
         };
     }
     UsageOdds::Script {
         text: text(node, src),
-        base: node
-            .find("base", src)
-            .and_then(|n| n.scalar_str(src))
-            .and_then(|s| def.number_of(s)),
+        base: def.number_in(node, "base"),
     }
 }
 
@@ -562,14 +563,25 @@ fn within(node: &Node, src: &[u8], keys: &[&str]) -> u32 {
 }
 
 /// `node`, keyed `key`, as written, with the statements keyed one of `modelled` inside it.
-fn raw(node: &Node, key: &str, src: &[u8], origin: &Origin, modelled: &[&str]) -> RawStatement {
+fn raw(
+    parent: &Node,
+    at: usize,
+    key: &str,
+    src: &[u8],
+    origin: &Origin,
+    modelled: &[&str],
+) -> RawStatement {
+    let node = &parent.children()[at];
     let inside = match keeps_system_scope(key) {
         true => within(node, src, modelled),
         false => 0,
     };
     RawStatement {
         key: key.to_owned(),
-        text: text(node, src),
+        text: String::from_utf8_lossy(
+            script::statement_span(parent.children(), at, src).slice(src),
+        )
+        .into_owned(),
         modelled: inside,
         at: Some(origin.at(node.span().start)),
     }

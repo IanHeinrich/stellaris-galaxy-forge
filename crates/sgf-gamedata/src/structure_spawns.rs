@@ -7,7 +7,7 @@ use sgf_core::cst::Node;
 use sgf_core::format::save::details::SourceLine;
 
 use crate::initializers::{InitStarbase, Origin};
-use crate::install::script::{Def, Range};
+use crate::install::script::{self, Def, Range};
 use crate::scripts::scope::{
     SAVES_TARGET, describes_system, is_call, is_guard, keeps_scope, keeps_system_scope, runs_always,
 };
@@ -216,19 +216,26 @@ fn orbit(node: &Node, def: &Def) -> WrittenPlace {
     }
     let distance = match distance {
         None => Range::fixed(0.0),
-        Some(written) => match def.initializer_range_of(written) {
+        Some(written) => match def.initializer_range_in(node, "orbit_distance") {
             Some(range) => range,
             None => {
+                let children = node.children();
+                let at = children
+                    .iter()
+                    .position(|child| child.span() == written.span())
+                    .unwrap_or_default();
                 return WrittenPlace::Unknown(
-                    String::from_utf8_lossy(written.span().slice(src)).into_owned(),
+                    String::from_utf8_lossy(script::statement_span(children, at, src).slice(src))
+                        .into_owned(),
                 );
             }
         },
     };
     WrittenPlace::Orbit {
         distance,
-        angle: angle.map_or(Range::fixed(0.0), |written| {
-            def.initializer_range_of(written).unwrap_or(ANY_ANGLE)
+        angle: angle.map_or(Range::fixed(0.0), |_| {
+            def.initializer_range_in(node, "orbit_angle")
+                .unwrap_or(ANY_ANGLE)
         }),
     }
 }
