@@ -165,6 +165,7 @@
   {"q": "add dyson sphere", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add hyper relay", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add gateway", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "kilostructure category", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "megastructure owner", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "megastructure preview", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "megastructure description", "expect": "system/megastructures#add-a-megastructure"},

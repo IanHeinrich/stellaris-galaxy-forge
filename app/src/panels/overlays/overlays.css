@@ -415,18 +415,49 @@
 
 .megastructure-add-list > [role="option"] {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 3px 10px;
   cursor: pointer;
+}
+
+.megastructure-add-portrait {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border-radius: 3px;
+}
+
+.megastructure-add-portrait img,
+.megastructure-add-banner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.megastructure-add-entry {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .megastructure-add-name {
   overflow-wrap: anywhere;
 }
 
+.megastructure-add-category,
 .megastructure-add-summary {
   font-size: 11px;
   overflow-wrap: anywhere;
+}
+
+.megastructure-add-category {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .megastructure-add-list > [role="option"]:hover {
@@ -619,6 +650,15 @@
   align-self: center;
   width: 200px;
   height: 200px;
+}
+
+/* The game's construction card pictures are 570 by 222. */
+.megastructure-add-banner {
+  flex: none;
+  width: 100%;
+  aspect-ratio: 570 / 222;
+  overflow: hidden;
+  border-radius: 3px;
 }
 
 .megastructure-add-preview h2 {
