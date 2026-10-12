@@ -26,6 +26,13 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/**/*.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: { "@typescript-eslint/switch-exhaustiveness-check": "warn" },
+  },
+  {
     files: ["src/lib/**/*.{ts,tsx}"],
     rules: { "@typescript-eslint/no-restricted-imports": ["error", { patterns: UPWARDS }] },
   },

@@ -26,6 +26,7 @@ mod fe_zone_fit;
 mod fe_zones;
 mod galaxy;
 mod game_setup;
+mod guards;
 mod header_counts;
 mod header_list;
 mod index;

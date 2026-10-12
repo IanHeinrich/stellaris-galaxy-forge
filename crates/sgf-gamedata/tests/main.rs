@@ -42,6 +42,7 @@ mod megastructure_layouts_added;
 mod megastructure_offers;
 mod megastructure_views;
 mod megastructures;
+mod mod_names;
 mod model_sprites;
 mod model_sprites_install;
 mod naming;

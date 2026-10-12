@@ -93,9 +93,14 @@ function* bodyLines(text) {
   }
 }
 
+const given = process.argv.slice(2)
+const files = given.length
+  ? given.map((file) => [file, file])
+  : markdownFiles(guideDir).map((file) => [file, relative(guideDir, file)])
+
 const failures = []
-for (const file of markdownFiles(guideDir)) {
-  const name = relative(guideDir, file).split('\\').join('/')
+for (const [file, path] of files) {
+  const name = path.split('\\').join('/')
   for (const line of bodyLines(readFileSync(file, 'utf8'))) {
     const prose = proseOf(line.text)
     for (const rule of rules) {
