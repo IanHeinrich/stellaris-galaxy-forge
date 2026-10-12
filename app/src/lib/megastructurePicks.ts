@@ -219,6 +219,25 @@ export interface MegastructureEntry {
   /** How many stages its build chain has and what other rows it has: `4 stages · 2 variants`. */
   summary: string;
   chains: MegastructureChain[];
+  /** The texture key of the game's picture of its main chain's finished stage, else of the last
+   * stage before it that has one; null when none has. */
+  portrait: string | null;
+  /** The kind and categories the game's build tooltip gives the first stage of its main chain
+   * that has them, such as `Kilostructure · Science Production`; null when none has. */
+  category: string | null;
+}
+
+/** What the list shows of a megastructure beside its name, read from its main chain's types. */
+function cardOf(
+  main: MegastructureChain,
+  types: ReadonlyMap<string, MegastructureView>,
+): Pick<MegastructureEntry, "portrait" | "category"> {
+  const stages = main.stages.map((stage) => types.get(stage.key));
+  const built = stages.slice(0, main.stages.findIndex((s) => s.key === main.finished) + 1);
+  return {
+    portrait: built.reverse().find((type) => type?.portrait)?.portrait ?? null,
+    category: stages.find((type) => type?.category)?.category ?? null,
+  };
 }
 
 /** How many stages come before `key` in its chain, by the longest way back through `upgrade_from`. */
@@ -743,10 +762,13 @@ export function megastructureEntries(
           ? refusalOf(type)
           : ringLayoutRefusal(type.ring_world_refused);
       const withRing = ringChains(chains, ring, refused);
-      entries.push({ key, label, section, unnamed, summary: RING_WORLD_SUMMARY, chains: withRing });
+      const summary = RING_WORLD_SUMMARY;
+      const card = cardOf(withRing[0], types);
+      entries.push({ key, label, section, unnamed, summary, chains: withRing, ...card });
       continue;
     }
-    entries.push({ key, label, section, unnamed, summary: summaryOf(rows, byClass), chains });
+    const summary = summaryOf(rows, byClass);
+    entries.push({ key, label, section, unnamed, summary, chains, ...cardOf(chains[0], types) });
   }
   return entries.sort(
     (a, b) =>

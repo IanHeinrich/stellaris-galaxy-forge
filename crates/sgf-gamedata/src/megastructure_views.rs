@@ -1,6 +1,6 @@
 //! The megastructure types as the add dialog reads them: each registry type with its empire
 //! effects and the modifiers and deposits its construction writes, named from the install's
-//! localisation.
+//! localisation, and the picture and category line of the game's construction card.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -11,6 +11,11 @@ use crate::construction::ring_world::{RingStage, ring_world};
 use crate::construction::{SummaryKind, SummaryLine, SummaryOn};
 use crate::planet_views::ModifierLineView;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
+use crate::textures::TextureKey;
+
+/// How many whole-entry references a build tooltip is followed through, as Gigastructural
+/// Engineering points a star class's stage at the plain stage's tooltip.
+const MAX_ALIASES: usize = 8;
 
 /// One modifier or deposit that adding a row of the type writes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -54,6 +59,14 @@ pub struct MegastructureView {
     /// four finished quadrants; `None` when it can, and for any other type.
     #[serde(default)]
     pub ring_world_refused: Option<String>,
+    /// The texture key of the picture the game's construction card shows for the type; `None`
+    /// when it names none or the install has no file for it.
+    #[serde(default)]
+    pub portrait: Option<String>,
+    /// The kind and categories its build tooltip opens with, such as "Kilostructure · Science
+    /// Production"; `None` when the tooltip's first line is anything else.
+    #[serde(default)]
+    pub category: Option<String>,
 }
 
 impl GameData {
@@ -74,6 +87,11 @@ impl GameData {
                     habitat: finished.is_some(),
                     habitat_orbital: finished.is_some_and(|habitat| habitat.orbital.is_some()),
                     ring_world_refused: self.ring_world_refused(def),
+                    portrait: def
+                        .portrait
+                        .as_deref()
+                        .and_then(|sprite| self.portrait(sprite)),
+                    category: self.category(&def.key),
                     def: def.clone(),
                 }
             })
@@ -100,6 +118,77 @@ impl GameData {
             conditional: line.conditional,
         }
     }
+
+    /// `sprite` as a texture key, when the install has the file it names.
+    fn portrait(&self, sprite: &str) -> Option<String> {
+        let (file, _) = self.sprites.resolve(sprite, None)?;
+        self.layout.resolve_file(&file)?;
+        TextureKey::sprite(sprite, None).map(|key| key.to_string())
+    }
+
+    /// The first line of `key`'s build tooltip, `<key>_MEGASTRUCTURE_DETAILS`, when after any
+    /// icons it is only references to upper-case words joined by ` - `, as Gigastructural
+    /// Engineering opens its tooltips: each word in title case, joined by ` · `.
+    fn category(&self, key: &str) -> Option<String> {
+        let mut text = self.loc.raw(&format!("{key}_MEGASTRUCTURE_DETAILS"))?;
+        for _ in 0..MAX_ALIASES {
+            match reference(text.trim()) {
+                Some(alias) => text = self.loc.raw(alias)?,
+                None => break,
+            }
+        }
+        let parts = after_icons(text.lines().next()?)
+            .split(" - ")
+            .map(|part| {
+                let words = self.loc.name(reference(part.trim())?)?;
+                (!words.chars().any(char::is_lowercase)).then(|| title_case(&words))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(parts.join(" · "))
+    }
+}
+
+/// The key of `text` when it is one `$key$` reference and nothing else.
+fn reference(text: &str) -> Option<&str> {
+    let key = text.strip_prefix('$')?.strip_suffix('$')?;
+    let plain = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'));
+    plain.then_some(key)
+}
+
+/// `line` without the `£icon£` codes it opens with.
+fn after_icons(line: &str) -> &str {
+    let mut rest = line.trim_start();
+    while let Some(icon) = rest.strip_prefix('£') {
+        let Some(end) = icon.find('£') else {
+            break;
+        };
+        rest = icon[end + '£'.len_utf8()..].trim_start();
+    }
+    rest
+}
+
+/// `SCIENCE PRODUCTION` as `Science Production`.
+fn title_case(words: &str) -> String {
+    words
+        .split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            chars
+                .next()
+                .map(|first| {
+                    first
+                        .to_uppercase()
+                        .chain(chars.flat_map(char::to_lowercase))
+                })
+                .into_iter()
+                .flatten()
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn modifier_lines(gd: &GameData, lines: &[(String, f64)]) -> Vec<ModifierLineView> {

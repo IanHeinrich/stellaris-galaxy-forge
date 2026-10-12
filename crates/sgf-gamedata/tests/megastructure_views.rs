@@ -284,3 +284,146 @@ ring_world_fx_frame = {
         Some("no stage of its chain lays out a ring world of 4 quadrants")
     );
 }
+
+/// A type's picture is its `portrait` sprite, when the install has the file the sprite names.
+/// Its category line is the head of its build tooltip, followed through a tooltip that is only
+/// another's, when that head is only upper-case words.
+#[test]
+fn a_type_shows_its_portrait_and_the_category_its_tooltip_opens_with() {
+    let text = |text: &str| text.as_bytes().to_vec();
+    let (_dir, gd) = common::hand_written_bytes(&[
+        ("common/scripted_variables/00_fx.txt", Vec::new()),
+        (
+            "common/megastructures/fx.txt",
+            text(
+                "fx_brain_0 = { portrait = \"GFX_fx_brain\" }
+fx_brain_0_b_star = { portrait = \"GFX_fx_gone\" }
+fx_plain = { portrait = \"GFX_fx_unknown\" }
+fx_named = { }
+",
+            ),
+        ),
+        (
+            "interface/fx.gfx",
+            text(
+                "spriteTypes = {
+	spriteType = { name = \"GFX_fx_brain\" textureFile = \"gfx/interface/fx/brain.dds\" }
+	spriteType = { name = \"GFX_fx_gone\" textureFile = \"gfx/interface/fx/gone.dds\" }
+}
+",
+            ),
+        ),
+        (
+            "gfx/interface/fx/brain.dds",
+            common::dds(4, &[vec![[128, 128, 128, 255]; 16]]),
+        ),
+        (
+            "localisation/english/fx_l_english.yml",
+            text(
+                "l_english:\n\
+                  fx_cat_giga:0 \"§SGIGASTRUCTURE§!\"\n\
+                  fx_cat_science:0 \"§YSCIENCE PRODUCTION§!\"\n\
+                  fx_station:0 \"Station\"\n\
+                  fx_brain_0_MEGASTRUCTURE_DETAILS:0 \"£fx£ $fx_cat_giga$ - $fx_cat_science$\\nHarvests a §YStar§!.\"\n\
+                  fx_brain_0_b_star_MEGASTRUCTURE_DETAILS:0 \"$fx_brain_0_MEGASTRUCTURE_DETAILS$\"\n\
+                  fx_plain_MEGASTRUCTURE_DETAILS:0 \"A §Y$fx_station$§! that does nothing.\"\n\
+                  fx_named_MEGASTRUCTURE_DETAILS:0 \"$fx_cat_giga$ - $fx_station$\\nMore.\"\n",
+            ),
+        ),
+    ]);
+    let views = gd.megastructure_views();
+    let shown = |key: &str| {
+        let view = view(&views, key);
+        (view.portrait.as_deref(), view.category.as_deref())
+    };
+    assert_eq!(
+        shown("fx_brain_0"),
+        (
+            Some("sprite:GFX_fx_brain"),
+            Some("Gigastructure · Science Production")
+        )
+    );
+    assert_eq!(
+        shown("fx_brain_0_b_star"),
+        (None, Some("Gigastructure · Science Production")),
+        "a sprite whose file is missing shows no picture"
+    );
+    assert_eq!(
+        shown("fx_plain"),
+        (None, None),
+        "an unknown sprite, and a tooltip that opens with prose"
+    );
+    assert_eq!(
+        shown("fx_named"),
+        (None, None),
+        "a reference to a name is no category"
+    );
+}
+
+/// The Dyson Sphere's stages show the game's pictures: the shared construction picture while
+/// it is built and its own once finished. The base game opens no build tooltip with a category.
+#[test]
+fn the_dyson_spheres_portraits_are_files_in_the_install() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let views = gd.megastructure_views();
+    for (key, sprite) in [
+        (
+            "dyson_sphere_0",
+            "GFX_megastructure_construction_background",
+        ),
+        (
+            "dyson_sphere_5",
+            "GFX_megastructure_dyson_sphere_background",
+        ),
+    ] {
+        assert_eq!(
+            view(&views, key).portrait,
+            Some(format!("sprite:{sprite}")),
+            "{key}"
+        );
+        let (file, _) = gd.sprites.resolve(sprite, None).expect(sprite);
+        assert!(gd.layout.resolve_file(&file).is_some(), "{file}");
+    }
+    let with_category: Vec<&str> = views
+        .iter()
+        .filter(|view| view.category.is_some())
+        .map(|view| view.def.key.as_str())
+        .collect();
+    assert_eq!(with_category, Vec::<&str>::new());
+}
+
+/// Gigastructural Engineering opens each build tooltip with the structure's kind and
+/// categories, and gives the base game's types one too.
+#[test]
+fn giga_types_show_the_category_their_tooltip_opens_with() {
+    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
+        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+        return;
+    }
+    let gd = sgf_gamedata::load(&sgf_gamedata::LoadOptions::default(), &mut |_| {})
+        .expect("SGF_PLAYSET needs an install");
+    if gd.loc.raw("giga_list_category_kilostructure").is_none() {
+        eprintln!("skipped: Gigastructural Engineering is not enabled");
+        return;
+    }
+    let views = gd.megastructure_views();
+    for (key, category) in [
+        (
+            "asteroid_manufactory_0",
+            "Kilostructure · Basic Resource Production · Advanced Resource Production",
+        ),
+        (
+            "dyson_sphere_0",
+            "Megastructure · Basic Resource Production",
+        ),
+        ("think_tank_0", "Megastructure · Science Production"),
+    ] {
+        assert_eq!(
+            view(&views, key).category.as_deref(),
+            Some(category),
+            "{key}"
+        );
+    }
+}
