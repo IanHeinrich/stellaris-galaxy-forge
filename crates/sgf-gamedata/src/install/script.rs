@@ -1,6 +1,7 @@
 //! Top-level `key = { … }` definitions of one `common/` directory across
 //! every layer, a repeated key settled by [`Keeps`].
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::fs;
@@ -51,27 +52,48 @@ impl Def {
 
     /// `key`'s value as a number, through [`Self::number_of`].
     pub fn number(&self, key: &str) -> Option<f64> {
-        self.number_of(self.scalar(key)?)
+        self.number_of(&self.written_in(&self.node, key)?)
     }
 
-    /// A number as written, or the `@variable` it names: the defining file's own first,
-    /// then `common/scripted_variables`.
+    /// A number as written, the `@variable` it names, or inline maths `@[ … ]` over numbers
+    /// and variables: a variable from the defining file's own first, then
+    /// `common/scripted_variables`.
     pub fn number_of(&self, text: &str) -> Option<f64> {
-        let text = match text.strip_prefix('@') {
-            Some(name) => self
-                .vars
-                .get(name)
-                .map(|own| own.value.as_str())
-                .or_else(|| self.globals.get(name))?,
-            None => text,
-        };
-        text.parse().ok()
+        if let Some(expr) = text.strip_prefix("@[").and_then(|t| t.strip_suffix(']')) {
+            return maths::evaluate(expr, &|name| self.variable(name)?.parse().ok());
+        }
+        match text.strip_prefix('@') {
+            Some(name) => self.variable(name)?.parse().ok(),
+            None => text.parse().ok(),
+        }
+    }
+
+    fn variable(&self, name: &str) -> Option<&str> {
+        self.vars
+            .get(name)
+            .map(|own| own.value.as_str())
+            .or_else(|| self.globals.get(name))
+    }
+
+    /// The scalar value of the first direct child of `node` named `key`, as [`written`] reads it.
+    fn written_in(&self, node: &Node, key: &str) -> Option<Cow<'_, str>> {
+        let children = node.children();
+        let at = children
+            .iter()
+            .position(|child| child.key_str(&self.src) == Some(key))?;
+        written(children, at, &self.src)
     }
 
     /// `key` below `node` as a [`Range`]: `key = n` or `key = { min = a max = b }`,
     /// `@variables` substituted; one no file defines gives `None`.
     pub fn range_in(&self, node: &Node, key: &str) -> Option<Range> {
-        self.range_of(node.find(key, &self.src)?)
+        let found = node.find(key, &self.src)?;
+        match found.scalar_span() {
+            Some(_) => self
+                .number_of(&self.written_in(node, key)?)
+                .map(Range::fixed),
+            None => self.range_of(found),
+        }
     }
 
     /// `found`'s value as a [`Range`], as [`Self::range_in`] reads it.
@@ -107,7 +129,7 @@ impl Def {
 
     /// The number `found`'s `key` bound writes.
     fn bound(&self, found: &Node, key: &str) -> Option<f64> {
-        self.number_of(found.find(key, &self.src)?.scalar_str(&self.src)?)
+        self.number_of(&self.written_in(found, key)?)
     }
 
     /// The definition's own `key` as a [`Range`].
@@ -119,13 +141,13 @@ impl Def {
     /// non-numeric values are left out.
     pub fn numbers(&self, node: &Node) -> Vec<(String, f64)> {
         let mut out: Vec<(String, f64)> = Vec::new();
-        for child in node.children() {
+        let children = node.children();
+        for (at, child) in children.iter().enumerate() {
             let Some(key) = child.key_str(&self.src) else {
                 continue;
             };
-            let Some(amount) = child
-                .scalar_str(&self.src)
-                .and_then(|text| self.number_of(text))
+            let Some(amount) =
+                written(children, at, &self.src).and_then(|text| self.number_of(&text))
             else {
                 continue;
             };
@@ -135,6 +157,141 @@ impl Def {
             }
         }
         out
+    }
+}
+
+/// `children[at]`'s scalar value. Inline maths written with spaces, `@[ 4 * x ]`, parses as
+/// `@[` and then one list item per word up to `]`, so those items are joined back onto it.
+fn written<'a>(children: &[Node], at: usize, src: &'a [u8]) -> Option<Cow<'a, str>> {
+    let first = children.get(at)?.scalar_str(src)?;
+    if !first.starts_with("@[") || first.ends_with(']') {
+        return Some(Cow::Borrowed(first));
+    }
+    let mut text = first.to_owned();
+    for item in &children[at + 1..] {
+        let Some(word) = item.key.map_or_else(|| item.scalar_str(src), |_| None) else {
+            break;
+        };
+        text.push(' ');
+        text.push_str(word);
+        if word.ends_with(']') {
+            return Some(Cow::Owned(text));
+        }
+    }
+    Some(Cow::Borrowed(first))
+}
+
+/// Stellaris inline maths: numbers, variable names with or without `@`, `+ - * /`,
+/// parentheses and unary minus.
+mod maths {
+    /// How deep parentheses and unary minus may nest.
+    const MAX_DEPTH: usize = 64;
+
+    #[derive(Clone, Copy)]
+    enum Token<'a> {
+        Number(f64),
+        Name(&'a str),
+        Op(u8),
+    }
+
+    /// `expr`'s value; `None` when it does not parse, names a variable `resolve` does not
+    /// know, or is not finite.
+    pub(super) fn evaluate(expr: &str, resolve: &dyn Fn(&str) -> Option<f64>) -> Option<f64> {
+        let tokens = tokens(expr)?;
+        let mut parser = Parser {
+            tokens: &tokens,
+            at: 0,
+            resolve,
+        };
+        let value = parser.sum(0)?;
+        (parser.at == tokens.len() && value.is_finite()).then_some(value)
+    }
+
+    fn tokens(expr: &str) -> Option<Vec<Token<'_>>> {
+        let bytes = expr.as_bytes();
+        let mut out = Vec::new();
+        let mut at = 0;
+        while let Some(&b) = bytes.get(at) {
+            if b.is_ascii_whitespace() {
+                at += 1;
+                continue;
+            }
+            if matches!(b, b'+' | b'-' | b'*' | b'/' | b'(' | b')') {
+                out.push(Token::Op(b));
+                at += 1;
+                continue;
+            }
+            let len = bytes[at..]
+                .iter()
+                .position(|&c| !(c.is_ascii_alphanumeric() || matches!(c, b'_' | b'.' | b'@')))
+                .unwrap_or(bytes.len() - at);
+            let word = &expr[at..at + len];
+            let name = word.strip_prefix('@').unwrap_or(word);
+            if name.is_empty() {
+                return None;
+            }
+            out.push(match b {
+                b'0'..=b'9' | b'.' => Token::Number(word.parse().ok()?),
+                _ => Token::Name(name),
+            });
+            at += len;
+        }
+        Some(out)
+    }
+
+    struct Parser<'t, 'a> {
+        tokens: &'t [Token<'a>],
+        at: usize,
+        resolve: &'t dyn Fn(&str) -> Option<f64>,
+    }
+
+    impl Parser<'_, '_> {
+        fn sum(&mut self, depth: usize) -> Option<f64> {
+            let mut value = self.product(depth)?;
+            while let Some(op @ (b'+' | b'-')) = self.op() {
+                self.at += 1;
+                let rhs = self.product(depth)?;
+                value = if op == b'+' { value + rhs } else { value - rhs };
+            }
+            Some(value)
+        }
+
+        fn product(&mut self, depth: usize) -> Option<f64> {
+            let mut value = self.unary(depth)?;
+            while let Some(op @ (b'*' | b'/')) = self.op() {
+                self.at += 1;
+                let rhs = self.unary(depth)?;
+                value = if op == b'*' { value * rhs } else { value / rhs };
+            }
+            Some(value)
+        }
+
+        fn unary(&mut self, depth: usize) -> Option<f64> {
+            if depth > MAX_DEPTH {
+                return None;
+            }
+            let token = *self.tokens.get(self.at)?;
+            self.at += 1;
+            match token {
+                Token::Number(n) => Some(n),
+                Token::Name(name) => (self.resolve)(name),
+                Token::Op(b'-') => Some(-self.unary(depth + 1)?),
+                Token::Op(b'(') => {
+                    let value = self.sum(depth + 1)?;
+                    (self.op() == Some(b')')).then_some(())?;
+                    self.at += 1;
+                    Some(value)
+                }
+                Token::Op(_) => None,
+            }
+        }
+
+        fn op(&self) -> Option<u8> {
+            match self.tokens.get(self.at)? {
+                Token::Op(op) => Some(*op),
+                _ => None,
+            }
+        }
     }
 }
 
