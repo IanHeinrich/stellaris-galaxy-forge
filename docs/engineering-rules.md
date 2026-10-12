@@ -1,409 +1,188 @@
 # Engineering rules
 
-For contributors (people and tools alike).
+For contributors, people and tools alike.
 
-A desktop editor for Stellaris `.sav` files: a galaxy editor first (move
-systems, add/remove hyperlanes). Rust core +
-Tauri 2 shell + React/TypeScript UI with a PixiJS map. The architecture
-is `docs/architecture.md`, the user guide `guide/` (published to
-GitHub Pages), the format
-facts `docs/format-notes.md`, the
-install and mod facts `docs/game-data-notes.md`, the decisions behind the
-architecture `docs/adr/`, and the in-game checks a change must pass
+Stellaris Galaxy Forge edits Stellaris saves and galaxy scenarios: a Rust
+core, a Tauri 2 shell, and a React and TypeScript UI with a PixiJS map.
+[architecture.md](architecture.md) says how it fits together and
+[maintaining.md](maintaining.md) covers the corpus runs, CI, game updates
+and releases. The format facts are in [format-notes.md](format-notes.md),
+the install and mod facts in [game-data-notes.md](game-data-notes.md), the
+decisions in [adr/](adr/), and the in-game checks in
 `.github/pull_request_template.md`.
 
 ## Non-negotiables
 
-- **The save is edited as bytes.** `sgf-core` holds the original
-  `gamestate` bytes once and applies patches keyed to original offsets
-  (one slot per entity). Untouched bytes are copied verbatim on save.
-  Load → save with no edits is byte-identical, and is tested.
-  Never re-serialise the file, a section or an entity from a typed model.
-- **Never rely on indentation.** The game writes keys at column 0 at any
-  depth. Structure comes from brace counting; emitted text copies the
-  indentation of the entity it is inserted into.
-- **Every edit is an `Op` with an inverse** and a human-readable
-  description. Only ops write to the overlay; the UI and CLI send ops.
-- **Projections are caches.** Indexes built from the bytes at load are
-  updated or invalidated by ops and never written back.
-- **The game is the oracle.** Nothing about save semantics is assumed
-  when it can be tested by loading the save in Stellaris: a change to
-  what the game reads is not done until the checks the PR template lists
-  have been run in-game (`.github/pull_request_template.md`).
-- **Nothing from the game or mods is bundled.** Definitions, localisation
-  and art are read from the user's install at runtime.
+Each rule comes with its reason, so a case it doesn't name can be judged
+by the reason.
 
-The open document is watched. The session notes the file's length and
-modification time when it opens the file and again after each save. The
-shell watches the file's folder, and checks again when the window gets
-focus back. A change that doesn't match the stamp reloads a scenario
-with no unsaved edits, keeping the view: the camera, the tilt, the
-hidden empires and the selection where the file still holds it.
-Everything read from the old bytes is reset. Prepare keeps its choices
-and reads its preview again. With unsaved edits, or for a save, the app
-asks: Reload reads the file again and clears undo history; Keep my
-changes leaves both. The app's own saves update the stamp under the
-session lock, so they never reload. Save still checks: if Stellaris (or
-anything else) has written the file since, a save in place refuses with
-`changed_on_disk` and the app asks. Overwrite saves again with `force`,
-and the backup-then-persist path renames the other version aside as the
-backup; Save As picks another file; Cancel writes nothing. A save to a
-different path is not checked, because the file dialog already asked
-about overwriting it. Game data is watched too: a change under a loaded
-root rereads the registries its folder feeds, each through its loader
-over the whole layout, so override and `replace_path` rules hold as in a
-full load.
+- Edit the save as bytes. `sgf-core` holds the original `gamestate` once
+  and patches spans keyed to their original offsets, one slot per entity,
+  and a save copies every untouched byte. A save holds mod content and
+  fields the editor doesn't model, so anything re-serialised from a typed
+  model loses data. A test asserts that load then save with no edits is
+  byte-identical.
+- Find structure by counting braces, because the game writes keys at
+  column 0 at any depth. Emitted text copies the indentation of the entity
+  it goes into.
+- Make every edit an `Op` with an inverse and a one-sentence description.
+  Only ops write to the overlay, so undo, the CLI and the app see the same
+  edit. An op reads the document and its own payload, and does the same
+  thing whatever the undo history holds.
+- Treat projections as caches. Ops update or drop them, and nothing writes
+  them back.
+- Let the game decide what a save means. A change to what the game reads
+  is done once the PR template's in-game checks pass.
+- Leave to the game what it rebuilds or cleans up on load, because its
+  values are better informed than ours. Rely on a cleanup only once a save
+  the game wrote shows it complete, and record it in `format-notes.md`.
+- Refuse an edit only when the save or the game would break. Players use
+  the editor to make galaxies the game wouldn't make, so "the game's rules
+  don't allow it" is a question for the maintainer, not a refusal.
+- Read the game from the user's install. Definitions, localisation and art
+  come from it at runtime, and nothing from the game or a mod is bundled.
 
-### Naming ops
+## Where a rule lives
+
+- Resolve in the core or gamedata, then draw. Saves and scenarios resolve
+  through one layer and the UI draws what it is sent, so a pulsar looks
+  the same whichever file said so. A rule the core holds reaches the app
+  through a view type or `generated/constants.ts`.
+- Ask the document's `Capabilities`, not its kind (ADR 0004). A third
+  document kind is planned, and a test fails on a new kind check outside
+  the format seam.
+- Detect mod content by what its data does, in one place in sgf-gamedata.
+  `AddRingWorld` reads its flags from the install's build chain, and a
+  test fails on a mod's name in production code.
+- When you write something like an existing writer, payload, store slice,
+  hook or dialog, move the shared part into one helper and use it from
+  both. Two copies of a rule start to disagree, and the next feature
+  copies whichever it finds first.
+- Make the wrong state unrepresentable. A choice between shapes is an
+  enum, not an `Option` beside a flag, and a switch over a union is
+  exhaustive.
+- Derive a list that must match the code, or test it against the code. A
+  `Record<Union, …>` fails to compile when the union grows, and the verb
+  list below is tested against `Op`.
+
+## Naming ops
 
 An op is a verb and a subject, in the game's words: `MoveBody`,
-`SetBeltRadius`, `RenameSystem`, `AddDeposit`. The name never says which
-kind of document takes it. Each op's row in `ops/op.rs` lists the kinds
-that accept it, and the session refuses it for any other kind before the
+`SetBeltRadius`, `RenameSystem`, `AddDeposit`. The name doesn't say which
+kind of document takes it. Its row in `ops/op.rs` lists the kinds that
+accept it, and the session refuses it for any other kind before the
 format sees it.
 
 - Verbs. `Set` replaces one value. `Add` and `Remove` are each other's
   inverse. `Delete` takes out something the document held when it was
-  opened, and its inverse writes back what it rewrote. `Move` sets a
-  position. `Rename` sets a name. `Prevent` and `Allow` are the
-  scenario's lane pair. `Isolate` takes every lane off a system,
-  `Normalise` sets a lane length to the one the game writes, and
-  `Replace` rolls an added system again.
-- Subjects: `System`, `SystemHeight`, `StarClass`, `Lane`,
-  `LaneLength`, `Nebula`, `NebulaRadius`, `NebulaTurbulent`,
-  `NebulaFootprint`, `Body` (a planet, moon or star in a system's list),
-  `BodySize`, `BodyClass`, `BodyModel`, `BodyRing`, `BodyParent`,
-  `BodyModifier`, `Belt`, `BeltRadius`, `BeltKind`, `InnerRadius`,
-  `Wormhole`, `WormholePair`, `WormholeEnds`, `Deposit`, `Anomaly`,
-  `DigSite`, `Colony`, `Megastructure`, `RingWorld`, `Habitat`,
-  `Entities`, `Empire`, `EmpireFlag`, `EmpireMapColors`, `LGateOutcome`,
-  `Initializer`, `HomeSystem`, `SpawnWeight`,
-  `SpawnScript`, `HeaderField`, `HeaderKeys`, `HeaderList`, `FeZone`,
-  `FeLinks` and `FeLinkFlags`. A new subject takes the word the game or
-  the player uses, and joins this list.
-- Two kinds share an op when it carries the same thing for both. When
-  what it carries differs, the name says what it carries
-  (`AddSystemFromSpec`), not who sends it.
-- Fields. An id is named for what it addresses: `system`, `body`,
-  `country`, `nebula`. Never `id` or `planet`. A place in a list is
-  `index`. A position is `at`, absolute. Radii and angles are in game
-  units. A choice between shapes is an enum, not an `Option` beside a
-  flag. A field that only the inverse fills is optional, and its doc says
-  so.
-- One op does one thing. Several things as one undo step are a `Batch`. A
-  plural op exists only when the group has a rule the singular doesn't,
-  and its doc states that rule.
+  opened. `Restore` writes back whole entities an edit rewrote, and is
+  only ever an inverse. `Move` sets a position and `Rename` a name.
+  `Prevent` and `Allow` are the scenario's lane pair. `Isolate` takes
+  every lane off a system, `Normalise` sets a lane length to the one the
+  game writes, and `Replace` rolls an added system again.
+- A subject takes the word the game or the player uses. A planet, moon or
+  star in a system's list is a `Body`.
+- Two kinds share an op when its payload means the same for both. When it
+  differs, the name says what the payload is (`AddSystemFromSpec`).
+- An id field is named for what it addresses (`system`, `body`, `country`,
+  `nebula`), not `id` or `planet`. A place in a list is `index`, an
+  absolute position is `at`, and radii and angles are in game units. A
+  field only the inverse fills is optional, and its doc says so.
+- One op does one thing, and several things as one undo step are a
+  `Batch`. A plural op exists only when the group has a rule the singular
+  doesn't, and its doc states that rule.
 - An op that only appears as an inverse is not exported to the app, and
   the core refuses it from outside.
-- The description shows in the undo list and the CLI. It is one sentence
-  in the past tense, in the player's words. It names the thing by name
-  and id as `ops::rules::named` does ("Renamed Ferragon #489 to Kel"),
-  and counts with `plural` ("Deleted planet #99 and its 2 moons").
+- The description is one past-tense sentence in the player's words. It
+  names the thing as `ops::rules::named` does ("Renamed Ferragon #489 to
+  Kel") and counts with `plural` ("Deleted planet #99 and its 2 moons").
 - The variant's doc says what it writes, what it refuses and what its
-  inverse is. Which kinds accept it is in its row, not in the doc.
-- A refusal uses the shared error variants (`Unchanged`, `Parse`,
-  `StarRefused`) unless a caller acts on that one refusal.
+  inverse is. A refusal uses the shared error variants (`Unchanged`,
+  `Parse`, `StarRefused`) unless a caller acts on that one refusal.
 
 ## Layout
 
-- `crates/sgf-core`: archive I/O, index scan, lexer/CST, overlay,
-  emit, projections, ops, validator, session, the scenario export,
-  entity addressing for the inspector, search, IPC view types.
-- `crates/sgf-gamedata`: the user's install and its mods, read at
-  runtime: definitions, localisation, scripts and textures, and the
-  generator that rolls a system to add to a save from the install's
-  rules.
-- `crates/sgf-cli`: the `sgf` binary; also the test harness.
-- `app/`: Vite + React + TypeScript; `app/src-tauri` is the Tauri crate,
-  `sgf-app`.
-- `app/src-tauri/tests`: the Tauri commands end to end, on a session
-  opened on the sample save.
-- `app/src` is split by layer: `api/`, `lib/`, `store/`, `map/`, `panels/`.
-  `app/src/lib/README.md` states the import rule the layers keep and the
-  exceptions to it; `app/src/panels/README.md` states which folder owns
-  which slice of the UI and which stylesheet.
-- `app/src/test/`: builders and stand-ins shared by the tests of every
-  layer.
-- `app/src/generated/`: TypeScript types exported by ts-rs, and
-  `constants.ts`, the core's rules the app reads too, written by
-  `crates/sgf-core/tests/constants.rs`, and `shell.ts`, the shell's event names, written by
-  `app/src-tauri/tests/constants.rs`. Generated: regenerate with
-  `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and `sgf-app`, via
-  its `views.rs`, all export types); never hand-edit.
-- `testdata/`: save corpus via git-lfs (`4.4-early.sav`, Stellaris
-  4.4, early game; `4.5-day-one.sav`, Stellaris 4.5.0, day one, the
-  player empire has Independent Map Color on; `3.4.sav`,
-  Stellaris 3.4.5, for lane edits on the brace shape 3.4 to 3.9
-  write). Personal saves are never
-  committed without asking; larger local saves are found via
-  `SGF_CORPUS_DIR`. `issues.sav` and `issues.paint.txt` are built to
-  raise as many findings as one file can, so every kind the Issues tab
-  shows has a real example behind it; `crates/sgf-core/tests/issues.rs`
-  asserts what each of them raises and how the two were made.
-  `4.4-early.scenario.txt` and `4.4-early.paint.txt` are the 4.4
-  save's galaxy exported as a plain scenario and for Paint a Galaxy.
-  `paint_a_galaxy.txt` is a scenario as the Paint a Galaxy mod writes
-  one, and `scenario_grammar.txt` holds every statement shape the
-  scenario grammar allows. `mura.json` and `dorellion.json` are
-  add-system specs, one system each, that the core and CLI tests add to
-  the sample saves.
-- `guide/`: the user guide, a VitePress site published to GitHub Pages
-  with each release. One Markdown page per task, screenshots in
-  `guide/images/` (`guide/images/SHOTS.md` says how each was taken), and
-  the search questions it must keep answering in
-  `guide/search/queries.json`. `npm run build` in `guide/` runs a voice
-  lint, fails on a dead link and checks every question still finds its
-  page. `app/src/guide/` holds the tests that fail when a key, layer or
-  issue kind the app shows is missing from the guide.
-- `docs/`: the architecture, the save format notes, the game data and
-  mod notes, the Paint a Galaxy integration notes, and the ADRs.
-  `docs/user-guide.md` only points to the site.
-- `workshop/`: the Steam Workshop page, which carries no mod content:
-  its description, preview images and inline images, and
-  `workshop/uploader`, the tool that pushes them to Steam. The uploader
-  is its own Cargo package, outside the workspace, so CI never builds
-  it. `workshop/README.md` says how to use it.
+- `crates/sgf-core`: the document model, from archive I/O and the index to
+  ops, projections, the session, the scenario export and the view types.
+- `crates/sgf-gamedata`: the user's install and mods, read at runtime, and
+  the generator that rolls what an edit adds.
+- `crates/sgf-cli`: the `sgf` binary, also a test harness for the core.
+- `app/src-tauri`: the Tauri shell, `sgf-app`.
+- `app/src/`: `api/` wraps the shell's commands, `lib/` says what the data
+  means, `store/` holds state and sends ops, `map/` is the PixiJS
+  renderer and `panels/` the UI around it. `lib/README.md` states the
+  import rule between them, `panels/README.md` who owns which slice.
+- `app/src/test/`: builders and stand-ins shared by the app's tests.
+- `app/src/generated/`: written by `cargo test --workspace` from the Rust
+  types and constants. Regenerate it and commit what it writes.
+- `testdata/`: the sample saves and fixtures, listed in its README.
+- `guide/`: the user guide, published with each release. The tests in
+  `app/src/guide/` fail when a key, layer or issue kind is missing from it.
+- `workshop/`: the Steam Workshop page and its uploader.
 
 ## Commands
 
 - `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo fmt --all`
-- `cargo run -p sgf-cli -- inspect testdata/4.4-early.sav`
-- `sgf shape <save>` prints every key path of a save with its count, and
-  `sgf shape <save> --diff <other>` the paths the two do not share;
-  `--section a,b` keeps either to those sections.
-- `cd app && npm test` (Vitest) · `npm run build` · `npm run lint`
-- `cd app && npm run tauri dev` (one instance per machine)
-- `cd guide && npm run dev` serves the user guide locally. `npm run
-  build` checks it as CI does.
-- `cargo test --workspace` also regenerates `app/src/generated/`; commit
-  what it writes.
-- `cargo test --release -p sgf-core --test corpus --test scenario_corpus
-  -- --nocapture` runs both corpus binaries. `corpus` times opening the
-  saves in `SGF_CORPUS_DIR` against the budget, adds a system to each
-  4.x save and removes it, and exports each save for Paint a Galaxy.
-  `scenario_corpus` round-trips the scenario scripts in
-  `SGF_SCENARIO_DIR`. Each is skipped
-  when its variable is unset, so run them in release after touching the
-  load path.
-- `sgf gamedata --report` lists what the install and the enabled mods
-  define that the editor cannot show: planet classes with no name, disc
-  or `planet_size`, star classes with no map icon or with other than one
-  star body, and the load's diagnostics by kind. Each row names the mod
-  whose file won. `--limit N` cuts each list to N rows, 0 prints all.
-- `SGF_PLAYSET=1 cargo test -p sgf-gamedata --test integration
-  playset_report::the_enabled_mods -- --nocapture` loads the enabled mods as the app does, prints that
-  report and fails on a parse error or an unreadable file. It is
-  skipped without the variable.
-- `SGF_INITIALIZER_CORPUS=1 cargo test -p sgf-gamedata --release --test
-  integration initializer_corpus -- --nocapture` reads the initializers of
-  the install and of every installed mod, enabled or not, each mod on its
-  own over the base game. It resolves every initializer as the scenario
-  view does and fails on a panic, a parse error or an unreadable file. It
-  prints one line per source and is skipped without the variable.
-- `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
-  Stellaris install into failures.
-- `ci.yml` runs on every PR that changes more than documentation, and is
-  also called by `release.yml` on every push to `main`. The `Lint` job
-  runs on Ubuntu: the script tests, `bash scripts/version.sh check`, fmt,
-  clippy, and the app's lint, Vitest and build. The `Test` jobs run on
-  Windows, Ubuntu and macOS. Shard 0 of each runs everything except
-  sgf-core's integration tests. The other shards run those integration
-  tests, which take most of the time, split by `bash scripts/test-shard.sh
-  <index> <count>`. Every Ubuntu `Test` job checks the diff of
-  `app/src/generated/`. `Checks (<os>)` reports passed only when `Lint`
-  and every `Test` job passed. The `Test` jobs compile through sccache,
-  so a job whose workspace library sources match an earlier run on `main`
-  or on the same PR reuses those libraries instead of rebuilding them.
-  Vitest keeps its transformed modules in `app/node_modules/.vitest-cache`
-  between runs, and the `Lint` job restores the cache the last run on
-  `main` saved.
-  A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
-  `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
-  skips the build, and `ci-docs.yml` reports the required checks as
-  passed for it; for any other change it reports nothing.
+- `cargo test -p <crate>` and `cargo clippy -p <crate> --all-targets -- -D warnings` for one crate.
+- `cargo run -p sgf-cli -- inspect testdata/4.4-early.sav`. `sgf shape
+  <save>` prints every key path with its count, `--diff <other>` the
+  paths two saves don't share.
+- `cd app && npm test` · `npx vitest run <files>` · `npm run build` · `npm run lint`
+- `cd app && npm run tauri dev` runs the app, one instance per machine.
+- `cd guide && npm run dev` serves the guide, and `npm run build` checks it
+  as CI does.
 
-## When the game updates
+## Testing
 
-- Save a day-one game on the new version and run `bash
-  scripts/game-update.sh <save>`. It builds `sgf`, checks the install
-  parses, and checks the save loads, validates, round-trips byte for
-  byte and exports, then runs the workspace tests with the install
-  required.
-- Read the shape diff it prints for the sections the core reads:
-  `crates/sgf-core/src/keys.rs` names every key, `docs/format-notes.md`
-  records the shape. The key-presence test in `keys.rs` fails naming any
-  key the game no longer writes.
-- Compare the start event `game_start.50` and the define
-  `SPAWN_SYSTEM_BUFFER_DISTANCE` with the copies in
-  `crates/sgf-core/src/format/save/write/game_tables.rs`
-  (`docs/game-data-notes.md` lists what they hold). The tests do not
-  read them from the install, so a change there fails nothing.
-- A new major or minor version gets its save added to `testdata/` under
-  LFS, so the tests cover it from then on.
-- Run the in-game checks in `.github/pull_request_template.md`.
-- Update the version claims in `README.md`,
-  `guide/reference/versions.md` and `docs/game-data-notes.md`.
+Test through the outermost boundary that shows the behaviour, on real
+data. Prefer fewer, broader tests that fail loudly over many narrow ones.
 
-## Releases
+- Drive `sgf-core` through its public API or the `sgf` CLI on the files in
+  `testdata/`. Test an op by applying it to a sample save and
+  snapshotting the diff with `insta`. Assert round-trips, index coverage,
+  validator and projection counts on the whole file.
+- Test a Tauri command end to end on a session opened on a sample save.
+- Test the UI through the store's public actions. A component test renders
+  to a string with `renderToStaticMarkup`, so it suits a component whose
+  hooks never need to run.
+- Keep unit tests for the lexer's format quirks, the overlay, coordinate
+  formatting, and camera and hit-testing maths. A unit test that needs
+  private internals or mocks belongs one level further out.
 
-- `VERSION` at the repo root is the single version. `bash
-  scripts/version.sh set <x.y.z>` (or `bump patch|minor|major`) writes it
-  and updates the root `Cargo.toml`, `Cargo.lock`, `app/package.json` and
-  `app/package-lock.json`. Never edit the version by hand in any of
-  those files.
-- `CHANGELOG.md` follows Keep a Changelog. Every PR adds a file under
-  `changelog.d/` (`changelog.d/README.md` says how), or carries the
-  `skip-changelog` label; the required `Changelog entry` check enforces
-  this. Separate files keep open PRs from conflicting in `CHANGELOG.md`.
-  The changelog is for the people who use the editor, so an entry
-  describes what they can now see or do. Tooling, tests, refactors and
-  anything else that leaves the app unchanged take the label instead.
-- The changelog is written in a small subset of Markdown, because the
-  update dialog and the Workshop change note each parse it: `###`
-  headings, `- ` bullets at the start of a line, one nested level of
-  `- ` bullets at two spaces, and wrapped lines indented under their
-  bullet. Inline, only `code`, `**bold**` and `[links](url)`. Anything
-  else shows as plain text. Both parsers' tests read the real
-  `CHANGELOG.md`.
-- To release: bump the version with `bash scripts/version.sh bump minor`
-  (or `patch`/`major`). Run `bash scripts/changelog.sh collect`, which
-  folds the `changelog.d/` files into `## [Unreleased]`, grouped by kind,
-  and deletes them. Collect is the point to rewrite the Unreleased
-  section into the release notes. Then run `bash scripts/changelog.sh
-  release $(cat VERSION)`, which collects any file still left and renames
-  Unreleased to `## [x.y.z] - YYYY-MM-DD` with a fresh Unreleased above it.
-  Review the diff, then open it as a PR.
-- Merging that PR to `main` runs the checks and the three platform
-  builds side by side, and only once all of them pass tags `v<x.y.z>` and
-  publishes a GitHub Release whose notes are that changelog section.
-  The user guide is then built from the new tag and published to GitHub
-  Pages, so the site always describes the version players can download.
-  Merging anything else runs the checks and releases nothing. To publish
-  the guide without a release, run the `Guide` workflow from the Actions
-  tab. Left empty, it rebuilds the latest release tag. Given `main`, it
-  publishes what is on `main`, which may describe features not yet
-  released. GitHub Pages must have "GitHub Actions" as its source.
-- Tags are never made by hand; the `release.yml` workflow does it. To
-  rebuild a release for an existing tag, use the Actions tab: the
-  `Release` workflow, "Run workflow", enter the tag.
-- The repository secrets `TAURI_SIGNING_PRIVATE_KEY` and
-  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` sign the bundles for the updater.
-  The public key is compiled into every build (`plugins.updater.pubkey`
-  in `app/src-tauri/tauri.conf.json`), so the private key is never
-  regenerated: a new key would stop every installed copy from updating.
-- `createUpdaterArtifacts` lives in `app/src-tauri/tauri.release.conf.json`
-  and is merged in with `--config` only by the release workflow, so a
-  local `npm run tauri build` needs no key and produces no `.sig` files.
-- The `publish` job writes `latest.json` from the merged assets and the
-  changelog section, and the app reads it from
-  `releases/latest/download/latest.json`, so a release must be the latest
-  to be offered (a future prerelease would need `--latest=false`).
-- Once the GitHub Release is out, run `cargo workshop push` with Steam
-  open (`workshop/README.md`). It posts the changelog sections since the
-  last push as the Workshop change note, with any description or image
-  changes.
+Write the test first for a bug fix, at the outermost level that shows the
+bug, and see it fail. For an op, a projection or a parsing rule, write the
+refusals, what undo restores and what a round-trip keeps as tests first,
+and read the op's diff snapshot before accepting it. Layout and drawing
+are checked by eye in the running app, because the tests stub text
+measurement and rendering. The PR body says what was looked at.
 
-## Testing: outside-in first
-
-Test through the outermost boundary that exercises the behaviour, on real
-data, and reach for a unit test only for logic that is particularly
-complex or specific.
-
-- **Core**: drive `sgf-core` through its public API or the `sgf` CLI on
-  the corpus in `testdata/`. An op is tested by applying it to the real
-  sample save and snapshotting the resulting diff (`insta`), not by
-  testing its helper functions. Round-trip, index coverage, validator
-  and projection counts are asserted on the whole file.
-- **App**: Tauri commands are tested end-to-end against a session opened
-  on the sample save; the UI through the store's public actions
-  (Vitest) and, once it exists, the running app (Playwright). Do not test
-  components, reducers or layers in isolation when a store-level or
-  app-level test covers them. Component tests render to a string
-  (`renderToStaticMarkup`, no jsdom), so a component under test must not
-  need its hooks to be invoked.
-- **The game**: the in-game checks in `.github/pull_request_template.md`
-  are part of the test suite. A change to what the game reads is not done
-  until those checks have been run in-game.
-- **Unit tests are for**: the lexer/CST on the format quirks, the overlay
-  (property test), `emit::coord` formatting, camera and hit-testing
-  maths. If a unit test needs private internals or mocks, that is a
-  sign to test one level further out instead.
-- Prefer fewer, broader tests that fail loudly over many narrow ones.
-- The integration tests of sgf-core, sgf-gamedata and sgf-app each build
-  as one binary, so their shared `tests/common` compiles once and their
-  tests run in parallel. A new test file is declared in that crate's
-  `tests/main.rs`, and a test there fails if one is missing. sgf-core's
-  `corpus.rs` and `scenario_corpus.rs` are binaries of their own, so
-  their timings run alone.
-- In sgf-core, open a sample save with `common::open()`, `open_4_5()` or
-  `open_3_4()`. Each reads and indexes its save once per binary and
-  hands every test a copy. Call `Session::open` on a path only when the
-  test is about opening, saving or reloading a file. In sgf-gamedata, a
-  test that needs the real install reads `common::INSTALL`, which loads
-  it once.
-- The test harness runs one test per core. Splitting a slow test across
-  threads helped in sgf-gamedata, where the other tests finish early and
-  cores sit idle. In sgf-core every core is busy, and it made the run
-  slower.
-- A test that takes more than a few seconds in a debug build gets a look
-  before more cases are added to it.
-- The dev profile builds dependencies with `opt-level = 2`. The tests run
-  three to four times slower without it.
-
-### Where TDD applies
-
-- **Bug fixes: always.** Write the test that reproduces the bug first, at
-  the outermost level that shows it, and see it fail. A fix without a
-  test that fails without it is not done.
-- **Ops, projections and parsing rules: when the behaviour can be stated
-  before the code.** Refusals, what a projection reads back, what undo
-  restores and what a round-trip keeps are written as tests first. An
-  op's diff snapshot can only be taken once the code produces it; read
-  it before accepting it.
-- **Not for layout or drawing.** Component and map tests stub text
-  measurement and rendering, so they pass while a label overlaps or a
-  row wraps. Nor for refactors the existing tests already cover.
-
-### The user guide
-
-A change a player can see updates its page in `guide/` in the same PR,
-and adds the questions a player would search for it to
+A change a player can see updates its page in `guide/` in the same PR and
+adds the questions a player would search for to
 `guide/search/queries.json`. A new screenshot is listed in
-`guide/images/SHOTS.md`. A change that moves or restyles a panel retakes
-that panel's shots.
-
-### Looking at the running app
-
-A change to what the map or panels draw is looked at in the running app
-(`npm run tauri dev`) before its PR is marked ready, and the PR body says
-what was looked at. Until the app has Playwright tests, this is the only
-check on layout, hit areas and how a feature reads to someone using it.
+`guide/images/SHOTS.md`, and a panel that moves or changes style gets its
+shots retaken.
 
 ## Comments
 
-Code speaks for itself: good names, small functions, obvious control
-flow. A comment is a last resort, for logic that stays surprising after
-the code is as clear as it can be (a format quirk, a non-obvious
-invariant, why the simple approach is wrong). Keep it to a line where
-possible. Never write what the code does, how it used to work, or what
-changed: that is what git history and the diff are for.
+Write a comment only for what stays surprising after the code is as clear
+as it can be: a format quirk, an invariant, why the simple approach is
+wrong. Keep it to a line where you can. The diff and the history hold what
+the code used to do and what changed.
 
 ## Shell and platform
 
-- Development machine is Windows 11. Scripts and hooks run under Git
-  Bash (`bash`), not PowerShell. `cargo` and `npm` work in either.
-- All text files are LF (`.gitattributes`). A CRLF script or fixture breaks.
-- Run `git lfs install` once after cloning so `testdata/*.sav` resolves.
-- Stellaris is wherever Steam installed it
-  (`<Steam>\steamapps\common\Stellaris`); saves are in
-  `%USERPROFILE%\Documents\Paradox Interactive\Stellaris\save games`.
-  Never write into the save directory except through `sgf-core`'s
-  backup-then-persist path.
+- Scripts and hooks run under Git Bash (`bash`). `cargo` and `npm` work in
+  either shell.
+- Text files are LF (`.gitattributes`), because a CRLF script or fixture
+  breaks.
+- Write into the player's save folder only through `sgf-core`'s
+  backup-then-persist path, because a crash mid-write would lose a
+  campaign.
 
 ## Format facts to keep in mind
 
-LF, tabs, ASCII. Duplicate keys at every level, order matters.
-Statements are whitespace-separated, not line-based. `hyperlane=` blocks
-are omitted when empty. `length = floor(euclidean distance)`. Null id is
-`4294967295`. Coordinates use up to 5 decimals with trailing zeros
-stripped. Full list with examples: `docs/format-notes.md`.
+LF, tabs, ASCII. Duplicate keys at every level, and order matters.
+Statements are separated by whitespace, not lines. `hyperlane=` blocks
+are left out when empty. `length = floor(euclidean distance)`. The null
+id is `4294967295`. Coordinates use up to 5 decimals with trailing zeros
+stripped. `format-notes.md` has the full list with examples.

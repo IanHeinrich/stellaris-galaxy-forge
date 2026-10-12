@@ -3,7 +3,7 @@
 All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the version
 numbers follow [Semantic Versioning](https://semver.org/). Entries under
-Unreleased ship with the next release. `docs/engineering-rules.md` says how
+Unreleased ship with the next release. `docs/maintaining.md` says how
 a release is made.
 
 ## [Unreleased]

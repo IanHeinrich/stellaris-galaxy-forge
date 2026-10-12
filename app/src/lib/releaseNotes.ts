@@ -51,7 +51,7 @@ function continueItem(item: DraftItem, line: string) {
 }
 
 /**
- * The changelog's Markdown as blocks, in the subset `docs/engineering-rules.md` states: `### `
+ * The changelog's Markdown as blocks, in the subset `docs/maintaining.md` states: `### `
  * headings, `- ` bullets, a bullet nested at two spaces under the one before it, and indented
  * lines that continue an entry. A line outside the subset is paragraph text.
  */

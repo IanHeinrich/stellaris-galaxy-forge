@@ -41,7 +41,7 @@ resolved through game data (`sgf-gamedata/src/initializers.rs`).
 Three things are read but not edited. `coordinate_transform` is preserved and its positions shown
 untransformed, with a warning, since evaluating it would mean interpreting arbitrary script. A range position,
 `x = { min max }`, is read at its midpoint, also with a warning, and fixed to a point once the system moves.
-`z` is ignored, the editor being two-dimensional. A scenario `position` and a save's `coordinate` share their
+`z` is ignored, because the game ignores it (`docs/format-notes.md`). A scenario `position` and a save's `coordinate` share their
 axes: an exported scenario loaded in the game matched the save's galaxy with no mirroring, so
 `SCENARIO_X_SIGN` and `SCENARIO_Y_SIGN` are both `1.0`, kept in one place as the only conversion between a
 scenario's coordinates and the map's.
