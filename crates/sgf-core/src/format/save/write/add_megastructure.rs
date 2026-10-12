@@ -23,7 +23,7 @@ use crate::format::save::write::bodies::frame;
 use crate::format::save::write::construction;
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{
-    self, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
+    self, HAS_ORBITAL, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
 };
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{is_star, role};
@@ -35,6 +35,7 @@ use crate::ops::{
     Plan, Planned, SavedTable, Subject,
 };
 use crate::overlay::Anchor;
+use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
 use crate::{plural, plural_of};
@@ -47,11 +48,13 @@ const RELAY: &str = "relay_bypass";
 pub(crate) struct NewRow<'a> {
     pub system: u32,
     pub kind: &'a str,
+    pub name: Option<&'a NameTemplate>,
     pub at: MegastructurePlace,
     pub owner: Option<u32>,
     pub bypass: Option<&'a NewBypass>,
     pub ruined_orbital_ring: bool,
     pub megastructure_flag: bool,
+    pub orbital_flag: bool,
     pub star_only: bool,
     pub construction: Option<&'a MegastructureConstruction>,
     pub left_out: u32,
@@ -59,6 +62,9 @@ pub(crate) struct NewRow<'a> {
 
 pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result<Planned, OpError> {
     check_text("a megastructure type", new.kind, Form::Bare)?;
+    if let Some(name) = new.name {
+        check_name(name)?;
+    }
     let system = new.system;
     if !s.graph.systems.contains_key(&system) {
         return Err(OpError::UnknownSystem(system));
@@ -73,7 +79,11 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             if !(x.is_finite() && y.is_finite()) {
                 return Err(OpError::NotFinite);
             }
-            if new.ruined_orbital_ring || new.megastructure_flag || new.star_only {
+            if new.ruined_orbital_ring
+                || new.megastructure_flag
+                || new.orbital_flag
+                || new.star_only
+            {
                 return Err(refuse(
                     "it stands on or around a planet or star, and a free point has none".to_owned(),
                 ));
@@ -140,6 +150,7 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
     };
     let row = MegastructureRow {
         id,
+        name: new.name,
         kind: new.kind,
         at,
         system,
@@ -178,6 +189,9 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
         }
         if new.ruined_orbital_ring {
             flags.push((keys::RUINED_ORBITAL_RING_PLANET, day_one(&s.doc)?));
+        }
+        if new.orbital_flag {
+            flags.push((HAS_ORBITAL, today(&s.doc)?));
         }
         tie(plan.edit_planet(&s.doc, body, system)?, id, &flags)?;
     }
@@ -232,22 +246,25 @@ pub(crate) fn plan_remove(
         }),
         None => None,
     };
-    let (ruined_orbital_ring, megastructure_flag, star_only) = match tied.planet {
+    let (ruined_orbital_ring, megastructure_flag, orbital_flag) = match tied.planet {
         Some(body) => {
             let (node, src) = planet_entity(&s.doc, body)?;
             (
                 planet_flag(&node, src, keys::RUINED_ORBITAL_RING_PLANET),
                 planet_flag(&node, src, keys::HAS_MEGASTRUCTURE),
-                false,
+                planet_flag(&node, src, HAS_ORBITAL),
             )
         }
         None => (false, false, false),
     };
+    let found = row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::MegastructureNotAdded(id))?;
+    let name = found
+        .node
+        .find(keys::NAME, found.src)
+        .map(|_| read::name(&found.node, found.src));
     let at = match tied.planet {
         Some(body) => MegastructurePlace::Body { body },
         None => {
-            let found =
-                row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::MegastructureNotAdded(id))?;
             let (x, y) = read::coordinate(&found.node, found.src)
                 .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
             MegastructurePlace::Free { x, y }
@@ -269,12 +286,14 @@ pub(crate) fn plan_remove(
     let inverse = Op::AddMegastructure {
         system,
         kind: tied.kind.clone(),
+        name,
         at,
         owner: tied.owner,
         bypass,
         ruined_orbital_ring,
         megastructure_flag,
-        star_only,
+        orbital_flag,
+        star_only: false,
         construction: (!taken.is_empty()).then(|| taken.clone()),
         left_out: 0,
     };
@@ -290,6 +309,16 @@ pub(crate) fn plan_remove(
         ),
         inverse,
     })
+}
+
+/// Refuse a row name with a key or variable that cannot be written.
+fn check_name(name: &NameTemplate) -> Result<(), OpError> {
+    check_text("a name key", &name.key, Form::Quoted)?;
+    for variable in &name.variables {
+        check_text("a name variable", &variable.name, Form::Quoted)?;
+        check_name(&variable.value)?;
+    }
+    Ok(())
 }
 
 /// "12 modifiers, 12 deposits and a counter", or nothing for an empty construction.
@@ -362,7 +391,7 @@ fn flag_hours(date: &str) -> Option<u64> {
 }
 
 /// The `graphical_culture` the country `edit` holds names, when it names one.
-fn culture_of(edit: &Edit) -> Result<Option<String>, OpError> {
+pub(crate) fn culture_of(edit: &Edit) -> Result<Option<String>, OpError> {
     let country = edit.entity()?;
     Ok(read::scalar(country, keys::GRAPHICAL_CULTURE, &edit.buf).map(str::to_owned))
 }
@@ -435,7 +464,7 @@ fn connect(
 }
 
 /// Tie the body `edit` holds to row `id`, with the planet flags `flags`, each with its date.
-fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError> {
+pub(crate) fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError> {
     insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
         format!("{}={id}", keys::MEGASTRUCTURE)
     })?;

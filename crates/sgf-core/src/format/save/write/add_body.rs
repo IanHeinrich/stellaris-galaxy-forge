@@ -360,10 +360,24 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         Some(host) if !own.moon && add_habitat::hosted(s, planet, host)? => Some(host),
         _ => None,
     };
+    let orbital = match host {
+        Some(host) => add_habitat::orbital_of(s, host)?,
+        None => None,
+    };
     let inverse = match host {
         Some(host) => Op::AddHabitat {
             body: host,
-            habitat: add_habitat::read_back(&node, src, &stored, &own.body, host),
+            habitat: add_habitat::read_back(
+                &node,
+                src,
+                &stored,
+                &own.body,
+                host,
+                orbital
+                    .as_ref()
+                    .map(|orbital| add_habitat::orbital_back(s, orbital))
+                    .transpose()?,
+            ),
         },
         None => Op::AddBody {
             system,
@@ -397,7 +411,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         unlist_moon(plan.edit_planet(&s.doc, parent, system)?, planet)?;
     }
     if let Some(host) = host {
-        add_habitat::untie(plan, s, system, &stored, planet, host)?;
+        add_habitat::untie(plan, s, system, &stored, planet, host, orbital.as_ref())?;
     }
     let whose = match (moon_of, host) {
         (Some(parent), _) => format!("moon #{planet} of planet #{parent}"),

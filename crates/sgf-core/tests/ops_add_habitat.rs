@@ -2,15 +2,15 @@
 //! flags the host and the system take and give back, and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::{NewHabitat, Op};
+use sgf_core::ops::{HabitatOrbital, NewHabitat, Op};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
 use common::diff::snapshot_step;
-use common::examples::sol_habitat;
+use common::examples::{ADDED_MEGASTRUCTURE, sol_habitat, sol_nexus};
 use common::{
-    SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5, open_edited_sample,
+    SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5, open_edited_sample, text,
 };
 
 /// The 4.5 sample's capital system, Alari: star 0, the capital 2 with its moon 3, and barren
@@ -36,6 +36,26 @@ fn habitat_at(radius: f64) -> NewHabitat {
 }
 fn add(body: u32, habitat: NewHabitat) -> Op {
     Op::AddHabitat { body, habitat }
+}
+
+/// [`sol_habitat`] as the restored Habitat Central Complex leaves it round `body`: with the
+/// major orbital owned by country 0, which owns Alari.
+fn restored(body: u32) -> Op {
+    let Op::AddHabitat { habitat, .. } = sol_habitat() else {
+        unreachable!("sol_habitat adds a habitat");
+    };
+    add(
+        body,
+        NewHabitat {
+            orbital: Some(HabitatOrbital {
+                kind: "habitat_major_orbital".to_owned(),
+                owner: Some(0),
+                name: Some("TARGET_ORBITAL_NAME".to_owned()),
+                system_name: Some("prevprev.GetName".to_owned()),
+            }),
+            ..habitat
+        },
+    )
 }
 
 fn added_id(result: &sgf_core::session::OpResult) -> u32 {
@@ -232,4 +252,172 @@ fn a_system_with_no_flags_gets_its_block() {
         flags < system.find("initializer=").expect("initializer"),
         "{system}"
     );
+}
+
+/// A restored complex's habitat round planet 4 also writes its major orbital: a row at
+/// planet 4's coordinates named from Alari, in country 0's culture, listed by Alari and
+/// country 0, with planet 4 naming it and flagged `has_orbital`. Undo puts the bytes back.
+#[test]
+fn a_restored_habitat_has_its_orbital() {
+    let mut session = open_4_5();
+    let result = snapshot_step(&mut session, "habitat_restored_with_orbital", restored(4));
+    let id = added_id(&result);
+    assert!(
+        result.entry.description.contains(", with orbital #"),
+        "{}",
+        result.entry.description
+    );
+    let host = planet_text(&session, 4);
+    for key in [format!("habitat{id}="), "has_orbital=".to_owned()] {
+        assert!(host.contains(&key), "{key}: {host}");
+    }
+    assert!(host.contains("megastructure="), "{host}");
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// Deleting a restored complex's habitat takes its orbital row, the lists naming it and the
+/// host's link and flag with it, and its inverse adds both back.
+#[test]
+fn deleting_a_restored_habitat_takes_its_orbital() {
+    for delete in [true, false] {
+        let mut session = open_4_5();
+        let added = session.apply(restored(4)).expect("the add");
+        let id = added_id(&added);
+        let removal = match delete {
+            true => Op::DeleteBody { body: id },
+            false => Op::RemoveBody { body: id },
+        };
+        let removed = session.apply(removal.clone()).expect("the removal");
+        assert_eq!(current(&session), session.doc().original(), "{removal:?}");
+        assert_eq!(removed.inverse, restored(4), "{removal:?}");
+        session.undo().expect("undo").expect("the removal to undo");
+        assert!(planet_text(&session, 4).contains("has_orbital="));
+    }
+}
+
+/// A planet names one megastructure, so a restored habitat round the Science Nexus's gas
+/// giant is added without its orbital. Undo puts the bytes back.
+#[test]
+fn a_restored_habitat_round_a_megastructure_has_no_orbital() {
+    let mut session = open_4_5();
+    session
+        .apply(sol_nexus())
+        .expect("the Science Nexus on planet 6");
+    let before = current(&session);
+    let added = session.apply(restored(6)).expect("the habitat");
+    assert!(
+        !added.entry.description.contains("orbital"),
+        "{}",
+        added.entry.description
+    );
+    let host = planet_text(&session, 6);
+    assert!(!host.contains("has_orbital"), "{host}");
+    assert!(
+        !text(&session).contains("habitat_major_orbital"),
+        "no orbital row"
+    );
+    session.undo().expect("undo").expect("the add to undo");
+    assert_eq!(current(&session), before);
+}
+
+/// Removing a restored habitat's orbital on its own takes the host's `has_orbital` with it,
+/// and its inverse writes the row back as it stood, name and flag included. The habitat can
+/// then be deleted, which leaves the save as it was opened, and undo puts each step back.
+#[test]
+fn a_restored_habitats_orbital_removed_on_its_own() {
+    let mut session = open_4_5();
+    session.apply(restored(4)).expect("the add");
+    let after_add = current(&session);
+    let orbital = Op::RemoveMegastructure {
+        megastructure: ADDED_MEGASTRUCTURE,
+        construction: None,
+    };
+    let removed = session.apply(orbital.clone()).expect("the orbital");
+    let host = planet_text(&session, 4);
+    assert!(
+        !host.contains("has_orbital") && !host.contains("megastructure="),
+        "{host}"
+    );
+    assert!(host.contains("habitat16777273="), "{host}");
+    let Op::AddMegastructure {
+        kind, orbital_flag, ..
+    } = &removed.inverse
+    else {
+        panic!("{:?}", removed.inverse);
+    };
+    assert_eq!(
+        (kind.as_str(), *orbital_flag),
+        ("habitat_major_orbital", true)
+    );
+    let after_orbital = current(&session);
+
+    let deleted = session
+        .apply(Op::DeleteBody { body: 16777273 })
+        .expect("the habitat");
+    assert_eq!(current(&session), session.doc().original());
+    assert_eq!(deleted.inverse, sol_habitat());
+    session.undo().expect("undo").expect("the delete to undo");
+    assert_eq!(current(&session), after_orbital);
+    session.undo().expect("undo").expect("the removal to undo");
+    assert_eq!(current(&session), after_add);
+
+    session.apply(orbital).expect("the orbital again");
+    session.apply(removed.inverse).expect("its inverse");
+    assert_eq!(current(&session), after_add);
+}
+
+/// Planet 4 with a `has_orbital` the file held and no megastructure: the restored habitat
+/// is added without its orbital, and deleting it leaves the file's flag and the save as it
+/// was opened.
+#[test]
+fn a_restored_habitat_round_an_orphan_orbital_flag_has_no_orbital() {
+    let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+        let planets = gamestate
+            .find(
+                "
+planets=
+",
+            )
+            .expect("planets");
+        let planet = planets
+            + gamestate[planets..]
+                .find(
+                    "
+		4=
+",
+                )
+                .expect("planet 4");
+        let at = planet
+            + gamestate[planet..]
+                .find(
+                    "			bombardment_damage=0
+",
+                )
+                .expect("its bombardment damage")
+            + "			bombardment_damage=0
+"
+            .len();
+        gamestate.insert_str(
+            at,
+            "			flags=
+			{
+				has_orbital=62808000
+			}
+",
+        );
+    });
+    assert!(planet_text(&session, 4).contains("has_orbital=62808000"));
+    let added = session.apply(restored(4)).expect("the habitat");
+    assert!(
+        !added.entry.description.contains("orbital"),
+        "{}",
+        added.entry.description
+    );
+    assert!(!text(&session).contains("habitat_major_orbital"));
+    let id = added_id(&added);
+    session
+        .apply(Op::DeleteBody { body: id })
+        .expect("the habitat");
+    assert_eq!(current(&session), session.doc().original());
 }

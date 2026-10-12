@@ -431,7 +431,7 @@ impl Lines {
     }
 
     /// A name's braces at `depth`, with its key, `literal` and variables inside.
-    fn name(&mut self, depth: usize, name: &NameTemplate) {
+    pub(crate) fn name(&mut self, depth: usize, name: &NameTemplate) {
         self.line(depth, "{");
         self.pair(depth + 1, keys::KEY, &quoted(&name.key));
         if name.literal {

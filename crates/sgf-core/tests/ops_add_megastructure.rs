@@ -36,6 +36,7 @@ impl Row<'_> {
         Op::AddMegastructure {
             system: self.system,
             kind: self.kind.to_owned(),
+            name: None,
             at: self.at,
             owner: self.owner,
             bypass: self.bypass.map(|(kind, active)| NewBypass {
@@ -44,6 +45,7 @@ impl Row<'_> {
             }),
             ruined_orbital_ring: self.ruin,
             megastructure_flag: self.flag,
+            orbital_flag: false,
             star_only: self.star_only,
             construction: None,
             left_out: 0,
@@ -543,21 +545,25 @@ fn with_construction(row: Row<'_>, construction: MegastructureConstruction) -> O
         Op::AddMegastructure {
             system,
             kind,
+            name,
             at,
             owner,
             bypass,
             ruined_orbital_ring,
             megastructure_flag,
+            orbital_flag,
             star_only,
             ..
         } => Op::AddMegastructure {
             system,
             kind,
+            name,
             at,
             owner,
             bypass,
             ruined_orbital_ring,
             megastructure_flag,
+            orbital_flag,
             star_only,
             construction: Some(construction),
             left_out: 0,

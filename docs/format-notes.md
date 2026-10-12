@@ -705,7 +705,9 @@ for planets or deposits.
   `on_dismantle_complete` takes both flags off and gives the planet its
   model back. A ruined orbital ring's planet has the flag
   `ruined_orbital_ring_planet`. A body the structure made, such as a
-  cosmogenesis world, has the planet flag `megastructure`.
+  cosmogenesis world, has the planet flag `megastructure`. A habitat
+  orbital's body has `has_orbital`. When the editor deletes a row, its
+  body loses these flags unless another row names it.
 - The table is not sorted by id. In a 4.5.2 late-game save 32 of 375
   rows stand out of numeric order, and 47 are past generation 0. A test
   row added at the slot past the highest, with `owner=0`, no culture and
@@ -824,6 +826,29 @@ for planets or deposits.
   `habitat_phase_03_entity` without a culture, so the editor writes no
   `entity_name` for a habitat in a system no one owns. The editor writes
   no `build_queue`, as for any body it adds; the game builds one on load.
+- A habitat orbital is a `megastructures` row of type
+  `habitat_major_orbital` or `habitat_minor_orbital`, spawned by
+  `spawn_orbital_effect`: by the restored Habitat Central Complex round
+  the habitat's host, by the habitat district events
+  `megastructures.200`, `.210` and `.220` round another body of the
+  system, and by the Void Dwellers start. Seen in a 4.5.0 save (row
+  50331696 at star 114) and a 4.5.2 Void Dwellers save: the row starts
+  with `name={ key="TARGET_ORBITAL_NAME" variables={ { key="prevprev.GetName"
+  value=<name> } } }`, then `type`, `coordinate` equal to its body's
+  (the effect's `orbit_distance = 50` and `orbit_angle = 50` don't show
+  in it), `owner`, `graphical_culture`, `planet=<body>`, an empty
+  `orbitals`, and no `save_on_death`. Its system lists it in
+  `megastructures`, its owner in `owned_megastructures`, and the body has
+  `megastructure=<id>` and the planet flag `has_orbital`, which the
+  orbital type's own `on_build_complete` sets. In both saves `prevprev`
+  is the body, which the events and the start pick with
+  `random_system_planet`. The restored complex calls the effect straight
+  from the system, so there `prevprev` is the system, and the editor
+  fills the variable with the system's name. No save has shown a
+  restored complex's orbital yet. When the editor deletes the habitat, its
+  orbital goes too. A body that has a megastructure, or the flag
+  `has_megastructure` or `has_orbital` without one, gets the habitat
+  without the orbital, since a planet names one row in `megastructure`.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

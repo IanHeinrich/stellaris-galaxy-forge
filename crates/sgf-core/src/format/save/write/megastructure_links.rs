@@ -29,11 +29,15 @@ pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure
 /// The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace.
 const FURNACE_ENTITY: &str = "invisible_turret_entity";
 
+/// The planet flag the game's habitat orbitals set on their body when they are spawned.
+pub(crate) const HAS_ORBITAL: &str = "has_orbital";
+
 /// The planet flags a built or ruined megastructure leaves on its body.
-const BODY_FLAGS: [&str; 3] = [
+const BODY_FLAGS: [&str; 4] = [
     keys::HAS_MEGASTRUCTURE,
     keys::HAS_ARC_FURNACE,
     keys::RUINED_ORBITAL_RING_PLANET,
+    HAS_ORBITAL,
 ];
 
 /// One live `megastructures` row and what it names.

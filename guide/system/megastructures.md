@@ -161,9 +161,11 @@ out again.
   one. Colonise it in the game.
 - It has the habitat skin of the empire that owns the system. In a
   system no one owns, it has the habitat class's default skin.
-- The restored Habitat Central Complex adds the same habitat. In the
-  game it also builds a major orbital beside it, which Galaxy Forge
-  leaves out.
+- The restored Habitat Central Complex adds the same habitat, and also
+  the major orbital the game builds round the planet or star when a
+  restored complex is finished. The orbital belongs to the empire that
+  owns the system, and is left out where the planet or star already has
+  a megastructure.
 - The ruined Habitat Central Complex is added as a ruin, like any other
   megastructure.
 
@@ -178,7 +180,8 @@ To delete a habitat, right-click it and select Delete planet, as for
 any other planet. No ruined Habitat Central Complex is left behind. The
 planet or star it orbited loses the mark the game keeps for its
 habitat, and the system loses its own mark once no habitat is left in
-it.
+it. Deleting a habitat you added as the restored complex also deletes
+its orbital.
 
 ## Delete a megastructure
 

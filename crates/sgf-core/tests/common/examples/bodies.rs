@@ -207,6 +207,7 @@ pub(super) fn examples() -> Vec<Example> {
         Example::save_4_5(Op::AddMegastructure {
             system: 1,
             kind: "gateway_final".to_owned(),
+            name: None,
             at: MegastructurePlace::Free { x: 0.0, y: -260.0 },
             owner: None,
             bypass: Some(NewBypass {
@@ -215,6 +216,7 @@ pub(super) fn examples() -> Vec<Example> {
             }),
             ruined_orbital_ring: false,
             megastructure_flag: false,
+            orbital_flag: false,
             star_only: false,
             construction: None,
             left_out: 0,

@@ -544,3 +544,55 @@ fn a_dismantle_names_identifiers() {
         )],
     );
 }
+
+/// A habitat orbital the file held, made here from row 1 at star 631 with `has_orbital` on
+/// the star: deleting it takes the flag, its block with it, and undo, which applies the
+/// inverse, puts it back.
+#[test]
+fn a_habitat_orbital_takes_its_bodys_flag() {
+    let mut session = edited_4_5(|gamestate| {
+        insert_after(
+            gamestate,
+            "
+megastructures=
+{
+",
+            "
+	1=
+	{
+",
+            "		name=
+		{
+			key=\"TARGET_ORBITAL_NAME\"
+		}
+",
+        );
+        *gamestate = gamestate.replacen(
+            "type=\"strategic_coordination_center_ruined\"",
+            "type=\"habitat_major_orbital\"",
+            1,
+        );
+        insert_after(
+            gamestate,
+            "
+		631=
+		{
+",
+            "			megastructure=1
+			bombardment_damage=0
+",
+            "			flags=
+			{
+				has_orbital=62808000
+			}
+",
+        );
+    });
+    let star = entity_text(&session, EntityKind::Planet, 631);
+    assert!(star.contains("has_orbital="), "{star}");
+    session.apply(delete(1)).expect("the orbital");
+    let star = entity_text(&session, EntityKind::Planet, 631);
+    assert!(!star.contains("	flags="), "{star}");
+    session.undo().expect("undo").expect("the delete to undo");
+    assert_eq!(current(&session), session.doc().original());
+}
