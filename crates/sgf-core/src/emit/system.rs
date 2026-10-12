@@ -17,6 +17,9 @@ const BODY_CARRIER_FLAGS: u32 = 1;
 pub(crate) const FIXED_NAME_FLAG: u32 = 1;
 pub(crate) const ENTITY_NAME_FLAG: u32 = 2;
 pub(crate) const ANY_FLAG: u32 = 64;
+/// The bit `trigger_megastructure_icon = yes` sets on the body that shows a megastructure's
+/// icon, a ring world's habitable section.
+pub(crate) const MEGASTRUCTURE_ICON_FLAG: u32 = 16;
 pub(crate) const RING_FLAG: u32 = 256;
 pub(crate) const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
@@ -97,34 +100,114 @@ pub struct HabitatEntry<'a> {
 }
 
 pub fn habitat_entry(indent: &[u8], h: &HabitatEntry<'_>) -> Vec<u8> {
+    made_entry(
+        indent,
+        &Made {
+            id: h.id,
+            class: h.class,
+            size: h.size,
+            name: h.name,
+            at: (h.x, h.y),
+            system: h.system,
+            orbit: h.orbit,
+            moon_of: Some(h.host),
+            binary_flags: FIXED_NAME_FLAG | ANY_FLAG,
+            flags: h.flags,
+            flag_date: h.flag_date,
+            entity_name: h.entity_name,
+        },
+    )
+}
+
+/// A ring world segment's `planets.planet` entry, as the game's `spawn_planet` writes one
+/// round the system's centre: a name it fixes, a model set by `set_planet_entity`, and the
+/// megastructure icon bit on the section that shows it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SegmentEntry<'a> {
+    pub id: u32,
+    pub class: &'a str,
+    pub size: u32,
+    pub name: &'a NameTemplate,
+    /// Relative to the system's centre.
+    pub x: f64,
+    pub y: f64,
+    pub system: u32,
+    pub orbit: f64,
+    /// Planet flags, each dated `flag_date`.
+    pub flags: &'a [String],
+    pub flag_date: &'a str,
+    pub entity_name: Option<&'a str>,
+    pub megastructure_icon: bool,
+}
+
+pub fn segment_entry(indent: &[u8], s: &SegmentEntry<'_>) -> Vec<u8> {
+    let icon = if s.megastructure_icon {
+        MEGASTRUCTURE_ICON_FLAG
+    } else {
+        0
+    };
+    made_entry(
+        indent,
+        &Made {
+            id: s.id,
+            class: s.class,
+            size: s.size,
+            name: s.name,
+            at: (s.x, s.y),
+            system: s.system,
+            orbit: s.orbit,
+            moon_of: None,
+            binary_flags: FIXED_NAME_FLAG | ANY_FLAG | icon,
+            flags: s.flags,
+            flag_date: s.flag_date,
+            entity_name: s.entity_name,
+        },
+    )
+}
+
+/// A planet a megastructure makes, in the keys and order the game writes one it spawns.
+struct Made<'a> {
+    id: u32,
+    class: &'a str,
+    size: u32,
+    name: &'a NameTemplate,
+    at: (f64, f64),
+    system: u32,
+    orbit: f64,
+    moon_of: Option<u32>,
+    binary_flags: u32,
+    flags: &'a [String],
+    flag_date: &'a str,
+    entity_name: Option<&'a str>,
+}
+
+fn made_entry(indent: &[u8], m: &Made<'_>) -> Vec<u8> {
     let mut w = Lines::new(indent);
-    w.open(0, &h.id.to_string());
-    w.pair(1, keys::PLANET_CLASS, &quoted(h.class));
-    w.pair(1, keys::PLANET_SIZE, &h.size.to_string());
+    w.open(0, &m.id.to_string());
+    w.pair(1, keys::PLANET_CLASS, &quoted(m.class));
+    w.pair(1, keys::PLANET_SIZE, &m.size.to_string());
     w.pair(
         1,
         keys::CARRIER_BINARY_FLAGS,
         &BODY_CARRIER_FLAGS.to_string(),
     );
     w.line(1, &format!("{}=", keys::NAME));
-    w.name(1, h.name);
-    w.pair(
-        1,
-        keys::BINARY_FLAGS,
-        &(FIXED_NAME_FLAG | ANY_FLAG).to_string(),
-    );
-    w.coordinate(1, (h.x, h.y), h.system);
-    w.pair(1, keys::ORBIT, &coord(h.orbit));
+    w.name(1, m.name);
+    w.pair(1, keys::BINARY_FLAGS, &m.binary_flags.to_string());
+    w.coordinate(1, m.at, m.system);
+    w.pair(1, keys::ORBIT, &coord(m.orbit));
     w.pair(1, keys::LAST_BOMBARDMENT, NEVER_BOMBARDED);
-    w.pair(1, keys::MOON_OF, &h.host.to_string());
+    if let Some(host) = m.moon_of {
+        w.pair(1, keys::MOON_OF, &host.to_string());
+    }
     w.open(1, keys::PLANET_ORBITALS);
     w.close(1);
     w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
-    if !h.flags.is_empty() {
-        w.flags(1, h.flags, h.flag_date);
+    if !m.flags.is_empty() {
+        w.flags(1, m.flags, m.flag_date);
     }
     w.pair(1, keys::ENTITY, "0");
-    if let Some(name) = h.entity_name {
+    if let Some(name) = m.entity_name {
         w.pair(1, keys::ENTITY_NAME, &quoted(name));
     }
     w.close(0);

@@ -89,6 +89,9 @@ pub struct Plan {
     /// The stage each section is taken to, in the order its row was spawned. A section past
     /// the end stays as spawned.
     pub sections: Vec<SectionStage>,
+    /// The graphical culture of the structure's owner, which a condition or a `switch` on
+    /// `graphical_culture` reads; `None` when it has none.
+    pub culture: Option<String>,
 }
 
 /// What finishing a type leaves in its system.
@@ -102,6 +105,8 @@ pub struct SystemLayout {
     pub planets: Vec<LaidPlanet>,
     /// The system flags set and not removed again, in the order they were set.
     pub system_flags: Vec<String>,
+    /// The system variables the walk set and could follow, by name, with their last value.
+    pub system_variables: Vec<(String, f64)>,
     /// The planet flags set on the body the structure stands at.
     pub host_flags: Vec<LaidFlag>,
     /// Every planet that is not a star is removed.
@@ -134,6 +139,9 @@ pub struct LaidRow {
     pub owned: bool,
     /// The row takes the structure's graphical culture.
     pub cultured: bool,
+    /// A graphical culture of the row's own in place of the structure's, such as the
+    /// `mammalian_01` Gigastructural Engineering gives a ring of any other culture.
+    pub culture: Option<String>,
     /// The row's `planet` is the body the structure stands at.
     pub on_host: bool,
 }
@@ -153,6 +161,9 @@ pub struct LaidPlanet {
     pub flags: Vec<LaidFlag>,
     /// `trigger_megastructure_icon = yes`.
     pub megastructure_icon: bool,
+    /// What the walk listed in [`SystemLayout::unfollowed`] while it ran the planet's own
+    /// `init_effect`.
+    pub unfollowed: Vec<String>,
 }
 
 /// A point in polar game coordinates, round the system's centre or round the body the
@@ -225,6 +236,8 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
     let mut state = State {
         gd,
         on_star: plan.on_star,
+        culture: plan.culture.clone(),
+        variables: BTreeMap::new(),
         rows: vec![Row {
             laid: LaidRow {
                 kind: chain[0].key.clone(),
@@ -233,6 +246,7 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
                 system_name: None,
                 owned: true,
                 cultured: true,
+                culture: None,
                 on_host: true,
             },
             standing: true,
@@ -307,6 +321,10 @@ struct Row {
 struct State<'g> {
     gd: &'g GameData,
     on_star: bool,
+    culture: Option<String>,
+    /// Each system variable a script the walk reached sets, with its value when the walk can
+    /// follow it.
+    variables: BTreeMap<String, Option<f64>>,
     /// The structure's own row first, then each spawned one.
     rows: Vec<Row>,
     /// Each spawned row by index in `rows`, with where it was spawned.
@@ -418,6 +436,7 @@ impl<'g> State<'g> {
         laid.kind = ruin;
         laid.name = None;
         laid.cultured = false;
+        laid.culture = None;
         true
     }
 
@@ -472,6 +491,17 @@ impl<'g> State<'g> {
         }
     }
 
+    /// Whether `scope` has the structure's culture, and a culture of its own in its place.
+    fn culture_of(&self, scope: Scope) -> (bool, Option<String>) {
+        match scope {
+            Scope::Row(row) => (
+                self.rows[row].laid.cultured,
+                self.rows[row].laid.culture.clone(),
+            ),
+            _ => (self.cultured(scope), None),
+        }
+    }
+
     fn note(&mut self, line: String) {
         if !self.unfollowed.contains(&line) {
             self.unfollowed.push(line);
@@ -492,6 +522,11 @@ impl<'g> State<'g> {
                 .collect(),
             planets: self.planets,
             system_flags: self.system_flags,
+            system_variables: self
+                .variables
+                .into_iter()
+                .filter_map(|(name, value)| Some((name, value?)))
+                .collect(),
             host_flags: self.host_flags,
             cleared: self.cleared,
             belts_cleared: self.belts_cleared,
@@ -518,6 +553,8 @@ struct Walk<'d> {
     depth: usize,
     /// The stage or effect the walk is in, for what it lists as unfollowed.
     origin: String,
+    /// The planet whose `init_effect` the walk is in.
+    spawning: Option<usize>,
 }
 
 impl<'d> Walk<'d> {
@@ -530,6 +567,7 @@ impl<'d> Walk<'d> {
             frame: [Scope::System, Scope::Owner, Scope::Row(row)],
             depth: 0,
             origin,
+            spawning: None,
         }
     }
 
@@ -550,7 +588,7 @@ impl<'d> Walk<'d> {
     fn block(&self, st: &mut State<'d>, node: &Node) -> Flow {
         let src = self.src();
         let mut taken = false;
-        for child in node.children() {
+        for child in self.active(node) {
             let Some(key) = child.key_str(src) else {
                 continue;
             };
@@ -574,7 +612,20 @@ impl<'d> Walk<'d> {
                     self.save_target(st, &key, value);
                     Flow::Go
                 }
-                _ if matches!(self.this(), Scope::Owner | Scope::Nothing) => Flow::Go,
+                "switch" if self.this() == Scope::Owner => {
+                    self.culture_switch(st, child);
+                    Flow::Go
+                }
+                _ if self.this() == Scope::Owner => {
+                    match self.scope_of(st, &key) {
+                        Some(scope) if scope != Scope::Owner && child.scalar_span().is_none() => {
+                            self.enter(st, scope, child);
+                        }
+                        _ => {}
+                    }
+                    Flow::Go
+                }
+                _ if self.this() == Scope::Nothing => Flow::Go,
                 "spawn_megastructure" => {
                     self.spawn_row(st, child);
                     Flow::Go
@@ -625,6 +676,59 @@ impl<'d> Walk<'d> {
                 Flow::Go
             }
         }
+    }
+
+    /// `switch = { trigger = graphical_culture … }` in the owner's scope: the branch of the
+    /// owner's culture, else `default`.
+    fn culture_switch(&self, st: &mut State<'d>, node: &Node) {
+        let src = self.src();
+        if self.field(node, "trigger").as_deref() != Some("graphical_culture") {
+            return self.note(st, "a switch on the owner");
+        }
+        let branches = self.active(node);
+        let pick = |name: &str| {
+            branches
+                .iter()
+                .find(|branch| branch.key_str(src) == Some(name))
+                .copied()
+        };
+        let branch = st
+            .culture
+            .as_deref()
+            .and_then(pick)
+            .or_else(|| pick("default"));
+        if let Some(branch) = branch {
+            self.block(st, branch);
+        }
+    }
+
+    /// The children of `node` a `[[PARAM] ... ]` block of the effect leaves in: those of a
+    /// block whose parameter is passed, and of a `[[!PARAM] ... ]` block whose is not.
+    fn active<'n>(&self, node: &'n Node) -> Vec<&'n Node> {
+        let src = self.src();
+        let mut open: Vec<bool> = Vec::new();
+        let mut kept = Vec::new();
+        for child in node.children() {
+            if child.key.is_none() {
+                let text = child.scalar_str(src).unwrap_or_default();
+                if let Some(header) = text.strip_prefix("[[").and_then(|t| t.strip_suffix(']')) {
+                    let (negated, name) = match header.strip_prefix('!') {
+                        Some(name) => (true, name),
+                        None => (false, header),
+                    };
+                    let given = self.params.iter().any(|(param, _)| param == name);
+                    open.push(given != negated);
+                    continue;
+                }
+                if text == "]" && open.pop().is_some() {
+                    continue;
+                }
+            }
+            if open.iter().all(|&on| on) {
+                kept.push(child);
+            }
+        }
+        kept
     }
 
     fn unjudged(&self, st: &mut State<'d>, node: &Node) {
@@ -679,18 +783,26 @@ impl<'d> Walk<'d> {
                 _ => self.note(st, &format!("{key} on {}", self.scope_name())),
             },
             "set_graphical_culture" => match this {
-                Scope::Row(row) => match value.as_deref().and_then(|v| self.scope_of(st, v)) {
-                    Some(to) => {
-                        let cultured = st.cultured(to);
+                Scope::Row(row) => match value.as_deref().map(|v| (v, self.scope_of(st, v))) {
+                    Some((_, Some(to))) => {
+                        let (cultured, culture) = st.culture_of(to);
                         st.rows[row].laid.cultured = cultured;
+                        st.rows[row].laid.culture = culture;
                     }
-                    None => self.note(
+                    Some((culture, None)) if self.is_culture(st, culture, node) => {
+                        st.rows[row].laid.cultured = false;
+                        st.rows[row].laid.culture = Some(culture.to_owned());
+                    }
+                    _ => self.note(
                         st,
                         &format!("{key} = {}", value.as_deref().unwrap_or(BLOCK)),
                     ),
                 },
                 _ => self.note(st, &format!("{key} on {}", self.scope_name())),
             },
+            "set_variable" | "change_variable" if this == Scope::System => {
+                self.variable(st, key, node);
+            }
             _ if EVENT_KEYS.contains(&key) => {
                 self.note(st, &format!("{key} on {}", self.scope_name()))
             }
@@ -716,20 +828,12 @@ impl<'d> Walk<'d> {
         }
     }
 
-    /// Run a block that moves to `scope`, when its own `limit` holds. Of an owner's block
-    /// only the event targets it saves are kept.
+    /// Run a block that moves to `scope`, when its own `limit` holds. Of an owner's block only
+    /// the event targets it saves, its branches, a `switch` on its culture and the blocks
+    /// that move on to another scope are followed.
     fn enter(&self, st: &mut State<'d>, scope: Scope, node: &Node) {
         if scope == Scope::Owner {
-            let owner = self.within(scope);
-            let src = self.src();
-            for child in node.children() {
-                if let Some(key @ ("save_event_target_as" | "save_global_event_target_as")) =
-                    child.key_str(src)
-                {
-                    let name = child.scalar_str(src).map(|v| self.substitute(v));
-                    owner.save_target(st, key, name);
-                }
-            }
+            self.within(scope).block(st, node);
             return;
         }
         if scope == Scope::Nothing {
@@ -784,9 +888,9 @@ impl<'d> Walk<'d> {
             None => false,
         };
         let owned = self.resolved(st, node, "owner", &spawn) == Some(Scope::Owner);
-        let cultured = self
+        let (cultured, culture) = self
             .resolved(st, node, "graphical_culture", &spawn)
-            .is_some_and(|s| st.cultured(s));
+            .map_or((false, None), |s| st.culture_of(s));
         let row = st.rows.len();
         st.rows.push(Row {
             laid: LaidRow {
@@ -796,6 +900,7 @@ impl<'d> Walk<'d> {
                 system_name: None,
                 owned,
                 cultured,
+                culture,
                 on_host,
             },
             standing: true,
@@ -887,9 +992,12 @@ impl<'d> Walk<'d> {
             model: None,
             flags: Vec::new(),
             megastructure_icon: false,
+            unfollowed: Vec::new(),
         });
         if let Some(init) = node.find("init_effect", self.src()) {
-            self.within(Scope::Planet(planet)).block(st, init);
+            let mut walk = self.within(Scope::Planet(planet));
+            walk.spawning = Some(planet);
+            walk.block(st, init);
         }
     }
 
@@ -947,6 +1055,61 @@ impl<'d> Walk<'d> {
         } else if !flags.contains(&flag) {
             flags.push(flag);
         }
+    }
+
+    /// Whether `culture`, the value of `node`, names a graphical culture: one the install
+    /// defines, or any text written between quotes.
+    fn is_culture(&self, st: &State<'d>, culture: &str, node: &Node) -> bool {
+        let quoted = node
+            .scalar_span()
+            .is_some_and(|span| self.src().get(span.start) == Some(&b'"'));
+        quoted || st.gd.graphical_cultures.get(culture).is_some()
+    }
+
+    /// `set_variable` or `change_variable` on the system: the value is followed while every
+    /// change to it is a number and the walk set it first.
+    fn variable(&self, st: &mut State<'d>, key: &str, node: &Node) {
+        let Some(which) = self.field(node, "which") else {
+            return self.note(st, &format!("{key} with no which"));
+        };
+        let by = match self.numbers(node, ["value"]) {
+            Ok([by]) => by,
+            Err(_) => None,
+        };
+        let was = st.variables.get(&which).copied().flatten();
+        let now = match key {
+            "set_variable" => by,
+            _ => was.zip(by).map(|(was, by)| was + by),
+        };
+        if now.is_none() {
+            self.note(st, &format!("{key} of {which} on the system"));
+        }
+        st.variables.insert(which, now);
+    }
+
+    /// `check_variable = { which = ... value >= ... }` on the system, for a variable the walk
+    /// follows.
+    fn check_variable(&self, st: &State<'d>, node: &Node) -> Option<bool> {
+        let src = self.src();
+        let which = self.field(node, "which")?;
+        let held = (*st.variables.get(&which)?)?;
+        let value = node.find("value", src)?;
+        let wanted = self
+            .def
+            .number_of(&self.substitute(value.scalar_str(src)?))?;
+        let (key, scalar) = (value.key?, value.scalar_span()?);
+        let op = std::str::from_utf8(&src[key.end..scalar.start])
+            .ok()?
+            .trim();
+        Some(match op {
+            "=" => held == wanted,
+            ">" => held > wanted,
+            ">=" => held >= wanted,
+            "<" => held < wanted,
+            "<=" => held <= wanted,
+            "!=" => held != wanted,
+            _ => return None,
+        })
     }
 
     fn name(&self, st: &mut State<'d>, node: &Node) {
@@ -1067,10 +1230,12 @@ impl<'d> Walk<'d> {
                 Scope::Row(row) => Some(st.rows[row].laid.kind == value?),
                 _ => None,
             },
+            "graphical_culture" if self.this() == Scope::Owner => {
+                Some(st.culture.as_deref()? == value?)
+            }
+            "check_variable" if self.this() == Scope::System => self.check_variable(st, node),
             _ => match self.scope_of(st, &key) {
-                Some(scope) if value.is_none() && scope != Scope::Owner => {
-                    self.within(scope).all(st, node)
-                }
+                Some(scope) if value.is_none() => self.within(scope).all(st, node),
                 _ => None,
             },
         }
@@ -1092,11 +1257,13 @@ impl<'d> Walk<'d> {
             "solar_system" => Scope::System,
             _ => st.targets.get(first.strip_prefix("event_target:")?)?.0,
         };
-        let mut at_root = first == "root";
+        // `root.from`, and `prev.from` as Gigastructural Engineering names the builder from a
+        // spawned planet's `init_effect`.
+        let mut framed = matches!(first.as_str(), "root" | "prev" | "prevprev");
         for link in links {
             scope = match (link.as_str(), scope) {
-                ("from", _) if at_root => self.frame[1],
-                ("fromfrom", _) if at_root => self.frame[2],
+                ("from", _) if framed => self.frame[1],
+                ("fromfrom", _) if framed => self.frame[2],
                 ("planet", Scope::Row(row)) if st.rows[row].laid.on_host => Scope::Host,
                 ("planet", Scope::Row(_)) => Scope::Nothing,
                 ("owner", Scope::Row(row)) if st.rows[row].laid.owned => Scope::Owner,
@@ -1104,7 +1271,7 @@ impl<'d> Walk<'d> {
                 ("solar_system", _) => Scope::System,
                 _ => return None,
             };
-            at_root = false;
+            framed = false;
         }
         Some(scope)
     }
@@ -1190,7 +1357,14 @@ impl<'d> Walk<'d> {
     }
 
     fn note(&self, st: &mut State<'d>, what: &str) {
-        st.note(format!("{}: {what}", self.origin));
+        let line = format!("{}: {what}", self.origin);
+        if let Some(planet) = self.spawning {
+            let listed = &mut st.planets[planet].unfollowed;
+            if !listed.contains(&line) {
+                listed.push(line.clone());
+            }
+        }
+        st.note(line);
     }
 
     fn arguments(&self, call: &Node) -> Vec<(String, String)> {

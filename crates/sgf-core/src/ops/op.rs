@@ -820,6 +820,46 @@ pub enum Op {
         body: u32,
         habitat: NewHabitat,
     },
+    /// A ring world round the single star of save system `system`, as the game's build
+    /// chain leaves one with each section at its own stage: each finished, restored or
+    /// damaged section's planets written as [`Op::AddHabitat`] writes a planet, round the
+    /// system's centre with no `moon_of`, no owner and no colony, its flags dated the save's
+    /// date and the habitable section's megastructure icon bit set; each frame or ruined
+    /// section a `megastructures` row as [`Op::AddMegastructure`] writes one, at its point and
+    /// on no body, with its name, owned by `owner` when the row takes the owner and in the
+    /// owner's `graphical_culture` when it takes the culture. The system lists the planets
+    /// after its last `planet=` line and the rows in `megastructures`, the owner lists its rows
+    /// in `owned_megastructures`, and the system gets each of `ring.system_flags` it lacks,
+    /// each of `ring.system_variables` at its value, and the star each of `ring.star_flags`
+    /// it lacks. Rows and segments on the base game's angles stand
+    /// where the game's spawn lands, which overshoots the radius a little. Every other body and
+    /// belt stays: [`Op::DeleteBody`] and [`Op::RemoveBelt`] in the same [`Op::Batch`] clear
+    /// the system first, as the game's frame does. The owner's country flags are not written.
+    /// The inner radius grows when a segment lies past it. A system with no star or more than
+    /// one, one that already has a ring world segment or row, a megastructure row with no
+    /// bypass in the system, an unknown owner, no sections, a section with no planets, a size
+    /// of 0, a placement that is not finite or not past 0, and a class, name, model, flag or
+    /// type that cannot be written are refused. The inverse is [`Op::RemoveRingWorld`],
+    /// batched with the old inner radius when it grew. Stellaris 4.x save documents only.
+    AddRingWorld {
+        system: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        owner: Option<u32>,
+        ring: NewRingWorld,
+    },
+    /// The ring world [`Op::AddRingWorld`] wrote this session, taken out again: its planets and
+    /// rows give their slots back as [`Op::RemoveBody`] and [`Op::RemoveMegastructure`] give
+    /// them back, the system and the owner stop listing them, and the system and the star
+    /// lose the flags the add gave them, and the system's variables go back to the values they
+    /// held. A planet or row the file held is refused. Only an
+    /// inverse: the session refuses it from [`crate::session::Session::apply`]. The inverse
+    /// is the [`Op::AddRingWorld`] that wrote it. Save documents only.
+    #[ts(skip)]
+    RemoveRingWorld {
+        system: u32,
+        written: RingWorldWritten,
+    },
     /// A new archaeological dig site of type `site_type` on a save planet, a moon or colony
     /// included: an entry last in `archaeological_sites.sites`, its id one past the highest
     /// the save has held since it was opened, written as the game writes a site nobody has
@@ -1074,7 +1114,12 @@ impl Op {
             | Self::RemoveMegastructure { .. }
             | Self::MoveMegastructure { .. }
             | Self::DeleteMegastructure { .. }
-            | Self::DeleteRingWorld { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
+            | Self::DeleteRingWorld { .. }
+            | Self::AddRingWorld { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
+            Self::RemoveRingWorld { .. } => OpReach::of(SAVE)
+                .details(Rebuild)
+                .whole_entries()
+                .inverse_only(),
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
             // to set, and it has neither a scenario header nor a generator to prevent a lane
             // from. It adds and names a system through the save ops, which write the bodies a
@@ -1383,6 +1428,111 @@ pub struct HabitatOrbital {
     /// `None` for a name with none.
     #[serde(default)]
     pub system_name: Option<String>,
+}
+
+/// The ring world [`Op::AddRingWorld`] writes, as the install's build chain lays one out.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewRingWorld {
+    /// Each quadrant in the order its row was spawned: A to D for the game's ring world.
+    pub quadrants: Vec<RingQuadrant>,
+    /// The system flags the chain leaves, in the order it sets them: `ring_world_built`, and
+    /// `ring_section_1` to `ring_section_3` while some sections stand unfinished.
+    pub system_flags: Vec<String>,
+    /// The system variables the chain leaves: Gigastructural Engineering's count of finished
+    /// sections, `ring_segments`.
+    #[serde(default)]
+    pub system_variables: Vec<RingVariable>,
+    /// The planet flags the chain leaves on the star: `has_megastructure` under
+    /// Gigastructural Engineering, none in the base game.
+    #[serde(default)]
+    pub star_flags: Vec<String>,
+}
+
+/// A system variable a [`NewRingWorld`] leaves, and its value.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RingVariable {
+    pub name: String,
+    pub value: f64,
+}
+
+/// One section of a [`NewRingWorld`] at its stage, with what the install leaves there.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "stage", rename_all = "snake_case")]
+pub enum RingQuadrant {
+    /// Built: its planets, tech, seam and habitable section.
+    Finished { segments: Vec<RingSegment> },
+    /// A ruin built again: its planets, laid out mirrored.
+    Restored { segments: Vec<RingSegment> },
+    /// Ruined as the game's `set_ruined_megastructure` ruins a section: its damaged planets.
+    Damaged { segments: Vec<RingSegment> },
+    /// A frame section waiting to be built: its row.
+    Frame { row: RingRow },
+    /// A ruined section: its row.
+    Ruined { row: RingRow },
+}
+
+/// A planet of a [`RingQuadrant`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RingSegment {
+    /// `pc_ringworld_habitable`.
+    pub class: String,
+    pub size: u32,
+    /// Its distance from the system's centre and its save angle.
+    pub at: OrbitPlacement,
+    /// The localisation key of its name, `NAME_Habitable_Section_A`.
+    pub name: String,
+    /// The model drawn in place of the class's own,
+    /// `mammalian_01_ringworld_habitable_entity_01_entity`.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Its planet flags, in the order they are set: `megastructure`.
+    pub flags: Vec<String>,
+    /// It shows the ring's megastructure icon: `trigger_megastructure_icon = yes`.
+    #[serde(default)]
+    pub megastructure_icon: bool,
+}
+
+/// The `megastructures` row of a [`RingQuadrant`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RingRow {
+    /// `ring_world_2`.
+    pub kind: String,
+    /// Its distance from the system's centre and its save angle.
+    pub at: OrbitPlacement,
+    /// The name key, `NAME_Ring_Section_A`; a ruin has none.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// The row takes the ring's owner.
+    pub owned: bool,
+    /// The graphical culture it is drawn in, written when it has an owner.
+    #[serde(default)]
+    pub culture: Option<String>,
+}
+
+/// What [`Op::AddRingWorld`] wrote, which its inverse takes out again.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RingWorldWritten {
+    pub owner: Option<u32>,
+    pub ring: NewRingWorld,
+    /// The planets written, in the sections' order.
+    pub planets: Vec<u32>,
+    /// The rows written, in the sections' order.
+    pub rows: Vec<u32>,
+    /// The flags of `ring.system_flags` the system lacked.
+    pub system_flags: Vec<String>,
+    /// The star, and the flags of `ring.star_flags` it lacked.
+    pub star: u32,
+    pub star_flags: Vec<String>,
+    /// Each variable of `ring.system_variables` with the value the system held, as written;
+    /// `None` where it held none.
+    pub variables: Vec<(String, Option<String>)>,
+    /// The system had no `variables` block.
+    pub variables_block: bool,
 }
 
 /// The name a [`NewBody`] is written with.

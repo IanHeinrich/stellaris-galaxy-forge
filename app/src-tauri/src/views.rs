@@ -45,6 +45,16 @@ pub struct AddedHabitat {
     pub planet: u32,
 }
 
+/// What adding a ring world answers with: the edit, and the ids of the planets and rows it
+/// wrote, in the quadrants' order.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AddedRingWorld {
+    pub edit: EditResult,
+    pub planets: Vec<u32>,
+    pub megastructures: Vec<u32>,
+}
+
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,
 /// the systems standing in each row, how many systems the choices change, and what the options
 /// and a pair taken out do beside them.

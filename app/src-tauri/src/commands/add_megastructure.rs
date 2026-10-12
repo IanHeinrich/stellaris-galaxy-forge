@@ -125,7 +125,8 @@ fn unsupported(why: &Unsupported) -> String {
             format!("it stands for a {bypass} bypass, which has not been tried in game")
         }
         Unsupported::RingWorld => {
-            "a ring world is several rows and planets, which the editor does not write".to_owned()
+            "a ring world past its site is several rows and planets, added as a whole ring world"
+                .to_owned()
         }
         Unsupported::BecomesStarbase => {
             "building it makes a starbase, which the editor does not write".to_owned()

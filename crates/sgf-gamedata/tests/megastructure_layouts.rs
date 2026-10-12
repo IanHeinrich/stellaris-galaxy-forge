@@ -1,16 +1,18 @@
 //! What finishing a megastructure leaves in its system, replayed from the real install's
 //! build chains: the ring world's rows and segments, stage by stage per quadrant, and the
-//! habitat a Habitat Central Complex becomes and the one the editor adds for it.
+//! habitat a Habitat Central Complex becomes and the one the editor adds for it, and the ring
+//! world the editor adds quadrant by quadrant.
 
 use crate::common;
 
-use sgf_core::ops::{HabitatOrbital, NewHabitat};
+use sgf_core::ops::{HabitatOrbital, NewHabitat, RingQuadrant, RingRow};
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::GameData;
 use sgf_gamedata::construction::habitat::habitat;
 use sgf_gamedata::construction::layout::{
     Around, IdOf, LaidFlag, LaidPlanet, LaidRow, Orbit, Plan, SectionStage, SystemLayout, lay_out,
 };
+use sgf_gamedata::construction::ring_world::{self as added, RingStage};
 
 /// The four quadrants' save angles, A to D, as every ring world row in the saves stands.
 const QUADRANTS: [f64; 4] = [180.0, 270.0, 0.0, 90.0];
@@ -19,6 +21,7 @@ fn ring_world(gd: &GameData, sections: &[SectionStage]) -> SystemLayout {
     let plan = Plan {
         on_star: true,
         sections: sections.to_vec(),
+        culture: None,
     };
     lay_out(gd, "ring_world_2_intermediate", &plan).expect("ring_world_2_intermediate")
 }
@@ -278,6 +281,7 @@ fn a_habitat_central_complex_becomes_one_habitat_beside_its_host() {
         let plan = Plan {
             on_star,
             sections: Vec::new(),
+            culture: None,
         };
         let habitat =
             lay_out(gd, "habitat_central_complex", &plan).expect("habitat_central_complex");
@@ -333,6 +337,7 @@ fn a_restored_complex_leaves_its_habitat_and_a_major_orbital_at_the_host() {
         let plan = Plan {
             on_star,
             sections: Vec::new(),
+            culture: None,
         };
         let restored = lay_out(gd, "habitat_central_complex_restored", &plan)
             .expect("habitat_central_complex_restored");
@@ -420,6 +425,7 @@ fn a_chain_stops_at_the_stage_that_removes_its_row() {
     let plan = Plan {
         on_star: true,
         sections: Vec::new(),
+        culture: None,
     };
     let layout =
         lay_out(gd, "ring_world_3_intermediate", &plan).expect("ring_world_3_intermediate");
@@ -637,6 +643,345 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
     for key in ["habitat_central_complex_ruined", "cosmogenesis_world_0"] {
         assert_eq!(habitat(gd, key, false, None), None, "{key}");
     }
+}
+
+/// The ring world the editor adds, quadrant by quadrant: A finished in the owner's culture,
+/// B a frame row named and owned, C a ruined row with no name or culture and D damaged,
+/// named as the game's initializers name a damaged segment. The flags the chain leaves are
+/// the system's.
+#[test]
+fn the_ring_world_is_added_with_each_quadrant_at_its_stage() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    use RingStage::*;
+    let stages = [Finished, Frame, Ruined, Damaged];
+    let ring = added::ring_world(gd, "ring_world_2_intermediate", &stages, Some("avian_01"))
+        .expect("the vanilla ring world");
+    assert_eq!(ring.system_flags, ["ring_world_built", "ring_section_1"]);
+    let [a, b, c, d] = &ring.quadrants[..] else {
+        panic!("{:?}", ring.quadrants);
+    };
+    let RingQuadrant::Finished { segments } = a else {
+        panic!("{a:?}");
+    };
+    let shown: Vec<_> = segments
+        .iter()
+        .map(|s| {
+            (
+                s.class.as_str(),
+                s.at.angle,
+                s.at.radius,
+                s.name.as_str(),
+                s.model.as_deref(),
+                s.megastructure_icon,
+            )
+        })
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            (
+                "pc_ringworld_tech",
+                210.0,
+                45.0,
+                "NAME_Ring_Section",
+                Some("avian_01_ringworld_tech_entity_01_entity"),
+                false
+            ),
+            (
+                "pc_ringworld_seam",
+                180.0,
+                45.0,
+                "NAME_Ring_Section",
+                Some("avian_01_ringworld_seam_entity_01_entity"),
+                false
+            ),
+            (
+                "pc_ringworld_habitable",
+                150.0,
+                45.0,
+                "NAME_Habitable_Section_A",
+                Some("avian_01_ringworld_habitable_entity_01_entity"),
+                true
+            ),
+        ]
+    );
+    assert!(
+        segments
+            .iter()
+            .all(|s| s.size == 10 && s.flags == ["megastructure"])
+    );
+    let row = |kind: &str, angle: f64, name: Option<&str>, culture: Option<&str>| RingRow {
+        kind: kind.to_owned(),
+        at: OrbitPlacement {
+            radius: 45.0,
+            angle,
+        },
+        name: name.map(str::to_owned),
+        owned: true,
+        culture: culture.map(str::to_owned),
+    };
+    assert_eq!(
+        b,
+        &RingQuadrant::Frame {
+            row: row(
+                "ring_world_2",
+                270.0,
+                Some("NAME_Ring_Section_B"),
+                Some("avian_01")
+            )
+        }
+    );
+    assert_eq!(
+        c,
+        &RingQuadrant::Ruined {
+            row: row("ring_world_ruined", 0.0, None, None)
+        }
+    );
+    let RingQuadrant::Damaged { segments } = d else {
+        panic!("{d:?}");
+    };
+    assert!(
+        segments
+            .iter()
+            .all(|s| s.name == "NAME_Ring_Section" && s.model.is_none() && s.flags.is_empty()),
+        "{segments:?}"
+    );
+
+    let unowned =
+        added::ring_world(gd, "ring_world_2_intermediate", &[Finished; 4], None).expect("ring");
+    assert!(unowned.quadrants.iter().all(|q| match q {
+        RingQuadrant::Finished { segments } => segments.iter().all(|s| s.model.is_none()),
+        _ => false,
+    }));
+    assert_eq!(unowned.system_flags, ["ring_world_built"]);
+    assert!(
+        unowned.star_flags.is_empty(),
+        "the base game's chain flags no star"
+    );
+    for (key, stages) in [
+        ("ring_world_2_intermediate", &[Finished; 3][..]),
+        ("habitat_central_complex", &[Finished][..]),
+    ] {
+        assert_eq!(
+            added::ring_world(gd, key, stages, None),
+            Err(format!(
+                "no stage of its chain lays out a ring world of {} quadrants",
+                stages.len()
+            )),
+            "{key}"
+        );
+    }
+}
+
+/// A segment whose model hangs on a branch the walk cannot judge, here on a country flag of
+/// the owner, is refused with what was left out, rather than written with no model. A plain
+/// word that names no culture the install defines is no culture, a quoted one is, and `from`
+/// after a link other than `root` or `prev` names nothing the walk knows.
+#[test]
+fn a_ring_the_walk_cannot_follow_is_refused_with_the_reason() {
+    use RingStage::*;
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        "mod_ring_frame = {
+	on_build_complete = {
+		spawn_megastructure = { type = mod_ring_2 orbit_angle = 0 orbit_distance = 50 owner = from graphical_culture = from init_effect = { set_graphical_culture = owner } }
+		spawn_megastructure = { type = mod_ring_2 orbit_angle = 180 orbit_distance = 50 owner = fromfrom.from init_effect = { set_graphical_culture = \"mod_culture\" } }
+		remove_megastructure = fromfrom
+	}
+}
+mod_ring_2 = { }
+mod_ring_3 = {
+	upgrade_from = { mod_ring_2 }
+	on_build_complete = {
+		spawn_planet = {
+			class = pc_mod_segment
+			location = fromfrom
+			size = 10
+			init_effect = {
+				save_event_target_as = mod_segment
+				prev.from = {
+					if = {
+						limit = { has_country_flag = mod_shipset }
+						event_target:mod_segment = { set_planet_entity = { entity = mod_a_entity } }
+					}
+					else = { event_target:mod_segment = { set_planet_entity = { entity = mod_b_entity } } }
+				}
+			}
+		}
+		remove_megastructure = fromfrom
+	}
+}
+",
+    )]);
+    let frame = added::ring_world(&gd, "mod_ring_frame", &[Frame, Frame], Some("mod_owner"))
+        .expect("two frame rows");
+    let cultures: Vec<_> = frame
+        .quadrants
+        .iter()
+        .map(|q| match q {
+            RingQuadrant::Frame { row } => (row.owned, row.culture.clone()),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        cultures,
+        [
+            (true, Some("mod_owner".to_owned())),
+            (false, Some("mod_culture".to_owned()))
+        ]
+    );
+    let plan = Plan {
+        on_star: true,
+        sections: Vec::new(),
+        culture: None,
+    };
+    let laid = lay_out(&gd, "mod_ring_frame", &plan).expect("mod_ring_frame");
+    for unfollowed in [
+        "set_graphical_culture = owner",
+        "with owner = fromfrom.from",
+    ] {
+        assert!(
+            laid.unfollowed.iter().any(|line| line.contains(unfollowed)),
+            "{unfollowed}: {:?}",
+            laid.unfollowed
+        );
+    }
+
+    let refused = added::ring_world(&gd, "mod_ring_2", &[Finished, Finished], Some("mod_owner"))
+        .expect_err("a model behind a country flag");
+    assert!(
+        refused.starts_with("the model of its pc_mod_segment hangs on what Galaxy Forge cannot follow: mod_ring_3: a branch behind has_country_flag"),
+        "{refused}"
+    );
+}
+
+/// With Gigastructural Engineering enabled, its own ring world chain is added as it built
+/// Acahuabene in a 4.5.2 save: rows named "Ring Section A" to "D" in `mammalian_01`, which
+/// Giga gives a ring of any culture outside its ten, segments drawn in the owner's
+/// `biogenesis_01` from Giga's own models, its flags, `ring_world_built` with the fourth
+/// section and the section count `ring_segments`. A culture Giga has no model for takes the
+/// base game's. Runs with `SGF_PLAYSET=1` when the enabled mods include Giga.
+#[test]
+fn gigas_ring_world_is_added_as_it_builds_one() {
+    if std::env::var_os("SGF_PLAYSET").is_none_or(|v| v != "1") {
+        eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
+        return;
+    }
+    let gd = sgf_gamedata::load(&sgf_gamedata::LoadOptions::default(), &mut |_| {})
+        .expect("SGF_PLAYSET needs an install");
+    let giga = gd
+        .megastructures
+        .get("ring_world_2_intermediate")
+        .and_then(|def| def.source.as_deref())
+        .is_some_and(|source| source.starts_with("Gigastructural"));
+    if !giga {
+        eprintln!("skipped: Gigastructural Engineering is not enabled");
+        return;
+    }
+    use RingStage::*;
+    let culture = Some("biogenesis_01");
+    let ring = added::ring_world(&gd, "ring_world_1", &[Finished; 4], culture).expect("ring");
+    assert_eq!(ring.star_flags, ["has_megastructure"]);
+    assert_eq!(
+        ring.system_flags,
+        [
+            "giga_forbid_planet_dismantlement",
+            "ring_01",
+            "ring_02",
+            "ring_03",
+            "ring_world_built",
+            "ring_04"
+        ]
+    );
+    assert_eq!(
+        ring.system_variables
+            .iter()
+            .map(|v| (v.name.as_str(), v.value))
+            .collect::<Vec<_>>(),
+        [("ring_segments", 0.0)]
+    );
+    let RingQuadrant::Finished { segments } = &ring.quadrants[0] else {
+        panic!("{:?}", ring.quadrants[0]);
+    };
+    let shown: Vec<_> = segments
+        .iter()
+        .map(|s| {
+            (
+                s.at.angle,
+                s.name.as_str(),
+                s.model.as_deref(),
+                s.flags.iter().map(String::as_str).collect::<Vec<_>>(),
+                s.megastructure_icon,
+            )
+        })
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            (
+                210.0,
+                "Ring Section",
+                Some("biogenesis_01_vanilla_tech_entity"),
+                vec![
+                    "forbid_guillis_planet_modifiers",
+                    "megastructure",
+                    "colony_event"
+                ],
+                false
+            ),
+            (
+                180.0,
+                "Ring Section",
+                Some("biogenesis_01_vanilla_seam_entity"),
+                vec!["forbid_guillis_planet_modifiers", "megastructure"],
+                false
+            ),
+            (
+                150.0,
+                "Habitable Section A",
+                Some("biogenesis_01_vanilla_gaia_habitable_entity"),
+                vec![
+                    "forbid_guillis_planet_modifiers",
+                    "megastructure",
+                    "colony_event",
+                    "giga_ringworld_van"
+                ],
+                true
+            ),
+        ]
+    );
+
+    let begun = added::ring_world(
+        &gd,
+        "ring_world_2",
+        &[Finished, Frame, Frame, Frame],
+        culture,
+    )
+    .expect("one section finished");
+    assert_eq!(
+        begun.system_flags,
+        ["giga_forbid_planet_dismantlement", "ring_01"]
+    );
+    assert_eq!(begun.system_variables[0].value, 1.0);
+    let RingQuadrant::Frame { row } = &begun.quadrants[1] else {
+        panic!("{:?}", begun.quadrants[1]);
+    };
+    assert_eq!(row.kind, "ring_world_2");
+    assert_eq!(row.name.as_deref(), Some("Ring Section B"));
+    assert_eq!(row.culture.as_deref(), Some("mammalian_01"));
+    assert_eq!(row.at.angle, 270.0);
+
+    let other = added::ring_world(&gd, "ring_world_2", &[Finished; 4], Some("nowhere_01"))
+        .expect("a culture Giga lists no model for");
+    let RingQuadrant::Finished { segments } = &other.quadrants[0] else {
+        panic!("{:?}", other.quadrants[0]);
+    };
+    assert_eq!(
+        segments[0].model.as_deref(),
+        Some("nowhere_01_tech_entity_01_entity")
+    );
 }
 
 /// A mod's restored complex that picks the ruin's body by a carrier flag and spawns its

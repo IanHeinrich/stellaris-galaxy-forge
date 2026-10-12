@@ -38,7 +38,7 @@ pub fn habitat(
     if !def.completes.removes_row {
         return None;
     }
-    let laid = layout::lay_out(gd, key, &plan(on_star))?;
+    let laid = layout::lay_out(gd, key, &plan(on_star, culture))?;
     match of_layout(gd, &laid, on_star, culture) {
         Some(habitat) => Some(habitat),
         None if key.ends_with(RESTORED) && laid.row.is_none() => {
@@ -56,10 +56,11 @@ pub fn habitat(
     }
 }
 
-fn plan(on_star: bool) -> Plan {
+fn plan(on_star: bool, culture: Option<&str>) -> Plan {
     Plan {
         on_star,
         sections: Vec::new(),
+        culture: culture.map(str::to_owned),
     }
 }
 
@@ -130,7 +131,7 @@ fn orbital(gd: &GameData, section: &Section, on_star: bool) -> Option<HabitatOrb
     if !(at_host && row.on_host && row.owned && row.cultured) {
         return None;
     }
-    let own = layout::lay_out(gd, &row.kind, &plan(on_star))?;
+    let own = layout::lay_out(gd, &row.kind, &plan(on_star, None))?;
     let flags = [LaidFlag {
         flag: ORBITAL_FLAG.to_owned(),
         id_of: None,

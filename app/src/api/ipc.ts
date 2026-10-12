@@ -6,6 +6,7 @@
 export * from "./addBody";
 export * from "./addHabitat";
 export * from "./addMegastructure";
+export * from "./addRingWorld";
 export * from "./megastructure";
 export * from "./addSystem";
 export * from "./entity";

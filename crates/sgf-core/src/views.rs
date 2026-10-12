@@ -378,6 +378,24 @@ pub struct OrbitPlacement {
     pub angle: f64,
 }
 
+/// What clearing a save system for a ring world takes, as the game's frame clears it: every
+/// body that is not a star and every belt.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RingWorldClearing {
+    pub system: u32,
+    /// Every body that goes, moons before the planets they orbit.
+    pub bodies: Vec<u32>,
+    /// How many of `bodies` orbit another of them.
+    pub moons: u32,
+    /// The bodies whose colonies go with them.
+    pub colonies: Vec<u32>,
+    pub belts: u32,
+    /// The uncolonised bodies of `bodies` a starbase orbits, which stop the clearing: no save
+    /// shows what the game does with a starbase whose body its frame removes.
+    pub starbase_bodies: Vec<u32>,
+}
+
 /// Where a set of save planets may move together.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
 #[ts(export)]

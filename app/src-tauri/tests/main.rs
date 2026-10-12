@@ -5,6 +5,7 @@ mod common;
 mod add_body;
 mod add_habitat;
 mod add_megastructure;
+mod add_ring_world;
 mod add_system;
 mod capabilities;
 mod constants;

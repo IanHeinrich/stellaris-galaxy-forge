@@ -4,6 +4,7 @@
 pub mod add_body;
 pub mod add_habitat;
 pub mod add_megastructure;
+pub mod add_ring_world;
 pub mod add_system;
 pub mod entity;
 pub mod gamedata;
@@ -20,6 +21,7 @@ pub mod update;
 pub use add_body::*;
 pub use add_habitat::*;
 pub use add_megastructure::*;
+pub use add_ring_world::*;
 pub use add_system::*;
 pub use entity::*;
 pub use gamedata::*;

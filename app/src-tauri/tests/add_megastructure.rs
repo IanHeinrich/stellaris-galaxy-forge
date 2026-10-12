@@ -122,7 +122,7 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
     let lgate = refuse("lgate_base", free.clone());
     assert_eq!(lgate.kind, ErrorKind::Op);
     assert!(lgate.message.contains("lgate"), "{}", lgate.message);
-    let ring = refuse("ring_world_1", json!({ "place": "body", "body": 584 }));
+    let ring = refuse("ring_world_2", json!({ "place": "body", "body": 584 }));
     assert!(ring.message.contains("ring world"), "{}", ring.message);
     let unknown = refuse("no_such_structure", free);
     assert!(
@@ -130,6 +130,12 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
         "{}",
         unknown.message
     );
+    invoke::<AddedMegastructure>(
+        &w,
+        "add_megastructure",
+        json!({ "system": 1, "kind": "ring_world_1", "place": { "place": "body", "body": 584 } }),
+    )
+    .expect("a ring world's site is one row round the star");
 }
 
 /// An Arc Furnace round Alari's molten planet 1 takes the mining bonus and a deposit to the
