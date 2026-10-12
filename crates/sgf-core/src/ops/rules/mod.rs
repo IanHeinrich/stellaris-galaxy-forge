@@ -132,6 +132,36 @@ pub(crate) fn labelled(key: &str, literal: bool, system: u32) -> String {
     }
 }
 
+/// What a description calls body `body` named `name`: its name as shown and its id
+/// ("Lachium I #2447"), or "planet #2447" when no word of it reads as a name. A format key
+/// such as `PLANET_NAME_FORMAT` shows its variables in order.
+pub(crate) fn named_body(name: &NameTemplate, body: u32) -> String {
+    let shown = shown_template(name);
+    if shown.is_empty() {
+        format!("planet #{body}")
+    } else {
+        format!("{shown} #{body}")
+    }
+}
+
+/// `name` as [`named_body`] shows it, without the id; empty when nothing reads as a name.
+fn shown_template(name: &NameTemplate) -> String {
+    if name.literal {
+        return name.key.clone();
+    }
+    let own = display_name(&name.key);
+    if !own.is_empty() && !own.split(' ').any(looks_like_key) {
+        return own;
+    }
+    let parts: Vec<String> = name
+        .variables
+        .iter()
+        .map(|variable| shown_template(&variable.value))
+        .filter(|shown| !shown.is_empty())
+        .collect();
+    parts.join(" ")
+}
+
 /// [`named`] for each of `ids`, joined by commas.
 pub(crate) fn named_all(galaxy: &Galaxy, ids: &[u32]) -> String {
     let names: Vec<String> = ids.iter().map(|&id| named(galaxy, id)).collect();

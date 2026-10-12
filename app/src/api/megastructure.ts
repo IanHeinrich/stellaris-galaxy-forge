@@ -1,5 +1,5 @@
 /**
- * Deleting a save's megastructure.
+ * Deleting a save's megastructure, and a ring world whole.
  * Command and argument names match `app/src-tauri/src/commands/megastructure.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
@@ -12,4 +12,12 @@ import type { EditResult } from "../generated/EditResult";
  */
 export function deleteMegastructure(megastructure: number): Promise<EditResult> {
   return invoke<EditResult>("delete_megastructure", { megastructure });
+}
+
+/**
+ * Delete the ring world of save system `system` as one edit: the ring at `radius`, or every
+ * ring of the system without one.
+ */
+export function deleteRingWorld(system: number, radius: number | null = null): Promise<EditResult> {
+  return invoke<EditResult>("delete_ring_world", { system, radius });
 }

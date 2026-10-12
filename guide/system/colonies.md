@@ -53,7 +53,9 @@ stays in the construction queue.
 These can't be deleted or have their colony removed, and the button or
 menu item says why:
 
-- stars and ring world segments
+- stars
+- a ring world section, which goes only with its whole ring: see
+  [Delete a ring world](megastructures.md#delete-a-ring-world)
 - a planet with a megastructure on or around it, until you
   [delete the megastructure](megastructures.md#delete-a-megastructure)
 - an uncolonised planet a starbase orbits

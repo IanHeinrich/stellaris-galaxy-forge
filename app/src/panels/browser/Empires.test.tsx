@@ -1,6 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { countryNode, OPEN_RESULT, SCENARIO_OWNERS, SCENARIO_RESULT } from "../../store/fixture";
+import type { ScenarioOwners } from "../../generated/ScenarioOwners";
+import {
+  countryNode,
+  name,
+  OPEN_RESULT,
+  SCENARIO_OWNERS,
+  SCENARIO_RESULT,
+  TERRITORY,
+} from "../../store/fixture";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -31,14 +39,37 @@ beforeEach(() => {
 });
 
 /** Opens the scenario and stamps its territories the way `refreshScenarioOwners` does. */
-async function openScenarioWithOwners(): Promise<void> {
+async function openScenarioWithOwners(owners: ScenarioOwners = SCENARIO_OWNERS): Promise<void> {
   await useFileSessionStore.getState().openScenarioFrom(SCENARIO_RESULT.path);
-  useGameDataStore.setState({ scenarioOwners: SCENARIO_OWNERS });
+  useGameDataStore.setState({ scenarioOwners: owners });
   useGalaxyStore.getState().setScriptedOwners(
-    new Map(SCENARIO_OWNERS.owners.map((o) => [o.system, o.territory])),
-    SCENARIO_OWNERS.territories.map((t) => t.country),
+    new Map(owners.owners.map((o) => [o.system, o.territory])),
+    owners.territories.map((t) => t.country),
   );
 }
+
+/** The fixture's two-system territory as a fallen empire's home and the outpost it spawns. */
+const FALLEN_OWNERS: ScenarioOwners = {
+  ...SCENARIO_OWNERS,
+  territories: [
+    {
+      token: "root:fallen_machine:1",
+      identity: "fallen_empire",
+      origin: null,
+      defined_at: null,
+      country: {
+        ...TERRITORY,
+        name: name("Fallen Machine Empire"),
+        name_key: "Fallen Machine Empire",
+        country_type: "fallen_empire",
+        colors: [],
+      },
+      tier: "generation",
+      assumed: false,
+      claimed_by: [],
+    },
+  ],
+};
 
 const empires = () => renderToStaticMarkup(<Empires />);
 
@@ -75,6 +106,17 @@ describe("a scenario's territory rows", () => {
     expect(html, "counts").toContain("1 claimed on day one · 1 assumed");
     expect(html, "legend").toContain("Territories are the systems the scripts hand out");
     expect(html, "legend's assumed").toContain("marked assumed");
+  });
+
+  it("lists a fallen empire's home and spawned systems under Fallen empires", async () => {
+    await openScenarioWithOwners(FALLEN_OWNERS);
+
+    const html = empires();
+    expect(html).toContain("Fallen empires");
+    expect(html).toContain("Fallen Machine Empire");
+    expect(html).toContain("2 systems");
+    expect(html).not.toContain(">Empires<");
+    expect(html, "legend").toContain("A fallen empire holds its home system");
   });
 });
 

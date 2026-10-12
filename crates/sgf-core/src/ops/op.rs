@@ -675,12 +675,16 @@ pub enum Op {
     /// A moon deleted alone leaves its parent's `moons`. A colonised body first loses its
     /// colony as [`Op::RemoveColony`] takes it, and a mining or research station goes with
     /// the body it works: its fleet and ships become tombstones and leave the system's
-    /// `fleet_presence` and the controller's `owned_fleets` and `controlled_planets`.
+    /// `fleet_presence` and the controller's `owned_fleets` and `controlled_planets`. An
+    /// uncolonised body a country controls with no station leaves its `controlled_planets`.
     /// Deposits, survey lists, event targets, fleets in orbit and orphaned construction
     /// queues are left for the game. A dig site on a deleted body goes as
     /// [`Op::RemoveDigSite`] takes it, and the body leaves each country's `events.anomalies`
-    /// as [`Op::RemoveAnomaly`] takes it out. A star, an uncolonised body a starbase orbits,
-    /// a ring world segment and a megastructure on or around it are refused, as is any colony
+    /// as [`Op::RemoveAnomaly`] takes it out. A habitat's host loses its `habitat<id>` flag,
+    /// and the system its `has_habitat` flag once no habitat is left in it. A star, an
+    /// uncolonised body a starbase orbits, a ring world segment, which goes with the whole
+    /// ring as [`Op::DeleteRingWorld`] takes it, and a megastructure on or around it are
+    /// refused, as is any colony
     /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreEntities`] that
     /// writes back every entity it rewrote, batched with an [`Op::AddDigSite`] per site it
     /// removed. A body [`Op::AddBody`] added since the file was opened goes as
@@ -708,8 +712,9 @@ pub enum Op {
     /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and
     /// leaves its body's `deposits`, and each owner variable it lowers, unless that would
     /// take the variable below 0. A row upgrading goes with its `upgrade` block. A row
-    /// standing in no system, a ring world's quadrant, which goes whole with its segments, a
-    /// bypass of any other kind, any colony [`Op::RemoveColony`]
+    /// standing in no system, a ring world's row, which goes with the whole ring as
+    /// [`Op::DeleteRingWorld`] takes it, a bypass of any other kind, any colony
+    /// [`Op::RemoveColony`]
     /// refuses for a reason other than the structure, and a modifier, deposit type or
     /// variable that is not an identifier are refused. The inverse is the
     /// [`Op::RestoreEntities`] that writes back every entity it rewrote. A row
@@ -721,8 +726,32 @@ pub enum Op {
         #[ts(optional)]
         dismantle: Option<MegastructureDismantle>,
     },
+    /// A save system's ring world, whole: each segment, a body whose class starts with
+    /// `pc_ringworld` (the damaged ones too) or `pc_shattered_ring`, goes as
+    /// [`Op::DeleteBody`] takes a body, with its moons, its colony and the station working
+    /// it, and each `megastructures` row whose type starts with `ring_world` goes as
+    /// [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and rows
+    /// standing within 5 of it from the system's centre go; without it, every ring of the
+    /// system. The system loses the flags `ring_world_built` and `ring_section_1` to
+    /// `ring_section_3`, and its star the planet flag `has_megastructure` unless a row left
+    /// names the star. A fleet of the system that orbits a deleted segment and does not go
+    /// with it, such as a fallen empire's deep-space citadel, stays where it stands and
+    /// orbits the star instead: its `movement_manager.orbit.orbitable.planet` names the star.
+    /// The system's other bodies and flags, its debris and the owners' flags stay. Refused
+    /// for a system with no segment or row at `radius`, a radius that is not above 0,
+    /// another megastructure on or around a segment, and any colony [`Op::RemoveColony`]
+    /// refuses for a reason other than the segment. The inverse is the
+    /// [`Op::RestoreEntities`] that writes back every entity it rewrote, batched with an
+    /// [`Op::AddDigSite`] per site it removed. Stellaris 4.x save documents only.
+    DeleteRingWorld {
+        system: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        radius: Option<f64>,
+    },
     /// Save entities written back whole, each over whatever stands for it now: what
-    /// [`Op::RemoveColony`], [`Op::DeleteBody`] and [`Op::DeleteMegastructure`] invert to. Each text must be one
+    /// [`Op::RemoveColony`], [`Op::DeleteBody`], [`Op::DeleteMegastructure`] and
+    /// [`Op::DeleteRingWorld`] invert to. Each text must be one
     /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
     /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
     /// bytes. The inverse carries the texts displaced. Save documents only.
@@ -978,9 +1007,8 @@ impl Op {
             | Self::MoveBodyToSystem { .. }
             | Self::AddMegastructure { .. }
             | Self::RemoveMegastructure { .. }
-            | Self::DeleteMegastructure { .. } => {
-                OpReach::of(SAVE).details(Rebuild).whole_entries()
-            }
+            | Self::DeleteMegastructure { .. }
+            | Self::DeleteRingWorld { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
             // to set, and it has neither a scenario header nor a generator to prevent a lane
             // from. It adds and names a system through the save ops, which write the bodies a

@@ -139,7 +139,8 @@ function EmpireLine({
 /** What a scenario's rows are, and why some of its systems have no owner at all. */
 export const TERRITORY_NOTE =
   "Territories are the systems the scripts hand out. Initializers give them to empires when a " +
-  "new game starts, and events give more on the first day. Where Galaxy Forge can't check a " +
+  "new game starts, and events give more on the first day. A fallen empire holds its home " +
+  "system and the systems its home's initializer gives outposts to. Where Galaxy Forge can't check a " +
   "claim's conditions, the claim is marked assumed. Owners set through a scope (prev, from, " +
   "this, root) are not drawn.";
 

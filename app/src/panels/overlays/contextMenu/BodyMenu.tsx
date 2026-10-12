@@ -3,6 +3,7 @@ import { lockedToName } from "../../../lib/details/orbitIntent";
 import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
+import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { ADD_MEGASTRUCTURE_LABEL, BODY_HAS_MEGASTRUCTURE } from "../../../lib/megastructurePicks";
 import { isStarBody } from "../../../lib/details/starBody";
@@ -22,11 +23,12 @@ import { AddBodyItems } from "./AddBodyItems";
 import { AddMegastructureItem } from "./AddMegastructureItem";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
+import { RingWorldItem } from "./RingWorldItem";
 import { CopyItem, CutItem } from "./PlanetMoveItems";
 
 /**
  * The menu on a body in the system view: its page, the selection's cut and copy, its lock, a
- * new moon or megastructure on it, its deletion, and the way back out.
+ * new moon or megastructure on it, its deletion or its ring world's, and the way back out.
  */
 export function BodyMenu({
   target,
@@ -109,9 +111,13 @@ export function BodyMenu({
           }
         />
       )}
-      {offers.deleteBody && name !== undefined && (
-        <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />
-      )}
+      {offers.deleteBody &&
+        name !== undefined &&
+        (planet !== undefined && isRingSegment(planet.class) ? (
+          <RingWorldItem system={target.system} />
+        ) : (
+          <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />
+        ))}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
         Back to galaxy
       </MenuItem>

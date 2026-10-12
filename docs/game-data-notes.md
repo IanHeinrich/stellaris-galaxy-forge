@@ -283,6 +283,51 @@ YAML**.
   in slots `"1"` to `"6"`. The editor takes the template latest in load
   order when several fit, as a mod's override would win. Which one the
   game takes hasn't been checked in game.
+- Which faces of a mesh the game draws and how it blends them is set by
+  its shader's `Effect` in `gfx/FX/pdxmesh.shader`. A mod that ships its
+  own `pdxmesh.shader` replaces the game's. Back faces are culled unless
+  the effect names `RasterizerStateNoCulling`, as `PdxMeshPlanetRings`
+  and `PdxMeshExtraDimensionalShip` do, and Gigastructures'
+  `OmniMeshED`, `OmniMeshEDSphere` and
+  `PdxMeshAlphaBlendPlanetNoEmissiveMult`. The line in
+  `PdxMeshTerraConstruction` is commented out, so it culls. No `.asset`
+  or `.gfx` key makes a mesh double-sided.
+- A mesh's triangles are wound counter-clockwise about its vertex
+  normals, so that is the front face. Of 1215 megastructure and starbase
+  meshes in 4.5 and Gigastructures 3.40, 13 have more than one triangle
+  in twenty wound the other way. The editor reverses the test for a part
+  placed with a negative scale. I haven't checked whether the game does.
+- `AlphaBlend_00`, `AlphaBlendNoDepth`, `PdxMeshTerraAlphaBlend`,
+  `PdxMeshShipDiffuseEmissiveAlpha`, `PdxMeshPlanetRings` and the clouds
+  shaders blend at the diffuse map's alpha. So does Gigastructures'
+  `PdxMeshAlphaBlendPlanetNoEmissiveMult`, whose blend state also tests
+  alpha. `PdxMeshAlphaBlend` does not blend, whatever its name says: it
+  defines `ALPHA_TEST`, draws only where the diffuse alpha is 1 and is
+  opaque there. Gigastructures' `OmniMeshMegaAlpha` adds its colour onto
+  what is behind it.
+- `PdxMeshExtraDimensionalShip` blends too, and Gigastructures'
+  `OmniMeshED` and `OmniMeshEDSphere` add. Their pixel shaders build the
+  colour in ways the editor doesn't draw yet, so it draws them opaque
+  with both faces, as before. `PixelPdxMeshExtraDimensionalShip` reads no
+  specular map. It adds the diffuse map twice, unlit, on the faces towards
+  the camera, and only a faint rim on the others. `PixelOmniMeshED`
+  builds its colour from a rim light and the specular red, both in the
+  owner's colour.
+- The ship pixel shader tints what the specular map's red marks in the
+  owner's colour, and the see-through shaders that run it do too:
+  `AlphaBlend_00`, `AlphaBlendNoDepth` and
+  `PdxMeshShipDiffuseEmissiveAlpha`. `PixelPdxMeshStandard` does that
+  only with `ADD_COLOR`, which none of the see-through shaders that run it
+  define. The glass of Gigastructures' Yggdrasil Orchid is
+  `AlphaBlendNoDepth` over a neutral grey diffuse whose specular red is
+  255, so it shows in its owner's colour at 92% alpha. Its `.asset` and
+  `.gfx` set no tint.
+- Gigastructures' Macroengineering Testing Station (stages 3 and 4)
+  attaches the game's shattered planet mesh as a hologram. The mesh's
+  inner sphere is an opaque orange `PdxMeshAlphaBlend` with its faces
+  outwards. The idle animation `hologram_explode.anim` keeps that sphere
+  at scale 0 and the whole hologram at 0.06. The editor draws the bind
+  pose, so the sphere shows as an orange ball over the station.
 - Waystations draw the starport, starhold and starfortress sections.
   Marauder, caravaneer, swarm, AI and voidworm nest levels draw
   `empty_section_entity`. In 4.5 no template fits `starbase_fe_outpost`,
@@ -806,6 +851,49 @@ one. They are then drawn in about the star until the outermost fits
 inside the smallest inner radius a system has, `NGameplay`'s
 `SYSTEM_MIN_INNER_RADIUS` (150 in vanilla).
 
+## Fallen empires in a scenario
+
+`common/fallen_empires/*.txt` has one entry per kind of fallen empire.
+Its `initializer` names the home system's initializer. Galaxy Forge
+also reads the `name`, `type`, first `ethos.ethic` and `flag` of the
+`create_country` in its `create_country_effect`. Vanilla writes
+`name = random` and `flag = random` in every entry, so a territory is
+named by the entry's localisation (`fallen_machine_empire`) or by its
+ethic with `fanatic_` dropped ("Materialist Fallen Empire"). It has no
+colours of its own. When two files define the same entry, the last one
+read is kept. I haven't checked that against the game.
+
+The home initializer writes `set_owner = root` on its planets. The
+systems it spawns call `create_fe_outpost`, a `create_starbase` with no
+owner. The game gives both to `root`, the country it creates in the
+home system. A fallen empire's territory is its home system and every
+system its chain spawns, up to four spawns deep, that plants a starbase
+with no owner or `owner = root`, or sets an owner through `root`.
+`fallen_1_2` has `usage = fallen_empire_init` too, but no entry names
+it, so it is a member and not a home.
+
+Every vanilla fallen empire spawn writes `distance = { min max }`,
+measured from the system that spawns it. A member has to stand within
+the sum of those `max` values along its spawns, plus a quarter, of the
+home system. That is 50 for an outpost the home spawns and 100 for a
+colony spawned by one of those outposts. A `spawn_system`'s
+`max_distance` counts the same way. A spawn bounded only by
+`hyperlane_jumps`, or by nothing, puts no limit on the distance. In the
+4.4 sample the farthest member stands 58 from its home.
+
+When two fallen empires of the same kind could hold a system, it goes
+to the nearer home. The owners are cached until an initializer or a
+statement's `effect` changes, and moving a system changes neither, so
+the nearer home is the one at the last change, not after the move.
+
+The 4.4 sample's scenario has three fallen empires. In the save,
+country 15 holds `fallen_machine` (246) and the four systems it
+spawns: 0, 64, 672 and 774. The materialist empire holds `fallen_1`
+(58) and its seven spawned systems. The spiritualist empire holds
+`fallen_2` (521) and six spawned systems, and also three plain systems
+(63, 641 and 721) that no initializer gives it. The holy worlds
+(`fallen_holy_01` to `04`) build nothing for it and are unowned.
+
 A scenario system's megastructures and starbase are placed from its
 initializer too. A `spawn_megastructure` with `orbit_angle` and
 `orbit_distance` stands at that distance and at the written angle plus
@@ -844,9 +932,8 @@ A spawn or starbase with an `owner = event_target:X` belongs to the
 territory that token makes. One with no owner belongs to the territory
 the system joins. Fallen empire ring quadrants name no owner, and the
 saves show them owned by the fallen empire. A fallen empire's systems
-join no territory in a scenario, because the initializer gives the
-system to `root`, the empire the game spawns there. So their quadrants
-and citadels show no owner.
+join its territory (see Fallen empires in a scenario), so their
+quadrants and citadels take the fallen empire as owner.
 
 ## References (for edge cases, never for bundling)
 

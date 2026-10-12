@@ -3,6 +3,7 @@
 //! after a save and reopen, byte-exact undo, and the inverse restoring every entity.
 
 use sgf_core::entity::get_planet_page;
+use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{Op, SavedTable};
 use sgf_core::session::{OpResult, Session};
 
@@ -10,7 +11,7 @@ use similar::{Algorithm, TextDiff};
 
 use crate::common;
 use common::diff::{round_trip, unified_diff};
-use common::{current, open, open_4_5};
+use common::{SAMPLE_4_5, current, entity_text, open, open_4_5, open_edited_sample};
 
 pub(crate) fn delete(planet: u32) -> Op {
     Op::DeleteBody { body: planet }
@@ -22,7 +23,7 @@ pub(crate) fn remove_colony(planet: u32) -> Op {
 
 /// The description, the entities the inverse writes back grouped by table, and the diff:
 /// `whole`, or else without the hunks that only write tombstones.
-fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
+pub(crate) fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
     let (restore, also) = match &result.inverse {
         Op::Batch { ops, .. } => (&ops[0], &ops[1..]),
         restore => (restore, &[][..]),
@@ -384,4 +385,63 @@ fn the_inverse_of_the_inverse_deletes_again() {
         session.apply_inverse(restored.inverse).expect(case.name);
         assert_eq!(current(&session), edited, "{}", case.name);
     }
+}
+
+/// Planet 449 of system 409 on the 4.5 sample holds colony 16, and its moon 450 colony 17:
+/// the system's only colonies.
+#[test]
+fn the_last_colonies_of_a_system_take_its_list() {
+    let mut session = open_4_5();
+    let result = session.apply(delete(449)).expect("delete");
+    assert_eq!(
+        result.entry.description,
+        "Deleted planet #449 and its moon, with 2 colonies"
+    );
+    let system = entity_text(&session, EntityKind::System, 409);
+    assert!(!system.contains("colonies="), "{system}");
+    round_trip(open_4_5(), delete(449));
+}
+
+/// The 4.5 sample with uncolonised planet 446 of system 409 controlled by country 11, which
+/// lists it first in its `controlled_planets`.
+fn controlled() -> Session {
+    open_edited_sample(SAMPLE_4_5, |text, _| {
+        let mut insert_after = |anchors: &[&str], insert: &str| {
+            let mut at = 0;
+            for anchor in anchors {
+                at += text[at..].find(anchor).expect(anchor) + anchor.len();
+            }
+            text.insert_str(at, insert);
+        };
+        insert_after(
+            &["\nplanets=\n{\n", "\n\t\t446=\n\t\t{\n"],
+            "\t\t\tcontroller=11\n",
+        );
+        insert_after(
+            &[
+                "\ncountry=\n{\n",
+                "\n\t11=\n\t{\n",
+                "\t\tcontrolled_planets=\n\t\t{\n\t\t\t",
+            ],
+            "446 ",
+        );
+    })
+}
+
+/// Country 11's `controlled_planets` as it stands.
+fn controlled_planets(session: &Session) -> String {
+    let country = entity_text(session, EntityKind::Country, 11);
+    let start = country.find("controlled_planets=").expect("the list");
+    let end = start + country[start..].find('}').expect("its end");
+    country[start..end].to_owned()
+}
+
+#[test]
+fn a_controlled_body_with_no_station_leaves_its_controllers_list() {
+    let mut session = controlled();
+    assert!(controlled_planets(&session).contains("\t446 "));
+    session.apply(delete(446)).expect("delete");
+    let list = controlled_planets(&session);
+    assert!(!list.contains("446 "), "{list}");
+    round_trip(controlled(), delete(446));
 }

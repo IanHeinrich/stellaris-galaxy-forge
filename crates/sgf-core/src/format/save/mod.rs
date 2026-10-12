@@ -8,6 +8,7 @@ pub(crate) mod dig_sites;
 pub(crate) mod galaxy;
 pub(crate) mod planet_extras;
 pub(crate) mod read_spec;
+pub mod ring_world;
 pub mod site;
 pub mod system_spec;
 pub(crate) mod write;
@@ -23,10 +24,10 @@ use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
     add_body, add_megastructure, add_system, anomaly, belts, bodies, bulk, delete_megastructure,
-    deposits, dig_site, empire_name, flag, lanes, lgate, map_colors, move_planet, move_system,
-    nebula, planet_class, planet_entity, planet_modifier, planet_ring, planet_size, remove_planet,
-    remove_system, rename_planet, rename_system, replace_system, restore, star_class,
-    system_height, wormhole, wormhole_pair,
+    delete_ring_world, deposits, dig_site, empire_name, flag, lanes, lgate, map_colors,
+    move_planet, move_system, nebula, planet_class, planet_entity, planet_modifier, planet_ring,
+    planet_size, remove_planet, remove_system, rename_planet, rename_system, replace_system,
+    restore, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
@@ -263,6 +264,9 @@ impl Format for Save {
                 megastructure,
                 dismantle,
             } => delete_megastructure::plan_delete(plan, s, *megastructure, dismantle.as_ref()),
+            Op::DeleteRingWorld { system, radius } => {
+                delete_ring_world::plan_delete(plan, s, *system, *radius)
+            }
             Op::RestoreEntities {
                 description,
                 entities,

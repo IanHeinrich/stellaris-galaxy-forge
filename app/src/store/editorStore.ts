@@ -256,6 +256,11 @@ export interface EditorState {
    */
   deleteMegastructure(megastructure: number): Promise<boolean>;
   /**
+   * Deletes every ring world of save system `system` whole: its segments, colonies first, and its
+   * megastructures. Resolves true when the edit applied.
+   */
+  deleteRingWorld(system: number): Promise<boolean>;
+  /**
    * Adds a paint stroke's systems at `points`, numbered from the next free id, and its lanes in
    * one edit; a pair's negative id -k names `points[k - 1]`.
    */

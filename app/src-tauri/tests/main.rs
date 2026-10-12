@@ -9,6 +9,7 @@ mod capabilities;
 mod constants;
 mod copy_planet;
 mod delete_megastructure;
+mod delete_ring_world;
 mod document_watch;
 mod edit;
 mod editors;

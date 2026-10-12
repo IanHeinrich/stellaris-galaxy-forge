@@ -52,6 +52,7 @@ mod save_bodies;
 mod scripts_bypasses;
 mod scripts_claim_rows;
 mod scripts_claims;
+mod scripts_fallen;
 mod scripts_lgate;
 mod scripts_owners;
 mod scripts_rows;
