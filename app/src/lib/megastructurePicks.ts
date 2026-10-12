@@ -488,20 +488,15 @@ function summaryOf(rows: readonly Row[], swapsByClass: boolean): string {
 }
 
 /**
- * The rows of one group the dialog shows: none when the first stage of its main chain the game
- * data offers is one the save's global flags hide, or when it offers none; else each row without
- * its hidden stages, and without a row left empty.
+ * The rows of one group the dialog shows: none when the game data offers no stage of its main
+ * chain, else each row without its hidden stages, and without a row left empty.
  */
 function shownRows(
   rows: readonly Row[],
   types: ReadonlyMap<string, MegastructureView>,
-  globalFlags: ReadonlySet<string>,
 ): Row[] | null {
-  const flagHidden = (key: string) =>
-    types.get(key)!.hidden_by_global_flags.some((flag) => globalFlags.has(flag));
-  const first = rows[0].keys.find((key) => !offerHidden(types.get(key)!));
-  if (first === undefined || flagHidden(first)) return null;
-  const hidden = (key: string) => offerHidden(types.get(key)!) || flagHidden(key);
+  const hidden = (key: string) => offerHidden(types.get(key)!);
+  if (rows[0].keys.every(hidden)) return null;
   return rows
     .map((row) => ({ ...row, keys: row.keys.filter((key) => !hidden(key)) }))
     .filter((row) => row.keys.length > 0);
@@ -509,7 +504,8 @@ function shownRows(
 
 /** What the list asks of the save besides the spot. */
 export interface MegastructureEntriesOptions {
-  /** The save's global flags, such as Gigastructural Engineering's settings. */
+  /** The save's global flags, such as Gigastructural Engineering's settings. They pick the
+   * variant a swap writes and never hide a type. */
   globalFlags?: ReadonlySet<string>;
 }
 
@@ -527,9 +523,8 @@ const NO_FLAGS: ReadonlySet<string> = new Set();
  * script and have no localised name, such as the Gateway family's `blokkat_dummy_mega`, is left
  * out. `refusalOf` says why the save would refuse a type that does fit.
  *
- * A type the game data does not offer is left out, and so is one that one of the save's global
- * flags in `options` hides; a megastructure goes altogether when the first stage of its main
- * chain the game data offers is hidden by a flag. A type the game makes only by swapping a
+ * A type the game data does not offer is left out. The save's global flags in `options` never
+ * hide a type; they decide which variant a swap writes. A type the game makes only by swapping a
  * finished row, such as a star class's Dyson Sphere, is not listed: the stage it is swapped from
  * is, and its `variant` is the type the game makes of it at `spot`. The ruins of a star class's
  * chain go with it.
@@ -567,7 +562,7 @@ export function megastructureEntries(
   >();
   for (const group of linked(fitting)) {
     const built = groupRows(group, byStage, order);
-    const shown = shownRows(built, types, globalFlags);
+    const shown = shownRows(built, types);
     if (shown === null) continue;
     for (const row of built) {
       const made = chainVariants(row.keys, types, at);

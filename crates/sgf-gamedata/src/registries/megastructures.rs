@@ -74,8 +74,6 @@ pub struct MegastructureDef {
     pub swaps: Vec<Swap>,
     /// Whether the add dialog offers it.
     pub offer: Offer,
-    /// The global flags any one of which, set in the save, hides it from the add dialog.
-    pub hidden_by_global_flags: Vec<String>,
     /// Where the editor adds a row of this type, read once every type is loaded.
     pub placement: Placement,
     /// What its `on_dismantle_complete` takes back from its system and owner.
@@ -379,7 +377,6 @@ impl FromDef for MegastructureDef {
             turns_into: Vec::new(),
             swaps: Vec::new(),
             offer: Offer::Offered,
-            hidden_by_global_flags: Vec::new(),
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
             source: None,

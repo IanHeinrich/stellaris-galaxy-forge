@@ -34,7 +34,6 @@ const ruin = (key: string, of: string, over: Partial<MegastructureView> = {}) =>
   megastructureTypeView(key, { variant_of: of, ...over });
 const hidden = (why: "not_built" | "ship_entity" | "leaves_fleet" | "not_offered_yet") =>
   ({ offer: "hidden", why }) as const;
-const lifters = { hidden_by_global_flags: ["lifters_disabled"] };
 
 /** Types each built over the one before, the first over `first`. */
 function chain(
@@ -113,13 +112,11 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
       placement: onStar,
       turns_into: ["star_lifter_0_o_star"],
       swaps: [megastructureSwap("star_lifter_0_o_star", { classes: ["pc_o_star"] })],
-      ...lifters,
       ...giga,
     }),
     megastructureTypeView("star_lifter_5", {
       upgrade_from: ["star_lifter_0"],
       placement: onStar,
-      ...lifters,
       ...giga,
     }),
     ...chain(["star_lifter_0_o_star", "star_lifter_5_o_star"], { placement: onStar, ...giga }),
@@ -399,14 +396,14 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(matchingEntries(entries(space), "blokkat_dummy").flatMap(entryStages)).toEqual([]);
   });
 
-  it("hides a megastructure the save's global flags hide, and shows it again without them", () => {
+  it("lists a megastructure whatever global flags the save has", () => {
     const lifter = (globalFlags: ReadonlySet<string>) =>
       named(
         megastructureEntries(TYPES, NAMES, star, undefined, { globalFlags }),
         "Star Lifter",
         GIGA,
       );
-    expect(lifter(new Set(["lifters_disabled"]))).toBeUndefined();
+    expect(lifter(new Set(["lifters_disabled"]))).toBeDefined();
     expect(lifter(new Set(["giga_dyson_scaling"]))).toBeDefined();
     expect(lifter(new Set())).toBeDefined();
   });

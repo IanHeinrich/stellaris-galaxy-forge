@@ -1,6 +1,6 @@
-//! Which megastructure types the add dialog offers, the global flags that hide them, and the
-//! swaps a stage's completion makes: on hand-written types, on the real install, and on
-//! Gigastructural Engineering when the enabled playset has it.
+//! Which megastructure types the add dialog offers, and the swaps a stage's completion makes:
+//! on hand-written types, on the real install, and on Gigastructural Engineering when the
+//! enabled playset has it.
 
 use crate::common;
 
@@ -181,16 +181,13 @@ fn a_type_is_offered_when_a_player_builds_it() {
     );
 }
 
-/// Each global flag whose presence alone settles the `potential` false hides the type, and
-/// the first stage's flags hide every stage after it.
+/// A global flag in the `potential` never hides a type: flags only pick the variant a swap
+/// writes.
 #[test]
-fn a_global_flag_in_the_potential_hides_the_family() {
+fn a_global_flag_in_the_potential_does_not_hide_the_family() {
     let (_dir, gd) = fixture();
-    let flags = ["fx_a_off".to_owned(), "fx_b_off".to_owned()];
     assert_eq!(mega(&gd, "fx_settings").offer, Offer::Offered);
-    assert_eq!(mega(&gd, "fx_settings").hidden_by_global_flags, flags);
-    assert_eq!(mega(&gd, "fx_settings_2").hidden_by_global_flags, flags);
-    assert!(mega(&gd, "fx_player").hidden_by_global_flags.is_empty());
+    assert_eq!(mega(&gd, "fx_settings_2").offer, Offer::Offered);
 }
 
 /// A stage on a cycle of `upgrade_from` is a state of the finished structure unless the
@@ -406,11 +403,6 @@ fn the_installs_types_are_offered_as_a_player_builds_them() {
     ] {
         assert!(!offered(key), "{key}");
     }
-    assert!(
-        gd.megastructures
-            .iter()
-            .all(|def| def.hidden_by_global_flags.is_empty())
-    );
     assert_eq!(
         mega(gd, "think_tank_3").country_modifier,
         [("all_technology_research_speed".to_owned(), 0.15)]
@@ -579,19 +571,9 @@ fn gigas_types_are_offered_as_the_audit_sorts_them() {
         mega(gd, "nicoll_beam_ready").offer,
         hidden(HiddenWhy::State)
     );
-    for key in ["star_lifter_0", "star_lifter_3"] {
-        assert!(
-            mega(gd, key)
-                .hidden_by_global_flags
-                .contains(&"lifters_disabled".to_owned()),
-            "{key}"
-        );
+    for key in ["star_lifter_0", "star_lifter_3", "maginot_world_1"] {
+        assert_eq!(mega(gd, key).offer, Offer::Offered, "{key}");
     }
-    assert!(
-        mega(gd, "maginot_world_1")
-            .hidden_by_global_flags
-            .contains(&"maginot_disabled".to_owned())
-    );
 
     let b_classes = |key: &str, scaling: &str| {
         let swaps = &mega(gd, key).swaps;

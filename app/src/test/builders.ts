@@ -421,7 +421,6 @@ export function megastructureTypeView(
     turns_into: [],
     swaps: [],
     offer: { offer: "offered" },
-    hidden_by_global_flags: [],
     placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
     source: null,

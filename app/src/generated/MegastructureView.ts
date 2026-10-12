@@ -102,10 +102,6 @@ swaps: Array<MegastructureSwap>,
  */
 offer: MegastructureOffer, 
 /**
- * The global flags any one of which, set in the save, hides it from the add dialog.
- */
-hidden_by_global_flags: Array<string>, 
-/**
  * Where the editor adds a row of this type, read once every type is loaded.
  */
 placement: MegastructurePlacement, 

@@ -138,7 +138,7 @@ impl Build {
             })
         };
         Self {
-            potential: potential.map(|block| with_variables(Condition::of_def(block, def), def)),
+            potential: potential.map(|block| Condition::of_def(block, def)),
             cost: def
                 .node
                 .find("resources", src)
@@ -185,30 +185,6 @@ fn technology(
                     .is_some_and(|called| technology(&called.condition, triggers, seen))
         }
         _ => false,
-    }
-}
-
-/// `condition` with each global flag written as an `@variable` named by its value.
-fn with_variables(condition: Condition, def: &Def) -> Condition {
-    match condition {
-        Condition::GlobalFlag(flag) => match flag.strip_prefix('@') {
-            Some(name) => Condition::GlobalFlag(
-                def.vars
-                    .get(name)
-                    .map(|own| own.value.clone())
-                    .or_else(|| def.globals.get(name).map(str::to_owned))
-                    .unwrap_or(flag),
-            ),
-            None => Condition::GlobalFlag(flag),
-        },
-        Condition::Not(inner) => Condition::Not(Box::new(with_variables(*inner, def))),
-        Condition::All(items) => {
-            Condition::All(items.into_iter().map(|c| with_variables(c, def)).collect())
-        }
-        Condition::Any(items) => {
-            Condition::Any(items.into_iter().map(|c| with_variables(c, def)).collect())
-        }
-        other => other,
     }
 }
 
@@ -281,10 +257,9 @@ fn effect_keys(
 }
 
 /// A player's empire, as a `potential` is judged for it: not an AI, of the default country
-/// type, with `flag` set when given and every other flag unknown.
+/// type, with every global flag unknown.
 struct Player<'a> {
     triggers: &'a ScriptedTriggers,
-    flag: Option<&'a str>,
 }
 
 impl Subject for Player<'_> {
@@ -292,7 +267,6 @@ impl Subject for Player<'_> {
         match leaf {
             Condition::Call(name, want) if name == "is_ai" => Some(!want),
             Condition::CountryType(kind) => Some(kind == "default"),
-            Condition::GlobalFlag(flag) if self.flag == Some(flag.as_str()) => Some(true),
             _ => None,
         }
     }
@@ -302,54 +276,7 @@ impl Subject for Player<'_> {
     }
 }
 
-/// Every global flag `condition` asks, through the scripted triggers it calls.
-fn global_flags(
-    condition: &Condition,
-    triggers: &ScriptedTriggers,
-    seen: &mut BTreeSet<String>,
-    out: &mut BTreeSet<String>,
-) {
-    match condition {
-        Condition::GlobalFlag(flag) => {
-            out.insert(flag.clone());
-        }
-        Condition::Not(inner) => global_flags(inner, triggers, seen, out),
-        Condition::All(items) | Condition::Any(items) => {
-            for item in items {
-                global_flags(item, triggers, seen, out);
-            }
-        }
-        Condition::Call(name, _) => {
-            if let Some(called) = triggers.get(name)
-                && seen.insert(name.clone())
-            {
-                global_flags(&called.condition, triggers, seen, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// The global flags whose presence alone settles `def`'s `potential` false.
-fn hiding_flags(def: &MegastructureDef, triggers: &ScriptedTriggers) -> Vec<String> {
-    let Some(potential) = &def.build.potential else {
-        return Vec::new();
-    };
-    let mut asked = BTreeSet::new();
-    global_flags(potential, triggers, &mut BTreeSet::new(), &mut asked);
-    asked
-        .into_iter()
-        .filter(|flag| {
-            let player = Player {
-                triggers,
-                flag: Some(flag),
-            };
-            potential.evaluate(&player) == Some(false)
-        })
-        .collect()
-}
-
-/// `types` with each type's [`Offer`] and the global flags that hide it decided.
+/// `types` with each type's [`Offer`] decided.
 pub(crate) fn offered(
     mut types: MegastructureTypes,
     triggers: &ScriptedTriggers,
@@ -415,11 +342,9 @@ pub(crate) fn offered(
         }
     }
 
-    let mut flags = family_flags(&types, &entries, triggers);
     for (key, offer) in offers {
         if let Some(def) = types.get_mut(&key) {
             def.offer = offer;
-            def.hidden_by_global_flags = flags.remove(&key).unwrap_or_default();
         }
     }
     types
@@ -431,10 +356,7 @@ fn own(
     triggers: &ScriptedTriggers,
     states: &BTreeSet<String>,
 ) -> Option<HiddenWhy> {
-    let player = Player {
-        triggers,
-        flag: None,
-    };
+    let player = Player { triggers };
     let ship = |entity: &Option<String>| {
         entity
             .as_deref()
@@ -572,66 +494,5 @@ fn not_offered_yet(types: &MegastructureTypes) -> BTreeSet<String> {
             return held;
         }
         held.extend(more);
-    }
-}
-
-/// The global flags that hide each type: its own, and those of the first offered stage of
-/// its family, which hide the whole family.
-fn family_flags(
-    types: &MegastructureTypes,
-    entries: &BTreeSet<&str>,
-    triggers: &ScriptedTriggers,
-) -> BTreeMap<String, Vec<String>> {
-    let mut flags: BTreeMap<String, Vec<String>> = types
-        .iter()
-        .map(|def| (def.key.clone(), hiding_flags(def, triggers)))
-        .filter(|(_, flags)| !flags.is_empty())
-        .collect();
-    let heads: Vec<(&str, Vec<String>)> = entries
-        .iter()
-        .filter(|key| !is_variant(key))
-        .filter_map(|key| Some((*key, flags.get(*key)?.clone())))
-        .collect();
-    for (head, shared) in heads {
-        for key in family(types, head) {
-            let own = flags.entry(key).or_default();
-            for flag in &shared {
-                if !own.contains(flag) {
-                    own.push(flag.clone());
-                }
-            }
-            own.sort();
-        }
-    }
-    flags
-}
-
-fn is_variant(key: &str) -> bool {
-    is_ruin(key) || key.contains("_restored")
-}
-
-/// `head`'s family: each stage built first over it or over a later stage, and the ruins and
-/// restores of any of them.
-fn family(types: &MegastructureTypes, head: &str) -> Vec<String> {
-    let mut family = vec![head.to_owned()];
-    loop {
-        let more: Vec<String> = types
-            .iter()
-            .filter(|def| !family.contains(&def.key))
-            .filter(|def| {
-                def.upgrade_from
-                    .first()
-                    .is_some_and(|earlier| family.contains(earlier))
-                    || def
-                        .variant_of
-                        .as_ref()
-                        .is_some_and(|working| family.contains(working))
-            })
-            .map(|def| def.key.clone())
-            .collect();
-        if more.is_empty() {
-            return family;
-        }
-        family.extend(more);
     }
 }
