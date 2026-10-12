@@ -345,6 +345,11 @@ impl ScriptIndex {
         self.effects.get(key)
     }
 
+    /// Every scripted effect, by key.
+    pub(crate) fn effects(&self) -> impl Iterator<Item = &Def> {
+        self.effects.values()
+    }
+
     pub fn country_of_flag(&self, flag: &str) -> Option<&CreatedCountry> {
         self.by_country_flag.get(flag)
     }

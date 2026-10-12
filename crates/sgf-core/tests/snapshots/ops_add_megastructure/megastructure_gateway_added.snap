@@ -1,0 +1,113 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (gateway_final) in Xu Nur #1, with bypass #23
+inverse: RemoveMegastructure { megastructure: 16, construction: None }
+
+--- gamestate
++++ gamestate
+@@ -28940,6 +28940,10 @@
+ 		planet=589
+ 		planet=590
+ 		planet=591
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -28966,6 +28970,10 @@
+ 			}
+  
+ 		}
++		bypasses=
++		{
++			23 
++		}
+ 		arm=2
+ 		flags=
+ 		{
+@@ -1400882,6 +1400890,24 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="gateway_final"
++		coordinate=
++		{
++			x=0
++			y=-260
++			origin=1
++		}
++		planet=4294967295
++		bypass=23
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {
+@@ -1400930,7 +1400956,7 @@
+ 		active=no
+ 		connections=
+ 		{
+-			4 5 6 
++			4 5 6 23 
+ 		}
+ 		owner=
+ 		{
+@@ -1400947,7 +1400973,7 @@
+ 		active=no
+ 		connections=
+ 		{
+-			3 5 6 
++			3 5 6 23 
+ 		}
+ 		owner=
+ 		{
+@@ -1400964,7 +1400990,7 @@
+ 		active=no
+ 		connections=
+ 		{
+-			3 4 6 
++			3 4 6 23 
+ 		}
+ 		owner=
+ 		{
+@@ -1400981,7 +1401007,7 @@
+ 		active=no
+ 		connections=
+ 		{
+-			3 4 5 
++			3 4 5 23 
+ 		}
+ 		owner=
+ 		{
+@@ -1401326,6 +1401352,20 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
++	23=
++	{
++		type="gateway"
++		active=yes
++		connections=
++		{
++			3 4 5 6 
++		}
++		owner=
++		{
++			type=6
++			id=16
++		}
++	}
+ }
+ natural_wormholes=
+ {

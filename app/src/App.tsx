@@ -29,6 +29,7 @@ import { OpenModeDialog } from "./panels/file/OpenModeDialog";
 import { OpenScenarioDialog } from "./panels/file/OpenScenarioDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
+import { AddMegastructureDialog } from "./panels/overlays/AddMegastructureDialog";
 import { SaveIssuesDialog } from "./panels/overlays/SaveIssuesDialog";
 import { ChangedOnDiskDialog } from "./panels/overlays/ChangedOnDiskDialog";
 import { EditorChooser } from "./panels/overlays/EditorChooser";
@@ -231,6 +232,7 @@ function App() {
           {status === "ready" && openDialog && <OpenSave modal />}
           {scenarioDialog && <NewScenarioDialog />}
           {feZoneFitPrompt && <FeZoneFitDialog />}
+          <AddMegastructureDialog />
           {saveIssuesPrompt && <SaveIssuesDialog />}
           {changedOnDiskPrompt && <ChangedOnDiskDialog />}
           <OpenModeDialog />

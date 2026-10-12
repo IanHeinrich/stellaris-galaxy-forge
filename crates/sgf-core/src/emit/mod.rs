@@ -4,6 +4,7 @@
 //! inserted into (`cst::indent_of`) and pass it in. Depth below it is added in tabs, as
 //! the game nests blocks.
 
+pub mod megastructure;
 pub mod system;
 
 use crate::keys;

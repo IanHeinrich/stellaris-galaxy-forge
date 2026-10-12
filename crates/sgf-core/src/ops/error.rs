@@ -199,6 +199,12 @@ pub enum OpError {
         "system {system} already has a natural wormhole of bypass type \"{kind}\", and a system holds one at most"
     )]
     HasNaturalWormhole { system: u32, kind: String },
+    #[error("a {kind} cannot be added there: {reason}")]
+    MegastructureRefused { kind: String, reason: String },
+    #[error(
+        "megastructure {0} was in the save when it was opened: only one added since then can be taken out again"
+    )]
+    MegastructureNotAdded(u32),
     #[error("systems {0} and {1} are not the two ends of a wormhole")]
     NotAWormholePair(u32, u32),
     #[error(
@@ -375,6 +381,8 @@ impl OpError {
             | Self::ParentMissing { .. }
             | Self::NotAWormhole { .. }
             | Self::HasNaturalWormhole { .. }
+            | Self::MegastructureRefused { .. }
+            | Self::MegastructureNotAdded { .. }
             | Self::NotAWormholePair { .. }
             | Self::WormholeEndMissing { .. }
             | Self::HoldsWormhole { .. }

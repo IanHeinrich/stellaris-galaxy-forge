@@ -57,6 +57,7 @@ fn node(raw: RawCountry) -> Option<CountryNode> {
         flag_icon: raw.flag_icon,
         flag_background: raw.flag_background,
         preftl_age: raw.preftl_age,
+        graphical_culture: raw.graphical_culture,
         flags: raw.flags,
     })
 }

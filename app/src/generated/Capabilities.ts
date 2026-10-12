@@ -120,6 +120,10 @@ anomalies: boolean,
  */
 dig_sites: boolean, 
 /**
+ * A megastructure can be added to a system, and one added taken out again.
+ */
+add_megastructures: boolean, 
+/**
  * Any system can be renamed from its header.
  */
 rename_systems: boolean, 

@@ -31,6 +31,8 @@ export interface PlanetOffers {
   move: boolean;
   addPlanet: boolean;
   addMoon: boolean;
+  /** The system view's Add megastructure, on a body or in empty space. */
+  addMegastructure: boolean;
   /** Any body's Delete in its menu; the core says why one cannot go, a star among them. */
   deleteBody: boolean;
   /** The page's Delete and Remove colony, which a star's page leaves out. */
@@ -54,6 +56,7 @@ export function planetPageOffers(
     move: capabilities.planet_moves,
     addPlanet: capabilities.add_bodies,
     addMoon: capabilities.add_bodies && facts.moonHost,
+    addMegastructure: capabilities.add_megastructures,
     deleteBody: capabilities.remove_bodies,
     pageRemoval: capabilities.remove_bodies && planet,
   };

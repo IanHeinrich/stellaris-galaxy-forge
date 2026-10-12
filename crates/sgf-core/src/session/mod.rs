@@ -84,6 +84,9 @@ pub struct Session {
     pub(crate) graph: GalaxyGraph,
     details: OnceCell<Arc<DetailsProjection>>,
     history: History,
+    /// The inverses of the members of the batch being applied, in the order they were
+    /// applied; empty outside a batch.
+    pub(crate) batch: Vec<crate::ops::Op>,
     /// Undo-stack length when the document was last opened or saved; `None` once that
     /// state has been discarded by a new op after an undo.
     saved_at: Option<usize>,
@@ -139,6 +142,15 @@ impl Session {
 
     pub fn history(&self) -> HistoryView {
         self.history.entries()
+    }
+
+    /// The inverse of every op waiting to be undone, oldest first, then of each member of
+    /// the batch being applied so far.
+    pub(crate) fn applied_inverses(&self) -> impl DoubleEndedIterator<Item = &crate::ops::Op> {
+        self.history
+            .applied()
+            .map(|applied| &applied.inverse)
+            .chain(&self.batch)
     }
 
     pub fn system(&self, id: u32) -> Option<&SystemNode> {

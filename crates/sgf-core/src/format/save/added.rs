@@ -1,5 +1,5 @@
-//! The systems, planets, deposits, dig sites and wormholes a save gained after it was
-//! opened.
+//! The systems, planets, deposits, dig sites, wormholes and megastructures a save gained
+//! after it was opened.
 //!
 //! The index is scanned once, from the bytes as loaded, so an entity an op wrote is found
 //! here instead: an inserted statement, or a tombstone (`<id>=none`) rewritten as a new
@@ -30,11 +30,12 @@ pub(crate) enum Table {
 }
 
 impl Table {
-    const ALL: [Self; 7] = [
+    const ALL: [Self; 8] = [
         Self::Entity(EntityKind::System),
         Self::Entity(EntityKind::Planet),
         Self::Entity(EntityKind::Deposit),
         Self::Entity(EntityKind::Wormhole),
+        Self::Entity(EntityKind::Megastructure),
         Self::AmbientObject,
         Self::DigSite,
         Self::Bypass,

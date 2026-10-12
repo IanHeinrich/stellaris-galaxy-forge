@@ -52,6 +52,11 @@ pub struct CountryNode {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub preftl_age: Option<String>,
+    /// `graphical_culture`, the art set its ships and megastructures are drawn in
+    /// (`mammalian_01`); `None` when the country names none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub graphical_culture: Option<String>,
     /// The keys of the save's `flags` map: the country flags scripts test.
     #[serde(skip)]
     #[ts(skip)]

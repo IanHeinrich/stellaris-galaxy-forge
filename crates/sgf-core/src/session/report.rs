@@ -2,11 +2,13 @@ use std::collections::HashSet;
 
 use super::{OpResult, Session};
 use crate::archive;
-use crate::document::SaveOutcome;
+use crate::document::{Document, SaveOutcome};
 use crate::entity::views::{EntityAddr, EntityKind};
 use crate::format::scenario::is_painted;
+use crate::keys;
 use crate::library;
 use crate::ops::Subject;
+use crate::overlay::Anchor;
 use crate::projections::galaxy::{BypassLink, Wayline};
 use crate::views::{
     Capabilities, DocumentKind, EditResult, GalaxyDelta, GalaxyView, OpenResult, SaveResult,
@@ -36,7 +38,7 @@ impl Session {
 
     /// What `apply_op`, `undo` and `redo` report to the app.
     pub fn edit_result(&self, result: OpResult) -> EditResult {
-        let touched_entities = touched_entities(&result.touched, &result.subjects);
+        let touched_entities = touched_entities(&self.doc, &result.touched, &result.subjects);
         EditResult {
             entry: result.entry,
             delta: self.delta(
@@ -113,16 +115,35 @@ impl Session {
     }
 }
 
-/// The entities an edit rewrote, as the app addresses them: its `systems`, then the planets
-/// and countries among its `subjects`.
-fn touched_entities(systems: &[u32], subjects: &[Subject]) -> Vec<EntityAddr> {
+/// The entities an edit rewrote, as the app addresses them: its `systems`, then the planets,
+/// countries and megastructure rows among its `subjects`.
+fn touched_entities(doc: &Document, systems: &[u32], subjects: &[Subject]) -> Vec<EntityAddr> {
     let systems = systems
         .iter()
         .map(|&id| EntityAddr::new(EntityKind::System, id));
     let others = subjects.iter().filter_map(|subject| match *subject {
         Subject::Planet { id, .. } => Some(EntityAddr::new(EntityKind::Planet, id)),
         Subject::Country(id) => Some(EntityAddr::new(EntityKind::Country, id)),
+        Subject::Record(anchor) => {
+            megastructure_at(doc, anchor).map(|id| EntityAddr::new(EntityKind::Megastructure, id))
+        }
         _ => None,
     });
     systems.chain(others).collect()
+}
+
+/// The `megastructures` row standing at `anchor`, an added one or one the file held.
+fn megastructure_at(doc: &Document, anchor: Anchor) -> Option<u32> {
+    let added = doc
+        .added()
+        .entries(EntityKind::Megastructure)
+        .find(|&(_, slot)| slot == anchor)
+        .map(|(id, _)| id);
+    added.or_else(|| {
+        doc.index()
+            .entities(keys::MEGASTRUCTURES)
+            .iter()
+            .find(|e| Anchor::Original(e.stmt) == anchor)
+            .and_then(|e| u32::try_from(e.id).ok())
+    })
 }

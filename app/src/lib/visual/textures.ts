@@ -3,6 +3,7 @@
  * than a store: layers read it in their render path and redraw on `onTextures`.
  */
 import type { Texture } from "pixi.js";
+import { isSgfError } from "../../api/errors";
 import { getTextures } from "../../api/gamedata";
 import type { ModelPlacement } from "../../generated/ModelPlacement";
 import type { TextureView } from "../../generated/TextureView";
@@ -108,10 +109,28 @@ function flushQueue(): void {
     void fetchBatch(keys.slice(i, i + BATCH), generation);
 }
 
+/**
+ * Whether a call that failed as a whole could have failed for one of its keys: a task that died
+ * or a call that never came back, not a session or install the call lacks.
+ */
+function oneKeysFault(e: unknown): boolean {
+  return !isSgfError(e) || e.kind === "io";
+}
+
+/**
+ * Fetches `keys` in one call. A call that fails as a whole in a way one key could cause is asked
+ * again key by key, so that key does not take every other key in the batch with it.
+ */
 async function fetchBatch(keys: string[], gen: number): Promise<void> {
-  const views = await getTextures(keys).catch((e: unknown): TextureView[] =>
-    keys.map((key) => ({ key, width: 0, height: 0, png_base64: null, error: String(e) })),
+  const views = await getTextures(keys).catch((e: unknown): TextureView[] | null =>
+    keys.length > 1 && oneKeysFault(e)
+      ? null
+      : keys.map((key) => ({ key, width: 0, height: 0, png_base64: null, error: String(e) })),
   );
+  if (views === null) {
+    await Promise.all(keys.map((key) => fetchBatch([key], gen)));
+    return;
+  }
   const textures = await Promise.all(views.map(toTexture));
   if (gen !== generation) {
     for (const texture of textures) texture?.destroy(true);

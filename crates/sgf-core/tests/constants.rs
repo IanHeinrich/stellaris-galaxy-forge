@@ -14,6 +14,7 @@ use sgf_core::format::scenario::fe_zone::{
 };
 use sgf_core::format::scenario::paint::RESERVED_SEAT_NAMES;
 use sgf_core::guides::L_CLUSTER;
+use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::ops::{
     BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, SPAWN_BUFFER,
     STORED_ORBIT_SLACK, SystemRadii,
@@ -154,6 +155,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How far a body's point may stray from its stored orbit for the stored value to be drawn.",
         "STORED_ORBIT_SLACK",
         STORED_ORBIT_SLACK.to_string(),
+    );
+    constant(
+        "How far out, as a share of its system's inner radius, a megastructure built outside the gravity well stands.",
+        "RELAY_RADIUS_FACTOR",
+        RELAY_RADIUS_FACTOR.to_string(),
     );
     constant(
         "The height above the galactic plane the game gives every system it generates.",

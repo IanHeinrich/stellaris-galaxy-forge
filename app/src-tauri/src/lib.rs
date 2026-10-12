@@ -51,6 +51,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::remove_added_systems,
             commands::add_body,
             commands::get_body_classes,
+            commands::add_megastructure,
             commands::add_nebula,
             commands::get_add_system_picks,
             commands::set_fe_links,

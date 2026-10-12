@@ -21,6 +21,10 @@ use crate::plural;
 use crate::projections::galaxy::{Galaxy, display_name};
 use crate::projections::name::{NameTemplate, looks_like_key};
 
+/// How far out, as a share of its system's `inner_radius`, a megastructure built outside the
+/// gravity well stands: where the game puts its relays and gateways.
+pub const RELAY_RADIUS_FACTOR: f64 = 1.05;
+
 /// How a text stands in the file: between quotes, which the game reads with no escaping,
 /// or as a key the game looks up, one token of printable ASCII whether quoted or not.
 #[derive(Clone, Copy, Debug)]

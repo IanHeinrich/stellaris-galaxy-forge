@@ -43,3 +43,40 @@ export function gridPlace(
   }
   return { group: 0, index: 0 };
 }
+
+/**
+ * Where a key moves the active item of `groups`, each laid out `columns` to a row and starting
+ * a row of its own: Left and Right run on through every group, Up and Down move a row within
+ * the group, and past its first or last row to the same column of the group before or after.
+ * The key of the item it lands on, or null for a key the groups do not move on.
+ */
+export function groupedGridStep(
+  groups: readonly { items: readonly { key: string }[] }[],
+  key: string,
+  pressed: string,
+  columns: number,
+): string | null {
+  const flat = groups.flatMap((group) => group.items);
+  if (flat.length === 0) return null;
+  const at = Math.max(
+    0,
+    flat.findIndex((item) => item.key === key),
+  );
+  const horizontal = gridStep(at, pressed, flat.length, columns);
+  if (pressed !== "ArrowUp" && pressed !== "ArrowDown") {
+    return typeof horizontal === "number" ? flat[horizontal].key : null;
+  }
+  const { group, index } = gridPlace(groups, flat[at].key);
+  const items = groups[group].items;
+  const width = Math.max(1, columns);
+  const within = gridStep(index, pressed, items.length, width);
+  const lastRow = Math.floor((items.length - 1) / width);
+  const leaves = pressed === "ArrowUp" ? within === "above" : Math.floor(index / width) === lastRow;
+  if (!leaves) return typeof within === "number" ? items[within].key : null;
+  const next = group + (pressed === "ArrowUp" ? -1 : 1);
+  if (next < 0 || next >= groups.length) return pressed === "ArrowUp" ? null : items[index].key;
+  const target = groups[next].items;
+  const column = index % width;
+  const row = pressed === "ArrowUp" ? Math.floor((target.length - 1) / width) : 0;
+  return target[Math.min(target.length - 1, row * width + column)].key;
+}

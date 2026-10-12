@@ -136,7 +136,7 @@ fx_scripted_effect = {
 /// whose moon comes with a name.
 const WORLDS: &str = "class = sc_sun
 planet = { class = star orbit_distance = 0 }
-planet = { class = pc_rock orbit_distance = 30 size = $SIZE$ [[NAME] name = $NAME$ ] }
+planet = { class = pc_rock orbit_distance = 30 size = $SIZE$ [[NAME] name = \"$NAME$\" ] }
 [[!MOON] planet = { class = pc_rubble orbit_distance = 10 } ]
 [[MOON]
 planet = {
@@ -516,7 +516,7 @@ fn an_inline_script_is_read_in_place_of_its_call() {
             body("pc_rock", Some(12), "Two Words", false),
             body("pc_rubble", Some(5), "", false),
         ],
-        "$SIZE$ is the call's SIZE; NAME is given, as one quoted token; MOON is not"
+        "$SIZE$ is the call's SIZE; NAME is given, its quotes taken off and put back by the script; MOON is not"
     );
     let moon = gd
         .initializer_details(6, "fx_scripted_moon", None)

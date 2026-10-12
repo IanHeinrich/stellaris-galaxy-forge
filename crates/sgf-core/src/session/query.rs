@@ -20,6 +20,14 @@ impl Session {
             .map(|tied| tied.kind)
     }
 
+    /// Save system `system` as a megastructure's construction scripts look at it.
+    pub fn construction_site(
+        &self,
+        system: u32,
+    ) -> Result<crate::format::save::site::ConstructionSite, OpError> {
+        crate::format::save::site::read(self, system)
+    }
+
     /// Every scenario system carrying an `effect = { … }` block, in file order: its id,
     /// the block's text and the line it starts on. A save document has none.
     pub fn scenario_system_effects(&self) -> Vec<(u32, String, u32)> {

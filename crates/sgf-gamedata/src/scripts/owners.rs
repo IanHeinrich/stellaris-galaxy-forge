@@ -399,6 +399,7 @@ fn territories(
                     flag_icon: identity.icon.clone(),
                     flag_background: identity.background.clone(),
                     preftl_age: None,
+                    graphical_culture: None,
                     flags: Vec::new(),
                 },
             }

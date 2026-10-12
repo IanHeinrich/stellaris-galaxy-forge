@@ -387,7 +387,10 @@ export function megastructureSummary(
   return { id: 1, owner: null, planet: null, at: [0, 0], culture: null, ...over };
 }
 
-/** The one `MegastructureTypeView` builder: a type that draws `entity` where its row stands. */
+/**
+ * The one `MegastructureTypeView` builder: a type that draws `entity` where its row stands, added
+ * on any body.
+ */
 export function megastructureTypeView(
   key: string,
   over: Partial<MegastructureTypeView> = {},
@@ -405,7 +408,18 @@ export function megastructureTypeView(
     upgrade_from: [],
     rotate_to_center: true,
     produces: [],
+    ruined_orbital_ring: false,
+    spawns_starbase: false,
+    activates_gateway: false,
+    sets_has_megastructure: false,
+    planet_possible_star: false,
+    script_only: false,
+    turns_into: [],
+    placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
+    source: null,
+    base_game: true,
+    variant_of: null,
     ...over,
   };
 }

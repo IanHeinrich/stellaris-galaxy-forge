@@ -79,7 +79,7 @@ const ALL: [RegistryKind; 10] = [
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
 const DIRS: [(&str, RegistryKind); 33] = [
     (Initializer::DIR, RegistryKind::Initializers),
-    ("common/inline_scripts", RegistryKind::Initializers),
+    ("common/inline_scripts", RegistryKind::Definitions),
     (index::EFFECTS_DIR, RegistryKind::Scripts),
     (index::EVENTS_DIR, RegistryKind::Scripts),
     (index::ON_ACTIONS_DIR, RegistryKind::Scripts),

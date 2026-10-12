@@ -11,6 +11,7 @@ use sgf_core::span::Span;
 use ts_rs::TS;
 
 use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};
+use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def, ParsedDir, Range, Variables, line_of, whole};
 use crate::registries::planet_classes::PlanetClassDef;
@@ -995,147 +996,23 @@ fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Op
 }
 
 /// The `inline_script` `call` reads: its script's text with its parameters put in, and the
-/// keys that text writes at its top level. A parameter keeps its quotes, so a quoted value
-/// goes in as one token.
+/// keys that text writes at its top level.
 fn inline_script(call: &Node, src: &[u8], layout: &Layout) -> Option<InlineScript> {
-    let written = |node: &Node| {
-        let span = node.scalar_span()?;
-        std::str::from_utf8(span.slice(src)).ok()
-    };
-    let (script, params): (&str, Vec<(&str, &str)>) = match call.scalar_str(src) {
-        Some(script) => (script, Vec::new()),
-        None => (
-            call.find("script", src)?.scalar_str(src)?,
-            call.children()
-                .iter()
-                .filter_map(|p| Some((p.key_str(src)?, written(p)?)))
-                .filter(|(key, _)| *key != "script")
-                .collect(),
-        ),
-    };
-    let file = layout.resolve_file(&format!("common/inline_scripts/{script}.txt"))?;
-    let raw = std::fs::read(&file).ok()?;
-    let body = substitute(&raw, &params);
-    let root = cst::parse_script(&body, 0).ok()?;
+    let read = inline_script::read(call, src, layout)?;
+    let root = cst::parse_script(&read.text, 0).ok()?;
     let mut keys: Vec<String> = Vec::new();
-    for key in root.children().iter().filter_map(|n| n.key_str(&body)) {
+    for key in root.children().iter().filter_map(|n| n.key_str(&read.text)) {
         if !keys.iter().any(|k| k == key) {
             keys.push(key.to_owned());
         }
     }
     Some(InlineScript {
-        script: script.to_owned(),
-        file,
-        src: body.into(),
+        script: read.script,
+        file: read.file,
+        src: read.text.into(),
         root,
         keys,
         span: Span::new(0, 0),
         call: Span::new(0, 0),
     })
-}
-
-/// `text` with its conditional blocks settled, then each `$NAME$` and `$NAME|default$`
-/// replaced by the value `params` gives `NAME`, or its default; a parameter with neither is
-/// left as written.
-fn substitute(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
-    put_params(&conditionals(text, params), params)
-}
-
-fn put_params(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(text.len());
-    let mut rest = text;
-    while let Some(open) = rest.iter().position(|&b| b == b'$') {
-        out.extend_from_slice(&rest[..open]);
-        let after = &rest[open + 1..];
-        let Some(close) = after.iter().position(|&b| b == b'$') else {
-            out.extend_from_slice(&rest[open..]);
-            return out;
-        };
-        let inner = &after[..close];
-        let (name, default) = match inner.iter().position(|&b| b == b'|') {
-            Some(bar) => (&inner[..bar], Some(&inner[bar + 1..])),
-            None => (inner, None),
-        };
-        let value = params
-            .iter()
-            .find(|(key, _)| key.as_bytes() == name)
-            .map(|(_, value)| value.as_bytes())
-            .or(default);
-        match value {
-            Some(value) => out.extend_from_slice(value),
-            None => out.extend_from_slice(&rest[open..open + close + 2]),
-        }
-        rest = &after[close + 1..];
-    }
-    out.extend_from_slice(rest);
-    out
-}
-
-/// `text` with each `[[NAME] … ]` kept when `params` gives `NAME`, and each `[[!NAME] … ]`
-/// kept when it does not, nested ones settled in turn. A block that is dropped leaves its
-/// line breaks, so the text keeps the lines of its file.
-fn conditionals(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(text.len());
-    let mut at = 0;
-    while at < text.len() {
-        let Some(block) = conditional(text, at) else {
-            out.push(text[at]);
-            at += 1;
-            continue;
-        };
-        let given = params.iter().any(|(key, _)| key.as_bytes() == block.name);
-        let body = &text[block.body.clone()];
-        if given != block.negated {
-            out.extend(conditionals(body, params));
-        } else {
-            out.extend(body.iter().filter(|&&b| b == b'\n'));
-        }
-        at = block.end;
-    }
-    out
-}
-
-/// A `[[NAME] … ]` or `[[!NAME] … ]` block of an inline script.
-struct Conditional<'t> {
-    name: &'t [u8],
-    negated: bool,
-    /// Its text, between the header and the closing bracket.
-    body: std::ops::Range<usize>,
-    /// Just past the closing bracket.
-    end: usize,
-}
-
-/// The conditional block that starts at `at` in `text`, when one does and it closes.
-fn conditional(text: &[u8], at: usize) -> Option<Conditional<'_>> {
-    let rest = text.get(at..)?.strip_prefix(b"[[")?;
-    let header_len = rest.iter().position(|&b| b == b']')?;
-    let header = &rest[..header_len];
-    let (negated, name) = match header.strip_prefix(b"!") {
-        Some(name) => (true, name),
-        None => (false, header),
-    };
-    let word = |b: &u8| b.is_ascii_alphanumeric() || *b == b'_';
-    if name.is_empty() || !name.iter().all(word) {
-        return None;
-    }
-    let start = at + 2 + header_len + 1;
-    let mut depth = 1;
-    for (offset, &b) in text[start..].iter().enumerate() {
-        match b {
-            b'[' => depth += 1,
-            b']' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(Conditional {
-                        name,
-                        negated,
-                        body: start..start + offset,
-                        end: start + offset + 1,
-                    });
-                }
-            }
-            _ => {}
-        }
-    }
-    None
 }

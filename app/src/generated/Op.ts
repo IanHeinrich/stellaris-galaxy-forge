@@ -6,9 +6,12 @@ import type { LGateOutcome } from "./LGateOutcome";
 import type { LaneLength } from "./LaneLength";
 import type { LanePair } from "./LanePair";
 import type { MapColorPair } from "./MapColorPair";
+import type { MegastructureConstruction } from "./MegastructureConstruction";
 import type { MegastructureDismantle } from "./MegastructureDismantle";
+import type { MegastructurePlace } from "./MegastructurePlace";
 import type { NebulaFootprint } from "./NebulaFootprint";
 import type { NewBody } from "./NewBody";
+import type { NewBypass } from "./NewBypass";
 import type { NewName } from "./NewName";
 import type { NewSystem } from "./NewSystem";
 import type { OrbitPlacement } from "./OrbitPlacement";
@@ -38,4 +41,28 @@ custom_name?: boolean, } | { "type": "AddSystemFromSpec", spec: SystemSpec, } | 
  * The two ends' points in place of the ones the op picks: what the inverse of
  * [`Op::RemoveWormholePair`] carries, so that the pair comes back where it stood.
  */
-at?: PairPoints, } | { "type": "RemoveWormholePair", a: number, b: number, } | { "type": "SetBodyRing", body: number, ring: boolean, } | { "type": "SetBodyModel", body: number, entity: string | null, } | { "type": "SetBodyClass", body: number, from: PlanetClassRule, to: PlanetClassRule, look?: PlanetLook, } | { "type": "AddBelt", system: number, kind: string, radius: number, } | { "type": "RemoveBelt", system: number, index: number, } | { "type": "SetBeltRadius", system: number, index: number, radius: number, } | { "type": "SetBeltKind", system: number, index: number, kind: string, } | { "type": "SetInnerRadius", system: number, radius: number, } | { "type": "MoveBodyToSystem", body: number, to: number, at?: OrbitPlacement, } | { "type": "RenameBody", body: number, name: NewName, } | { "type": "RemoveColony", body: number, } | { "type": "DeleteBody", body: number, } | { "type": "DeleteMegastructure", megastructure: number, dismantle?: MegastructureDismantle, } | { "type": "DeleteRingWorld", system: number, radius?: number, } | { "type": "AddBody", system: number, spec: NewBody, at: OrbitPlacement, } | { "type": "RemoveBody", body: number, } | { "type": "AddDigSite", body: number, site_type: string, difficulty: number, } | { "type": "RemoveDigSite", site: number, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };
+at?: PairPoints, } | { "type": "RemoveWormholePair", a: number, b: number, } | { "type": "SetBodyRing", body: number, ring: boolean, } | { "type": "SetBodyModel", body: number, entity: string | null, } | { "type": "SetBodyClass", body: number, from: PlanetClassRule, to: PlanetClassRule, look?: PlanetLook, } | { "type": "AddBelt", system: number, kind: string, radius: number, } | { "type": "RemoveBelt", system: number, index: number, } | { "type": "SetBeltRadius", system: number, index: number, radius: number, } | { "type": "SetBeltKind", system: number, index: number, kind: string, } | { "type": "SetInnerRadius", system: number, radius: number, } | { "type": "MoveBodyToSystem", body: number, to: number, at?: OrbitPlacement, } | { "type": "RenameBody", body: number, name: NewName, } | { "type": "RemoveColony", body: number, } | { "type": "DeleteBody", body: number, } | { "type": "DeleteMegastructure", megastructure: number, dismantle?: MegastructureDismantle, } | { "type": "DeleteRingWorld", system: number, radius?: number, } | { "type": "AddBody", system: number, spec: NewBody, at: OrbitPlacement, } | { "type": "RemoveBody", body: number, } | { "type": "AddDigSite", body: number, site_type: string, difficulty: number, } | { "type": "RemoveDigSite", site: number, } | { "type": "AddMegastructure", system: number, kind: string, at: MegastructurePlace, owner?: number, bypass?: NewBypass, 
+/**
+ * The body gets the planet flag `ruined_orbital_ring_planet`, dated day one.
+ */
+ruined_orbital_ring?: boolean, 
+/**
+ * The body gets the planet flag `has_megastructure`, dated the save's current date,
+ * as a type whose build sets it leaves its body.
+ */
+megastructure_flag?: boolean, 
+/**
+ * The type is built only around a star: a body that is not one is refused.
+ */
+star_only?: boolean, construction?: MegastructureConstruction, 
+/**
+ * How many effects of the type's construction the caller could not tell apply and
+ * left out of `construction`; the description says so.
+ */
+left_out?: number, } | { "type": "RemoveMegastructure", megastructure: number, 
+/**
+ * What the add's construction wrote; filled only by the inverse of
+ * [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
+ * row this session, earlier in the same batch included, is taken back.
+ */
+construction?: MegastructureConstruction, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };

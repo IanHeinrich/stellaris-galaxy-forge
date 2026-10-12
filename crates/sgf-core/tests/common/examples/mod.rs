@@ -1,6 +1,6 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
-use sgf_core::ops::{LanePair, NewBody, Op, SystemMove};
+use sgf_core::ops::{LanePair, MegastructurePlace, NewBody, Op, SystemMove};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
@@ -60,6 +60,15 @@ impl Example {
             save: Some(op),
             scenario: None,
             open_save: save_4_5_with_added_body,
+        }
+    }
+
+    /// A save example that needs a megastructure added to the 4.5 sample in the session.
+    fn added_megastructure(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: save_4_5_with_added_megastructure,
         }
     }
 
@@ -129,6 +138,33 @@ pub fn save_4_5_with_added_body() -> Session {
     let mut session = save_4_5();
     session.apply(meissa_v()).expect("add Meissa V");
     session
+}
+
+/// The 4.5 sample with [`sol_nexus`] added as row [`ADDED_MEGASTRUCTURE`].
+pub fn save_4_5_with_added_megastructure() -> Session {
+    let mut session = save_4_5();
+    session.apply(sol_nexus()).expect("add the Science Nexus");
+    session
+}
+
+/// The id the 4.5 sample's first added megastructure takes: the slot past its highest, 15.
+pub const ADDED_MEGASTRUCTURE: u32 = 16;
+
+/// A Science Nexus on gas giant 6 of the 4.5 sample's capital system, Alari (169), owned
+/// by country 0, which marks its planet as the game's build does.
+pub fn sol_nexus() -> Op {
+    Op::AddMegastructure {
+        system: 169,
+        kind: "think_tank_3".to_owned(),
+        at: MegastructurePlace::Body { body: 6 },
+        owner: Some(0),
+        bypass: None,
+        ruined_orbital_ring: false,
+        megastructure_flag: true,
+        star_only: false,
+        construction: None,
+        left_out: 0,
+    }
 }
 
 /// The id the 4.5 sample's first added planet takes: dead slot 57, one generation on.

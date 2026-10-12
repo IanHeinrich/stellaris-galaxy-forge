@@ -5,6 +5,7 @@ import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";
+import { ADD_MEGASTRUCTURE_LABEL, BODY_HAS_MEGASTRUCTURE } from "../../../lib/megastructurePicks";
 import { isStarBody } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -19,6 +20,7 @@ import { useSystemGeometry } from "../../../store/systemGeometry";
 import { useSystemBodyNames } from "../../inspector/entity/useBodyName";
 import { useOpCheck } from "../../useOpCheck";
 import { AddBodyItems } from "./AddBodyItems";
+import { AddMegastructureItem } from "./AddMegastructureItem";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 import { RingWorldItem } from "./RingWorldItem";
@@ -26,7 +28,7 @@ import { CopyItem, CutItem } from "./PlanetMoveItems";
 
 /**
  * The menu on a body in the system view: its page, the selection's cut and copy, its lock, a
- * new moon of it, its deletion or its ring world's, and the way back out.
+ * new moon or megastructure on it, its deletion or its ring world's, and the way back out.
  */
 export function BodyMenu({
   target,
@@ -97,6 +99,18 @@ export function BodyMenu({
           </MenuItem>
         ))}
       {offers.addMoon && <AddBodyItems label={ADD_MOON_LABEL} moon add={addMoon} />}
+      {offers.addMegastructure && planet !== undefined && (
+        <AddMegastructureItem
+          system={target.system}
+          spot={{ kind: "body", body: target.id, star }}
+          label={ADD_MEGASTRUCTURE_LABEL}
+          refusal={
+            details?.megastructures.some((m) => m.planet === target.id)
+              ? BODY_HAS_MEGASTRUCTURE
+              : null
+          }
+        />
+      )}
       {offers.deleteBody &&
         name !== undefined &&
         (planet !== undefined && isRingSegment(planet.class) ? (

@@ -57,6 +57,9 @@ export const BELT_SCATTER = 10;
 /** How far a body's point may stray from its stored orbit for the stored value to be drawn. */
 export const STORED_ORBIT_SLACK = 0.01;
 
+/** How far out, as a share of its system's inner radius, a megastructure built outside the gravity well stands. */
+export const RELAY_RADIUS_FACTOR = 1.05;
+
 /** The height above the galactic plane the game gives every system it generates. */
 export const DEFAULT_SYSTEM_HEIGHT = 3.65056;
 
@@ -129,6 +132,7 @@ export const SAVE_CAPABILITIES: Capabilities = {
   modifiers: true,
   anomalies: true,
   dig_sites: true,
+  add_megastructures: true,
   rename_systems: false,
   header: false,
   scripted_owners: false,
@@ -166,6 +170,7 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   modifiers: false,
   anomalies: false,
   dig_sites: false,
+  add_megastructures: false,
   rename_systems: true,
   header: true,
   scripted_owners: true,

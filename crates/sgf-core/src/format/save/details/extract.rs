@@ -475,15 +475,14 @@ fn current_entity<'d>(
     })
 }
 
-/// Every row the top-level `megastructures` now holds, the ones an op added included,
-/// filed under its `coordinate.origin`.
+/// Every live row of the top-level `megastructures`, the ones an op added included, filed
+/// under its `coordinate.origin`.
 pub(super) fn megastructures(
     doc: &Document,
     countries: &Countries,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<(), ProjectionError> {
     for row in rows(doc, Table::Entity(EntityKind::Megastructure))? {
-        let id = row.id;
         let mega = facts::megastructure::read(&row.node, row.src);
         let Some(details) = mega.origin.and_then(|o| by_system.get_mut(&o)) else {
             continue;
@@ -493,7 +492,7 @@ pub(super) fn megastructures(
                 .and_then(|owner| countries.cultures.get(&owner).cloned())
         });
         details.megastructures.push(MegastructureSummary {
-            id,
+            id: row.id,
             kind: mega.kind,
             owner: mega.owner,
             planet: mega.planet,
@@ -751,13 +750,8 @@ pub(super) fn refresh_megastructures(
         .iter_mut()
         .filter(|m| m.planet.is_some_and(|p| bodies.contains(&p)));
     for mega in tied {
-        let id = u64::from(mega.id);
-        let Some(entity) = doc.index().entity(keys::MEGASTRUCTURES, id) else {
-            continue;
-        };
-        let anchor = Anchor::Original(entity.stmt);
-        if let Some((node, src)) = current_entity(doc, keys::MEGASTRUCTURES, id, anchor)? {
-            mega.at = read::coordinate(&node, src).ok();
+        if let Some(row) = row(doc, Table::Entity(EntityKind::Megastructure), mega.id)? {
+            mega.at = read::coordinate(&row.node, row.src).ok();
         }
     }
     Ok(())

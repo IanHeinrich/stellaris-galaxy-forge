@@ -717,8 +717,9 @@ pub enum Op {
     /// [`Op::RemoveColony`]
     /// refuses for a reason other than the structure, and a modifier, deposit type or
     /// variable that is not an identifier are refused. The inverse is the
-    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
-    /// documents only.
+    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. A row
+    /// [`Op::AddMegastructure`] added since the file was opened goes as
+    /// [`Op::RemoveMegastructure`] takes it. Stellaris 4.x save documents only.
     DeleteMegastructure {
         megastructure: u32,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -812,6 +813,87 @@ pub enum Op {
     /// back as it stood. Save documents only.
     RemoveDigSite {
         site: u32,
+    },
+    /// A new `megastructures` row of type `kind` in save system `system`, written finished:
+    /// at the slot past the highest the table has used, at generation 0, with no
+    /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
+    /// owner lists it in `owned_megastructures`; on load the game gives every row to the
+    /// owner of its system, whatever the row names. A row on a [`MegastructurePlace::Body`]
+    /// stands at the body's point and names it, and the body gets `megastructure=<id>`, with
+    /// the planet flags `has_megastructure` and `ruined_orbital_ring_planet` when asked. The
+    /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
+    /// new row is written past the highest, connected both ways to the relays of the systems
+    /// a lane joins to `system` or to every other gateway, and the system lists it in
+    /// `bypasses`; the game fills in its lock fields on load. With `construction`, what the
+    /// type's construction adds is written as the game leaves it: each modifier as an item
+    /// of its body's or the system's `timed_modifier`, which the entity gains when it has
+    /// none, each deposit as [`Op::AddDeposit`] writes one, and each owner variable raised,
+    /// written in its place among the owner's `variables` when the owner has none of it. A
+    /// deposit on a body the file held and a deletion has left as `<id>=none` is written
+    /// naming it, with no planet to list it, as the deletion left it.
+    /// The game's other build effects do not run. An unknown country, a body outside the
+    /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
+    /// is not a star for a `star_only` type, a flag or `star_only` on a free point, a bypass
+    /// other than a gateway or a relay, a second bypass of that kind in the system, a type
+    /// that is not an identifier, a point that is not finite and a save before Stellaris
+    /// 4.0 are refused, and so are a construction modifier the entity has already or that
+    /// is listed twice, one that lasts no days, a construction body outside the system, a
+    /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
+    /// is not an identifier. The inverse is [`Op::RemoveMegastructure`] with the
+    /// construction. Save documents only.
+    AddMegastructure {
+        system: u32,
+        kind: String,
+        at: MegastructurePlace,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        owner: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        bypass: Option<NewBypass>,
+        /// The body gets the planet flag `ruined_orbital_ring_planet`, dated day one.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        ruined_orbital_ring: bool,
+        /// The body gets the planet flag `has_megastructure`, dated the save's current date,
+        /// as a type whose build sets it leaves its body.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        megastructure_flag: bool,
+        /// The type is built only around a star: a body that is not one is refused.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        star_only: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        construction: Option<MegastructureConstruction>,
+        /// How many effects of the type's construction the caller could not tell apply and
+        /// left out of `construction`; the description says so.
+        #[serde(default, skip_serializing_if = "is_zero")]
+        #[ts(optional, as = "Option<u32>")]
+        left_out: u32,
+    },
+    /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
+    /// taken out again: it gives its slot back as an added body does, and it is unlinked as
+    /// [`Op::DeleteMegastructure`] unlinks a row: its id leaves the system's
+    /// `megastructures`, the owner's `owned_megastructures` and the body's `megastructure`,
+    /// and unless another row names the body, the body loses the flags a structure leaves.
+    /// The row's bypass is erased, and its id leaves the system's `bypasses` and every other
+    /// bypass's lists. What the add's construction wrote goes too, as much of it as is still
+    /// there: each modifier item, each deposit, a body's deleted since included, which gives
+    /// its slot back as [`Op::RemoveDeposit`] gives back an added one, and each variable
+    /// lowered, its line going at 0 and the owner's `variables` with its last line when the
+    /// file held neither.
+    /// A row the file held is refused. The inverse adds it back as it stood, with what was
+    /// taken back as its construction. Stellaris 4.x save documents only.
+    RemoveMegastructure {
+        megastructure: u32,
+        /// What the add's construction wrote; filled only by the inverse of
+        /// [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
+        /// row this session, earlier in the same batch included, is taken back.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        construction: Option<MegastructureConstruction>,
     },
     /// Each save system's `coordinate.visual_height`, how far above or below the galactic
     /// plane the map draws its star; `None` takes the key out. A system without one, as
@@ -923,6 +1005,8 @@ impl Op {
             Self::AddWormholePair { .. }
             | Self::RemoveWormholePair { .. }
             | Self::MoveBodyToSystem { .. }
+            | Self::AddMegastructure { .. }
+            | Self::RemoveMegastructure { .. }
             | Self::DeleteMegastructure { .. }
             | Self::DeleteRingWorld { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
@@ -1290,6 +1374,26 @@ pub struct PairPoints {
     pub b: (f64, f64),
 }
 
+/// Where [`Op::AddMegastructure`] puts its row.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "place", rename_all = "snake_case")]
+pub enum MegastructurePlace {
+    /// On or around a body of the system, at the body's point.
+    Body { body: u32 },
+    /// The row's own point about the star, as the row stores it.
+    Free { x: f64, y: f64 },
+}
+
+/// The `bypasses` row [`Op::AddMegastructure`] writes for its row: its `common/bypass`
+/// type, `gateway` or `relay_bypass`, and whether it is open.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewBypass {
+    pub kind: String,
+    pub active: bool,
+}
+
 /// The map border and fill in [`Op::SetEmpireMapColors`], each a colour name from
 /// `flags/colors.txt`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -1333,6 +1437,58 @@ pub struct NebulaFootprint {
 pub struct NebulaCloud {
     pub id: u32,
     pub kind: String,
+}
+
+/// What a megastructure's construction adds to its system and owner, as
+/// [`Op::AddMegastructure`] writes it: the build chain of its type, up to its stage,
+/// replayed against the system it is added to.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MegastructureConstruction {
+    pub modifiers: Vec<ConstructionModifier>,
+    pub deposits: Vec<ConstructionDeposit>,
+    pub variables: Vec<VariableRaise>,
+}
+
+impl MegastructureConstruction {
+    pub fn is_empty(&self) -> bool {
+        self.modifiers.is_empty() && self.deposits.is_empty() && self.variables.is_empty()
+    }
+}
+
+/// A timed modifier a construction gives its system or one of the system's bodies.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ConstructionModifier {
+    pub on: ModifierHost,
+    pub modifier: String,
+    /// `-1` for one that never expires.
+    pub days: i32,
+}
+
+/// The entity a [`ConstructionModifier`] is written on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "host", rename_all = "snake_case")]
+pub enum ModifierHost {
+    System,
+    Body { body: u32 },
+}
+
+/// A deposit a construction adds to a body of its system.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ConstructionDeposit {
+    pub body: u32,
+    pub kind: String,
+}
+
+/// One owner variable a construction raises, and by how much.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct VariableRaise {
+    pub variable: String,
+    pub by: u32,
 }
 
 /// What a megastructure type's dismantle takes back, read from the install's
@@ -1436,4 +1592,8 @@ pub struct LaneLength {
     pub a: u32,
     pub b: u32,
     pub length: f64,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }

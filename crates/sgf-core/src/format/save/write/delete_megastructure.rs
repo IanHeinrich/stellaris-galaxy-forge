@@ -7,8 +7,10 @@
 
 use crate::cst::Node;
 use crate::document::Document;
+use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
 use crate::format::save::ring_world;
+use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{self, Tied, drop_bypass, unlink};
 use crate::format::save::write::remove_planet::{SEGMENT_KEEPS_COLONY, check_segment};
@@ -37,6 +39,9 @@ pub(crate) fn plan_delete(
     let doc = &s.doc;
     if let Some(dismantle) = dismantle {
         dismantle::check(dismantle)?;
+    }
+    if doc.added().get(EntityKind::Megastructure, id).is_some() {
+        return add_megastructure::plan_remove(plan, s, id, None);
     }
     let tied = megastructure_links::read(doc, id)?.ok_or(OpError::UnknownEntity {
         table: SavedTable::Megastructure,

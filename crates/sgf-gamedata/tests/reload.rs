@@ -259,7 +259,7 @@ fn a_changed_path_names_the_registry_that_reads_it() {
     let install = tree.path().join("install");
     let one = tree.path().join("userdata/mod/one");
 
-    let table: [(PathBuf, Option<RegistryKind>); 24] = [
+    let table: [(PathBuf, Option<RegistryKind>); 25] = [
         (
             install.join("common/terraform/00_links.txt"),
             Some(RegistryKind::Definitions),
@@ -299,6 +299,10 @@ fn a_changed_path_names_the_registry_that_reads_it() {
         (
             one.join("common/solar_system_initializers/nested/nested_init.txt"),
             Some(RegistryKind::Initializers),
+        ),
+        (
+            one.join("common/inline_scripts/fx/bodies.txt"),
+            Some(RegistryKind::Definitions),
         ),
         (
             one.join("common/scripted_effects/zz_countries.txt"),

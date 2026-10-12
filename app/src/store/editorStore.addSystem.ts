@@ -22,7 +22,12 @@ import { useSceneStore } from "./sceneStore";
 
 type AddSystemActions = Pick<
   EditorState,
-  "addRandomSystemAt" | "addSpecialSystemAt" | "addBodyAt" | "rerollSystem" | "renameAddedSystem"
+  | "addRandomSystemAt"
+  | "addSpecialSystemAt"
+  | "addBodyAt"
+  | "addMegastructure"
+  | "rerollSystem"
+  | "renameAddedSystem"
 >;
 
 /** What a refusal at a spot reads: the open save, whether game data is loaded and the galaxy. */
@@ -127,6 +132,16 @@ export function addSystemActions(
         useSceneStore.getState().showBody(system, planet);
         return true;
       });
+    },
+
+    async addMegastructure(system, kind, at) {
+      let added: { megastructure: number; unsure: string[]; unwritten: string[] } | null = null;
+      const result = await runEdit(async () => {
+        const { edit, ...answer } = await ipc.addMegastructure(system, kind, at);
+        added = answer;
+        return edit;
+      });
+      return result === null ? null : added;
     },
 
     rerollSystem(id, starClass) {

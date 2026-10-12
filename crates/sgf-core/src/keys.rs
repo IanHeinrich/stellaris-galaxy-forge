@@ -156,6 +156,7 @@ save_keys! {
     NATURAL_WORMHOLES = "natural_wormholes",
     NEBULA = "nebula",
     NEBULA_NAMES = "nebula_names",
+    NEXT_TRANSPORT_FLEET_NUMBER = "next_transport_fleet_number",
     NUM_ADVANCED_EMPIRES = "num_advanced_empires",
     NUM_EMPIRES = "num_empires",
     NUM_FALLEN_EMPIRES = "num_fallen_empires",
@@ -176,6 +177,7 @@ save_keys! {
     OUTER_RADIUS = "outer_radius",
     OWNED_ARMIES = "owned_armies",
     OWNED_FLEETS = "owned_fleets",
+    OWNED_LEADERS = "owned_leaders",
     OWNED_MEGASTRUCTURES = "owned_megastructures",
     OWNED_PLANETS = "owned_planets",
     OWNER = "owner",
@@ -205,6 +207,7 @@ save_keys! {
     SCALING = "scaling",
     SECTOR = "sector",
     SECTORS = "sectors",
+    SENSOR_RANGE_FLEETS = "sensor_range_fleets",
     SHAPE = "shape",
     SHIP = "ship",
     SHIPCLASS_ORBITAL_STATION = "shipclass_orbital_station",
@@ -212,6 +215,7 @@ save_keys! {
     SHIPYARD_BUILD_QUEUE = "shipyard_build_queue",
     SHIP_CLASS = "ship_class",
     SHIP_DESIGN = "ship_design",
+    SHIP_DESIGN_COLLECTION = "ship_design_collection",
     SHIP_DESIGN_IMPLEMENTATION = "ship_design_implementation",
     SHIP_NAMES = "ship_names",
     SHIP_SIZE = "ship_size",
@@ -236,6 +240,8 @@ save_keys! {
     TEMPLATE = "template",
     TIMED_MODIFIER = "timed_modifier",
     TO = "to",
+    TRADE_CONVERSIONS = "trade_conversions",
+    TRADITION_CATEGORIES = "tradition_categories",
     TYPE = "type",
     USE_MAP_COLOR = "use_map_color",
     VALUE = "value",
@@ -271,6 +277,11 @@ pub(crate) const OPTIONAL: &[&str] = &[
     MAP,
     SOLAR_SYSTEM,
 ];
+
+/// Written on a system while an empire claims it, which no sample save's system is.
+pub(crate) const CLAIMS: &str = "claims";
+/// Written on a system holding an astral rift, which no sample save's system holds.
+pub(crate) const ASTRAL_RIFTS: &str = "astral_rifts";
 
 /// Written on a planet while it terraforms, which no sample save's planet does, so the
 /// save-key test cannot look for it.

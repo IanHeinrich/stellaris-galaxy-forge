@@ -1,0 +1,545 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (orbital_arc_furnace_4) in Alari system #169, with 13 modifiers, 13 deposits and 1 counter
+inverse: RemoveMegastructure { megastructure: 16, construction: Some(MegastructureConstruction { modifiers: [ConstructionModifier { on: Body { body: 1 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 3 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 4 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 5 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 6 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 7 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 8 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 9 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 10 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 11 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 12 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 13 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }, ConstructionModifier { on: Body { body: 14 }, modifier: "orbital_arc_furnace_4_mod", days: -1 }], deposits: [ConstructionDeposit { body: 1, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 3, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 4, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 5, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 6, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 7, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 8, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 9, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 10, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 11, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 12, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 13, kind: "d_arc_furnace_4" }, ConstructionDeposit { body: 14, kind: "d_arc_furnace_4" }], variables: [VariableRaise { variable: "arc_furnace_counter", by: 1 }] }) }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,10 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -80059,15 +80063,29 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			megastructure=16
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_deposit=62808000
++				has_megastructure=62818752
+ 			}
+ 			entity=1
+ 			deposits=
+ 			{
+-				22 
++				22 16777216 
+ 			}
+ 		}
+ 		2=
+@@ -80152,7 +80170,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=1
++			deposits=
++			{
++				16777217 
++			}
+ 		}
+ 		4=
+ 		{
+@@ -80177,7 +80211,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=2
++			deposits=
++			{
++				16777218 
++			}
+ 		}
+ 		5=
+ 		{
+@@ -80202,6 +80252,18 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_deposit=62808000
+@@ -80209,7 +80271,7 @@
+ 			entity=1
+ 			deposits=
+ 			{
+-				23 
++				23 16777219 
+ 			}
+ 		}
+ 		6=
+@@ -80239,7 +80301,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=0
++			deposits=
++			{
++				16777220 
++			}
+ 		}
+ 		7=
+ 		{
+@@ -80265,7 +80343,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=1
++			deposits=
++			{
++				16777221 
++			}
+ 		}
+ 		8=
+ 		{
+@@ -80293,6 +80387,18 @@
+ 			}
+ 			shipclass_orbital_station=366
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_research_target=62808000
+@@ -80301,7 +80407,7 @@
+ 			entity=2
+ 			deposits=
+ 			{
+-				24 
++				24 16777222 
+ 			}
+ 		}
+ 		9=
+@@ -80328,7 +80434,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=0
++			deposits=
++			{
++				16777223 
++			}
+ 		}
+ 		10=
+ 		{
+@@ -80359,6 +80481,18 @@
+ 			}
+ 			shipclass_orbital_station=365
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_mining_target=62808000
+@@ -80368,7 +80502,7 @@
+ 			entity=3
+ 			deposits=
+ 			{
+-				19 
++				19 16777224 
+ 			}
+ 		}
+ 		11=
+@@ -80395,6 +80529,18 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_deposit=62808000
+@@ -80402,7 +80548,7 @@
+ 			entity=2
+ 			deposits=
+ 			{
+-				25 
++				25 16777225 
+ 			}
+ 		}
+ 		12=
+@@ -80429,7 +80575,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=0
++			deposits=
++			{
++				16777226 
++			}
+ 		}
+ 		13=
+ 		{
+@@ -80457,6 +80619,18 @@
+ 			}
+ 			shipclass_orbital_station=364
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_mining_target=62808000
+@@ -80465,7 +80639,7 @@
+ 			entity=2
+ 			deposits=
+ 			{
+-				21 
++				21 16777227 
+ 			}
+ 		}
+ 		14=
+@@ -80493,6 +80667,18 @@
+ 			}
+ 			shipclass_orbital_station=363
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="orbital_arc_furnace_4_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_mining_target=62808000
+@@ -80501,7 +80687,7 @@
+ 			entity=0
+ 			deposits=
+ 			{
+-				20 
++				20 16777228 
+ 			}
+ 		}
+ 		15=
+@@ -417711,6 +417897,7 @@
+ 		}
+ 		variables=
+ 		{
++			arc_furnace_counter=1
+ 			astral_threads_scripted_rewards_mult=1
+ 			conquest_subjects=0
+ 			focus_agendas_completed=0
+@@ -417930,6 +418117,10 @@
+ 		{
+ 			587202589 385875995 452984858 452984857 452984856 154 
+ 		}
++		owned_megastructures=
++		{
++			16 
++		}
+ 		owned_armies=
+ 		{
+ 			40 41 42 43 44 
+@@ -1076220,19 +1076411,123 @@
+ }
+ deposit=
+ {
+-	0=none
+-	1=none
+-	2=none
+-	3=none
+-	4=none
+-	5=none
+-	6=none
+-	7=none
+-	8=none
+-	9=none
+-	10=none
+-	11=none
+-	12=none
++	16777216=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=1
++		}
++	}
++	16777217=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=3
++		}
++	}
++	16777218=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=4
++		}
++	}
++	16777219=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=5
++		}
++	}
++	16777220=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=6
++		}
++	}
++	16777221=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=7
++		}
++	}
++	16777222=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=8
++		}
++	}
++	16777223=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=9
++		}
++	}
++	16777224=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=10
++		}
++	}
++	16777225=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=11
++		}
++	}
++	16777226=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=12
++		}
++	}
++	16777227=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=13
++		}
++	}
++	16777228=
++	{
++		type="d_arc_furnace_4"
++		deposit_holder=
++		{
++			type=0
++			id=14
++		}
++	}
+ 	13=none
+ 	14=none
+ 	15=none
+@@ -1400882,6 +1401177,25 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="orbital_arc_furnace_4"
++		coordinate=
++		{
++			x=1.6105
++			y=50.1705
++			origin=169
++		}
++		owner=0
++		graphical_culture="mammalian_01"
++		planet=1
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {

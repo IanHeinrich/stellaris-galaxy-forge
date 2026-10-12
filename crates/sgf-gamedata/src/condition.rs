@@ -40,6 +40,12 @@ pub enum Condition {
     /// `num_modifiers`: how many planet features the planet has.
     Modifiers(Comparison, f64),
     HasDeposit(String),
+    /// `has_modifier = …`: a timed or permanent modifier of the subject.
+    HasModifier(String),
+    /// `has_planet_flag = …`.
+    PlanetFlag(String),
+    /// `has_deposit_for = …`: a deposit worked by that station class.
+    DepositFor(String),
     Not(Box<Condition>),
     All(Vec<Condition>),
     Any(Vec<Condition>),
@@ -133,14 +139,13 @@ impl Condition {
             Self::All(items) => settle(items, s, depth, false),
             Self::Any(items) => settle(items, s, depth, true),
             Self::Call(name, want) => {
-                let Some(triggers) = s.triggers() else {
+                let Some(called) = s.triggers().and_then(|triggers| triggers.get(name)) else {
                     return s.leaf(self);
                 };
                 if depth >= MAX_DEPTH {
                     return None;
                 }
-                triggers
-                    .get(name)?
+                called
                     .condition
                     .judge(s, depth + 1)
                     .map(|holds| holds == *want)
@@ -177,7 +182,9 @@ impl Condition {
                         }
                     }
                     None => {
-                        out.insert(name.clone());
+                        if subject.leaf(self).is_none() {
+                            out.insert(name.clone());
+                        }
                     }
                 }
             }
@@ -229,6 +236,9 @@ impl Condition {
             Self::Size(..) => "planet_size",
             Self::Modifiers(..) => "num_modifiers",
             Self::HasDeposit(_) => "has_deposit",
+            Self::HasModifier(_) => "has_modifier",
+            Self::PlanetFlag(_) => "has_planet_flag",
+            Self::DepositFor(_) => "has_deposit_for",
             Self::Not(_) => "NOT",
             Self::All(_) => "AND",
             Self::Any(_) => "OR",
@@ -304,6 +314,9 @@ impl Compiler<'_> {
             "is_star_class" => named(Condition::StarClass),
             "has_climate" => named(Condition::Climate),
             "has_deposit" => named(Condition::HasDeposit),
+            "has_modifier" => named(Condition::HasModifier),
+            "has_planet_flag" => named(Condition::PlanetFlag),
+            "has_deposit_for" => named(Condition::DepositFor),
             "is_star" => flag(Condition::Star),
             "is_primary_star" => flag(Condition::PrimaryStar),
             "is_moon" => flag(Condition::Moon),
