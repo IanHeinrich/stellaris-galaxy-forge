@@ -37,4 +37,8 @@ settings: GalaxySettings | null,
 /**
  * Day one rolled for the Kaleidoscope to come; `false` for a scenario.
  */
-kaleidoscope: boolean, };
+kaleidoscope: boolean, 
+/**
+ * The keys of the save's global flags, sorted; empty for a scenario.
+ */
+global_flags: Array<string>, };

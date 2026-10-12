@@ -135,6 +135,32 @@ describe("the deposit picker's rows", () => {
     expect(describes("Sealed caverns.")).toBe("Sealed caverns.");
   });
 
+  it("keeps the markup of a description for the card and reads it plain in a hover text", () => {
+    const rich = "§YSealed§! caverns hold £energy£ 5.";
+    expect(describes("£energy£ +5")).toBeNull();
+    expect(describes(rich)).toBe(rich);
+    const [row] = depositRows(
+      [energy(1, { description: rich }), energy(5, { description: rich })],
+      VIEWS,
+      "deposits",
+    );
+    expect(row.amounts[0].title).toBe("+1 Energy. Sealed caverns hold 5.");
+    const [single] = depositRows(
+      [choice({ key: "d_rich_mountain", description: rich })],
+      VIEWS,
+      "deposits",
+    );
+    expect(single.description).toBe(rich);
+  });
+
+  it("labels a type by its name without markup", () => {
+    const views = new Map([
+      ["d_plain", depositTypeView("d_plain", { name: "§YRich§! £minerals£ Mountains" })],
+    ]);
+    const [row] = depositRows([choice({ key: "d_plain" })], views, "deposits");
+    expect(row.label).toBe("Rich Mountains");
+  });
+
   it("says what an add added", () => {
     const energyRow = row("yields:energy");
     expect(addedLine(energyRow, energyRow.amounts[1])).toBe("Added +3 Energy");

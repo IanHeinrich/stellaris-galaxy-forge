@@ -10,11 +10,11 @@ use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::choices::AskedBody;
 use sgf_gamedata::deposit_choices::DepositChoice;
 use sgf_gamedata::dig_site_choices::DigSiteChoice;
+use sgf_gamedata::megastructure_views::MegastructureView;
 use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_models::PlanetModelChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::registries::bypasses::BypassDef;
-use sgf_gamedata::registries::megastructures::MegastructureDef;
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
@@ -345,6 +345,21 @@ pub fn get_names(
         .collect()
 }
 
+/// The localised text of each key with the game's `£icon£` and `§X`…`§!` markup kept; empty
+/// without game data.
+#[tauri::command(async)]
+pub fn get_game_texts(
+    game_data: State<'_, GameDataState>,
+    keys: Vec<String>,
+) -> HashMap<String, String> {
+    let Some(gd) = game_data.loaded() else {
+        return HashMap::new();
+    };
+    keys.into_iter()
+        .filter_map(|key| gd.loc.rich(&key).map(|text| (key, text)))
+        .collect()
+}
+
 /// Each templated name as the game shows it; without game data, its save stand-in.
 #[tauri::command]
 pub async fn resolve_names(
@@ -570,12 +585,13 @@ pub fn get_starbase_levels(game_data: State<'_, GameDataState>) -> Vec<StarbaseL
     })
 }
 
-/// Every megastructure type, with its models and placement.
+/// Every megastructure type, with its models, placement, offer, effects and construction
+/// named.
 #[tauri::command(async)]
-pub fn get_megastructure_types(game_data: State<'_, GameDataState>) -> Vec<MegastructureDef> {
+pub fn get_megastructure_types(game_data: State<'_, GameDataState>) -> Vec<MegastructureView> {
     game_data
         .loaded()
-        .map_or_else(Vec::new, |gd| gd.megastructures.iter().cloned().collect())
+        .map_or_else(Vec::new, |gd| gd.megastructure_views())
 }
 
 #[tauri::command(async)]

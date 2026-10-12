@@ -1,7 +1,7 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
-import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarbaseSummary } from "../../generated/StarbaseSummary";
@@ -372,12 +372,12 @@ function rowsOf(planet: PlanetSummary, icons: SystemSources["resourceIcons"]) {
 
 /** Each type's production rows as last worked out, so a structure redrawn keeps its rows. */
 const keptProduced = new WeakMap<
-  MegastructureTypeView,
+  MegastructureView,
   { icons: SystemSources["resourceIcons"]; rows: readonly ResourceRow[] }
 >();
 
 function producedOf(
-  type: MegastructureTypeView,
+  type: MegastructureView,
   icons: SystemSources["resourceIcons"],
 ): readonly ResourceRow[] {
   if (type.produces.length === 0) return NOTHING;

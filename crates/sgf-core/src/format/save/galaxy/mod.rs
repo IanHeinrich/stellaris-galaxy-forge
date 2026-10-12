@@ -121,6 +121,7 @@ impl Galaxy {
             player_country,
             lgate,
             kaleidoscope: kaleidoscope(index, src)?,
+            global_flags: global_flags_of_index(index, src)?,
             settings,
         };
         galaxy.assign_nebulae();
@@ -244,9 +245,10 @@ impl GalaxyGraph {
         Ok(())
     }
 
-    /// Re-read the L-Gate from `flags`, the `flags=` block as it now stands. A galaxy with
-    /// no L-Gate keeps none, whatever the flags say.
+    /// Re-read the global flags, and the L-Gate, from `flags`, the `flags=` block as it now
+    /// stands. A galaxy with no L-Gate keeps none, whatever the flags say.
     pub fn refresh_lgate(&mut self, flags: &Node, src: &[u8]) {
+        self.global_flags = global_flags(flags, src);
         if self.lgate.is_some() {
             self.lgate = Some(lgate::read_flags(flags, src));
         }
@@ -323,6 +325,27 @@ fn kaleidoscope(index: &Index, src: &[u8]) -> Result<bool, ProjectionError> {
     };
     let flags = read::section_node(keys::FLAGS, section, src)?;
     Ok(flags.find(KALEIDOSCOPE_FLAG, src).is_some())
+}
+
+fn global_flags_of_index(index: &Index, src: &[u8]) -> Result<Vec<String>, ProjectionError> {
+    let Some(section) = index.section(keys::FLAGS) else {
+        return Ok(Vec::new());
+    };
+    let flags = read::section_node(keys::FLAGS, section, src)?;
+    Ok(global_flags(&flags, src))
+}
+
+/// The keys of `flags`, the `flags=` block, sorted and without repeats.
+fn global_flags(flags: &Node, src: &[u8]) -> Vec<String> {
+    let mut keys: Vec<String> = flags
+        .children()
+        .iter()
+        .filter_map(|flag| flag.key_str(src))
+        .map(str::to_owned)
+        .collect();
+    keys.sort_unstable();
+    keys.dedup();
+    keys
 }
 
 fn scalar_f64(section: &Section, src: &[u8]) -> Result<f64, ProjectionError> {

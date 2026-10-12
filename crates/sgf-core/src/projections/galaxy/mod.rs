@@ -108,6 +108,8 @@ pub struct Galaxy {
     pub lgate: Option<LGate>,
     /// Day one's roll set the global flag `kaleidoscope_will_spawn`; `false` for a scenario.
     pub kaleidoscope: bool,
+    /// The keys of the save's top-level `flags` block, sorted; empty for a scenario.
+    pub global_flags: Vec<String>,
     /// The save's `galaxy` block as the Open dialog reads it; `None` for a scenario.
     pub settings: Option<GalaxySettings>,
 }

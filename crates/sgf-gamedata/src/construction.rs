@@ -21,12 +21,14 @@ pub mod layout;
 
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, ModifierHost,
     VariableRaise,
 };
+use ts_rs::TS;
 
 use crate::GameData;
 use crate::condition::{Condition, Subject};
@@ -123,6 +125,109 @@ impl Effect {
     /// Whether the editor writes what this effect leaves.
     fn written(&self) -> bool {
         !matches!(self, Self::SetFlag(_) | Self::RemoveFlag(_))
+    }
+}
+
+/// Where a line of [`Construction::summary`] lands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum SummaryOn {
+    System,
+    /// The body the structure is built at.
+    Body,
+    /// Every planet of the system that passes a condition.
+    Planets,
+    Owner,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum SummaryKind {
+    Modifier,
+    Deposit,
+}
+
+/// One modifier or deposit the construction leaves, as the editor writes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SummaryLine {
+    pub on: SummaryOn,
+    pub kind: SummaryKind,
+    pub key: String,
+    /// A deposit, or a modifier with no end date.
+    pub permanent: bool,
+    /// It lands only on the bodies that pass a condition, or only when the structure has an
+    /// owner.
+    pub conditional: bool,
+}
+
+impl Target {
+    fn summary_on(&self) -> SummaryOn {
+        match self {
+            Self::System => SummaryOn::System,
+            Self::Owner => SummaryOn::Owner,
+            Self::Host(_) => SummaryOn::Body,
+            Self::Planets(_) => SummaryOn::Planets,
+        }
+    }
+
+    fn unconditional(&self) -> bool {
+        match self {
+            Self::System | Self::Owner => true,
+            Self::Host(guard) | Self::Planets(guard) => always(guard),
+        }
+    }
+}
+
+/// Whether `condition` holds for any body, as the walk's empty guards build it.
+fn always(condition: &Condition) -> bool {
+    match condition {
+        Condition::Always(holds) => *holds,
+        Condition::All(items) => items.iter().all(always),
+        Condition::Not(inner) => matches!(&**inner, Condition::Any(items) if items.is_empty()),
+        _ => false,
+    }
+}
+
+impl Construction {
+    /// The timed modifiers and deposits the chain adds, in the order it adds them, each once.
+    /// An add a later step removes from the same place is left out, and so are the removals
+    /// themselves, the owner variables and the flags.
+    pub fn summary(&self) -> Vec<SummaryLine> {
+        let mut lines: Vec<(SummaryLine, &Target)> = Vec::new();
+        for step in &self.steps {
+            let (kind, key, days, adds) = match &step.effect {
+                Effect::AddModifier { modifier, days } => {
+                    (SummaryKind::Modifier, modifier, *days, true)
+                }
+                Effect::RemoveModifier(modifier) => (SummaryKind::Modifier, modifier, 0, false),
+                Effect::AddDeposit(deposit) => (SummaryKind::Deposit, deposit, -1, true),
+                Effect::RemoveDeposit(deposit) => (SummaryKind::Deposit, deposit, 0, false),
+                _ => continue,
+            };
+            if !adds {
+                lines.retain(|(line, on)| {
+                    !(line.kind == kind && line.key == *key && **on == step.on)
+                });
+                continue;
+            }
+            let line = SummaryLine {
+                on: step.on.summary_on(),
+                kind,
+                key: key.clone(),
+                permanent: days < 0,
+                conditional: step.owned || !step.on.unconditional(),
+            };
+            match lines
+                .iter_mut()
+                .find(|(seen, on)| seen.kind == kind && seen.key == *key && **on == step.on)
+            {
+                Some((seen, _)) => *seen = line,
+                None => lines.push((line, &step.on)),
+            }
+        }
+        lines.into_iter().map(|(line, _)| line).collect()
     }
 }
 

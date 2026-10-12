@@ -51,6 +51,8 @@ pub struct GalaxyView {
     pub settings: Option<archive::GalaxySettings>,
     /// Day one rolled for the Kaleidoscope to come; `false` for a scenario.
     pub kaleidoscope: bool,
+    /// The keys of the save's global flags, sorted; empty for a scenario.
+    pub global_flags: Vec<String>,
 }
 
 impl GalaxyView {
@@ -74,6 +76,7 @@ impl GalaxyView {
             lgate: galaxy.lgate,
             settings: galaxy.settings.clone(),
             kaleidoscope: galaxy.kaleidoscope,
+            global_flags: galaxy.global_flags.clone(),
         }
     }
 }
@@ -466,6 +469,9 @@ pub struct GalaxyDelta {
     /// The L-Gate as it now reads, present only when an op rewrote the global flags.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lgate: Option<LGate>,
+    /// The global flags as they now read, present only when an op rewrote them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global_flags: Option<Vec<String>>,
     /// Countries re-projected by an op; the app replaces its copy of each.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub countries: Vec<CountryNode>,

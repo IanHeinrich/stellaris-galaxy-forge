@@ -104,6 +104,13 @@ fn game_data_commands_degrade_without_an_install() {
     let raw: HashMap<String, String> =
         invoke(&w, "get_raw_names", json!({ "keys": ["STAR_NAME_1_OF_2"] })).expect("raw names");
     assert!(raw.is_empty(), "{raw:?}");
+    let texts: HashMap<String, String> = invoke(
+        &w,
+        "get_game_texts",
+        json!({ "keys": ["gateway_0_MEGASTRUCTURE_DETAILS"] }),
+    )
+    .expect("game texts");
+    assert!(texts.is_empty(), "{texts:?}");
     let resolved: Vec<String> = invoke(
         &w,
         "resolve_names",
@@ -204,6 +211,34 @@ fn game_data_commands_answer_with_the_install() {
         "base64 PNG"
     );
     assert!(textures[1].error.is_some());
+}
+
+#[test]
+fn game_texts_keep_the_games_markup() {
+    let Some((w, _)) = common::with_game_data(SAMPLE) else {
+        return;
+    };
+
+    let texts: HashMap<String, String> = invoke(
+        &w,
+        "get_game_texts",
+        json!({ "keys": ["gateway_0_MEGASTRUCTURE_DETAILS", "NO_SUCH_TEXT"] }),
+    )
+    .expect("game texts");
+    let text = texts
+        .get("gateway_0_MEGASTRUCTURE_DETAILS")
+        .expect("the gateway's details text");
+    assert!(text.contains("§YGateways§!"), "colour codes stay: {text}");
+    assert_eq!(texts.len(), 1, "only the keys that resolved: {texts:?}");
+
+    let types: Vec<Value> =
+        invoke(&w, "get_megastructure_types", json!({})).expect("megastructure types");
+    let think_tank = types
+        .iter()
+        .find(|t| t["key"] == "think_tank_3")
+        .expect("think_tank_3");
+    assert!(think_tank["country_effects"].is_array(), "{think_tank}");
+    assert!(think_tank["offer"].is_object(), "{think_tank}");
 }
 
 #[test]

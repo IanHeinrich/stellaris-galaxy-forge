@@ -24,6 +24,8 @@ pub enum Condition {
     Call(String, bool),
     StarFlag(String),
     GlobalFlag(String),
+    /// `is_country_type = …`.
+    CountryType(String),
     /// `exists = …`: `starbase`, `event_target:name`, or another scope.
     Exists(String),
     InsideNebula(bool),
@@ -223,6 +225,7 @@ impl Condition {
             Self::Call(name, _) | Self::Unknown(name) => name,
             Self::StarFlag(_) => "has_star_flag",
             Self::GlobalFlag(_) => "has_global_flag",
+            Self::CountryType(_) => "is_country_type",
             Self::Exists(_) => "exists",
             Self::InsideNebula(_) => "is_inside_nebula",
             Self::PlanetClass(_) => "is_planet_class",
@@ -258,6 +261,18 @@ fn settle(items: &[Condition], s: &dyn Subject, depth: usize, deciding: bool) ->
         }
     }
     (!unknown).then_some(!deciding)
+}
+
+/// What the connective `key` makes of its items, its case as the game ignores it.
+fn connective(key: &str) -> Option<fn(Vec<Condition>) -> Condition> {
+    let make: fn(Vec<Condition>) -> Condition = match key.to_ascii_uppercase().as_str() {
+        "AND" => Condition::All,
+        "OR" => Condition::Any,
+        "NOT" | "NOR" => |items| Condition::Not(Box::new(Condition::Any(items))),
+        "NAND" => |items| Condition::Not(Box::new(Condition::All(items))),
+        _ => return None,
+    };
+    Some(make)
 }
 
 struct Compiler<'a> {
@@ -299,15 +314,15 @@ impl Compiler<'_> {
         let flag = |make: fn(bool) -> Condition| yes.map_or_else(unknown, make);
         let named =
             |make: fn(String) -> Condition| value.map_or_else(unknown, |v| make(v.to_owned()));
+        if let Some(make) = connective(key) {
+            return block(make);
+        }
         match key {
-            "AND" => block(Condition::All),
-            "OR" => block(Condition::Any),
-            "NOT" | "NOR" => block(|items| Condition::Not(Box::new(Condition::Any(items)))),
-            "NAND" => block(|items| Condition::Not(Box::new(Condition::All(items)))),
             "always" => flag(Condition::Always),
             "host_has_dlc" => named(Condition::HostDlc),
             "has_star_flag" => named(Condition::StarFlag),
             "has_global_flag" => named(Condition::GlobalFlag),
+            "is_country_type" => named(Condition::CountryType),
             "exists" => named(Condition::Exists),
             "is_inside_nebula" => flag(Condition::InsideNebula),
             "is_planet_class" => named(Condition::PlanetClass),

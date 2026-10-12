@@ -768,3 +768,68 @@ button.link.snippet-more .tri {
   border-left-width: 2px;
   border-left-style: solid;
 }
+
+/* The game's colour codes (§Y…§!) in a localised text, as interface/fonts.gfx sets them. */
+.gt-Y {
+  color: rgb(247 252 52);
+}
+
+.gt-G {
+  color: rgb(41 225 38);
+}
+
+.gt-R {
+  color: rgb(252 86 70);
+}
+
+.gt-H {
+  color: rgb(251 170 41);
+}
+
+.gt-B {
+  color: rgb(51 167 255);
+}
+
+.gt-C {
+  color: rgb(31 224 202);
+}
+
+.gt-L {
+  color: rgb(195 176 145);
+}
+
+.gt-E {
+  color: rgb(135 255 207);
+}
+
+.gt-P {
+  color: rgb(225 110 110);
+}
+
+.gt-M {
+  color: rgb(163 53 238);
+}
+
+.gt-S {
+  color: rgb(228 156 42);
+}
+
+.gt-V {
+  color: rgb(76 138 113);
+}
+
+.gt-W {
+  color: rgb(255 255 255);
+}
+
+.gt-T {
+  color: rgb(255 255 255);
+}
+
+.gt-g {
+  color: rgb(128 128 128);
+}
+
+.gt-icon {
+  vertical-align: -2px;
+}

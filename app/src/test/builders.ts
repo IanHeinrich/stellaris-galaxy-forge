@@ -13,7 +13,8 @@ import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { Issue } from "../generated/Issue";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureSwap } from "../generated/MegastructureSwap";
+import type { MegastructureView } from "../generated/MegastructureView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
@@ -388,13 +389,13 @@ export function megastructureSummary(
 }
 
 /**
- * The one `MegastructureTypeView` builder: a type that draws `entity` where its row stands, added
+ * The one `MegastructureView` builder: a type that draws `entity` where its row stands, added
  * on any body.
  */
 export function megastructureTypeView(
   key: string,
-  over: Partial<MegastructureTypeView> = {},
-): MegastructureTypeView {
+  over: Partial<MegastructureView> = {},
+): MegastructureView {
   return {
     key,
     entity: `${key}_entity`,
@@ -408,6 +409,9 @@ export function megastructureTypeView(
     upgrade_from: [],
     rotate_to_center: true,
     produces: [],
+    country_modifier: [],
+    country_effects: [],
+    construction_summary: [],
     ruined_orbital_ring: false,
     spawns_starbase: false,
     activates_gateway: false,
@@ -415,6 +419,8 @@ export function megastructureTypeView(
     planet_possible_star: false,
     script_only: false,
     turns_into: [],
+    swaps: [],
+    offer: { offer: "offered" },
     placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
     source: null,
@@ -422,6 +428,71 @@ export function megastructureTypeView(
     variant_of: null,
     ...over,
   };
+}
+
+/** The one `MegastructureSwap` builder: a swap into `into` that asks nothing. */
+export function megastructureSwap(
+  into: string,
+  over: Partial<MegastructureSwap> = {},
+): MegastructureSwap {
+  return {
+    into,
+    flags: [],
+    no_flags: [],
+    classes: null,
+    not_classes: [],
+    resolved: true,
+    ...over,
+  };
+}
+
+/**
+ * The star classes Gigastructural Engineering's `giga_is_<x>_star_for_megas` triggers name, in
+ * the order its completions test them. B takes Real Space's supergiants too.
+ */
+export const GIGA_STAR_CLASSES: readonly (readonly [string, readonly string[]])[] = [
+  ["b", ["pc_b_star", "pc_m_super_star", "pc_k_super_star"]],
+  ["m_giant", ["pc_m_giant_star"]],
+  ["a", ["pc_a_star"]],
+  ["f", ["pc_f_star"]],
+  ["g", ["pc_g_star"]],
+  ["k", ["pc_k_star"]],
+  ["m", ["pc_m_star"]],
+];
+
+/**
+ * The swaps Gigastructural Engineering's star-scaled completions write, into
+ * `<prefix>_<class>_star`. Under `scaling`, one per star class as an `if`/`else_if` chain, each
+ * asking that none of the earlier classes held. `o` first tests an O star whatever the flags, as
+ * the Dyson Sphere, Matrioshka Brain and Star Lifter do. `basic` is the type the `else` swaps to
+ * without the flag, as the Dyson Swarm's `_basic`. `skip` leaves out classes the stage itself
+ * is for, as the Matrioshka Brain's G.
+ */
+export function gigaStarSwaps(
+  prefix: string,
+  {
+    scaling,
+    o = false,
+    basic,
+    skip = [],
+  }: { scaling: string; o?: boolean; basic?: string; skip?: readonly string[] },
+): MegastructureSwap[] {
+  const swaps: MegastructureSwap[] = [];
+  if (o) swaps.push(megastructureSwap(`${prefix}_o_star`, { classes: ["pc_o_star"] }));
+  const earlier: string[] = [];
+  for (const [star, classes] of GIGA_STAR_CLASSES) {
+    if (skip.includes(star)) continue;
+    swaps.push(
+      megastructureSwap(`${prefix}_${star}_star`, {
+        flags: [scaling],
+        classes: [...classes],
+        not_classes: [...earlier],
+      }),
+    );
+    earlier.push(...classes);
+  }
+  if (basic !== undefined) swaps.push(megastructureSwap(basic, { no_flags: [scaling] }));
+  return swaps;
 }
 
 /** The one `StarbaseSummary` builder: an ownerless outpost at the centre. */

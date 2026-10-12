@@ -23,6 +23,7 @@ pub mod initializers;
 pub mod install;
 pub mod layouts;
 pub mod loc;
+pub mod megastructure_views;
 pub mod menu;
 pub mod modifier_choices;
 pub mod naming;
@@ -56,6 +57,7 @@ use install::script::{ParsedDir, Variables};
 use install::{discovery, mods, script};
 use layouts::Eligibility;
 use registries::galaxy_sizes::GalaxySizes;
+use registries::megastructure_offers;
 use registries::megastructures::{self, MegastructureDef};
 use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
@@ -364,11 +366,15 @@ impl GameData {
             &vars,
             &mut diagnostics,
         );
+        let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
         let megastructure_defs =
             script::parse_dir(&layout, MegastructureDef::DIR, &vars, &mut diagnostics);
-        let megastructures = megastructures::placed(
-            megastructures::load(&megastructure_defs, &scripts, &layout),
-            &scripts,
+        let megastructures = megastructure_offers::offered(
+            megastructures::placed(
+                megastructures::load(&megastructure_defs, &scripts, &scripted_triggers, &layout),
+                &scripts,
+            ),
+            &scripted_triggers,
         );
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
@@ -381,7 +387,6 @@ impl GameData {
         let border = GraphicsDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
         let system_radii = registries::defines::system_radii(&define_files);
-        let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
         let models = textures::Assets::read(&layout);
         let planet_classes = planet_classes.marked(scripts.class_uses(), &planet_lists, |e| {
             textures::planet_disc::draws_nothing(&models, e)
