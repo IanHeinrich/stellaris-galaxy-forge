@@ -2,7 +2,7 @@ import { Container, Graphics } from "pixi.js";
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { drawnDisc, ringDashes } from "../geometry";
+import { DISC_ONLY, drawnDisc, ringDashes } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 
 /** A pale grey-blue, with no class behind it. */
@@ -50,7 +50,7 @@ export class RolledLayer implements SystemLayer {
     }
     this.rings.stroke({ color: ROLLED_COLOR, alpha: RING_ALPHA, pixelLine: true });
     for (const { x, y, disc } of this.rolled) {
-      this.discs.circle(x, y, drawnDisc(disc, this.scale));
+      this.discs.circle(x, y, drawnDisc(disc, this.scale, DISC_ONLY));
     }
     this.discs
       .fill({ color: ROLLED_COLOR, alpha: FILL_ALPHA })
