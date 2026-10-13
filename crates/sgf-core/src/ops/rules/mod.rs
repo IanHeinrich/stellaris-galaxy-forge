@@ -29,6 +29,11 @@ pub const RELAY_RADIUS_FACTOR: f64 = 1.05;
 /// The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace.
 pub const FURNACE_ENTITY: &str = "invisible_turret_entity";
 
+/// The planet flag an Arc Furnace sets on its planet. A structure whose build sets it and
+/// [`FURNACE_ENTITY`] is a furnace, which may be moved onto a star: the game was seen to keep
+/// the star's own model under one.
+pub const FURNACE_FLAG: &str = crate::keys::HAS_ARC_FURNACE;
+
 /// How a text stands in the file: between quotes, which the game reads with no escaping,
 /// or as a key the game looks up, one token of printable ASCII whether quoted or not.
 #[derive(Clone, Copy, Debug)]

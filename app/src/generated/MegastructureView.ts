@@ -119,6 +119,13 @@ activates_gateway: boolean,
  */
 sets_has_megastructure: boolean, 
 /**
+ * A row of it may be moved onto a star, which keeps its own model: it is the finished
+ * stage of its chain, which nothing is built over, and building it or a stage it is built
+ * over hid its planet as an Arc Furnace does, under the model [`FURNACE_ENTITY`] with the
+ * flag [`FURNACE_FLAG`]. On the base game, the finished Arc Furnace.
+ */
+may_stand_on_star: boolean, 
+/**
  * `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
  */
 planet_possible_star: boolean, 

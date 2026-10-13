@@ -336,7 +336,8 @@ country_event = {
 }
 
 /// A modifier and a deposit the construction takes off its planet apply but are not
-/// written, apart from what the editor cannot tell. An effect the walk cannot follow both
+/// written, apart from what the editor cannot tell. A modifier for any negative count is
+/// written for ever. An effect the walk cannot follow both
 /// in the owner's scope and outside it is listed once, and still listed with no owner.
 #[test]
 fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
@@ -347,7 +348,7 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
 		fromfrom.planet = {
 			remove_modifier = mod_old
 			remove_deposit = d_old
-			add_modifier = { modifier = mod_odd days = -2 }
+			add_modifier = { modifier = mod_lasting days = -5 }
 		}
 		fire_on_action = { on_action = on_mod_drain }
 		from = { fire_on_action = { on_action = on_mod_drain } }
@@ -370,7 +371,21 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
     };
     for owned in [true, false] {
         let built = drain.replay(&gd, &site, Some(11), owned);
-        assert!(built.construction.is_empty(), "{:?}", built.construction);
+        assert_eq!(
+            built.construction.modifiers,
+            [ConstructionModifier {
+                on: ModifierHost::Body { body: 11 },
+                timed: TimedModifier {
+                    modifier: "mod_lasting".to_owned(),
+                    days: None,
+                },
+            }]
+        );
+        assert!(
+            built.construction.deposits.is_empty() && built.construction.variables.is_empty(),
+            "{:?}",
+            built.construction
+        );
         assert_eq!(
             built.unsure,
             ["mod_drain: fire_on_action"],
@@ -379,7 +394,6 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
         assert_eq!(
             built.unwritten,
             [
-                "adds modifier mod_odd to planet 11 for -2 days, which Galaxy Forge does not write",
                 "removes modifier mod_old from planet 11",
                 "removes deposit d_old from planet 11"
             ]

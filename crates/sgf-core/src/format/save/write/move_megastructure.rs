@@ -3,7 +3,8 @@
 //!
 //! The game keeps whatever x and y a row is given, and a row tied to a body stands at the
 //! body's point. What marks a tied structure on its body, the `megastructure` key, the flags
-//! a structure leaves and an Arc Furnace's hiding model, goes to the new body with it.
+//! a structure leaves and an Arc Furnace's hiding model, goes to the new body with it; a star
+//! keeps its own model.
 
 use crate::cst::Node;
 use crate::format::save::added::{Table, row};
@@ -21,7 +22,7 @@ use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
 use crate::number;
-use crate::ops::rules::{FURNACE_ENTITY, named};
+use crate::ops::rules::{FURNACE_ENTITY, FURNACE_FLAG, named};
 use crate::ops::{
     MegastructureEdit, MegastructurePlace, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
 };
@@ -203,16 +204,23 @@ fn to_body(
         })
         .filter(|(flag, _)| !target_flags.iter().any(|(held, _)| held == flag))
         .collect();
-    let furnace = read::scalar(&old, keys::ENTITY_NAME, old_src) == Some(FURNACE_ENTITY);
-    if furnace && body_is_star(s, &frame(s, system)?, body)? {
+    let stored = frame(s, system)?;
+    let onto_star = body_is_star(s, &stored, body)?;
+    let hidden = read::scalar(&old, keys::ENTITY_NAME, old_src) == Some(FURNACE_ENTITY);
+    let flagged = read::has_flag(&old, old_src, FURNACE_FLAG);
+    if hidden && !flagged && onto_star {
         return Err(refused(
             id,
             format!(
-                "an Arc Furnace hides the planet it stands at, and {} is a star",
+                "it hides {} without the Arc Furnace's flag, and only an Arc Furnace goes on a star such as {}",
+                named_entity(&old, old_src, from),
                 named_entity(&target, src, body)
             ),
         ));
     }
+    // A furnace on a star leaves the star's model as it is, so only its flag marks it there.
+    let furnace = hidden || (flagged && body_is_star(s, &stored, from)?);
+    let hides = furnace && !onto_star;
 
     let edit = plan.edit_record(doc, tied.anchor)?;
     edit.set_scalar(&[keys::PLANET], body.to_string())?;
@@ -231,7 +239,7 @@ fn to_body(
         })?;
     }
     add_flags(edit, &carried, &place::planet::FLAGS)?;
-    if furnace && target_model.as_deref() != Some(FURNACE_ENTITY) {
+    if hides && target_model.as_deref() != Some(FURNACE_ENTITY) {
         write_entity_name(edit, Some(FURNACE_ENTITY))?;
     }
     let standing = match point {

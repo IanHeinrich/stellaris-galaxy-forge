@@ -1,0 +1,81 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (lgate_base) in Xu Nur #1, with bypass #23
+inverse: RemoveMegastructure { megastructure: 16, construction: None, left_out: 0 }
+
+--- gamestate
++++ gamestate
+@@ -28940,6 +28940,10 @@
+ 		planet=589
+ 		planet=590
+ 		planet=591
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -28966,6 +28970,10 @@
+ 			}
+  
+ 		}
++		bypasses=
++		{
++			23 
++		}
+ 		arm=2
+ 		flags=
+ 		{
+@@ -28974,6 +28982,7 @@
+ 			AI_system_3=62808000
+ 			precursor_inetian=62808000
+ 			resource_region_exotic_gases_rich=62808000
++			lgate=62808000
+ 		}
+ 		initializer="ai_system_03"
+ 		inner_radius=186.71
+@@ -1400882,6 +1400891,24 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="lgate_base"
++		coordinate=
++		{
++			x=0
++			y=-260
++			origin=1
++		}
++		planet=4294967295
++		bypass=23
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {
+@@ -1401326,6 +1401353,16 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
++	23=
++	{
++		type="lgate"
++		active=no
++		owner=
++		{
++			type=6
++			id=16
++		}
++	}
+ }
+ natural_wormholes=
+ {

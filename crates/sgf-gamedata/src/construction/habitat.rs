@@ -5,7 +5,7 @@
 //! body, which the row's own completion flags `has_orbital`.
 //! The editor adds such a type as the planet, with [`sgf_core::ops::Op::AddHabitat`].
 
-use sgf_core::ops::{HabitatOrbital, NewHabitat, NewPlanet};
+use sgf_core::ops::{HabitatOrbital, HabitatPlacement, NewHabitat, NewPlanet};
 use sgf_core::views::OrbitPlacement;
 
 use super::layout::{self, Around, IdOf, LaidFlag, LaidRow, Plan, Section, SystemLayout};
@@ -122,6 +122,7 @@ fn of_layout(
         },
         system_name,
         orbital,
+        placed: HabitatPlacement::AwayFromHabitats,
     })
 }
 

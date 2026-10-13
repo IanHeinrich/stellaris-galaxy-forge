@@ -506,7 +506,10 @@ order. Within a `common/` dir it processes files in filename order.
   first-wins dirs is `FIRST_WINS` in
   `crates/sgf-gamedata/src/install/script.rs`.
 - `replace_path = "common/xyz"` in a descriptor discards every earlier
-  file in that folder.
+  file directly in that folder, and none in its subfolders. In 4.5.2 a
+  mod with `replace_path="common/random_names"` lost vanilla's empire
+  names, while vanilla's `common/random_names/base/00_random_names.txt`
+  still gave the stars their names.
 - For a localisation key, the last file loaded wins. Files in
   `replace/` win over all of them.
 - The end of a `.gfx` or `.asset` file closes every block still open.
@@ -518,11 +521,16 @@ order. Within a `common/` dir it processes files in filename order.
 other folders by rules of their own:
 
 - Texture folders such as `flags/<category>` are read one level deep, and
-  match the extension in any case. A `replace_path` of the folder or of
-  any folder above it discards the earlier files.
+  match the extension in any case. A `replace_path` of that folder
+  discards the earlier files, as in `common/`; one of a folder above it
+  does not. No `replace_path` on a texture folder has been checked in
+  game.
 - The `.asset` and `.gfx` files under `gfx/models` are read at any depth.
   A later layer's file of the same path, in any case, replaces the earlier
-  one, and `replace_path` is not applied.
+  one, and `replace_path` is not applied. The game finds a model through
+  those registrations: in 4.5.2 a mod with
+  `replace_path="gfx/models/ships/starbases"` left starbases looking as
+  before.
 - `interface/*.gfx` and `fonts/*.asset` are read from every layer with no
   file replacement. Where two layers define the same name, the later one
   wins.
@@ -1070,9 +1078,14 @@ structure with no point.
 
 `random_pos = yes` leaves the point to the game. Five vanilla spawns use
 it: a ruined gateway, a ruined Ness gateway, two derelict gateways and a
-ruined Hyper Relay. The ruined gateways in the 4.4 sample stand at 1.18 to 1.30 × the system's
-`inner_radius`, at any angle. The editor shows a stand-in at 1.24 ×
-`inner_radius`, and a relay at 1.05 ×, where every built relay stands.
+ruined Hyper Relay. A gateway lands at a random distance between the
+system's `inner_radius` and `outer_radius`, at any angle. In a fresh
+4.5.2 game the `abandoned_gateways_01` gateways stood at 0.82, 0.20 and
+0.16 of the way from the inner to the outer radius, and 24 gateways in
+four older sample saves at 0.04 to 0.97. The editor shows a stand-in in
+the middle of that band and sends the band with it. It shows a relay at
+1.05 × `inner_radius`, where every built relay stands. No relay placed
+at random has been checked in game.
 
 The main starbase stands at (a, −a), with a = 11.7 + 0.33 × the star's
 size. 509 of the 558 starbases in the saves checked fit this. A fallen

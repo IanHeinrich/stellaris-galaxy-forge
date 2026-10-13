@@ -93,6 +93,20 @@ fn a_gateway_moves_to_another_point_and_keeps_its_links() {
     round_trip(open_4_5(), to_point(6, 250.0, -100.0));
 }
 
+/// Row 0, the L-Gate of Gaping Maw (4), stands at a point of its own and keeps its bypass.
+#[test]
+fn an_lgate_moves_to_another_point() {
+    let mut session = open_4_5();
+    let result = snapshot_step(&mut session, "lgate", to_point(0, 30.0, 30.0));
+    assert!(
+        matches!(result.inverse, Op::RestoreEntities { .. }),
+        "{:?}",
+        result.inverse
+    );
+    assert_eq!(result.details_stale, [4]);
+    round_trip(open_4_5(), to_point(0, 30.0, 30.0));
+}
+
 /// Row 4, the ruined orbital ring of Sargas (38), stands around planet 936.
 #[test]
 fn a_ruined_orbital_ring_moves_to_another_planet_with_its_flag() {
@@ -385,10 +399,6 @@ fn what_is_refused() {
     assert_refusals(
         &mut open_4_5(),
         [
-            (
-                to_point(0, 30.0, 30.0),
-                "megastructure 0 cannot be moved: its bypass is a lgate, which has not been tried in game",
-            ),
             (to_point(14, 30.0, 30.0), "Megastructure 14 does not exist"),
             (
                 to_point(999, 30.0, 30.0),
@@ -463,15 +473,74 @@ fn a_planet_the_game_counts_a_megastructure_at_takes_one() {
     assert!(planet.contains("megastructure=16"), "{planet}");
 }
 
-/// Star 511 is Vinh's: the furnace's model would hide it.
+/// Star 511 is Vinh's. The furnace takes its key and flags to the star, which keeps its own
+/// model, and planet 517 shows again. Sent on to planet 516, the furnace hides it as before.
 #[test]
-fn an_arc_furnace_is_refused_a_star() {
+fn an_arc_furnace_moves_onto_a_star_and_back_to_a_planet() {
+    let mut session = furnace(|_| {});
+    snapshot_step(
+        &mut session,
+        "orbital_arc_furnace_onto_star",
+        to_body(16, 511),
+    );
+    let star = entity_text(&session, EntityKind::Planet, 511);
+    for moved in [
+        "megastructure=16",
+        "has_megastructure=62808000",
+        "has_arc_furnace=62808000",
+    ] {
+        assert!(star.contains(moved), "{moved}: {star}");
+    }
+    assert!(!star.contains("invisible_turret_entity"), "{star}");
+    let old = entity_text(&session, EntityKind::Planet, 517);
+    for gone in [
+        "megastructure=16",
+        "has_megastructure=",
+        "invisible_turret_entity",
+    ] {
+        assert!(!old.contains(gone), "{gone}: {old}");
+    }
+    round_trip(furnace(|_| {}), to_body(16, 511));
+
+    round_trip_step(&mut session, "back to a planet", to_body(16, 516));
+    let planet = entity_text(&session, EntityKind::Planet, 516);
+    for moved in [
+        "megastructure=16",
+        "has_arc_furnace=62808000",
+        "entity_name=\"invisible_turret_entity\"",
+    ] {
+        assert!(planet.contains(moved), "{moved}: {planet}");
+    }
+    let star = entity_text(&session, EntityKind::Planet, 511);
+    assert!(!star.contains("has_arc_furnace"), "{star}");
+}
+
+/// Planet 517 hidden under the furnace's model without the furnace's flag, as Giga's
+/// Macroengineering Test Site leaves its planet: the row is no Arc Furnace and stays off the
+/// star, and still takes the model to another planet.
+#[test]
+fn a_hidden_planet_without_the_furnace_flag_keeps_its_row_off_a_star() {
+    let unflagged = |text: &mut String| {
+        *text = text.replacen(
+            "				has_arc_furnace=62808000
+",
+            "",
+            1,
+        );
+    };
     assert_refusals(
-        &mut furnace(|_| {}),
+        &mut furnace(unflagged),
         [(
             to_body(16, 511),
-            "megastructure 16 cannot be moved: an Arc Furnace hides the planet it stands at, and Vinh #511 is a star",
+            "megastructure 16 cannot be moved: it hides Vinh III #517 without the Arc Furnace's flag, and only an Arc Furnace goes on a star such as Vinh #511",
         )],
+    );
+    let mut session = furnace(unflagged);
+    session.apply(to_body(16, 516)).expect("on to planet 516");
+    let planet = entity_text(&session, EntityKind::Planet, 516);
+    assert!(
+        planet.contains("entity_name=\"invisible_turret_entity\""),
+        "{planet}"
     );
 }
 

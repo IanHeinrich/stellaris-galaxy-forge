@@ -192,6 +192,7 @@ pub(crate) struct Resolved {
     pub placement: Placement,
     pub planet_change: Option<PlanetChange>,
     pub sets_has_megastructure: bool,
+    pub may_stand_on_star: bool,
     /// For a variant, the working type it belongs to.
     pub family: Option<Family>,
     /// The variant takes its working type's placement.
@@ -214,6 +215,10 @@ pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetCl
     let whole = whole_structures(&types);
     let on_stars = star_stages(&types);
     let rings = ring_worlds(&types, &families);
+    let built_over: BTreeSet<&str> = types
+        .iter()
+        .flat_map(|def| def.upgrade_from.iter().map(String::as_str))
+        .collect();
     let mut resolved: BTreeMap<String, Resolved> = types
         .iter()
         .map(|def| {
@@ -226,6 +231,12 @@ pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetCl
                         .iter()
                         .any(|effect| effect_reaches(effect, scripts, flags_megastructure))
             });
+            // Only a finished Arc Furnace was seen on a star in game.
+            let may_stand_on_star = !built_over.contains(def.key.as_str())
+                && types
+                    .stages(&def.key)
+                    .into_iter()
+                    .any(|stage| stage.completes.hides_body_as_furnace);
             let mut planet_change = None;
             let own = match placement(&types, def, &on_stars, &rings) {
                 Placement::Body { .. } if bypassed.contains(def.key.as_str()) => Placement::Free {
@@ -263,6 +274,7 @@ pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetCl
                 placement: taken.unwrap_or(own),
                 planet_change,
                 sets_has_megastructure,
+                may_stand_on_star,
                 family,
                 planet_only: false,
                 ring_world: rings.members.contains(&def.key),
@@ -403,8 +415,8 @@ fn whole_structures(types: &ReadTypes) -> BTreeSet<&str> {
         .collect()
 }
 
-/// Every type joined by `upgrade_from` or by [`families`] to a type that stands for a
-/// gateway or a relay.
+/// Every type joined by `upgrade_from` or by [`families`] to a type that stands for a bypass
+/// the editor adds: a gateway, a relay or an L-Gate.
 fn bypass_groups<'t>(
     types: &'t ReadTypes,
     families: &BTreeMap<String, Family>,

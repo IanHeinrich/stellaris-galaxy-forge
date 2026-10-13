@@ -199,6 +199,8 @@
   {"q": "delete habitat", "expect": "system/megastructures#add-a-habitat"},
   {"q": "restored habitat central complex", "expect": "system/megastructures#add-a-habitat"},
   {"q": "habitat major orbital", "expect": "system/megastructures#add-a-habitat"},
+  {"q": "second habitat", "expect": "system/megastructures#add-a-habitat"},
+  {"q": "more than one habitat", "expect": "system/megastructures#add-a-habitat"},
   {"q": "galactic crucible not in megastructure list", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "behemoth egg megastructure", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "unnamed megastructure types", "expect": "system/megastructures#add-a-megastructure"},

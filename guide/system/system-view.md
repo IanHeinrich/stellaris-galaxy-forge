@@ -205,8 +205,8 @@ them when a new game starts. You need the game data loaded.
 - The game places some ruins, such as a ruined gateway or a ruined
   Hyper Relay, at random when the game starts. Each shows faint at a
   typical spot, with "placed at random" after its name. A relay stands
-  just outside the inner radius, and a gateway outside the planets. You
-  can't select these.
+  just outside the inner radius, and a gateway halfway between the inner
+  and outer radius. You can't select these.
 
 Models show without an empire's look, because a scenario's empires
 have no graphical culture. A fallen empire's ring world sections belong

@@ -4,7 +4,9 @@
 
 use crate::common;
 
-use sgf_core::ops::{HabitatOrbital, NewHabitat, NewPlanet, RingQuadrant, RingRow, TimedModifier};
+use sgf_core::ops::{
+    HabitatOrbital, HabitatPlacement, NewHabitat, NewPlanet, RingQuadrant, RingRow, TimedModifier,
+};
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::construction::habitat::habitat;
 use sgf_gamedata::construction::layout::{Plan, lay_out};
@@ -50,6 +52,7 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
                     },
                     system_name: Some("prev.solar_system.GetName".to_owned()),
                     orbital: orbital.clone(),
+                    placed: HabitatPlacement::AwayFromHabitats,
                 },
                 "{key}"
             );
@@ -312,10 +315,21 @@ neg_ring_3 = {
         "{refused}"
     );
     let negative = added::ring_world(&gd, "neg_ring_2", &[Finished, Finished], None, &[])
-        .expect_err("a modifier of -2 days");
+        .expect("a modifier of -2 days, which the game keeps for ever");
+    let modifiers: Vec<&TimedModifier> = negative
+        .quadrants
+        .iter()
+        .flat_map(|q| match q {
+            RingQuadrant::Finished { segments } => segments.iter().flat_map(|s| &s.modifiers),
+            other => panic!("{other:?}"),
+        })
+        .collect();
     assert_eq!(
-        negative,
-        "its pc_neg_segment takes modifier neg_housing for -2 days, which Galaxy Forge does not write"
+        modifiers,
+        [&TimedModifier {
+            modifier: "neg_housing".to_owned(),
+            days: None,
+        }; 2]
     );
 }
 

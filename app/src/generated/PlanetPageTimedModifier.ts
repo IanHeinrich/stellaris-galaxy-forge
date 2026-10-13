@@ -2,6 +2,6 @@
 
 export type PlanetPageTimedModifier = { modifier: string, 
 /**
- * Days left; `-1` is permanent.
+ * Days left; a negative count is permanent.
  */
 days: number, };

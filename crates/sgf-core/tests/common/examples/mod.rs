@@ -1,8 +1,9 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::ops::{
-    LanePair, NewBody, NewHabitat, NewMegastructure, NewMegastructurePlace, NewPlanet,
-    NewRingWorld, Op, RingQuadrant, RingRow, RingSegment, RingVariable, SystemMove, TimedModifier,
+    HabitatPlacement, LanePair, NewBody, NewHabitat, NewMegastructure, NewMegastructurePlace,
+    NewPlanet, NewRingWorld, Op, RingQuadrant, RingRow, RingSegment, RingVariable, SystemMove,
+    TimedModifier,
 };
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -216,6 +217,7 @@ pub fn sol_habitat() -> Op {
             },
             system_name: Some("prev.solar_system.GetName".to_owned()),
             orbital: None,
+            placed: HabitatPlacement::AtAngle,
         },
     }
 }

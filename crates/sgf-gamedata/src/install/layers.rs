@@ -115,18 +115,16 @@ impl Layout {
             .min_by_key(|(_, rel)| rel.len())
     }
 
-    /// The winning `.txt` file per filename directly under `rel_dir`
-    /// (`common/star_classes`), sorted by filename. A later layer's file of
-    /// the same name replaces an earlier one; a layer whose `replace_path`
-    /// names `rel_dir` discards everything before it.
+    /// The winning `.txt` file per path below `rel_dir` (`common/star_classes`), subfolders
+    /// included, sorted by that path. A later layer's file of the same path replaces an
+    /// earlier one; a layer whose `replace_path` names a folder discards the files directly
+    /// in it from the layers before, not those in its subfolders.
     pub fn files_in(&self, rel_dir: &str) -> Vec<PathBuf> {
         let rel_dir = normalize(rel_dir);
         record(|| format!("{rel_dir}/probe.txt"));
         let mut winners: BTreeMap<String, PathBuf> = BTreeMap::new();
         for layer in &self.layers {
-            if layer.replace_paths.contains(&rel_dir) {
-                winners.clear();
-            }
+            winners.retain(|rel, _| !replaced(&layer.replace_paths, &rel_dir, rel));
             let dir = rel_dir
                 .split('/')
                 .fold(layer.root.clone(), |p, part| p.join(part));
@@ -153,11 +151,7 @@ impl Layout {
     /// (`flags/aquatic`; subfolders not walked, so a category's own
     /// `small/` and `map/` size variants are left out), with the layer it
     /// came from (`None` for vanilla's). Same override rules as
-    /// [`Layout::files_in`], except a layer's `replace_path` also discards
-    /// what came before it when `rel_dir` is a subfolder of the named path,
-    /// not only when it names `rel_dir` exactly: a mod whose `replace_path`
-    /// is `flags` replaces every category folder under it, not just a
-    /// folder literally called `flags`.
+    /// [`Layout::files_in`].
     pub(crate) fn files_with_ext_in(
         &self,
         rel_dir: &str,
@@ -168,9 +162,7 @@ impl Layout {
         record(|| format!("{rel_dir}/probe.{ext}"));
         let mut winners: BTreeMap<String, (PathBuf, Option<String>)> = BTreeMap::new();
         for layer in &self.layers {
-            if replaces(&layer.replace_paths, &rel_dir) {
-                winners.clear();
-            }
+            winners.retain(|name, _| !replaced(&layer.replace_paths, &rel_dir, name));
             let dir = rel_dir
                 .split('/')
                 .fold(layer.root.clone(), |p, part| p.join(part));
@@ -187,17 +179,13 @@ impl Layout {
     /// The subdirectory names directly under `rel_dir` (`flags`), across
     /// every layer, merged case-insensitively: a mod's `flags/Pointy`
     /// beside vanilla's `flags/pointy` is one category, kept under
-    /// whichever layer's spelling was seen first. Same override rules as
-    /// [`Layout::files_in`]: a layer whose `replace_path` names `rel_dir`
-    /// discards the subdirectories seen before it.
+    /// whichever layer's spelling was seen first. No `replace_path` hides a subdirectory,
+    /// because one discards only the files directly in the folder it names.
     pub(crate) fn subdirs_in(&self, rel_dir: &str) -> Vec<String> {
         let rel_dir = normalize(rel_dir);
         record(|| format!("{rel_dir}/probe"));
         let mut names: BTreeMap<String, String> = BTreeMap::new();
         for layer in &self.layers {
-            if replaces(&layer.replace_paths, &rel_dir) {
-                names.clear();
-            }
             let dir = rel_dir
                 .split('/')
                 .fold(layer.root.clone(), |p, part| p.join(part));
@@ -339,17 +327,18 @@ fn normalize(rel: &str) -> String {
     rel.replace('\\', "/").trim_matches('/').to_owned()
 }
 
-/// Whether `rel_dir` (already normalized) is discarded by one of `replace_paths`: named
-/// there exactly, or a subfolder of a path named there (a mod whose `replace_path` is
-/// `flags` replaces every category folder under it, not only a folder literally called
-/// `flags`).
-fn replaces(replace_paths: &[String], rel_dir: &str) -> bool {
-    replace_paths.iter().any(|p| {
-        rel_dir == p
-            || rel_dir
-                .strip_prefix(p.as_str())
-                .is_some_and(|rest| rest.starts_with('/'))
-    })
+/// Whether one of `replace_paths` discards the file `rel` below `rel_dir` (both already
+/// normalized): it names the folder the file is directly in. A `replace_path` of
+/// `common/random_names` drops that folder's files but not `common/random_names/base/`'s.
+fn replaced(replace_paths: &[String], rel_dir: &str, rel: &str) -> bool {
+    match rel.rsplit_once('/') {
+        None => replace_paths.iter().any(|p| p == rel_dir),
+        Some((sub, _)) => replace_paths.iter().any(|p| {
+            p.strip_prefix(rel_dir)
+                .and_then(|rest| rest.strip_prefix('/'))
+                .is_some_and(|rest| rest == sub)
+        }),
+    }
 }
 
 /// Every `.txt` below `dir`, subfolders included: the game reads a definition folder as a tree.
@@ -484,23 +473,34 @@ mod tests {
     }
 
     #[test]
-    fn files_with_ext_in_is_cleared_by_a_replace_path_that_is_an_ancestor_of_rel_dir() {
-        let (dir, layout) = two_layers(&["flags"]);
+    fn a_replace_path_discards_the_files_directly_in_its_folder_and_keeps_its_subfolders() {
+        let (dir, layout) = two_layers(&["common/random_names"]);
         write(
             dir.path(),
-            "vanilla/flags/pointy/flag_pointy_1.dds",
-            b"vanilla",
+            "vanilla/common/random_names/00_empire.txt",
+            b"v",
         );
-        write(dir.path(), "mod/flags/pointy/flag_pointy_2.dds", b"mod");
-        let files = layout.files_with_ext_in("flags/pointy", "dds");
-        // The mod's `replace_path = "flags"` discards vanilla's whole `flags/` tree,
-        // `flags/pointy` included, even though it never names `flags/pointy` itself.
-        assert_eq!(files.len(), 1, "{files:?}");
-        assert_eq!(files[0].1.as_deref(), Some("a mod"));
+        write(
+            dir.path(),
+            "vanilla/common/random_names/base/00_stars.txt",
+            b"v",
+        );
+        write(dir.path(), "mod/common/random_names/01_mod.txt", b"m");
         assert_eq!(
-            files[0].0.file_name().unwrap().to_str().unwrap(),
-            "flag_pointy_2.dds"
+            layout.files_in("common/random_names"),
+            [
+                dir.path().join("mod/common/random_names/01_mod.txt"),
+                dir.path()
+                    .join("vanilla/common/random_names/base/00_stars.txt"),
+            ]
         );
+
+        let (dir, layout) = two_layers(&["flags"]);
+        write(dir.path(), "vanilla/flags/colors.dds", b"v");
+        write(dir.path(), "vanilla/flags/pointy/flag_pointy_1.dds", b"v");
+        assert!(layout.files_with_ext_in("flags", "dds").is_empty());
+        assert_eq!(layout.files_with_ext_in("flags/pointy", "dds").len(), 1);
+        assert_eq!(layout.subdirs_in("flags"), ["pointy"]);
     }
 
     #[test]

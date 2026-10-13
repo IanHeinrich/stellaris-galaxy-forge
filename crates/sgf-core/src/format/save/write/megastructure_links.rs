@@ -32,11 +32,20 @@ use crate::session::Session;
 /// The `megastructures` table.
 pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure);
 
-/// The bypass types a row the editor adds, moves or deletes may stand for: those tried in
-/// game.
-pub const BYPASS_KINDS: [&str; 2] = [GATEWAY, RELAY];
+/// The bypass types a row the editor adds or moves may stand for: those tried in game.
+pub const BYPASS_KINDS: [&str; 3] = [GATEWAY, RELAY, LGATE];
+/// The bypass types a row the editor deletes may stand for: deleting an L-Gate has not been
+/// tried in game.
+pub(crate) const DELETED_BYPASS_KINDS: [&str; 2] = [GATEWAY, RELAY];
 pub(crate) const GATEWAY: &str = "gateway";
 pub(crate) const RELAY: &str = "relay_bypass";
+pub(crate) const LGATE: &str = "lgate";
+
+/// The system flag a system needs for a bypass of type `kind` in it to work.
+pub(crate) fn system_flag(kind: &str) -> Option<&'static str> {
+    // The game links an L-Gate to the L-Cluster only in a system with the flag `lgate`.
+    (kind == LGATE).then_some(LGATE)
+}
 
 /// The planet flag the game's habitat orbitals set on their body when they are spawned.
 pub(crate) const HAS_ORBITAL: &str = "has_orbital";

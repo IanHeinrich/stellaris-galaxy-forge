@@ -311,7 +311,7 @@ pub struct PlanetPageDeposit {
 #[ts(export)]
 pub struct PlanetPageTimedModifier {
     pub modifier: String,
-    /// Days left; `-1` is permanent.
+    /// Days left; a negative count is permanent.
     pub days: i32,
 }
 

@@ -1,4 +1,3 @@
-import { FURNACE_ENTITY } from "../../generated/constants";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
@@ -215,10 +214,7 @@ function megastructure(
   const look = megastructureLook(type);
   if (look.kind === "none") return null;
   const homeBody = row.planet === null ? undefined : bodyById.get(row.planet);
-  const home = {
-    star: homeBody?.placement.star === true,
-    hidden: homeBody?.planet?.entity_name === FURNACE_ENTITY,
-  };
+  const home = { star: homeBody?.placement.star === true };
   const floats = row.planet !== null && floatsFree(type, home.star);
   const offset = type?.entity_offset ?? [0, 0];
   const centred = offset[0] === 0 && offset[1] === 0;

@@ -18,7 +18,8 @@ export type MegastructureMove =
   | { readonly place: "free" }
   /**
    * Dragged onto another body of the system: only a star for `starOnly`, a type built only
-   * around a star; never a star for `planetOnly`, a type the game never builds on one.
+   * around a star; never a star for `planetOnly`, a type the game never builds on one. The
+   * finished Arc Furnace is not `planetOnly`: it may stand on a star, which keeps its look.
    */
   | {
       readonly place: "body";
@@ -37,7 +38,7 @@ export type MegastructureMove =
 /** Why a row stays where it is, as the tooltip and the status bar say it. */
 export const MEGASTRUCTURE_FIXED = {
   ringWorld: "A ring world section stays where it is",
-  bypass: "The L-Gate stays where the game put it",
+  bypass: "This kind of bypass stays where the game put it",
   starbase: "It stands with a starbase, which stays where it is",
   whole: "It is part of a larger structure, which stays where it is",
   centre: "It stands at the system's centre without naming a body, so it stays where it is",
@@ -55,8 +56,6 @@ export const MEGASTRUCTURE_REFUSALS = {
 /** What a row's move reads of the body it is tied to. */
 export interface HomeBody {
   readonly star: boolean;
-  /** It is drawn as an Arc Furnace's hidden model. */
-  readonly hidden: boolean;
 }
 
 /**
@@ -70,14 +69,11 @@ export function floatsFree(type: MegastructureView | undefined, onStar: boolean)
   return !(onStar && dx === 0 && dy === 0);
 }
 
-/**
- * How row `row` of `type` moves. A body drawn as the furnace's hidden model keeps it off a star
- * whatever the game data says.
- */
+/** How row `row` of `type` moves. */
 export function megastructureMove(
   row: MegastructureSummary,
   type: MegastructureView | undefined,
-  home: HomeBody = { star: false, hidden: false },
+  home: HomeBody = { star: false },
 ): MegastructureMove {
   const known = type === undefined ? undefined : new Map([[row.kind, type]]);
   if (isRingRow(row.kind, known)) return fixed("ringWorld");
@@ -91,7 +87,7 @@ export function megastructureMove(
   if (row.made_body === true) return fixed("made");
   if (row.planet !== null) {
     const starOnly = placement?.place === "body" && placement.star_only;
-    const planetOnly = type?.planet_only === true || home.hidden;
+    const planetOnly = type?.planet_only === true && !type.may_stand_on_star;
     const floats = floatsFree(type, home.star);
     return { place: "body", on: row.planet, starOnly, planetOnly, floats };
   }

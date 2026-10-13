@@ -3,7 +3,8 @@
 //! an added body does, orbits its body without the moon bit, and is tied to it by the body's
 //! `habitat<id>` flag and the system's `has_habitat`. The game builds its construction queue
 //! when it loads. A restored complex's habitat also has the orbital `spawn_orbital_effect`
-//! leaves, a `megastructures` row at the host's coordinates tied to the host.
+//! leaves, a `megastructures` row at the host's coordinates tied to the host. A body takes
+//! several habitats, each new one placed as far round it from the others as it can be.
 
 use crate::cst::Node;
 use crate::emit::system::{HabitatEntry, habitat_entry};
@@ -27,10 +28,10 @@ use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::modifiers::check_flags;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
-    Emitted, HabitatOrbital, MegastructureRefusal, NewHabitat, NewPlanet, Op, OpError, ParseAt,
-    Plan, Planned, Subject,
+    Emitted, HabitatOrbital, HabitatPlacement, MegastructureRefusal, NewHabitat, NewPlanet, Op,
+    OpError, ParseAt, Plan, Planned, Subject,
 };
-use crate::projections::geometry::{Body, normalised, point, reach};
+use crate::projections::geometry::{Body, angle_about, normalised, point, reach};
 use crate::projections::name::{NameTemplate, format};
 use crate::projections::read;
 use crate::session::Session;
@@ -74,22 +75,16 @@ pub(crate) fn plan_add(
             },
         ));
     }
-    if let Some(flag) = habitat_flag(&node, src) {
-        return Err(megastructure_links::refused(
-            HABITAT,
-            MegastructureRefusal::HabitatPresent {
-                body,
-                planet: named_entity(&node, src, body),
-                flag,
-            },
-        ));
-    }
     let orbital = match &habitat.orbital {
         Some(orbital) if !holds_megastructure(s, &node, src, body)? => Some(orbital),
         _ => None,
     };
 
-    let angle = normalised(habitat.planet.at.angle);
+    let away = match habitat.placed {
+        HabitatPlacement::AtAngle => None,
+        HabitatPlacement::AwayFromHabitats => farthest(habitat_angles(s, &stored, host)?),
+    };
+    let angle = away.unwrap_or_else(|| normalised(habitat.planet.at.angle));
     let at = point(host.body.at, habitat.planet.at.radius, angle);
     let name = system_named(
         s,
@@ -272,19 +267,50 @@ fn add_orbital(
     Ok(ids[0])
 }
 
+/// The angles about `host` at which the habitats round it stand.
+fn habitat_angles(s: &Session, stored: &[Stored], host: &Stored) -> Result<Vec<f64>, OpError> {
+    let mut angles = Vec::new();
+    for round in stored
+        .iter()
+        .filter(|b| b.body.parent == Some(host.body.id))
+    {
+        let (node, src) = planet_entity(&s.doc, round.body.id)?;
+        if is_habitat(&node, src) {
+            angles.push(angle_about(host.body.at, round.body.at));
+        }
+    }
+    Ok(angles)
+}
+
+/// The angle farthest round from each of `taken`, halfway across the widest gap between
+/// them; `None` when nothing is taken.
+fn farthest(mut taken: Vec<f64>) -> Option<f64> {
+    taken.sort_by(f64::total_cmp);
+    let ends = taken
+        .iter()
+        .skip(1)
+        .copied()
+        .chain([taken.first()? + 360.0]);
+    let (from, gap) = taken
+        .iter()
+        .zip(ends)
+        .map(|(&from, to)| (from, to - from))
+        .reduce(|widest, gap| if gap.1 > widest.1 { gap } else { widest })?;
+    Some(normalised(from + gap / 2.0))
+}
+
 /// Whether planet `node` is a habitat: by its class, or the flag the game sets on one.
 pub(crate) fn is_habitat(node: &Node, src: &[u8]) -> bool {
     read::text(node, keys::PLANET_CLASS, src) == PC_HABITAT || read::has_flag(node, src, HABITAT)
 }
 
-/// The body's first `habitat<id>` flag, which names a habitat round it.
-fn habitat_flag(node: &Node, src: &[u8]) -> Option<String> {
+/// The ids the body's `habitat<id>` flags name, each a habitat round it.
+fn habitat_ids(node: &Node, src: &[u8]) -> Vec<u32> {
     read::flags(node, src)
-        .find(|flag| {
-            flag.strip_prefix(HABITAT)
-                .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        })
-        .map(str::to_owned)
+        .filter_map(|flag| flag.strip_prefix(HABITAT))
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+        .filter_map(|id| id.parse().ok())
+        .collect()
 }
 
 /// Whether planet `habitat` was added as one round `host`: the host has its `habitat<id>`
@@ -298,16 +324,22 @@ pub(crate) fn hosted(s: &Session, habitat: u32, host: u32) -> Result<bool, OpErr
     Ok(read::has_flag(&node, src, &format!("{HABITAT}{habitat}")))
 }
 
-/// The orbital added with a habitat round `host`: the row the host names in `megastructure`,
-/// when the host has `has_orbital`, the row was added since the file was opened and it is
-/// one of the habitat orbital types. An add writes the orbital only round a host that had
-/// neither the flag nor a megastructure.
+/// The orbital that goes with the last habitat added round `host`: the row the host names in
+/// `megastructure`, when the host has `has_orbital`, names no more than one habitat added
+/// since the file was opened, the row was added since then too and it is one of the habitat
+/// orbital types. An add writes the orbital only round a host that had neither the flag nor
+/// a megastructure, so it stays while another habitat added with or after it stands.
 pub(crate) fn orbital_of(s: &Session, host: u32) -> Result<Option<Tied>, OpError> {
     let (node, src) = planet_entity(&s.doc, host)?;
     let Some(id) = read::scalar_u32(&node, keys::MEGASTRUCTURE, src) else {
         return Ok(None);
     };
-    if !read::has_flag(&node, src, HAS_ORBITAL)
+    let added = habitat_ids(&node, src)
+        .into_iter()
+        .filter(|&habitat| s.doc.added().get(EntityKind::Planet, habitat).is_some())
+        .count();
+    if added > 1
+        || !read::has_flag(&node, src, HAS_ORBITAL)
         || s.doc.added().get(EntityKind::Megastructure, id).is_none()
     {
         return Ok(None);
@@ -410,5 +442,6 @@ pub(crate) fn read_back(
             flags: read::flags(node, src).map(str::to_owned).collect(),
         },
         orbital,
+        placed: HabitatPlacement::AtAngle,
     }
 }

@@ -3,6 +3,8 @@
 
 use crate::common;
 
+use sgf_core::ops::{NewBypass, Op};
+use sgf_gamedata::generate::{AddSpot, megastructure_fits, megastructure_op};
 use sgf_gamedata::registries::megastructures::{BuildType, Linked, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
@@ -343,6 +345,125 @@ fn the_installs_planet_types_are_kept_off_stars() {
     }
 }
 
+/// A row may stand on a star when it is the finished stage of its chain and its build, or a
+/// stage it is built over, hid its planet with the Arc Furnace's model and flag: the finished
+/// furnace, and a restoration that sets both. An earlier stage, a ruin, the model alone, as
+/// Giga's Macroengineering Test Site gives it, and any other model do not count.
+#[test]
+fn a_finished_furnace_may_stand_on_a_star() {
+    let hide = "on_build_complete = {
+		fromfrom.planet = {
+			set_planet_flag = has_arc_furnace
+			set_planet_entity = { entity = invisible_turret_entity }
+		}
+	}";
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/fx.txt",
+        &format!(
+            "fx_furnace_1 = {{
+	{hide}
+}}
+fx_furnace_2 = {{
+	upgrade_from = {{ fx_furnace_1 }}
+}}
+fx_furnace_3 = {{
+	upgrade_from = {{ fx_furnace_2 }}
+}}
+fx_furnace_destroyed = {{
+}}
+fx_furnace_restored = {{
+	upgrade_from = {{ fx_furnace_destroyed }}
+	{hide}
+}}
+fx_test_site = {{
+	on_build_complete = {{
+		fromfrom.planet = {{ set_planet_entity = {{ entity = invisible_turret_entity }} }}
+	}}
+}}
+fx_shredder = {{
+	on_build_complete = {{
+		fromfrom.planet = {{
+			set_planet_flag = has_arc_furnace
+			set_planet_entity = {{ entity = fx_shredded_planet_entity }}
+		}}
+	}}
+}}
+"
+        ),
+    )]);
+    let may = |key: &str| gd.megastructures.get(key).expect(key).may_stand_on_star;
+    assert!(may("fx_furnace_3") && may("fx_furnace_restored"));
+    for key in [
+        "fx_furnace_1",
+        "fx_furnace_2",
+        "fx_furnace_destroyed",
+        "fx_test_site",
+        "fx_shredder",
+    ] {
+        assert!(!may(key), "{key}");
+    }
+}
+
+/// The install's finished Arc Furnace may stand on a star. Its earlier stages, its ruin, the
+/// restored furnace, whose build gives its planet the model but not the flag, and the other
+/// types kept off stars may not.
+#[test]
+fn the_installs_finished_arc_furnace_may_stand_on_a_star() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let may = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .may_stand_on_star
+    };
+    assert!(may("orbital_arc_furnace_4"));
+    for key in [
+        "orbital_arc_furnace_1",
+        "orbital_arc_furnace_2",
+        "orbital_arc_furnace_3",
+        "orbital_arc_furnace_destroyed",
+        "orbital_arc_furnace_restored",
+        "think_tank_3",
+        "strategic_coordination_center_3",
+        "spy_orb_4",
+        "dyson_sphere_5",
+    ] {
+        assert!(!may(key), "{key}");
+    }
+}
+
+/// With Gigastructural Engineering only its finished Arc Furnace may stand on a star: its types that give their planet a model of their own, or the furnace's model without
+/// its flag, may not. Runs with `SGF_PLAYSET=1` when the enabled mods include Giga.
+#[test]
+fn with_giga_only_the_finished_furnace_may_stand_on_a_star() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    let may = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .may_stand_on_star
+    };
+    assert!(may("orbital_arc_furnace_4"));
+    for key in [
+        "orbital_arc_furnace_1",
+        "orbital_arc_furnace_3",
+        "orbital_arc_furnace_destroyed",
+        "orbital_arc_furnace_restored",
+        "atmosphere_shredder_0",
+        "atmosphere_shredder_1",
+        "macro_test_site_0",
+        "macro_test_site_1",
+        "lunar_disco_ball_2",
+        "orbital_artificial_eco_3",
+    ] {
+        assert!(!may(key), "{key}");
+    }
+}
+
 #[test]
 fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -367,11 +488,6 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     let ring_world = Placement::Unsupported {
         why: Unsupported::RingWorld,
     };
-    let bypass = |kind: &str| Placement::Unsupported {
-        why: Unsupported::Bypass {
-            bypass: kind.to_owned(),
-        },
-    };
     let pins = [
         ("dyson_sphere_0", &star),
         ("dyson_sphere_5", &star),
@@ -389,6 +505,7 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         ("gateway_final", &outside),
         ("gateway_restored", &outside),
         ("gateway_derelict", &outside),
+        ("lgate_base", &outside),
         ("hyper_relay_ruined", &outside),
         ("hyper_relay_restored", &outside),
         ("shroud_seal", &inside),
@@ -416,7 +533,6 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     for (key, placement) in pins {
         assert_eq!(&mega(key).placement, placement, "{key}");
     }
-    assert_eq!(mega("lgate_base").placement, bypass("lgate"));
     for key in [
         "quantum_catapult_1",
         "quantum_catapult_2",
@@ -499,5 +615,37 @@ mod_maybe_world = {{ on_build_complete = {{ {spawn} if = {{ limit = {{ always = 
         Placement::Unsupported {
             why: Unsupported::WholeStructure { star_only: false }
         }
+    );
+}
+
+/// An L-Gate added in empty space of the 4.5 sample's Xu Nur (1) stands just outside the inner
+/// radius as a gateway does, and its bypass is closed, as the game's are.
+#[test]
+fn an_lgate_goes_in_empty_space_with_a_closed_bypass() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let session = common::open_4_5();
+    let spot = AddSpot::Space { x: 0.0, y: -10.0 };
+    let fits = megastructure_fits(gd, &session, 1, spot).expect("the fits");
+    let fit = |key: &str| {
+        fits.iter()
+            .find(|fit| fit.kind == key)
+            .unwrap_or_else(|| panic!("{key}"))
+    };
+    let (lgate, gateway) = (fit("lgate_base"), fit("gateway_final"));
+    assert_eq!(lgate.refusal, None);
+    assert_eq!(lgate.place, gateway.place);
+    let planned =
+        megastructure_op(gd, &session, 1, "lgate_base", lgate.place, false).expect("the L-Gate");
+    let Op::AddMegastructure { spec, .. } = planned.op else {
+        panic!("{:?}", planned.op);
+    };
+    assert_eq!(
+        spec.bypass,
+        Some(NewBypass {
+            kind: "lgate".to_owned(),
+            active: false,
+        })
     );
 }

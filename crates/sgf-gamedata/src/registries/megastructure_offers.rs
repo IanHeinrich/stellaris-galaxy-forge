@@ -1,6 +1,7 @@
 //! Which megastructure types the add dialog offers: those a player builds from the build
-//! menu, every stage after them, and the ruins a player can repair. What hides the others is
-//! read from each type's files, but for the families held back by [`NOT_OFFERED_YET`].
+//! menu, every stage after them, the ruins a player can repair, and a type standing for a
+//! bypass the editor adds that only the game places, such as the L-Gate. What hides the others
+//! is read from each type's files, but for the families held back by [`NOT_OFFERED_YET`].
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -15,7 +16,7 @@ use crate::install::walk::{self, CONDITIONAL, Scan, Script};
 pub use crate::mod_compatibility::NOT_OFFERED_YET;
 use crate::registries::megastructure_families::{Placed, closure, is_ruin, variant_stem};
 use crate::registries::megastructures::{
-    MegastructureDef, MegastructureRead, MegastructureTypes, ReadTypes,
+    ADDED_BYPASSES, MegastructureDef, MegastructureRead, MegastructureTypes, ReadTypes,
 };
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::scripts::ScriptIndex;
@@ -243,8 +244,9 @@ fn offers(placed: &Placed, triggers: &ScriptedTriggers) -> BTreeMap<String, Offe
         .map(|def| {
             let key = def.key.as_str();
             let offer = match own[key] {
-                Some(why) => Offer::Hidden { why },
                 None if reached.contains(key) => Offer::Offered,
+                None | Some(HiddenWhy::NotBuilt) if placed_by_game(def) => Offer::Offered,
+                Some(why) => Offer::Hidden { why },
                 None => Offer::Hidden {
                     why: HiddenWhy::NotBuilt,
                 },
@@ -288,6 +290,14 @@ fn offers(placed: &Placed, triggers: &ScriptedTriggers) -> BTreeMap<String, Offe
         }
     }
     offers
+}
+
+/// Whether `def` stands for a bypass the editor adds, which no player builds when only the
+/// game places it, as it places an L-Gate.
+fn placed_by_game(def: &MegastructureRead) -> bool {
+    def.bypass_type
+        .as_deref()
+        .is_some_and(|kind| ADDED_BYPASSES.contains(&kind))
 }
 
 /// What hides `def` whatever stage the family starts from.

@@ -1,11 +1,12 @@
 //! `AddMegastructure` and `RemoveMegastructure`: one `megastructures` row written finished,
-//! with the `bypasses` row a gateway or a relay stands for, and taken out again.
+//! with the `bypasses` row a gateway, a relay or an L-Gate stands for, and taken out again.
 //!
 //! A row takes the slot past the highest the table has used, never a dead one: a dead
 //! slot's old id may be named in the save's record of destroyed structures. Its bypass
 //! takes the id past the highest the `bypasses` table has held this session, and is
 //! connected both ways to the bypasses it reaches: every other gateway, or the relays of
-//! the systems a lane joins to its own. The game fills in the lock fields on load.
+//! the systems a lane joins to its own. An L-Gate's reaches none: the game links it when it
+//! opens. The game fills in the lock fields on load.
 
 use std::collections::BTreeMap;
 
@@ -18,16 +19,16 @@ use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::construction;
-use crate::format::save::write::flags::{day_one, today};
+use crate::format::save::write::flags::{add_flags, day_one, drop_flags, today};
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{
     self, BODY_FLAGS, BYPASS_KINDS, GATEWAY, Holders, MEGASTRUCTURES, NewRow, RELAY, drop_bypass,
-    unlink, write_rows,
+    system_flag, unlink, write_rows,
 };
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{body_is_star, named_entity};
 use crate::format::save::write::shared::{culture_of, tie};
-use crate::format::save::{planet_entity, planet_system};
+use crate::format::save::{entity_in, planet_entity, planet_system, system_statement};
 use crate::keys;
 use crate::ops::rules::modifiers::listed_once;
 use crate::ops::rules::{Form, check_text, named};
@@ -158,6 +159,13 @@ pub(crate) fn plan_add(
     let id = write_rows(plan, s, system, &[row])?[0];
     if let (Some(bypass), Some(bypass_id)) = (&new.bypass, bypass_id) {
         connect(plan, s, &live, system, id, bypass_id, bypass)?;
+        if let Some(flag) = system_flag(&bypass.kind) {
+            let edit = plan.edit(&s.doc, system)?;
+            if !read::has_flag(edit.entity()?, &edit.buf, flag) {
+                // The game sets the flag when it makes the galaxy.
+                add_flags(edit, &[(flag, day_one(&s.doc)?)], &place::system::FLAGS)?;
+            }
+        }
     }
     if let Some(built) = &new.construction {
         construction::write_modifiers(plan, s, &new.kind, system, built)?;
@@ -298,6 +306,11 @@ pub(crate) fn plan_remove(
     if let Some(bypass) = tied.bypass {
         drop_bypass(plan, s, system, bypass, None)?;
     }
+    if let Some(flag) = bypass.as_ref().and_then(|bypass| system_flag(&bypass.kind))
+        && !held_when_opened(&s.doc, system, flag)?
+    {
+        drop_flags(plan.edit(&s.doc, system)?, |f| f == flag)?;
+    }
     let inverse = Op::AddMegastructure {
         system,
         spec: NewMegastructure {
@@ -334,6 +347,18 @@ fn check_name(name: &NameTemplate) -> Result<(), OpError> {
     Ok(())
 }
 
+/// Whether system `system` had the flag `flag` when the file was opened. A system an op
+/// added had none.
+fn held_when_opened(doc: &Document, system: u32, flag: &str) -> Result<bool, OpError> {
+    let Some(Anchor::Original(span)) = system_statement(doc, system) else {
+        return Ok(false);
+    };
+    let src = span.slice(doc.original());
+    let entity =
+        entity_in(src).map_err(|e| OpError::parse(ParseAt::System(system), e.offset, e.reason))?;
+    Ok(entity.is_some_and(|node| read::has_flag(&node, src, flag)))
+}
+
 /// Whether `a` and `b` are written as the same point.
 pub(crate) fn same_point(a: (f64, f64), b: (f64, f64)) -> bool {
     (coord(a.0), coord(a.1)) == (coord(b.0), coord(b.1))
@@ -355,7 +380,8 @@ fn counts(built: &MegastructureConstruction) -> String {
 }
 
 /// Write the new bypass `bypass_id`, owned by row `id` in `system`, and its id into the
-/// lists of every bypass it connects to.
+/// lists of every bypass it connects to: every other gateway for a gateway, the relays of
+/// the systems a lane joins to `system` for a relay, and none for an L-Gate.
 fn connect(
     plan: &mut Plan,
     s: &Session,
@@ -371,7 +397,7 @@ fn connect(
             .values()
             .filter(|b| b.kind == GATEWAY)
             .collect(),
-        _ => {
+        RELAY => {
             let neighbours: Vec<u32> = s
                 .graph
                 .systems
@@ -383,6 +409,7 @@ fn connect(
                 .filter(|b| b.kind == RELAY && b.system.is_some_and(|s| neighbours.contains(&s)))
                 .collect()
         }
+        _ => Vec::new(),
     };
     let connections: Vec<u32> = partners.iter().map(|b| b.id).collect();
     let active_connections: Vec<u32> = partners

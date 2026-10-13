@@ -57,7 +57,7 @@ star_class?: string,
  */
 drawn: boolean, 
 /**
- * The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
+ * The modifier names of the planet's permanent `timed_modifier` items (negative `days`):
  * the shape a terraforming candidate modifier is written in, whatever the planet's
  * class now says. `None` for a scenario's bodies, which carry no save-persisted
  * modifiers.

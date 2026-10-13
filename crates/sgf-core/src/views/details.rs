@@ -366,8 +366,14 @@ pub enum SpawnPlace {
     Body { body: u32 },
     /// `coords_from = …`: at that body's point, not tied to it.
     NearBody { body: u32 },
-    /// `random_pos = yes`: the game picks the point, and the row's point is a typical spot.
-    Random,
+    /// `random_pos = yes`: the game picks the point. A gateway lands at a random distance
+    /// between the system's inner and outer radius, `distance`, and the row's point is its
+    /// midpoint. `None` for a relay, whose point is the ring the editor adds a relay on.
+    Random {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        distance: Option<Bounds>,
+    },
     /// The system's main starbase, beside its star at (a, −a), a = 11.7 + 0.33 × the star's
     /// size. A ranged size is drawn when the game starts, and the row's point takes its
     /// midpoint.
@@ -599,7 +605,7 @@ pub struct StatedFeatures {
 #[ts(export)]
 pub struct AddedModifier {
     pub modifier: String,
-    /// Its `days`, `-1` for one that never runs out; `None` when it states none.
+    /// Its `days`, negative for one that never runs out; `None` when it states none.
     pub days: Option<f64>,
 }
 
@@ -676,7 +682,7 @@ pub struct PlanetSummary {
     /// The game draws the body's class: a random class, a planet list, or another key the
     /// install defines no planet class for, such as `ideal_planet_class`. `false` in a save.
     pub drawn: bool,
-    /// The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
+    /// The modifier names of the planet's permanent `timed_modifier` items (negative `days`):
     /// the shape a terraforming candidate modifier is written in, whatever the planet's
     /// class now says. `None` for a scenario's bodies, which carry no save-persisted
     /// modifiers.
