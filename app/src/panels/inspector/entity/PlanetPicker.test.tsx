@@ -1,5 +1,3 @@
-import type { PlanetPage } from "../../../generated/PlanetPage";
-import { planetSummary } from "../../../store/fixture";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,22 +15,13 @@ import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { bindStores } from "../../../store/bindStores";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { useModifierPickerStore } from "../../../store/modifierPickerStore";
-import { heldAnomaly, savePickerTarget } from "../../../store/planetEditAdapter";
 import { resetStores } from "../../../store/storeFixture";
 import { ANOMALY_PICKER } from "./AnomalyPicker";
 import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { MODIFIER_PICKER } from "./ModifierPicker";
 import { PlanetPicker } from "./PlanetPicker";
-
-/** Save body `page` in system 1, as its page hands it to the pickers. */
-const pickerTarget = (page: PlanetPage) =>
-  savePickerTarget(
-    1,
-    planetSummary({ id: page.id, class: page.class, size: page.size }),
-    page,
-    heldAnomaly(page),
-  );
+import { pickerTarget } from "./bodyPageFixture";
 
 bindStores();
 

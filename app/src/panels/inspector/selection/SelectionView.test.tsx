@@ -11,11 +11,10 @@ import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
 import { bindStores } from "../../../store/bindStores";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
-import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { planetSummary, systemDetails } from "../../../test/builders";
-import { open, resetStores } from "../inspectorFixture";
+import { open, patchSystem, resetStores } from "../inspectorFixture";
 import { armStarClasses } from "../../../store/storeFixture";
 import { SelectionView } from "./SelectionView";
 import { mockedIpc } from "../../../test/ipc";
@@ -58,9 +57,7 @@ describe("several systems selected", () => {
 
   it("counts one lane and one owner in the singular", async () => {
     await selectChain("scenario");
-    const systems = new Map(useGalaxyStore.getState().systems);
-    systems.set(0, { ...systems.get(0)!, owner: 7 });
-    useGalaxyStore.setState({ systems });
+    patchSystem(0, { owner: 7 });
     await useEditorStore.getState().setSelection([0, 1], "replace");
     expect(renderToStaticMarkup(<SelectionView />)).toContain("1 lane between them · 1 owner ·");
   });

@@ -1,4 +1,3 @@
-import type { PlanetPage } from "../generated/PlanetPage";
 import { planetSummary } from "./fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,21 +14,8 @@ import { editResult } from "./fixture";
 import { documentCapabilities } from "../lib/capabilities";
 import { selectedBody } from "../lib/details/bodiesEdit";
 import { useFileSessionStore } from "./fileSessionStore";
-import {
-  bodiesEdits,
-  heldAnomaly,
-  planetEditAdapterFor,
-  savePickerTarget,
-} from "./planetEditAdapter";
-
-/** Save body `page` in system 1, as its page hands it to the pickers. */
-const pickerTarget = (page: PlanetPage) =>
-  savePickerTarget(
-    1,
-    planetSummary({ id: page.id, class: page.class, size: page.size }),
-    page,
-    heldAnomaly(page),
-  );
+import { bodiesEdits, planetEditAdapterFor } from "./planetEditAdapter";
+import { pickerTarget } from "../test/pickerTarget";
 
 const BODY = { system: 4, id: 41 };
 const save = () => planetEditAdapterFor("save", BODY);

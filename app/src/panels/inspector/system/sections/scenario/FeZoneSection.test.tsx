@@ -4,7 +4,6 @@ vi.mock("../../../../../api/ipc");
 vi.mock("../../../../../api/events");
 vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../../../test/drawn"));
 
 import type { FeLinkFlags } from "../../../../../generated/FeLinkFlags";
 import type { FeZone } from "../../../../../generated/FeZone";
@@ -14,7 +13,14 @@ import { detailOf, SYSTEMS } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
-import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import {
+  open,
+  overview,
+  patchSystem,
+  resetStores,
+  sections,
+  SYSTEM,
+} from "../../../inspectorFixture";
 import {
   AUTOMATIC_NOTE,
   FALLBACK_LABEL,
@@ -49,13 +55,8 @@ async function openWith(
   });
   await open("scenario");
   useFileSessionStore.setState({ painted: true });
-  const systems = new Map(useGalaxyStore.getState().systems);
-  const anchor = systems.get(SYSTEM)!;
-  systems.set(SYSTEM, { ...anchor, fe_zone: zone, fe_link });
-  for (const id of linked) {
-    systems.set(id, { ...systems.get(id)!, fe_link: { ...NO_LINKS, to: [1] } });
-  }
-  useGalaxyStore.setState({ systems });
+  patchSystem(SYSTEM, { fe_zone: zone, fe_link });
+  for (const id of linked) patchSystem(id, { fe_link: { ...NO_LINKS, to: [1] } });
 }
 
 beforeEach(resetStores);

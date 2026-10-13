@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../test/drawn"));
 
 import * as dialog from "@tauri-apps/plugin-dialog";
 import * as ipc from "../../api/ipc";
@@ -521,6 +520,8 @@ describe("a scenario's system view menus", () => {
     setup: () => void;
     /** What a save's menu on each target offers. */
     offers: [ContextTarget, string][];
+    /** The name in the menu's header, which a scenario's menu keeps. */
+    header?: string;
   }[] = [
     {
       name: "body deletion",
@@ -555,6 +556,7 @@ describe("a scenario's system view menus", () => {
         );
         useGameDataStore.setState({ names: new Map([["think_tank_3", "Science Nexus"]]) });
       },
+      header: "Science Nexus",
       offers: [
         [{ kind: "megastructure", system: 0, id: 6 }, "Inspect"],
         [{ kind: "megastructure", system: 0, id: 6 }, "Delete megastructure"],
@@ -583,16 +585,22 @@ describe("a scenario's system view menus", () => {
     return menu();
   };
 
-  it.each(cases)("offers no $name, which a save's menu offers", async ({ setup, offers }) => {
-    setup();
-    for (const [target, text] of offers) expect(menuOn(target)).toContain(text);
+  it.each(cases)(
+    "offers no $name, which a save's menu offers",
+    async ({ setup, offers, header }) => {
+      setup();
+      for (const [target, text] of offers) expect(menuOn(target)).toContain(text);
 
-    await openWith(SCENARIO_RESULT);
-    setup();
-    for (const [target, text] of offers) {
-      const html = menuOn(target);
-      expect(html).not.toContain(text);
-      expect(html).toContain(">Back to galaxy</button>");
-    }
-  });
+      await openWith(SCENARIO_RESULT);
+      setup();
+      for (const [target, text] of offers) {
+        const html = menuOn(target);
+        expect(html).not.toContain(text);
+        expect(html).toContain(">Back to galaxy</button>");
+        if (header !== undefined) {
+          expect(html).toContain(`<div class="context-menu-header">${header}</div>`);
+        }
+      }
+    },
+  );
 });

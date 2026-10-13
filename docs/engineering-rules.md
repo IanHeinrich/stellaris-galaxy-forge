@@ -103,9 +103,13 @@ format sees it.
 ## Layout
 
 - `crates/sgf-core`: the document model, from archive I/O and the index to
-  ops, projections, the session, the scenario export and the view types.
+  ops, projections, the session, Prepare's rows and choices (`prepare/`),
+  the scenario export and the view types.
 - `crates/sgf-gamedata`: the user's install and mods, read at runtime, and
-  the generator that rolls what an edit adds.
+  the generator that rolls what an edit adds. `construction/` reads what a
+  megastructure's build leaves, `textures/model/` bakes the game's models
+  into sprites, and `mod_compatibility/` is the only place that names a
+  mod.
 - `crates/sgf-cli`: the `sgf` binary, also a test harness for the core.
 - `app/src-tauri`: the Tauri shell, `sgf-app`.
 - `app/src/`: `api/` wraps the shell's commands, `lib/` says what the data

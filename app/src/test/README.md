@@ -18,3 +18,7 @@ A wait on a debounce advances fake timers instead.
 To let every answer already on its way land before asserting, `await flush()`
 from `test/flush`. It waits one real macrotask, so under fake timers it never
 resolves: there, `await vi.advanceTimersByTimeAsync(0)` does the same.
+
+`setup.ts` mocks the dialog plugin and the JSX runtime (`test/drawn`) for every test file, so a
+component test does not repeat that mock. When two test files of one store split its tests, the
+helpers they share live in a `<store>.fixture.ts` beside them.

@@ -71,3 +71,20 @@ roll. Where the game rolls the planets itself (a `random`, empty or unknown init
 planets only through an inline script), the roll holds placeholder planets instead, rolled by the add-system
 generator for the system's star class. The scene shows them faint and they cannot be picked. The app draws what
 the roll gives and does not walk the initializer itself.
+
+## Amendment (2026-10-13): structures
+
+The system scene draws the system's megastructures and starbase as well as its bodies. A `StructuresLayer` sits over
+the bodies layer, so a Dyson Sphere covers its star and an Arc Furnace its planet. It draws each structure from a
+sprite baked from the game's model, at the size the game draws it, and from the structure's map icon where the model
+is unknown or cannot be baked (ADR 0007). A scenario system's structures come from its initializer, read in the shape
+a save's rows have. The game places some of them at random, so the scene draws a faint stand-in at a typical spot
+that cannot be picked, and puts a dashed halo round one the game may not place.
+
+A structure is a pick target of its own (`SceneTarget`), found where its sprite covers the pointer. Clicking one opens
+its page in the Inspector. In a save, a megastructure can be dragged about the system, or onto another body its type
+may stand on, and a right-click opens its menu. A starbase has a page and no drag or menu. One table, `STRUCTURE_KINDS`,
+says what each kind does with a click, a menu and a drag, so a third kind of structure is one more row.
+
+The scene still draws what its source resolves. Which model a structure uses, its culture and its offset come from
+the registries sgf-gamedata resolves, and the scene does not read the game's files.

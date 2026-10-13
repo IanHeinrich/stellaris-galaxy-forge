@@ -20,7 +20,6 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { kindTitle } from "../../../lib/special";
 import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
@@ -37,6 +36,7 @@ import {
   land,
   open,
   overview,
+  patchSystem,
   planet,
   resetStores,
   sections,
@@ -485,9 +485,7 @@ describe("a Paint a Galaxy scenario system's wormhole pair", () => {
   async function openPaired(paired: number[]): Promise<void> {
     await open("scenario");
     useFileSessionStore.setState({ painted: true });
-    const systems = new Map(useGalaxyStore.getState().systems);
-    for (const id of paired) systems.set(id, { ...systems.get(id)!, wormhole_pair: 2 });
-    useGalaxyStore.setState({ systems });
+    for (const id of paired) patchSystem(id, { wormhole_pair: 2 });
   }
 
   it("names the pair and its other end, and says how the mod opens it", async () => {

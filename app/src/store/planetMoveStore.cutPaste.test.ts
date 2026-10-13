@@ -7,71 +7,34 @@ import type { EditResult } from "../generated/EditResult";
 import type { NewBody } from "../generated/NewBody";
 import type { Op } from "../generated/Op";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
-import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { mockedIpc } from "../test/ipc";
 import { run, type CommandEffects } from "./commands";
 import { useDetailsStore } from "./detailsStore";
-import { openFixtureSave, sessionError } from "./editorFixture";
+import { sessionError } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { editResult, name, OPEN_RESULT, planetSummary, systemDetails } from "./fixture";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import {
-  cutAvailability,
-  noteScenePointer,
-  pasteCheckOf,
-  pastesInto,
-  usePlanetMoveStore,
-} from "./planetMoveStore";
+  BARNARD,
+  CENTAURI,
+  COLONY,
+  EARTH,
+  JUPITER,
+  LUNA,
+  MARS,
+  MOVE,
+  SOL,
+  armMoves,
+  moves,
+  selectTwo,
+  targets,
+} from "./planetMoveStore.fixture";
+import { cutAvailability, noteScenePointer, pasteCheckOf, pastesInto } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
 import { flush } from "../test/flush";
 
-const SOL = 0;
-const CENTAURI = 1;
-const BARNARD = 2;
-const EARTH = 10;
-const MARS = 11;
-const LUNA = 12;
-const JUPITER = 13;
-
-const COLONY: PlanetMoveWarning = { planet: MARS, kind: "colony", owner: 0, new_owner: 1 };
-
-const moves = () => usePlanetMoveStore.getState();
-
-function targets(planets: number[], over: Partial<PlanetMoveTargets> = {}): PlanetMoveTargets {
-  return {
-    planets,
-    refused: [],
-    systems: [
-      { system: CENTAURI, warnings: [] },
-      { system: BARNARD, warnings: [COLONY] },
-    ],
-    ...over,
-  };
-}
-
-const MOVE: Op = {
-  type: "Batch",
-  description: "Moved 2 planets to Alpha Centauri",
-  ops: [
-    { type: "MoveBodyToSystem", body: EARTH, to: CENTAURI },
-    { type: "MoveBodyToSystem", body: MARS, to: CENTAURI },
-  ],
-};
-
-/** Earth and Mars of Sol selected, with the targets for them in. */
-async function selectTwo(): Promise<void> {
-  useSceneStore.getState().selectBody(SOL, EARTH);
-  useSceneStore.getState().toggleBody(SOL, MARS);
-  await flush();
-}
-
-beforeEach(async () => {
-  await openFixtureSave();
-  mockedIpc.planetMoveTargets.mockImplementation(async (planets) => targets(planets));
-  mockedIpc.planetMoveOp.mockResolvedValue(MOVE);
-  mockedIpc.applyOp.mockResolvedValue(editResult());
-});
+beforeEach(armMoves);
 
 describe("cut and paste", () => {
   it("cuts the planets the core normalises, from the selection's system", async () => {

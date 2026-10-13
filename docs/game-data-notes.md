@@ -533,15 +533,89 @@ replace earlier ones, except in the first-wins dirs. In practice, mods only add 
 star-class, deposit and planet-modifier dirs. The layering still has to
 be right there for the names.
 
+## Rereading after a file changes
+
+The app watches the roots the game data was read from. A settled change is
+sorted by its path below its layer root into a kind of registry
+(`RegistryKind` in `reload.rs`), and that kind is read again through the
+whole layout, so override and `replace_path` rules hold as in a full
+load. A path no loader reads is ignored. A test records every folder a
+full load walks and fails when none of the kinds names one.
+
+| Kind | What it watches | What it rereads |
+|---|---|---|
+| `initializers` | `common/solar_system_initializers` | The initializers, and the script index, which holds their definitions |
+| `scripts` | `common/scripted_effects`, `events`, `common/on_actions`, `prescripted_countries`, `common/fallen_empires`, and the folders whose scripts name planet classes | The script index |
+| `country_types`, `bypasses` | Their own definition folders | That registry |
+| `colors`, `flags` | `flags/`, where `colors.txt` files are the colours and the rest the emblems and backgrounds | That registry |
+| `localisation` | `localisation/*.yml` | The localisation |
+| `variables` | `common/scripted_variables` | Everything, since every definition can name a variable |
+| `definitions` | The folders the generator, the planet page and the map read: deposits, star and planet classes, modifiers, anomalies, colony types, dig sites, asteroid belts, ship sizes, starbase levels, section templates, megastructures, graphical cultures, scripted triggers, defines, random names, precursors, terraform links and game rules, and `common/inline_scripts` | Everything, since these feed one another |
+| `galaxy_options` | `map/galaxy` and `map/setup_scenarios` | The galaxy shapes and sizes. Galaxy Forge saves scenarios into `map/setup_scenarios`, so these are reread on their own |
+| `graphics` | `gfx/models`, `gfx/worldgfx`, and the `.gfx` files of `interface` | The model files, the star lighting and the sprites, and what is worked out from them |
+
+The megastructure types, their offers and swaps, and the planet classes the
+scripts and models mark (`GameData::derive`) are worked out from other
+registries. They are worked out again whenever the scripts or the graphics
+are reread. A reread that finds nothing where the old registry held
+something is dropped, the old one stays in use, and the load's
+diagnostics gain a `rebuild_failed` entry. The app keeps its textures
+through a rebuild, and drops them when the rebuild names `graphics`.
+
+The shader files in `gfx/FX` are not read. How a shader draws is in the
+tables of `mod_compatibility/`.
+
+## The model cache
+
+A `model:` texture is baked to a PNG on first use (ADR 0007). The PNG is
+kept in the platform cache directory under
+`stellaris-galaxy-forge/textures`, named by a hash of the key, the roots of
+the layers, the `.mesh` files of the model and every texture its meshes
+draw with, and the bake version. A file or texture counts by its path,
+length and modification time. A model request reads the model's `.mesh`
+files to find the textures their materials name, even when the PNG is
+cached, because those textures are part of the name.
+
+A cached PNG nobody has asked for in 30 days is deleted when the app
+starts, and a hit renews a file that is a day old. Raising `BAKE` in
+`textures/mod.rs` gives every texture a new name, which is how a change to
+the baker bakes them all again.
+
+## Facts kept by hand for particular mods
+
+`crates/sgf-gamedata/src/mod_compatibility/` is the only place that names a
+mod. It holds what the mods' files do not say, as facts any mod could have,
+one file per source: `vanilla.rs`, `giga.rs` and `paint_a_galaxy.rs`.
+
+- The megastructure families the add dialog holds back, each by its first
+  stage's key with the reason. The families after the first stage and the
+  ruins go with it. Types hidden by what their files say need no entry.
+  Among Gigastructural Engineering's, Orbital Elysium is held back: its
+  completion puts one planet in the orbit of its body and removes the
+  row, a shape not checked in game.
+- The shader tables of the model baker: which shaders blend at their
+  alpha, add onto what is behind them, test alpha, leave the specular map
+  alone, or draw both faces.
+- The Workshop items the app links to for Paint a Galaxy.
+- The key prefixes that identify a mod, which the test
+  `crates/sgf-gamedata/tests/mod_names.rs` looks for. It fails when a
+  string literal in production code outside this folder holds a prefix or a
+  Workshop id. The one exception is the Paint a Galaxy scenario format in
+  sgf-core, which names the mod it needs and cannot read sgf-gamedata.
+
+A new mod gets a file here, and its prefixes join the list.
+
 ## What definitions cannot give us
 
 Definitions tell us which keys exist. They don't give us the rules for
 using them. Whether a deposit may sit on a given planet is decided by a
-`potential = { … }` trigger block. That is arbitrary script, and the
-editor does not evaluate it. Tier 1 filters on cheap structural
-attributes: deposit category, `is_for_colonizable` and planet
-`climate`. Tier 2 permits any key. The game is still the oracle for
-whether a combination loads.
+`potential = { … }` trigger block. That is arbitrary script. The editor
+compiles it and judges what it can, and a condition it cannot judge
+leaves the answer unknown (ADR 0002). The deposit picker offers every
+type, and puts first the types the game's roll could place on the planet:
+those whose `potential` holds and whose `drop_weight` is above zero. A
+type whose `potential` cannot be judged is not among them. The game is
+still the oracle for whether a combination loads.
 
 A terraforming candidate's required techs and ascension perks are the
 set most of its `common/terraform` links ask for in `condition`, and

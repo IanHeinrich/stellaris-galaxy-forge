@@ -1,5 +1,5 @@
-import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { BodySpawn } from "../../../generated/BodySpawn";
 import { detailOf } from "../../../store/fixture";
 
 vi.mock("../../../api/ipc");
@@ -7,12 +7,24 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { bindStores } from "../../../store/bindStores";
-import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
-import { RolledMark } from "../states";
+import {
+  DIE,
+  details,
+  editRow,
+  land,
+  nameSystem,
+  open,
+  overview,
+  planet,
+  randomPlanet,
+  resetStores,
+  rolled,
+  sections,
+  SYSTEM,
+} from "../inspectorFixture";
 import { mockedIpc } from "../../../test/ipc";
 import { poolRows } from "../../../test/poolRows";
 import { hintOf } from "../../../test/hints";
@@ -35,18 +47,6 @@ beforeEach(() => {
 });
 
 const STAR = planet(99, "", { class: "pc_k_star", star_class: "sc_k", role: "primary" });
-
-/** Every section the overview opened with, as their headers read with the marks inside them left out. */
-function sections(html: string): string[] {
-  return [
-    ...html.matchAll(
-      /class="ins-sec-title(?: muted)?">(.*?)<\/span>(?=<span class="chip|<\/button>)/g,
-    ),
-  ].map((m) => m[1].replace(/<[^>]*>/g, ""));
-}
-
-const DIE = renderToStaticMarkup(<RolledMark />);
-const ROLLED_MARK = `<span class="ins-st-rolled">${DIE}`;
 
 /** The head's line under the name: the star, the planets and the nebula. */
 function headLine(html: string): string {
@@ -71,16 +71,19 @@ describe("a rolled scenario system", () => {
     usage: "misc_system_init",
     usage_odds: { kind: "number", value: 20 },
   });
-  const rolled = { state: "rolled" as const, pool: { kind: "random" as const, draw: "random" } };
+  const randomClass = {
+    state: "rolled" as const,
+    pool: { kind: "random" as const, draw: "random" },
+  };
   const second = planet(101, "Kanthe II", {
     class: "random",
     drawn: true,
-    spawn: bodySpawn({ copy: 2, count: { min: 2, max: 10 }, class: rolled }),
+    spawn: bodySpawn({ copy: 2, count: { min: 2, max: 10 }, class: randomClass }),
   });
   const seventh = planet(106, "Kanthe VII", {
     class: "random",
     drawn: true,
-    spawn: bodySpawn({ always: false, copy: 7, count: { min: 2, max: 10 }, class: rolled }),
+    spawn: bodySpawn({ always: false, copy: 7, count: { min: 2, max: 10 }, class: randomClass }),
   });
 
   it("gives the range of planets in its head and its Planets section", async () => {
@@ -89,11 +92,11 @@ describe("a rolled scenario system", () => {
 
     const html = overview();
     const head = headLine(html);
-    expect(head).toContain(`${ROLLED_MARK}Random star</span>`);
+    expect(head).toContain(rolled("Random star"));
     expect(head).toContain(">2 to 10 planets</span>");
-    expect(html).toContain(`Planets · ${ROLLED_MARK}2 to 10</span></span>`);
+    expect(html).toContain(`Planets · ${rolled("2 to 10")}</span>`);
     expect(html).toContain("2 to 10 planets · 0 to 10 moons · 0 colonies");
-    expect(html).toContain(`class="ins-hinted">${ROLLED_MARK}rolled</span></span>`);
+    expect(html).toContain(`class="ins-hinted">${rolled("rolled")}</span>`);
     expect(sections(html)).toEqual([
       "Spawn point",
       "Star class · 3 · rolled",
@@ -112,7 +115,7 @@ describe("a rolled scenario system", () => {
       planet(id, "", {
         class: "random",
         drawn: true,
-        spawn: bodySpawn({ always: n === 1, copy: n, count: block, class: rolled }),
+        spawn: bodySpawn({ always: n === 1, copy: n, count: block, class: randomClass }),
       });
     const moonOf = (id: number, parent: number) =>
       planet(id, "", {
@@ -120,7 +123,7 @@ describe("a rolled scenario system", () => {
         moon: true,
         parent,
         drawn: true,
-        spawn: bodySpawn({ always: false, count: { min: 0, max: 1 }, class: rolled }),
+        spawn: bodySpawn({ always: false, count: { min: 0, max: 1 }, class: randomClass }),
       });
     const bodies = [STAR];
     for (let n = 1; n <= 4; n++) bodies.push(copy(98 + 2 * n, n), moonOf(99 + 2 * n, 98 + 2 * n));
@@ -134,8 +137,8 @@ describe("a rolled scenario system", () => {
 
     const html = drawnBy(overview);
     expect(html.split('<div class="ins-prow').length - 1).toBe(2);
-    expect(html).toContain(`${ROLLED_MARK}Random planets</span>`);
-    expect(html).toContain(`${ROLLED_MARK}random class</span>`);
+    expect(html).toContain(rolled("Random planets"));
+    expect(html).toContain(rolled("random class"));
     expect(html).toContain("<span>each with up to 1 moon</span>");
     expect(html).toContain(`<span class="ins-block-count ins-st-rolled">${DIE}1 to 4</span>`);
     expect(hintOf("Copies")).toBe("The game places 1 to 4 planets like this one.");
@@ -420,17 +423,24 @@ describe("a scenario system's Initializer section", () => {
 });
 
 describe("a scenario system's single rows", () => {
-  const rolled = { state: "rolled" as const, pool: { kind: "random" as const, draw: "random" } };
+  const randomClass = {
+    state: "rolled" as const,
+    pool: { kind: "random" as const, draw: "random" },
+  };
 
   it("names a rolled planet placed once as a random planet, its class on the line under it", async () => {
-    const once = planet(100, "", { class: "random", size: 5, spawn: bodySpawn({ class: rolled }) });
+    const once = planet(100, "", {
+      class: "random",
+      size: 5,
+      spawn: bodySpawn({ class: randomClass }),
+    });
     await open("scenario");
     await land(details({ planets: [STAR, once], spawn: systemSpawn() }));
 
     const html = overview();
-    expect(html).toContain(`${ROLLED_MARK}Random planet</span>`);
+    expect(html).toContain(rolled("Random planet"));
     expect(html).toContain(
-      `<span class="l2">${ROLLED_MARK}random class</span><span aria-hidden="true">·</span><span class="sz">`,
+      `<span class="l2">${rolled("random class")}<span aria-hidden="true">·</span><span class="sz">`,
     );
     expect(html).not.toContain("Random planet, any class");
   });
@@ -438,13 +448,13 @@ describe("a scenario system's single rows", () => {
   it("shows 0 to 1 on a planet some games lack, and keeps listing its moons", async () => {
     const maybe = planet(100, "", {
       class: "random",
-      spawn: bodySpawn({ count: { min: 0, max: 1 }, class: rolled }),
+      spawn: bodySpawn({ count: { min: 0, max: 1 }, class: randomClass }),
     });
     const moon = planet(101, "", {
       class: "random",
       moon: true,
       parent: 100,
-      spawn: bodySpawn({ always: false, class: rolled }),
+      spawn: bodySpawn({ always: false, class: randomClass }),
     });
     await open("scenario");
     await land(details({ planets: [STAR, maybe, moon], spawn: systemSpawn() }));
@@ -452,7 +462,7 @@ describe("a scenario system's single rows", () => {
     const html = drawnBy(overview);
     expect(html).toContain(`<span class="ins-block-count ins-st-rolled">${DIE}0 to 1</span>`);
     expect(hintOf("Copies")).toBe("Some games have this planet and some don&#x27;t.");
-    expect(html).toContain(`${ROLLED_MARK}Random moon</span>`);
+    expect(html).toContain(rolled("Random moon"));
   });
 });
 
@@ -481,5 +491,112 @@ describe("a save system's head", () => {
     expect(headLine(html)).toContain("2 planets · nebula");
     expect(sections(html)).toContain("Planets · 2");
     expect(html).toContain("2 planets · 1 moon · 1 asteroid · 0 colonies");
+  });
+});
+
+describe("a scenario system's radii", () => {
+  it("shows an inner radius with an offset it leaves out as unknown, and says why", async () => {
+    await open("scenario");
+    await land(
+      details({
+        planets: [planet(100, "World", { spawn: bodySpawn() })],
+        spawn: systemSpawn({ inner_radius: { min: 150, max: 380 }, inner_radius_offset: 40 }),
+      }),
+    );
+
+    const html = drawnBy(() => overview());
+    expect(html).toContain('<span class="ins-st-unknown">150 to 380</span>');
+    expect(html).not.toContain("adds 40");
+    expect(hintOf("Inner radius")).toBe(
+      "The initializer adds 40 to this in a way Galaxy Forge can&#x27;t work out, so the range leaves it out.",
+    );
+  });
+
+  it("shows the inner radius and a drawn belt's radius as ranges", async () => {
+    await open("scenario");
+    await land(
+      details({
+        planets: [planet(100, "World", { spawn: bodySpawn() })],
+        belts: [{ kind: "rocky_asteroid_belt", inner_radius: 130 }],
+        spawn: systemSpawn({
+          inner_radius: { min: 150, max: 380 },
+          belt_radii: [{ min: 120, max: 140 }],
+        }),
+      }),
+    );
+
+    const html = overview();
+    expect(editRow(html, "Inner radius")).toContain(rolled("150 to 380"));
+    expect(editRow(html, "rocky_asteroid_belt")).toContain(rolled("120 to 140"));
+  });
+});
+
+/** A copy of a three-copy block named after the system, its orbit fit as given. */
+function copyOf(id: number, copy: number, fit: BodySpawn["orbit_fit"], numerals: string[]) {
+  return randomPlanet(id, {
+    copy,
+    count: { min: 3, max: 3 },
+    orbit_fit: fit,
+    naming:
+      fit === "never"
+        ? undefined
+        : { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals },
+  });
+}
+
+describe("a block of copies in the Planets list", () => {
+  it("is one row whose count runs from the copies that always fit to those that can, titled with their names", async () => {
+    await open("scenario");
+    nameSystem("Yunak");
+    await land(
+      details({
+        planets: [
+          copyOf(100, 1, "always", ["I"]),
+          copyOf(101, 2, "sometimes", ["II"]),
+          copyOf(102, 3, "sometimes", ["II", "III"]),
+        ],
+        spawn: systemSpawn(),
+      }),
+    );
+
+    const html = overview();
+    expect(html.match(/ins-block-count/g)).toHaveLength(1);
+    expect(html).toContain('class="ins-block-count ins-st-rolled"');
+    expect(html).toContain(">1 to 3</span>");
+    expect(html).not.toContain("×3");
+    expect(html).toContain(`<span class="l1">${rolled("Yunak I to III")}`);
+    expect(html).toContain(">random class</span>");
+  });
+
+  it("is marked never placed only when no copy can be placed", async () => {
+    await open("scenario");
+    await land(
+      details({
+        planets: [
+          copyOf(100, 1, "always", ["I"]),
+          copyOf(101, 2, "never", []),
+          copyOf(102, 3, "never", []),
+        ],
+        spawn: systemSpawn(),
+      }),
+    );
+    const some = overview();
+    expect(some).not.toContain("never placed");
+    expect(some).not.toContain("ins-block-count");
+
+    resetStores();
+    await open("scenario");
+    await land(
+      details({
+        planets: [
+          copyOf(100, 1, "never", []),
+          copyOf(101, 2, "never", []),
+          copyOf(102, 3, "never", []),
+        ],
+        spawn: systemSpawn(),
+      }),
+    );
+    const none = overview();
+    expect(none.match(/never placed/g)).toHaveLength(1);
   });
 });

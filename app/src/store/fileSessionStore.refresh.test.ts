@@ -181,8 +181,13 @@ describe("a scenario with unsaved changes", () => {
     expect(diskChangeShown(session())).toBeNull();
 
     await edit();
-    await new Promise((resolve) => setTimeout(resolve, 2));
-    await session().noteDiskChange(changed({ dirty: true }));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(Date.now() + 1);
+      await session().noteDiskChange(changed({ dirty: true }));
+    } finally {
+      vi.useRealTimers();
+    }
     expect(diskChangeShown(session())).toBe("banner");
   });
 });

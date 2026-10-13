@@ -2,68 +2,34 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-
-import type { Op } from "../generated/Op";
-import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
-import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { planetPage } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 import { run, type CommandEffects } from "./commands";
-import { openFixtureSave, openFixtureScenario } from "./editorFixture";
+import { openFixtureScenario } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { editResult } from "./fixture";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
-import { cutAvailability, usePlanetMoveStore } from "./planetMoveStore";
+import {
+  BARNARD,
+  CENTAURI,
+  COLONY,
+  EARTH,
+  LUNA,
+  MARS,
+  SOL,
+  armMoves,
+  moves,
+  selectTwo,
+  targets,
+} from "./planetMoveStore.fixture";
+import { cutAvailability } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
 import { until } from "../test/wait";
 import { flush } from "../test/flush";
 
-const SOL = 0;
-const CENTAURI = 1;
-const BARNARD = 2;
-const EARTH = 10;
-const MARS = 11;
-const LUNA = 12;
-const COLONY: PlanetMoveWarning = { planet: MARS, kind: "colony", owner: 0, new_owner: 1 };
-
-const moves = () => usePlanetMoveStore.getState();
-
-function targets(planets: number[], over: Partial<PlanetMoveTargets> = {}): PlanetMoveTargets {
-  return {
-    planets,
-    refused: [],
-    systems: [
-      { system: CENTAURI, warnings: [] },
-      { system: BARNARD, warnings: [COLONY] },
-    ],
-    ...over,
-  };
-}
-
-const MOVE: Op = {
-  type: "Batch",
-  description: "Moved 2 planets to Alpha Centauri",
-  ops: [
-    { type: "MoveBodyToSystem", body: EARTH, to: CENTAURI },
-    { type: "MoveBodyToSystem", body: MARS, to: CENTAURI },
-  ],
-};
-
-/** Earth and Mars of Sol selected, with the targets for them in. */
-async function selectTwo(): Promise<void> {
-  useSceneStore.getState().selectBody(SOL, EARTH);
-  useSceneStore.getState().toggleBody(SOL, MARS);
-  await flush();
-}
-
-beforeEach(async () => {
-  await openFixtureSave();
-  mockedIpc.planetMoveTargets.mockImplementation(async (planets) => targets(planets));
-  mockedIpc.planetMoveOp.mockResolvedValue(MOVE);
-  mockedIpc.applyOp.mockResolvedValue(editResult());
-});
+beforeEach(armMoves);
 
 /** The ref of the page on top of the inspector. */
 const topPage = () => {

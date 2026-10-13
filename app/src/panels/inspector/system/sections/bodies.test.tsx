@@ -5,7 +5,6 @@ vi.mock("../../../../api/ipc");
 vi.mock("../../../../api/events");
 vi.mock("../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../../test/drawn"));
 
 import { PLANET_ICON_KEYS, SHATTERED_ICON_SEED } from "../../../../lib/details/icons";
 import { useGameDataStore } from "../../../../store/gameDataStore";
