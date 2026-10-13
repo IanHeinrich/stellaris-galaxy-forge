@@ -69,6 +69,14 @@ beforeEach(async () => {
 });
 
 describe("deleting a ring world", () => {
+  it("names the colony when one goes", async () => {
+    armRing([2447]);
+    await deleteRingWorld(SOL);
+    expect(asked()).toBe(
+      "Delete the ring world in Sol? Its 5 planets are removed from the save. The colony on Section 2447 goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring.",
+    );
+  });
+
   it("names every colony when several go", async () => {
     armRing([2445, 2447, 2448]);
     await deleteRingWorld(SOL);
