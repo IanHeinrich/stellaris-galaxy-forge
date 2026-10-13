@@ -6,7 +6,6 @@
 
 use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
-use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
     NewMegastructure, NewMegastructurePlace, Op, OpError,
@@ -249,7 +248,6 @@ pub fn megastructure_fits(
     let raw = session.details().ok();
     let raw = raw.as_ref().and_then(|details| details.raw(system));
     let rows = raw.map_or(&[][..], |raw| raw.megastructures.as_slice());
-    let inner = raw.and_then(|raw| raw.inner_radius).unwrap_or(0.0);
     Ok(gd
         .megastructures
         .iter()
@@ -257,7 +255,7 @@ pub fn megastructure_fits(
         .map(|def| {
             let variant = made_at(&gd.megastructures, &def.key, class, flags);
             let made = gd.megastructures.get(&variant).unwrap_or(def);
-            let place = place_at(made, spot, inner);
+            let place = place_at(spot);
             MegastructureFit {
                 kind: def.key.clone(),
                 refusal: fit_refusal(gd, session, system, made, place, rows),
@@ -286,24 +284,11 @@ fn goes(def: &MegastructureDef, body: Option<&SiteBody>) -> bool {
     }
 }
 
-/// Where a row of `def` added at `spot` stands, in a system of `inner_radius`.
-fn place_at(def: &MegastructureDef, spot: AddSpot, inner_radius: f64) -> MegastructurePlace {
-    match (spot, &def.placement) {
-        (AddSpot::Body { body }, _) => MegastructurePlace::Body { body },
-        (
-            AddSpot::Space { x, y },
-            Placement::Free {
-                outside_gravity_well: true,
-            },
-        ) => {
-            let radius = RELAY_RADIUS_FACTOR * inner_radius;
-            let angle = y.atan2(x);
-            MegastructurePlace::Free {
-                x: radius * angle.cos(),
-                y: radius * angle.sin(),
-            }
-        }
-        (AddSpot::Space { x, y }, _) => MegastructurePlace::Free { x, y },
+/// Where a row added at `spot` stands: at the body, or at the clicked point.
+fn place_at(spot: AddSpot) -> MegastructurePlace {
+    match spot {
+        AddSpot::Body { body } => MegastructurePlace::Body { body },
+        AddSpot::Space { x, y } => MegastructurePlace::Free { x, y },
     }
 }
 

@@ -3,7 +3,7 @@
 
 use crate::common;
 
-use sgf_core::ops::{NewBypass, Op};
+use sgf_core::ops::{MegastructurePlace, NewBypass, Op};
 use sgf_gamedata::generate::{AddSpot, megastructure_fits, megastructure_op};
 use sgf_gamedata::registries::megastructures::{BuildType, Linked, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
@@ -618,8 +618,8 @@ mod_maybe_world = {{ on_build_complete = {{ {spawn} if = {{ limit = {{ always = 
     );
 }
 
-/// An L-Gate added in empty space of the 4.5 sample's Xu Nur (1) stands just outside the inner
-/// radius as a gateway does, and its bypass is closed, as the game's are.
+/// An L-Gate added in empty space of the 4.5 sample's Xu Nur (1) stands where it was clicked as a
+/// gateway does, and its bypass is closed, as the game's are.
 #[test]
 fn an_lgate_goes_in_empty_space_with_a_closed_bypass() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -635,7 +635,9 @@ fn an_lgate_goes_in_empty_space_with_a_closed_bypass() {
     };
     let (lgate, gateway) = (fit("lgate_base"), fit("gateway_final"));
     assert_eq!(lgate.refusal, None);
-    assert_eq!(lgate.place, gateway.place);
+    let clicked = MegastructurePlace::Free { x: 0.0, y: -10.0 };
+    assert_eq!(lgate.place, clicked);
+    assert_eq!(gateway.place, clicked);
     let planned =
         megastructure_op(gd, &session, 1, "lgate_base", lgate.place, false).expect("the L-Gate");
     let Op::AddMegastructure { spec, .. } = planned.op else {

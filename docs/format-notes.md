@@ -983,7 +983,9 @@ for planets or deposits.
   and every relay build order too. The angle follows no rule: it is the
   player's click or the AI's pick. In a 4.5.1 late-game save, waystation
   starbases stand at the same distance, each at its own angle. A built gateway is probably
-  placed the same way, which hasn't been checked in game.
+  placed the same way, which hasn't been checked in game. A relay,
+  gateway or L-Gate added anywhere else in the system works in game (checked
+  on 4.5), so the editor adds one where the player clicked.
 - `graphical_culture` on a row is the culture its model is drawn in. It
   is missing on ruins, L-Gates and most rows without an owner. Where a
   row has both, it matches its owner country's `graphical_culture`,
