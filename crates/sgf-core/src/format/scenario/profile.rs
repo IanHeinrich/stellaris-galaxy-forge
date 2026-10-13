@@ -1,6 +1,8 @@
 //! The dialect a scenario is written in, and every question whose answer depends on it:
 //! one method each, so a new dialect is one variant and one arm per method in this file.
-//! The export and Prepare ask these and match on no dialect themselves.
+//! Prepare matches on no dialect itself. The export keeps two matches, in `scenario_text`
+//! and `new_scenario`, because each arm calls a writer only the export has: the plain home
+//! system effect or Paint a Galaxy's decoration, and each dialect's header.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

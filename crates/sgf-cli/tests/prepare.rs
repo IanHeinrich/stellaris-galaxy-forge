@@ -16,7 +16,7 @@ fn a_preset_with_a_row_over_it_is_written_as_one_edit_and_faithful_writes_nothin
         "prepare",
         SCENARIO,
         "--preset",
-        "fresh_start",
+        "fresh",
         "--row",
         "system_names=game_names",
         "--no-mods",
@@ -52,10 +52,7 @@ fn a_preset_with_a_row_over_it_is_written_as_one_edit_and_faithful_writes_nothin
         out.to_str().expect("a UTF-8 path"),
     ]);
     ok(&faithful);
-    assert!(stdout(&faithful).ends_with(
-        "nothing to change
-"
-    ));
+    assert!(stdout(&faithful).ends_with("nothing to change\n"));
     assert!(!out.exists(), "Faithful writes nothing");
 }
 
@@ -68,7 +65,7 @@ fn a_save_and_an_unknown_choice_are_refused() {
         "prepare",
         SCENARIO,
         "--preset",
-        "fresh_start",
+        "fresh",
         "--row",
         "system_names=plain_please",
     ]);
@@ -87,7 +84,7 @@ fn bare_shell_lists_the_new_seats_and_what_it_kept_clear_around_them() {
             "prepare",
             SCENARIO,
             "--preset",
-            "bare_shell",
+            "shell",
             "--no-mods",
             "-o",
             path,

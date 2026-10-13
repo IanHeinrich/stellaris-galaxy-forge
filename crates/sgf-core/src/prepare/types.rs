@@ -155,7 +155,8 @@ pub struct WeightedLayout {
     pub weight: f64,
 }
 
-/// What Prepare refuses, each in the player's words with what to do instead.
+/// What Prepare refuses. The refusals of the Sol, seat and zone choices say what to do
+/// instead; the others keep a short message naming what was wrong.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PrepareError {
     #[error("{} offers no {}", .row.as_str(), .choice.as_str())]

@@ -287,7 +287,7 @@ pub enum Command {
     },
     /// Prepare a scenario for a new game: sort its systems into rows from the install's
     /// initializers, then write a preset's choices as one edit and save:
-    ///   sgf prepare map.txt --preset fresh_start --row system_names=game_names -o new.txt
+    ///   sgf prepare map.txt --preset fresh --row system_names=game_names -o new.txt
     /// --row sets one row's choice over the preset's; repeat it for more rows.
     #[command(verbatim_doc_comment)]
     Prepare {
@@ -357,12 +357,14 @@ pub enum Profile {
     PaintAGalaxy,
 }
 
-/// `fresh_start`, the `--preset` of `sgf prepare`.
+/// `fresh`, the `--preset` of `sgf prepare`: a name the guide documents, or the preset's own.
 fn preset(text: &str) -> Result<PreparePreset, String> {
-    PreparePreset::parse(text).ok_or_else(|| {
-        let presets = PreparePreset::ALL.map(PreparePreset::as_str).join(", ");
-        format!("{text} is none of {presets}")
-    })
+    match text {
+        "fresh" => Ok(PreparePreset::FreshStart),
+        "shell" => Ok(PreparePreset::BareShell),
+        _ => PreparePreset::parse(text)
+            .ok_or_else(|| format!("{text} is none of faithful, fresh, shell")),
+    }
 }
 
 /// `system_names=game_names`, one `--row` of `sgf prepare`.

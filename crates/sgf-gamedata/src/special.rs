@@ -40,9 +40,10 @@ const FALLEN_EMPIRE_USAGE: &str = "fallen_empire_init";
 
 /// What a system is by its initializer's `usage` and star flags and by its own star flags,
 /// before the countries the initializer spawns. Prepare's rows and the special-system list
-/// both read it.
+/// both read it. The system's own flags count as much as the initializer's, though a
+/// scenario's systems carry none today.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Category {
+pub struct InitializerCategory {
     /// An empire starts on it: by `usage`, or by the home flag a prescripted empire's start
     /// carries under the ordinary usage.
     pub home_start: bool,
@@ -50,11 +51,11 @@ pub struct Category {
     pub flagged: Flagged,
 }
 
-pub fn category(init: Option<&Initializer>, system_flags: &[String]) -> Category {
+pub fn category(init: Option<&Initializer>, system_flags: &[String]) -> InitializerCategory {
     let init_flags = init.into_iter().flat_map(|init| &init.flags);
     let flagged = Flagged::read(init_flags.chain(system_flags).map(String::as_str));
     let usage = init.and_then(|init| init.usage.as_deref());
-    Category {
+    InitializerCategory {
         home_start: flagged.home || usage.is_some_and(|usage| HOME_START_USAGES.contains(&usage)),
         fallen_empire: usage == Some(FALLEN_EMPIRE_USAGE),
         flagged,
