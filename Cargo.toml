@@ -12,6 +12,10 @@ repository = "https://github.com/IanHeinrich/stellaris-galaxy-forge"
 sgf-core = { path = "crates/sgf-core" }
 sgf-gamedata = { path = "crates/sgf-gamedata" }
 
+# Full debug info makes every Windows link write a large PDB; line tables keep file:line in backtraces.
+[profile.dev]
+debug = "line-tables-only"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

@@ -14,7 +14,8 @@ path = "tests/main.rs"
 [lib]
 # Unique lib name so it does not collide with the bin on Windows.
 name = "sgf_app_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# The desktop app needs only the rlib; staticlib and cdylib are for mobile and double the rebuild.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
