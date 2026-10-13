@@ -21,7 +21,7 @@ use crate::GameData;
 use crate::construction::PlanetChange;
 use crate::construction::habitat::habitat;
 use crate::construction::ring_world::{RingStage, ring_world};
-use crate::construction::spawned::{AtHost, at_host};
+use crate::construction::spawned::{AtHost, at_host, spawns_beside};
 use crate::registries::megastructure_swaps::made_at;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 
@@ -166,15 +166,6 @@ pub fn megastructure_op(
     })
 }
 
-/// Whether a stage of `kind`'s build chain spawns a planet round the body its row stands on
-/// and leaves the row standing.
-fn spawns_beside(gd: &GameData, kind: &str) -> bool {
-    gd.megastructures
-        .chain(kind)
-        .iter()
-        .any(|stage| stage.completes.spawns_beside())
-}
-
 /// The moons of planet `body`, in the order it lists them.
 fn host_moons(session: &Session, body: u32) -> Result<Vec<u32>, Refusal> {
     let planet = get_planet_page(session.doc(), body)?;
@@ -279,7 +270,7 @@ pub enum HostMoonsFit {
     Kept,
     /// The body's `count` moons can be deleted.
     Removable { count: usize },
-    /// A moon cannot be deleted, as the delete would say it.
+    /// A moon cannot be deleted: `reason` names it and says why, as [`moons_fit`] words it.
     Refused { reason: String },
 }
 
@@ -330,7 +321,7 @@ pub fn megastructure_fits(
             MegastructureFit {
                 kind: def.key.clone(),
                 refusal: fit_refusal(gd, session, system, made, place, rows),
-                host_moons: moons_fit(gd, session, made, body),
+                host_moons: moons_fit(gd, session, made, body, rows),
                 variant,
                 place,
             }
@@ -357,12 +348,14 @@ fn goes(def: &MegastructureDef, body: Option<&SiteBody>) -> bool {
 }
 
 /// What an add of `def` on `body` can do with the body's moons, each checked for the deletion
-/// against the session as it is.
+/// against the session as it is, in a system whose rows are `rows`. The first moon the core
+/// refuses to delete is named in the reason, as [`moon_kept`] words it.
 fn moons_fit(
     gd: &GameData,
     session: &Session,
     def: &MegastructureDef,
     body: Option<&SiteBody>,
+    rows: &[MegastructureSummary],
 ) -> HostMoonsFit {
     let Some(body) = body else {
         return HostMoonsFit::Kept;
@@ -385,13 +378,38 @@ fn moons_fit(
     }
     let refused = moons
         .iter()
-        .find_map(|&moon| session.refusal(&Op::DeleteBody { body: moon }));
+        .find_map(|&moon| Some((moon, session.refusal(&Op::DeleteBody { body: moon })?)));
     match refused {
-        Some(refused) => HostMoonsFit::Refused {
-            reason: refused.to_string(),
+        Some((moon, refused)) => HostMoonsFit::Refused {
+            reason: moon_kept(gd, session, moon, &refused, rows),
         },
         None => HostMoonsFit::Removable { count: moons.len() },
     }
+}
+
+/// `refused`, the core's refusal to delete moon `moon` of a system whose rows are `rows`, in
+/// the player's words, naming the moon: "Kel has a megastructure." for a row on it, and
+/// "Kel can't be removed, because a starbase orbits it." for another reason the core gives.
+/// A refusal of any other kind keeps the core's text.
+fn moon_kept(
+    gd: &GameData,
+    session: &Session,
+    moon: u32,
+    refused: &OpError,
+    rows: &[MegastructureSummary],
+) -> String {
+    let (OpError::PlanetKept { reason, .. } | OpError::ColonyKept { reason, .. }) = refused else {
+        return refused.to_string();
+    };
+    let name = get_planet_page(session.doc(), moon)
+        .map(|page| gd.loc.resolve_template(&page.name))
+        .ok()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| format!("Moon #{moon}"));
+    if rows.iter().any(|row| row.planet == Some(moon)) {
+        return format!("{name} has a megastructure.");
+    }
+    format!("{name} can't be removed, because {reason}.")
 }
 
 /// Where a row added at `spot` stands: at the body, or at the clicked point.
@@ -680,5 +698,5 @@ const WHOLE_STRUCTURE: &str =
     "Galaxy Forge can't add this yet, because building it also creates other planets or sections.";
 const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
 const ROUND_SATELLITE: &str =
-    "Galaxy Forge can't put a habitat or ring round anything that orbits a planet, such as a moon.";
+    "Galaxy Forge can't add this round anything that orbits a planet, such as a moon.";
 const RING_WORLD_NO_STAR: &str = "Can't place a ring world in a system with no star.";

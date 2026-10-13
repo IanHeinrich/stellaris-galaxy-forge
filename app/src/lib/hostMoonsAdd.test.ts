@@ -11,7 +11,10 @@ import {
 const shipyard = megastructureTypeView("giga_equatorial_shipyard_3", { removes_host_moons: true });
 const nexus = megastructureTypeView("think_tank_3");
 const three = { kind: "removable", count: 3 } as const;
-const refused = { kind: "refused", reason: "a moon holds a colony" } as const;
+const refused = {
+  kind: "refused",
+  reason: "Kel can't be removed, because a starbase orbits it.",
+} as const;
 
 describe("the moons choice of the Add megastructure dialog", () => {
   it("counts the moons it removes, and names one moon as one", () => {

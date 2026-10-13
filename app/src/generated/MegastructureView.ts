@@ -33,8 +33,8 @@ habitat: boolean,
  */
 habitat_orbital: boolean, 
 /**
- * Its finished stage spawns a planet round the body it stands on, which the editor adds
- * with the row.
+ * A stage of its chain spawns a planet round the body it stands on and leaves the row
+ * there, so the row stays with that planet. The editor adds the planet with the row.
  */
 host_planet: boolean, 
 /**

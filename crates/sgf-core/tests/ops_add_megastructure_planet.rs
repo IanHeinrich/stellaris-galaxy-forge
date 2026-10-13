@@ -4,12 +4,14 @@
 
 use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{MegastructurePlace, NewMegastructure, NewPlanet, Op, TimedModifier};
+use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::snapshot_step;
 use common::edit::{ALARI, planet_text, system_text};
 use common::examples::{ADDED_MEGASTRUCTURE, sol_shipyard};
-use common::{assert_refusals, current, entity_text, open_4_5};
+use common::line_diff::line_diff;
+use common::{assert_refusals, current, entity_text, open_4_5, text};
 
 /// The id the 4.5 sample's first added planet takes.
 const ADDED_PLANET: u32 = 16777273;
@@ -189,4 +191,45 @@ fn the_planet_is_removed_on_its_own() {
     assert!(!system_text(&session, ALARI).contains(&format!("planet={ADDED_PLANET}")));
     session.undo().expect("undo").expect("the removal to undo");
     assert_eq!(current(&session), after_add);
+}
+
+/// The inverse of removing the ring planet puts it back round planet 2 as the shipyard wrote
+/// it, and the inverse of the batch that undoes the add writes the add again.
+#[test]
+fn the_inverses_put_the_planet_back_round_its_planet() {
+    let mut session = open_4_5();
+    let added = session.apply(sol_shipyard()).expect("the shipyard");
+    let after_add = text(&session);
+    let as_added = |session: &Session| {
+        let now = text(session);
+        assert!(
+            now == after_add,
+            "{}",
+            line_diff(&after_add, &now, ("added", "now"))
+        );
+    };
+    let removed = session
+        .apply(Op::RemoveBody { body: ADDED_PLANET })
+        .expect("the ring planet");
+    assert_eq!(
+        removed.inverse,
+        Op::AddSpawnedPlanet {
+            body: 2,
+            planet: shipyard().planet.expect("a planet"),
+        }
+    );
+    let back = session
+        .apply_inverse(removed.inverse)
+        .expect("the ring planet back");
+    assert_eq!(
+        back.entry.description,
+        "Added planet Processing Ring #16777273 round Alari planet #2 in Alari system #169"
+    );
+    as_added(&session);
+
+    let undone = session.apply_inverse(added.inverse).expect("the inverse");
+    session
+        .apply_inverse(undone.inverse)
+        .expect("the shipyard again");
+    as_added(&session);
 }

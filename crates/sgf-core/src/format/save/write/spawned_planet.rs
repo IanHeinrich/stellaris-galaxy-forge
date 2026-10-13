@@ -1,29 +1,95 @@
 //! A planet a build effect spawns finished, as the game's `spawn_planet` and
 //! `spawn_habitat_effect` leave one: the habitat [`Op::AddHabitat`] writes, the segments of
-//! [`Op::AddRingWorld`] and the planet [`Op::AddMegastructure`] spawns round its body. It
-//! takes a planet slot as an added body does, and one round a body names it in `moon_of`
-//! without the moon bit.
+//! [`Op::AddRingWorld`] and the planet [`Op::AddMegastructure`] spawns round its body, which
+//! [`Op::AddSpawnedPlanet`] writes back. It takes a planet slot as an added body does, and
+//! one round a body names it in `moon_of` without the moon bit.
 
+use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::{SpawnedEntry, spawned_entry};
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::planet_entity;
-use crate::format::save::write::bodies::Stored;
+use crate::format::save::write::bodies::{Stored, frame, grow_past};
+use crate::format::save::write::flags::today;
 use crate::format::save::write::id_list::list_planets;
 use crate::format::save::write::megastructure_links;
 use crate::format::save::write::planet_entry::{
     body_is_star, list_moon, named_entity, named_planet,
 };
-use crate::format::save::write::shared::write_slot;
-#[cfg(doc)]
-use crate::ops::Op;
+use crate::format::save::write::shared::{placement, write_slot};
+use crate::format::save::{planet_entity, planet_system};
+use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::modifiers::{check_flags, check_timed, listed_once};
-use crate::ops::rules::{Form, check_text};
-use crate::ops::{Emitted, MegastructureRefusal, NewPlanet, OpError, Plan};
-use crate::projections::geometry::{Body, point, reach};
+use crate::ops::rules::{Form, check_text, named, named_as};
+use crate::ops::{
+    Emitted, MegastructureRefusal, NewPlanet, Op, OpError, Plan, Planned, TimedModifier,
+};
+use crate::projections::geometry::{Body, normalised, point, reach};
 use crate::projections::name::NameTemplate;
+use crate::projections::read;
 use crate::session::Session;
+
+/// What a refusal calls the planet [`Op::AddSpawnedPlanet`] writes back.
+const PLANET: &str = "planet";
+
+pub(crate) fn plan_add(
+    plan: &mut Plan,
+    s: &Session,
+    body: u32,
+    planet: &NewPlanet,
+) -> Result<Planned, OpError> {
+    check(planet, Form::Quoted)?;
+    let (node, src) = planet_entity(&s.doc, body)?;
+    let system = planet_system(&node, src, body)?;
+    let stored = frame(s, system)?;
+    let round = host(s, &stored, system, body, PLANET)?;
+    let name = NameTemplate::plain(&planet.name);
+    let spawned = Spawned::round(round, planet, &name, normalised(planet.at.angle));
+    let (id, reached) = add_round(plan, s, system, &stored, &spawned, &today(&s.doc)?)?;
+    let description = format!(
+        "Added {} round {} in {}",
+        named_as(PLANET, &name, id),
+        named_planet(s, body)?,
+        named(&s.graph, system)
+    );
+    grow_past(
+        plan,
+        s,
+        system,
+        reached,
+        description,
+        Op::RemoveBody { body: id },
+    )
+}
+
+/// The planet the entry `node` holds, as [`Op::AddSpawnedPlanet`] would write it back round
+/// `round`, the body it orbits, where `own` stands among the system's bodies `stored`.
+pub(crate) fn read_back(
+    node: &Node,
+    src: &[u8],
+    stored: &[Stored],
+    own: &Body,
+    round: u32,
+) -> NewPlanet {
+    let modifiers = read::timed_items(node, src)
+        .filter_map(|item| {
+            let days: i32 = read::text(item, keys::DAYS, src).parse().ok()?;
+            Some(TimedModifier {
+                modifier: read::text(item, keys::MODIFIER, src),
+                days: u32::try_from(days).ok(),
+            })
+        })
+        .collect();
+    NewPlanet {
+        class: read::text(node, keys::PLANET_CLASS, src),
+        size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
+        at: placement(stored, own, Some(round)),
+        name: read::name(node, src).key,
+        model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+        flags: read::flags(node, src).map(str::to_owned).collect(),
+        modifiers,
+    }
+}
 
 /// Refuse a planet whose values cannot be written, its name key in the form `name`.
 pub(crate) fn check(planet: &NewPlanet, name: Form) -> Result<(), OpError> {

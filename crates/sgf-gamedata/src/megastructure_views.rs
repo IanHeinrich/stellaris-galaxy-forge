@@ -9,7 +9,7 @@ use ts_rs::TS;
 use crate::GameData;
 use crate::construction::habitat::habitat;
 use crate::construction::ring_world::{RingStage, quadrants, ring_world};
-use crate::construction::spawned::{AtHost, at_host};
+use crate::construction::spawned::{AtHost, at_host, spawns_beside};
 use crate::construction::{SummaryKind, SummaryLine, SummaryOn};
 use crate::planet_views::ModifierLineView;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
@@ -57,8 +57,8 @@ pub struct MegastructureView {
     /// the host holds no megastructure.
     #[serde(default)]
     pub habitat_orbital: bool,
-    /// Its finished stage spawns a planet round the body it stands on, which the editor adds
-    /// with the row.
+    /// A stage of its chain spawns a planet round the body it stands on and leaves the row
+    /// there, so the row stays with that planet. The editor adds the planet with the row.
     #[serde(default)]
     pub host_planet: bool,
     /// Its build removes the moons of the body it stands on.
@@ -136,7 +136,7 @@ impl GameData {
                         .collect(),
                     habitat: finished.is_some(),
                     habitat_orbital: finished.is_some_and(|habitat| habitat.orbital.is_some()),
-                    host_planet: host.planet.is_some(),
+                    host_planet: spawns_beside(self, &def.key),
                     removes_host_moons: host.removes_moons,
                     ring_world_refused: ring.refused,
                     ring_world_radius: ring.radius,

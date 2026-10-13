@@ -1,14 +1,23 @@
 //! The examples of the ops on stars, bodies, empires, belts and wormholes, and the batch.
 use sgf_core::ops::{
     ClassChange, EmpireFlag, MapColorPair, MegastructurePlace, NebulaFootprint, NewBypass,
-    NewMegastructure, NewName, Op, Parent, PlanetClassRule, SavedEntity, SavedTable, StarBody,
-    SystemHeight,
+    NewMegastructure, NewName, NewPlanet, Op, Parent, PlanetClassRule, SavedEntity, SavedTable,
+    StarBody, SystemHeight,
 };
 use sgf_core::projections::galaxy::LGateOutcome;
 
 use super::{
-    ADDED_BODY, ADDED_MEGASTRUCTURE, Example, chors_ring, chors_ring_removal, meissa_v, sol_habitat,
+    ADDED_BODY, ADDED_MEGASTRUCTURE, Example, chors_ring, chors_ring_removal, meissa_v,
+    sol_habitat, sol_shipyard,
 };
+
+/// The ring planet [`sol_shipyard`] spawns round its planet.
+fn shipyard_ring() -> NewPlanet {
+    let Op::AddMegastructure { spec, .. } = sol_shipyard() else {
+        unreachable!("sol_shipyard adds a megastructure");
+    };
+    spec.planet.expect("a planet")
+}
 
 pub(super) fn examples() -> Vec<Example> {
     vec![
@@ -202,6 +211,10 @@ pub(super) fn examples() -> Vec<Example> {
         Example::save_4_5(meissa_v()),
         Example::added_body(Op::RemoveBody { body: ADDED_BODY }),
         Example::save_4_5(sol_habitat()),
+        Example::save_4_5(Op::AddSpawnedPlanet {
+            body: 4,
+            planet: shipyard_ring(),
+        }),
         Example::save_4_5(chors_ring(Some(0))),
         Example::added_ring_world(chors_ring_removal()),
         Example::save(Op::AddDigSite {

@@ -59,14 +59,17 @@ describe("the Add megastructure dialog for a type that removes its planet's moon
   });
 
   it("picks Keep and turns Remove off with the reason where the save refuses to remove them", () => {
-    const html = withMoons({ kind: "refused", reason: "a moon of it holds a colony" });
+    const html = withMoons({
+      kind: "refused",
+      reason: "Kel can't be removed, because a starbase orbits it.",
+    });
     expect(html).toMatch(
       /<input type="radio" disabled="" name="megastructure-moons"\/><span>Remove its moons, as the game does<\/span>/,
     );
     expect(html).toMatch(
       /<input type="radio" name="megastructure-moons" checked=""\/><span>Keep its moons<\/span>/,
     );
-    expect(html).toContain("A moon of it holds a colony.");
+    expect(html).toContain("Kel can&#x27;t be removed, because a starbase orbits it.");
   });
 
   it("shows no moons choice on a planet with no moons, or for a type that keeps them", () => {

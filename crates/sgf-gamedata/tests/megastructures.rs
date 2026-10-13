@@ -595,20 +595,22 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
 
 /// A stage that puts its one planet in a body's orbit and always removes its row stands in
 /// the planet's place, as Cosmogenesis World does. One that never removes its row stands on
-/// the body with the planet round it, and so does the stage it is built over. One that
-/// removes its row only on a condition leaves the planet beside it, a structure of several
-/// parts, and so does one that spawns a second planet.
+/// the body with the planet round it, and so does the stage it is built over, when the
+/// planet has a name and a size the editor can write. One that removes its row only on a
+/// condition leaves the planet beside it, a structure of several parts, and so does one that
+/// spawns a second planet.
 #[test]
 fn a_planet_stands_in_its_row_only_when_the_row_always_goes() {
     let spawn =
         "spawn_planet = { class = pc_mod_world location = fromfrom.planet orbit_location = yes }";
+    let ring = "spawn_planet = { class = pc_mod_world location = fromfrom.planet orbit_location = yes size = 12 init_effect = { set_name = \"Yard Ring\" } }";
     let (_dir, gd) = common::hand_written(&[(
         "common/megastructures/mod.txt",
         &format!(
             "mod_world = {{ on_build_complete = {{ {spawn} remove_megastructure = fromfrom }} }}
 mod_maybe_world = {{ on_build_complete = {{ {spawn} if = {{ limit = {{ always = yes }} remove_megastructure = fromfrom }} }} }}
 mod_yard_0 = {{ }}
-mod_yard_1 = {{ upgrade_from = {{ mod_yard_0 }} on_build_complete = {{ {spawn} }} }}
+mod_yard_1 = {{ upgrade_from = {{ mod_yard_0 }} on_build_complete = {{ {ring} }} }}
 mod_twin_yard = {{ on_build_complete = {{ {spawn} {spawn} }} }}
 "
         ),

@@ -1,6 +1,5 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
-assertion_line: 360
 expression: value
 ---
 Added a ring world round Lachium #203

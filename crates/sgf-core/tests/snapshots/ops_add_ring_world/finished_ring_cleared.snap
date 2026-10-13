@@ -1,6 +1,5 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
-assertion_line: 360
 expression: value
 ---
 Added a ring world round Habraq #159, removing 4 planets, 1 moon and 1 belt

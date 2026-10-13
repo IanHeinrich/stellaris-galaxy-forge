@@ -108,7 +108,7 @@ as any other megastructure. Building one in the game removes the
 planet's moons, so on a planet with moons the dialog has a Moons choice:
 
 - Remove its moons, as the game does. The dialog opens with this picked.
-- Keep its moons adds only the megastructure, and the moons stay.
+- Keep its moons leaves the moons where they are.
 
 ![The Add megastructure dialog on the Equatorial Shipyard, with the Moons choice set to remove the planet's 2 moons](../images/system/add-equatorial-shipyard.png)
 
@@ -192,8 +192,8 @@ red ring means that one can't take it, and the status bar says why.
 ![A Science Nexus dragged over the star Xraneax, which is ringed in red, with the reason beside it](../images/system/megastructure-drag.png)
 
 The modifiers and deposits it added stay where they were. Ring world
-sections, Quantum Catapults and parts of a larger structure, such as an
-Equatorial Shipyard, can't be moved.
+sections, Quantum Catapults, parts of a larger structure and a finished
+Equatorial Shipyard can't be moved.
 
 ## Delete a megastructure
 

@@ -1,6 +1,5 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
-assertion_line: 360
 expression: value
 ---
 Added a ring world round Chors Compass #23 with 1 finished section, 1 frame section, 1 ruined section and 1 damaged section

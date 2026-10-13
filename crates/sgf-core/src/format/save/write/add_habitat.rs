@@ -17,14 +17,13 @@ use crate::format::save::write::megastructure_links::{
 };
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::body_is_star;
-use crate::format::save::write::shared::{culture_of, placement, tie};
+use crate::format::save::write::shared::{culture_of, tie};
 use crate::format::save::write::spawned_planet::{self, Spawned, add_round};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
-    HabitatOrbital, HabitatPlacement, NewHabitat, NewPlanet, Op, OpError, ParseAt, Plan, Planned,
-    Subject,
+    HabitatOrbital, HabitatPlacement, NewHabitat, Op, OpError, ParseAt, Plan, Planned, Subject,
 };
 use crate::projections::geometry::{Body, angle_about, normalised};
 use crate::projections::name::{NameTemplate, format};
@@ -370,18 +369,12 @@ pub(crate) fn read_back(
     host: u32,
     orbital: Option<HabitatOrbital>,
 ) -> NewHabitat {
-    let name = read::name(node, src);
     NewHabitat {
-        system_name: name.variables.first().map(|variable| variable.name.clone()),
-        planet: NewPlanet {
-            class: read::text(node, keys::PLANET_CLASS, src),
-            size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
-            at: placement(stored, own, Some(host)),
-            name: name.key,
-            model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
-            flags: read::flags(node, src).map(str::to_owned).collect(),
-            modifiers: Vec::new(),
-        },
+        system_name: read::name(node, src)
+            .variables
+            .first()
+            .map(|variable| variable.name.clone()),
+        planet: spawned_planet::read_back(node, src, stored, own, host),
         orbital,
         placed: HabitatPlacement::AtAngle,
     }

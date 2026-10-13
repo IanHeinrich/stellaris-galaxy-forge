@@ -360,7 +360,8 @@ impl Completes {
     /// stage that takes its own row away and puts its one planet in the orbit of a body, as
     /// the base game's Cosmogenesis World does, is that planet alone. A stage that never
     /// removes its row and puts its one planet in the orbit of a body is its row with that
-    /// planet round its body.
+    /// planet round its body, unless the editor cannot write the planet, which the layout
+    /// tells once the registry is built.
     pub(crate) fn builds_whole(&self) -> bool {
         let becomes_planet = self.always_removes_row && self.planet_in_body_orbit;
         self.spawns_rows > 1 || (self.spawns_planet && !(becomes_planet || self.spawns_beside()))

@@ -13,7 +13,6 @@ use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::{Slot, SlotTable};
 use crate::format::save::system_spec::BodySpec;
-use crate::format::save::write::add_habitat;
 use crate::format::save::write::add_system::{
     self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, write_body,
 };
@@ -26,6 +25,7 @@ use crate::format::save::write::planet_entry::{
 use crate::format::save::write::planet_modifier;
 use crate::format::save::write::remove_system::return_asteroid_names_of;
 use crate::format::save::write::shared::placement;
+use crate::format::save::write::{add_habitat, spawned_planet};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
@@ -395,8 +395,9 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         Some(host) => add_habitat::orbital_of(s, host)?,
         None => None,
     };
-    let inverse = match host {
-        Some(host) => Op::AddHabitat {
+    let round = parent.filter(|_| !own.moon);
+    let inverse = match (host, round) {
+        (Some(host), _) => Op::AddHabitat {
             body: host,
             habitat: add_habitat::read_back(
                 &node,
@@ -410,7 +411,11 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
                     .transpose()?,
             ),
         },
-        None => Op::AddBody {
+        (None, Some(round)) => Op::AddSpawnedPlanet {
+            body: round,
+            planet: spawned_planet::read_back(&node, src, &stored, &own.body, round),
+        },
+        (None, None) => Op::AddBody {
             system,
             spec: spec_of(&s.doc, &node, src, moon_of),
             at: placement(&stored, &own.body, moon_of),

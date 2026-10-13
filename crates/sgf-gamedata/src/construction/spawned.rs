@@ -10,6 +10,7 @@ use sgf_core::views::OrbitPlacement;
 use super::lasting;
 use super::layout::{self, Around, LaidPlanet, Plan};
 use crate::GameData;
+use crate::registries::megastructures::Placement;
 
 /// What finishing a type leaves at the body its row stands on, beyond the row.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -55,6 +56,27 @@ pub fn at_host(gd: &GameData, key: &str, culture: Option<&str>) -> AtHost {
         planet: spawned,
         removes_moons: laid.host_moons_removed,
     }
+}
+
+/// Whether a stage of `key`'s build chain spawns a planet round the body its row stands on
+/// and leaves the row standing.
+pub(crate) fn spawns_beside(gd: &GameData, key: &str) -> bool {
+    gd.megastructures
+        .chain(key)
+        .iter()
+        .any(|stage| stage.completes.spawns_beside())
+}
+
+/// The types placed on a body whose chain spawns a planet beside the row that the editor
+/// cannot write, as [`at_host`] tells.
+pub(crate) fn unwritten_beside(gd: &GameData) -> Vec<String> {
+    gd.megastructures
+        .iter()
+        .filter(|def| matches!(def.placement, Placement::Body { .. }))
+        .filter(|def| spawns_beside(gd, &def.key))
+        .filter(|def| at_host(gd, &def.key, None).planet.is_none())
+        .map(|def| def.key.clone())
+        .collect()
 }
 
 /// `planet` round the host, when its name, size and flags can be written.

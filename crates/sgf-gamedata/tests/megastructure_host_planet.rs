@@ -11,9 +11,9 @@ use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{
-    AddSpot, HostMoons, HostMoonsFit, Planned, megastructure_fits, megastructure_op,
+    AddSpot, HostMoons, HostMoonsFit, Planned, Refusal, megastructure_fits, megastructure_op,
 };
-use sgf_gamedata::registries::megastructures::Placement;
+use sgf_gamedata::registries::megastructures::{Placement, Unsupported};
 
 /// Alari, owned by country 0, whose gas giant 6 has the moons 7, 8 and 9 and whose molten
 /// planet 1 has none.
@@ -24,8 +24,9 @@ const MOLTEN: u32 = 1;
 const XU_NUR: u32 = 1;
 
 /// An install whose yard raises its owner's counter at its first stage, removes its planet's
-/// moons at its second and spawns a ring round the planet at its third, and whose moonless
-/// structure removes only the moons that are not colonies.
+/// moons at its second and spawns a ring round the planet at its third, whose named yard
+/// spawns a ring named after its planet, and whose moonless structure removes only the moons
+/// that are not colonies.
 fn yard_fixture() -> (tempfile::TempDir, GameData) {
     common::hand_written(&[(
         "common/megastructures/fx.txt",
@@ -58,6 +59,21 @@ fx_yard_2 = {
 				set_carrier_flag = megastructure
 				add_modifier = { modifier = fx_ring_alloys days = -1 }
 				planet_event = { id = fx_ring.1 }
+			}
+		}
+	}
+}
+fx_named_yard = {
+	on_build_complete = {
+		spawn_planet = {
+			class = \"pc_fx_ring\"
+			location = fromfrom.planet
+			orbit_location = yes
+			orbit_angle_offset = 0
+			orbit_distance_offset = 0.00001
+			size = 12
+			init_effect = {
+				set_name = { key = \"NAME_Ring_Of\" variable_string = \"[fromfrom.planet.GetName]\" }
 			}
 		}
 	}
@@ -201,8 +217,8 @@ fn the_moons_stay_when_kept_and_an_unowned_ring_takes_its_class_model() {
 
 /// The dialog says the yard can delete the gas giant's three moons, and that a planet with
 /// no moons and a structure that removes none keep them. A structure whose moon removal has
-/// a condition removes none. Once moon 7 holds a megastructure, the moons cannot go, as the
-/// delete says.
+/// a condition removes none. Once moon 7 holds a megastructure, the moons cannot go, and the
+/// reason names moon 7, by its key's words with no localisation in the install.
 #[test]
 fn the_fits_say_what_happens_to_the_moons() {
     let (_dir, gd) = yard_fixture();
@@ -237,5 +253,48 @@ fn the_fits_say_what_happens_to_the_moons() {
     let HostMoonsFit::Refused { reason } = moons(&session, ALARI, GAS_GIANT, "fx_yard_2") else {
         panic!("moon 7 holds a megastructure");
     };
-    assert!(reason.contains("megastructure"), "{reason}");
+    assert_eq!(
+        reason,
+        "HUM1 PLANET MadragonsStronghold has a megastructure."
+    );
+}
+
+/// A ring named after its planet is one the editor cannot write, so the named yard is part
+/// of a larger structure, as the add refuses it. Its row still stays with the ring's planet.
+#[test]
+fn a_ring_named_after_its_planet_leaves_its_yard_whole() {
+    let (_dir, gd) = yard_fixture();
+    let def = gd
+        .megastructures
+        .get("fx_named_yard")
+        .expect("the named yard");
+    assert_eq!(
+        def.placement,
+        Placement::Unsupported {
+            why: Unsupported::WholeStructure { star_only: false },
+        }
+    );
+    let place = MegastructurePlace::Body { body: MOLTEN };
+    let refused = megastructure_op(
+        &gd,
+        &common::open_4_5(),
+        ALARI,
+        "fx_named_yard",
+        place,
+        false,
+        HostMoons::Keep,
+    );
+    assert!(
+        matches!(&refused, Err(Refusal::NotAdded { kind, .. }) if kind == "fx_named_yard"),
+        "{refused:?}"
+    );
+    let host_planet = |key: &str| {
+        gd.megastructure_views()
+            .into_iter()
+            .find(|view| view.def.key == key)
+            .map(|view| view.host_planet)
+    };
+    assert_eq!(host_planet("fx_named_yard"), Some(true));
+    assert_eq!(host_planet("fx_yard_2"), Some(true));
+    assert_eq!(host_planet("fx_yard_1"), Some(false));
 }

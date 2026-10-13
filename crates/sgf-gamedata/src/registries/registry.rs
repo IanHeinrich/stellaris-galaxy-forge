@@ -21,7 +21,7 @@ pub(crate) trait FromDef: Sized {
     fn read(key: String, def: &Def) -> Self;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Registry<T>(BTreeMap<String, T>);
 
 impl<T> Default for Registry<T> {
@@ -49,6 +49,10 @@ impl<T> Registry<T> {
 
     pub(crate) fn insert(&mut self, key: String, value: T) {
         self.0.insert(key, value);
+    }
+
+    pub(crate) fn get_mut(&mut self, key: &str) -> Option<&mut T> {
+        self.0.get_mut(key)
     }
 }
 
