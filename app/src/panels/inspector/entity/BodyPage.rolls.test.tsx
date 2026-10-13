@@ -13,7 +13,7 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { drawnBy } from "../../../test/drawn";
 import { hintOf } from "../../../test/hints";
 import { mockedIpc } from "../../../test/ipc";
-import { classRows } from "../../../test/poolRows";
+import { classRowsOf } from "../../../test/poolRows";
 import { rolledBody, systemRoll } from "../../../test/rolls";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
 import { bodyLayout } from "../../../test/builders";
@@ -80,7 +80,7 @@ describe("what a scenario body can roll", () => {
     );
     expect(cls).toContain(">Random class</span>");
     expect(hintOf("Class")).toContain("Rolled from the classes that fit its orbit.");
-    const odds = classRows(cls).map((r) => [r.name.toLowerCase(), r.width, r.chance]);
+    const odds = classRowsOf(cls).map((r) => [r.name.toLowerCase(), r.width, r.chance]);
     expect(odds).toEqual([
       [expect.stringContaining("barren"), "100.0%", "75%"],
       [expect.stringContaining("toxic"), "33.3%", "25%"],
@@ -127,7 +127,7 @@ describe("what a scenario body can roll", () => {
     });
     await land(details({ planets: [listed], spawn: systemSpawn() }));
 
-    const rows = classRows(row(page(101, "Listed"), "Class"));
+    const rows = classRowsOf(row(page(101, "Listed"), "Class"));
     expect(rows.map((r) => [r.name, /aria-pressed/.test(r.html)])).toEqual([
       ["Barren World", false],
       ["Frozen World", true],
@@ -155,7 +155,7 @@ describe("what a scenario body can roll", () => {
       '<span class="ins-set-by">Rolled from the classes that fit its orbit.</span>' +
         '<span class="ins-set-by">Which of these it can be depends on its orbit and on the system&#x27;s star.</span>',
     );
-    const listed = classRows(wide);
+    const listed = classRowsOf(wide);
     expect(listed.map((r) => r.name.toLowerCase())).toEqual([
       expect.stringContaining("barren"),
       expect.stringContaining("toxic"),
@@ -416,6 +416,7 @@ describe("a scenario body's name in lists and links", () => {
 
 describe("the rolled look", () => {
   it("leads a rolled value with a die that says on hover what it means", () => {
+    expect(DIE).toContain('role="img" aria-label="Rolled when a new game starts"');
     expect(DIE).toContain('title="Rolled when a new game starts"');
     expect(renderToStaticMarkup(<Rolled>2 to 10</Rolled>)).toBe(rolled("2 to 10"));
   });

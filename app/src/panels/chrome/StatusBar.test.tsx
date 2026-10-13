@@ -32,6 +32,7 @@ import { bodySpawn } from "../../test/spawn";
 import { mockedIpc } from "../../test/ipc";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { openWith } from "../../test/session";
+import { patchSystem } from "../inspector/inspectorFixture";
 import { StatusBar } from "./StatusBar";
 
 const bar = () => renderToStaticMarkup(<StatusBar />);
@@ -397,11 +398,7 @@ describe("the system view of a scenario", () => {
         naming: { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals: ["I"] },
       }),
     });
-    const systems = new Map(useGalaxyStore.getState().systems);
-    const node = systems.get(0);
-    if (node === undefined) throw new Error("the scenario has no system 0");
-    systems.set(0, { ...node, name: { ...name("Riadore"), literal: true } });
-    useGalaxyStore.setState({ systems });
+    patchSystem(0, { name: { ...name("Riadore"), literal: true } });
     mockedIpc.getSystemDetails.mockResolvedValue([
       systemDetails({ id: 0, planets: [unnamed], with_game_data: true }),
     ]);

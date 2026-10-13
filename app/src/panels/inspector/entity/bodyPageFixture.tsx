@@ -15,8 +15,8 @@ import {
 } from "../../../store/fixture";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { heldAnomaly, savePickerTarget } from "../../../store/planetEditAdapter";
 import { armStarClasses as armClasses } from "../../../store/storeFixture";
+import { pickerTarget as sharedPickerTarget } from "../../../test/pickerTarget";
 import { details, land, planet, SYSTEM } from "../inspectorFixture";
 import { PlanetView } from "./PlanetView";
 
@@ -77,8 +77,7 @@ export function summaryOf(page: PlanetPage): PlanetSummary {
 }
 
 /** Save body `page` in system `SYSTEM`, as its page hands it to the pickers. */
-export const pickerTarget = (page: PlanetPage) =>
-  savePickerTarget(SYSTEM, summaryOf(page), page, heldAnomaly(page));
+export const pickerTarget = (page: PlanetPage) => sharedPickerTarget(page, summaryOf(page), SYSTEM);
 
 /**
  * Answers the read of `page` as the save does, once it has landed in the store, with the body in

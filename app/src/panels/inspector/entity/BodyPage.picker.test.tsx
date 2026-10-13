@@ -14,7 +14,7 @@ import { classPickKey, useInspectorStore } from "../../../store/inspectorStore";
 import { drawnBy } from "../../../test/drawn";
 import { hintOf } from "../../../test/hints";
 import { mockedIpc } from "../../../test/ipc";
-import { depositRows, poolRows, type ShownPoolRow } from "../../../test/poolRows";
+import { depositRowsOf, poolRows, type ShownPoolRow } from "../../../test/poolRows";
 import { classRolls } from "../../../test/rolls";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
 import { depositTypeView, resourceAmount } from "../../../store/fixtures/planet";
@@ -180,7 +180,7 @@ describe("a scenario body's class picker", () => {
     expect(html).not.toContain(CAN_ROLL_TITLE);
     expect(html).not.toContain('<span class="k">Deposits</span>');
     expect(html).toContain("Can roll · 2 resources");
-    expect(depositRows(html).map((r) => r.title)).toEqual(["Minerals · 60%", "Energy · 30%"]);
+    expect(depositRowsOf(html).map((r) => r.title)).toEqual(["Minerals · 60%", "Energy · 30%"]);
     expect(html).toContain("Can roll · 1 planet feature");
     expect(poolRows(html.slice(html.indexOf("1 planet feature"))).map((r) => r.chance)).toEqual([
       "50%",

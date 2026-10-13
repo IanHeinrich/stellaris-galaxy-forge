@@ -68,14 +68,14 @@ export function poolChips(html: string): ShownChip[] {
 }
 
 /** The class rows of a Class row's picker, after its Any. */
-export function classRows(html: string) {
+export function classRowsOf(html: string) {
   const [any, ...classes] = poolRows(html);
   expect(any.name).toBe("Any");
   return classes;
 }
 
 /** The rows of the Deposits section, without the Class row's or the Modifiers section's. */
-export function depositRows(html: string) {
+export function depositRowsOf(html: string) {
   const start = html.indexOf('class="ins-sec-title">Deposits');
   const end = html.indexOf('class="ins-sec-title">Modifiers');
   return poolRows(html.slice(start, end === -1 ? undefined : end));

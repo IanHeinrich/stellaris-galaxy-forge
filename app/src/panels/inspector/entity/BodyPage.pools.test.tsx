@@ -12,7 +12,7 @@ import { bindStores } from "../../../store/bindStores";
 import { drawnBy } from "../../../test/drawn";
 import { openGroups } from "../../../test/groups";
 import { hintOf } from "../../../test/hints";
-import { classRows, depositRows, poolChips, poolRows } from "../../../test/poolRows";
+import { classRowsOf, depositRowsOf, poolChips, poolRows } from "../../../test/poolRows";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
 import { depositTypeView, resourceAmount } from "../../../store/fixtures/planet";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
@@ -66,7 +66,7 @@ describe("the deposits and features a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Can roll · 2 kinds");
-    expect(depositRows(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
+    expect(depositRowsOf(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
     expect(html).toContain("Can roll · 2 planet features");
     const features = poolRows(html.slice(html.indexOf("planet features")));
     expect(features.map((r) => [r.name, r.width, r.chance])).toEqual([
@@ -105,7 +105,7 @@ describe("the deposits and features a scenario body can roll", () => {
     const html = page(100, "Planet");
     expect(html).toContain("Engineering Site");
     expect(html).toContain("Can also roll · 1 kind");
-    expect(depositRows(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
+    expect(depositRowsOf(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
     expect(html).not.toContain("Minerals 1");
     expect(html).toContain("Can also roll · 3 planet features");
   });
@@ -157,7 +157,7 @@ describe("the deposits and features a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Can roll · 3 resources");
-    const rows = depositRows(html);
+    const rows = depositRowsOf(html);
     expect(rows.map((r) => r.title)).toEqual([
       "Minerals · 40%",
       "Mystery · 30%",
@@ -516,7 +516,7 @@ describe("the deposits and features a scenario body can roll", () => {
     await land(details({ planets: [four], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(classRows(row(html, "Class"))).toHaveLength(classes.length);
+    expect(classRowsOf(row(html, "Class"))).toHaveLength(classes.length);
     expect(html).not.toContain("pl-class-strip");
     expect(html).toContain("Can roll · 2 planet features");
     const features = poolRows(html.slice(html.indexOf("planet features")));

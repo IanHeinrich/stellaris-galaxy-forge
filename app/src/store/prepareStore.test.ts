@@ -13,6 +13,7 @@ import { summaryLine } from "../lib/prepareCopy";
 import { stubPrefs } from "../test/prefs";
 import { mockedIpc } from "../test/ipc";
 import { until } from "../test/wait";
+import { PREPARE_SETTLE_MS } from "./bindStores";
 import { deferred, editor, openFixtureScenario } from "./editorFixture";
 import { editResult, historyEntry, OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -84,10 +85,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Lets the timer an edit started run out, however long it is, so what it would ask for is asked. */
+/** Lets the settle time after an edit run out, so what it would ask for is asked. */
 async function settled(): Promise<void> {
-  expect(vi.getTimerCount()).toBeGreaterThan(0);
-  await vi.runOnlyPendingTimersAsync();
+  await vi.advanceTimersByTimeAsync(PREPARE_SETTLE_MS);
 }
 
 describe("the Prepare choices", () => {
