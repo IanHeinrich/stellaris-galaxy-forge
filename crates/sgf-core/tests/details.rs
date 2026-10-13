@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
-    ArchaeologySite, FleetPresence, FleetSummary, MegastructureSummary,
+    ArchaeologySite, BodyRole, FleetPresence, FleetSummary, MegastructureSummary,
 };
 
 use crate::common;
@@ -364,5 +364,66 @@ fn sites_and_pre_ftl_planets_are_where_the_save_puts_them() {
             .clone()
             .flat_map(|s| &s.planets)
             .all(|p| !p.pre_ftl || p.colonised)
+    );
+}
+
+#[test]
+fn a_body_alone_reads_as_its_system_lists_it() {
+    let session = common::warmed();
+    let details = session.details().expect("build details");
+    let (system, planet) = session
+        .graph()
+        .systems
+        .keys()
+        .filter_map(|&id| details.resolve(id, &HeuristicResolver, false))
+        .find_map(|d| {
+            let planet = d
+                .planets
+                .iter()
+                .find(|p| !p.moon && d.planets.iter().any(|m| m.parent == Some(p.id)))?
+                .id;
+            Some((d, planet))
+        })
+        .expect("a planet with moons");
+    let primary = system
+        .planets
+        .iter()
+        .find(|p| p.role == BodyRole::Primary)
+        .expect("a primary star")
+        .id;
+    for body in [planet, primary] {
+        let alone = session
+            .unlisted_body(body, 9999, &HeuristicResolver, false)
+            .expect("read the body")
+            .expect("the save holds it");
+        assert_eq!(alone.id, system.id);
+        let listed: Vec<_> = system
+            .planets
+            .iter()
+            .filter(|p| p.id == body || p.parent == Some(body))
+            .collect();
+        assert_eq!(alone.planets.len(), listed.len());
+        for (read, listed) in alone.planets.iter().zip(listed) {
+            assert_eq!(
+                (&read.id, &read.class, &read.name, &read.size, &read.role),
+                (
+                    &listed.id,
+                    &listed.class,
+                    &listed.name,
+                    &listed.size,
+                    &listed.role
+                )
+            );
+            assert_eq!(
+                (&read.parent, &read.layout, &read.ring),
+                (&listed.parent, &listed.layout, &listed.ring)
+            );
+        }
+    }
+    assert!(
+        session
+            .unlisted_body(9_999_999, 0, &HeuristicResolver, false)
+            .expect("read")
+            .is_none()
     );
 }

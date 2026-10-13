@@ -18,7 +18,7 @@ import { modifierCard } from "./modifierCard";
 import { EffectSummary, PickerCard } from "./PickerCard";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
-import { FeaturePool, PoolLines } from "./SpawnFacts";
+import { FeaturePool, PoolLines } from "./Pools";
 import { useFeatureNamer } from "./useFeatureNamer";
 
 /** A row's card while `shown`; nothing else. */

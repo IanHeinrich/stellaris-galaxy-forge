@@ -3,16 +3,12 @@ import type { Bounds } from "../../../generated/Bounds";
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import { bodyClassName, bodyName, shownBodyName } from "../../../lib/details/labels";
-import { isStarBody } from "../../../lib/details/starBody";
+import { isStar } from "../../../lib/details/starBody";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
-import { planetPageOffers } from "../../../lib/details/planetOffers";
+import { overviewParts, planetPageOffers } from "../../../lib/details/planetOffers";
 import { hasRingCheckbox } from "../../../lib/details/ring";
-import {
-  HOME_PLANET_TITLE,
-  RING_ROLLED,
-  neverSpawns,
-  START_PLANET_TITLE,
-} from "../../../lib/details/spawnFacts";
+import { ringValue } from "../../../lib/details/scenarioValues";
+import { neverSpawns } from "../../../lib/details/spawnFacts";
 import { COLONY_SIZE } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { bodyOrbit } from "../../../lib/details/orbitIntent";
@@ -29,9 +25,10 @@ import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditF
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
-import { Hinted, NeverPlaced, Rolled } from "../states";
+import { NeverPlaced, StateValue } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
+import { BodyChips } from "./BodyChips";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
 import { EntityView } from "./EntityView";
 import { InitializerSource } from "./InitializerSource";
@@ -55,7 +52,7 @@ import {
   ClassDependent,
   SpawnHeadNotes,
   SpawnProperties,
-} from "./SpawnFacts";
+} from "./SpawnRows";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useGivenNames } from "./useBodyName";
 import { useClassPreview } from "./useClassPreview";
@@ -77,7 +74,7 @@ function useIsStar(body: PlanetSummary | null): boolean {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   if (body === null) return false;
-  return body.star_class !== undefined || isStarBody(body.class, planetClasses, starClasses);
+  return isStar(body, { planetClasses, starClasses });
 }
 
 /** Opens the system view on body `body` of `system`, unless it can't open or already shows the body selected. */
@@ -127,18 +124,7 @@ function Head({
       <span className="name">{name}</span>
       {id !== null && <span className="muted mono">#{id}</span>}
       {body?.colonised && <Chip>colonised</Chip>}
-      {body?.capital && <Chip>capital</Chip>}
-      {body?.pre_ftl && <Chip>pre-FTL</Chip>}
-      {body?.spawn?.starting_planet && (
-        <Hinted label="Start planet" hint={START_PLANET_TITLE} focusable={false}>
-          <Chip>start planet</Chip>
-        </Hinted>
-      )}
-      {body?.spawn?.home_planet && (
-        <Hinted label="Home planet" hint={HOME_PLANET_TITLE} focusable={false}>
-          <Chip>home planet</Chip>
-        </Hinted>
-      )}
+      {body !== null && <BodyChips body={body} />}
       {neverSpawns(body?.spawn) && <NeverPlaced />}
       {action}
     </div>
@@ -224,12 +210,6 @@ function PlanetBlock({
   );
 }
 
-/** A body's `ring`: stated, or left to its class's chance. */
-function ringText(ring: boolean | null): ReactNode {
-  if (ring === null) return <Rolled>{RING_ROLLED}</Rolled>;
-  return ring ? "Yes" : "No";
-}
-
 /** The page's Delete, where the page offers removal. */
 function DeleteSection({ read, offers }: PlanetSectionProps) {
   const names = useGameDataStore((s) => s.names);
@@ -296,10 +276,14 @@ function BodyOverview({ read: listedRead }: { read: BodyRead }) {
       ),
     moonHost: false,
   });
-  const starBlock = offers.starFields && read.listed && system !== undefined;
-  const starWait = offers.starFields && read.listed && !starBlock;
   const name = shownBodyName(summary, given, names);
   const size = bodySize(summary);
+  const parts = overviewParts(offers, {
+    star,
+    listed: read.listed,
+    sized: size !== null,
+    systemRead: system !== undefined,
+  });
   const fields: PlanetFields = {
     name: offers.planetFields ? name : null,
     size: offers.planetFields
@@ -319,9 +303,6 @@ function BodyOverview({ read: listedRead }: { read: BodyRead }) {
   const own = editing.bodies.get(summary.id);
   const orbitEdited =
     (bodyOrbit(layout, summary.id) !== null && own?.move === true) || own?.detachOnly === true;
-  const showClass = !offers.planetClass && !starBlock && !starWait;
-  const showSize = size !== null && !offers.planetFields && !starBlock && !starWait;
-  const showRing = !star && !offers.ring && read.listed;
   return (
     <>
       <Head
@@ -331,26 +312,32 @@ function BodyOverview({ read: listedRead }: { read: BodyRead }) {
         action={read.listed && <ShowInSystemView system={details.id} body={summary.id} />}
       />
       {hasFields(fields) && <PlanetBlock id={summary.id} edits={target.edits} fields={fields} />}
-      {starBlock && <StarBlock planet={summary} system={system} edits={target.edits} />}
-      {starWait && <Empty>{READING_STARS}</Empty>}
+      {parts.starBlock && system !== undefined && (
+        <StarBlock planet={summary} system={system} edits={target.edits} />
+      )}
+      {parts.starWait && <Empty>{READING_STARS}</Empty>}
       <SpawnHeadNotes read={read} />
       <OrbitBlock system={details.id} body={summary.id} />
       {summary.spawn !== undefined && (
         <SpawnProperties read={read} spawn={summary.spawn} star={star} preview={preview} />
       )}
-      {summary.spawn === undefined && (showClass || showSize || showRing) && (
+      {summary.spawn === undefined && (parts.classRow || parts.sizeRow || parts.ringRow) && (
         <Properties>
-          {showClass && (
+          {parts.classRow && (
             <PropertyRow label="Class">
               {summary.drawn ? "random" : bodyClassName(summary.class, names)}
             </PropertyRow>
           )}
-          {showSize && (
+          {parts.sizeRow && size !== null && (
             <PropertyRow label="Size">
               <PlanetSize size={rangeText(size)} />
             </PropertyRow>
           )}
-          {showRing && <PropertyRow label="Ring">{ringText(summary.ring)}</PropertyRow>}
+          {parts.ringRow && (
+            <PropertyRow label="Ring">
+              <StateValue value={ringValue(undefined, summary.ring)} />
+            </PropertyRow>
+          )}
         </Properties>
       )}
       {SECTIONS.map(({ id, Component, pooled }) => (
@@ -358,7 +345,7 @@ function BodyOverview({ read: listedRead }: { read: BodyRead }) {
           <Component read={read} offers={offers} orbitEdited={orbitEdited} />
         </ClassDependent>
       ))}
-      {(starBlock || hasFields(fields) || editsAny || orbitEdited) && <EditKey />}
+      {(parts.starBlock || hasFields(fields) || editsAny || orbitEdited) && <EditKey />}
     </>
   );
 }

@@ -32,7 +32,7 @@ import type { PlanetSectionProps } from "./planetSection";
 import { depositPoolTail } from "../../../lib/details/depositBars";
 import { DepositPoolBars } from "./DepositPoolBars";
 import { ResourceIcon } from "./ResourceIcon";
-import { PoolLines } from "./SpawnFacts";
+import { PoolLines } from "./Pools";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];

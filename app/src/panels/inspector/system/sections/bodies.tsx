@@ -6,7 +6,7 @@ import {
   planetTint,
   shatteredDiscKey,
 } from "../../../../lib/details/icons";
-import { isStarBody } from "../../../../lib/details/starBody";
+import { isStar } from "../../../../lib/details/starBody";
 import { bodyLook } from "../../../../map/system/look";
 import {
   type ResourceRow,
@@ -88,7 +88,7 @@ export function PlanetIcon({
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const own = sprite ? [`sprite:${sprite}`] : [];
-  if (isStarBody(planetClass, planetClasses, starClasses)) {
+  if (isStar({ class: planetClass }, { planetClasses, starClasses })) {
     const texture = starClasses.get(planetClass)?.texture_key;
     return <StarIcon keys={texture ? [...own, texture] : own} />;
   }

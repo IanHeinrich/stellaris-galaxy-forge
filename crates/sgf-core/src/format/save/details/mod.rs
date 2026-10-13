@@ -221,6 +221,37 @@ impl DetailsProjection {
         uses
     }
 
+    /// Planet `id` and its moons as their own entities now read, as the details of a system
+    /// that lists only them: the system the planet names, else `system`, resolved as
+    /// [`Self::resolve`] resolves a system's. It answers for a
+    /// body whose system's details don't list it, so it reads none of the tables a build
+    /// joins: capitals, pre-FTL owners, deposits and pops are left empty. `None` when the
+    /// save holds no such planet.
+    pub fn unlisted_body(
+        doc: &Document,
+        id: u32,
+        system: u32,
+        stars: &StarClasses,
+        resolver: &dyn DetailsResolver,
+        with_game_data: bool,
+    ) -> Result<Option<SystemDetails>, ProjectionError> {
+        let Some(extract::PlanetAlone { origin, planets }) = extract::planet_alone(doc, id, stars)?
+        else {
+            return Ok(None);
+        };
+        let raw = RawSystemDetails {
+            planets,
+            ..RawSystemDetails::default()
+        };
+        let system = origin.unwrap_or(system);
+        Ok(Some(resolve::resolve(
+            system,
+            &raw,
+            resolver,
+            with_game_data,
+        )))
+    }
+
     pub fn raw(&self, id: u32) -> Option<&RawSystemDetails> {
         self.by_system.get(&id)
     }

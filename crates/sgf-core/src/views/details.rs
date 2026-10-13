@@ -223,6 +223,11 @@ pub struct SourceLine {
     /// The file's absolute path.
     pub file: String,
     pub line: u32,
+    /// The last line of the block that starts on `line`, where it ends on a later line of the
+    /// same file; `None` for a statement on one line, and wherever only its start is given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub last: Option<u32>,
 }
 
 /// An `inline_script` whose text was read in place of the call.

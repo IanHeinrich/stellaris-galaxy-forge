@@ -5,7 +5,6 @@ vi.mock("../../../api/events");
 // The star icons and deposit art come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import * as ipc from "../../../api/ipc";
 import type { DocumentKind } from "../../../generated/DocumentKind";
@@ -32,6 +31,7 @@ import {
   stars,
   landPage,
   answerPage,
+  answerUnlisted,
   render,
 } from "./bodyPageFixture";
 
@@ -249,6 +249,7 @@ describe("a save body its system's details can't list", () => {
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
     expect(useDetailsStore.getState().failed.has(SYSTEM)).toBe(true);
     await answerPage(NEKKAR);
+    await answerUnlisted(NEKKAR);
 
     expectDrawnFromItsPage();
   });
@@ -257,8 +258,23 @@ describe("a save body its system's details can't list", () => {
     await open("save");
     await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
     await answerPage(NEKKAR);
+    await answerUnlisted(NEKKAR);
 
     expectDrawnFromItsPage();
+  });
+
+  it.each([
+    ["the read fails", () => mockedIpc.getUnlistedBody.mockRejectedValueOnce(new Error("gone"))],
+    ["the save holds no such planet", () => mockedIpc.getUnlistedBody.mockResolvedValueOnce(null)],
+  ])("falls back to the generic view where its own read can't list it: %s", async (_, arm) => {
+    await open("save");
+    await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
+    await answerPage(NEKKAR);
+    arm();
+    useEntityStore.getState().requestUnlisted(WORLD, SYSTEM);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(render(WORLD)).toContain(GENERIC_HEAD);
   });
 
   it("heads the page with the save's entity id while it reads", async () => {
@@ -332,7 +348,9 @@ describe("Show in system view", () => {
   it("hides on a body its system's details don't list, which the system view can't select", async () => {
     await open("save");
     await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
-    await answerPage(planetPage({ id: WORLD, name: name("Tarkin"), name_key: "Tarkin" }));
+    const tarkin = planetPage({ id: WORLD, name: name("Tarkin"), name_key: "Tarkin" });
+    await answerPage(tarkin);
+    await answerUnlisted(tarkin);
 
     const html = render(WORLD);
     expect(html).toContain('<span class="name">Tarkin</span>');

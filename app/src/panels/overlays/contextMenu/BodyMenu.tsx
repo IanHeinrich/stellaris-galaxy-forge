@@ -5,7 +5,7 @@ import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { ADD_MEGASTRUCTURE_LABEL } from "../../../lib/megastructureCopy";
-import { isStarBody } from "../../../lib/details/starBody";
+import { isStar } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
@@ -53,7 +53,7 @@ export function BodyMenu({
   const planet = details?.planets.find((p) => p.id === target.id);
   const moon = planet?.moon === true;
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
-  const star = planet !== undefined && isStarBody(planet.class, planetClasses, starClasses);
+  const star = planet !== undefined && isStar(planet, { planetClasses, starClasses });
   const segment = planet !== undefined && isRingSegment(planet.class);
   const offers = planetPageOffers(capabilities, {
     star,

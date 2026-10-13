@@ -81,6 +81,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_entity_source,
             commands::get_entity_schema,
             commands::get_planet_page,
+            commands::get_unlisted_body,
             commands::planet_move_targets,
             commands::planet_move_check,
             commands::planet_move_op,

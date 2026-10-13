@@ -1,6 +1,7 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import type { SourceLine } from "../../generated/SourceLine";
 import type { SystemSpawn } from "../../generated/SystemSpawn";
+import type { StateText } from "../../lib/details/scenarioValues";
 import {
   DEPENDS_ON_CLASS,
   NEVER_PLACED,
@@ -50,6 +51,30 @@ export function Rolled({ className, children }: { className?: string; children?:
 /** A value decided when a game starts in a way Galaxy Forge can't show. */
 export function Unknown({ children }: { children: ReactNode }) {
   return <span className="ins-st-unknown">{children}</span>;
+}
+
+/**
+ * A scenario value in the look of its state. `children`, where given, show in place of its text;
+ * `className` styles it in every state but unknown.
+ */
+export function StateValue({
+  value,
+  className,
+  children,
+}: {
+  value: StateText;
+  className?: string;
+  children?: ReactNode;
+}) {
+  const shown = children === undefined ? value.text : children;
+  switch (value.state) {
+    case "fixed":
+      return className === undefined ? <>{shown}</> : <span className={className}>{shown}</span>;
+    case "rolled":
+      return <Rolled className={className}>{shown}</Rolled>;
+    case "unknown":
+      return <Unknown>{shown}</Unknown>;
+  }
 }
 
 /** The line over a list of what a roll can give, where the class the body gets decides the odds. */

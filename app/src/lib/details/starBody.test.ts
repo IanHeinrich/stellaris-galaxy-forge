@@ -5,6 +5,7 @@ import { details, planet } from "./fixture";
 import {
   eachStarKeys,
   findPlanet,
+  isStar,
   isStarBody,
   singleStarClasses,
   starMismatch,
@@ -48,6 +49,15 @@ describe("isStarBody", () => {
     expect(isStarBody("pc_pulsar", new Map(), new Map())).toBe(true);
     expect(isStarBody("pc_barren", new Map(), new Map())).toBe(false);
     expect(isStarBody("star", new Map(), new Map())).toBe(true);
+  });
+});
+
+describe("isStar", () => {
+  it("takes a body the core gives a star class as a star, whatever its class says", () => {
+    const facts = { planetClasses: PLANET_CLASSES, starClasses: CLASSES };
+    expect(isStar({ class: "pc_barren", star_class: "sc_g" }, facts)).toBe(true);
+    expect(isStar({ class: "pc_g_star" }, facts)).toBe(true);
+    expect(isStar({ class: "pc_barren" }, facts)).toBe(false);
   });
 });
 
