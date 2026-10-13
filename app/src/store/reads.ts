@@ -121,6 +121,7 @@ export function keyedReads<A, T, K extends Key>(
 
   async function flush(): Promise<void> {
     timer = null;
+    inScope();
     const asks = waiting;
     waiting = [];
     const size = options.batch ?? asks.length;

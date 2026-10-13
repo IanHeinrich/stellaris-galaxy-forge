@@ -216,11 +216,7 @@ const GALAXY_DATA = { galaxyShapes: null, galaxyShapesPending: false };
 /** The registry of models, sprites and the textures they name. */
 const GRAPHICS = "graphics";
 
-/**
- * The fields game data that has just landed starts from, with the details and scripts read from
- * what it replaces dropped.
- */
-function loadedNow(): string {
+export function loadedNow(): string {
   const { status, version } = useGameDataStore.getState();
   return `${status}/${version}`;
 }
@@ -241,6 +237,10 @@ function forgetTexts(): Map<string, string> {
   return new Map();
 }
 
+/**
+ * The fields game data that has just landed starts from, with the details and scripts read from
+ * what it replaces dropped.
+ */
 function freshData(): typeof FRESH_DATA & {
   names: Map<string, string>;
   texts: Map<string, string>;

@@ -4,7 +4,7 @@ import type { PlanetSummary } from "../generated/PlanetSummary";
 import { givenNamesFrom, nameFormats, type GivenName } from "../lib/details/spawnNames";
 import { lastOf } from "../lib/memo";
 import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
+import { loadedNow, useGameDataStore } from "./gameDataStore";
 import { keyedReads } from "./reads";
 
 /**
@@ -22,34 +22,33 @@ interface NameFormatsState {
   request(keys: readonly string[]): void;
 }
 
-function loadedNow(): string {
-  const data = useGameDataStore.getState();
-  return `${data.status}/${data.version}`;
-}
-
 const formatReads = keyedReads((keys: string[]) => ipc.getRawNames(keys), {
   scope: loadedNow,
   wait: 0,
   answered(keys, raw) {
-    const { formats, answered } = useNameFormatsStore.getState();
+    const held = useNameFormatsStore.getState();
+    const loaded = loadedNow();
+    const kept = held.loaded === loaded ? held : { formats: [], answered: [] };
     useNameFormatsStore.setState({
-      formats: new Map([...formats, ...Object.entries(raw)]),
-      answered: new Set([...answered, ...keys]),
+      loaded,
+      formats: new Map([...kept.formats, ...Object.entries(raw)]),
+      answered: new Set([...kept.answered, ...keys]),
     });
   },
   failed: () => undefined,
 });
 
-export const useNameFormatsStore = create<NameFormatsState>((set, get) => ({
+const NONE: ReadonlySet<string> = new Set();
+
+export const useNameFormatsStore = create<NameFormatsState>((_set, get) => ({
   loaded: "",
   formats: new Map(),
   answered: new Set(),
   request(keys) {
     if (useGameDataStore.getState().status !== "ready") return;
-    const loaded = loadedNow();
-    if (get().loaded !== loaded) set({ loaded, formats: new Map(), answered: new Set() });
-    const { answered } = get();
-    void formatReads.read(keys.filter((key) => !answered.has(key)));
+    const { loaded, answered } = get();
+    const held = loaded === loadedNow() ? answered : NONE;
+    void formatReads.read(keys.filter((key) => !held.has(key)));
   },
 }));
 

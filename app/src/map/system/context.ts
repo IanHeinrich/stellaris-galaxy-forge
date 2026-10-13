@@ -665,7 +665,6 @@ function sceneExits(src: SystemSources, radius: number): Exit[] {
   });
 }
 
-/** Gives the last answer again while every input is the one it was computed from. */
 const lastBodies = lastOf<readonly SceneBody[]>();
 const lastById = lastOf<ReadonlyMap<number, SceneBody>>();
 const lastBelts = lastOf<readonly SceneBelt[]>();
