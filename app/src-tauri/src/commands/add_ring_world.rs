@@ -6,8 +6,10 @@ use sgf_gamedata::construction::ring_world::RingStage;
 use sgf_gamedata::generate;
 use tauri::{AppHandle, Runtime};
 
-use super::{game_data, with_session};
+use super::{game_data, require, with_session};
 use crate::views::Added;
+
+const NO_RING_WORLDS: &str = "this document takes no added ring world";
 
 /// Add the ring world of megastructure type `kind`, any stage of its chain, round the star of
 /// system `system`, each quadrant at its stage in `stages`, clearing the system first with
@@ -21,9 +23,10 @@ pub async fn add_ring_world<R: Runtime>(
     stages: Vec<RingStage>,
     clear: bool,
 ) -> Result<Added, SgfError> {
-    let gd = game_data(&app, "add a ring world")?;
+    let gd = game_data(&app, "add a ring world");
     with_session(app, move |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let session = require(guard.as_mut(), |c| c.add_megastructures, NO_RING_WORLDS)?;
+        let gd = gd?;
         let planned = generate::ring_world_op(&gd, session, system, &kind, &stages, clear)?;
         let result = session.apply(planned.op)?;
         Ok(Added::of(session, result))
@@ -39,7 +42,7 @@ pub async fn get_ring_world_clearing<R: Runtime>(
     system: u32,
 ) -> Result<RingWorldClearing, SgfError> {
     with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        let session = require(guard.as_ref(), |c| c.add_megastructures, NO_RING_WORLDS)?;
         Ok(session
             .save("clearing a system for a ring world")?
             .ring_world_clearing(system)?)

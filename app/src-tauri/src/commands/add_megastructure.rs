@@ -6,8 +6,10 @@ use sgf_core::views::SgfError;
 use sgf_gamedata::generate;
 use tauri::{AppHandle, Runtime};
 
-use super::{game_data, with_session};
+use super::{game_data, require, with_session};
 use crate::views::{Added, AddedMegastructure};
+
+const NO_MEGASTRUCTURES: &str = "this document takes no added megastructure";
 
 /// Add a finished megastructure of type `kind` to system `system` of the open save at
 /// `place`, as `sgf_gamedata::generate::megastructure_op` builds it, changing its planet as
@@ -21,9 +23,10 @@ pub async fn add_megastructure<R: Runtime>(
     place: MegastructurePlace,
     keep_planet: bool,
 ) -> Result<AddedMegastructure, SgfError> {
-    let gd = game_data(&app, "add a megastructure")?;
+    let gd = game_data(&app, "add a megastructure");
     with_session(app, move |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let session = require(guard.as_mut(), |c| c.add_megastructures, NO_MEGASTRUCTURES)?;
+        let gd = gd?;
         let planned = generate::megastructure_op(&gd, session, system, &kind, place, keep_planet)?;
         let result = session.apply(planned.op)?;
         Ok(AddedMegastructure {

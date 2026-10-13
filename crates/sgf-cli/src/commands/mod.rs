@@ -24,7 +24,6 @@ use std::process::ExitCode;
 
 use sgf_core::document;
 use sgf_core::validate::{Issue, Severity};
-use sgf_core::views::DocumentKind;
 use sgf_gamedata::{GameData, LoadError, LoadOptions};
 
 /// What every command returns; an error is printed by `main` and exits 1.
@@ -52,11 +51,11 @@ pub fn game_data(opts: &LoadOptions) -> Result<GameData, LoadError> {
     sgf_gamedata::load(opts, &mut |_| {})
 }
 
-/// A save-only command's refusal, printed and returned when `path` holds a scenario.
+/// A save-only command's refusal, printed and returned when `path` holds anything but a save.
 pub fn saves_only(command: &str, path: &Path) -> Option<Outcome> {
-    (path.is_file() && document::sniff(path) == DocumentKind::Scenario).then(|| {
+    (path.is_file() && !document::is_save_file(path)).then(|| {
         println!(
-            "{command}: {} is a scenario; this command reads saves only",
+            "{command}: {} is not a save; this command reads saves only",
             path.display()
         );
         Outcome::Failed

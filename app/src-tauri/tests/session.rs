@@ -86,23 +86,27 @@ fn open_read_search_close() {
     );
     assert_eq!(salvagers.systems, [17, 57, 90]);
 
-    invoke::<()>(&w, "close_save", json!({})).expect("close");
+    invoke::<()>(&w, "close_document", json!({})).expect("close");
     assert_eq!(
         kind(invoke::<SystemDetail>(&w, "get_system", json!({ "id": 0 }))),
         ErrorKind::NoSession
     );
-    invoke::<()>(&w, "close_save", json!({})).expect("close again");
+    invoke::<()>(&w, "close_document", json!({})).expect("close again");
 }
 
 #[test]
 fn open_replaces_the_session_and_rejects_a_missing_file() {
     let w = opened(SAMPLE);
-    let err = invoke::<OpenResult>(&w, "open_save", json!({ "path": "no/such/file.sav" }))
+    let err = invoke::<OpenResult>(&w, "open_document", json!({ "path": "no/such/file.sav" }))
         .expect_err("missing file");
     assert_eq!(err.kind, ErrorKind::NotFound);
     assert!(err.message.contains("file.sav"), "{}", err.message);
-    let err = invoke::<OpenResult>(&w, "open_save", json!({ "path": "no/such/scenario.txt" }))
-        .expect_err("missing scenario");
+    let err = invoke::<OpenResult>(
+        &w,
+        "open_document",
+        json!({ "path": "no/such/scenario.txt" }),
+    )
+    .expect_err("missing scenario");
     assert_eq!(err.kind, ErrorKind::NotFound);
     // A failed open leaves the previous session in place.
     invoke::<SystemDetail>(&w, "get_system", json!({ "id": 0 })).expect("still open");

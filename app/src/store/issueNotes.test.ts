@@ -58,7 +58,7 @@ describe("scenario names the mod's folder already lists", () => {
   it("notes every other file in the mod's folder that lists the same name, on open and again on save", async () => {
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
     const mine = `${PAINT_DIR}/my_galaxy.txt`;
-    mockedIpc.openSave.mockResolvedValueOnce({
+    mockedIpc.openDocument.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       path: mine,
       galaxy: {
@@ -98,12 +98,12 @@ describe("scenario names the mod's folder already lists", () => {
   });
   it("notes nothing for a scenario outside the mod's folder, or when the folder cannot be read", async () => {
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(mockedIpc.siblingScenarioNames).not.toHaveBeenCalled();
 
     const mine = `${PAINT_DIR}/my_galaxy.txt`;
-    mockedIpc.openSave.mockResolvedValueOnce({
+    mockedIpc.openDocument.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       path: mine,
       galaxy: {
@@ -130,7 +130,7 @@ describe("reserved seats", () => {
     const codes = () => useIssuesStore.getState().issues.map((issue) => issue.code);
     const mod = (reserved_spawns: boolean) =>
       paintModView({ scenarios_dir: PAINT_DIR, reserved_spawns });
-    mockedIpc.openSave.mockResolvedValueOnce({
+    mockedIpc.openDocument.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       painted: true,
       galaxy: {
@@ -181,7 +181,7 @@ describe("reserved seats", () => {
 describe("the galaxy size note", () => {
   it("warns when a scenario has well over the largest galaxy size's stars, as systems come and go", async () => {
     await loadHuge();
-    mockedIpc.openSave.mockResolvedValue(scenarioOf(1300));
+    mockedIpc.openDocument.mockResolvedValue(scenarioOf(1300));
     await session().openSave(SCENARIO_RESULT.path);
     expect(useIssuesStore.getState().issues).toEqual([
       {
@@ -212,7 +212,7 @@ describe("the galaxy size note", () => {
     ]);
   });
   it("says nothing without game data, and stops once it goes away or comes back without sizes", async () => {
-    mockedIpc.openSave.mockResolvedValue(scenarioOf(2000));
+    mockedIpc.openDocument.mockResolvedValue(scenarioOf(2000));
     await session().openSave(SCENARIO_RESULT.path);
     expect(sizeMessages()).toEqual([]);
 
@@ -227,7 +227,7 @@ describe("the galaxy size note", () => {
   });
   it("holds a save to no galaxy size", async () => {
     await loadHuge();
-    mockedIpc.openSave.mockResolvedValue({
+    mockedIpc.openDocument.mockResolvedValue({
       ...scenarioOf(2000),
       kind: "save",
       capabilities: SAVE_CAPABILITIES,
@@ -247,7 +247,7 @@ describe("the initializer limit note", () => {
       ...[0, 1, 2].map((id) => systemNode({ id, x: id, initializer: "distar_crystal_system" })),
       ...[3, 4, 5, 6].map((id) => systemNode({ id, x: id, initializer: "basic_init_01" })),
     ];
-    mockedIpc.openSave.mockResolvedValue({
+    mockedIpc.openDocument.mockResolvedValue({
       ...SCENARIO_RESULT,
       issues: [],
       galaxy: { ...SCENARIO_RESULT.galaxy, systems },

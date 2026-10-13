@@ -31,7 +31,7 @@ const stored = new Map<string, string>();
 const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
 async function openScenario(): Promise<void> {
-  mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+  mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
   await session().openSave(SCENARIO_RESULT.path);
 }
 

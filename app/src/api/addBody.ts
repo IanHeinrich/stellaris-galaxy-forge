@@ -7,10 +7,9 @@ import type { Added } from "../generated/Added";
 import type { BodyClassPick } from "../generated/BodyClassPick";
 
 /**
- * Roll a body from `seed` and add it to system `system` of the open save as one edit, `radius`
- * from what it orbits at `angle` degrees: a moon of `parent`, or a planet for null. It is of
- * `planetClass` and `size` when given, else drawn as the game draws them, with the deposits it
- * rolls. Answers with the edit and the new body's id; see the command for its refusals.
+ * Calls `add_body`: roll a body from `seed` into system `system`, a moon of `parent` or a planet
+ * for null, `radius` out at `angle` degrees. A null `planetClass` or `size` is drawn. The command's
+ * doc says what it rolls and refuses.
  */
 export function addBody(
   system: number,

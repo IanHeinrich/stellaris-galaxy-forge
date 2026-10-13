@@ -279,12 +279,15 @@ fn a_scenario_takes_no_rolled_system() {
         .expect_err("a scenario has no picks");
     for refused in [added, rolled, special, picks] {
         assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
-        assert!(
-            refused.message.contains("only a save"),
-            "{}",
-            refused.message
-        );
+        assert_eq!(refused.message, "this document takes no rolled system");
     }
+    let removed = invoke::<EditResult>(&w, "remove_added_systems", json!({ "ids": [0] }))
+        .expect_err("a scenario has no added systems");
+    assert_eq!(removed.kind, ErrorKind::Op);
+    assert_eq!(
+        removed.message,
+        "this document has no systems added this session"
+    );
 }
 
 /// The picks the menu offers for the open save.

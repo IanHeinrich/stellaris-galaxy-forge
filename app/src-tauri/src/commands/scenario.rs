@@ -4,7 +4,7 @@ use std::sync::{Arc, MutexGuard};
 
 use sgf_core::session::{Session, SessionError};
 use sgf_core::views::details::{ClassRolls, SystemDetails};
-use sgf_core::views::{DocumentKind, ErrorKind, SgfError};
+use sgf_core::views::{Capabilities, ErrorKind, SgfError};
 use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{
     ScenarioBypasses, ScenarioOwners, ScenarioSystem, SystemScripts, bypasses::add_flagged_pairs,
@@ -13,7 +13,7 @@ use sgf_gamedata::special::{self, SpecialSystems};
 use sgf_gamedata::views::SystemRoll;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{game_data, with_scenario, with_session};
+use super::{game_data, opened, with_open, with_scenario, with_session};
 use crate::state::GameDataState;
 
 #[tauri::command]
@@ -21,8 +21,7 @@ pub async fn get_special_systems<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<SpecialSystems, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(special::classify_session(session, gd.as_deref()))
     })
     .await
@@ -48,9 +47,8 @@ pub async fn get_scenario_owners<R: Runtime>(
 pub async fn get_scenario_bypasses<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Option<ScenarioBypasses>, SgfError> {
-    with_session(app.clone(), move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if session.kind() != DocumentKind::Scenario {
+    with_open(app.clone(), move |session| {
+        if !Capabilities::of(session.doc()).scripts {
             return Ok(None);
         }
         let game_data = app.state::<GameDataState>();
@@ -104,51 +102,51 @@ pub async fn get_system_details<R: Runtime>(
     .await
 }
 
-/// Details of each of `ids` that is a system of the open document, from where its kind keeps
-/// them. The lock is let go before the details are resolved.
+/// Details of each of `ids` that is a system of the open document, from where the document
+/// keeps them. The lock is let go before the details are resolved.
 fn details_for(
     guard: MutexGuard<'_, Option<Session>>,
     gd_state: &GameDataState,
     ids: &[u32],
 ) -> Result<Vec<SystemDetails>, SgfError> {
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    match session.kind() {
-        DocumentKind::Scenario => {
-            let Some((generation, gd)) = gd_state.snapshot() else {
-                return Ok(Vec::new());
-            };
-            let owners = scenario_owners(session, &gd, Some((gd_state, generation)));
-            let initializers: Vec<(u32, String)> = ids
-                .iter()
-                .filter_map(|&id| Some((id, session.system(id)?.initializer.clone())))
-                .collect();
-            drop(guard);
-            Ok(initializers
-                .iter()
-                .filter_map(|(id, key)| gd.initializer_details(*id, key, Some(&owners)))
-                .collect())
-        }
-        DocumentKind::Save => {
-            let gd = gd_state.loaded();
-            let details = session.details().map_err(SessionError::from)?;
-            let stars: Vec<(u32, String)> = ids
-                .iter()
-                .filter_map(|&id| Some((id, session.system(id)?.star_class.clone())))
-                .collect();
-            drop(guard);
-            let resolver = sgf_gamedata::resolver(gd.as_deref());
-            Ok(stars
-                .iter()
-                .filter_map(|(id, star)| {
-                    let mut resolved = details.resolve(*id, resolver, gd.is_some())?;
-                    if let Some(gd) = gd.as_deref() {
-                        gd.resolve_save_bodies(&mut resolved, star);
-                    }
-                    Some(resolved)
-                })
-                .collect())
-        }
+    let session = opened(&guard)?;
+    let capabilities = Capabilities::of(session.doc());
+    if capabilities.scripts {
+        let Some((generation, gd)) = gd_state.snapshot() else {
+            return Ok(Vec::new());
+        };
+        let owners = scenario_owners(session, &gd, Some((gd_state, generation)));
+        let initializers: Vec<(u32, String)> = ids
+            .iter()
+            .filter_map(|&id| Some((id, session.system(id)?.initializer.clone())))
+            .collect();
+        drop(guard);
+        return Ok(initializers
+            .iter()
+            .filter_map(|(id, key)| gd.initializer_details(*id, key, Some(&owners)))
+            .collect());
     }
+    if !capabilities.details {
+        return Ok(Vec::new());
+    }
+    let gd = gd_state.loaded();
+    let details = session.details().map_err(SessionError::from)?;
+    let stars: Vec<(u32, String)> = ids
+        .iter()
+        .filter_map(|&id| Some((id, session.system(id)?.star_class.clone())))
+        .collect();
+    drop(guard);
+    let resolver = sgf_gamedata::resolver(gd.as_deref());
+    Ok(stars
+        .iter()
+        .filter_map(|(id, star)| {
+            let mut resolved = details.resolve(*id, resolver, gd.is_some())?;
+            if let Some(gd) = gd.as_deref() {
+                gd.resolve_save_bodies(&mut resolved, star);
+            }
+            Some(resolved)
+        })
+        .collect())
 }
 
 /// What `body` of scenario system `system` rolls once the game gives it `class`, worked out
@@ -163,11 +161,11 @@ pub async fn get_class_rolls<R: Runtime>(
 ) -> Result<ClassRolls, SgfError> {
     let gd = game_data(&app, "show what a body rolls")?;
     with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if session.kind() != DocumentKind::Scenario {
+        let session = opened(&guard)?;
+        if !Capabilities::of(session.doc()).rolled_layout {
             return Err(SgfError::new(
                 ErrorKind::Op,
-                "only a scenario's bodies are rolled",
+                "this document's bodies are not rolled",
             ));
         }
         let initializer = session
@@ -199,7 +197,7 @@ pub async fn get_system_roll<R: Runtime>(
     .await
 }
 
-/// Roll `roll` of system `id` of the open document, where its kind rolls its bodies. The lock
+/// Roll `roll` of system `id` of the open document, when the document rolls its bodies. The lock
 /// is let go before the roll.
 fn roll_for(
     guard: MutexGuard<'_, Option<Session>>,
@@ -208,19 +206,17 @@ fn roll_for(
     roll: u32,
     within: f64,
 ) -> Result<SystemRoll, SgfError> {
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    let session = opened(&guard)?;
     let none = SystemRoll::none(id, roll);
-    match session.kind() {
-        DocumentKind::Save => Ok(none),
-        DocumentKind::Scenario => {
-            let (Some(gd), Some(system)) = (gd, session.system(id)) else {
-                return Ok(none);
-            };
-            let (initializer, star_class) = (system.initializer.clone(), system.star_class.clone());
-            drop(guard);
-            Ok(gd.system_roll(id, &initializer, &star_class, roll, within))
-        }
+    if !Capabilities::of(session.doc()).rolled_layout {
+        return Ok(none);
     }
+    let (Some(gd), Some(system)) = (gd, session.system(id)) else {
+        return Ok(none);
+    };
+    let (initializer, star_class) = (system.initializer.clone(), system.star_class.clone());
+    drop(guard);
+    Ok(gd.system_roll(id, &initializer, &star_class, roll, within))
 }
 
 /// Where a reading of every scenario system is kept between commands: the game data's state and
@@ -235,17 +231,11 @@ pub(super) fn scenario_owners(
     gd: &GameData,
     cache: Cache<'_>,
 ) -> Arc<ScenarioOwners> {
-    ScenarioSystem::of_session(session, |systems, digest| {
-        if let Some((state, generation)) = cache
-            && let Some(cached) = state.owners(generation, digest)
-        {
-            return cached;
-        }
-        let owners = Arc::new(gd.scenario_owners(systems));
-        if let Some((state, generation)) = cache {
-            state.store_owners(generation, digest, Arc::clone(&owners));
-        }
-        owners
+    ScenarioSystem::of_session(session, |systems, digest| match cache {
+        Some((state, generation)) => state
+            .owners
+            .get_or_compute(generation, digest, || gd.scenario_owners(systems)),
+        None => Arc::new(gd.scenario_owners(systems)),
     })
 }
 
@@ -258,17 +248,14 @@ pub(super) fn placed_bypasses(
     cache: Cache<'_>,
 ) -> ScenarioBypasses {
     let mut bypasses = match gd {
-        Some(gd) => ScenarioSystem::of_session(session, |systems, digest| {
-            if let Some((state, generation)) = cache
-                && let Some(cached) = state.bypasses(generation, digest)
-            {
-                return (*cached).clone();
+        Some(gd) => ScenarioSystem::of_session(session, |systems, digest| match cache {
+            Some((state, generation)) => {
+                (*state
+                    .bypasses
+                    .get_or_compute(generation, digest, || gd.scenario_bypasses(systems)))
+                .clone()
             }
-            let bypasses = gd.scenario_bypasses(systems);
-            if let Some((state, generation)) = cache {
-                state.store_bypasses(generation, digest, Arc::new(bypasses.clone()));
-            }
-            bypasses
+            None => gd.scenario_bypasses(systems),
         }),
         None => ScenarioBypasses::default(),
     };

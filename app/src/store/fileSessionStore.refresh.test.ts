@@ -38,7 +38,7 @@ const REREAD: OpenResult & { path: string } = {
 };
 
 async function openScenario(): Promise<void> {
-  mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+  mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
   await session().openSave(SCENARIO_RESULT.path);
 }
 
@@ -74,7 +74,7 @@ describe("a scenario with no unsaved changes", () => {
     expect(galaxy.hiddenCountries).toEqual(new Set([7]));
     expect(useToolStore.getState().tilt).toBe(30);
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().reload();
     expect(useGalaxyStore.getState().framed).toBe(true);
     expect(useToolStore.getState().tilt).toBe(0);

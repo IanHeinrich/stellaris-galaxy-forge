@@ -24,11 +24,12 @@ pub fn run(
     let gd = game_data(opts)?;
     let session = Session::open(sav)?;
     let planned = generate::megastructure_op(&gd, &session, system, kind, place, keep_planet)?;
+    let outcome = mutate::apply_all(session, out, vec![planned.op])?;
     for effect in &planned.unsure {
         println!("left out, unsure: {effect}");
     }
     for effect in &planned.unwritten {
         println!("left out, not written: {effect}");
     }
-    mutate::apply_all(session, out, vec![planned.op])
+    Ok(outcome)
 }

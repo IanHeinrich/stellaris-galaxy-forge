@@ -22,7 +22,7 @@ export async function openFixtureSave(): Promise<void> {
 /** `openFixtureSave`, then the same galaxy opened as `scenario`. */
 export async function openFixtureScenario(scenario = SCENARIO_RESULT): Promise<void> {
   await openFixtureSave();
-  mockedIpc.openSave.mockResolvedValueOnce(scenario);
+  mockedIpc.openDocument.mockResolvedValueOnce(scenario);
   await useFileSessionStore.getState().openSave(scenario.path);
 }
 

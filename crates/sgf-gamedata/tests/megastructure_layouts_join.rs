@@ -10,18 +10,21 @@ use sgf_core::ops::{
 };
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
-use sgf_gamedata::generate::{Planned, megastructure_op};
+use sgf_gamedata::construction::ring_world::RingStage;
+use sgf_gamedata::generate::{Planned, megastructure_op, ring_world_op};
 
 /// Alari, owned by country 0, whose planet 6 is a gas giant.
 const ALARI: u32 = 169;
 
-/// An install whose orchid makes its planet a food giant as it finishes, and whose relay
-/// stands at a point of its own for a relay bypass, which is always open.
+/// An install whose orchid makes its planet a food giant as it finishes, and whose relay and
+/// gates stand at a point of their own: the relay for a relay bypass, which is always open,
+/// and the gates for a gateway, which is open only once something opens it.
 fn join_fixture() -> (tempfile::TempDir, GameData) {
     common::hand_written(&[
         (
             "common/bypass/fx.txt",
             "relay_bypass = { always_active = yes }
+gateway = { always_active = no }
 ",
         ),
         (
@@ -40,6 +43,15 @@ pc_food_giant = { entity = \"food_giant\" }
 fx_relay = {
 	build_outside_gravity_well = yes
 	bypass_type = relay_bypass
+}
+fx_gate = {
+	build_outside_gravity_well = yes
+	bypass_type = gateway
+}
+fx_gate_opened = {
+	build_outside_gravity_well = yes
+	bypass_type = gateway
+	on_build_complete = { activate_gateway = yes }
 }
 ",
         ),
@@ -99,8 +111,9 @@ fn the_join_changes_the_planet_first_unless_it_is_kept() {
     assert!(matches!(kept, Op::AddMegastructure { .. }), "{kept:?}");
 }
 
-/// A relay at a point of its own stands for an open relay bypass. On a body it is refused,
-/// and so is a type the install does not define.
+/// A relay at a point of its own stands for an open relay bypass. A gate stands for a closed
+/// gateway, and for an open one when its build opens it. On a body a relay is refused, and so
+/// is a type the install does not define.
 #[test]
 fn the_join_places_a_relay_and_refuses_what_it_does_not_add() {
     let (_dir, gd) = join_fixture();
@@ -116,6 +129,20 @@ fn the_join_places_a_relay_and_refuses_what_it_does_not_add() {
             active: true,
         })
     );
+    let bypass_of = |kind: &str| {
+        let Op::AddMegastructure { spec, .. } = planned(&gd, kind, free, false).op else {
+            panic!("{kind}: a row");
+        };
+        spec.bypass
+    };
+    let gateway = |active| {
+        Some(NewBypass {
+            kind: "gateway".to_owned(),
+            active,
+        })
+    };
+    assert_eq!(bypass_of("fx_gate"), gateway(false));
+    assert_eq!(bypass_of("fx_gate_opened"), gateway(true));
     let refused = |kind: &str, place| {
         megastructure_op(&gd, &common::open_4_5(), ALARI, kind, place, false)
             .expect_err(kind)
@@ -140,9 +167,15 @@ fn the_join_builds_the_orchids_batch_from_the_playset() {
         return;
     };
     let on_6 = MegastructurePlace::Body { body: 6 };
-    let Op::Batch { ops, .. } = planned(gd, "yggdrasil_orchid_3", on_6, false).op else {
+    let Op::Batch { description, ops } = planned(gd, "yggdrasil_orchid_3", on_6, false).op else {
         panic!("a batch");
     };
+    assert_eq!(
+        description,
+        "Added the Yggdrasil Orchid Complex at planet #6 and made it a Yggdrasil Orchid",
+        "the type and the class as the playset names them"
+    );
+    assert_eq!(ops.len(), 2, "{ops:?}");
     let rule = |class: &str, models| PlanetClassRule {
         class: class.to_owned(),
         change: ClassChange::Uncolonised,
@@ -162,4 +195,27 @@ fn the_join_builds_the_orchids_batch_from_the_playset() {
         "{:?}",
         ops[1]
     );
+}
+
+/// A ring world added to Habraq goes to country 19, which owns the system.
+#[test]
+fn the_join_gives_a_ring_world_to_the_systems_owner() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let stages = [RingStage::Finished; 4];
+    let op = ring_world_op(
+        gd,
+        &common::open_4_5(),
+        159,
+        "ring_world_2_intermediate",
+        &stages,
+        false,
+    )
+    .expect("a finished ring")
+    .op;
+    let Op::AddRingWorld { system, owner, .. } = op else {
+        panic!("{op:?}");
+    };
+    assert_eq!((system, owner), (159, Some(19)));
 }

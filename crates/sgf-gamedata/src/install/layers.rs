@@ -6,10 +6,12 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 #[cfg(test)]
 use std::collections::BTreeSet;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use sgf_core::paths::Case;
 use walkdir::WalkDir;
 
 use crate::install::mods::{ModInfo, ModStatus};
@@ -87,18 +89,28 @@ impl Layout {
     }
 
     /// The layer `path` was read from, and the path below its root with forward slashes:
-    /// the deepest root that holds it, case aside, and the later layer of two alike.
+    /// the deepest root that holds it, and the later layer of two alike. Roots are the same
+    /// by this machine's case rule.
     pub fn layer_of(&self, path: &Path) -> Option<(&Layer, String)> {
+        self.layer_of_by(path, Case::HERE)
+    }
+
+    /// [`Self::layer_of`] by `case`.
+    pub fn layer_of_by(&self, path: &Path, case: Case) -> Option<(&Layer, String)> {
         let path = path.to_string_lossy().replace('\\', "/");
-        let lower = path.to_ascii_lowercase();
+        let parts: Vec<&str> = path.split('/').collect();
         self.layers
             .iter()
             .rev()
             .filter_map(|layer| {
                 let root = layer.root.to_string_lossy().replace('\\', "/");
-                let root = root.trim_end_matches('/').to_ascii_lowercase();
-                let rest = lower.strip_prefix(&root)?.strip_prefix('/')?;
-                Some((layer, path[path.len() - rest.len()..].to_owned()))
+                let root_parts: Vec<&str> = root.trim_end_matches('/').split('/').collect();
+                let rest = parts.get(root_parts.len()..)?;
+                let held = root_parts
+                    .iter()
+                    .zip(&parts)
+                    .all(|(r, p)| case.same_name(OsStr::new(r), OsStr::new(p)));
+                (held && !rest.is_empty()).then(|| (layer, rest.join("/")))
             })
             .min_by_key(|(_, rel)| rel.len())
     }

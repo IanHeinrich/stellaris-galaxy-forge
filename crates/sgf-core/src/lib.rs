@@ -17,6 +17,7 @@ pub mod lexer;
 pub mod library;
 pub mod ops;
 pub mod overlay;
+pub mod paths;
 pub mod prepare;
 pub mod projections;
 pub mod rng;

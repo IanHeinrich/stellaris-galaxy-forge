@@ -11,25 +11,26 @@ use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{
-    DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult, ProgressPhase,
-    SaveResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
+    ProgressPhase, SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
-    DONE, START, VALIDATE_AT, fit_to_game_data, io_error, is_save, progress, require, with_session,
+    DONE, START, VALIDATE_AT, fit_to_game_data, io_error, progress, require, with_open,
+    with_open_mut, with_session,
 };
 use crate::state::GameDataState;
 use crate::views::DocumentChanged;
 use crate::watch::document as watched;
 
-const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
+const NO_EXPORT: &str = "this document cannot be exported as a scenario";
 
 /// Open `path`, a save or a scenario script, as the session, replacing any open one.
 /// Emits `sgf://progress`.
 #[tauri::command]
-pub async fn open_save<R: Runtime>(
+pub async fn open_document<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<OpenResult, SgfError> {
@@ -47,8 +48,7 @@ pub async fn reload_document<R: Runtime>(
     app: AppHandle<R>,
     discard: bool,
 ) -> Result<OpenResult, SgfError> {
-    let path = with_session(app.clone(), move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    let path = with_open(app.clone(), move |session| {
         if !discard {
             keep_unsaved_edits(Some(session))?;
         }
@@ -166,7 +166,7 @@ pub async fn export_scenario<R: Runtime>(
     let (text, report, dirty) = with_session(app.clone(), {
         let path = path.clone();
         move |guard| {
-            let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
+            let session = require(guard.as_ref(), |c| c.export, NO_EXPORT)?;
             let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
             let name = Path::new(&path)
                 .file_stem()
@@ -207,7 +207,7 @@ pub async fn preview_export<R: Runtime>(
 ) -> Result<ExportReport, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
+        let session = require(guard.as_ref(), |c| c.export, NO_EXPORT)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::scenario_text(
             session.graph(),
@@ -236,6 +236,8 @@ async fn install<R: Runtime>(
     let task_app = app.clone();
     let (session, result) = tauri::async_runtime::spawn_blocking(move || {
         let (mut session, extra) = build(gd)?;
+        // The first fit is what validation sees. Game data can load or reload while this runs,
+        // so the second, under the lock, fits the session to whatever is loaded when it lands.
         fit_to_game_data(&task_app, &mut session);
         progress(&task_app, ProgressPhase::Validate, VALIDATE_AT);
         let mut result = session.open_result()?;
@@ -262,11 +264,7 @@ async fn install<R: Runtime>(
 /// changes the star each system is drawn as.
 #[tauri::command]
 pub async fn get_galaxy<R: Runtime>(app: AppHandle<R>) -> Result<GalaxyView, SgfError> {
-    with_session(app, |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(GalaxyView::from(session.graph()))
-    })
-    .await
+    with_open(app, |session| Ok(GalaxyView::from(session.graph()))).await
 }
 
 /// The bytes [`document::sniff`] reads to tell a save from a scenario.
@@ -276,8 +274,7 @@ const SNIFFED_BYTES: u64 = 4;
 /// issues with the findings that read the details; idempotent.
 #[tauri::command]
 pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, SgfError> {
-    with_session(app, |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+    with_open_mut(app, |session| {
         Ok(session.warm_details().map_err(SessionError::from)?)
     })
     .await
@@ -288,9 +285,8 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
 /// a scenario.
 #[tauri::command]
 pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUse>, SgfError> {
-    with_session(app, |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if session.kind() != DocumentKind::Save {
+    with_open(app, |session| {
+        if !Capabilities::of(session.doc()).details {
             return Ok(Vec::new());
         }
         Ok(session.details().map_err(SessionError::from)?.models())
@@ -301,8 +297,7 @@ pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUs
 #[tauri::command]
 pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResult, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
-    with_session(app, move |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+    with_open_mut(app, move |session| {
         let op = GameData::with_class_rules(gd.as_deref(), op)?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))
@@ -315,8 +310,7 @@ pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResul
 pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<String>, SgfError> {
     op.check_sendable()?;
     let gd = app.state::<GameDataState>().loaded();
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         let op = GameData::with_class_rules(gd.as_deref(), op)?;
         Ok(session.check_op(&op))
     })
@@ -325,8 +319,7 @@ pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<St
 
 #[tauri::command]
 pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
-    with_session(app, |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+    with_open_mut(app, |session| {
         let result = session.undo()?;
         Ok(result.map(|r| session.edit_result(r)))
     })
@@ -335,8 +328,7 @@ pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, S
 
 #[tauri::command]
 pub async fn redo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
-    with_session(app, |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+    with_open_mut(app, |session| {
         let result = session.redo()?;
         Ok(result.map(|r| session.edit_result(r)))
     })
@@ -369,8 +361,7 @@ async fn save_to<R: Runtime>(
 ) -> Result<SaveResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
     let task_app = app.clone();
-    let result = with_session(app.clone(), move |mut guard| {
-        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+    let result = with_open_mut(app.clone(), move |session| {
         let report = |fraction| progress(&task_app, ProgressPhase::Write, fraction);
         let outcome = session.save_to_with(path.as_deref().map(Path::new), force, report)?;
         Ok(session.save_result(outcome))
@@ -382,7 +373,7 @@ async fn save_to<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn close_save<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
+pub async fn close_document<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
     with_session(app.clone(), |mut guard| {
         *guard = None;
         Ok(())

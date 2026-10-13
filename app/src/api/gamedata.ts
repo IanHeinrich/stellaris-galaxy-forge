@@ -1,7 +1,8 @@
 /**
  * The game's own data, read from the user's install at runtime: definitions, localisation and
  * textures, and the Paint a Galaxy mod. Command and argument names match
- * `app/src-tauri/src/commands/gamedata.rs`.
+ * `app/src-tauri/src/commands/gamedata.rs`, except the editor, open and link commands, which are
+ * in `commands/editors.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { AnomalyChoice } from "../generated/AnomalyChoice";
@@ -69,37 +70,27 @@ export function paintMod(): Promise<PaintModView | null> {
   return invoke<PaintModView | null>("paint_mod");
 }
 
-/** Open a game-data script file or the open scenario with the system default, or show it in its folder; refused for any other file. */
+/** Calls `open_script`: open a file with the system default, or show it in its folder. The command's doc says which files it opens. */
 export function openScript(path: string, reveal: boolean): Promise<void> {
   return invoke<void>("open_script", { path, reveal });
 }
 
-/** The editors on this machine, found once a run, the program picked for Other…, and whether Steam replaces `path` when it updates. */
+/** Calls `editor_choices`: the editors on this machine, the program picked for Other…, and whether Steam replaces `path`. */
 export function editorChoices(path: string): Promise<EditorChoices> {
   return invoke<EditorChoices>("editor_choices", { path });
 }
 
-/**
- * Ask for the program Other… opens files with in the system's file dialog, which the shell holds
- * until the chooser answers; its name, or null when the dialog was cancelled.
- */
+/** Calls `choose_editor_program`: ask for the program Other… opens files with; its name, or null when cancelled. */
 export function chooseEditorProgram(): Promise<string | null> {
   return invoke<string | null>("choose_editor_program");
 }
 
-/**
- * Tell the shell the editor chooser's answer: `editor` picked, or null when it was cancelled.
- * Other… keeps the program `chooseEditorProgram` found; any other answer drops it.
- */
+/** Calls `answer_editor_chooser`: the chooser's answer, `editor` or null when cancelled. */
 export function answerEditorChooser(editor: EditorPick | null): Promise<void> {
   return invoke<void>("answer_editor_chooser", { editor });
 }
 
-/**
- * Open a file `openScript` would open in `editor`, at `line` or at its top when null. Other… needs a
- * program from `chooseEditorProgram`, kept by `answerEditorChooser`, first. An editor that cannot be started leaves the file to
- * the system default, and the answer says so.
- */
+/** Calls `open_in_editor`: open a file `openScript` would open in `editor`, at `line` or its top when null. */
 export function openInEditor(
   path: string,
   line: number | null,
@@ -108,12 +99,12 @@ export function openInEditor(
   return invoke<OpenedFile>("open_in_editor", { path, line, editor });
 }
 
-/** The Steam Workshop pages the app links to, which `openUrl` opens. */
+/** Calls `workshop_links`: the Steam Workshop pages the app links to. */
 export function workshopLinks(): Promise<WorkshopLinks> {
   return invoke<WorkshopLinks>("workshop_links");
 }
 
-/** Open one of the app's own links in the user's browser; refused for any other URL. */
+/** Calls `open_url`: open one of the app's own links in the user's browser. The command's doc says which it opens. */
 export function openUrl(url: string): Promise<void> {
   return invoke<void>("open_url", { url });
 }

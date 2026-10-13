@@ -6,11 +6,11 @@ use sgf_gamedata::generate::{self, BodyAsk};
 use sgf_gamedata::picks::BodyClassPick;
 use tauri::{AppHandle, Runtime, State};
 
-use super::{game_data, is_save, require, with_session};
+use super::{game_data, require, with_session};
 use crate::state::GameDataState;
 use crate::views::Added;
 
-const ONLY_A_SAVE_ADDS: &str = "only a save takes an added planet";
+const NO_ADDED_BODIES: &str = "this document takes no added planet";
 
 /// Roll a body from `seed` and add it to system `system` of the open save as one
 /// `AddBody`, `radius` from what it orbits at `angle` degrees: a moon of `parent` when
@@ -36,7 +36,7 @@ pub async fn add_body<R: Runtime>(
         } else {
             "add a planet"
         },
-    )?;
+    );
     let ask = BodyAsk {
         system,
         parent,
@@ -46,7 +46,8 @@ pub async fn add_body<R: Runtime>(
         name: None,
     };
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
+        let session = require(guard.as_mut(), |c| c.add_bodies, NO_ADDED_BODIES)?;
+        let gd = gd?;
         let op = generate::body_for_save(&gd, session, seed, ask)?;
         let result = session.apply(op)?;
         Ok(Added::of(session, result))
