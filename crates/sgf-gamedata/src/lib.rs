@@ -184,6 +184,9 @@ pub struct GameData {
     read_classes: Arc<PlanetClasses>,
     /// `common/megastructures` as parsed, which [`GameData::derive`] reads the types from.
     megastructure_defs: Arc<BTreeMap<String, Def>>,
+    /// The megastructure types the game's own files define, those a mod's file replaced
+    /// included.
+    vanilla_megastructures: Arc<BTreeSet<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -374,8 +377,9 @@ impl GameData {
             &mut diagnostics,
         );
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
-        let megastructure_defs =
-            script::parse_dir(&layout, MegastructureDef::DIR, &vars, &mut diagnostics);
+        let megastructure_dir = ParsedDir::load(&layout, MegastructureDef::DIR, &mut diagnostics);
+        let vanilla_megastructures = megastructure_dir.vanilla_keys(&layout);
+        let megastructure_defs = megastructure_dir.into_defs(&vars, &mut diagnostics);
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
@@ -443,6 +447,7 @@ impl GameData {
             worlds: Arc::default(),
             read_classes: planet_classes,
             megastructure_defs: Arc::new(megastructure_defs),
+            vanilla_megastructures: Arc::new(vanilla_megastructures),
         };
         gd.derive();
         gd
@@ -454,6 +459,7 @@ impl GameData {
     pub(crate) fn derive(&mut self) {
         let types = megastructures::load(
             &self.megastructure_defs,
+            &self.vanilla_megastructures,
             &self.scripts,
             &self.scripted_triggers,
             &self.layout,

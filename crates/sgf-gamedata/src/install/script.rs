@@ -3,7 +3,7 @@
 
 use std::borrow::Cow;
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -485,6 +485,7 @@ pub fn parse_dir(
 /// Every winning file of one directory in load order, each read and parsed once, so every
 /// registry the directory feeds reads the same parse and a broken file is reported once.
 pub(crate) struct ParsedDir {
+    dir: String,
     keeps: Keeps,
     files: Vec<(PathBuf, Node, Arc<[u8]>)>,
 }
@@ -492,6 +493,7 @@ pub(crate) struct ParsedDir {
 impl ParsedDir {
     pub(crate) fn load(layout: &Layout, rel_dir: &str, diagnostics: &mut Vec<Diagnostic>) -> Self {
         Self {
+            dir: rel_dir.to_owned(),
             keeps: Keeps::of(rel_dir),
             files: layout
                 .files_in(rel_dir)
@@ -502,6 +504,33 @@ impl ParsedDir {
                 })
                 .collect(),
         }
+    }
+
+    /// The top-level keys the game's own files of the directory define, whichever file won
+    /// them: from this parse where the install's file won, else read from `layout`, since a
+    /// mod replaced it by its filename.
+    pub(crate) fn vanilla_keys(&self, layout: &Layout) -> BTreeSet<String> {
+        let mut keys = BTreeSet::new();
+        let mut add = |root: &Node, src: &[u8]| {
+            keys.extend(
+                root.children()
+                    .iter()
+                    .filter_map(|node| node.key_str(src))
+                    .filter(|key| !key.starts_with('@'))
+                    .map(str::to_owned),
+            );
+        };
+        for file in layout.vanilla_files_in(&self.dir) {
+            match self.files.iter().find(|(won, ..)| *won == file) {
+                Some((_, root, src)) => add(root, src),
+                None => {
+                    if let Some((root, src)) = parse_file(&file, &mut Vec::new()) {
+                        add(&root, &src);
+                    }
+                }
+            }
+        }
+        keys
     }
 
     /// Each file with its root block and bytes, in load order.

@@ -635,38 +635,23 @@ fn asks_star(block: &Node, src: &[u8]) -> bool {
 /// Every type `defs`, the definitions of `common/megastructures`, holds, each read with the
 /// inline scripts it calls in place of the calls, with what its dismantle takes back and its
 /// completion leaves as `scripts` resolve the effects they call, the swaps it makes as
-/// `triggers` name star classes, and the mod of `layout` whose file defines it.
+/// `triggers` name star classes, and the mod of `layout` whose file defines it. `vanilla`
+/// holds the keys the game's own files define.
 pub(crate) fn load(
     defs: &BTreeMap<String, Def>,
+    vanilla: &BTreeSet<String>,
     scripts: &ScriptIndex,
     triggers: &ScriptedTriggers,
     layout: &Layout,
 ) -> ReadTypes {
-    let vanilla = vanilla_keys(layout);
     defs.iter()
         .map(|(key, def)| {
             let read = inline_script::expand(def, layout).unwrap_or_else(|| def.clone());
             let kind =
-                MegastructureRead::read(key.clone(), read, scripts, triggers, layout, &vanilla);
+                MegastructureRead::read(key.clone(), read, scripts, triggers, layout, vanilla);
             (key.clone(), kind)
         })
         .collect()
-}
-
-/// The types the game's own files define, those a mod's file replaced included.
-fn vanilla_keys(layout: &Layout) -> BTreeSet<String> {
-    let mut keys = BTreeSet::new();
-    for file in layout.vanilla_files_in(MegastructureDef::DIR) {
-        let Some((root, src)) = script::parse_file(&file, &mut Vec::new()) else {
-            continue;
-        };
-        for node in root.children() {
-            if let Some(key) = node.key_str(&src).filter(|key| !key.starts_with('@')) {
-                keys.insert(key.to_owned());
-            }
-        }
-    }
-    keys
 }
 
 fn country_modifier(def: &Def) -> Vec<(String, f64)> {

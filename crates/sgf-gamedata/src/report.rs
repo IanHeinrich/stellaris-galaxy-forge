@@ -69,6 +69,9 @@ pub struct PlaysetReport {
     pub stars_with_bodies: Vec<Row>,
     /// Megastructure types whose model does not load, with the reason.
     pub models_failing: Vec<Row>,
+    /// The shaders megastructure models are drawn with that no table of the model baker names,
+    /// so they are drawn opaque; each on the first type that uses it.
+    pub untabled_shaders: Vec<Row>,
     /// Megastructure types the editor does not add, with why; no ring world, which has a list
     /// of its own.
     pub unsupported: Vec<Row>,
@@ -163,6 +166,7 @@ impl PlaysetReport {
             }
         }
 
+        let (models_failing, untabled_shaders) = models(gd);
         Self {
             diagnostics,
             load_problems,
@@ -177,7 +181,8 @@ impl PlaysetReport {
             stars_without_body,
             star_choices,
             stars_with_bodies,
-            models_failing: models_failing(gd),
+            models_failing,
+            untabled_shaders,
             unsupported: unsupported(gd),
             held_back: held_back(gd),
             unfollowed: unfollowed(gd),
@@ -186,7 +191,7 @@ impl PlaysetReport {
     }
 
     /// Every list of the report, in the order it prints.
-    pub fn sections(&self) -> [Section<'_>; 17] {
+    pub fn sections(&self) -> [Section<'_>; 18] {
         [
             ("load problems", &self.load_problems),
             ("look-only planet classes", &self.look_only),
@@ -221,6 +226,10 @@ impl PlaysetReport {
             (
                 "megastructure types whose model does not load",
                 &self.models_failing,
+            ),
+            (
+                "shaders megastructure models use that no table names",
+                &self.untabled_shaders,
             ),
             (
                 "megastructure types Galaxy Forge does not add, ring worlds aside",
@@ -266,10 +275,11 @@ impl PlaysetReport {
     }
 }
 
-/// Each megastructure type whose model does not load bare, as the app draws a row no empire
-/// owns, with the reason: its meshes are read, nothing is baked. A model several types share
-/// is read once.
-fn models_failing(gd: &GameData) -> Vec<Row> {
+/// What reading each megastructure type's model bare, as the app draws a row no empire owns,
+/// finds: each type whose model does not load, with the reason, and each shader its drawn
+/// meshes use that no table names, on the first type that uses it, with how many do. The
+/// meshes are read, nothing is baked, and a model several types share is read once.
+fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
     let entities: Vec<&str> = gd
         .megastructures
         .iter()
@@ -277,28 +287,48 @@ fn models_failing(gd: &GameData) -> Vec<Row> {
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
-    let errors = on_every_core(&entities, |entity| {
+    let read = on_every_core(&entities, |entity| {
         let key = TextureKey::Model {
             culture: NO_CULTURE.to_owned(),
             entity: (*entity).to_owned(),
             yaw: 0,
         };
-        gd.model_bounds(&key.to_string())
-            .err()
-            .map(|e| e.to_string())
+        gd.untabled_shaders(&key.to_string())
+            .map_err(|e| e.to_string())
     });
-    let failing: BTreeMap<&str, String> = entities
+    let read: BTreeMap<&str, Result<BTreeSet<String>, String>> =
+        entities.into_iter().zip(read).collect();
+    let mut failing = Vec::new();
+    let mut shaders: BTreeMap<&str, (&MegastructureDef, usize)> = BTreeMap::new();
+    for def in gd.megastructures.iter() {
+        let Some(found) = def.entity.as_deref().and_then(|entity| read.get(entity)) else {
+            continue;
+        };
+        match found {
+            Err(error) => failing.push(mega_row(def, Some(error.clone()))),
+            Ok(untabled) => {
+                for shader in untabled {
+                    shaders.entry(shader).or_insert((def, 0)).1 += 1;
+                }
+            }
+        }
+    }
+    let untabled = shaders
         .into_iter()
-        .zip(errors)
-        .filter_map(|(entity, error)| Some((entity, error?)))
-        .collect();
-    gd.megastructures
-        .iter()
-        .filter_map(|def| {
-            let error = failing.get(def.entity.as_deref()?)?;
-            Some(mega_row(def, Some(error.clone())))
+        .map(|(shader, (first, count))| {
+            let detail = format!("drawn opaque; {}, first {}", plural(count), first.key);
+            row(shader, first.source.clone(), Some(detail))
         })
-        .collect()
+        .collect();
+    (failing, untabled)
+}
+
+/// `count` megastructure types, in words.
+fn plural(count: usize) -> String {
+    match count {
+        1 => "1 type".to_owned(),
+        _ => format!("{count} types"),
+    }
 }
 
 /// Each megastructure type the editor does not add, with why, but for the stages of a ring

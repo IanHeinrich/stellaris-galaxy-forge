@@ -21,8 +21,9 @@ use crate::scripts::ScriptIndex;
 
 /// The first stages of the families the dialog leaves out for now, with every stage after
 /// them and their ruins: crisis-path, origin and story structures, structures that become
-/// warships, and the action stages of finished structures.
-pub const NOT_OFFERED_YET: [&str; 38] = [
+/// warships, the action stages of finished structures, and the Orbital Elysium, whose
+/// in-game check is pending.
+pub const NOT_OFFERED_YET: [&str; 41] = [
     "crisis_sphere_0",
     "galactic_crucible_0",
     "cosmogenesis_needle",
@@ -61,6 +62,9 @@ pub const NOT_OFFERED_YET: [&str; 38] = [
     "planetcraft_printer_make_planet",
     "substellar_compressor_5",
     "psychic_beacon_4",
+    "orbital_elysium_0",
+    "orbital_elysium_origin_platform_0",
+    "orbital_elysium_origin_platform_1",
 ];
 
 /// Whether the add dialog offers a type.

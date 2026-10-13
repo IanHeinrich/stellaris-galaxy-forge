@@ -8,7 +8,7 @@
 //! is left clear, so the editor's own planet shows through. Which faces are drawn and how a
 //! mesh blends follow its shader's name, as [`drawn_as`] reads it.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -156,6 +156,8 @@ struct Look {
     material: [Option<PathBuf>; 3],
     /// Drawn with a texture from [`PLANET_TEXTURES`].
     planet_textured: bool,
+    /// The shader it is drawn with.
+    shader: String,
     drawn: Drawn,
 }
 
@@ -358,6 +360,7 @@ impl ModelJob {
                     specular,
                     material: own,
                     planet_textured,
+                    shader: shader.clone().unwrap_or_default(),
                     drawn,
                 });
             }
@@ -491,6 +494,20 @@ fn drawn_as(shader: &str) -> Option<Drawn> {
     })
 }
 
+/// Whether one of the tables [`drawn_as`] reads names `shader`.
+fn tabled(shader: &str) -> bool {
+    [
+        &ALPHA_BLENDED_SHADERS[..],
+        &ADDED_SHADERS,
+        &ALPHA_TESTED_SHADERS,
+        &UNMASKED_SHADERS,
+        &DOUBLE_SIDED_SHADERS,
+    ]
+    .iter()
+    .flat_map(|table| table.iter())
+    .any(|k| k.eq_ignore_ascii_case(shader))
+}
+
 fn folder(file: &str) -> &str {
     file.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
@@ -618,6 +635,23 @@ impl GameData {
     /// The extent of the model a `model:` texture key names, in save units; it reads the
     /// model's `.mesh` files but bakes nothing.
     pub fn model_bounds(&self, key: &str) -> Result<ModelBounds, TextureError> {
+        self.model_job(key)?.bounds()
+    }
+
+    /// The shaders the drawn meshes of the model a `model:` texture key names are drawn with
+    /// that no table of [`drawn_as`] names, so they are drawn opaque. It reads the model's
+    /// `.mesh` files but bakes nothing.
+    pub(crate) fn untabled_shaders(&self, key: &str) -> Result<BTreeSet<String>, TextureError> {
+        let loaded = self.model_job(key)?.load()?;
+        Ok(loaded
+            .iter()
+            .flat_map(|part| &part.looks)
+            .map(|look| look.shader.clone())
+            .filter(|shader| !tabled(shader))
+            .collect())
+    }
+
+    fn model_job(&self, key: &str) -> Result<ModelJob, TextureError> {
         let super::TextureKey::Model {
             culture,
             entity,
@@ -632,7 +666,6 @@ impl GameData {
             &self.graphical_cultures.chain(&culture),
             &entity,
             yaw,
-        )?
-        .bounds()
+        )
     }
 }

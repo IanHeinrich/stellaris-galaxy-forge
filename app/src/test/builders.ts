@@ -435,6 +435,7 @@ export function megastructureTypeView(
     source: null,
     base_game: true,
     variant_of: null,
+    ring_world: false,
     ...over,
   };
 }

@@ -1,6 +1,6 @@
 //! `common/solar_system_initializers`: what a system was generated from.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -421,36 +421,6 @@ fn places_by_script(node: &Node, src: &[u8]) -> bool {
         })
 }
 
-/// The top-level keys of the install's own initializer files: from the parse when the file
-/// won, else read here, since a mod replaced it by its filename.
-fn vanilla_keys(layout: &Layout, parsed: &ParsedDir) -> HashSet<String> {
-    let won: HashMap<&std::path::Path, (&Node, &[u8])> = parsed
-        .files()
-        .map(|(file, root, src)| (file, (root, src)))
-        .collect();
-    let mut keys = HashSet::new();
-    let mut add = |root: &Node, src: &[u8]| {
-        keys.extend(
-            root.children()
-                .iter()
-                .filter_map(|node| node.key_str(src))
-                .filter(|key| !key.starts_with('@'))
-                .map(str::to_owned),
-        );
-    };
-    for file in layout.vanilla_files_in(Initializer::DIR) {
-        match won.get(file.as_path()) {
-            Some(&(root, src)) => add(root, src),
-            None => {
-                if let Some((root, src)) = script::parse_file(&file, &mut Vec::new()) {
-                    add(&root, &src);
-                }
-            }
-        }
-    }
-    keys
-}
-
 /// The registry plus the reverse of every initializer's `spawns`, and the
 /// blocks they were read from, which [`crate::scripts`] walks again.
 #[derive(Debug, Default)]
@@ -461,7 +431,7 @@ pub struct Initializers {
     /// The directory's winning files, in the order the game reads them.
     files: Vec<PathBuf>,
     /// The keys the game's own files define, whichever file won them.
-    vanilla: HashSet<String>,
+    vanilla: BTreeSet<String>,
     /// Each definition that calls an inline script the install has, as the game reads it.
     spliced: HashMap<String, Spliced>,
 }
@@ -481,7 +451,7 @@ impl Initializers {
     ) -> Self {
         let files = layout.files_in(Initializer::DIR);
         let parsed = ParsedDir::load(layout, Initializer::DIR, diagnostics);
-        let vanilla = vanilla_keys(layout, &parsed);
+        let vanilla = parsed.vanilla_keys(layout);
         let defs = parsed.into_defs(globals, diagnostics);
         let mut spliced = HashMap::new();
         let mut lines: HashMap<&Path, Arc<LineStarts>> = HashMap::new();
