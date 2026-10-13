@@ -7,6 +7,7 @@ import { normalise } from "../lib/paths";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { prefField } from "./prefs";
+import { latest } from "./reads";
 
 /** A file to open, at a line or at its top. */
 export interface OpenTarget {
@@ -93,15 +94,18 @@ async function launch(file: string, line: number | null, choice: EditorChoice): 
 }
 
 export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
+  /** Moved on whenever the chooser opens or closes, so what a closed one offers lands nowhere. */
+  const chooserAsk = latest();
+
   /** Shows the chooser for `target` and asks the shell what it offers. */
   const ask = async (target: OpenTarget | null) => {
-    const chooser = { target };
-    set({ chooser, choices: null });
+    const mine = chooserAsk.next();
+    set({ chooser: { target }, choices: null });
     try {
       const choices = await ipc.editorChoices(target?.file ?? "");
-      if (get().chooser === chooser) set({ choices });
+      if (chooserAsk.is(mine)) set({ choices });
     } catch (e) {
-      if (get().chooser === chooser) set({ chooser: null });
+      if (chooserAsk.is(mine)) set({ chooser: null });
       useFileSessionStore.getState().setError(ipc.errorMessage(e));
     }
   };
@@ -132,6 +136,7 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
         return;
       }
       CHOICE.save(choice);
+      chooserAsk.next();
       set({ choice, chooser: null, choices: null });
       if (target !== null) await launch(target.file, target.line ?? null, choice);
     },
@@ -149,6 +154,7 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
     },
 
     cancel() {
+      chooserAsk.next();
       set({ chooser: null, choices: null });
       ipc
         .answerEditorChooser(null)

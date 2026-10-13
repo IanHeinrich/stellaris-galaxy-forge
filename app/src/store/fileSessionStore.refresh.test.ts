@@ -12,6 +12,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { edit, resetSession, session } from "./sessionFixture";
 import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 let heard: ((changed: DocumentChanged) => void) | null = null;
 
@@ -58,6 +59,17 @@ describe("a scenario with no unsaved changes", () => {
     expect(useGalaxyStore.getState().systems.has(3)).toBe(false);
     expect(useEditorStore.getState().selection).toEqual([2]);
     expect(diskChangeShown(session())).toBeNull();
+  });
+
+  it("reads the one selected system again, so its page shows it", async () => {
+    await useEditorStore.getState().select(2);
+    await until(() => expect(useEditorStore.getState().inspected?.system.id).toBe(2));
+    mockedIpc.reloadDocument.mockResolvedValueOnce(REREAD);
+
+    await session().noteDiskChange(changed());
+
+    await until(() => expect(useEditorStore.getState().inspected?.system.id).toBe(2));
+    expect(useEditorStore.getState().selection).toEqual([2]);
   });
 
   it("keeps the view: the camera, the tilt and the empires the map hides", async () => {

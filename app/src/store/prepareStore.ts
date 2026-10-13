@@ -19,6 +19,7 @@ import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, prefField } from "./prefs";
+import { latest } from "./reads";
 
 /** The Galaxy page's section key, which the inspector keeps open or closed. */
 export const PREPARE_SECTION = "galaxy.prepare";
@@ -277,8 +278,8 @@ function previewable(): boolean {
   );
 }
 
-/** Bumped by every read and reset, so only the latest read lands. */
-let asks = 0;
+/** Moved on by every read and reset, so only the latest read lands. */
+const asks = latest();
 /** Whether the latest read asked for the map as the choices would leave it. */
 let mapAsked = false;
 
@@ -360,7 +361,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   followHistory(undo) {
-    asks += 1;
+    asks.next();
     const { applied, undone, current, preview, applying } = get();
     // Apply keeps the map until the classification it changed is read again.
     if (preview?.map && !applying) set({ preview: unmapped(preview) });
@@ -380,7 +381,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   async refresh() {
-    const ask = ++asks;
+    const ask = asks.next();
     if (get().applying) return;
     if (!previewable()) {
       set({ preview: null, current: false, error: null });
@@ -390,9 +391,9 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
       const { choices, options, outcomeShown } = get();
       mapAsked = outcomeShown;
       const preview = await ipc.preparePreview(rowChoices(choices), options, outcomeShown);
-      if (ask === asks) set({ preview, current: true, error: null });
+      if (asks.is(ask)) set({ preview, current: true, error: null });
     } catch (e) {
-      if (ask === asks) set({ preview: null, current: false, error: ipc.errorMessage(e) });
+      if (asks.is(ask)) set({ preview: null, current: false, error: ipc.errorMessage(e) });
     }
   },
 
@@ -433,7 +434,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   reset() {
-    asks += 1;
+    asks.next();
     mapAsked = false;
     set(initial());
   },

@@ -37,6 +37,7 @@ import { useScriptsStore } from "./scriptsStore";
 import { documentActions, NO_DOCUMENT } from "./gameDataStore.document";
 import { countryNames, forgetNames, nameActions, nameKeys } from "./gameDataStore.names";
 import { PREF_KEYS } from "./prefKeys";
+import { keyedReads, latest } from "./reads";
 import { prefField } from "./prefs";
 
 export type GameDataStatus = "idle" | "loading" | "ready" | "error";
@@ -144,8 +145,11 @@ export interface GameDataState {
   refreshScenarioOwners(alive?: () => boolean): Promise<void>;
   /** Resolves the keys not yet known, in batches; a no-op without game data, or once `alive` says no. */
   fetchNames(keys: string[], alive?: () => boolean): Promise<void>;
-  /** Resolves the texts not yet known, in batches; a key the install has no text for is cached as empty. */
-  fetchTexts(keys: string[], alive?: () => boolean): Promise<void>;
+  /**
+   * Resolves the texts not yet known, in batches; a key the install has no text for is cached as
+   * empty, and a key whose read failed is asked again next time. A no-op without game data.
+   */
+  fetchTexts(keys: string[]): Promise<void>;
   /** Resolves the templates not yet known, in batches; stops once `alive` says no. */
   resolveNames(names: NameTemplate[], alive?: () => boolean): Promise<void>;
   /** Asks for one template's text, with every other asked for on the same tick. */
@@ -209,28 +213,34 @@ const GALAXY_OPTIONS = "galaxy_options";
 
 const GALAXY_DATA = { galaxyShapes: null, galaxyShapesPending: false };
 
+/** The registry of models, sprites and the textures they name. */
+const GRAPHICS = "graphics";
+
+export function loadedNow(): string {
+  const { status, version } = useGameDataStore.getState();
+  return `${status}/${version}`;
+}
+
+const textReads = keyedReads((keys: string[]) => ipc.getGameTexts(keys), {
+  scope: loadedNow,
+  batch: NAMES_BATCH,
+  answered(keys, resolved) {
+    const texts = new Map(useGameDataStore.getState().texts);
+    for (const key of keys) texts.set(key, resolved[key] ?? "");
+    useGameDataStore.setState({ texts });
+  },
+  failed: (_keys, message) => useGameDataStore.setState({ error: message }),
+});
+
+function forgetTexts(): Map<string, string> {
+  textReads.clear();
+  return new Map();
+}
+
 /**
  * The fields game data that has just landed starts from, with the details and scripts read from
  * what it replaces dropped.
  */
-/** How the game's texts are fetched: the backend's `get_game_texts` once the API has it. */
-export type GameTextSource = (keys: string[]) => Promise<Record<string, string>>;
-
-let gameTextSource: GameTextSource = (keys) => ipc.getGameTexts(keys);
-
-/** Sets where `fetchTexts` asks for texts. */
-export function setGameTextSource(source: GameTextSource): void {
-  gameTextSource = source;
-}
-
-/** Every text already asked for, so a miss is asked for once however often it is shown. */
-const requestedTexts = new Set<string>();
-
-function forgetTexts(): Map<string, string> {
-  requestedTexts.clear();
-  return new Map();
-}
-
 function freshData(): typeof FRESH_DATA & {
   names: Map<string, string>;
   texts: Map<string, string>;
@@ -388,33 +398,10 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   ...documentActions(set, get),
   ...nameActions(set, get),
 
-  async fetchTexts(keys, alive) {
-    const { status, version } = get();
+  async fetchTexts(keys) {
+    const { status, texts } = get();
     if (status !== "ready") return;
-    const wanted = [...new Set(keys)].filter(
-      (key) => key !== "" && !get().texts.has(key) && !requestedTexts.has(key),
-    );
-    const still =
-      alive ??
-      (() => {
-        const now = get();
-        return now.status === status && now.version === version;
-      });
-    for (let i = 0; i < wanted.length; i += NAMES_BATCH) {
-      const batch = wanted.slice(i, i + NAMES_BATCH);
-      for (const key of batch) requestedTexts.add(key);
-      try {
-        const resolved = await gameTextSource(batch);
-        if (!still()) return;
-        const texts = new Map(get().texts);
-        for (const key of batch) texts.set(key, resolved[key] ?? "");
-        set({ texts });
-      } catch (e) {
-        for (const key of batch) requestedTexts.delete(key);
-        if (still()) set({ error: ipc.errorMessage(e) });
-        return;
-      }
-    }
+    await textReads.read(keys.filter((key) => key !== "" && !texts.has(key)));
   },
 }));
 
@@ -500,21 +487,22 @@ async function dropChanges(): Promise<void> {
 }
 
 /** The refetch that may still write. A newer one, or the game data changing hands, abandons it. */
-let tail = 0;
+const tail = latest();
 
 /** Claims the tail for this refetch; its answer asks whether it is still the one that counts. */
 function claimTail(): () => boolean {
-  const mine = ++tail;
-  return () => mine === tail && useGameDataStore.getState().status === "ready";
+  const mine = tail.next();
+  return () => tail.is(mine) && useGameDataStore.getState().status === "ready";
 }
 
 function abandonTail(): void {
-  tail += 1;
+  tail.next();
 }
 
 /**
  * A rebuilt registry, or the watcher pausing or resuming. A rebuild makes stale everything a
- * fresh load reads except the textures: `gfx/` is not watched, so the map does not flash.
+ * fresh load reads. The textures go only when the rebuild names `graphics`, so the map does not
+ * flash on a script edit.
  */
 async function gameDataChanged(changed: GameDataChanged): Promise<void> {
   const seen = useGameDataStore.getState().version;
@@ -538,6 +526,7 @@ async function gameDataChanged(changed: GameDataChanged): Promise<void> {
     }
     const fresh = freshData();
     useGameDataStore.setState(summary === null ? fresh : { summary, ...fresh });
+    if (changed.registries.includes(GRAPHICS)) clearTextures();
     await refetch(alive);
   } catch (e) {
     if (alive()) useGameDataStore.setState({ error: ipc.errorMessage(e) });

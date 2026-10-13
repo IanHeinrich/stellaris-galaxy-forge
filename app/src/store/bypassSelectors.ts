@@ -2,6 +2,7 @@ import type { BypassLink } from "../generated/BypassLink";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { SystemNode } from "../generated/SystemNode";
 import { documentCapabilities, type CapabilitySource } from "../lib/capabilities";
+import { lastOf } from "../lib/memo";
 import { sharedWormholePair, wormholePartner } from "../lib/paint";
 import { bypassLinks } from "../lib/scenarioBypasses";
 import { wormholePairAction, wormholePartnerOf, type WormholePairAction } from "../lib/wormholes";
@@ -19,9 +20,7 @@ export interface BypassSources {
 }
 
 const NOTHING: readonly BypassLink[] = [];
-let placedFrom: ScenarioBypasses | null = null;
-let placedFlags = "";
-let placedLinks: readonly BypassLink[] = NOTHING;
+const placedLinks = lastOf<readonly BypassLink[]>();
 
 /** The links `placed` gives with each source shown or not, the same array while nothing moves. */
 function placedLinksOf(
@@ -29,13 +28,9 @@ function placedLinksOf(
   initializers: boolean,
   dayOne: boolean,
 ): readonly BypassLink[] {
-  const flags = `${initializers} ${dayOne}`;
-  if (placed !== placedFrom || flags !== placedFlags) {
-    placedFrom = placed;
-    placedFlags = flags;
-    placedLinks = placed === null ? NOTHING : bypassLinks(placed, initializers, dayOne);
-  }
-  return placedLinks;
+  return placedLinks([placed, initializers, dayOne], () =>
+    placed === null ? NOTHING : bypassLinks(placed, initializers, dayOne),
+  );
 }
 
 /**

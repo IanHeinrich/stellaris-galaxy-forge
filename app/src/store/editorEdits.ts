@@ -15,6 +15,7 @@ import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { refHome, useInspectorStore } from "./inspectorStore";
 import { useOpCheckStore } from "./opCheckStore";
+import { latest } from "./reads";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
@@ -29,11 +30,12 @@ export type RunEdit = (edit: () => Promise<EditResult | null>) => Promise<EditRe
 
 /**
  * An op, or what builds it inside the queue once every edit queued before it has landed; a
- * builder that reads the galaxy must be one. A builder answering null sends nothing.
+ * builder that reads the galaxy or asks the session for its op must be one. A builder answering
+ * null sends nothing, and one that throws shows its error and sends nothing.
  */
-export type OpSource = Op | (() => Op | null);
+export type OpSource = Op | (() => Op | null | Promise<Op | null>);
 
-function built(source: OpSource): Op | null {
+async function built(source: OpSource): Promise<Op | null> {
   return typeof source === "function" ? source() : source;
 }
 
@@ -167,15 +169,15 @@ export function editPipeline(
   const actions: EditActions = {
     async applyOp(source) {
       const result = await runEdit(async () => {
-        const op = built(source);
+        const op = await built(source);
         return op === null ? null : ipc.applyOp(op);
       });
       return result !== null;
     },
 
     applySymmetric(source) {
-      return get().applyOp(() => {
-        const op = built(source);
+      return get().applyOp(async () => {
+        const op = await built(source);
         return op && symmetricOp(op);
       });
     },
@@ -351,19 +353,19 @@ function enqueue<T>(run: () => Promise<T>): Promise<T> {
 }
 
 /** The reclassification that still counts; a later edit's takes it over. */
-let reclassification = 0;
+const reclassification = latest();
 
 /** Leaves a reclassification still waiting to the document that asked for it, which is gone. */
 export function forgetReclassify(): void {
-  reclassification += 1;
+  reclassification.next();
 }
 
 /** What an initializer change moves: how a system is classified, and who its scripts give it to. */
 async function reclassify(): Promise<void> {
-  const mine = ++reclassification;
+  const mine = reclassification.next();
   // It reads the whole galaxy, so it waits outside the queue and a run of edits reclassifies once.
   await edits;
-  const alive = () => mine === reclassification;
+  const alive = () => reclassification.is(mine);
   if (!alive()) return;
   const data = useGameDataStore.getState();
   await data.refreshSpecial(alive);

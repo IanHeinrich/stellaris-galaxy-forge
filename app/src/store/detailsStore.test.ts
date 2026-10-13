@@ -93,7 +93,7 @@ describe("request", () => {
     expect(state.failed.size).toBe(0);
   });
 
-  it("clears a recorded failure once a later answer brings those details", async () => {
+  it("drops the failure of a read an edit overtook, and takes the later answer", async () => {
     let fail!: (e: unknown) => void;
     let finish!: (d: SystemDetails[]) => void;
     getSystemDetails.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)));
@@ -107,7 +107,8 @@ describe("request", () => {
 
     fail({ kind: "no_session", message: "nothing open" });
     await vi.advanceTimersByTimeAsync(0);
-    expect(useDetailsStore.getState().failed.get(7)).toBe("nothing open");
+    expect(useDetailsStore.getState().failed.size).toBe(0);
+    expect(useDetailsStore.getState().pending).toEqual(new Set([7, 8]));
 
     finish([systemDetails({ id: 7 }), systemDetails({ id: 8 })]);
     await vi.advanceTimersByTimeAsync(0);
