@@ -209,6 +209,8 @@ function glyphOf(id: LayerId): ReactNode {
       );
     case "labels":
       return null;
+    default:
+      return id satisfies never;
   }
 }
 
@@ -243,12 +245,21 @@ function kindGlyph(kind: SpecialKind): ReactNode {
           <rect x="0.7" y="13.5" width="2" height="5" />
         </FilledGlyph>
       );
-    default:
+    case "marauder":
+    case "holy_world":
+    case "fallen_empire":
+    case "landmark":
+    case "unique":
+    case "contingency":
+    case "horizon_signal":
+    case "cutholoid":
       return (
         <LayerGlyph>
           <StarMark />
         </LayerGlyph>
       );
+    default:
+      return kind satisfies never;
   }
 }
 

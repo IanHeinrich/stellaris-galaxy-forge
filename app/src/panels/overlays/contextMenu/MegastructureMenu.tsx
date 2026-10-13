@@ -11,7 +11,7 @@ import { megastructureEntry, useInspectorStore } from "../../../store/inspectorS
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { applyGeometry, useSystemGeometry } from "../../../store/systemGeometry";
-import { useSystemBodyNames } from "../../inspector/entity/useBodyName";
+import { useSystemBodyNames } from "../../useBodyName";
 import { DeleteItem } from "./DeleteItem";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";

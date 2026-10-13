@@ -14,8 +14,9 @@ import {
   useIssuesStore,
   type IssueFilter,
 } from "../../store/issuesStore";
-import { openReservedSpawnsWorkshop } from "../chrome/paintMod";
+import { openReservedSpawnsWorkshop } from "../paintMod";
 import { HelpLink } from "../HelpLink";
+import { Select } from "../Select";
 import { useCollapse } from "./collapse";
 import { Action, Group, Row } from "./rows";
 
@@ -47,19 +48,16 @@ function CodeFilter({ codes }: { codes: AppIssueCode[] }) {
   const setCode = useIssuesStore((s) => s.setCode);
   if (codes.length < 2) return null;
   return (
-    <select
+    <Select<AppIssueCode | "">
       className="browser-code-filter"
-      aria-label="Filter by kind"
+      label="Filter by kind"
       value={code ?? ""}
-      onChange={(e) => setCode(e.target.value === "" ? null : (e.target.value as AppIssueCode))}
-    >
-      <option value="">Every kind</option>
-      {codes.map((c) => (
-        <option key={c} value={c}>
-          {issueTitle(c)}
-        </option>
-      ))}
-    </select>
+      choices={[
+        { value: "", label: "Every kind" },
+        ...codes.map((c) => ({ value: c, label: issueTitle(c) })),
+      ]}
+      onChange={(next) => setCode(next === "" ? null : next)}
+    />
   );
 }
 

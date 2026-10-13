@@ -23,7 +23,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { useSystemGeometry } from "../../store/systemGeometry";
 import { HelpLink } from "../HelpLink";
-import { useGivenNames } from "../inspector/entity/useBodyName";
+import { useGivenNames } from "../useBodyName";
 import { useClipboard, type Clipboard } from "../useCut";
 import { GameDataPanel } from "./GameDataPanel";
 

@@ -21,7 +21,7 @@ import { CountryRow } from "./PlanetColony";
 import type { PlanetSectionProps } from "./planetSection";
 import { AngleDial } from "../AngleDial";
 import { HintedRow, SetByLines, StateValue } from "../states";
-import { useSystemBodyNames } from "./useBodyName";
+import { useSystemBodyNames } from "../../useBodyName";
 
 /** What the body orbits, opening its page, and its radius where no row of its own gives it. */
 function Orbits({

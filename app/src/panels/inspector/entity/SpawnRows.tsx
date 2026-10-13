@@ -45,7 +45,7 @@ import { bodySize } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
 import { DepositKindsList } from "./DepositPoolBars";
 import type { PlanetSectionProps } from "./planetSection";
-import { useGivenNames } from "./useBodyName";
+import { useGivenNames } from "../../useBodyName";
 import type { ClassPreview } from "./useClassPreview";
 import { useFeatureNamer } from "./useFeatureNamer";
 import { ClassRow } from "./ClassChooser";

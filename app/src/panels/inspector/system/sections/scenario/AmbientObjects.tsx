@@ -3,7 +3,7 @@ import { keyWords } from "../../../../../lib/text";
 import { useNamed } from "../../../../useNamed";
 import { DrillLink, Section } from "../../../parts";
 import { openBody } from "../../../entity/openBody";
-import { useSystemBodyNamer } from "../../../entity/useBodyName";
+import { useSystemBodyNamer } from "../../../../useBodyName";
 
 /** The body an ambient object is created at, opening its page. */
 function AtBody({ system, body }: { system: number; body: number }) {

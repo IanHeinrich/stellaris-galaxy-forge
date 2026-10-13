@@ -100,6 +100,8 @@ function subline(hit: SearchHit, look: Lookups): string {
     case "nebula":
     case "star_type":
       return systemCount(hit.system_count) ?? "";
+    default:
+      return hit.kind satisfies never;
   }
 }
 

@@ -4,7 +4,7 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
-import { useSystemBodyNamer } from "../../inspector/entity/useBodyName";
+import { useSystemBodyNamer } from "../../useBodyName";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 

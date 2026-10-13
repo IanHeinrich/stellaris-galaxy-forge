@@ -188,6 +188,8 @@ export function RowLine({ row, onForget }: { row: Row; onForget: (path: string) 
       return <SaveRowLine row={row} />;
     case "scenario":
       return <ScenarioRowLine row={row} />;
+    default:
+      return row satisfies never;
   }
 }
 
@@ -200,8 +202,10 @@ function rowPath(row: Row): string | null {
       return row.file.path;
     case "scenario":
       return row.listing.path;
-    default:
+    case "campaign":
       return null;
+    default:
+      return row satisfies never;
   }
 }
 

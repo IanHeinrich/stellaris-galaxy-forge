@@ -49,6 +49,7 @@ import {
   PREPARE_PRESET_NAMES,
   PREPARE_ROWS,
   PREPARE_SECTION,
+  type PrepareChoices,
   presetOf,
   rowSystems,
   usePrepareStore,
@@ -92,7 +93,6 @@ function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
   const choices = usePrepareStore((s) => s.choices);
   const setPreset = usePrepareStore((s) => s.setPreset);
   const preset = presetOf(choices, profile);
-  const nearest = preset === "custom" ? nearestPreset(choices, profile) : null;
   return (
     <>
       <div className="segmented prep-presets" role="group" aria-label="Preset">
@@ -112,13 +112,19 @@ function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
           </button>
         )}
       </div>
-      {nearest !== null ? (
-        <div className="muted ins-hint">{customLine(nearest.preset, nearest.rows)}</div>
+      {preset === "custom" ? (
+        <CustomLine choices={choices} profile={profile} />
       ) : (
-        <PresetAnswers preset={preset as PreparePreset} profile={profile} />
+        <PresetAnswers preset={preset} profile={profile} />
       )}
     </>
   );
+}
+
+/** Which preset the choices are nearest to, and how many rows differ from it. */
+function CustomLine({ choices, profile }: { choices: PrepareChoices; profile: ScenarioProfile }) {
+  const nearest = nearestPreset(choices, profile);
+  return <div className="muted ins-hint">{customLine(nearest.preset, nearest.rows)}</div>;
 }
 
 /** What the chosen preset does, and on a plain map that it brings no fallen empires. */
@@ -241,10 +247,6 @@ function ChoiceRow({
   );
 }
 
-/**
- * The hovered row's card, beside the dock: what the row holds, then each choice it offers with
- * its tag and sentences and the current one marked; while its list is open, the item the list is on.
- */
 /** One choice in a card: its name, marked while current, then its tag and sentences. */
 function CardChoice({
   label,
@@ -287,6 +289,10 @@ function ClearAroundCard() {
   );
 }
 
+/**
+ * The hovered row's card, beside the dock: what the row holds, then each choice it offers with
+ * its tag and sentences and the current one marked; while its list is open, the item the list is on.
+ */
 function RowCard({
   row,
   copy,
@@ -334,7 +340,7 @@ function RowCard({
   );
 }
 
-/** The fourteen rows; the map rings a row's systems on hover, and none once they go. */
+/** The rows; the map rings a row's systems on hover, and none once they go. */
 function ChoiceRows({
   copy,
   profile,

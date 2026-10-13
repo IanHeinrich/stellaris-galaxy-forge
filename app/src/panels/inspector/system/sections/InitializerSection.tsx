@@ -7,7 +7,7 @@ import { fileName, normalise } from "../../../../lib/paths";
 import { kindLabel } from "../../../../lib/special";
 import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../../initializers/entry";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../../initializerEntry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
 import { useNamed } from "../../../useNamed";
 import { TextField } from "../../../EditField";

@@ -66,7 +66,8 @@ export class GestureModel implements MapModel {
   }
 
   cursor(): string {
-    switch (this.drag?.kind) {
+    const kind = this.drag?.kind;
+    switch (kind) {
       case "lane":
       case "marquee":
         return "crosshair";
@@ -77,8 +78,11 @@ export class GestureModel implements MapModel {
       case "feZone":
       case "pan":
         return "grabbing";
-      default:
+      case "none":
+      case undefined:
         return this.idle;
+      default:
+        return kind satisfies never;
     }
   }
 
@@ -87,7 +91,8 @@ export class GestureModel implements MapModel {
   }
 
   reset(intent: MapIntent): void {
-    switch (this.drag?.kind) {
+    const kind = this.drag?.kind;
+    switch (kind) {
       case "move":
       case "moveGroup":
         intent.cancelMove();
@@ -105,6 +110,12 @@ export class GestureModel implements MapModel {
       case "feZone":
         intent.endFeZone();
         break;
+      case "pan":
+      case "none":
+      case undefined:
+        break;
+      default:
+        kind satisfies never;
     }
     this.press = null;
     this.drag = null;
@@ -215,6 +226,11 @@ export class GestureModel implements MapModel {
       case "feZone":
         intent.commitFeZone(drag.anchor, input.wx, input.wy);
         break;
+      case "pan":
+      case "none":
+        break;
+      default:
+        drag satisfies never;
     }
   }
 

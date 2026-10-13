@@ -5,7 +5,7 @@ import { useSystemNames } from "../../../store/browserRows";
 import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { counted } from "../../../lib/text";
-import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
 import { BulkActions } from "../../BulkActions";
 import { BulkStarClass } from "./BulkStarClass";
 import { Chip, FILTER_MIN, FilterField } from "../../parts";

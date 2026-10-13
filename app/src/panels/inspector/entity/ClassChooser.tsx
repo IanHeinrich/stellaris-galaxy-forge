@@ -21,7 +21,7 @@ import {
 } from "../../../lib/details/spawnFacts";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { Hinted, HintedRow, StateValue, Why } from "../states";
-import { PlanetIcon } from "../system/sections/bodies";
+import { PlanetIcon } from "../PlanetIcon";
 import { useStarOdds } from "../system/sections/scenario/useStarOdds";
 import type { BodyRead } from "./bodySources";
 import { OddsList, type Press, type ShownOdds } from "./OddsBar";

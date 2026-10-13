@@ -16,6 +16,9 @@ dialog with a form uses; its rules (`.dialog*`, `button.primary`) are in
 `inspector/useHoverCard.ts` its wiring.
 `panels.css` holds `.pop-surface`, the surface every popover wears, and
 `.listbox-option`, the states an option or tile of a listbox shows.
+The root also holds `useBodyName` (the names a body shows), `initializerEntry`
+(opening the initializer browser), `paintMod` (opening the Workshop pages) and
+`Select`. `PlanetIcon` sits in `inspector/`, because only its pages use it.
 
 ## Stylesheets
 

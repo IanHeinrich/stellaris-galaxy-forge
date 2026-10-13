@@ -1,5 +1,3 @@
-import type { FeDirection } from "../../../../../generated/FeDirection";
-import type { FeKind } from "../../../../../generated/FeKind";
 import type { FeZone } from "../../../../../generated/FeZone";
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import { linkedTo, takesCustomLinks, USE_NEAREST_SHORT_LABEL } from "../../../../../lib/feLinks";
@@ -14,9 +12,13 @@ import { useEditorStore } from "../../../../../store/editorStore";
 import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
+import { Select } from "../../../../Select";
 import { Section } from "../../../parts";
 import { Hinted } from "../../../states";
 import { FE_ZONE_CARD, FE_ZONE_LINE } from "./sectionCopy";
+
+const KIND_CHOICES = FE_KINDS.map(({ key, label }) => ({ value: key, label }));
+const DIRECTION_CHOICES = FE_DIRECTIONS.map(({ key, label }) => ({ value: key, label }));
 
 export const KIND_HINT =
   "Random lets the game pick the fallen empire. A named type puts that empire here first, if " +
@@ -112,17 +114,12 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
           <Hinted label="Type" hint={KIND_HINT} focusable={false}>
             Type
           </Hinted>
-          <select
-            aria-label="Fallen empire type"
+          <Select
+            label="Fallen empire type"
             value={zone.kind}
-            onChange={(e) => write({ kind: e.currentTarget.value as FeKind })}
-          >
-            {FE_KINDS.map((k) => (
-              <option key={k.key} value={k.key}>
-                {k.label}
-              </option>
-            ))}
-          </select>
+            choices={KIND_CHOICES}
+            onChange={(kind) => write({ kind })}
+          />
         </label>
       </div>
       <div className="ins-fe-zone">
@@ -130,17 +127,12 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
           <Hinted label="Direction" hint={placementHint(anchor)} focusable={false}>
             Direction
           </Hinted>
-          <select
-            aria-label="Zone direction"
+          <Select
+            label="Zone direction"
             value={zone.direction}
-            onChange={(e) => write({ direction: e.currentTarget.value as FeDirection })}
-          >
-            {FE_DIRECTIONS.map((d) => (
-              <option key={d.key} value={d.key}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+            choices={DIRECTION_CHOICES}
+            onChange={(direction) => write({ direction })}
+          />
         </label>
         <label>
           <Hinted label="Distance" hint={placementHint(anchor)} focusable={false}>

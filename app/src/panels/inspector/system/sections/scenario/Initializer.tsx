@@ -12,7 +12,8 @@ import { useNamed } from "../../../../useNamed";
 import { Chip, FILTER_MIN, FilterField, Icon } from "../../../../parts";
 import { INLINE_RESOURCES } from "../../../rows";
 import { Rolled } from "../../../states";
-import { PlanetIcon, Pills, PlanetSize } from "../bodies";
+import { PlanetIcon } from "../../../PlanetIcon";
+import { Pills, PlanetSize } from "../bodies";
 
 function BodyRow({ row }: { row: InitializerRow }) {
   const names = useGameDataStore((s) => s.names);

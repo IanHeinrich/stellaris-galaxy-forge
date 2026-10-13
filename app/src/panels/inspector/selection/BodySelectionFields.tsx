@@ -38,7 +38,7 @@ import { DepositRow, RemovalConfirm } from "../entity/PlanetDeposits";
 import { ModifierRowView } from "../entity/PlanetModifiers";
 import { PlanetPicker } from "../entity/PlanetPicker";
 import { SpreadActions } from "../entity/RowParts";
-import { SizeField } from "../entity/StarBlock";
+import { SizeField } from "../entity/SizeField";
 import {
   useSelectedBodies,
   useSelectionListing,

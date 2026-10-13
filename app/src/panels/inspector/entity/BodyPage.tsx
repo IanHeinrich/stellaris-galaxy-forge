@@ -26,7 +26,8 @@ import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
 import { NeverPlaced, StateValue } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
-import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
+import { PlanetIcon } from "../PlanetIcon";
+import { PlanetSize } from "../system/sections/bodies";
 import { BodyChips } from "./BodyChips";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
 import { EntityView } from "./EntityView";
@@ -52,8 +53,9 @@ import {
   SpawnHeadNotes,
   SpawnProperties,
 } from "./SpawnRows";
-import { SizeField, StarBlock } from "./StarBlock";
-import { useGivenNames } from "./useBodyName";
+import { SizeField } from "./SizeField";
+import { StarBlock } from "./StarBlock";
+import { useGivenNames } from "../../useBodyName";
 import { usePlanetData } from "./usePlanetData";
 import { useClassPreview } from "./useClassPreview";
 import "./entity.css";

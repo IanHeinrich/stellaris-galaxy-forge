@@ -39,6 +39,8 @@ function HowOftenRow({ odds }: { odds: UsageOdds }) {
           {usageOddsText(odds.base)}
         </HintedRow>
       );
+    default:
+      return odds satisfies never;
   }
 }
 

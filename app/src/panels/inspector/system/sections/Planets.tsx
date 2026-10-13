@@ -36,9 +36,10 @@ import { Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
 import { Hinted, NeverPlaced, StateValue } from "../../states";
 import { BodyChips } from "../../entity/BodyChips";
-import { useGivenNames } from "../../entity/useBodyName";
+import { useGivenNames } from "../../../useBodyName";
 import { usePlanetCounter } from "../usePlanetCounter";
-import { PlanetIcon, Pills, PlanetSize } from "./bodies";
+import { PlanetIcon } from "../../PlanetIcon";
+import { Pills, PlanetSize } from "./bodies";
 import {
   depositTitle,
   formatPops,
