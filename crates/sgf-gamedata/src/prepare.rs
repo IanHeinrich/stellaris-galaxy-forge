@@ -12,33 +12,49 @@
 
 use std::collections::HashMap;
 
-use sgf_core::export::ScenarioProfile;
-use sgf_core::export::policy::is_generic_home;
+use sgf_core::format::scenario::ScenarioProfile;
 use sgf_core::format::scenario::header_counts::is_seat;
 use sgf_core::format::scenario::marauder;
 use sgf_core::format::scenario::paint::is_random_list;
-use sgf_core::prepare::{self, PlainDraw, PrepareRow, RowSystems, WeightedLayout};
+use sgf_core::format::scenario::profile::is_generic_home;
+use sgf_core::prepare::{
+    self, PlainDraw, PrepareError, PrepareOptions, PrepareRow, Preview, RowChoice, RowSystems,
+    WeightedLayout,
+};
 use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::Session;
 
 use crate::GameData;
 use crate::initializers::{InitPlanet, Initializer};
 use crate::layouts::{self, odds, plain_initializers};
-use crate::special::{SpecialKind, classify_session};
+use crate::special::{SpecialKind, category, classify_session};
 
-/// The `usage` of the initializers an empire starts on: the game's random starts, the
-/// prescripted empires' and the origins'.
-const HOME_START_USAGES: [&str; 3] = ["empire_init", "custom_empire", "origin"];
 /// The `usage` of a nomad empire's home.
 const NOMAD_USAGE: &str = "nomad_init";
 /// The `usage` of the game's random empire starts.
 const RANDOM_START_USAGE: &str = "empire_init";
-/// The star flag a prescripted empire's start carries.
-const HOME_FLAG: &str = "empire_home_system";
 /// The star flag every Sol layout sets.
 const SOL_FLAG: &str = "sol";
 /// What a layout whose odds follow the primitives setting states.
 const PRIMITIVE_KEY: &str = "primitive_system";
+
+/// What `choices` would do to the open scenario under `options`: each row's systems as the
+/// install sorts them, the one batch, and what it changes, keeps clear, cuts off and draws.
+pub fn preview(
+    session: &Session,
+    gd: &GameData,
+    choices: &[RowChoice],
+    options: &PrepareOptions,
+) -> Result<Preview, PrepareError> {
+    let rows = classify(session, gd);
+    prepare::preview(
+        session,
+        rows,
+        choices,
+        &plain_draw(gd, options.seed),
+        options,
+    )
+}
 
 /// Every row with the systems standing in it, in [`PrepareRow::ALL`] order, each row's
 /// systems in file order.
@@ -122,13 +138,11 @@ fn sol(gd: &GameData, initializer: &str) -> bool {
 /// fix, so there a random start is a home to replace.
 fn generic_start(gd: &GameData, profile: ScenarioProfile, initializer: &str) -> bool {
     is_generic_home(profile, initializer)
-        || match profile {
-            ScenarioProfile::Plain => false,
-            ScenarioProfile::PaintAGalaxy => gd
+        || (profile.fixes_homeworlds()
+            && gd
                 .initializers
                 .get(initializer)
-                .is_some_and(|init| init.usage.as_deref() == Some(RANDOM_START_USAGE)),
-        }
+                .is_some_and(|init| init.usage.as_deref() == Some(RANDOM_START_USAGE)))
 }
 
 fn initializer_row(gd: &GameData, node: &SystemNode, kinds: &[SpecialKind]) -> PrepareRow {
@@ -143,24 +157,27 @@ fn initializer_row(gd: &GameData, node: &SystemNode, kinds: &[SpecialKind]) -> P
         };
     };
     let placed_by = gd.initializers.ancestors(key);
-    let flagged = |flag: &str| init.flags.iter().chain(&node.flags).any(|f| f == flag);
-    if placed_by.iter().any(|by| home_start(by)) {
+    let own = category(Some(init), &node.flags);
+    if placed_by
+        .iter()
+        .any(|by| category(Some(by), &[]).home_start)
+    {
         PrepareRow::HomeNeighbours
     } else if node.marauder.is_some()
         || kinds.contains(&SpecialKind::Marauder)
-        || flagged("marauder_system")
+        || own.flagged.marauder
         || placed_by
             .iter()
             .any(|by| marauder::role(&by.name).is_some())
     {
         PrepareRow::MarauderClans
-    } else if kinds.contains(&SpecialKind::Leviathan) || flagged("guardian") {
+    } else if kinds.contains(&SpecialKind::Leviathan) || own.flagged.guardian {
         PrepareRow::Guardians
-    } else if kinds.contains(&SpecialKind::Enclave) || flagged("enclave") {
+    } else if kinds.contains(&SpecialKind::Enclave) || own.flagged.enclave {
         PrepareRow::Enclaves
     } else if primitive(gd, init) {
         PrepareRow::Primitives
-    } else if home_start(init)
+    } else if own.home_start
         || used_as(init, &[NOMAD_USAGE])
         || placed_by.iter().any(|by| used_as(by, &[NOMAD_USAGE]))
         || (placed_by.is_empty() && event_only(init))
@@ -171,12 +188,6 @@ fn initializer_row(gd: &GameData, node: &SystemNode, kinds: &[SpecialKind]) -> P
     } else {
         PrepareRow::SpecialSystems
     }
-}
-
-/// An initializer an empire starts on: by its `usage`, or by the home flag a prescripted
-/// empire's start carries under the ordinary usage.
-fn home_start(init: &Initializer) -> bool {
-    used_as(init, &HOME_START_USAGES) || init.flags.iter().any(|f| f == HOME_FLAG)
 }
 
 /// An initializer galaxy generation never draws: no `usage`, or odds written as a fixed

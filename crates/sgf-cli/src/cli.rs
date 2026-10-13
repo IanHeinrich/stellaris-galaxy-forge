@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use sgf_core::prepare::{PrepareChoice, PrepareRow, RowChoice};
+use sgf_core::prepare::{PrepareChoice, PreparePreset, PrepareRow, RowChoice};
 use sgf_gamedata::LoadOptions;
 
 #[derive(Parser)]
@@ -287,13 +287,13 @@ pub enum Command {
     },
     /// Prepare a scenario for a new game: sort its systems into rows from the install's
     /// initializers, then write a preset's choices as one edit and save:
-    ///   sgf prepare map.txt --preset fresh --row system_names=game_names -o new.txt
+    ///   sgf prepare map.txt --preset fresh_start --row system_names=game_names -o new.txt
     /// --row sets one row's choice over the preset's; repeat it for more rows.
     #[command(verbatim_doc_comment)]
     Prepare {
         scenario: PathBuf,
-        #[arg(long, value_enum)]
-        preset: Preset,
+        #[arg(long, value_parser = preset)]
+        preset: PreparePreset,
         /// One row's choice, as `<row>=<choice>`; repeatable.
         #[arg(long = "row", value_parser = row_choice, value_name = "ROW=CHOICE")]
         rows: Vec<RowChoice>,
@@ -357,12 +357,12 @@ pub enum Profile {
     PaintAGalaxy,
 }
 
-/// The preset `sgf prepare` starts from.
-#[derive(Clone, Copy, ValueEnum)]
-pub enum Preset {
-    Faithful,
-    Fresh,
-    Shell,
+/// `fresh_start`, the `--preset` of `sgf prepare`.
+fn preset(text: &str) -> Result<PreparePreset, String> {
+    PreparePreset::parse(text).ok_or_else(|| {
+        let presets = PreparePreset::ALL.map(PreparePreset::as_str).join(", ");
+        format!("{text} is none of {presets}")
+    })
 }
 
 /// `system_names=game_names`, one `--row` of `sgf prepare`.

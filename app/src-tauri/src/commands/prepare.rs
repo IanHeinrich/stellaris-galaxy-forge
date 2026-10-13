@@ -4,11 +4,11 @@
 use std::sync::Arc;
 
 use sgf_core::ops::Op;
-use sgf_core::prepare::{self, PlainDraw, PrepareError, PrepareOptions, RowChoice, RowSystems};
+use sgf_core::prepare::{PrepareOptions, Preview, RowChoice};
 use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, SgfError};
 use sgf_gamedata::GameData;
-use sgf_gamedata::prepare::{classify, plain_draw};
+use sgf_gamedata::prepare::preview;
 use sgf_gamedata::special;
 use tauri::{AppHandle, Runtime};
 
@@ -34,26 +34,21 @@ pub async fn prepare_preview<R: Runtime>(
     let gd = game_data(&app, PREPARE)?;
     with_session(app, move |guard| {
         let session = require(guard.as_ref(), is_scenario, ONLY_A_SCENARIO)?;
-        let rows = classify(session, &gd);
-        let draw = plain_draw(&gd, options.seed);
-        let op = build(session, &rows, &choices, &draw, &options)?;
-        let kept_clear = match options.clear_around_seats {
-            true => {
-                prepare::kept_clear(session, &rows, &choices, &draw, &options).map_err(refused)?
-            }
-            false => Vec::new(),
-        };
-        let drawn = prepare::drawn(session, &rows, &choices, &options).map_err(refused)?;
-        let changes = op.as_ref().map_or(0, |op| prepare::changed(session, op));
-        let cut_off = op
-            .as_ref()
-            .map_or_else(Vec::new, |op| prepare::cut_off(session, op));
+        let Preview {
+            profile,
+            rows,
+            op,
+            changes,
+            kept_clear,
+            cut_off,
+            drawn,
+        } = previewed(session, &gd, &choices, &options)?;
         let map = op
             .filter(|_| map)
             .map(|op| projected(session, &gd, op))
             .transpose()?;
         Ok(PreparePreview {
-            profile: prepare::profile(session),
+            profile,
             changes,
             cut_off,
             map,
@@ -83,20 +78,28 @@ pub async fn prepare_apply<R: Runtime>(
     let gd = game_data(&app, PREPARE)?;
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_scenario, ONLY_A_SCENARIO)?;
-        let rows = classify(session, &gd);
-        let options = options.unwrap_or_default();
-        let draw = plain_draw(&gd, options.seed);
-        let Some(op) = build(session, &rows, &choices, &draw, &options)? else {
+        let preview = previewed(session, &gd, &choices, &options.unwrap_or_default())?;
+        let Some(op) = preview.op else {
             return Ok(None);
         };
-        let changes = prepare::changed(session, &op);
         let result = session.apply(op)?;
         Ok(Some(PreparedEdit {
             edit: session.edit_result(result),
-            changes,
+            changes: preview.changes,
         }))
     })
     .await
+}
+
+/// [`preview`], its refusal in the core's words.
+fn previewed(
+    session: &Session,
+    gd: &GameData,
+    choices: &[RowChoice],
+    options: &PrepareOptions,
+) -> Result<Preview, SgfError> {
+    preview(session, gd, choices, options)
+        .map_err(|refused| SgfError::new(ErrorKind::Op, refused.to_string()))
 }
 
 /// The map as `op` would leave the open scenario, read from a copy it is applied to.
@@ -123,43 +126,4 @@ fn projected(session: &Session, gd: &GameData, op: Op) -> Result<PreparedMap, Sg
 
 fn is_scenario(capabilities: Capabilities) -> bool {
     !is_save(capabilities)
-}
-
-fn build(
-    session: &Session,
-    rows: &[RowSystems],
-    choices: &[RowChoice],
-    draw: &PlainDraw,
-    options: &PrepareOptions,
-) -> Result<Option<Op>, SgfError> {
-    prepare::build(session, rows, choices, draw, options).map_err(refused)
-}
-
-fn refused(error: PrepareError) -> SgfError {
-    let message = match &error {
-        PrepareError::UneSeatOnPlain => "Only a Paint a Galaxy map has a UNE seat.".to_owned(),
-        PrepareError::SolSeatTaken(system) => format!(
-            "System #{system} already holds the Sol seat. Keep Sol, or take that seat off first."
-        ),
-        PrepareError::SeveralSols(systems) => {
-            let ids: Vec<String> = systems.iter().map(|id| format!("#{id}")).collect();
-            format!(
-                "A UNE seat goes on one Sol, and this map has {}: {}.",
-                systems.len(),
-                ids.join(", ")
-            )
-        }
-        PrepareError::NoSeatsToDraw => {
-            "This map has no seats, so there are none to draw again. Add a seat, or keep Empire seats."
-                .to_owned()
-        }
-        PrepareError::SeatsDoNotFit { wanted, fit } => format!(
-            "Only {fit} of the {wanted} seats fit on the systems left free, even close together. Let the game decide more rows, or keep Empire seats."
-        ),
-        PrepareError::RandomZonesOnPlain => {
-            "Only a Paint a Galaxy map has fallen empire zones.".to_owned()
-        }
-        _ => error.to_string(),
-    };
-    SgfError::new(ErrorKind::Op, message)
 }

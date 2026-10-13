@@ -23,7 +23,6 @@ use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, SEAT_MODULO, UNE_FLAG,
     WORMHOLE_FLAG_PREFIX,
 };
-use crate::prepare::generic_start;
 use crate::projections::galaxy::{BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
 use crate::search::NameResolver;
 
@@ -149,8 +148,11 @@ fn mark_spawns(
         // The player's empire brings its own home, so its seat gets a generic start.
         let players = player.as_ref().is_some_and(|(id, _)| *id == system.id);
         if system.initializer.is_none() || review.contains(&system.id) || players {
-            system.initializer =
-                Some(generic_start(ScenarioProfile::PaintAGalaxy, system.id).to_owned());
+            system.initializer = Some(
+                ScenarioProfile::PaintAGalaxy
+                    .generic_start(system.id)
+                    .to_owned(),
+            );
         }
     }
     for home in &mut report.home_initializers {

@@ -5,10 +5,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::export::ScenarioProfile;
-use crate::format::scenario::is_seat_initializer;
 use crate::format::scenario::marauder::MARAUDER_PREFIX;
 use crate::format::scenario::paint::SOL_INITIALIZER;
+pub use crate::format::scenario::profile::{is_generic_home, is_random_empire_start};
 
 /// Initializer prefixes of the game's standard generated systems.
 const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
@@ -30,8 +29,6 @@ const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
     "empire_init",
 ];
 
-/// What the game's random empire starts are named with.
-const RANDOM_EMPIRE_START_PREFIX: &str = "random_empire_init_";
 const FALLEN_EMPIRE_PREFIX: &str = "fallen_";
 /// Vanilla initializers that `spawn_megastructure` an `lgate_base` besides those named
 /// after it (`distant_stars_initializers.txt`).
@@ -41,7 +38,13 @@ const LGATE_INITIALIZERS: [&str; 3] = [
     "distantstars_init_06",
 ];
 const GUARANTEED_COLONY_SUFFIXES: [&str; 2] = ["_first_colony", "_second_colony"];
-const SPECIAL_FLAGS: [&str; 3] = ["guardian", "enclave", "galactic_landmark_system"];
+/// The star flags that say what a system is, for the export, Prepare and the special-system
+/// list alike.
+pub const HOME_FLAG: &str = "empire_home_system";
+pub const MARAUDER_FLAG: &str = "marauder_system";
+pub const GUARDIAN_FLAG: &str = "guardian";
+pub const ENCLAVE_FLAG: &str = "enclave";
+pub const LANDMARK_FLAG: &str = "galactic_landmark_system";
 /// What an L-Cluster system's initializer, or one of its star flags, starts with.
 pub const LCLUSTER_PREFIX: &str = "lcluster";
 
@@ -95,15 +98,42 @@ impl std::fmt::Display for Category {
     }
 }
 
+/// What a system's star flags say it is.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Flagged {
+    pub home: bool,
+    pub marauder: bool,
+    pub guardian: bool,
+    pub enclave: bool,
+    pub landmark: bool,
+}
+
+impl Flagged {
+    pub fn read<'a>(flags: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut flagged = Self::default();
+        for flag in flags {
+            match flag {
+                HOME_FLAG => flagged.home = true,
+                MARAUDER_FLAG => flagged.marauder = true,
+                GUARDIAN_FLAG => flagged.guardian = true,
+                ENCLAVE_FLAG => flagged.enclave = true,
+                LANDMARK_FLAG => flagged.landmark = true,
+                _ => {}
+            }
+        }
+        flagged
+    }
+}
+
 /// The first category the system matches; `is_capital` says a playable country's
 /// capital stands in it.
 pub fn classify(initializer: &str, flags: &[String], is_capital: bool) -> Category {
-    let has = |flag: &str| flags.iter().any(|f| f == flag);
-    if is_capital || has("empire_home_system") {
+    let flagged = Flagged::read(flags.iter().map(String::as_str));
+    if is_capital || flagged.home {
         Category::Home
     } else if initializer.starts_with(FALLEN_EMPIRE_PREFIX) {
         Category::FallenEmpire
-    } else if initializer.starts_with(MARAUDER_PREFIX) || has("marauder_system") {
+    } else if initializer.starts_with(MARAUDER_PREFIX) || flagged.marauder {
         Category::Marauder
     } else if initializer.starts_with("ratling_") {
         Category::Ratling
@@ -116,7 +146,9 @@ pub fn classify(initializer: &str, flags: &[String], is_capital: bool) -> Catego
         .any(|s| initializer.ends_with(s))
     {
         Category::GuaranteedColony
-    } else if SPECIAL_FLAGS.iter().any(|f| has(f))
+    } else if flagged.guardian
+        || flagged.enclave
+        || flagged.landmark
         || (!initializer.is_empty() && !is_generic_initializer(initializer))
     {
         Category::Special
@@ -141,23 +173,6 @@ pub fn builds_lgate(initializer: &str) -> bool {
 /// An initializer that builds the gateway the save had in its system.
 pub fn builds_gateway(initializer: &str) -> bool {
     initializer.starts_with("abandoned_gateways")
-}
-
-/// One of the game's random empire starts.
-pub fn is_random_empire_start(initializer: &str) -> bool {
-    initializer.starts_with(RANDOM_EMPIRE_START_PREFIX)
-}
-
-/// A seat's initializer that needs no look under `profile`: the start that profile writes
-/// on a seat, or Sol. Any other home may only fit the empire that started there. On a
-/// plain map a random empire start is a home to replace, because it builds the homeworld
-/// before the game knows the species; Paint a Galaxy's homeworld fix puts that right.
-pub fn is_generic_home(profile: ScenarioProfile, initializer: &str) -> bool {
-    initializer.starts_with(SOL_INITIALIZER)
-        || match profile {
-            ScenarioProfile::Plain => is_seat_initializer(initializer),
-            ScenarioProfile::PaintAGalaxy => is_random_empire_start(initializer),
-        }
 }
 
 #[cfg(test)]
@@ -241,7 +256,7 @@ mod tests {
         assert!(!is_generic_initializer("shattered_ring_start"));
         assert!(!is_generic_initializer(""));
 
-        use ScenarioProfile::{PaintAGalaxy, Plain};
+        use crate::format::scenario::ScenarioProfile::{PaintAGalaxy, Plain};
         assert!(is_generic_home(Plain, "basic_init_02"));
         assert!(!is_generic_home(Plain, "basic_init_04"));
         assert!(!is_generic_home(Plain, "basic_init_12"));

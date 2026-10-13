@@ -13,6 +13,7 @@ pub mod index;
 pub mod listings;
 pub mod marauder;
 pub mod paint;
+pub mod profile;
 pub(crate) mod provenance;
 pub(crate) mod spawn;
 pub mod summary;
@@ -22,6 +23,7 @@ pub use fe_link::FeLinkFlags;
 pub use fe_zone::{FeDirection, FeKind, FeZone};
 pub use marauder::MarauderRole;
 pub use paint::is_painted;
+pub use profile::ScenarioProfile;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

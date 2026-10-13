@@ -199,7 +199,7 @@ fn run(cli: Cli) -> commands::Run {
         }) => commands::prepare::run(
             &scenario,
             out.path.as_deref(),
-            preset.core(),
+            preset,
             &rows,
             &PrepareOptions {
                 clear_around_seats: !roll_around_seats,

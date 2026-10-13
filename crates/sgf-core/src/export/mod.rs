@@ -16,12 +16,10 @@ mod report;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-
 use crate::archive;
 use crate::as_u32;
 use crate::document::{self, Document, SaveOutcome};
+pub use crate::format::scenario::ScenarioProfile;
 use crate::format::scenario::emit::{
     FOOTER, Sliders, header, hyperlane_stmt, nebula_stmt, system_stmt,
 };
@@ -35,7 +33,6 @@ use crate::format::scenario::provenance;
 use crate::format::scenario::{HOME_SYSTEM_EFFECT, is_seat_initializer};
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
-use crate::prepare::generic_start;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
 use crate::search::NameResolver;
@@ -61,30 +58,6 @@ const SEAT_WEIGHT: f64 = 1.0;
 const SYSTEMS_PER_EMPIRE: usize = 60;
 const MIN_EMPIRES: u32 = 1;
 const MAX_EMPIRES: u32 = 30;
-
-/// Whose conventions a written scenario follows. `Plain` is the game's alone; the
-/// other writes what a companion mod reads on top of it, and the map then needs
-/// that mod.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "snake_case")]
-pub enum ScenarioProfile {
-    #[default]
-    Plain,
-    /// Spawn points in Paint a Galaxy's scripted shape and a header sized for its
-    /// mod's fixes (Steam Workshop 3532904115).
-    PaintAGalaxy,
-}
-
-impl ScenarioProfile {
-    /// What the profile gives a seat whose home it replaces, in the player's words.
-    pub const fn seat_start(self) -> &'static str {
-        match self {
-            Self::Plain => "an ordinary system",
-            Self::PaintAGalaxy => "a generic start",
-        }
-    }
-}
 
 /// A scenario file before it is text: the header, one entry per system in file
 /// order, each undirected lane once and each nebula.
@@ -172,7 +145,7 @@ pub fn draft(
             x: system.x * SCENARIO_X_SIGN,
             y: system.y * SCENARIO_Y_SIGN,
             initializer: match replaced.contains(&system.id) {
-                true => Some(generic_start(profile, system.id).to_owned()),
+                true => Some(profile.generic_start(system.id).to_owned()),
                 false => Some(system.initializer.clone()).filter(|i| !i.is_empty()),
             },
             spawn: match categories.get(&system.id) {
