@@ -19,7 +19,7 @@ import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializ
 import { BulkActions, MarauderClanButton } from "../../BulkActions";
 import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
 import { MenuFrame, type Frame } from "./MenuFrame";
-import { MenuItem } from "./MenuItem";
+import { MenuItem, RefusableMenuItem } from "./MenuItem";
 import { PasteItem } from "./PlanetMoveItems";
 import { useSelected, useZoneLink, useZones } from "./menuState";
 
@@ -139,13 +139,9 @@ export function SystemMenu({
         </MenuItem>
       )}
       {zones && (
-        <MenuItem
-          disabled={zoneRefusal !== null}
-          title={zoneRefusal ?? undefined}
-          run={() => addFeZone(target.id)}
-        >
+        <RefusableMenuItem refusal={zoneRefusal} run={() => addFeZone(target.id)}>
           Add fallen empire zone
-        </MenuItem>
+        </RefusableMenuItem>
       )}
       {link !== null && (
         <MenuItem run={link.run}>{linkToZoneLabel(link.change, selectedName)}</MenuItem>

@@ -8,7 +8,7 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { Icon } from "../../parts";
 import { DrillLink, LinkRow, Properties, PropertyRow, Section, Swatch } from "../parts";
 import type { PlanetSectionProps } from "./planetSection";
-import { RemoveColonyAction } from "./PlanetRemoval";
+import { RemovalAction } from "./PlanetRemoval";
 import { useOpenEntity } from "./useEntity";
 
 /** A row naming a country, whose name opens its page. */
@@ -32,7 +32,7 @@ export function CountryRow({ label, id }: { label: string; id: number }) {
   );
 }
 
-/** A save colony's facts, and its removal through the target's adapter where the page offers it. */
+/** A save colony's facts, and its removal where the page offers it. */
 export function PlanetColony({ read, offers }: PlanetSectionProps) {
   const colonyTypes = usePlanetDataStore((s) => s.colonyTypes);
   const names = useGameDataStore((s) => s.names);
@@ -72,11 +72,13 @@ export function PlanetColony({ read, offers }: PlanetSectionProps) {
         </LinkRow>
       </Properties>
       {offers.pageRemoval && (
-        <RemoveColonyAction
-          body={read.summary.id}
-          system={read.details.id}
-          name={bodyName(read.summary, names)}
-          edits={read.target.edits}
+        <RemovalAction
+          target={{
+            kind: "colony",
+            system: read.details.id,
+            id: read.summary.id,
+            name: bodyName(read.summary, names),
+          }}
         />
       )}
     </Section>

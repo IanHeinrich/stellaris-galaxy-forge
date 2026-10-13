@@ -153,9 +153,10 @@ describe("the fallen empire zone items", () => {
   it("refuses a second zone on an anchor, and says so", async () => {
     await openPainted();
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
-    const item = menu().match(/<button[^>]*>Add fallen empire zone<\/button>/)![0];
+    const item = menu().match(/<button[^>]*>Add fallen empire zone.*?<\/button>/)![0];
     expect(item).toContain("disabled=");
-    expect(item).toContain("This system already anchors a zone");
+    expect(item).toContain("hinted");
+    expect(item).toContain('<span class="muted">This system already anchors a zone');
   });
 });
 

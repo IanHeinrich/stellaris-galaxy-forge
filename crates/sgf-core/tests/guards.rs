@@ -184,10 +184,6 @@ const LONG_TEST_FILES: &[(&str, &str)] = &[
         "app/src/panels/inspector/entity/BodyPage.pools.test.tsx",
         "5f",
     ),
-    (
-        "app/src/panels/overlays/ContextMenu.systemView.test.tsx",
-        "5a",
-    ),
     ("app/src/test/builders.ts", "stays: the shared builders"),
 ];
 
