@@ -12,61 +12,13 @@ use sgf_core::cst::Node;
 use crate::condition::{Condition, Subject};
 use crate::install::script::{self, Def};
 use crate::install::walk::{self, CONDITIONAL, Scan, Script};
+pub use crate::mod_compatibility::NOT_OFFERED_YET;
 use crate::registries::megastructure_families::{Placed, closure, is_ruin, variant_stem};
 use crate::registries::megastructures::{
     MegastructureDef, MegastructureRead, MegastructureTypes, ReadTypes,
 };
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::scripts::ScriptIndex;
-
-/// The first stages of the families the dialog leaves out for now, with every stage after
-/// them and their ruins: crisis-path, origin and story structures, structures that become
-/// warships, the action stages of finished structures, and the Orbital Elysium, whose
-/// completion puts one planet in the orbit of its body and removes the row, a shape that
-/// has not been checked in game.
-pub const NOT_OFFERED_YET: [&str; 41] = [
-    "crisis_sphere_0",
-    "galactic_crucible_0",
-    "cosmogenesis_needle",
-    "behemoth_egg",
-    "behemoth_chrysalis",
-    "behemoth_chrysalis_big",
-    "dyson_sphere_disco",
-    "shroud_seal",
-    "waystation_megastructure",
-    "war_moon_0",
-    "war_planet_0",
-    "war_system_0",
-    "nomad_war_moon_0",
-    "nomad_war_planet_0",
-    "blokkat_prison_1_empty",
-    "blokkat_shield_killer_0",
-    "blokkat_star_fix_0",
-    "orbital_arcology_0",
-    "interstellar_habitat_0",
-    "interstellar_habitat_2",
-    "interstellar_habitat_4",
-    "anti_sirens_shield",
-    "ehof_sm_forge_phase0",
-    "ehof_presphere_dyson",
-    "r_square_world_ruined",
-    "frameworld_decompressor_1",
-    "frameworld_penrose_1",
-    "frameworld_salvage_habitat_0",
-    "blokkat_gigarelay_1",
-    "kaiser_moon_1",
-    "improbable_kaiser_moon_0",
-    "stellarite_kaiser_moon_0",
-    "pouchkinn_engine_1",
-    "penrose_bomb_armed",
-    "lunar_macroreplicator_make_moon",
-    "planetcraft_printer_make_planet",
-    "substellar_compressor_5",
-    "psychic_beacon_4",
-    "orbital_elysium_0",
-    "orbital_elysium_origin_platform_0",
-    "orbital_elysium_origin_platform_1",
-];
 
 /// Whether the add dialog offers a type.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]

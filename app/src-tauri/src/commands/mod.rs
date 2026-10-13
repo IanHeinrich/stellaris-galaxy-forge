@@ -43,6 +43,7 @@ use std::sync::{Arc, MutexGuard};
 use sgf_core::ops::SystemRadii;
 use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, Progress, ProgressPhase, SgfError};
+use sgf_gamedata::construction::ring_world::ring_world_types;
 use sgf_gamedata::{GameData, LoadError};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
@@ -61,15 +62,20 @@ const DISCOVER_AT: f64 = 0.1;
 const DEFINITIONS_AT: f64 = 0.4;
 const LOCALISATION_AT: f64 = 0.7;
 
-/// Fit `session` to the loaded game data: systems sized by its defines and stars as the
-/// install names them, or vanilla's sizes and the name rule without any.
+/// Fit `session` to the loaded game data: systems sized by its defines, and stars and ring
+/// worlds as the install names them, or vanilla's sizes and the key rules without any.
 pub(crate) fn fit_to_game_data<R: Runtime>(app: &AppHandle<R>, session: &mut Session) {
     let gd = app.state::<GameDataState>().loaded();
     session.set_radii(
         gd.as_ref()
             .map_or(SystemRadii::VANILLA, |gd| gd.system_radii),
     );
-    session.set_star_classes(gd.map(|gd| gd.session_star_classes()).unwrap_or_default());
+    session.set_star_classes(
+        gd.as_ref()
+            .map(|gd| gd.session_star_classes())
+            .unwrap_or_default(),
+    );
+    session.set_ring_world_types(gd.map(|gd| ring_world_types(&gd)).unwrap_or_default());
 }
 
 /// [`fit_to_game_data`] for the open session, once game data has loaded, unloaded or reloaded.

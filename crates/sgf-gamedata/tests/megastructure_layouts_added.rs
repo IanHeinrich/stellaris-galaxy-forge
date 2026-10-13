@@ -602,3 +602,24 @@ mod_halo_ruined = { }
         .collect();
     assert_eq!(kinds, ["mod_halo_section", "mod_halo_ruined"]);
 }
+
+/// The base game's ring world rows are ring world rows to the session and its other types
+/// are not, and a delete clears the flags its ring sets at 45.
+#[test]
+fn the_base_games_ring_is_a_ring_world_to_the_session() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let types = added::ring_world_types(gd);
+    assert!(types.is_ring_row("ring_world_ruined"));
+    assert!(!types.is_ring_row("dyson_sphere_1"));
+    let rings = gd.ring_flags();
+    let base = rings
+        .iter()
+        .find(|ring| ring.radius == 45.0)
+        .unwrap_or_else(|| panic!("a ring at 45: {rings:?}"));
+    assert!(
+        base.flags.contains(&"ring_world_built".to_owned()),
+        "{base:?}"
+    );
+}

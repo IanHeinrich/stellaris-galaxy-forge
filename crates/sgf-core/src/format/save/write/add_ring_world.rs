@@ -11,7 +11,7 @@ use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::rows;
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::ring_world::{RING_SLACK, is_ring_row, is_segment};
+use crate::format::save::ring_world::{RING_SLACK, is_segment};
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::flags::{add_flags, drop_flags, today};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
@@ -328,7 +328,7 @@ pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, Op
         let facts = megastructure::read(&row.node, row.src);
         if let Some(body) = facts
             .planet
-            .filter(|body| going.contains(body) && !is_ring_row(&facts.kind))
+            .filter(|body| going.contains(body) && !s.ring_world_types().is_ring_row(&facts.kind))
         {
             megastructures.push(ClearedMegastructure { id: row.id, body });
         }
@@ -587,7 +587,7 @@ fn check_room(
     }
     for row in rows(&s.doc, MEGASTRUCTURES)? {
         let facts = megastructure::read(&row.node, row.src);
-        if facts.origin != Some(system) || !is_ring_row(&facts.kind) {
+        if facts.origin != Some(system) || !s.ring_world_types().is_ring_row(&facts.kind) {
             continue;
         }
         if let Some((x, y)) = facts.at
