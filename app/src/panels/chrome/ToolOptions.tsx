@@ -386,11 +386,11 @@ export function ToolOptions() {
   const tool = useToolStore((s) => s.tool);
   const Options = OPTIONS[tool];
   const { help, label } = TOOL_ENTRY[tool];
-  if (Options === null || help === null) return null;
+  if (Options === null) return null;
   return (
     <div className="tool-options" role="toolbar" aria-label="Brush options">
       <Options />
-      <HelpLink place={help} topic={label} />
+      {help !== null && <HelpLink place={help} topic={label} />}
     </div>
   );
 }

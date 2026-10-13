@@ -4,6 +4,7 @@ target/
 # Node
 node_modules/
 app/dist/
+app/tsconfig.tsbuildinfo
 
 # Tauri
 app/src-tauri/gen/schemas/

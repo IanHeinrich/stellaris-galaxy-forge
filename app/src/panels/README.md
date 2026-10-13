@@ -9,8 +9,8 @@ folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
 piece of script text the app shows: the Initializer sections' groups and the
 Inspector's Source tab.
 The root also holds `useBodyName` (the names a body shows), `initializerEntry`
-(opening the initializer browser), `paintMod` (opening the Workshop pages),
-`PlanetIcon` and `Select`.
+(opening the initializer browser), `paintMod` (opening the Workshop pages) and
+`Select`. `PlanetIcon` sits in `inspector/`, because only its pages use it.
 
 ## Stylesheets
 

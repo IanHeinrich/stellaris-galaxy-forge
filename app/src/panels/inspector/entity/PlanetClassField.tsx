@@ -17,7 +17,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { EditNote, EditRow, PickerField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { useNamed } from "../../useNamed";
-import { PlanetIcon } from "../../PlanetIcon";
+import { PlanetIcon } from "../PlanetIcon";
 
 /** A planet the Class field changes: its id and name, and what narrows the classes it may take. */
 export interface ClassFieldBody extends ClassBody {

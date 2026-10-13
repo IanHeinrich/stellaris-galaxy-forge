@@ -3,13 +3,13 @@ import {
   SHATTERED_ICON_SEED,
   planetTint,
   shatteredDiscKey,
-} from "../lib/details/icons";
-import { isStar } from "../lib/details/starBody";
-import { toCss } from "../lib/visual/color";
-import { bodyLook } from "../map/system/look";
-import { useGameDataStore } from "../store/gameDataStore";
-import { Icon } from "./parts";
-import { useTextureUrl } from "./useTextureUrl";
+} from "../../lib/details/icons";
+import { isStar } from "../../lib/details/starBody";
+import { toCss } from "../../lib/visual/color";
+import { bodyLook } from "../../map/system/look";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { Icon } from "../parts";
+import { useTextureUrl } from "../useTextureUrl";
 
 /** A star's own art, its class texture when the class carries none, and a radiant glyph with neither. */
 function PlanetStarIcon({ keys }: { keys: readonly string[] }) {

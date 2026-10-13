@@ -38,7 +38,7 @@ import { Hinted, NeverPlaced, StateValue } from "../../states";
 import { BodyChips } from "../../entity/BodyChips";
 import { useGivenNames } from "../../../useBodyName";
 import { usePlanetCounter } from "../usePlanetCounter";
-import { PlanetIcon } from "../../../PlanetIcon";
+import { PlanetIcon } from "../../PlanetIcon";
 import { Pills, PlanetSize } from "./bodies";
 import {
   depositTitle,

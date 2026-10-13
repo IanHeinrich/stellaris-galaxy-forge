@@ -27,7 +27,7 @@ import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
 import { NeverPlaced, StateValue } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
-import { PlanetIcon } from "../../PlanetIcon";
+import { PlanetIcon } from "../PlanetIcon";
 import { PlanetSize } from "../system/sections/bodies";
 import { BodyChips } from "./BodyChips";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
