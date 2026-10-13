@@ -260,7 +260,7 @@ pub enum Op {
     /// Whether the game treats a system as an empire's home, which the plain profile writes
     /// on a seat it gives one of the game's ordinary systems: `home` writes the
     /// `empire_home_system` star flag and a guarded `if` that generates the starting
-    /// deposits and sizes the capital at the end of the system's `effect` block, and
+    /// deposits and rings the capital at the end of the system's `effect` block, and
     /// `false` takes out only those, with an earlier `if` behind the same guard, leaving
     /// the block's other statements as they are. A system already as asked is refused; one
     /// holding only some of those statements is not marked, so marking it writes them whole.
@@ -733,11 +733,11 @@ pub enum Op {
     /// it, and each `megastructures` row whose type starts with `ring_world` or `ringworld`
     /// goes as [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and
     /// rows standing within 5 of it from the system's centre go; without it, every ring of
-    /// the system. The system loses the flags of each size of ring deleted: for a ring
-    /// within 5 of 90, 134 or 179, Gigastructural Engineering's titanic, behemoth or
-    /// gargantuan ring, `ring_world_built_one` and `giga_has_titanic_ring`, `_two` and
-    /// `giga_has_behemoth_ring`, or `_three` and `giga_has_gargantuan_ring`; for any other,
-    /// `ring_world_built` and `ring_section_1` to `ring_section_3`. Its star loses the planet
+    /// the system. The system loses the flags of each ring deleted: those of the entry of
+    /// `rings` whose radius is within 5 of where the ring stands, a ring with nothing standing
+    /// off the star standing at 45, and none for a ring no entry lists. Without `rings`, it
+    /// loses the base game's ring's `ring_world_built` and `ring_section_1` to
+    /// `ring_section_3`, whatever ring is deleted. Its star loses the planet
     /// flag `has_megastructure` unless a ring world segment or row is left in the system or
     /// a row left names the star. A fleet of the system that orbits a deleted segment and does not go
     /// with it, such as a fallen empire's deep-space citadel, stays where it stands and
@@ -753,6 +753,9 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         radius: Option<f64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        rings: Option<Vec<RingFlags>>,
     },
     /// Save entities written back whole, each over whatever stands for it now: what
     /// [`Op::RemoveColony`], [`Op::DeleteBody`], [`Op::DeleteMegastructure`],

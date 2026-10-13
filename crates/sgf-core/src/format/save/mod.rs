@@ -276,9 +276,11 @@ impl Format for Save {
                 megastructure,
                 dismantle,
             } => delete_megastructure::plan_delete(plan, s, *megastructure, dismantle.as_ref()),
-            Op::DeleteRingWorld { system, radius } => {
-                delete_ring_world::plan_delete(plan, s, *system, *radius)
-            }
+            Op::DeleteRingWorld {
+                system,
+                radius,
+                rings,
+            } => delete_ring_world::plan_delete(plan, s, *system, *radius, rings.as_deref()),
             Op::RestoreEntities {
                 description,
                 entities,

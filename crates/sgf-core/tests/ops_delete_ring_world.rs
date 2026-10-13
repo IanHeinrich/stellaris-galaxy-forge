@@ -3,7 +3,8 @@
 //! byte-exact undo and what is refused. Deleting a habitat takes its flags with it.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::Op;
+use sgf_core::format::save::ring_world::BASE_RING;
+use sgf_core::ops::{NewRingWorld, Op, RingFlags, RingQuadrant};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -32,6 +33,7 @@ fn delete(system: u32) -> Op {
     Op::DeleteRingWorld {
         system,
         radius: None,
+        rings: None,
     }
 }
 
@@ -39,6 +41,30 @@ fn delete_at(system: u32, radius: f64) -> Op {
     Op::DeleteRingWorld {
         system,
         radius: Some(radius),
+        rings: None,
+    }
+}
+
+/// The ring at `radius` deleted, with the base game's ring and `ring` as the rings the
+/// install lays out.
+fn delete_ringed(radius: f64, ring: RingFlags) -> Op {
+    let (base_radius, base_flags) = BASE_RING;
+    let base = RingFlags {
+        radius: base_radius,
+        flags: base_flags.map(str::to_owned).to_vec(),
+    };
+    Op::DeleteRingWorld {
+        system: LACHIUM,
+        radius: Some(radius),
+        rings: Some(vec![base, ring]),
+    }
+}
+
+/// The flags `ring` writes, as the ring at `radius`.
+fn flags_of(ring: &NewRingWorld, radius: f64) -> RingFlags {
+    RingFlags {
+        radius,
+        flags: ring.system_flags.clone(),
     }
 }
 
@@ -167,14 +193,12 @@ fn the_star_loses_its_megastructure_flag_unless_another_row_names_it() {
 /// The 4.5 sample with Gigastructural Engineering's titanic ring added round Lachium's star
 /// beside its ring at 45, whose system has `ring_world_built`, saved and opened again.
 fn two_rings() -> Session {
-    let mut session = open_4_5();
-    let op = session
-        .save("adding a ring world")
-        .expect("a save")
-        .ring_world_op(LACHIUM, None, titanic_ring(), false)
-        .expect("the titanic ring");
-    session.apply(op).expect("the titanic ring");
-    reopened(&mut session)
+    added_beside_lachiums(titanic_ring()).0
+}
+
+/// The titanic ring at 90 deleted, with the flags its build sets.
+fn delete_titanic() -> Op {
+    delete_ringed(90.0, flags_of(&titanic_ring(), 90.0))
 }
 
 /// Deleting one of two rings takes the flags of its own size only: the base game's ring at
@@ -186,7 +210,7 @@ fn deleting_one_of_two_rings_keeps_the_others_flags() {
     let result = snapshot_step(
         &mut session,
         "the_ring_beside_a_titanic_ring",
-        delete_at(LACHIUM, 45.0),
+        delete_ringed(45.0, flags_of(&titanic_ring(), 90.0)),
     );
     assert!(
         result
@@ -204,9 +228,7 @@ fn deleting_one_of_two_rings_keeps_the_others_flags() {
     let star = entity_text(&session, EntityKind::Planet, 2444);
     assert!(star.contains("has_megastructure="), "{star}");
 
-    session
-        .apply(delete_at(LACHIUM, 90.0))
-        .expect("the titanic ring");
+    session.apply(delete_titanic()).expect("the titanic ring");
     let system = system_text(&session, LACHIUM);
     for flag in ["ring_world_built_one=", "giga_has_titanic_ring="] {
         assert!(!system.contains(flag), "{flag}: {system}");
@@ -216,13 +238,71 @@ fn deleting_one_of_two_rings_keeps_the_others_flags() {
 
     let mut titanic_first = two_rings();
     titanic_first
-        .apply(delete_at(LACHIUM, 90.0))
+        .apply(delete_titanic())
         .expect("the titanic ring");
     let system = system_text(&titanic_first, LACHIUM);
     assert!(system.contains("ring_world_built="), "{system}");
     assert!(!system.contains("giga_has_titanic_ring="), "{system}");
     let star = entity_text(&titanic_first, EntityKind::Planet, 2444);
     assert!(star.contains("has_megastructure="), "{star}");
+}
+
+/// The flags of Lachium's own `flags` block, each as written.
+fn lachium_flags(session: &Session) -> Vec<String> {
+    let text = system_text(session, LACHIUM);
+    let open = "\n\t\tflags=\n\t\t{\n";
+    let Some(at) = text.find(open) else {
+        return Vec::new();
+    };
+    let block = &text[at + open.len()..];
+    let end = block.find("\n\t\t}").expect("the flags block closes");
+    block[..end]
+        .lines()
+        .map(|line| line.trim().to_owned())
+        .collect()
+}
+
+/// `ring` added round Lachium's star beside its ring at 45, saved and opened again, and the
+/// system's flags before the add.
+fn added_beside_lachiums(ring: NewRingWorld) -> (Session, Vec<String>) {
+    let mut session = open_4_5();
+    let before = lachium_flags(&session);
+    let op = session
+        .save("adding a ring world")
+        .expect("a save")
+        .ring_world_op(LACHIUM, None, ring, false)
+        .expect("the ring");
+    session.apply(op).expect("the ring");
+    (reopened(&mut session), before)
+}
+
+/// Deleting the titanic ring takes every flag its build set, its habitable sections'
+/// `ring_05` to `ring_08` too, and leaves the system's flags as they were before the add.
+#[test]
+fn deleting_an_added_ring_takes_every_flag_its_build_set() {
+    let (mut session, before) = added_beside_lachiums(titanic_ring());
+    session.apply(delete_titanic()).expect("the titanic ring");
+    assert_eq!(lachium_flags(&session), before);
+}
+
+/// A ring at a radius no other ring stands at takes its own flags, and leaves the base
+/// game's `ring_world_built` to the ring at 45 that still stands.
+#[test]
+fn a_ring_at_another_radius_takes_its_own_flags() {
+    let mut ring = titanic_ring();
+    for quadrant in &mut ring.quadrants {
+        if let RingQuadrant::Finished { segments } = quadrant {
+            for segment in segments {
+                segment.planet.at.radius = 65.0;
+            }
+        }
+    }
+    ring.system_flags = vec!["my_mod_ring_built".to_owned()];
+    let (mut session, before) = added_beside_lachiums(ring.clone());
+    session
+        .apply(delete_ringed(65.0, flags_of(&ring, 65.0)))
+        .expect("the ring at 65");
+    assert_eq!(lachium_flags(&session), before);
 }
 
 /// Segment 2446 of Lachium names no megastructure row of its own.

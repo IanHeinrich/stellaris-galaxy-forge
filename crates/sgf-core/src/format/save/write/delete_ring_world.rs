@@ -7,9 +7,7 @@
 use crate::entity::facts::megastructure;
 use crate::format::save::added::rows;
 use crate::format::save::galaxy::fleets::orbited_planet;
-use crate::format::save::ring_world::{
-    BASE_RING, RING_SLACK, is_ring_row, is_segment, on_ring, size_at,
-};
+use crate::format::save::ring_world::{BASE_RING, RING_SLACK, is_ring_row, is_segment, on_ring};
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::flags::{drop_flags, flag_spans};
 use crate::format::save::write::fleets::present_fleets;
@@ -19,7 +17,7 @@ use crate::format::save::write::restore::{Saved, live, tombstoned};
 use crate::format::save::{planet_entity, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::rules::{named, named_body};
-use crate::ops::{OpError, Plan, Planned, SavedTable, Subject};
+use crate::ops::{OpError, Plan, Planned, RingFlags, SavedTable, Subject};
 use crate::projections::geometry::{Body, descendants};
 use crate::projections::read;
 use crate::session::Session;
@@ -30,6 +28,7 @@ pub(crate) fn plan_delete(
     s: &Session,
     system: u32,
     radius: Option<f64>,
+    rings: Option<&[RingFlags]>,
 ) -> Result<Planned, OpError> {
     if let Some(radius) = radius
         && !(radius.is_finite() && radius > 0.0)
@@ -54,7 +53,7 @@ pub(crate) fn plan_delete(
         ));
     }
     let going: Vec<u32> = rows.iter().map(|tied| tied.id).collect();
-    let flags = sizes_flags(s, &frame, &bodies, &going)?;
+    let flags = rings_flags(s, rings, &frame, &bodies, &going)?;
     let standing = rings_left(s, system, &frame, &bodies, &going)?;
     let deletion = Deletion::read(s, system, &frame, bodies, Segments::Taken, &going)?;
 
@@ -115,15 +114,21 @@ pub(crate) fn plan_delete(
     })
 }
 
-/// The system flags of each size of ring the segments `bodies` and the rows `going` are part
-/// of, by how far each stands from the system's centre; the base game's ring's when none
-/// stands off the star.
-fn sizes_flags(
+/// The system flags of each ring in `rings` that a segment among `bodies` or a row among
+/// `going` stands at, by its distance from the system's centre; a ring with nothing standing
+/// off the star stands at the base game's ring's radius. Without `rings`, the base game's
+/// ring's.
+fn rings_flags<'a>(
     s: &Session,
+    rings: Option<&'a [RingFlags]>,
     frame: &[Body],
     bodies: &[u32],
     going: &[u32],
-) -> Result<Vec<&'static str>, OpError> {
+) -> Result<Vec<&'a str>, OpError> {
+    let (base_radius, base_flags) = BASE_RING;
+    let Some(rings) = rings else {
+        return Ok(base_flags.to_vec());
+    };
     let mut distances: Vec<f64> = frame
         .iter()
         .filter(|body| bodies.contains(&body.id))
@@ -136,16 +141,20 @@ fn sizes_flags(
             distances.push(x.hypot(y));
         }
     }
-    let mut flags: Vec<&'static str> = Vec::new();
-    for distance in distances.into_iter().filter(|d| *d > RING_SLACK) {
-        for flag in size_at(distance).flags {
-            if !flags.contains(flag) {
+    distances.retain(|d| *d > RING_SLACK);
+    if distances.is_empty() {
+        distances.push(base_radius);
+    }
+    let mut flags: Vec<&'a str> = Vec::new();
+    for distance in distances {
+        let standing = rings
+            .iter()
+            .filter(|ring| (distance - ring.radius).abs() <= RING_SLACK);
+        for flag in standing.flat_map(|ring| &ring.flags) {
+            if !flags.contains(&flag.as_str()) {
                 flags.push(flag);
             }
         }
-    }
-    if flags.is_empty() {
-        flags.extend(BASE_RING.flags);
     }
     Ok(flags)
 }

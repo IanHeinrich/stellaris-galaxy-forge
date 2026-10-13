@@ -645,6 +645,16 @@ impl MegastructureDismantle {
     }
 }
 
+/// The system flags a ring world of one size leaves, and the radius its build chain lays its
+/// sections out at, read from the install: what [`Op::DeleteRingWorld`] clears for a ring
+/// standing there.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RingFlags {
+    pub radius: f64,
+    pub flags: Vec<String>,
+}
+
 /// One save entity in [`Op::RestoreEntities`]: the table it stands in, its id, and its
 /// whole `<id>={ … }` statement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

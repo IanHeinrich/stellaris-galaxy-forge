@@ -25,6 +25,7 @@ pub mod layouts;
 pub mod loc;
 pub mod megastructure_views;
 pub mod menu;
+pub mod mod_compatibility;
 pub mod modifier_choices;
 pub mod naming;
 pub(crate) mod orbit_walk;
