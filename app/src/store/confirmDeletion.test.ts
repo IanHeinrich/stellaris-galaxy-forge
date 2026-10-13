@@ -32,6 +32,8 @@ interface Deletion {
   run(): Promise<boolean>;
   /** The command the apply goes through. */
   applied: () => Mock;
+  /** What the command is called with. */
+  args: unknown[];
   /** What the open pages are, from the root to the page that goes. */
   stack: Entry[];
   /** The pages left once the deletion is applied. */
@@ -59,6 +61,7 @@ const DELETIONS: Deletion[] = [
     unreadable: failPage,
     run: () => deletePlanet(1207, "Terra", false),
     applied: () => mockedIpc.applyOp,
+    args: [{ type: "DeleteBody", body: 1207 }],
     stack: planetStack,
     left: ["Sol"],
     title: "Terra",
@@ -71,6 +74,7 @@ const DELETIONS: Deletion[] = [
     unreadable: failPage,
     run: () => removeColony(1207, "Terra"),
     applied: () => mockedIpc.applyOp,
+    args: [{ type: "RemoveColony", body: 1207 }],
     stack: planetStack,
     left: ["Sol", "Terra"],
     title: "Terra",
@@ -91,6 +95,7 @@ const DELETIONS: Deletion[] = [
     unreadable: () => mockedIpc.getEntity.mockRejectedValue(FAILED),
     run: () => deleteMegastructure(359, "Science Nexus", 0),
     applied: () => mockedIpc.deleteMegastructure,
+    args: [359],
     stack: [
       { ref: { kind: "system", id: 338 }, label: "Ostiuq" },
       { ref: { kind: "megastructure", id: 359 }, label: "Science Nexus" },
@@ -127,6 +132,7 @@ const DELETIONS: Deletion[] = [
     unreadable: () => mockedIpc.getSystemDetails.mockRejectedValue(FAILED),
     run: () => deleteRingWorld(0),
     applied: () => mockedIpc.deleteRingWorld,
+    args: [0],
     stack: [
       { ref: { kind: "system", id: 0 }, label: "Sol" },
       { ref: { kind: "body", system: 0, id: 2447 }, label: "Section" },
@@ -164,6 +170,7 @@ describe.each(DELETIONS)("deleting $subject", (deletion) => {
       expect.objectContaining({ title: deletion.title, kind: "warning" }),
     );
     expect(deletion.applied()).toHaveBeenCalledTimes(1);
+    expect(deletion.applied()).toHaveBeenCalledWith(...deletion.args);
     expect(labels()).toEqual(deletion.left);
   });
 
