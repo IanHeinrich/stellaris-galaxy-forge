@@ -47,8 +47,8 @@ left out.
    - For one built on or around a body, such as a Science Nexus or an
      Arc Furnace, right-click the planet, moon or star and select Add
      megastructure.
-   - For a Hyper Relay or a Gateway, right-click empty space and select
-     Add megastructure here.
+   - For a Hyper Relay, a Gateway or an L-Gate, right-click empty space
+     and select Add megastructure here.
 3. Pick a megastructure from the list on the left.
 4. Click one of its stages in the tiles beside the list.
 5. Click Add.
@@ -110,13 +110,17 @@ Science Nexus on a planet, or a Hyper Relay in empty space.
 A Dyson Sphere and the other megastructures the game builds only around
 a star are offered only on a star. A Science Nexus, an Arc Furnace and
 the others the game never builds on a star aren't offered on a star. A
-second Hyper Relay or Gateway in a system is greyed out, and the preview
-says why.
+second Hyper Relay, Gateway or L-Gate in a system is greyed out, and the
+preview says why.
 
-A Hyper Relay or a Gateway stands just outside the system's
+A Hyper Relay, a Gateway or an L-Gate stands just outside the system's
 [inner radius](../reference/glossary.md#inner-radius), in the direction
 you right-clicked. A Hyper Relay links to the relays in the systems its
 hyperlanes lead to, and a Gateway links to every other gateway.
+
+An L-Gate is added closed and links to nothing. When the L-Gates open in
+the game, it links to the L-Cluster. The app also gives its system the
+mark the game keeps on every L-Gate system, which the link needs.
 
 A megastructure goes to the empire that owns its system.
 
@@ -141,7 +145,7 @@ their stages.
 
 Galaxy Forge can't add these yet, and they aren't in the list:
 
-- L-Gates and the later stages of the Quantum Catapult.
+- The later stages of the Quantum Catapult.
 - Megastructures that become a starbase when they are built: the Deep
   Space Citadel and the Nomads' waystations.
 - Some Gigastructural Engineering types that Galaxy Forge doesn't
@@ -162,10 +166,11 @@ In a Stellaris 4.x save, you can move a megastructure to another place
 in its system. Hold the pointer over a megastructure in the system view
 and its tooltip says how it moves, or why it stays where it is.
 
-A Hyper Relay, a Gateway or the Shroud Seal stands at a point of its
-own. Drag it to where it should stand, anywhere in its system. It moves
-in whole units and degrees, and <kbd>Shift</kbd> snaps the angle to 15°
-steps. Its links to other relays or gateways stay as they are.
+A Hyper Relay, a Gateway, an L-Gate or the Shroud Seal stands at a
+point of its own. Drag it to where it should stand, anywhere in its
+system. It moves in whole units and degrees, and <kbd>Shift</kbd> snaps
+the angle to 15° steps. Its links to other relays or gateways stay as
+they are.
 
 A megastructure built on or around a body belongs to that body. It
 moves in one of two ways:
@@ -184,7 +189,9 @@ Either kind moves to another planet, moon or star of the same system
 when you drop it on one. While you drag, the bodies it can move to are
 ringed.
 
-An Arc Furnace hides its new planet, and its old planet shows again. The
+An Arc Furnace hides its new planet, and its old planet shows again. On
+a star it hides nothing: the star looks as before, with the furnace
+round it. The
 modifiers and deposits its construction added stay where they are, so an
 Arc Furnace's mining bonus stays on the planets of its system.
 
@@ -196,13 +203,13 @@ red when the pointer is over it, and the status bar says why:
   Sphere, and the body is a planet or a moon. In a system with one star,
   such a megastructure has nowhere to go.
 - The game never builds the megastructure on a star, as with a Science
-  Nexus or an Arc Furnace, and the body is a star.
+  Nexus, and the body is a star. An Arc Furnace can go on a star.
 
 Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to move it back.
 
 These stay where they are:
 
-- L-Gates.
+- Quantum Catapults.
 - Ring world sections.
 - Deep Space Citadels and the Nomads' waystations, which stand with a
   starbase.
@@ -244,16 +251,19 @@ out again.
 You can add a habitat where the game wouldn't let you build one, such
 as a second habitat in a system, or one round an asteroid or a black
 hole. A moon, or a habitat that orbits a planet, can't have a habitat
-round it, and Habitat Central Complex is greyed out there. A planet or
-star that already has a habitat is refused, and the status bar says
-why.
+round it, and Habitat Central Complex is greyed out there.
+
+A planet or star can have more than one habitat. Each new one goes as
+far round it from the others as it can, so a second habitat stands
+opposite the first.
 
 To delete a habitat, right-click it and select Delete planet, as for
 any other planet. No ruined Habitat Central Complex is left behind. The
 planet or star it orbited loses the mark the game keeps for its
 habitat, and the system loses its own mark once no habitat is left in
 it. Deleting a habitat you added as the restored complex also deletes
-its orbital.
+its orbital, unless another habitat you added still orbits the same
+planet or star. The orbital then goes with the last of them.
 
 ## Add a ring world
 
@@ -348,8 +358,8 @@ one undo puts it all back.
 The menu item and the button say why when a megastructure can't be
 deleted:
 
-- an L-Gate, or a megastructure with any other link than a relay's or a
-  gateway's
+- an L-Gate the save had when you opened it, or a megastructure with any
+  other link than a relay's or a gateway's
 - a ring world, which is deleted whole: see
   [Delete a ring world](#delete-a-ring-world)
 - a save from before Stellaris 4.0

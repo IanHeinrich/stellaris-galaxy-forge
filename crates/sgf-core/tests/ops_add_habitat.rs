@@ -1,7 +1,9 @@
 //! Adding a habitat round a body of the 4.5 sample and deleting it again: the diff, the
 //! flags the host and the system take and give back, and what is refused.
 
-use sgf_core::ops::{HabitatOrbital, NewHabitat, NewMegastructurePlace, NewPlanet, Op};
+use sgf_core::ops::{
+    HabitatOrbital, HabitatPlacement, NewHabitat, NewMegastructurePlace, NewPlanet, Op,
+};
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
@@ -55,6 +57,21 @@ fn restored(body: u32) -> Op {
     )
 }
 
+/// `op`, an [`Op::AddHabitat`], placed away from the habitats round its body, as the install's
+/// habitat effect places one.
+fn spread(op: Op) -> Op {
+    let Op::AddHabitat { body, habitat } = op else {
+        unreachable!("an AddHabitat");
+    };
+    add(
+        body,
+        NewHabitat {
+            placed: HabitatPlacement::AwayFromHabitats,
+            ..habitat
+        },
+    )
+}
+
 fn added_id(result: &sgf_core::session::OpResult) -> u32 {
     result.created.planets[0]
 }
@@ -91,12 +108,6 @@ fn what_an_add_refuses() {
                     "a habitat cannot be added there: Alari system #{id} orbits planet #4, and Galaxy Forge puts nothing round a body that orbits a planet"
                 ),
             ),
-            (
-                add(4, habitat_at(9.899)),
-                &format!(
-                    "a habitat cannot be added there: planet #4 has a habitat already (habitat{id})"
-                ),
-            ),
             (add(5, no_size), "a planet size may not be zero"),
             (
                 add(5, twice),
@@ -109,6 +120,118 @@ fn what_an_add_refuses() {
                 "planet 999999 does not exist",
             ),
         ],
+    );
+}
+
+/// Delete habitat `id`, and return the angle about its host it stood at, as the deletion's
+/// inverse reads it back.
+fn delete_at_angle(session: &mut sgf_core::session::Session, id: u32) -> f64 {
+    let removed = session
+        .apply(Op::DeleteBody { body: id })
+        .expect("the deletion");
+    let Op::AddHabitat { habitat, .. } = &removed.inverse else {
+        panic!("{:?}", removed.inverse);
+    };
+    habitat.planet.at.angle
+}
+
+/// A second habitat round planet 4 goes to the far side of the first, which stands at 315°,
+/// and the host keeps a `habitat<id>` flag for each. Deleting the first leaves the second's
+/// flag and the system's `has_habitat`; deleting the second, the last, leaves the save as it
+/// was opened.
+#[test]
+fn a_second_habitat_goes_opposite_the_first() {
+    let mut session = open_4_5();
+    let first = added_id(&session.apply(spread(sol_habitat())).expect("the first"));
+    let result = snapshot_step(
+        &mut session,
+        "habitat_second_round_a_planet",
+        spread(sol_habitat()),
+    );
+    let second = added_id(&result);
+    let host = planet_text(&session, 4);
+    for id in [first, second] {
+        assert!(host.contains(&format!("habitat{id}=")), "{id}: {host}");
+    }
+
+    let angle = delete_at_angle(&mut session, first);
+    assert!((angle - 315.0).abs() < 1e-3, "{angle}");
+    let host = planet_text(&session, 4);
+    assert!(!host.contains(&format!("habitat{first}=")), "{host}");
+    assert!(host.contains(&format!("habitat{second}=")), "{host}");
+    assert!(system_text(&session, ALARI).contains("has_habitat="));
+    let angle = delete_at_angle(&mut session, second);
+    assert!((angle - 135.0).abs() < 1e-3, "{angle}");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// A habitat placed at its angle stands there whatever orbits its body, so the inverse of a
+/// deletion puts it back where it stood: three habitats stand at 315°, 135° and the middle
+/// of a gap, and the first deleted comes back at 315°. Undo puts the bytes back.
+#[test]
+fn a_deleted_habitat_comes_back_where_it_stood() {
+    let mut session = open_4_5();
+    let ids: Vec<u32> = (0..3)
+        .map(|_| added_id(&session.apply(spread(sol_habitat())).expect("a habitat")))
+        .collect();
+    let after_three = current(&session);
+    let coordinate = |session: &sgf_core::session::Session, id: u32| {
+        let text = planet_text(session, id);
+        let start = text.find("coordinate=").expect("a coordinate");
+        let end = start + text[start..].find('}').expect("its end");
+        text[start..end].to_owned()
+    };
+    let stood = coordinate(&session, ids[0]);
+    let removed = session
+        .apply(Op::DeleteBody { body: ids[0] })
+        .expect("the first");
+    let Op::AddHabitat { habitat, .. } = &removed.inverse else {
+        panic!("{:?}", removed.inverse);
+    };
+    assert_eq!(habitat.placed, HabitatPlacement::AtAngle);
+    let back = session.apply(removed.inverse.clone()).expect("the inverse");
+    assert_eq!(coordinate(&session, added_id(&back)), stood);
+    session.undo().expect("undo").expect("the inverse to undo");
+    session.undo().expect("undo").expect("the deletion to undo");
+    assert_eq!(current(&session), after_three);
+}
+
+/// A habitat added round a planet whose restored habitat has its orbital comes without one,
+/// and the orbital stays while either habitat stands: it goes with the last of them.
+#[test]
+fn a_restored_habitats_orbital_goes_with_the_last_habitat() {
+    let mut session = open_4_5();
+    let first = added_id(&session.apply(restored(4)).expect("the restored habitat"));
+    let after_first = current(&session);
+    let added = session.apply(spread(restored(4))).expect("a second");
+    let second = added_id(&added);
+    assert!(
+        !added.entry.description.contains("orbital"),
+        "{}",
+        added.entry.description
+    );
+    session.undo().expect("undo").expect("the second to undo");
+    assert_eq!(current(&session), after_first);
+    session.redo().expect("redo").expect("the second to redo");
+
+    session
+        .apply(Op::DeleteBody { body: first })
+        .expect("the first");
+    let host = planet_text(&session, 4);
+    assert!(
+        host.contains("has_orbital=") && host.contains("megastructure="),
+        "{host}"
+    );
+    let removed = session
+        .apply(Op::DeleteBody { body: second })
+        .expect("the second");
+    assert_eq!(current(&session), session.doc().original());
+    let Op::AddHabitat { habitat, .. } = &removed.inverse else {
+        panic!("{:?}", removed.inverse);
+    };
+    assert!(
+        habitat.orbital.is_some(),
+        "the last habitat's orbital comes back with it"
     );
 }
 

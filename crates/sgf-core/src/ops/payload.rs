@@ -98,6 +98,22 @@ pub struct NewHabitat {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub orbital: Option<HabitatOrbital>,
+    /// How the habitat's angle round the body is taken.
+    #[serde(default)]
+    pub placed: HabitatPlacement,
+}
+
+/// How [`Op::AddHabitat`] takes the angle of `NewHabitat::planet.at`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum HabitatPlacement {
+    /// At the angle, as a habitat read back from the save stood.
+    #[default]
+    AtAngle,
+    /// At the angle while no habitat orbits the body, as the install's habitat effect places
+    /// one; else halfway across the widest gap between the habitats that do.
+    AwayFromHabitats,
 }
 
 /// The finished `megastructures` row [`Op::AddHabitat`] writes round the habitat's body, as

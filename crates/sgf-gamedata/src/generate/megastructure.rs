@@ -78,11 +78,12 @@ impl From<Refusal> for SgfError {
 
 /// The op that adds a finished megastructure of type `kind` to system `system` of `session`'s
 /// save at `place`, as the game makes it on load: one `AddMegastructure`, with what its build
-/// chain adds in that system. A gateway or relay gets its bypass, open when the type opens it,
-/// a type whose build marks its planet marks it, and an Orbital Ring ruin flags its planet. A
-/// type whose chain changes the class or size of its planet changes the planet too, in the
-/// same edit, unless `keep_planet`. A type the install does not define, one the editor does
-/// not add, and one whose placement `place` does not match are refused with the reason.
+/// chain adds in that system. A gateway, relay or L-Gate gets its bypass, open when the type
+/// opens it or its kind is always open, a type whose build marks its planet marks it, and an
+/// Orbital Ring ruin flags its planet. A type whose chain changes the class or size of its
+/// planet changes the planet too, in the same edit, unless `keep_planet`. A type the install
+/// does not define, one the editor does not add, and one whose placement `place` does not
+/// match are refused with the reason.
 pub fn megastructure_op(
     gd: &GameData,
     session: &Session,
@@ -376,9 +377,6 @@ fn worded(
         }
         MegastructureRefusal::HoldsMegastructure { .. } => BODY_HAS_MEGASTRUCTURE.to_owned(),
         MegastructureRefusal::HabitatRoundSatellite { .. } => HABITAT_ROUND_SATELLITE.to_owned(),
-        MegastructureRefusal::HabitatPresent { planet, .. } => {
-            format!("{planet} already has a habitat.")
-        }
         MegastructureRefusal::NoStar { .. } => RING_WORLD_NO_STAR.to_owned(),
         MegastructureRefusal::ManyStars { count, .. } => match count {
             2 => "Can't place a ring world in a binary system.".to_owned(),

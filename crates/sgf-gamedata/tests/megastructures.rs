@@ -3,6 +3,8 @@
 
 use crate::common;
 
+use sgf_core::ops::{NewBypass, Op};
+use sgf_gamedata::generate::{AddSpot, megastructure_fits, megastructure_op};
 use sgf_gamedata::registries::megastructures::{BuildType, Linked, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
@@ -343,6 +345,104 @@ fn the_installs_planet_types_are_kept_off_stars() {
     }
 }
 
+/// A type hides its planet as an Arc Furnace does when its build gives the planet the
+/// furnace's model and flag, at every stage built over it too. The model alone, as Giga's
+/// Macroengineering Test Site gives it, and any other model hide nothing.
+#[test]
+fn a_type_hides_its_planet_by_the_furnaces_model_and_flag() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/fx.txt",
+        "fx_furnace_1 = {
+	on_build_complete = {
+		fromfrom.planet = {
+			set_planet_flag = has_arc_furnace
+			set_planet_entity = { entity = invisible_turret_entity }
+		}
+	}
+}
+fx_furnace_2 = {
+	upgrade_from = { fx_furnace_1 }
+}
+fx_test_site = {
+	on_build_complete = {
+		fromfrom.planet = { set_planet_entity = { entity = invisible_turret_entity } }
+	}
+}
+fx_shredder = {
+	on_build_complete = {
+		fromfrom.planet = {
+			set_planet_flag = has_arc_furnace
+			set_planet_entity = { entity = fx_shredded_planet_entity }
+		}
+	}
+}
+",
+    )]);
+    let hides = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .expect(key)
+            .hides_planet_as_furnace
+    };
+    assert!(hides("fx_furnace_1") && hides("fx_furnace_2"));
+    assert!(!hides("fx_test_site") && !hides("fx_shredder"));
+}
+
+/// The Arc Furnace hides its planet at every stage; the other types kept off stars do not.
+#[test]
+fn the_installs_arc_furnace_hides_its_planet() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let hides = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .hides_planet_as_furnace
+    };
+    for key in ["orbital_arc_furnace_1", "orbital_arc_furnace_4"] {
+        assert!(hides(key), "{key}");
+    }
+    for key in [
+        "think_tank_3",
+        "strategic_coordination_center_3",
+        "spy_orb_4",
+        "dyson_sphere_5",
+    ] {
+        assert!(!hides(key), "{key}");
+    }
+}
+
+/// Gigastructural Engineering's types that give their planet a model of their own, or the
+/// furnace's model without its flag, hide nothing as a furnace does, so they stay off stars. Runs with `SGF_PLAYSET=1` when the enabled mods include
+/// Giga.
+#[test]
+fn gigas_planet_models_hide_nothing() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    for key in [
+        "atmosphere_shredder_0",
+        "atmosphere_shredder_1",
+        "macro_test_site_0",
+        "macro_test_site_1",
+        "lunar_disco_ball_2",
+        "orbital_artificial_eco_3",
+    ] {
+        let def = gd
+            .megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"));
+        assert!(!def.hides_planet_as_furnace, "{key}");
+    }
+    assert!(
+        gd.megastructures
+            .get("orbital_arc_furnace_4")
+            .expect("the furnace")
+            .hides_planet_as_furnace
+    );
+}
+
 #[test]
 fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -367,11 +467,6 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     let ring_world = Placement::Unsupported {
         why: Unsupported::RingWorld,
     };
-    let bypass = |kind: &str| Placement::Unsupported {
-        why: Unsupported::Bypass {
-            bypass: kind.to_owned(),
-        },
-    };
     let pins = [
         ("dyson_sphere_0", &star),
         ("dyson_sphere_5", &star),
@@ -389,6 +484,7 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         ("gateway_final", &outside),
         ("gateway_restored", &outside),
         ("gateway_derelict", &outside),
+        ("lgate_base", &outside),
         ("hyper_relay_ruined", &outside),
         ("hyper_relay_restored", &outside),
         ("shroud_seal", &inside),
@@ -416,7 +512,6 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
     for (key, placement) in pins {
         assert_eq!(&mega(key).placement, placement, "{key}");
     }
-    assert_eq!(mega("lgate_base").placement, bypass("lgate"));
     for key in [
         "quantum_catapult_1",
         "quantum_catapult_2",
@@ -499,5 +594,37 @@ mod_maybe_world = {{ on_build_complete = {{ {spawn} if = {{ limit = {{ always = 
         Placement::Unsupported {
             why: Unsupported::WholeStructure { star_only: false }
         }
+    );
+}
+
+/// An L-Gate added in empty space of the 4.5 sample's Xu Nur (1) stands just outside the inner
+/// radius as a gateway does, and its bypass is closed, as the game's are.
+#[test]
+fn an_lgate_goes_in_empty_space_with_a_closed_bypass() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let session = common::open_4_5();
+    let spot = AddSpot::Space { x: 0.0, y: -10.0 };
+    let fits = megastructure_fits(gd, &session, 1, spot).expect("the fits");
+    let fit = |key: &str| {
+        fits.iter()
+            .find(|fit| fit.kind == key)
+            .unwrap_or_else(|| panic!("{key}"))
+    };
+    let (lgate, gateway) = (fit("lgate_base"), fit("gateway_final"));
+    assert_eq!(lgate.refusal, None);
+    assert_eq!(lgate.place, gateway.place);
+    let planned =
+        megastructure_op(gd, &session, 1, "lgate_base", lgate.place, false).expect("the L-Gate");
+    let Op::AddMegastructure { spec, .. } = planned.op else {
+        panic!("{:?}", planned.op);
+    };
+    assert_eq!(
+        spec.bypass,
+        Some(NewBypass {
+            kind: "lgate".to_owned(),
+            active: false,
+        })
     );
 }

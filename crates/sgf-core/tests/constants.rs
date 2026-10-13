@@ -102,7 +102,7 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
     );
     let bypass_kinds: Vec<String> = BYPASS_KINDS.iter().map(|k| format!("{k:?}")).collect();
     constant(
-        "The bypass types a megastructure the editor adds, moves or deletes may stand for.",
+        "The bypass types a megastructure the editor adds or moves may stand for.",
         "MEGASTRUCTURE_BYPASS_KINDS",
         format!("[{}] as const", bypass_kinds.join(", ")),
     );

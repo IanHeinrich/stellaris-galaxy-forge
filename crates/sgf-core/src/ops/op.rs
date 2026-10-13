@@ -803,16 +803,20 @@ pub enum Op {
     /// with moons, are refused. The inverse adds it back, read as a spec,
     /// at the radius and angle it stood at. An added habitat goes with its host's `habitat<id>`
     /// flag, and with its system's `has_habitat` flag once no habitat is left in it. The
-    /// orbital it was added with goes too: the host's `megastructure` row added since the
-    /// file was opened, when the host has `has_orbital`, with that flag. Its inverse is the
-    /// [`Op::AddHabitat`] that adds it back. Stellaris 4.x save documents only.
+    /// orbital added with the host's habitats goes with the last of them added since the file
+    /// was opened: the host's `megastructure` row added since then, when the host has
+    /// `has_orbital`, with that flag. Its inverse is the [`Op::AddHabitat`] that adds it back
+    /// at the angle it stood at, [`HabitatPlacement::AtAngle`].
+    /// Stellaris 4.x save documents only.
     RemoveBody {
         body: u32,
     },
     /// A finished habitat round save body `body`, a planet or a star, as the game's
     /// `spawn_habitat_effect` leaves one: a new planet entry, taking a slot as [`Op::AddBody`]
-    /// does, with no owner and no colony. It orbits `body` at `habitat.at`, names it in
-    /// `moon_of` without the moon bit, and has the planet flags `habitat.flags`, each dated
+    /// does, with no owner and no colony. It orbits `body` at `habitat.at`; with
+    /// [`HabitatPlacement::AwayFromHabitats`], when habitats orbit `body` already, at that
+    /// radius and halfway across the widest gap between their angles instead. It names `body`
+    /// in `moon_of` without the moon bit, and has the planet flags `habitat.flags`, each dated
     /// the save's date. `body` lists it in `moons` and gets the flag `habitat<id>`, the system
     /// lists it after its last `planet=` line and gets `has_habitat` when it has none, and the
     /// inner radius grows when the habitat lies past it. The game builds its construction queue
@@ -821,10 +825,9 @@ pub enum Op {
     /// named with the system's name, with the owner and its culture: the system and the
     /// owner list it, and `body` gets `megastructure=<id>` and the flag `has_orbital`. A body
     /// that has a megastructure already gets the habitat without the orbital, since a planet
-    /// holds one. A body that orbits a planet, as a moon or a habitat does, a body that
-    /// already has a `habitat<id>` flag, a placement that is not finite or not past 0, a size
-    /// of 0, and a class, name, variable, model, type or flag that cannot be written are
-    /// refused. The inverse is [`Op::RemoveBody`], batched
+    /// holds one. A body that orbits a planet, as a moon or a habitat does, a placement that is
+    /// not finite or not past 0, a size of 0, and a class, name, variable, model, type or flag
+    /// that cannot be written are refused. The inverse is [`Op::RemoveBody`], batched
     /// with the old inner radius when it grew. Stellaris 4.x save documents only.
     AddHabitat {
         body: u32,
@@ -903,8 +906,10 @@ pub enum Op {
     /// its own point, and the body gets `megastructure=<id>` and the place's `body_flags`. The
     /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
     /// new row is written past the highest, connected both ways to the relays of the systems
-    /// a lane joins to `system` or to every other gateway, and the system lists it in
-    /// `bypasses`; the game fills in its lock fields on load. With `construction`, what the
+    /// a lane joins to `system` or to every other gateway, and to nothing for an L-Gate, which
+    /// the game links when it opens. The system lists it in `bypasses`, and for an L-Gate gets
+    /// the flag `lgate`, dated the save's day one, when it has none; the game fills in the
+    /// bypass's lock fields on load. With `construction`, what the
     /// type's construction adds is written as the game leaves it: each modifier as an item
     /// of its body's or the system's `timed_modifier`, which the entity gains when it has
     /// none, each deposit as [`Op::AddDeposit`] writes one, and each owner variable raised,
@@ -914,8 +919,8 @@ pub enum Op {
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
     /// is not a star for a `star_only` type, a body flag that is not one a megastructure
-    /// leaves or that is listed twice, a bypass other than a gateway or a relay, a second
-    /// bypass of that kind in the system, a type that is not an identifier, a point that is
+    /// leaves or that is listed twice, a bypass other than a gateway, a relay or an L-Gate, a
+    /// second bypass of that kind in the system, a type that is not an identifier, a point that is
     /// not finite and a save before Stellaris 4.0 are refused, and so are a construction modifier the entity has already or that
     /// is listed twice, one that lasts no days, a construction body outside the system, a
     /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
@@ -932,7 +937,8 @@ pub enum Op {
     /// `megastructures`, the owner's `owned_megastructures` and the body's `megastructure`,
     /// and unless another row names the body, the body loses the flags a structure leaves.
     /// The row's bypass is erased, and its id leaves the system's `bypasses` and every other
-    /// bypass's lists. What the add's construction wrote goes too, as much of it as is still
+    /// bypass's lists; an L-Gate's system loses the flag `lgate` unless it had the flag when the
+    /// file was opened. What the add's construction wrote goes too, as much of it as is still
     /// there: each modifier item, each deposit, a body's deleted since included, which gives
     /// its slot back as [`Op::RemoveDeposit`] gives back an added one, and each variable
     /// lowered, its line going at 0 and the owner's `variables` with its last line when the
@@ -957,7 +963,7 @@ pub enum Op {
     },
     /// A save `megastructures` row moved within its system, the file's own or one
     /// [`Op::AddMegastructure`] added. A row standing at a point of its own, such as a gateway,
-    /// a Hyper Relay or the Shroud Seal, goes to [`MegastructurePlace::Free`]: only its
+    /// a Hyper Relay, an L-Gate or the Shroud Seal, goes to [`MegastructurePlace::Free`]: only its
     /// `coordinate.x` and `.y` are written, and its bypass and every link stay. A row tied to a
     /// body goes to [`MegastructurePlace::Body`], at the body's point, or to
     /// [`MegastructurePlace::Beside`], at a point of its own; the game keeps either point.
@@ -967,12 +973,13 @@ pub enum Op {
     /// `ruined_orbital_ring_planet` and an Arc Furnace's
     /// `entity_name="invisible_turret_entity"`. The new body gets the key, in place of one
     /// naming a row the table no longer holds, each of those flags with its date unless it has
-    /// that flag already, and the furnace's model in place of any of its own. Which types the
-    /// game draws on their body whatever their point is the caller's to know. A row with no
-    /// system, a ring world's row, a bypass other than a gateway or a relay, a row at a point
-    /// sent to a body or a row on a body sent to a free point, a row on the body it made, which
-    /// has the planet flag `megastructure`, an Arc Furnace sent to a star, which its model
-    /// would hide, a body outside the system, a body another row names, a point that is not
+    /// that flag already, and an Arc Furnace's model in place of any of its own, unless the
+    /// new body is a star, which keeps its model. A furnace on a star is known by its
+    /// `has_arc_furnace` flag there. Which types the game draws on their body whatever their
+    /// point is the caller's to know. A row with no system, a ring world's row, a bypass other
+    /// than a gateway, a relay or an L-Gate, a row at a point sent to a body or a row on a body
+    /// sent to a free point, a row on the body it made, which has the planet flag
+    /// `megastructure`, a body outside the system, a body another row names, a point that is not
     /// finite and the place it stands at already are refused. The inverse is the
     /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
     /// documents only.

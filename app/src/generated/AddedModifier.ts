@@ -5,6 +5,6 @@
  */
 export type AddedModifier = { modifier: string, 
 /**
- * Its `days`, `-1` for one that never runs out; `None` when it states none.
+ * Its `days`, negative for one that never runs out; `None` when it states none.
  */
 days: number | null, };

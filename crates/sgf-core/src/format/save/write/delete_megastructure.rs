@@ -12,7 +12,7 @@ use crate::format::save::added::{Table, row};
 use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{
-    self, BYPASS_KINDS, Tied, drop_bypass, unlink,
+    self, DELETED_BYPASS_KINDS, Tied, drop_bypass, unlink,
 };
 use crate::format::save::write::remove_planet::{SEGMENT_KEEPS_COLONY, check_segment};
 use crate::format::save::write::restore::{Saved, tombstoned};
@@ -62,7 +62,7 @@ pub(crate) fn plan_delete(
         Some(bypass) => match row(doc, Table::Bypass, bypass)? {
             Some(found) => {
                 let kind = read::text(&found.node, keys::TYPE, found.src);
-                if !BYPASS_KINDS.contains(&kind.as_str()) {
+                if !DELETED_BYPASS_KINDS.contains(&kind.as_str()) {
                     return Err(refuse(format!(
                         "its bypass is a {kind}, which has not been tried in game"
                     )));

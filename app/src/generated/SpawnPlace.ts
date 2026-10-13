@@ -4,4 +4,4 @@ import type { Bounds } from "./Bounds";
 /**
  * How the game decides where a scenario's megastructure or starbase stands.
  */
-export type SpawnPlace = { "kind": "centre" } | { "kind": "orbit", distance: Bounds, angle: Bounds, } | { "kind": "body", body: number, } | { "kind": "near_body", body: number, } | { "kind": "random" } | { "kind": "starbase", star_size: Bounds, } | { "kind": "unknown", written: string, };
+export type SpawnPlace = { "kind": "centre" } | { "kind": "orbit", distance: Bounds, angle: Bounds, } | { "kind": "body", body: number, } | { "kind": "near_body", body: number, } | { "kind": "random", distance?: Bounds, } | { "kind": "starbase", star_size: Bounds, } | { "kind": "unknown", written: string, };

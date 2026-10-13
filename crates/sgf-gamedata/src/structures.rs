@@ -24,10 +24,6 @@ use crate::structure_spawns::{
 /// The angle a written `orbit_angle` turns on from, as a body's first angle does.
 const ORBIT_START: f64 = 180.0;
 
-/// Where a gateway placed at random typically stands, as a share of its system's inner radius:
-/// the middle of the 1.18 to 1.30 the sample saves show.
-const GATEWAY_RADIUS_FACTOR: f64 = 1.24;
-
 /// The angle the first structure placed at random is drawn at, across the star from the main
 /// starbase; each one after it turns on by [`RANDOM_STEP`].
 const RANDOM_ANGLE: f64 = 135.0;
@@ -69,6 +65,9 @@ struct Context<'a> {
     /// Each body's point about the centre, in the order of `bodies`.
     points: &'a [(f64, f64)],
     inner_radius: f64,
+    /// The distances between the system's inner and outer radius, the least inner radius to
+    /// the greatest outer.
+    band: Bounds,
     owners: Option<&'a ScenarioOwners>,
     megastructures: &'a MegastructureTypes,
     /// How many structures placed at random have been given a spot.
@@ -96,15 +95,18 @@ impl GameData {
         inner_radius: Option<Bounds>,
         owners: Option<&ScenarioOwners>,
     ) -> Structures {
+        let inner =
+            inner_radius.unwrap_or_else(|| Bounds::fixed(self.system_radii.inner_about(0.0)));
         let mut cx = Context {
             id,
             planets,
             bodies: initializers::expand(&init.planets).collect(),
             points,
-            inner_radius: inner_radius.map_or_else(
-                || self.system_radii.inner_about(0.0),
-                |b| (b.min + b.max) / 2.0,
-            ),
+            inner_radius: inner.min.midpoint(inner.max),
+            band: Bounds {
+                min: inner.min,
+                max: self.system_radii.outer(inner.max),
+            },
             owners,
             megastructures: &self.megastructures,
             random: 0,
@@ -316,7 +318,10 @@ impl Context<'_> {
                 },
                 None => unknown(target),
             },
-            WrittenPlace::Random => free(Some(self.random_spot(&spawn.kind)), SpawnPlace::Random),
+            WrittenPlace::Random => {
+                let (at, distance) = self.random_spot(&spawn.kind);
+                free(Some(at), SpawnPlace::Random { distance })
+            }
         }
     }
 
@@ -350,16 +355,17 @@ impl Context<'_> {
         })
     }
 
-    /// A typical spot for a structure the game places at random: a relay on its ring, anything
-    /// else outside the planets as the game's gateways are.
-    fn random_spot(&mut self, kind: &str) -> (f64, f64) {
-        let factor = match self.relay(kind) {
-            true => RELAY_RADIUS_FACTOR,
-            false => GATEWAY_RADIUS_FACTOR,
+    /// A spot for a structure the game places at random, and the distances it can land at: a
+    /// relay on its ring, anything else in the middle of the band between the system's inner
+    /// and outer radius, where the game puts a gateway at a random distance.
+    fn random_spot(&mut self, kind: &str) -> ((f64, f64), Option<Bounds>) {
+        let (distance, band) = match self.relay(kind) {
+            true => (self.inner_radius * RELAY_RADIUS_FACTOR, None),
+            false => (self.band.min.midpoint(self.band.max), Some(self.band)),
         };
         let angle = RANDOM_ANGLE + RANDOM_STEP * f64::from(self.random);
         self.random += 1;
-        rounded(point((0.0, 0.0), self.inner_radius * factor, angle))
+        (rounded(point((0.0, 0.0), distance, angle)), band)
     }
 
     /// Whether type `kind` stands for a relay: its `bypass_type` says so, or, for a variant

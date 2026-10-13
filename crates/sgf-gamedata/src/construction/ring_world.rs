@@ -396,15 +396,10 @@ fn segment(planet: &LaidPlanet, culture: Option<&str>) -> Result<RingSegment, St
         modifiers: planet
             .modifiers
             .iter()
-            .map(|(modifier, days)| {
-                let days = lasting(*days).ok_or_else(|| {
-                    format!("its {class} takes modifier {modifier} for {days} days, which Galaxy Forge does not write")
-                })?;
-                Ok(TimedModifier {
-                    modifier: modifier.clone(),
-                    days,
-                })
+            .map(|(modifier, days)| TimedModifier {
+                modifier: modifier.clone(),
+                days: lasting(*days),
             })
-            .collect::<Result<_, String>>()?,
+            .collect(),
     })
 }

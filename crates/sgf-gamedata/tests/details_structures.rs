@@ -74,6 +74,12 @@ fn every_way_an_initializer_places_a_megastructure_gives_a_row_where_it_stands()
     let unknown = |written: &str| SpawnPlace::Unknown {
         written: written.to_owned(),
     };
+    let inner = details
+        .spawn
+        .as_ref()
+        .and_then(|s| s.inner_radius)
+        .expect("an inner radius");
+    let band = range(inner.min, gd.system_radii.outer(inner.max));
 
     let rows: Vec<(&str, Option<u32>, &SpawnPlace, bool)> = details
         .megastructures
@@ -98,8 +104,20 @@ fn every_way_an_initializer_places_a_megastructure_gives_a_row_where_it_stands()
             SpawnPlace::NearBody { body: body(1) },
             true,
         ),
-        ("fixture_gateway", None, SpawnPlace::Random, true),
-        ("fixture_relay_ruined", None, SpawnPlace::Random, true),
+        (
+            "fixture_gateway",
+            None,
+            SpawnPlace::Random {
+                distance: Some(band),
+            },
+            true,
+        ),
+        (
+            "fixture_relay_ruined",
+            None,
+            SpawnPlace::Random { distance: None },
+            true,
+        ),
         (
             "fixture_lost",
             None,
@@ -144,12 +162,6 @@ fn every_way_an_initializer_places_a_megastructure_gives_a_row_where_it_stands()
 
     let roll = gd.system_roll(7, "structures_init", "", 0, 150.0);
     let bodies = rolled_points(&details, &roll);
-    let inner = details
-        .spawn
-        .as_ref()
-        .and_then(|s| s.inner_radius)
-        .map(|b| (b.min + b.max) / 2.0)
-        .expect("an inner radius");
     let at_body = |i: usize| Some(point_of(&bodies, body(i)));
     let expected_points = [
         Some((0.0, 0.0)),
@@ -157,8 +169,12 @@ fn every_way_an_initializer_places_a_megastructure_gives_a_row_where_it_stands()
         at_body(1),
         at_body(0),
         at_body(1),
-        Some(polar((0.0, 0.0), 1.24 * inner, 135.0)),
-        Some(polar((0.0, 0.0), 1.05 * inner, 225.0)),
+        Some(polar((0.0, 0.0), band.min.midpoint(band.max), 135.0)),
+        Some(polar(
+            (0.0, 0.0),
+            1.05 * inner.min.midpoint(inner.max),
+            225.0,
+        )),
         None,
         Some((-30.0, 0.0)),
         at_body(5),

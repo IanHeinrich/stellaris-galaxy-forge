@@ -163,7 +163,7 @@ const ON_A_PLANET: [&str; 56] = [
     "think_tank_ruined",
 ];
 
-const IN_SPACE: [&str; 12] = [
+const IN_SPACE: [&str; 13] = [
     "civilian_arkship_megastructure",
     "gateway_0",
     "gateway_derelict",
@@ -173,6 +173,7 @@ const IN_SPACE: [&str; 12] = [
     "hyper_relay",
     "hyper_relay_restored",
     "hyper_relay_ruined",
+    "lgate_base",
     "military_arkship_megastructure",
     "science_arkship_megastructure",
     "shroud_seal",

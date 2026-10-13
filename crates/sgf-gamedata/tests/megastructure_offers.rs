@@ -39,6 +39,14 @@ fx_scripted = {{
 fx_free = {{
 	potential = {{ always = yes }}
 }}
+fx_placed_gate = {{
+	potential = {{ always = no }}
+	bypass_type = lgate
+}}
+fx_placed_tunnel = {{
+	potential = {{ always = no }}
+	bypass_type = shroud_tunnel
+}}
 fx_settings = {{
 	{BUILT}
 	potential = {{ NOR = {{ has_global_flag = fx_a_off has_global_flag = fx_b_off }} }}
@@ -178,6 +186,18 @@ fn a_type_is_offered_when_a_player_builds_it() {
         mega(&gd, "fx_settings_2").offer,
         Offer::Offered,
         "a later stage needs no technology of its own"
+    );
+}
+
+/// A type standing for a bypass the editor adds is offered though no player builds it, as the
+/// game places an L-Gate itself; one standing for any other bypass stays hidden.
+#[test]
+fn a_bypass_only_the_game_places_is_offered() {
+    let (_dir, gd) = fixture();
+    assert_eq!(mega(&gd, "fx_placed_gate").offer, Offer::Offered);
+    assert_eq!(
+        mega(&gd, "fx_placed_tunnel").offer,
+        hidden(HiddenWhy::NotBuilt)
     );
 }
 
@@ -356,6 +376,7 @@ fn the_installs_types_are_offered_as_a_player_builds_them() {
         "cosmogenesis_world_0",
         "deep_space_citadel_0",
         "ring_world_1",
+        "lgate_base",
     ] {
         assert!(offered(key), "{key}: {:?}", mega(gd, key).offer);
     }
@@ -368,7 +389,6 @@ fn the_installs_types_are_offered_as_a_player_builds_them() {
         "think_tank_4",
         "habitat_major_orbital",
         "habitat_minor_orbital",
-        "lgate_base",
     ];
     for key in not_built {
         assert_eq!(mega(gd, key).offer, hidden(HiddenWhy::NotBuilt), "{key}");
@@ -479,6 +499,7 @@ fn gigas_types_are_offered_as_the_audit_sorts_them() {
         "giga_juggernaut_ruined",
         "giga_colossus_ruined",
         "aeternum_planetcraft_ruined",
+        "lgate_base",
     ] {
         assert!(offered(key), "{key}: {:?}", mega(gd, key).offer);
     }
@@ -525,7 +546,6 @@ fn gigas_types_are_offered_as_the_audit_sorts_them() {
         "katzen_forge_0",
         "kaiser_ehof_0",
         "aeternum_forge_0",
-        "lgate_base",
         "war_moon_0",
         "war_planet_0",
         "war_system_0",

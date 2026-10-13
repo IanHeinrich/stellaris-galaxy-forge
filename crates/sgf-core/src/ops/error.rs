@@ -456,12 +456,6 @@ pub enum MegastructureRefusal {
         parent: u32,
         orbits: String,
     },
-    /// Planet `body`, named `planet`, has a habitat already: its `flag` names it.
-    HabitatPresent {
-        body: u32,
-        planet: String,
-        flag: String,
-    },
     /// The system, named `place`, has no star for a ring world to stand round.
     NoStar { place: String },
     /// The system, named `place`, has `count` stars, and a ring world stands round one.
@@ -510,9 +504,6 @@ impl fmt::Display for MegastructureRefusal {
                 f,
                 "{planet} orbits {orbits}, and Galaxy Forge puts nothing round a body that orbits a planet"
             ),
-            Self::HabitatPresent { planet, flag, .. } => {
-                write!(f, "{planet} has a habitat already ({flag})")
-            }
             Self::NoStar { place } => write!(f, "{place} has no star to stand round"),
             Self::ManyStars { place, count } => write!(
                 f,

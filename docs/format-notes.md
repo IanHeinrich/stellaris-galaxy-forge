@@ -433,9 +433,11 @@ for planets or deposits.
   one after `bombardment_damage`. Removing the last item removes the
   block.
 - A `timed_modifier` item's `days` counts down to its end. `days=-1`
-  never runs out. Saves also hold other negative counts, such as
-  `modifier="living_sea" days=-360` in the 4.4 sample, so an edit writes
-  back whatever count it read.
+  never runs out, and neither does any other negative count. Saves hold
+  such counts, as `modifier="living_sea" days=-360` in the 4.4 sample,
+  so an edit writes back whatever count it read. A 4.5.2 save given
+  `modifier="recent_comet" days=-5` on a planet loaded with the
+  modifier shown and kept it for good.
 - A rolled planet feature is written twice: a `planet_modifier="pm_X"`
   line just before `entity`, and a permanent `timed_modifier` item
   naming the static modifier `common/planet_modifiers` gives it

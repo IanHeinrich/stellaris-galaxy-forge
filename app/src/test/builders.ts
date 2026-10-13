@@ -426,6 +426,7 @@ export function megastructureTypeView(
     spawns_starbase: false,
     activates_gateway: false,
     sets_has_megastructure: false,
+    hides_planet_as_furnace: false,
     planet_possible_star: false,
     planet_only: false,
     script_only: false,

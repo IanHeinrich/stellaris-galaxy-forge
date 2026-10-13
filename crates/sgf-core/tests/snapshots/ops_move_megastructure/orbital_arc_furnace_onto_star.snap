@@ -1,0 +1,62 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved megastructure #16 (orbital_arc_furnace_4) in Vinh #174 from Vinh III #517 to star Vinh #511
+inverse: RestoreEntities "Undid: Moved megastructure #16 (orbital_arc_furnace_4) in Vinh #174 from Vinh III #517 to star Vinh #511"
+  Planet 511 (550 bytes)
+  Planet 517 (995 bytes)
+  Megastructure 16 (207 bytes)
+
+--- gamestate
++++ gamestate
+@@ -105936,7 +105936,13 @@
+ 			}
+ 			shipclass_orbital_station=427
+ 			orbital_defence=70
++			megastructure=16
+ 			bombardment_damage=0
++			flags=
++			{
++				has_megastructure=62808000
++				has_arc_furnace=62808000
++			}
+ 			entity=0
+ 			surveyed_by=11
+ 			deposits=
+@@ -106249,12 +106255,9 @@
+ 			planet_orbitals=
+ 			{
+ 			}
+-			megastructure=16
+ 			bombardment_damage=0
+ 			flags=
+ 			{
+-				has_megastructure=62808000
+-				has_arc_furnace=62808000
+ 				fallen_empire_world=62808000
+ 				3_year_owner_change_flag=
+ 				{
+@@ -106263,7 +106266,6 @@
+ 				}
+ 			}
+ 			entity=2
+-			entity_name="invisible_turret_entity"
+ 			deposits=
+ 			{
+ 				789 790 792 793 794 796 797 798 799 800 801 
+@@ -1400891,11 +1400893,11 @@
+ 		type="orbital_arc_furnace_4"
+ 		coordinate=
+ 		{
+-			x=10
+-			y=20
++			x=0
++			y=0
+ 			origin=174
+ 		}
+-		planet=517
++		planet=511
+ 		orbitals=
+ 		{
+ 		}

@@ -192,6 +192,7 @@ pub(crate) struct Resolved {
     pub placement: Placement,
     pub planet_change: Option<PlanetChange>,
     pub sets_has_megastructure: bool,
+    pub hides_planet_as_furnace: bool,
     /// For a variant, the working type it belongs to.
     pub family: Option<Family>,
     /// The variant takes its working type's placement.
@@ -226,6 +227,10 @@ pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetCl
                         .iter()
                         .any(|effect| effect_reaches(effect, scripts, flags_megastructure))
             });
+            let hides_planet_as_furnace = types
+                .stages(&def.key)
+                .into_iter()
+                .any(|stage| stage.completes.hides_body_as_furnace);
             let mut planet_change = None;
             let own = match placement(&types, def, &on_stars, &rings) {
                 Placement::Body { .. } if bypassed.contains(def.key.as_str()) => Placement::Free {
@@ -263,6 +268,7 @@ pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetCl
                 placement: taken.unwrap_or(own),
                 planet_change,
                 sets_has_megastructure,
+                hides_planet_as_furnace,
                 family,
                 planet_only: false,
                 ring_world: rings.members.contains(&def.key),
@@ -403,8 +409,8 @@ fn whole_structures(types: &ReadTypes) -> BTreeSet<&str> {
         .collect()
 }
 
-/// Every type joined by `upgrade_from` or by [`families`] to a type that stands for a
-/// gateway or a relay.
+/// Every type joined by `upgrade_from` or by [`families`] to a type that stands for a bypass
+/// the editor adds: a gateway, a relay or an L-Gate.
 fn bypass_groups<'t>(
     types: &'t ReadTypes,
     families: &BTreeMap<String, Family>,

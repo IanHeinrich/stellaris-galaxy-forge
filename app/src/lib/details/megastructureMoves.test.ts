@@ -22,10 +22,16 @@ const sphere = megastructureTypeView("dyson_sphere_5", {
 });
 
 describe("how a megastructure moves", () => {
-  it("moves a gateway or the Shroud Seal to any point", () => {
+  it("moves a gateway, an L-Gate or the Shroud Seal to any point", () => {
     const row = megastructureSummary({ kind: "gateway_final", at: [0, 210] });
     expect(megastructureMove(row, gateway)).toEqual({ place: "free" });
     expect(megastructureMove(row, seal)).toEqual({ place: "free" });
+    const lgate = megastructureSummary({ kind: "lgate_base", at: [21, 21] });
+    const lgateType = megastructureTypeView("lgate_base", {
+      bypass_type: "lgate",
+      placement: { place: "free", outside_gravity_well: true },
+    });
+    expect(megastructureMove(lgate, lgateType)).toEqual({ place: "free" });
   });
 
   it("moves a structure tied to a body onto another body, a star-only type only onto a star", () => {
@@ -47,13 +53,18 @@ describe("how a megastructure moves", () => {
     });
   });
 
-  it("keeps a planet-only type, or a furnace hiding its planet, off stars", () => {
-    const tied = megastructureSummary({ kind: "orbital_arc_furnace_4", planet: 5 });
-    const furnace = megastructureTypeView("orbital_arc_furnace_4", { planet_only: true });
-    expect(megastructureMove(tied, furnace)).toMatchObject({ planetOnly: true });
-    expect(megastructureMove(tied, undefined, { star: false, hidden: true })).toMatchObject({
-      planetOnly: true,
+  it("keeps a planet-only type off stars, but not a furnace, which hides its planet", () => {
+    const tied = megastructureSummary({ kind: "think_tank_3", planet: 5 });
+    const planetOnly = megastructureTypeView("think_tank_3", { planet_only: true });
+    expect(megastructureMove(tied, planetOnly)).toMatchObject({ planetOnly: true });
+    const furnaceRow = { ...tied, kind: "orbital_arc_furnace_4" };
+    const furnace = megastructureTypeView("orbital_arc_furnace_4", {
+      planet_only: true,
+      hides_planet_as_furnace: true,
     });
+    expect(megastructureMove(furnaceRow, furnace)).toMatchObject({ planetOnly: false });
+    const hiding = { star: false, hidden: true };
+    expect(megastructureMove(tied, planetOnly, hiding)).toMatchObject({ planetOnly: false });
     expect(megastructureMove(tied, undefined)).toMatchObject({ planetOnly: false, floats: false });
   });
 
@@ -103,11 +114,13 @@ describe("how a megastructure moves", () => {
     expect(megastructureMove(free, undefined)).toEqual({ place: "free" });
   });
 
-  it("keeps the L-Gate, a ring world section, a starbase's structure and one at the centre", () => {
+  it("keeps a bypass not yet tried in game, a ring world section, a starbase's structure and one at the centre", () => {
     const fixed = (why: string) => ({ place: "fixed", why });
-    const lgate = megastructureSummary({ kind: "lgate_base", at: [21, 21] });
-    const lgateType = megastructureTypeView("lgate_base", { bypass_type: "lgate" });
-    expect(megastructureMove(lgate, lgateType)).toEqual(fixed(MEGASTRUCTURE_FIXED.bypass));
+    const catapult = megastructureSummary({ kind: "quantum_catapult_3", at: [21, 21] });
+    const catapultType = megastructureTypeView("quantum_catapult_3", {
+      bypass_type: "quantum_catapult",
+    });
+    expect(megastructureMove(catapult, catapultType)).toEqual(fixed(MEGASTRUCTURE_FIXED.bypass));
     const ring = megastructureSummary({ kind: "ring_world_ruined", at: [45, 0] });
     expect(megastructureMove(ring, undefined)).toEqual(fixed(MEGASTRUCTURE_FIXED.ringWorld));
     const giga = megastructureSummary({ kind: "giga_ring_frame", at: [90, 0] });

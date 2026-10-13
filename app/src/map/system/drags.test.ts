@@ -126,28 +126,36 @@ describe("a megastructure dragged in the system scene", () => {
     megastructureTypeView("think_tank_3"),
     megastructureTypeView("dyson_sphere_5", { placement: { place: "body", star_only: true } }),
     megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true }),
-    megastructureTypeView("orbital_arc_furnace_4", { planet_only: true }),
+    megastructureTypeView("orbital_arc_furnace_4", {
+      planet_only: true,
+      hides_planet_as_furnace: true,
+    }),
+    megastructureTypeView("atmosphere_shredder_0", { planet_only: true }),
   ];
 
-  function structureFrame(): SystemContext {
+  /**
+   * The scene's structures, the one at the furnace's moon of type `furnace`, and the star's
+   * Dyson Sphere unless `sphere` is false.
+   */
+  function structureFrame({
+    furnace = "orbital_arc_furnace_4",
+    sphere = true,
+  } = {}): SystemContext {
     const megastructures = [
       megastructureSummary({ id: GATEWAY, kind: "gateway_final", at: [0, 250] }),
       megastructureSummary({ id: NEXUS, kind: "think_tank_3", planet: LONE, at: null }),
-      megastructureSummary({ id: SPHERE, kind: "dyson_sphere_5", planet: STAR }),
+      ...(sphere
+        ? [megastructureSummary({ id: SPHERE, kind: "dyson_sphere_5", planet: STAR })]
+        : []),
       megastructureSummary({ id: RING, kind: "orbital_ring_ruined", planet: PLANET, at: null }),
-      megastructureSummary({
-        id: FURNACE,
-        kind: "orbital_arc_furnace_4",
-        planet: FURNACE_MOON,
-        at: null,
-      }),
+      megastructureSummary({ id: FURNACE, kind: furnace, planet: FURNACE_MOON, at: null }),
     ];
     return withStructures(orbitFrame(), megastructures, { types });
   }
 
-  function press(id: number, from: Pt) {
+  function press(id: number, from: Pt, frame: SystemContext = structureFrame()) {
     const model = new SystemGestureModel();
-    const intent = recorder(structureFrame());
+    const intent = recorder(frame);
     model.handle(on("down", from, { target: structure(id), draggable: true }), intent);
     return { model, intent };
   }
@@ -221,9 +229,9 @@ describe("a megastructure dragged in the system scene", () => {
     expect(lastStep(intent)?.refused).toBe(MEGASTRUCTURE_REFUSALS.starOnly(sphere));
   });
 
-  it("says why the star refuses an Arc Furnace, which the game never builds on a star", () => {
-    const frame = structureFrame();
-    const { model, intent } = press(FURNACE, pointOf(frame, FURNACE_MOON));
+  it("says why the star refuses a type the game never builds on a star", () => {
+    const frame = structureFrame({ furnace: "atmosphere_shredder_0" });
+    const { model, intent } = press(FURNACE, pointOf(frame, FURNACE_MOON), frame);
     model.handle(on("move", pointOf(frame, STAR)), intent);
     const name = frame.structures.find((s) => s.id === FURNACE)!.name;
     const why = MEGASTRUCTURE_REFUSALS.planetOnly(name);
@@ -233,6 +241,25 @@ describe("a megastructure dragged in the system scene", () => {
     model.handle(on("up", pointOf(frame, STAR)), intent);
     expect(named(intent.calls, "commit")).toEqual([]);
     expect(named(intent.calls, "refuse")).toEqual([["refuse", why]]);
+  });
+
+  it("moves an Arc Furnace onto a star, which it hides nothing of", () => {
+    const frame = structureFrame({ sphere: false });
+    const { model, intent } = press(FURNACE, pointOf(frame, FURNACE_MOON), frame);
+    model.handle(on("move", pointOf(frame, STAR)), intent);
+    expect(lastStep(intent)?.marks.targets).toContain(STAR);
+    model.handle(on("up", pointOf(frame, STAR)), intent);
+    expect(named(intent.calls, "commit")).toEqual([
+      [
+        "commit",
+        {
+          kind: "moveMegastructure",
+          system: ORBITS,
+          megastructure: FURNACE,
+          at: { place: "body", body: STAR },
+        },
+      ],
+    ]);
   });
 
   /** Where the scene draws structure `id` while `intent`'s last step is shown. */

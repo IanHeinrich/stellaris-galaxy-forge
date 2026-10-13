@@ -14,8 +14,13 @@ use crate::projections::galaxy::{FlagRef, ProjectionError};
 use crate::projections::name::NameTemplate;
 use crate::scan::{Entity, Index, Section, Value};
 
-/// The `days` of a `timed_modifier` item that never runs out.
-pub(crate) const PERMANENT: &str = "-1";
+/// Whether the `timed_modifier` item `item` never runs out: the game keeps any negative
+/// `days` for ever, not only the `-1` it writes.
+pub(crate) fn permanent(item: &Node, src: &[u8]) -> bool {
+    scalar(item, keys::DAYS, src)
+        .and_then(|days| days.parse::<i64>().ok())
+        .is_some_and(|days| days < 0)
+}
 
 /// The scalar value of `node.<key>`.
 pub(crate) fn scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {

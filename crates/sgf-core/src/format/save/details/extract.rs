@@ -22,7 +22,7 @@ use crate::format::save::{entity_at, planet_statement, planet_statements, system
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError, StarClasses};
 use crate::projections::name::NameTemplate;
-use crate::projections::read::{self, PERMANENT, RawCountry};
+use crate::projections::read::{self, RawCountry};
 use crate::scan::Index;
 use crate::views::details::{
     ArchaeologySite, FleetSummary, MegastructureSummary, ShipSizeCount, WormholeSummary,
@@ -76,7 +76,7 @@ pub struct RawPlanet {
     pub deposits: Vec<(String, u32)>,
     /// `colony.<id>.num_sapient_pops`, zero on an uncolonised planet.
     pub pops: u32,
-    /// The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
+    /// The modifier names of the planet's permanent `timed_modifier` items (negative `days`):
     /// the shape a terraforming candidate modifier is written in, whatever the planet's
     /// class now says.
     pub permanent_modifiers: Vec<String>,
@@ -303,10 +303,10 @@ pub(super) fn planets(
     Ok(planet_system)
 }
 
-/// The modifier names of `node`'s permanent `timed_modifier.items` (`days = -1`).
+/// The modifier names of `node`'s permanent `timed_modifier.items` (negative `days`).
 fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
     read::timed_items(node, src)
-        .filter(|item| read::text(item, keys::DAYS, src) == PERMANENT)
+        .filter(|item| read::permanent(item, src))
         .filter_map(|item| read::scalar(item, keys::MODIFIER, src))
         .map(|modifier| modifier.trim_matches('"').to_owned())
         .collect()

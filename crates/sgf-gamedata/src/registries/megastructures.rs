@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use sgf_core::ops::MegastructureDismantle;
+use sgf_core::ops::rules::{FURNACE_ENTITY, FURNACE_FLAG};
 use ts_rs::TS;
 
 use sgf_core::cst::Node;
@@ -73,6 +74,10 @@ pub struct MegastructureDef {
     /// Building this stage, or a stage it is built over, sets the planet flag
     /// `has_megastructure` on its body.
     pub sets_has_megastructure: bool,
+    /// Building this stage, or a stage it is built over, hides the planet it stands at as an
+    /// Arc Furnace does, under the model [`FURNACE_ENTITY`] with the flag [`FURNACE_FLAG`]:
+    /// a row of it may stand on a star, which keeps its own model.
+    pub hides_planet_as_furnace: bool,
     /// `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
     pub planet_possible_star: bool,
     /// The first stage of its build chain, or of its working type's for a variant, asks for a
@@ -148,6 +153,7 @@ impl MegastructureDef {
             spawns_starbase: read.spawns_starbase,
             activates_gateway: read.activates_gateway,
             sets_has_megastructure: resolved.sets_has_megastructure,
+            hides_planet_as_furnace: resolved.hides_planet_as_furnace,
             planet_possible_star: read.planet_possible_star,
             planet_only: resolved.planet_only,
             script_only: read.script_only,
@@ -279,6 +285,9 @@ pub struct Completes {
     pub converts_body: bool,
     /// The scripted effects called under `fromfrom.planet` with `= yes`.
     pub body_effects: Vec<String>,
+    /// Under `fromfrom.planet`, a `set_planet_entity` to [`FURNACE_ENTITY`] and the flag
+    /// [`FURNACE_FLAG`] set.
+    pub hides_body_as_furnace: bool,
     /// A `spawn_planet` outside any `if`, `else_if`, `else` or `switch`.
     pub spawns_planet: bool,
     /// How many `spawn_megastructure` stand outside any `if`, `else_if`, `else` or `switch`.
@@ -309,6 +318,7 @@ impl Completes {
         let mut hosts = Vec::new();
         script::find_deep(block, "fromfrom.planet", src, &mut hosts);
         let converts_body = hosts.iter().any(|host| converts(host, src));
+        let hides_body_as_furnace = hosts.iter().any(|host| hides_as_furnace(host, src));
         let mut body_effects = Vec::new();
         for host in &hosts {
             walk::calls(host, src, &mut body_effects);
@@ -323,6 +333,7 @@ impl Completes {
         Self {
             converts_body,
             body_effects,
+            hides_body_as_furnace,
             spawns_planet: unconditional(def, block, "spawn_planet") > 0,
             spawns_rows: unconditional(def, block, "spawn_megastructure"),
             spawned: rows
@@ -470,7 +481,7 @@ pub enum Placement {
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export, rename = "MegastructureUnsupported")]
 pub enum Unsupported {
-    /// It stands for a bypass other than a gateway or a relay.
+    /// It stands for a bypass other than a gateway, a relay or an L-Gate.
     Bypass { bypass: String },
     /// A ring world past its site, which the game writes as several rows and planets.
     RingWorld,
@@ -491,8 +502,8 @@ pub enum Unsupported {
 /// The bypass type a relay stands for.
 pub const RELAY_BYPASS: &str = "relay_bypass";
 
-/// The bypass types a row the editor adds may stand for.
-pub const ADDED_BYPASSES: [&str; 2] = ["gateway", RELAY_BYPASS];
+/// The bypass types a row the editor adds may stand for, as the core adds them.
+pub use sgf_core::format::save::BYPASS_KINDS as ADDED_BYPASSES;
 
 /// Where a type is placed when it is built: `build_type`, or `outside_gravity_well` for the
 /// older `build_outside_gravity_well = yes`. `around_planet` when neither is written.
@@ -534,6 +545,26 @@ fn script_only(def: &Def) -> bool {
         .find("potential", &def.src)
         .and_then(|potential| potential.find("always", &def.src))
         .is_some_and(|always| always.scalar_str(&def.src) == Some("no"))
+}
+
+/// Whether `host`, a `fromfrom.planet` block, gives its planet the Arc Furnace's model and
+/// flag.
+fn hides_as_furnace(host: &Node, src: &[u8]) -> bool {
+    let mut models = Vec::new();
+    script::find_deep(host, "set_planet_entity", src, &mut models);
+    let model = models.iter().any(|set| {
+        set.find("entity", src)
+            .and_then(|entity| entity.scalar_str(src))
+            == Some(FURNACE_ENTITY)
+    });
+    let mut flags = Vec::new();
+    for key in FLAG_SETTERS {
+        script::find_deep(host, key, src, &mut flags);
+    }
+    model
+        && flags
+            .iter()
+            .any(|flag| flag.scalar_str(src) == Some(FURNACE_FLAG))
 }
 
 /// `on_build_complete` sets the planet flag `has_megastructure`.

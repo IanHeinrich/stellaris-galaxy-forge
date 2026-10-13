@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved megastructure #0 (lgate_base) in Gaping Maw #4 from 30 at 45° to 42.43 at 45°
+inverse: RestoreEntities "Undid: Moved megastructure #0 (lgate_base) in Gaping Maw #4 from 30 at 45° to 42.43 at 45°"
+  Megastructure 0 (221 bytes)
+
+--- gamestate
++++ gamestate
+@@ -1400633,8 +1400633,8 @@
+ 		type="lgate_base"
+ 		coordinate=
+ 		{
+-			x=21.2148
+-			y=21.2142
++			x=30
++			y=30
+ 			origin=4
+ 		}
+ 		planet=4294967295

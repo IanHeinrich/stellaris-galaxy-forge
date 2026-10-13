@@ -10,7 +10,7 @@ use sgf_core::views::details::MegastructureSummary;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::edit::ALARI;
+use common::edit::{ALARI, insert_after, open_4_5_edited, system_text};
 use common::examples::sol_nexus;
 use common::{assert_refusals, current, entity_text, open_4_5};
 
@@ -178,6 +178,74 @@ fn a_gateway_connects_to_every_other_gateway() {
     }));
 }
 
+/// An L-Gate in Xu Nur (1), which has no `lgate` flag: its bypass, 23, is closed and
+/// connects to nothing, and the system gets the flag dated day one, as the game's own L-Gate
+/// systems have it. Taking it out, by its inverse or a delete, leaves the save as it was.
+#[test]
+fn an_lgate_flags_its_system_and_connects_to_nothing() {
+    let lgate = free(1, "lgate_base", "lgate", false);
+    let mut session = open_4_5();
+    let result = snapshot_step(&mut session, "megastructure_lgate_added", lgate.clone());
+    assert_eq!(result.inverse, remove(16));
+    let system = system_text(&session, 1);
+    assert!(
+        system.contains(
+            "			lgate=62808000
+"
+        ),
+        "{system}"
+    );
+    for removal in [
+        remove(16),
+        Op::DeleteMegastructure {
+            megastructure: 16,
+            dismantle: None,
+        },
+    ] {
+        let mut session = open_4_5();
+        session.apply(lgate.clone()).expect("the add");
+        let removed = session.apply(removal.clone()).expect("the removal");
+        assert_eq!(current(&session), session.doc().original(), "{removal:?}");
+        assert_eq!(removed.inverse, lgate, "{removal:?}");
+    }
+}
+
+/// Alari (169) with an `lgate` flag the file held and no L-Gate: the add leaves the flag as
+/// it is, and its removal leaves it there.
+#[test]
+fn an_lgate_keeps_the_flag_its_system_had() {
+    let flagged = || {
+        open_4_5_edited(|text| {
+            insert_after(
+                text,
+                &[
+                    "
+galactic_object=
+",
+                    "
+	169=
+",
+                    "
+		flags=
+		{
+",
+                ],
+                "			lgate=62000000
+",
+            );
+        })
+    };
+    let mut session = flagged();
+    session
+        .apply(free(ALARI, "lgate_base", "lgate", false))
+        .expect("the add");
+    let system = system_text(&session, ALARI);
+    assert_eq!(system.matches("lgate=").count(), 1, "{system}");
+    assert!(system.contains("lgate=62000000"), "{system}");
+    session.apply(remove(16)).expect("the removal");
+    assert_eq!(current(&session), session.doc().original());
+}
+
 #[test]
 fn a_dyson_sphere_on_a_star_round_trips() {
     round_trip(open_4_5(), on_body(1, "dyson_sphere_5", 584));
@@ -277,8 +345,12 @@ fn what_an_add_and_a_removal_refuse() {
                 "a hyper_relay cannot be added there: Dristmak #0 already has a relay_bypass",
             ),
             (
-                free(1, "lgate_base", "lgate", false),
-                "a lgate_base cannot be added there: its bypass is a lgate, which has not been tried in game",
+                free(1, "shroud_seal", "shroud_tunnel", true),
+                "a shroud_seal cannot be added there: its bypass is a shroud_tunnel, which has not been tried in game",
+            ),
+            (
+                free(4, "lgate_base", "lgate", false),
+                "a lgate_base cannot be added there: Gaping Maw #4 already has a lgate",
             ),
             (owned, "country 999 does not exist"),
             (

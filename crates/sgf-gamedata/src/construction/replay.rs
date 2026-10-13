@@ -307,20 +307,11 @@ fn added_modifiers(
     };
     for modifier in after.iter().filter(|m| !before.contains(m)) {
         let given = days.get(&(host, modifier.clone())).copied().unwrap_or(-1);
-        let Some(lasts) = lasting(given) else {
-            once(
-                unwritten,
-                format!(
-                    "adds modifier {modifier} to {on} for {given} days, which Galaxy Forge does not write"
-                ),
-            );
-            continue;
-        };
         built.modifiers.push(ConstructionModifier {
             on: host,
             timed: TimedModifier {
                 modifier: modifier.clone(),
-                days: lasts,
+                days: lasting(given),
             },
         });
     }

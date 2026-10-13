@@ -169,9 +169,7 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
       source: "Zeta Structures",
       base_game: false,
     }),
-    megastructureTypeView("lgate_base", {
-      placement: { place: "unsupported", why: { kind: "bypass", bypass: "lgate" } },
-    }),
+    megastructureTypeView("lgate_base", { bypass_type: "lgate", placement: outside }),
     megastructureTypeView("ring_world_1", { placement: onStar }),
     megastructureTypeView("ring_world_2_intermediate", {
       upgrade_from: ["ring_world_1"],
@@ -191,6 +189,7 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
 );
 
 const NAMES = new Map([
+  ["lgate_base", "L-Gate"],
   ["think_tank_0", "Science Nexus Site"],
   ["think_tank_1", "Science Nexus Hub"],
   ["think_tank_3", "Science Nexus"],
@@ -238,9 +237,9 @@ const NAMES = new Map([
 ]);
 
 /**
- * The types the shell offers in space in this fixture. It offers the rest on a body, but the L-Gate
- * nowhere and the Strip Mine, which changes its planet, not on a star. It refuses the Alderson Disk,
- * whose structure Galaxy Forge can't add yet.
+ * The types the shell offers in space in this fixture. It offers the rest on a body, but the Strip
+ * Mine, which changes its planet, not on a star. It refuses the Alderson Disk, whose structure
+ * Galaxy Forge can't add yet.
  */
 const IN_SPACE = new Set([
   "gateway_0",
@@ -248,6 +247,7 @@ const IN_SPACE = new Set([
   "gateway_derelict",
   "blokkat_dummy_mega",
   "hyper_relay",
+  "lgate_base",
   "shroud_seal",
   "giga_battleship_ruined",
   "giga_battleship_restored",
@@ -264,9 +264,7 @@ function fitsAt(
   const offered = [...types.keys()].filter((key) =>
     spot.kind === "space"
       ? IN_SPACE.has(key)
-      : !IN_SPACE.has(key) &&
-        key !== "lgate_base" &&
-        !(spot.star && key === "automated_stripmine_1"),
+      : !IN_SPACE.has(key) && !(spot.star && key === "automated_stripmine_1"),
   );
   return megastructureFits(offered, { alderson_disk_1: { refusal: WHOLE }, ...over });
 }
@@ -561,6 +559,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(entries(space).map(shape)).toEqual([
       { label: "Gateway", section: null, rows: [["build", null, ["gateway_0", "gateway_final"]]] },
       { label: "Hyper Relay", section: null, rows: [["build", null, ["hyper_relay"]]] },
+      { label: "L-Gate", section: null, rows: [["build", null, ["lgate_base"]]] },
       {
         label: "Wrecked Battleship",
         section: GIGA,

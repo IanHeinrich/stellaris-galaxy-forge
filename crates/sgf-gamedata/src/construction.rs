@@ -282,13 +282,10 @@ impl Construction {
     }
 }
 
-/// The days of an `add_modifier` as a payload takes them, `-1` being no end; `None` for any
-/// other negative count, which a payload cannot carry.
-pub(crate) fn lasting(days: i32) -> Option<Option<u32>> {
-    match days {
-        -1 => Some(None),
-        days => u32::try_from(days).ok().map(Some),
-    }
+/// The days of an `add_modifier` as a payload takes them, any negative count being no end
+/// as in the game. 0 days is passed on, for the add to refuse.
+pub(crate) fn lasting(days: i32) -> Option<u32> {
+    u32::try_from(days).ok()
 }
 
 /// The scope a walk stands in.

@@ -18,7 +18,8 @@ export type MegastructureMove =
   | { readonly place: "free" }
   /**
    * Dragged onto another body of the system: only a star for `starOnly`, a type built only
-   * around a star; never a star for `planetOnly`, a type the game never builds on one.
+   * around a star; never a star for `planetOnly`, a type the game never builds on one, unless
+   * it hides its planet as the Arc Furnace does, which the editor leaves off a star.
    */
   | {
       readonly place: "body";
@@ -37,7 +38,7 @@ export type MegastructureMove =
 /** Why a row stays where it is, as the tooltip and the status bar say it. */
 export const MEGASTRUCTURE_FIXED = {
   ringWorld: "A ring world section stays where it is",
-  bypass: "The L-Gate stays where the game put it",
+  bypass: "This kind of bypass stays where the game put it",
   starbase: "It stands with a starbase, which stays where it is",
   whole: "It is part of a larger structure, which stays where it is",
   centre: "It stands at the system's centre without naming a body, so it stays where it is",
@@ -55,7 +56,7 @@ export const MEGASTRUCTURE_REFUSALS = {
 /** What a row's move reads of the body it is tied to. */
 export interface HomeBody {
   readonly star: boolean;
-  /** It is drawn as an Arc Furnace's hidden model. */
+  /** It is drawn as an Arc Furnace's hidden model, which marks the row as a furnace. */
   readonly hidden: boolean;
 }
 
@@ -71,8 +72,8 @@ export function floatsFree(type: MegastructureView | undefined, onStar: boolean)
 }
 
 /**
- * How row `row` of `type` moves. A body drawn as the furnace's hidden model keeps it off a star
- * whatever the game data says.
+ * How row `row` of `type` moves. A row on a body drawn as the furnace's hidden model goes onto a
+ * star whatever the game data says.
  */
 export function megastructureMove(
   row: MegastructureSummary,
@@ -91,7 +92,7 @@ export function megastructureMove(
   if (row.made_body === true) return fixed("made");
   if (row.planet !== null) {
     const starOnly = placement?.place === "body" && placement.star_only;
-    const planetOnly = type?.planet_only === true || home.hidden;
+    const planetOnly = type?.planet_only === true && !type.hides_planet_as_furnace && !home.hidden;
     const floats = floatsFree(type, home.star);
     return { place: "body", on: row.planet, starOnly, planetOnly, floats };
   }

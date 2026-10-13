@@ -119,6 +119,12 @@ activates_gateway: boolean,
  */
 sets_has_megastructure: boolean, 
 /**
+ * Building this stage, or a stage it is built over, hides the planet it stands at as an
+ * Arc Furnace does, under the model [`FURNACE_ENTITY`] with the flag [`FURNACE_FLAG`]:
+ * a row of it may stand on a star, which keeps its own model.
+ */
+hides_planet_as_furnace: boolean, 
+/**
  * `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
  */
 planet_possible_star: boolean, 
