@@ -5,12 +5,13 @@
 
 use crate::cst::Node;
 use crate::format::save::read_spec::belts;
-use crate::format::save::write::add_body::{moon_spec_of, placement, spec_of};
+use crate::format::save::write::add_body::{moon_spec_of, spec_of};
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::megastructure_links;
 use crate::format::save::write::move_planet::normalised_set;
 use crate::format::save::write::planet_entry::body_is_star;
 use crate::format::save::write::remove_planet::{check_planet, check_segment_stays};
+use crate::format::save::write::shared::placement;
 use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::ops::rules::named;
 use crate::ops::{NewBody, NewMoon, Op, OpError, StarEdit};

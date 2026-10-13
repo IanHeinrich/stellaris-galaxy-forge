@@ -2,13 +2,14 @@
 //! gives a flag it sets.
 
 use crate::Span;
+use crate::archive;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::{Lines, inline};
 use crate::format::save::entity_at;
 use crate::format::save::write::place::{Place, insert_key};
 use crate::keys::{self, GAME_STARTED};
-use crate::ops::{Edit, OpError};
+use crate::ops::{Edit, OpError, ParseAt};
 use crate::overlay::Anchor;
 
 /// The save's day one as its global `game_started` flag dates it.
@@ -95,4 +96,34 @@ pub(crate) fn add_flags(
         }
     }
     Ok(())
+}
+
+/// The save's current date as the game dates a planet flag it sets: hours counted from a
+/// fixed origin, in the game's years of twelve 30-day months. The save's `meta` holds the
+/// date it was written on.
+pub(crate) fn today(doc: &Document) -> Result<String, OpError> {
+    let date = archive::parse_meta(doc.meta())
+        .map(|meta| meta.date)
+        .map_err(|_| OpError::MissingKey(keys::meta::DATE))?;
+    flag_hours(&date)
+        .map(|hours| hours.to_string())
+        .ok_or_else(|| OpError::parse(ParseAt::Meta, 0, format!("date {date:?} is not a date")))
+}
+
+/// Days in each of the game's months and years.
+const MONTH_DAYS: u64 = 30;
+const YEAR_DAYS: u64 = 360;
+/// The hour count of year 0's first day: `2200.01.01` is 62808000, the date of
+/// `game_started` in both 4.x samples.
+const FLAG_ORIGIN: u64 = 43_800_000;
+
+/// `yyyy.mm.dd` as a planet flag's date.
+fn flag_hours(date: &str) -> Option<u64> {
+    let mut parts = date.split('.').map(|part| part.parse::<u64>().ok());
+    let (year, month, day) = (parts.next()??, parts.next()??, parts.next()??);
+    if !(1..=12).contains(&month) || !(1..=MONTH_DAYS).contains(&day) {
+        return None;
+    }
+    let days = year * YEAR_DAYS + (month - 1) * MONTH_DAYS + day - 1;
+    Some(days * 24 + FLAG_ORIGIN)
 }

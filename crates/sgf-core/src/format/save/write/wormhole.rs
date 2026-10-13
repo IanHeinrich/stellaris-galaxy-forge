@@ -3,9 +3,9 @@
 use crate::emit::coord;
 use crate::format::save::galaxy::bypasses::natural_wormholes;
 use crate::format::save::read_spec::written_angle;
-use crate::format::save::write::bodies::number;
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::keys;
+use crate::number;
 use crate::ops::rules::bodies::check_radius;
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};

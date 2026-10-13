@@ -21,6 +21,7 @@ use crate::format::save::write::planet_entry::body_is_star;
 use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
+use crate::number;
 use crate::ops::rules::{FURNACE_ENTITY, named};
 use crate::ops::{
     MegastructureEdit, MegastructurePlace, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
@@ -28,8 +29,6 @@ use crate::ops::{
 use crate::projections::geometry::written_angle;
 use crate::projections::read;
 use crate::session::Session;
-
-use super::bodies::number;
 
 pub(crate) fn plan_move(
     plan: &mut Plan,

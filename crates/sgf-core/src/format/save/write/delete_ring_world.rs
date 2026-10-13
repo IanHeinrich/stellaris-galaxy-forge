@@ -9,7 +9,7 @@ use crate::format::save::added::rows;
 use crate::format::save::ring_world::{
     BASE_RING, RING_SLACK, is_ring_row, is_segment, on_ring, size_at,
 };
-use crate::format::save::write::bodies::{frame_bodies, number};
+use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::flags::{drop_flags, flag_spans};
 use crate::format::save::write::fleets::{orbited_planet, present_fleets};
 use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, Tied, unlink_all};
@@ -19,10 +19,10 @@ use crate::format::save::{planet_entity, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::rules::{named, named_body};
 use crate::ops::{OpError, Plan, Planned, SavedTable, Subject};
-use crate::plural;
 use crate::projections::geometry::{Body, descendants};
 use crate::projections::read;
 use crate::session::Session;
+use crate::{number, plural};
 
 pub(crate) fn plan_delete(
     plan: &mut Plan,

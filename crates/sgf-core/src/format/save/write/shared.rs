@@ -1,11 +1,20 @@
-//! The helpers several writers share.
+//! The helpers several writers share: an entry written in its slot, a country's culture, a
+//! body tied to its megastructure, and where a body stands about its centre.
 
 use crate::cst;
 use crate::document::Document;
 use crate::emit::inline;
 use crate::format::save::alloc::{self, Slot, SlotTable};
-use crate::ops::{Emitted, OpError, Plan};
+use crate::format::save::read_spec::written_angle;
+use crate::format::save::write::bodies::Stored;
+use crate::format::save::write::flags::add_flags;
+use crate::format::save::write::place::{self, insert_key};
+use crate::keys;
+use crate::ops::{Edit, Emitted, OpError, Plan};
 use crate::overlay::Anchor;
+use crate::projections::geometry::{Body, drawn_radius};
+use crate::projections::read;
+use crate::views::OrbitPlacement;
 
 /// Write an entry where `slot` stands: in place of its tombstone, indented as that was,
 /// or at the end of `table`.
@@ -47,5 +56,31 @@ pub(crate) fn write_slot(
             plan.emit(emitted, table.end.at(), text);
             Ok(())
         }
+    }
+}
+
+/// The `graphical_culture` the country `edit` holds names, when it names one.
+pub(crate) fn culture_of(edit: &Edit) -> Result<Option<String>, OpError> {
+    let country = edit.entity()?;
+    Ok(read::scalar(country, keys::GRAPHICAL_CULTURE, &edit.buf).map(str::to_owned))
+}
+
+/// Tie the body `edit` holds to row `id`, with the planet flags `flags`, each with its date.
+pub(crate) fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError> {
+    insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
+        format!("{}={id}", keys::MEGASTRUCTURE)
+    })?;
+    add_flags(edit, flags, &place::planet::FLAGS)
+}
+
+/// Where `body` stands about the point a spec with `moon_of` places it from.
+pub(crate) fn placement(stored: &[Stored], body: &Body, moon_of: Option<u32>) -> OrbitPlacement {
+    let centre = moon_of
+        .and_then(|parent| stored.iter().find(|b| b.body.id == parent))
+        .map_or((0.0, 0.0), |parent| parent.body.at);
+    let radius = drawn_radius(body.at, centre, Some(body.orbit));
+    OrbitPlacement {
+        radius,
+        angle: written_angle(centre, body.at, radius),
     }
 }

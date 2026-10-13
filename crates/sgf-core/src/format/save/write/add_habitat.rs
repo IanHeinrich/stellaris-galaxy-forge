@@ -10,17 +10,15 @@ use crate::emit::system::{HabitatEntry, habitat_entry};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::write::add_body::placement;
-use crate::format::save::write::add_megastructure::{tie, today};
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
-use crate::format::save::write::flags::{add_flags, drop_flags};
+use crate::format::save::write::flags::{add_flags, drop_flags, today};
 use crate::format::save::write::id_list::list_planets;
 use crate::format::save::write::megastructure_links::{
-    self, HAS_ORBITAL, Holders, MEGASTRUCTURES, NewRow, Tied, unlink, write_row,
+    self, HAS_ORBITAL, Holders, MEGASTRUCTURES, NewRow, Tied, unlink, write_rows,
 };
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{body_is_star, list_moon};
-use crate::format::save::write::shared::write_slot;
+use crate::format::save::write::shared::{culture_of, placement, tie, write_slot};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
@@ -249,16 +247,20 @@ fn add_orbital(
         )?),
         None => None,
     };
+    let culture = match orbital.owner {
+        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
+        None => None,
+    };
     let row = NewRow {
         name: name.as_ref(),
         kind: &orbital.kind,
         at,
-        system,
-        owner: orbital.owner,
+        owner: orbital.owner.map(|owner| (owner, culture.as_deref())),
         planet: Some(body),
         bypass: None,
     };
-    write_row(plan, s, &row)
+    let ids = write_rows(plan, s, system, &[row])?;
+    Ok(ids[0])
 }
 
 /// Whether planet `node` is a habitat: by its class, or the flag the game sets on one.

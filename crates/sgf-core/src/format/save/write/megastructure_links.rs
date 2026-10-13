@@ -15,7 +15,6 @@ use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::write::add_megastructure::culture_of;
 use crate::format::save::write::flags;
 use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place;
@@ -35,7 +34,9 @@ pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure
 
 /// The bypass types a row the editor adds, moves or deletes may stand for: those tried in
 /// game.
-pub const BYPASS_KINDS: [&str; 2] = ["gateway", "relay_bypass"];
+pub const BYPASS_KINDS: [&str; 2] = [GATEWAY, RELAY];
+pub(crate) const GATEWAY: &str = "gateway";
+pub(crate) const RELAY: &str = "relay_bypass";
 
 /// The planet flag the game's habitat orbitals set on their body when they are spawned.
 pub(crate) const HAS_ORBITAL: &str = "has_orbital";
@@ -138,54 +139,68 @@ pub(crate) fn read(doc: &Document, id: u32) -> Result<Option<Tied>, OpError> {
     }))
 }
 
-/// A `megastructures` row [`write_row`] writes finished.
+/// A `megastructures` row [`write_rows`] writes finished.
 pub(crate) struct NewRow<'a> {
     pub(crate) name: Option<&'a NameTemplate>,
     pub(crate) kind: &'a str,
     pub(crate) at: (f64, f64),
-    pub(crate) system: u32,
-    pub(crate) owner: Option<u32>,
+    /// The owner and the `graphical_culture` it names.
+    pub(crate) owner: Option<(u32, Option<&'a str>)>,
     pub(crate) planet: Option<u32>,
     pub(crate) bypass: Option<u32>,
 }
 
-/// Write `new` in the slot past the highest the table has used, with its owner's
-/// `graphical_culture`, and list it in its system's `megastructures` and its owner's
-/// `owned_megastructures`. Returns its id. The counterpart of [`unlink`].
-pub(crate) fn write_row(plan: &mut Plan, s: &Session, new: &NewRow) -> Result<u32, OpError> {
-    let culture = match new.owner {
-        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
-        None => None,
-    };
+/// Write `rows` of system `system`, each in the slot past the highest the table has used,
+/// and list them in the system's `megastructures` and each owner's `owned_megastructures`.
+/// Returns their ids. The counterpart of [`unlink_all`].
+pub(crate) fn write_rows(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    rows: &[NewRow],
+) -> Result<Vec<u32>, OpError> {
     let mut table = SlotTable::megastructures(&s.doc)?;
-    let slot = table.append();
-    let id = slot.id();
-    let row = MegastructureRow {
-        id,
-        name: new.name,
-        kind: new.kind,
-        at: new.at,
-        system: new.system,
-        owner: new.owner.map(|owner| (owner, culture.as_deref())),
-        planet: new.planet.unwrap_or(NULL_ID),
-        bypass: new.bypass,
-    };
-    write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
-        megastructure_row(indent, &row)
-    })?;
+    let mut ids = Vec::with_capacity(rows.len());
+    for new in rows {
+        let slot = table.append();
+        let id = slot.id();
+        let row = MegastructureRow {
+            id,
+            name: new.name,
+            kind: new.kind,
+            at: new.at,
+            system,
+            owner: new.owner,
+            planet: new.planet.unwrap_or(NULL_ID),
+            bypass: new.bypass,
+        };
+        write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
+            megastructure_row(indent, &row)
+        })?;
+        ids.push(id);
+    }
     append(
-        plan.edit(&s.doc, new.system)?,
+        plan.edit(&s.doc, system)?,
         &place::system::MEGASTRUCTURES,
-        &[id],
+        &ids,
     )?;
-    if let Some(owner) = new.owner {
+    let owner_of = |new: &NewRow| new.owner.map(|(owner, _)| owner);
+    let mut owners: Vec<u32> = rows.iter().filter_map(owner_of).collect();
+    owners.dedup();
+    for owner in owners {
+        let owned: Vec<u32> = rows
+            .iter()
+            .zip(&ids)
+            .filter(|(new, _)| owner_of(new) == Some(owner))
+            .map(|(_, &id)| id)
+            .collect();
         append(
             plan.edit_country(&s.doc, owner)?,
             &place::country::OWNED_MEGASTRUCTURES,
-            &[id],
+            &owned,
         )?;
     }
-    Ok(id)
+    Ok(ids)
 }
 
 /// Take row `tied`'s id out of its system's `megastructures` and its owner's

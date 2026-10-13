@@ -16,6 +16,7 @@ use crate::format::save::write::planet_entry::{
 use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
+use crate::number;
 use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Parent, ParseAt, Plan, Planned};
@@ -425,11 +426,4 @@ fn grow_by(
         },
         description,
     })
-}
-
-/// A radius or an angle as a description names it: up to two decimals.
-pub(crate) fn number(v: f64) -> String {
-    let text = format!("{v:.2}");
-    let text = text.trim_end_matches('0').trim_end_matches('.');
-    if text == "-0" { "0" } else { text }.to_owned()
 }
