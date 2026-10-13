@@ -9,6 +9,7 @@ use sgf_core::views::OrbitPlacement;
 
 use crate::common;
 use common::diff::snapshot_step;
+use common::edit::open_4_5_edited;
 use common::{current, open, open_3_4, open_4_5};
 
 /// Gas giant 10 of Alari (169) has moons 11, 12 and 13, a deposit and the extensive moon
@@ -406,4 +407,56 @@ fn a_pasted_group_lines_up_at_one_angle() {
         .paste_bodies_op(KAZAM, &copies, Some(at))
         .expect("a paste");
     snapshot_step(&mut session, "paste_group_into_216_at_135", op);
+}
+
+/// Moon 100 of planet 99, given an asteroid's name from the save's pool, is copied as a moon
+/// lettered after its planet, since a moon takes no asteroid name.
+#[test]
+fn a_moon_with_an_asteroid_name_is_copied_lettered() {
+    let session = open_4_5_edited(|gamestate| {
+        let from = "				key=\"LITHOID1_PLANET_OterrArrek\"
+";
+        assert!(gamestate.contains(from));
+        let to = "				key=\"ASTEROID_NAME_FORMAT\"
+				variables=
+				{
+					{
+						key=\"prefix\"
+						value=
+						{
+							key=\"QI778-\"
+						}
+					}
+					{
+						key=\"suffix\"
+						value=
+						{
+							key=\"67\"
+						}
+					}
+				}
+";
+        *gamestate = gamestate.replacen(from, to, 1);
+    });
+    let copies = copy(&session, &[99]);
+    assert_eq!(copies[0].moons[0].spec.name, None, "{copies:?}");
+    let mut session = open_4_5();
+    let op = session
+        .paste_bodies_op(KAZAM, &copies, None)
+        .expect("a paste");
+    let before = common::planet_ids(&session, KAZAM);
+    session.apply(op).expect("the paste");
+    let moons: Vec<String> = common::planet_ids(&session, KAZAM)
+        .into_iter()
+        .filter(|id| !before.contains(id))
+        .map(|id| common::entity_text(&session, EntityKind::Planet, id))
+        .filter(|entry| entry.contains("moon_of="))
+        .collect();
+    assert_eq!(moons.len(), 2, "{moons:?}");
+    assert!(
+        moons[0].contains("key=\"SUBPLANET_NAME_FORMAT\"")
+            && !moons[0].contains("ASTEROID_NAME_FORMAT"),
+        "{}",
+        moons[0]
+    );
 }

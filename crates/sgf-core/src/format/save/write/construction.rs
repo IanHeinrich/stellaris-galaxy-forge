@@ -511,17 +511,20 @@ fn lower(
     Ok(lowered)
 }
 
-/// The construction the add that wrote row `megastructure` this session gave it: what the
-/// latest undoable edit, or earlier member of the batch being applied, naming the row's
-/// removal as its inverse carries.
-pub(crate) fn of_session(s: &Session, megastructure: u32) -> Option<MegastructureConstruction> {
-    fn find(op: &Op, megastructure: u32) -> Option<Option<&MegastructureConstruction>> {
+/// The construction the add that wrote row `megastructure` this session gave it, and how
+/// many of its effects it left out: what the latest undoable edit, or earlier member of the
+/// batch being applied, naming the row's removal as its inverse carries.
+pub(crate) fn of_session(
+    s: &Session,
+    megastructure: u32,
+) -> Option<(Option<MegastructureConstruction>, u32)> {
+    fn find(op: &Op, megastructure: u32) -> Option<(Option<&MegastructureConstruction>, u32)> {
         match op {
             Op::RemoveMegastructure {
                 megastructure: id,
                 construction,
-                ..
-            } if *id == megastructure => Some(construction.as_ref()),
+                left_out,
+            } if *id == megastructure => Some((construction.as_ref(), *left_out)),
             Op::Batch { ops, .. } => ops.iter().rev().find_map(|op| find(op, megastructure)),
             _ => None,
         }
@@ -529,6 +532,5 @@ pub(crate) fn of_session(s: &Session, megastructure: u32) -> Option<Megastructur
     s.applied_inverses()
         .rev()
         .find_map(|inverse| find(inverse, megastructure))
-        .flatten()
-        .cloned()
+        .map(|(construction, left_out)| (construction.cloned(), left_out))
 }

@@ -24,7 +24,7 @@ use crate::format::save::write::bodies::frame;
 use crate::format::save::write::construction;
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{
-    self, HAS_ORBITAL, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
+    self, BODY_FLAGS, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
 };
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{is_star, role};
@@ -82,8 +82,18 @@ pub(crate) fn plan_add(
             ..
         } => {
             let (body, star_only) = (*body, *star_only);
-            for flag in body_flags {
-                check_text("a planet flag", flag, Form::Bare)?;
+            for (i, flag) in body_flags.iter().enumerate() {
+                if !BODY_FLAGS.contains(&flag.as_str()) {
+                    return Err(refuse(format!(
+                        "{flag} is not a planet flag a megastructure leaves"
+                    )));
+                }
+                if body_flags[..i].contains(flag) {
+                    return Err(OpError::InvalidText {
+                        what: "a planet flag listed once",
+                        text: flag.clone(),
+                    });
+                }
             }
             let (node, src) = planet_entity(&s.doc, body)?;
             if planet_system(&node, src, body)? != system {
@@ -272,15 +282,11 @@ pub(crate) fn plan_remove(
             let (node, src) = planet_entity(&s.doc, body)?;
             let home = read::coordinate(&node, src)
                 .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
-            let body_flags = [
-                keys::HAS_MEGASTRUCTURE,
-                keys::RUINED_ORBITAL_RING_PLANET,
-                HAS_ORBITAL,
-            ]
-            .into_iter()
-            .filter(|flag| planet_flag(&node, src, flag))
-            .map(str::to_owned)
-            .collect();
+            let body_flags = BODY_FLAGS
+                .into_iter()
+                .filter(|flag| planet_flag(&node, src, flag))
+                .map(str::to_owned)
+                .collect();
             match same_point(home, (x, y)) {
                 true => NewMegastructurePlace::Body {
                     body,
@@ -299,7 +305,17 @@ pub(crate) fn plan_remove(
         None => NewMegastructurePlace::Free { x, y },
     };
 
-    let built = built.cloned().or_else(|| construction::of_session(s, id));
+    let found = match built {
+        Some(_) => None,
+        None => construction::of_session(s, id),
+    };
+    let built = built
+        .cloned()
+        .or_else(|| found.as_ref().and_then(|(built, _)| built.clone()));
+    let left_out = match (left_out, &found) {
+        (0, Some((_, found))) => *found,
+        _ => left_out,
+    };
     let taken = match &built {
         Some(built) => construction::take_back(plan, s, system, tied.owner, built)?,
         None => MegastructureConstruction::default(),

@@ -1072,10 +1072,13 @@ impl Construction {
     }
 }
 
-/// The days of an `add_modifier` as a payload takes them: `None` for a negative count, which
-/// the game reads as no end.
-pub(crate) fn lasting(days: i32) -> Option<u32> {
-    u32::try_from(days).ok()
+/// The days of an `add_modifier` as a payload takes them, `-1` being no end; `None` for any
+/// other negative count, which a payload cannot carry.
+pub(crate) fn lasting(days: i32) -> Option<Option<u32>> {
+    match days {
+        -1 => Some(None),
+        days => u32::try_from(days).ok().map(Some),
+    }
 }
 
 fn note(lines: &mut Vec<String>, line: String) {
@@ -1129,23 +1132,30 @@ fn added_modifiers(
     built: &mut MegastructureConstruction,
     unwritten: &mut Vec<String>,
 ) {
+    let on = match host {
+        ModifierHost::System => "the system".to_owned(),
+        ModifierHost::Body { body } => format!("planet {body}"),
+    };
     for modifier in after.iter().filter(|m| !before.contains(m)) {
+        let given = days.get(&(host, modifier.clone())).copied().unwrap_or(-1);
+        let Some(lasts) = lasting(given) else {
+            note(
+                unwritten,
+                format!(
+                    "adds modifier {modifier} to {on} for {given} days, which Galaxy Forge does not write"
+                ),
+            );
+            continue;
+        };
         built.modifiers.push(ConstructionModifier {
             on: host,
             timed: TimedModifier {
                 modifier: modifier.clone(),
-                days: days
-                    .get(&(host, modifier.clone()))
-                    .copied()
-                    .and_then(lasting),
+                days: lasts,
             },
         });
     }
     for modifier in before.iter().filter(|m| !after.contains(m)) {
-        let on = match host {
-            ModifierHost::System => "the system".to_owned(),
-            ModifierHost::Body { body } => format!("planet {body}"),
-        };
         note(unwritten, format!("removes modifier {modifier} from {on}"));
     }
 }

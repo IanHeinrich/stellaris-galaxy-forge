@@ -347,6 +347,7 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
 		fromfrom.planet = {
 			remove_modifier = mod_old
 			remove_deposit = d_old
+			add_modifier = { modifier = mod_odd days = -2 }
 		}
 		fire_on_action = { on_action = on_mod_drain }
 		from = { fire_on_action = { on_action = on_mod_drain } }
@@ -378,6 +379,7 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
         assert_eq!(
             built.unwritten,
             [
+                "adds modifier mod_odd to planet 11 for -2 days, which Galaxy Forge does not write",
                 "removes modifier mod_old from planet 11",
                 "removes deposit d_old from planet 11"
             ]

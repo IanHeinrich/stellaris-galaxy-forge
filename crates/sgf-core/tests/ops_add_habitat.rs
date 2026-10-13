@@ -77,7 +77,8 @@ fn what_an_add_refuses() {
     no_size.planet.size = 0;
     let mut twice = habitat_at(9.899);
     twice.planet.flags = ["habitat", "habitat"].map(str::to_owned).to_vec();
-    let nan = habitat_at(f64::NAN);
+    let mut nan = habitat_at(9.899);
+    nan.planet.at.angle = f64::NAN;
     let mut model = habitat_at(9.899);
     model.planet.model = Some("two words".to_owned());
     assert_refusals(

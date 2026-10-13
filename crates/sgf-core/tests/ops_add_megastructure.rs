@@ -255,7 +255,15 @@ fn what_an_add_and_a_removal_refuse() {
             ..at_point("gateway_final", "gateway", true)
         },
     );
-    let bad_flag = add(ALARI, flagging("think_tank_3", 6, &["has megastructure"]));
+    let other_flag = add(ALARI, flagging("think_tank_3", 6, &["foo"]));
+    let twice = add(
+        ALARI,
+        flagging(
+            "think_tank_3",
+            6,
+            &["has_megastructure", "has_megastructure"],
+        ),
+    );
     assert_refusals(
         &mut session,
         [
@@ -277,8 +285,12 @@ fn what_an_add_and_a_removal_refuse() {
                 "planet 6 is not a body of system 1",
             ),
             (
-                bad_flag,
-                "\"has megastructure\" cannot be written as a planet flag",
+                other_flag,
+                "a think_tank_3 cannot be added there: foo is not a planet flag a megastructure leaves",
+            ),
+            (
+                twice,
+                "\"has_megastructure\" cannot be written as a planet flag listed once",
             ),
             (nan, "value is not a finite number"),
             (
@@ -287,7 +299,7 @@ fn what_an_add_and_a_removal_refuse() {
             ),
             (
                 remove(4),
-                "megastructure 4 was in the save when it was opened: only one added since then can be changed this way",
+                "megastructure 4 was in the save when it was opened: only a megastructure added since then can be removed or changed",
             ),
         ],
     );
@@ -434,6 +446,37 @@ fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
         ],
     );
     session.apply(sphere(584)).expect("the sphere on the star");
+}
+
+/// A row whose add left an effect out says so again when a delete's inverse adds it back.
+#[test]
+fn a_deleted_row_comes_back_saying_what_its_add_left_out() {
+    let mut session = open_4_5();
+    let op = add(
+        ALARI,
+        NewMegastructure {
+            left_out: 1,
+            ..on("think_tank_3", 6)
+        },
+    );
+    let added = session.apply(op.clone()).expect("the add");
+    assert!(
+        added
+            .entry
+            .description
+            .ends_with(", leaving out 1 effect of its construction"),
+        "{}",
+        added.entry.description
+    );
+    let deleted = session
+        .apply(Op::DeleteMegastructure {
+            megastructure: 16,
+            dismantle: None,
+        })
+        .expect("the delete");
+    assert_eq!(deleted.inverse, op);
+    let back = session.apply(deleted.inverse).expect("the add again");
+    assert_eq!(back.entry.description, added.entry.description);
 }
 
 /// The 4.5 sample was saved on 2201.03.25, which a planet flag dates 62818656.
