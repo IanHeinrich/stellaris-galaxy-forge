@@ -2,6 +2,7 @@
 
 use std::collections::BTreeSet;
 
+use super::spawn::last_of_id_name_position;
 use super::{index, set_position, some_text, system_indent, undirected};
 use crate::cst::{self, Node};
 use crate::emit::coord;
@@ -402,14 +403,13 @@ fn write_initializer(
         .find(keys::INITIALIZER, &edit.buf)
         .and_then(|n| n.scalar_str(&edit.buf))
         .map(str::to_owned);
-    let after_position = edit.value(&[keys::POSITION])?.end;
-
     match (initializer, old_initializer.is_some()) {
         (Some(text), true) => edit.set_scalar(&[keys::INITIALIZER], text)?,
-        (Some(text), false) => edit.insert(
-            after_position,
-            format!(" {} = {text}", keys::INITIALIZER).into_bytes(),
-        ),
+        (Some(text), false) => {
+            let after = last_of_id_name_position(edit)?;
+            let text = format!("{} = {text}", keys::INITIALIZER);
+            edit.bytes().insert_after(after, &text);
+        }
         (None, true) => {
             let span = edit
                 .entity()?

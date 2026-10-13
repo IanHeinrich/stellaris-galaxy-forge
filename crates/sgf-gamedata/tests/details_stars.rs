@@ -153,16 +153,16 @@ fn a_scenario_bodys_star_class_draw_moon_and_size_come_from_the_install() {
             (
                 "pc_sun_star",
                 Some("sc_sun"),
-                Some(false),
+                false,
                 false,
                 Some(range(20.0, 30.0))
             ),
-            ("pc_rock", None, Some(false), false, Some(range(5.0, 8.0))),
-            ("pc_rock", None, Some(false), false, Some(range(10.0, 20.0))),
-            ("pc_rock", None, Some(false), true, Some(range(5.0, 8.0))),
-            ("rl_rocks", None, Some(true), true, None),
-            ("random", None, Some(true), false, None),
-            ("ideal_planet_class", None, Some(true), false, None),
+            ("pc_rock", None, false, false, Some(range(5.0, 8.0))),
+            ("pc_rock", None, false, false, Some(range(10.0, 20.0))),
+            ("pc_rock", None, false, true, Some(range(5.0, 8.0))),
+            ("rl_rocks", None, true, true, None),
+            ("random", None, true, false, None),
+            ("ideal_planet_class", None, true, false, None),
         ],
         "sc_sun over the odds-less sc_a_sun; a body nested in the star block is no moon, \
          but takes a moon's size as the block it is written in gives it"
@@ -230,7 +230,7 @@ fn a_save_bodys_star_class_comes_from_the_install_and_its_moons_from_the_save() 
         "the class a new galaxy rolls over the odds-less sc_a_g"
     );
     assert!(sol.planets[1..].iter().all(|p| p.star_class.is_none()));
-    assert!(sol.planets.iter().all(|p| p.drawn == Some(false)));
+    assert!(sol.planets.iter().all(|p| !p.drawn));
     let now: Vec<u32> = sol
         .planets
         .iter()

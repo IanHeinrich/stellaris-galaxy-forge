@@ -1,10 +1,11 @@
 //! Details projection on the real sample save: what it counts across the whole galaxy.
 use std::collections::HashMap;
 
-use sgf_core::format::save::details::{
-    ArchaeologySite, FleetPresence, FleetSummary, HeuristicResolver, MegastructureSummary,
-};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::projections::name::NameTemplate;
+use sgf_core::views::details::{
+    ArchaeologySite, FleetPresence, FleetSummary, MegastructureSummary,
+};
 
 use crate::common;
 

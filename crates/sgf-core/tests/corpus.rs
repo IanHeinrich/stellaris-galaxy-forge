@@ -266,7 +266,7 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         );
         let doc = Document::from_scenario_bytes(text).expect("the export reads back");
         let reopened = Session::from_document(None, doc).expect("project the export");
-        let typed = assert_paint_export_holds_together(save.graph(), reopened.graph(), &report);
+        let typed = assert_paint_export_holds_together(save.graph(), &reopened, &report);
         let missing = left_out(save.graph(), reopened.graph());
 
         let fallen: Vec<&sgf_core::projections::galaxy::CountryNode> = save

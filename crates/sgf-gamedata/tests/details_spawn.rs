@@ -3,7 +3,7 @@
 
 use crate::common;
 
-use sgf_core::format::save::details::{
+use sgf_core::views::details::{
     AmbientObject, AnomalyPrevention, ClassPool, CountRange, DepositReplacement, DepositStep,
     ListMember, PlanetSummary, SpawnClass, SpawnRing, SpawnStar, SystemDetails, UnknownClass,
     UsageOdds,

@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted moon #12
+Deleted moon Europa #12
 details stale: [217]
-inverse: Restored moon #12
+inverse: Restored moon Europa #12
 
   System: 217
   Planet: 10 12

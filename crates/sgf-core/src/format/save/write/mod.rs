@@ -60,5 +60,6 @@ pub(crate) mod star_class;
 pub(crate) mod system_height;
 pub(crate) mod teardown;
 pub(crate) mod timed_modifiers;
+pub(crate) mod variables;
 pub(crate) mod wormhole;
 pub(crate) mod wormhole_pair;

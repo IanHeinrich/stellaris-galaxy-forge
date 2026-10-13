@@ -7,10 +7,10 @@
 //! wrapper's text, and counted there.
 
 use sgf_core::cst::Node;
-use sgf_core::format::save::details::{
+use sgf_core::span::Span;
+use sgf_core::views::details::{
     AddedModifier, InlineScriptUse, RawStatement, SourceLine, UsageOdds, VariableUse,
 };
-use sgf_core::span::Span;
 
 use crate::initializers::{Origin, source_line};
 use crate::install::script::{self, Def, Range};

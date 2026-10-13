@@ -29,6 +29,7 @@ use crate::format::save::write::planet_entry::body_is_star;
 use crate::format::save::write::shared::{culture_of, tie};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
+use crate::ops::rules::modifiers::listed_once;
 use crate::ops::rules::{Form, check_text, named, named_body};
 use crate::ops::{
     Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
@@ -74,19 +75,15 @@ pub(crate) fn plan_add(
             ..
         } => {
             let (body, star_only) = (*body, *star_only);
-            for (i, flag) in body_flags.iter().enumerate() {
-                if !BODY_FLAGS.contains(&flag.as_str()) {
-                    return Err(refuse(format!(
-                        "{flag} is not a planet flag a megastructure leaves"
-                    )));
-                }
-                if body_flags[..i].contains(flag) {
-                    return Err(OpError::InvalidText {
-                        what: "a planet flag listed once",
-                        text: flag.clone(),
-                    });
-                }
+            if let Some(flag) = body_flags
+                .iter()
+                .find(|flag| !BODY_FLAGS.contains(&flag.as_str()))
+            {
+                return Err(refuse(format!(
+                    "{flag} is not a planet flag a megastructure leaves"
+                )));
             }
+            listed_once("a flag listed once", body_flags, String::clone)?;
             let (node, src) = planet_entity(&s.doc, body)?;
             if planet_system(&node, src, body)? != system {
                 return Err(OpError::NotABody { body, system });

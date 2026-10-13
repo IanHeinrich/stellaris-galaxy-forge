@@ -10,7 +10,7 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::literal_name_value;
 use crate::format::save::write::add_system::PARENT_VAR;
-use crate::format::save::write::planet_entry::PlanetEntry;
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{check_name, check_name_value};
@@ -53,9 +53,10 @@ pub(crate) fn plan_rename(
     edit.replace_span(value, written);
 
     rename_copies(plan, &s.doc, id, moons, &old, &new)?;
+    let named = named_planet(&s.doc, id)?;
     let description = match name {
-        NewName::Literal(name) => format!("Renamed planet #{id} to {name}"),
-        NewName::Block { .. } => format!("Put back the name of planet #{id}"),
+        NewName::Literal(name) => format!("Renamed {named} to {name}"),
+        NewName::Block { .. } => format!("Put back the name of {named}"),
     };
     Ok(Planned {
         description,

@@ -126,7 +126,7 @@ pub enum OpError {
     ModifierPresent(u32, String),
     #[error("planet {0} does not have {1}")]
     ModifierAbsent(u32, String),
-    #[error("a modifier cannot last 0 days: -1 keeps it for ever")]
+    #[error("a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever")]
     ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),

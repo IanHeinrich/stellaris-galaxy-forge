@@ -7,7 +7,8 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use sgf_core::emit::roman;
-use sgf_core::format::save::details::{
+use sgf_core::projections::name::letter;
+use sgf_core::views::details::{
     BodyRole, Bounds, ClassPool, ClassRolls, DepositStep, OrbitFit, PlanetSummary, PoolClass,
     PoolEntry, SpawnClass, SpawnName, SpawnPool, SpawnRing,
 };
@@ -838,15 +839,6 @@ fn numeral(n: u32, roman_numerals: bool) -> String {
     match roman_numerals {
         true => roman(n),
         false => letter(n.saturating_sub(1)),
-    }
-}
-
-/// `a`, `b`, … `z`, `aa`, `ab`, … from 0.
-fn letter(index: usize) -> String {
-    let this = char::from(b'a' + (index % 26) as u8);
-    match index / 26 {
-        0 => this.to_string(),
-        n => format!("{}{this}", letter(n - 1)),
     }
 }
 

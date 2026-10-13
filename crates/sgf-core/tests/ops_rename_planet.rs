@@ -51,7 +51,7 @@ fn the_diff_a_rename_writes() {
     let result = snapshot_step(&mut session, "shuckon_i_140", rename(140, "Nova Terra"));
     assert_eq!(
         result.entry.description,
-        "Renamed planet #140 to Nova Terra"
+        "Renamed Shuckon I #140 to Nova Terra"
     );
 }
 

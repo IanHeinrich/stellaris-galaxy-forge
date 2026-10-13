@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sgf_core::format::save::details::SourceLine;
+use sgf_core::views::details::SourceLine;
 use ts_rs::TS;
 
 use crate::GameData;

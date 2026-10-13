@@ -4,7 +4,7 @@
 //! The roller and the example roll draw each range; the scenario details keep it as the
 //! bounds a draw could give.
 
-use sgf_core::format::save::details::Bounds;
+use sgf_core::views::details::Bounds;
 
 use crate::initializers::InitPlanet;
 use crate::install::script::Range;

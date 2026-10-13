@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, Nebula};
-use crate::views::DocumentKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -227,7 +226,9 @@ impl Issue {
     }
 }
 
-/// Check the graph; issues come back sorted by code then by the systems involved.
+/// Check the graph by the rules every kind of document shares; issues come back sorted by
+/// code then by the systems involved. A document's format adds its own (see
+/// [`crate::session::Session::validate`]).
 pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
     let mut issues = Vec::new();
     let reach = Reach::of(g);
@@ -341,14 +342,6 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
     }
 
     paint::fe_zones(g, &mut issues);
-    if g.kind == DocumentKind::Scenario {
-        paint::seats(g, &mut issues);
-        paint::automatic_zones(g, &mut issues);
-        paint::fe_links(g, &mut issues);
-        scenario::l_cluster(g, &mut issues);
-        scenario::marauders(g, &mut issues);
-        scenario::rolled_near_seats(g, &mut issues);
-    }
 
     let components = g.components();
     if components.len() > g.baseline_components {
@@ -442,6 +435,19 @@ fn listed(names: &[String]) -> String {
         [one] => one.clone(),
         [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
     }
+}
+
+/// What a scenario's own rules find in its galaxy: its seats, fallen empire zones and
+/// links, the L-Cluster, marauders and rolled systems near a seat. Unsorted.
+pub(crate) fn scenario_rules(g: &GalaxyGraph) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    paint::seats(g, &mut issues);
+    paint::automatic_zones(g, &mut issues);
+    paint::fe_links(g, &mut issues);
+    scenario::l_cluster(g, &mut issues);
+    scenario::marauders(g, &mut issues);
+    scenario::rolled_near_seats(g, &mut issues);
+    issues
 }
 
 /// By code, then by the systems involved: the order every issue list is reported in.

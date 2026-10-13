@@ -53,6 +53,7 @@ pub(crate) fn plan_add(
     check_place(&s.graph, x, y)?;
     let lanes = lane_lengths(&s.graph, id, x, y, &spec.lanes)?;
 
+    plan.created().systems.push(id);
     let written = write_bodies(plan, s, id, spec)?;
     let mut end = TableEnd::of(&s.doc, EntityKind::System)?;
     let text = system_text(&s.doc, end.indent(), id, (x, y), spec, &written, &lanes)?;
@@ -110,7 +111,8 @@ pub(crate) struct Written {
 }
 
 /// Write the spec's bodies and their deposits as bodies of system `id`, each in the slot
-/// its table hands out next, and take their asteroids' names out of the pool.
+/// its table hands out next, list them among what the op adds, and take their asteroids'
+/// names out of the pool.
 pub(crate) fn write_bodies(
     plan: &mut Plan,
     s: &Session,
@@ -155,6 +157,7 @@ pub(crate) fn write_bodies(
             deposits.as_mut(),
         )?;
     }
+    plan.created().planets.extend(&ids);
     for entry in picks.iter().filter_map(|pick| pick.entry) {
         plan.erase(&s.doc, Subject::Record(entry), entry)?;
     }

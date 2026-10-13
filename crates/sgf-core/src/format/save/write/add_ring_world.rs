@@ -7,7 +7,6 @@
 //! game's frame does, which go first in the same batch.
 
 use crate::emit::system::{SegmentEntry, segment_entry};
-use crate::emit::{Lines, coord, inline};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::rows;
@@ -19,17 +18,19 @@ use crate::format::save::write::id_list::{list_planets, unlist_planets};
 use crate::format::save::write::megastructure_links::{
     self, MEGASTRUCTURES, NewRow, Tied, unlink_all, write_rows,
 };
-use crate::format::save::write::place::{self, insert_key};
+use crate::format::save::write::place::{self};
 use crate::format::save::write::planet_entry::body_is_star;
 use crate::format::save::write::shared::write_slot;
 use crate::format::save::write::teardown::some_id;
+use crate::format::save::write::variables;
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
+use crate::ops::rules::modifiers::{check_flags, check_timed, listed_once};
 use crate::ops::rules::{Form, check_text, named};
 use crate::ops::{
-    Edit, Emitted, NewRingWorld, Op, OpError, Plan, Planned, RingQuadrant, RingRow, RingSegment,
-    RingVariable, RingWorldWritten, Subject,
+    Emitted, NewRingWorld, Op, OpError, Plan, Planned, RingQuadrant, RingRow, RingSegment,
+    RingWorldWritten, Subject,
 };
 use crate::projections::geometry::{Body, descendants, normalised, point, reach};
 use crate::projections::name::NameTemplate;
@@ -168,8 +169,11 @@ pub(crate) fn plan_add(
         .map(|flag| (flag.as_str(), date.clone()))
         .collect();
     add_flags(plan.edit(&s.doc, system)?, &lines, &place::system::FLAGS)?;
-    let (variables, variables_block) =
-        set_variables(plan.edit(&s.doc, system)?, &ring.system_variables)?;
+    let (variables, variables_block) = variables::set(
+        plan.edit(&s.doc, system)?,
+        &place::system::VARIABLES,
+        &ring.system_variables,
+    )?;
     let (star_node, star_src) = planet_entity(&s.doc, star)?;
     let star_flags: Vec<String> = ring
         .star_flags
@@ -259,7 +263,7 @@ pub(crate) fn plan_remove(
     drop_flags(plan.edit(doc, system)?, |flag| {
         written.system_flags.iter().any(|f| f == flag)
     })?;
-    restore_variables(
+    variables::restore(
         plan.edit(doc, system)?,
         &written.variables,
         written.variables_block,
@@ -485,22 +489,18 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
     }
     check_flags("a system flag", &ring.system_flags)?;
     check_flags("a planet flag", &ring.star_flags)?;
-    for (i, variable) in ring.system_variables.iter().enumerate() {
+    for variable in &ring.system_variables {
         check_text("a variable", &variable.name, Form::Bare)?;
         if !variable.value.is_finite() {
             return Err(OpError::NotFinite);
         }
-        if ring.system_variables[..i]
-            .iter()
-            .any(|v| v.name == variable.name)
-        {
-            return Err(OpError::InvalidText {
-                what: "a variable listed once",
-                text: variable.name.clone(),
-            });
-        }
     }
-    Ok(())
+    let names: Vec<&str> = ring
+        .system_variables
+        .iter()
+        .map(|v| v.name.as_str())
+        .collect();
+    listed_once("a variable listed once", &names, |name| (*name).to_owned())
 }
 
 fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
@@ -513,25 +513,13 @@ fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
     if let Some(model) = &segment.planet.model {
         check_text("a model", model, Form::Bare)?;
     }
-    for (i, item) in segment.modifiers.iter().enumerate() {
-        check_text("a modifier", &item.modifier, Form::Bare)?;
-        if item.lasts_wrongly() {
-            return Err(megastructure_links::refuse(RING_WORLD)(format!(
-                "modifier {} would last {} days",
-                item.modifier,
-                item.days.unwrap_or_default()
-            )));
-        }
-        if segment.modifiers[..i]
-            .iter()
-            .any(|earlier| earlier.modifier == item.modifier)
-        {
-            return Err(OpError::InvalidText {
-                what: "a modifier listed once",
-                text: item.modifier.clone(),
-            });
-        }
-    }
+    segment.modifiers.iter().try_for_each(check_timed)?;
+    let names: Vec<&str> = segment
+        .modifiers
+        .iter()
+        .map(|m| m.modifier.as_str())
+        .collect();
+    listed_once("a modifier listed once", &names, |name| (*name).to_owned())?;
     check_flags("a planet flag", &segment.planet.flags)
 }
 
@@ -543,19 +531,6 @@ fn check_row(row: &RingRow) -> Result<(), OpError> {
     check_placement(row.at.radius, row.at.angle)?;
     if let Some(name) = &row.name {
         check_text("a name key", name, Form::Quoted)?;
-    }
-    Ok(())
-}
-
-fn check_flags(what: &'static str, flags: &[String]) -> Result<(), OpError> {
-    for (i, flag) in flags.iter().enumerate() {
-        check_text(what, flag, Form::Bare)?;
-        if flags[..i].contains(flag) {
-            return Err(OpError::InvalidText {
-                what: "a flag listed once",
-                text: flag.clone(),
-            });
-        }
     }
     Ok(())
 }
@@ -648,103 +623,6 @@ fn radii(ring: &NewRingWorld) -> Vec<f64> {
         }
     }
     radii
-}
-
-/// Each variable a ring sets, with the value the system held, as written; `None` where it held
-/// none.
-type Held = Vec<(String, Option<String>)>;
-
-/// Set each of `variables` in the system's `variables`, a held one to its value and a new one
-/// before the first name after it, writing the block where the game writes it when the system
-/// has none. Returns each one's value before, as written, and whether the block was written.
-fn set_variables(edit: &mut Edit, variables: &[RingVariable]) -> Result<(Held, bool), OpError> {
-    if variables.is_empty() {
-        return Ok((Vec::new(), false));
-    }
-    let Some(block) = edit.entity()?.find(keys::VARIABLES, &edit.buf).cloned() else {
-        let mut sorted: Vec<&RingVariable> = variables.iter().collect();
-        sorted.sort_by(|a, b| a.name.cmp(&b.name));
-        let write = |indent: &[u8]| {
-            let mut w = Lines::new(indent);
-            w.open(0, keys::VARIABLES);
-            for variable in &sorted {
-                w.pair(1, &variable.name, &coord(variable.value));
-            }
-            w.close(0);
-            inline(indent, &w.into_bytes())
-        };
-        insert_key(edit, &[], &place::system::VARIABLES, write)?;
-        let before = variables.iter().map(|v| (v.name.clone(), None)).collect();
-        return Ok((before, true));
-    };
-    let lines: Vec<(String, crate::cst::Node)> = block
-        .children()
-        .iter()
-        .filter_map(|line| Some((line.key_str(&edit.buf)?.to_owned(), line.clone())))
-        .collect();
-    let mut before = Vec::new();
-    let mut new: Vec<&RingVariable> = Vec::new();
-    for variable in variables {
-        match lines.iter().find(|(name, _)| *name == variable.name) {
-            Some((_, line)) => {
-                let span = line.scalar_span().ok_or_else(|| {
-                    edit.parse_error(line.span().start, "a variable is no number")
-                })?;
-                before.push((variable.name.clone(), Some(edit.text(span).to_owned())));
-                edit.replace_span(span, coord(variable.value));
-            }
-            None => {
-                before.push((variable.name.clone(), None));
-                new.push(variable);
-            }
-        }
-    }
-    new.sort_by(|a, b| a.name.cmp(&b.name));
-    for variable in new {
-        let text = format!("{}={}", variable.name, coord(variable.value));
-        match lines.iter().find(|(name, _)| *name > variable.name) {
-            Some((_, after)) => edit.bytes().insert_before(after.span(), &text),
-            None => match lines.last() {
-                Some((_, last)) => edit.bytes().insert_after(last.span().end, &text),
-                None => {
-                    let (at, indent) = edit.before_close(&block);
-                    let line = [&indent[..], text.as_bytes(), edit.eol(at)].concat();
-                    edit.insert(at, line);
-                }
-            },
-        }
-    }
-    Ok((before, false))
-}
-
-/// Put the system's `variables` back as [`set_variables`] found them: the block goes when it
-/// wrote it, else each variable takes back its value or goes.
-fn restore_variables(
-    edit: &mut Edit,
-    before: &[(String, Option<String>)],
-    block_written: bool,
-) -> Result<(), OpError> {
-    if before.is_empty() {
-        return Ok(());
-    }
-    let Some(block) = edit.entity()?.find(keys::VARIABLES, &edit.buf).cloned() else {
-        return Ok(());
-    };
-    if block_written {
-        edit.bytes().remove_statement(block.span());
-        return Ok(());
-    }
-    for (name, held) in before {
-        let Some(line) = block.find(name, &edit.buf) else {
-            continue;
-        };
-        match (held, line.scalar_span()) {
-            (Some(held), Some(span)) => edit.replace_span(span, held.clone()),
-            (None, _) => edit.bytes().remove_statement(line.span()),
-            (Some(_), None) => {}
-        }
-    }
-    Ok(())
 }
 
 /// The flags of `flags` the system does not have yet, in order.

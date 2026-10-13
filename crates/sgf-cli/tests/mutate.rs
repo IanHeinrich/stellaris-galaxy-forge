@@ -76,7 +76,7 @@ fn planet_class_writes_the_new_class() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Set the class of planet #585 from pc_barren to pc_ocean"),
+        text.contains("Set the class of Xu Nur I #585 from pc_barren to pc_ocean"),
         "{text}"
     );
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));

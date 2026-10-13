@@ -214,12 +214,6 @@ impl TimedModifier {
         self.days
             .map_or(-1, |days| i32::try_from(days).unwrap_or(i32::MAX))
     }
-
-    /// Whether it lasts no days, or more than a save can hold.
-    pub(crate) fn lasts_wrongly(&self) -> bool {
-        self.days
-            .is_some_and(|days| days == 0 || i32::try_from(days).is_err())
-    }
 }
 
 /// The `megastructures` row of a [`RingQuadrant`].

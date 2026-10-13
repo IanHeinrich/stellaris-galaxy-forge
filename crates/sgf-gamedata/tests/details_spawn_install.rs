@@ -2,7 +2,7 @@
 //! few vanilla initializers pinned one body a line under `snapshots/details_spawn`, and what
 //! each body can roll.
 
-use sgf_core::format::save::details::{
+use sgf_core::views::details::{
     BodyRole, Bounds, ClassPool, SpawnClass, SpawnPool, SpawnRing, SystemDetails,
 };
 use sgf_gamedata::details::ClassRollsError;

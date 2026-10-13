@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #726
+Deleted planet Siplim II #726
 details stale: [18]
-inverse: Restored planet #726
+inverse: Restored planet Siplim II #726
 
   System: 18
   Planet: 726

@@ -3,6 +3,7 @@
 
 use crate::Span;
 use crate::cst::Node;
+use crate::document::Document;
 use crate::emit::system::ANY_FLAG;
 use crate::entity::facts::planet::{self, BodyRole};
 use crate::format::save::read_spec::bodies;
@@ -11,6 +12,7 @@ use crate::format::save::write::id_list::{Emptied, items, statement, unlist};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
+use crate::ops::rules::{named_as, named_body};
 use crate::ops::{Edit, OpError, StarEdit};
 use crate::projections::galaxy::StarClasses;
 use crate::projections::read;
@@ -41,6 +43,18 @@ impl<'s> PlanetEntry<'s> {
         }
         Ok(entry)
     }
+}
+
+/// What a description calls planet `id`: [`named_body`] over the name the save holds.
+pub(crate) fn named_planet(doc: &Document, id: u32) -> Result<String, OpError> {
+    let (node, src) = planet_entity(doc, id)?;
+    Ok(named_body(&read::name(&node, src), id))
+}
+
+/// [`named_planet`] for a body of kind `kind` ("moon Lachium I a #2448").
+pub(crate) fn named_planet_as(doc: &Document, kind: &str, id: u32) -> Result<String, OpError> {
+    let (node, src) = planet_entity(doc, id)?;
+    Ok(named_as(kind, &read::name(&node, src), id))
 }
 
 /// What the body whose entity is `node` is in its system, `primary` saying whether the

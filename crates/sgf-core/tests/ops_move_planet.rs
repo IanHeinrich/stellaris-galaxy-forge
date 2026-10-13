@@ -89,7 +89,7 @@ fn a_colony_moves_to_a_system_without_colonies() {
         result
             .entry
             .description
-            .starts_with("Moved planet #402 from Linkirk #449 to Niamba #378, at orbit "),
+            .starts_with("Moved planet Linkirk I #402 from Linkirk #449 to Niamba #378, at orbit "),
         "{}",
         result.entry.description
     );
@@ -284,13 +284,13 @@ fn a_moon_moved_alone_becomes_a_planet() {
 /// Planet 808 orbits companion star 807, and moon 58's planet 57 is gone from the save.
 #[test]
 fn a_planet_of_a_companion_star_and_a_moon_without_its_planet_move() {
-    for (planet, label) in [(808, "planet"), (58, "moon")] {
+    for (planet, named) in [(808, "planet Scorom I"), (58, "moon Mantle")] {
         round_trip(open_4_5(), move_planet(planet, 216));
         let mut session = open_4_5();
         let result = session
             .apply(move_planet(planet, 216))
             .unwrap_or_else(|e| panic!("move {planet}: {e}"));
-        let described = format!("Moved {label} #{planet} from ");
+        let described = format!("Moved {named} #{planet} from ");
         assert!(
             result.entry.description.starts_with(&described),
             "{}",

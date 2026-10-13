@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed colony #12 from planet #385, with 2 pop groups and 4 armies
+Removed colony #12 from Arayya III #385, with 2 pop groups and 4 armies
 details stale: [513]
-inverse: Restored colony #12 on planet #385
+inverse: Restored colony #12 on Arayya III #385
 
   System: 513
   Planet: 385

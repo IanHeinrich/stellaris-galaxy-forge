@@ -12,16 +12,19 @@ use sgf_core::cst::Node;
 use crate::condition::{Condition, Subject};
 use crate::install::script::{self, Def};
 use crate::install::walk::{self, CONDITIONAL, Scan, Script};
+use crate::registries::megastructure_families::{Placed, closure, is_ruin, variant_stem};
 use crate::registries::megastructures::{
-    MegastructureDef, MegastructureTypes, is_ruin, variant_stem,
+    MegastructureDef, MegastructureRead, MegastructureTypes, ReadTypes,
 };
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::scripts::ScriptIndex;
 
 /// The first stages of the families the dialog leaves out for now, with every stage after
 /// them and their ruins: crisis-path, origin and story structures, structures that become
-/// warships, and the action stages of finished structures.
-pub const NOT_OFFERED_YET: [&str; 38] = [
+/// warships, the action stages of finished structures, and the Orbital Elysium, whose
+/// completion puts one planet in the orbit of its body and removes the row, a shape that
+/// has not been checked in game.
+pub const NOT_OFFERED_YET: [&str; 41] = [
     "crisis_sphere_0",
     "galactic_crucible_0",
     "cosmogenesis_needle",
@@ -60,6 +63,9 @@ pub const NOT_OFFERED_YET: [&str; 38] = [
     "planetcraft_printer_make_planet",
     "substellar_compressor_5",
     "psychic_beacon_4",
+    "orbital_elysium_0",
+    "orbital_elysium_origin_platform_0",
+    "orbital_elysium_origin_platform_1",
 ];
 
 /// Whether the add dialog offers a type.
@@ -212,7 +218,7 @@ fn leaves(script: &Script<'_>, block: &Node, scripts: &ScriptIndex) -> Option<Hi
 }
 
 /// `remove_megastructure = fromfrom` below `block` outside a conditional block.
-fn always_removes_row(script: &Script<'_>, block: &Node) -> bool {
+pub(crate) fn always_removes_row(script: &Script<'_>, block: &Node) -> bool {
     let mut removes = false;
     walk::scan(script, block, None, &mut |statement| {
         if statement.key == "remove_megastructure" {
@@ -247,22 +253,39 @@ impl Subject for Player<'_> {
     }
 }
 
-/// `types` with each type's [`Offer`] decided.
-pub(crate) fn offered(
-    mut types: MegastructureTypes,
-    triggers: &ScriptedTriggers,
-) -> MegastructureTypes {
-    let states = states(&types);
+/// The types `placed` resolved, each with its [`Offer`] decided.
+pub(crate) fn offered(placed: Placed, triggers: &ScriptedTriggers) -> MegastructureTypes {
+    let mut offers = offers(&placed, triggers);
+    let Placed {
+        types,
+        mut resolved,
+    } = placed;
+    types
+        .iter()
+        .filter_map(|read| {
+            let own = resolved.remove(&read.key)?;
+            let offer = offers.remove(&read.key)?;
+            Some((
+                read.key.clone(),
+                MegastructureDef::resolved(read, own, offer),
+            ))
+        })
+        .collect()
+}
+
+/// Each type's [`Offer`].
+fn offers(placed: &Placed, triggers: &ScriptedTriggers) -> BTreeMap<String, Offer> {
+    let types = &placed.types;
+    let states = states(types);
     let own: BTreeMap<&str, Option<HiddenWhy>> = types
         .iter()
         .map(|def| (def.key.as_str(), own(def, triggers, &states)))
         .collect();
-    let entries: BTreeSet<&str> = types
+    let entries = types
         .iter()
         .filter(|def| own[def.key.as_str()].is_none() && def.build.cost && def.build.technology)
-        .map(|def| def.key.as_str())
-        .collect();
-    let reached = after(&types, &entries, &own);
+        .map(|def| def.key.as_str());
+    let reached = after(types, entries, &own);
     let mut offers: BTreeMap<String, Offer> = types
         .iter()
         .map(|def| {
@@ -304,7 +327,7 @@ pub(crate) fn offered(
         };
     }
 
-    for key in not_offered_yet(&types) {
+    for key in not_offered_yet(placed) {
         let offer = offers.get_mut(&key).expect("every type has an offer");
         if *offer == Offer::Offered {
             *offer = Offer::Hidden {
@@ -312,20 +335,14 @@ pub(crate) fn offered(
             };
         }
     }
-
-    for (key, offer) in offers {
-        if let Some(def) = types.get_mut(&key) {
-            def.offer = offer;
-        }
-    }
-    types
+    offers
 }
 
 /// What hides `def` whatever stage the family starts from.
 fn own(
-    def: &MegastructureDef,
+    def: &MegastructureRead,
     triggers: &ScriptedTriggers,
-    states: &BTreeSet<String>,
+    states: &BTreeSet<&str>,
 ) -> Option<HiddenWhy> {
     let player = Player { triggers };
     let ship = |entity: &Option<String>| {
@@ -346,7 +363,7 @@ fn own(
         Some(HiddenWhy::BuiltByFleet)
     } else if let Some(leaves) = def.build.leaves {
         Some(leaves)
-    } else if states.contains(&def.key) {
+    } else if states.contains(def.key.as_str()) {
         Some(HiddenWhy::State)
     } else {
         None
@@ -356,59 +373,51 @@ fn own(
 /// `from` and every type built over one of them, through `upgrade_from`; a stage hidden
 /// whatever happens leads nowhere.
 fn after<'t>(
-    types: &'t MegastructureTypes,
-    from: &BTreeSet<&'t str>,
+    types: &'t ReadTypes,
+    from: impl IntoIterator<Item = &'t str>,
     own: &BTreeMap<&str, Option<HiddenWhy>>,
 ) -> BTreeSet<&'t str> {
-    let mut reached: Vec<&str> = from.iter().copied().collect();
-    let mut next = 0;
-    while let Some(&key) = reached.get(next) {
-        next += 1;
+    let built_over = |key: &str| -> Vec<&'t str> {
         if own.get(key).is_some_and(Option::is_some) {
-            continue;
+            return Vec::new();
         }
-        for later in types.iter() {
-            if later.upgrade_from.iter().any(|earlier| earlier == key)
-                && !reached.contains(&later.key.as_str())
-            {
-                reached.push(&later.key);
-            }
-        }
-    }
-    reached.into_iter().collect()
+        types
+            .iter()
+            .filter(|later| later.upgrade_from.iter().any(|earlier| earlier == key))
+            .map(|later| later.key.as_str())
+            .collect()
+    };
+    closure(from, built_over).into_iter().collect()
 }
 
 /// The types on a cycle of `upgrade_from` that the cycle is not entered at: no type off the
 /// cycle is built into them or swaps into them.
-fn states(types: &MegastructureTypes) -> BTreeSet<String> {
-    let earlier = |def: &MegastructureDef| -> BTreeSet<String> {
-        let mut seen: Vec<&str> = Vec::new();
-        let mut next = 0;
-        let mut queue: Vec<&str> = def.upgrade_from.iter().map(String::as_str).collect();
-        while let Some(&key) = queue.get(next) {
-            next += 1;
-            if seen.contains(&key) {
-                continue;
-            }
-            seen.push(key);
-            if let Some(stage) = types.get(key) {
-                queue.extend(stage.upgrade_from.iter().map(String::as_str));
-            }
-        }
-        seen.into_iter().map(str::to_owned).collect()
+fn states(types: &ReadTypes) -> BTreeSet<&str> {
+    let upgrades = |key: &str| -> Vec<&str> {
+        types
+            .get(key)
+            .map(|stage| stage.upgrade_from.iter().map(String::as_str).collect())
+            .unwrap_or_default()
     };
-    let before: BTreeMap<&str, BTreeSet<String>> = types
+    let before: BTreeMap<&str, BTreeSet<&str>> = types
         .iter()
         .filter(|def| !def.upgrade_from.is_empty())
-        .map(|def| (def.key.as_str(), earlier(def)))
+        .map(|def| {
+            let earlier = closure(def.upgrade_from.iter().map(String::as_str), upgrades);
+            (def.key.as_str(), earlier.into_iter().collect())
+        })
         .collect();
     let on_cycle = |key: &str| before.get(key).is_some_and(|set| set.contains(key));
     let mut out = BTreeSet::new();
     for def in types.iter().filter(|def| on_cycle(&def.key)) {
         let cycle: BTreeSet<&str> = before[def.key.as_str()]
             .iter()
-            .map(String::as_str)
-            .filter(|other| before.get(other).is_some_and(|set| set.contains(&def.key)))
+            .copied()
+            .filter(|other| {
+                before
+                    .get(other)
+                    .is_some_and(|set| set.contains(def.key.as_str()))
+            })
             .collect();
         let entered = |member: &str| {
             let built_from_outside = types.get(member).is_some_and(|stage| {
@@ -424,7 +433,7 @@ fn states(types: &MegastructureTypes) -> BTreeSet<String> {
             built_from_outside || swapped_from_outside
         };
         if !entered(&def.key) {
-            out.insert(def.key.clone());
+            out.insert(def.key.as_str());
         }
     }
     out
@@ -432,7 +441,8 @@ fn states(types: &MegastructureTypes) -> BTreeSet<String> {
 
 /// Each listed family's stages, every type built over them, and their ruins and restores
 /// with what repairs them. A type built over one of them and over a type outside them is left out.
-fn not_offered_yet(types: &MegastructureTypes) -> BTreeSet<String> {
+fn not_offered_yet(placed: &Placed) -> BTreeSet<String> {
+    let types = &placed.types;
     let mut held: BTreeSet<String> = NOT_OFFERED_YET
         .iter()
         .filter(|key| types.get(key).is_some())
@@ -452,9 +462,8 @@ fn not_offered_yet(types: &MegastructureTypes) -> BTreeSet<String> {
                         .upgrade_from
                         .iter()
                         .any(|earlier| held.contains(earlier));
-                let ruin_of = def
-                    .variant_of
-                    .as_ref()
+                let ruin_of = placed
+                    .variant_of(&def.key)
                     .is_some_and(|working| held.contains(working));
                 let named_for = variant_stem(&def.key).is_some_and(|stem| held.contains(stem));
                 built_over || named_for || (is_ruin(&def.key) && ruin_of)

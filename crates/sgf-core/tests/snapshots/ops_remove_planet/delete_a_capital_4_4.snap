@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #96, with its colony
+Deleted planet Kreshhk planet #96, with its colony
 details stale: [537]
-inverse: Restored planet #96
+inverse: Restored planet Kreshhk planet #96
 
   System: 537
   Planet: 96

@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use super::game_data::draw_scenario_stars_of;
-use super::{OpResult, Session};
+use super::game_data::draw_rolled_stars;
+use super::{Created, OpResult, Session};
+use crate::format::Format;
 use crate::ops::{self, Applied, DetailsReach, Op, OpError, Subject};
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, Wayline};
-use crate::views::{DocumentKind, HistoryEntry};
+use crate::views::HistoryEntry;
 
 impl Session {
     /// Apply `op`, record it for undo and validate. The document is unchanged on error, and
@@ -23,6 +24,7 @@ impl Session {
         let applied = ops::apply(self, op)?;
         self.draw_stars();
         let result = result(
+            self.format(),
             &self.graph,
             self.history.undo_len() + 1,
             &applied,
@@ -42,11 +44,13 @@ impl Session {
     pub fn undo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len();
         let before = Derived::of(&self.graph);
+        let format = self.format();
+        let rolled = self.rolls_stars();
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
-        let result = result(&self.graph, seq, applied, &before, true);
+        draw_rolled_stars(rolled, &mut self.graph, &self.stars);
+        let result = result(format, &self.graph, seq, applied, &before, true);
         let in_place = in_place(&applied.op);
         Ok(Some(self.finish(result, in_place)))
     }
@@ -56,11 +60,13 @@ impl Session {
     pub fn redo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len() + 1;
         let before = Derived::of(&self.graph);
+        let format = self.format();
+        let rolled = self.rolls_stars();
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
-        let result = result(&self.graph, seq, applied, &before, false);
+        draw_rolled_stars(rolled, &mut self.graph, &self.stars);
+        let result = result(format, &self.graph, seq, applied, &before, false);
         let in_place = in_place(&applied.op);
         Ok(Some(self.finish(result, in_place)))
     }
@@ -121,6 +127,7 @@ impl Derived {
 /// What `applied` did, or what undoing it did when `undone`. Its issues are left for
 /// [`Session::finish`] to fill.
 fn result(
+    format: &dyn Format,
     graph: &GalaxyGraph,
     seq: usize,
     applied: &Applied,
@@ -139,7 +146,7 @@ fn result(
     } else {
         applied.renumbered.clone()
     };
-    let mut details_stale = details_stale(graph.kind, &applied.op, &applied.touched);
+    let mut details_stale = details_stale(format, &applied.op, &applied.touched);
     if !renumbered.is_empty() {
         let ids = applied
             .renumbered
@@ -162,6 +169,10 @@ fn result(
         waylines: (graph.waylines != before.waylines).then(|| graph.waylines.clone()),
         bypasses: (graph.bypasses != before.bypasses).then(|| graph.bypasses.clone()),
         renumbered,
+        created: match undone {
+            true => Created::default(),
+            false => applied.created.clone(),
+        },
         issues: Vec::new(),
     }
 }
@@ -171,29 +182,12 @@ fn in_place(op: &Op) -> bool {
     op.reach().details == DetailsReach::InPlace
 }
 
-/// The systems `op` left the details of stale, ascending: those it rewrote and those
-/// whose bodies it rewrote, or in a save only the latter when that is all it stales (see
-/// [`DetailsReach::Bodies`]). The lane statements it also rewrote name no system of
-/// their own.
-fn details_stale(kind: DocumentKind, op: &Op, subjects: &[Subject]) -> Vec<u32> {
+/// The systems `op` left the details of stale, having rewritten `subjects`, ascending, as
+/// the document's format reads its reach.
+fn details_stale(format: &dyn Format, op: &Op, subjects: &[Subject]) -> Vec<u32> {
     let reach = op.reach().details;
     if !reach.stales() {
         return Vec::new();
     }
-    if kind == DocumentKind::Scenario && reach == DetailsReach::SaveBodies {
-        return Vec::new();
-    }
-    let bodies_only = kind == DocumentKind::Save
-        && matches!(reach, DetailsReach::Bodies | DetailsReach::SaveBodies);
-    let mut ids: Vec<u32> = subjects
-        .iter()
-        .filter_map(|s| match *s {
-            Subject::System(id) if !bodies_only => Some(id),
-            Subject::Planet { system: id, .. } => Some(id),
-            _ => None,
-        })
-        .collect();
-    ids.sort_unstable();
-    ids.dedup();
-    ids
+    format.stale_details(reach, subjects)
 }

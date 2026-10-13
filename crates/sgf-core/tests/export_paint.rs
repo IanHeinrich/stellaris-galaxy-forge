@@ -144,7 +144,7 @@ fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
         [11, 5, 13]
     );
 
-    let typed = assert_paint_export_holds_together(save.graph(), reopened.graph(), report);
+    let typed = assert_paint_export_holds_together(save.graph(), &reopened, report);
     assert_eq!(typed.keys().copied().collect::<Vec<_>>(), ANCHORS);
     let missing = left_out(save.graph(), galaxy);
     let hubs: Vec<u32> = save

@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Made planet #588 a moon of planet #589
+Made planet Xu Nur III #588 a moon of Xu Nur IV #589
 inverse: SetBodyParent { system: 1, body: 588, parent: Centre, radius: 116.949294148, angle: 189.533853477 }
 
 --- gamestate

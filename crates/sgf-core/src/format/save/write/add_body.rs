@@ -20,7 +20,9 @@ use crate::format::save::write::add_system::{
 use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
-use crate::format::save::write::planet_entry::{body_is_star, list_moon, unlist_moon};
+use crate::format::save::write::planet_entry::{
+    body_is_star, list_moon, named_planet, unlist_moon,
+};
 use crate::format::save::write::planet_modifier;
 use crate::format::save::write::remove_system::return_asteroid_names_of;
 use crate::format::save::write::shared::placement;
@@ -28,7 +30,8 @@ use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::check_name;
-use crate::ops::rules::named;
+use crate::ops::rules::modifiers::listed_once;
+use crate::ops::rules::{named, named_as, named_body};
 use crate::ops::{
     BodyName, BodyNaming, GivenName, MoonSpec, NewBody, NewModifier, Op, OpError, Plan, Planned,
     Subject,
@@ -160,8 +163,12 @@ pub(crate) fn plan_add(
         .map(|body| reach(&after, body))
         .fold(0.0, f64::max);
     let whose = match spec.moon_of {
-        Some(parent) => format!("moon #{id} of planet #{parent} in"),
-        None => format!("planet #{id} to"),
+        Some(parent) => format!(
+            "{} of {} in",
+            named_as("moon", &name, id),
+            named_planet(&s.doc, parent)?
+        ),
+        None => format!("{} to", named_body(&name, id)),
     };
     let description = format!(
         "Added {whose} {} ({}, size {}) at orbit {} at {}°{}",
@@ -235,7 +242,7 @@ fn write_new(
     slot: Slot,
     tables: &mut Tables<'_>,
 ) -> Result<(), OpError> {
-    let (timed, features) = modifier_lines(slot.id(), &new.spec.modifiers)?;
+    let (timed, features) = modifier_lines(&new.spec.modifiers);
     let spec = body_spec(new.spec, new.orbit, new.angle);
     let body = add_system::Body {
         spec: &spec,
@@ -262,32 +269,34 @@ fn write_new(
 /// A body's `timed_modifier` items as (modifier, days), and its `planet_modifier` lines.
 type ModifierLines<'a> = (Vec<(&'a str, i32)>, Vec<&'a str>);
 
-/// The `timed_modifier` items and `planet_modifier` lines of planet `id`, refused when a
-/// modifier with days, or a feature, is listed twice.
-fn modifier_lines(id: u32, modifiers: &[NewModifier]) -> Result<ModifierLines<'_>, OpError> {
-    let mut timed = Vec::new();
-    let mut features: Vec<&str> = Vec::new();
-    for (i, modifier) in modifiers.iter().enumerate() {
-        let twice = modifiers[..i]
-            .iter()
-            .any(|earlier| earlier.modifier == modifier.modifier && !earlier.days.is_empty());
-        if twice && !modifier.days.is_empty() {
-            return Err(OpError::ModifierPresent(id, modifier.modifier.clone()));
-        }
-        timed.extend(
-            modifier
-                .days
-                .iter()
-                .map(|&days| (modifier.modifier.as_str(), days)),
-        );
-        if let Some(feature) = &modifier.feature {
-            if features.contains(&feature.as_str()) {
-                return Err(OpError::ModifierPresent(id, feature.clone()));
-            }
-            features.push(feature);
-        }
-    }
-    Ok((timed, features))
+/// The `timed_modifier` items and `planet_modifier` lines a body is written with.
+fn modifier_lines(modifiers: &[NewModifier]) -> ModifierLines<'_> {
+    let timed = modifiers
+        .iter()
+        .flat_map(|m| m.days.iter().map(|&days| (m.modifier.as_str(), days)))
+        .collect();
+    let features = modifiers
+        .iter()
+        .filter_map(|m| m.feature.as_deref())
+        .collect();
+    (timed, features)
+}
+
+/// Refuse body modifiers that list a modifier with days, or a feature, twice.
+fn check_listed_once(modifiers: &[NewModifier]) -> Result<(), OpError> {
+    let timed: Vec<&str> = modifiers
+        .iter()
+        .filter(|m| !m.days.is_empty())
+        .map(|m| m.modifier.as_str())
+        .collect();
+    listed_once("a modifier listed once", &timed, |m| (*m).to_owned())?;
+    let features: Vec<&str> = modifiers
+        .iter()
+        .filter_map(|m| m.feature.as_deref())
+        .collect();
+    listed_once("a planet feature listed once", &features, |f| {
+        (*f).to_owned()
+    })
 }
 
 /// What the add-system writer takes of `spec`, standing at `orbit` and `angle`. A fixed name
@@ -435,15 +444,26 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     if let Some(host) = host {
         add_habitat::untie(plan, s, system, &stored, planet, host, orbital.as_ref())?;
     }
+    let name = read::name(&node, src);
     let whose = match (moon_of, host) {
-        (Some(parent), _) => format!("moon #{planet} of planet #{parent}"),
-        (None, Some(_)) => format!("habitat #{planet}"),
-        (None, None) => format!("planet #{planet}"),
+        (Some(parent), _) => format!(
+            "{} of {}",
+            named_as("moon", &name, planet),
+            named_planet(&s.doc, parent)?
+        ),
+        (None, Some(_)) => named_as("habitat", &name, planet),
+        (None, None) => named_body(&name, planet),
     };
     Ok(Planned {
         description: format!("Removed {whose} from {}", named(&s.graph, system)),
         inverse,
     })
+}
+
+/// The name planet `id` holds.
+fn name_of(s: &Session, id: u32) -> Result<NameTemplate, OpError> {
+    let (node, src) = planet_entity(&s.doc, id)?;
+    Ok(read::name(&node, src))
 }
 
 /// Refuse a spec whose body or moons [`check_body`] refuses, or whose moons break the rules
@@ -490,7 +510,7 @@ fn check_one(spec: &NewBody) -> Result<(), OpError> {
             modifier.feature.as_deref(),
         )?;
     }
-    Ok(())
+    check_listed_once(&spec.modifiers)
 }
 
 /// Body `parent` of the system, refused as a moon's parent when it is a star, a moon or an
@@ -531,11 +551,7 @@ fn numbered(
     moon_of: Option<u32>,
 ) -> Result<NameTemplate, OpError> {
     let names_of = |ids: &mut dyn Iterator<Item = u32>| -> Result<Vec<NameTemplate>, OpError> {
-        ids.map(|id| {
-            let (node, src) = planet_entity(&s.doc, id)?;
-            Ok(read::name(&node, src))
-        })
-        .collect()
+        ids.map(|id| name_of(s, id)).collect()
     };
     let (key, parent, highest) = match moon_of {
         Some(parent) => {
@@ -548,7 +564,7 @@ fn numbered(
             let highest = numerals(&siblings, MOON_NAME)
                 .filter_map(|text| (0..702).find(|&i| letter(i) == text))
                 .max();
-            let name = names_of(&mut std::iter::once(parent))?.remove(0);
+            let name = name_of(s, parent)?;
             let next = highest.map_or(0, |i| i + 1);
             (MOON_NAME, name, literal(&letter(next)))
         }

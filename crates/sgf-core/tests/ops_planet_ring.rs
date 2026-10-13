@@ -55,7 +55,7 @@ fn a_ring_is_taken_off_and_the_statement_goes() {
     assert_eq!(flags(&session, 589), None);
 
     let result = session.apply(set(589, true)).expect("give the ring back");
-    assert_eq!(result.entry.description, "Gave planet #589 a ring");
+    assert_eq!(result.entry.description, "Gave Xu Nur IV #589 a ring");
     assert_eq!(flags(&session, 589).as_deref(), Some("320"));
 }
 

@@ -55,7 +55,7 @@ star_class?: string,
  * The game draws the body's class: a random class, a planet list, or another key the
  * install defines no planet class for, such as `ideal_planet_class`. `false` in a save.
  */
-drawn?: boolean, 
+drawn: boolean, 
 /**
  * The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
  * the shape a terraforming candidate modifier is written in, whatever the planet's

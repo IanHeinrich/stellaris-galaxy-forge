@@ -17,7 +17,7 @@ use crate::format::save::write::megastructure_links::{
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entity::write_entity_name;
-use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::planet_entry::{body_is_star, named_planet};
 use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
@@ -230,9 +230,11 @@ fn to_body(
         _ => String::new(),
     };
     Ok(format!(
-        "Moved megastructure #{id} ({}) in {} from planet #{from} to planet #{body}{standing}",
+        "Moved megastructure #{id} ({}) in {} from {} to {}{standing}",
         tied.kind,
-        named(&s.graph, system)
+        named(&s.graph, system),
+        named_planet(&s.doc, from)?,
+        named_planet(&s.doc, body)?
     ))
 }
 
@@ -260,14 +262,11 @@ fn beside(
         return Err(OpError::unchanged(format!("megastructure {id}"), state));
     }
     splice_coordinate(edit, at.0, at.1)?;
+    let planet = named_planet(&s.doc, body)?;
     let to = if same_point(at, home) {
-        format!("back to planet #{body}")
+        format!("back to {planet}")
     } else {
-        format!(
-            "from {} to {}, tied to planet #{body}",
-            polar(from),
-            polar(at)
-        )
+        format!("from {} to {}, tied to {planet}", polar(from), polar(at))
     };
     Ok(format!(
         "Moved megastructure #{id} ({}) in {} {to}",

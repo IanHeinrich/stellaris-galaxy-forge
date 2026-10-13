@@ -5,9 +5,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::RING_FLAG;
@@ -15,12 +12,11 @@ use crate::entity::facts;
 use crate::entity::facts::planet::{BodyRole, PlanetFacts};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
-use crate::format::save::details::StructureSpawn;
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
+use crate::format::save::galaxy::fleets;
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::system_spec::BeltSpec;
-use crate::format::save::write::fleets;
 use crate::format::save::{dig_sites, read_spec};
 use crate::format::save::{entity_at, planet_statement, planet_statements, system_statement};
 use crate::overlay::Anchor;
@@ -28,6 +24,9 @@ use crate::projections::galaxy::{GalaxyGraph, ProjectionError, StarClasses};
 use crate::projections::name::NameTemplate;
 use crate::projections::read::{self, PERMANENT, RawCountry};
 use crate::scan::Index;
+use crate::views::details::{
+    ArchaeologySite, FleetSummary, MegastructureSummary, ShipSizeCount, WormholeSummary,
+};
 use crate::{as_u32, keys};
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -119,95 +118,6 @@ pub struct RawStarbase {
     pub planet: Option<u32>,
     /// The `station` ship's `graphical_culture`.
     pub culture: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct FleetSummary {
-    pub id: u32,
-    pub name: NameTemplate,
-    pub name_key: String,
-    /// From `country.fleets_manager.owned_fleets`.
-    pub owner: Option<u32>,
-    /// `ship_class` is `shipclass_military` or `shipclass_military_special`.
-    pub military: bool,
-    pub military_power: f64,
-    pub ships: u32,
-    /// A ship carries a weapon in a `PLANET_KILLER` slot: a colossus, whose power the game
-    /// shows as a skull. Only looked up when the fleet's power is zero.
-    pub planet_killer: bool,
-    /// `cached_disabled_ships`: ships knocked out (by an event or in battle).
-    pub disabled_ships: u32,
-    /// The fleet's ships counted by `ship_size`, in order of first appearance; each hull
-    /// is reached through `ship_design_implementation`.
-    pub ship_sizes: Vec<ShipSizeCount>,
-    /// What the fleet is doing: the one child key of `current_order`
-    /// (`survey_planet_order`, `orbit_planet_order`), absent when it is idle.
-    pub order: Option<String>,
-    /// The resources a mining or research station gathers: what the deposits of the planet
-    /// naming it as `shipclass_orbital_station` produce, in deposit order without repeats.
-    /// Filled when the system is resolved; empty for any other fleet.
-    pub works: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct ShipSizeCount {
-    pub key: String,
-    pub count: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct MegastructureSummary {
-    pub id: u32,
-    /// The `type`, e.g. `ring_world_ruined`.
-    pub kind: String,
-    pub owner: Option<u32>,
-    /// The planet it orbits, when it orbits one.
-    pub planet: Option<u32>,
-    /// `coordinate` x/y, relative to the system's centre. The game writes a row tied to a body
-    /// at that body's coordinate, and adds the type's `entity_offset` only where it draws it.
-    pub at: Option<(f64, f64)>,
-    /// The graphical culture its model is drawn in: the row's `graphical_culture`, else its
-    /// owner's; `None` when neither names one.
-    pub culture: Option<String>,
-    /// Its planet has the planet flag `megastructure`: the structure made the planet, as a
-    /// cosmogenesis world's did, and stays on it.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    #[ts(optional, as = "Option<bool>")]
-    pub made_body: bool,
-    /// What only a scenario's initializer says of it. `None` in a save.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub spawn: Option<StructureSpawn>,
-}
-
-/// One `natural_wormholes` entry standing in the system: a wormhole, or a shroud tunnel.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct WormholeSummary {
-    /// The `natural_wormholes` id.
-    pub id: u32,
-    /// The `bypasses` entry it stands for.
-    pub bypass: u32,
-    /// That bypass's `type`, such as `wormhole` or `shroud_tunnel`; empty when the save holds no
-    /// such bypass. Only a `wormhole` can be moved.
-    pub kind: String,
-    /// The system its bypass's `linked_to` stands in.
-    pub partner: Option<u32>,
-    /// `coordinate` x/y, relative to the system's centre. A wormhole has no orbit.
-    pub x: f64,
-    pub y: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct ArchaeologySite {
-    pub id: u32,
-    /// The `type`, e.g. `site_tiyanki_graveyard`.
-    pub kind: String,
-    pub planet: u32,
 }
 
 pub(super) struct Countries {
@@ -395,23 +305,10 @@ pub(super) fn planets(
 
 /// The modifier names of `node`'s permanent `timed_modifier.items` (`days = -1`).
 fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
-    let Some(items) = node
-        .find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-    else {
-        return Vec::new();
-    };
-    items
-        .children()
-        .iter()
+    read::timed_items(node, src)
         .filter(|item| read::text(item, keys::DAYS, src) == PERMANENT)
-        .filter_map(|item| {
-            Some(
-                read::scalar(item, keys::MODIFIER, src)?
-                    .trim_matches('"')
-                    .to_owned(),
-            )
-        })
+        .filter_map(|item| read::scalar(item, keys::MODIFIER, src))
+        .map(|modifier| modifier.trim_matches('"').to_owned())
         .collect()
 }
 
@@ -519,12 +416,8 @@ fn made_by_megastructure(doc: &Document, id: u32) -> Result<bool, ProjectionErro
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(false);
     };
-    Ok(
-        current_entity(doc, keys::PLANETS, u64::from(id), anchor)?.is_some_and(|(node, src)| {
-            node.find(keys::FLAGS, src)
-                .is_some_and(|flags| flags.find(keys::MEGASTRUCTURE, src).is_some())
-        }),
-    )
+    Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
+        .is_some_and(|(node, src)| read::has_flag(&node, src, keys::MEGASTRUCTURE)))
 }
 
 /// Every site of `archaeological_sites.sites` the save now holds on a planet, the ones an op

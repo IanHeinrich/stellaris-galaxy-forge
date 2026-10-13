@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed colony #18 from planet #517, with 4 pop groups and 2 armies
+Removed colony #18 from Vinh III #517, with 4 pop groups and 2 armies
 details stale: [174]
-inverse: Restored colony #18 on planet #517
+inverse: Restored colony #18 on Vinh III #517
 
   System: 174
   Planet: 517

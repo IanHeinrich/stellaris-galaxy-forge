@@ -8,7 +8,7 @@ use crate::cst;
 use crate::format::scenario::emit::{hyperlane_stmt, prevent_hyperlane_stmt};
 use crate::format::scenario::index::LaneStmt;
 use crate::ops::rules::lanes as lane_rules;
-use crate::ops::rules::{named, named_all};
+use crate::ops::rules::named;
 use crate::ops::{Emitted, LanePair, Op, OpError, Plan, Planned, projected_lane};
 use crate::plural;
 use crate::session::Session;
@@ -46,19 +46,7 @@ pub(super) fn add_lanes(
         .map(|&(b, bridge)| LanePair { a: from, b, bridge })
         .collect();
     emit_lanes(plan, s, &pairs)?;
-    let ids: Vec<u32> = to.iter().map(|&(id, _)| id).collect();
-    Ok(Planned {
-        description: format!(
-            "Added {} from {} to {}",
-            plural(to.len(), "lane"),
-            named(&s.graph, from),
-            named_all(&s.graph, &ids)
-        ),
-        inverse: Op::RemoveLanes {
-            from,
-            to: to.iter().map(|&(id, _)| id).collect(),
-        },
-    })
+    Ok(lane_rules::added_lanes(&s.graph, from, to))
 }
 
 pub(super) fn add_lane_pairs(
@@ -143,10 +131,8 @@ pub(super) fn remove_lanes(
     let (erased, restore) = erase_lanes(plan, s, &pairs)?;
     Ok(Planned {
         description: format!(
-            "Removed {} from {} to {} ({erased} statements)",
-            plural(to.len(), "lane"),
-            named(&s.graph, from),
-            named_all(&s.graph, to)
+            "Removed {} ({erased} statements)",
+            lane_rules::lanes_from(&s.graph, from, to)
         ),
         inverse: Op::AddLanes {
             from,

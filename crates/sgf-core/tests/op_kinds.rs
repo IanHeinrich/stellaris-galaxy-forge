@@ -385,6 +385,15 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
     );
 }
 
+/// Prepare is offered on a scenario, and the multi-edit of several bodies on a save.
+#[test]
+fn prepare_is_a_scenarios_and_editing_bodies_together_a_saves() {
+    let save = Capabilities::of(common::open().doc());
+    assert!(save.edit_bodies && !save.prepare);
+    let scenario = Capabilities::of(common::examples::scenario().doc());
+    assert!(scenario.prepare && !scenario.edit_bodies);
+}
+
 /// Planet 588 moved onto 587 in the 4.5 sample overlaps it; adding a planet to Meissa then
 /// rebuilds the details, and the overlap stays in every result.
 #[test]

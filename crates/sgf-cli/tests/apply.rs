@@ -113,7 +113,7 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
             ],
             vec![
                 "Added d_minerals_3 (#16777216) to planet #3",
-                "Added d_energy_2 (#16777217) to planet #0",
+                "Added d_energy_2 (#16777217) to Alari system #0",
                 "Removed d_minerals_3 (#16777216) from planet #3",
             ],
         ),
@@ -128,9 +128,9 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
                         "modifier": "terraforming_candidate", "days": [360], "feature": null }),
             ],
             vec![
-                "Added planet feature pm_mineral_poor (mineral_poor) to planet #585",
-                "Removed planet feature pm_mineral_poor (mineral_poor) from planet #585",
-                "Added modifier terraforming_candidate to planet #585 for 360 days",
+                "Added planet feature pm_mineral_poor (mineral_poor) to Xu Nur I #585",
+                "Removed planet feature pm_mineral_poor (mineral_poor) from Xu Nur I #585",
+                "Added modifier terraforming_candidate to Xu Nur I #585 for 360 days",
             ],
         ),
         (
@@ -141,8 +141,8 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
                 json!({ "type": "SetBodyModel", "body": 585, "entity": null }),
             ],
             vec![
-                "Gave planet #585 the model ocean_paradise_planet_01_entity",
-                "Took the model ocean_paradise_planet_01_entity off planet #585",
+                "Gave Xu Nur I #585 the model ocean_paradise_planet_01_entity",
+                "Took the model ocean_paradise_planet_01_entity off Xu Nur I #585",
             ],
         ),
         (
@@ -165,8 +165,8 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
                 json!({ "type": "RemoveDigSite", "site": 4 }),
             ],
             vec![
-                "Added dig site site_lost_moments (#4) to planet #585",
-                "Removed dig site site_lost_moments (#4) from planet #585",
+                "Added dig site site_lost_moments (#4) to Xu Nur I #585",
+                "Removed dig site site_lost_moments (#4) from Xu Nur I #585",
             ],
         ),
         (
@@ -177,7 +177,7 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
                         "value": null, "custom_name": true }),
             ],
             vec![
-                "Renamed planet #140 to Nova Terra",
+                "Renamed Shuckon I #140 to Nova Terra",
                 "Renamed empire 0 to Sgf Dominion",
             ],
         ),
@@ -191,9 +191,9 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
                 json!({ "type": "RemoveColony", "body": 517 }),
             ],
             vec![
-                "Added planet #16777273 to Meissa #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit",
+                "Added Meissa V #16777273 to Meissa #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit",
                 "Deleted planet #99 and its 2 moons",
-                "Removed colony #18 from planet #517",
+                "Removed colony #18 from Vinh III #517",
             ],
         ),
         (

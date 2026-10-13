@@ -37,10 +37,6 @@ precursors: boolean,
  */
 create_systems: boolean, 
 /**
- * Lanes carry a `bridge` flag.
- */
-lane_bridges: boolean, 
-/**
  * Waystations and the waylines the game derives between them.
  */
 waylines: boolean, 
@@ -136,6 +132,17 @@ rename_systems: boolean,
  * The document has a header of its own: the galaxy's name, sizes and core radius.
  */
 header: boolean, 
+/**
+ * The document is a scenario a new game can start from, so Prepare can choose its seats,
+ * fallen empires and marauders and write them in one batch.
+ */
+prepare: boolean, 
+/**
+ * Several bodies selected together can be edited at once, as the system view's
+ * selection offers. Each field still asks its own capability: a 3.x save has this with
+ * `planet_classes` and `modifiers` off.
+ */
+edit_bodies: boolean, 
 /**
  * Empires are seated by the scripts the systems name: the territories, day-one claims
  * and marauder clans the game data resolves.

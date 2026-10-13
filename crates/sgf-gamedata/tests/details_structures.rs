@@ -4,11 +4,12 @@
 use crate::common;
 
 use sgf_core::document::Document;
-use sgf_core::format::save::details::{
-    ClassPool, HeuristicResolver, MegastructureSummary, PlanetSummary, SpawnClass, SpawnPlace,
-    StarbaseSummary, StructureSpawn, SystemDetails,
-};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::session::Session;
+use sgf_core::views::details::{
+    ClassPool, MegastructureSummary, PlanetSummary, SpawnClass, SpawnPlace, StarbaseSummary,
+    StructureSpawn, SystemDetails,
+};
 use sgf_gamedata::GameData;
 use sgf_gamedata::initializers::{self, Initializer};
 use sgf_gamedata::scripts::ScenarioSystem;
@@ -98,7 +99,7 @@ fn every_way_an_initializer_places_a_megastructure_gives_a_row_where_it_stands()
             true,
         ),
         ("fixture_gateway", None, SpawnPlace::Random, true),
-        ("hyper_relay_ruined", None, SpawnPlace::Random, true),
+        ("fixture_relay_ruined", None, SpawnPlace::Random, true),
         (
             "fixture_lost",
             None,
