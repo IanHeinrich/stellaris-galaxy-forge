@@ -114,10 +114,9 @@ the others the game never builds on a star aren't offered on a star. A
 second Hyper Relay, Gateway or L-Gate in a system is greyed out, and the
 preview says why.
 
-A Hyper Relay, a Gateway or an L-Gate goes just outside the system's
-[inner radius](../reference/glossary.md#inner-radius), in the direction
-you right-clicked. A Hyper Relay links to the relays in the systems its
-hyperlanes lead to, and a Gateway links to every other gateway.
+A Hyper Relay, a Gateway or an L-Gate goes where you right-clicked.
+A Hyper Relay links to the relays in the systems its hyperlanes lead to,
+and a Gateway links to every other gateway.
 
 An L-Gate is added closed and links to nothing. When the L-Gates open in
 the game, it links to the L-Cluster. The app also gives its system the

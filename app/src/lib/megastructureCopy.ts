@@ -2,7 +2,6 @@
  * What the Add megastructure menu items and dialog say: their labels, the notes on what Add
  * writes and who owns it, the Where line, a stage's line and the Add button.
  */
-import type { MegastructureView } from "../generated/MegastructureView";
 import type {
   MegastructureChain,
   MegastructureEntry,
@@ -185,19 +184,9 @@ export function leftOutNotice(name: string, unsure: number, unwritten: number): 
   return parts.join(" ");
 }
 
-/** Whether a type stands just outside the system's inner radius, as relays and gateways do. */
-function outsideGravityWell(type: MegastructureView | undefined): boolean {
-  return type?.placement.place === "free" && type.placement.outside_gravity_well;
-}
-
 /** The dialog's Where line: around the body, or where in the system the row stands. */
-export function whereText(
-  spot: MegastructureSpot,
-  type: MegastructureView | undefined,
-  bodyName: string | undefined,
-): string {
+export function whereText(spot: MegastructureSpot, bodyName: string | undefined): string {
   if (spot.kind === "body") return `Around ${bodyName ?? `#${spot.body}`}`;
   const at = placementAt(spot.x, spot.y);
-  if (outsideGravityWell(type)) return `Just outside the inner radius, at ${at.angle}°`;
   return `At ${orbitText(at)}`;
 }
