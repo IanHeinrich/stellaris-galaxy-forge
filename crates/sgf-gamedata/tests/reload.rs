@@ -4,6 +4,7 @@
 //! path belongs to.
 
 use crate::common;
+use sgf_core::paths::Case;
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -401,7 +402,10 @@ fn a_changed_path_names_the_registry_that_reads_it() {
         (
             PathBuf::from(install.display().to_string().to_uppercase())
                 .join("COMMON/COUNTRY_TYPES/00_TYPES.TXT"),
-            Some(RegistryKind::CountryTypes),
+            match Case::HERE {
+                Case::Blind => Some(RegistryKind::CountryTypes),
+                Case::Sensitive => None,
+            },
         ),
         (
             install.join("common/solar_system_initializers/00_a.txt.tmp"),
