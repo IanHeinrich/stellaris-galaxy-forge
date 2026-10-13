@@ -79,7 +79,8 @@ export function megastructureMove(
   type: MegastructureView | undefined,
   home: HomeBody = { star: false, hidden: false },
 ): MegastructureMove {
-  if (isRingRow(row.kind)) return fixed("ringWorld");
+  const known = type === undefined ? undefined : new Map([[row.kind, type]]);
+  if (isRingRow(row.kind, known)) return fixed("ringWorld");
   const bypass = type?.bypass_type ?? null;
   if (bypass !== null && !MOVED_BYPASSES.has(bypass)) return fixed("bypass");
   const placement = type?.placement;

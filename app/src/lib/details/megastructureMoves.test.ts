@@ -110,6 +110,9 @@ describe("how a megastructure moves", () => {
     expect(megastructureMove(lgate, lgateType)).toEqual(fixed(MEGASTRUCTURE_FIXED.bypass));
     const ring = megastructureSummary({ kind: "ring_world_ruined", at: [45, 0] });
     expect(megastructureMove(ring, undefined)).toEqual(fixed(MEGASTRUCTURE_FIXED.ringWorld));
+    const giga = megastructureSummary({ kind: "giga_ring_frame", at: [90, 0] });
+    const gigaType = megastructureTypeView("giga_ring_frame", { ring_world: true });
+    expect(megastructureMove(giga, gigaType)).toEqual(fixed(MEGASTRUCTURE_FIXED.ringWorld));
     const citadel = megastructureTypeView("deep_space_citadel_0", {
       placement: { place: "unsupported", why: { kind: "becomes_starbase" } },
     });

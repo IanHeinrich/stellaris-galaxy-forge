@@ -23,7 +23,7 @@ use crate::format::save::write::shared::write_slot;
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
 use crate::ops::rules::FURNACE_ENTITY;
-use crate::ops::{Emitted, OpError, Plan, SavedTable, Subject};
+use crate::ops::{Emitted, MegastructureRefusal, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
@@ -51,7 +51,12 @@ pub(crate) const BODY_FLAGS: [&str; 4] = [
 
 /// What refuses an add of megastructure type `kind`, for the reason it is given.
 pub(crate) fn refuse(kind: &str) -> impl Fn(String) -> OpError + '_ {
-    move |reason| OpError::MegastructureRefused {
+    move |reason| refused(kind, MegastructureRefusal::Other(reason))
+}
+
+/// The refusal of an add of megastructure type `kind`, for `reason`.
+pub(crate) fn refused(kind: &str, reason: MegastructureRefusal) -> OpError {
+    OpError::MegastructureRefused {
         kind: kind.to_owned(),
         reason,
     }

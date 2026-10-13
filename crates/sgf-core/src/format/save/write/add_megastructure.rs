@@ -32,8 +32,9 @@ use crate::keys;
 use crate::ops::rules::modifiers::listed_once;
 use crate::ops::rules::{Form, check_text, named, named_body};
 use crate::ops::{
-    Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
-    NewMegastructurePlace, Op, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
+    Emitted, MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
+    NewMegastructure, NewMegastructurePlace, Op, OpError, ParseAt, Plan, Planned, SavedTable,
+    Subject,
 };
 use crate::overlay::Anchor;
 use crate::projections::name::NameTemplate;
@@ -89,15 +90,12 @@ pub(crate) fn plan_add(
                 return Err(OpError::NotABody { body, system });
             }
             let holders = Holders::read(&s.doc, body, &node, src)?;
-            if let Some(held) = holders.key.or(holders.rows.first().copied()) {
-                return Err(refuse(format!(
-                    "planet {body} already has megastructure {held}"
-                )));
-            }
-            if holders.flags.contains(&keys::HAS_MEGASTRUCTURE) {
-                return Err(refuse(format!(
-                    "the game counts a megastructure built at planet {body} already"
-                )));
+            let held = holders.key.or(holders.rows.first().copied());
+            if held.is_some() || holders.flags.contains(&keys::HAS_MEGASTRUCTURE) {
+                return Err(megastructure_links::refused(
+                    &new.kind,
+                    MegastructureRefusal::HoldsMegastructure { body, row: held },
+                ));
             }
             if star_only && !body_is_star(s, &frame(s, system)?, body)? {
                 return Err(refuse(format!(
@@ -123,11 +121,13 @@ pub(crate) fn plan_add(
             )));
         }
         if live.bypass_in(system, &bypass.kind).is_some() {
-            return Err(refuse(format!(
-                "{} already has a {}",
-                named(&s.graph, system),
-                bypass.kind
-            )));
+            return Err(megastructure_links::refused(
+                &new.kind,
+                MegastructureRefusal::BypassPresent {
+                    place: named(&s.graph, system),
+                    kind: bypass.kind.clone(),
+                },
+            ));
         }
     }
     if let Some(built) = &new.construction {
