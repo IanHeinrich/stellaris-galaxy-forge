@@ -20,8 +20,13 @@ use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
 use crate::rolls::{ClassDraw, RingRoll, can_be, fixed_name, list_members, ring_roll};
 
+mod megastructure;
 mod save;
 
+pub use megastructure::{
+    AddSpot, MegastructureFit, Planned, Refusal, habitat_op, megastructure_fits, megastructure_op,
+    ring_world_op,
+};
 pub use save::{
     BodyAsk, ClassRulesError, ForSaveError, Pick, added_among, body_for_save, for_save, reroll,
     settle_name,

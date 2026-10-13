@@ -38,7 +38,7 @@ describe("openSave", () => {
     expect(useIssuesStore.getState().issues).toHaveLength(1);
     expect(state.progress).toBeNull();
     expect(listen.unlisten).toHaveBeenCalledTimes(1);
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(OPEN_RESULT.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(OPEN_RESULT.path);
 
     const galaxy = useGalaxyStore.getState();
     expect(galaxy.galaxy).toBe(OPEN_RESULT.galaxy);
@@ -73,14 +73,14 @@ describe("openSave", () => {
   });
 
   it("reports a rejection as an error and closes the session left on the Rust side", async () => {
-    mockedIpc.openSave.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
-    mockedIpc.closeSave.mockRejectedValueOnce({ kind: "no_session", message: "nothing open" });
+    mockedIpc.openDocument.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
+    mockedIpc.closeDocument.mockRejectedValueOnce({ kind: "no_session", message: "nothing open" });
     await session().openSave("bad.sav");
     const state = session();
     expect(state.status).toBe("error");
     expect(state.error).toBe("not a zip");
     expect(state.errorKind).toBe("format");
-    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.closeDocument).toHaveBeenCalledTimes(1);
     expect(useGalaxyStore.getState().systems.size).toBe(0);
     expect(listen.unlisten).toHaveBeenCalledTimes(1);
   });
@@ -90,7 +90,7 @@ describe("openSave", () => {
     useDetailsStore.setState({ details: new Map([[0, systemDetails()]]) });
     useGameDataStore.setState({ counts: [{ kind: "leviathan", count: 1, primary_count: 1 }] });
 
-    mockedIpc.openSave.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
+    mockedIpc.openDocument.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
     await session().openSave("bad.sav");
 
     expect(useDetailsStore.getState().details.size).toBe(0);
@@ -131,14 +131,17 @@ describe("openSave", () => {
     await session().openPath("C:/saves/renamed.txt", "save", { listings: null });
     unsubscribe();
     expect(asked).toBe(false);
-    expect(mockedIpc.openSave).toHaveBeenCalledWith("C:/saves/renamed.txt");
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith("C:/saves/renamed.txt");
     expect(session().kind).toBe("save");
   });
 
   it("a file the probe cannot read opens by its name, so a missing save shows its read error", async () => {
     usePaintModStore.setState({ warnNotForPaint: true });
     mockedIpc.documentKind.mockRejectedValue({ kind: "not_found", message: "gone.sav not found" });
-    mockedIpc.openSave.mockRejectedValueOnce({ kind: "not_found", message: "gone.sav not found" });
+    mockedIpc.openDocument.mockRejectedValueOnce({
+      kind: "not_found",
+      message: "gone.sav not found",
+    });
     let asked = false;
     const unsubscribe = useFileSessionStore.subscribe((state, previous) => {
       if (state.scenarioPrompt !== null || previous.scenarioPrompt !== null) asked = true;
@@ -146,7 +149,7 @@ describe("openSave", () => {
     await session().openPath("C:/saves/gone.sav", "save", { listings: null });
     unsubscribe();
     expect(asked).toBe(false);
-    expect(mockedIpc.openSave).toHaveBeenCalledWith("C:/saves/gone.sav");
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith("C:/saves/gone.sav");
     expect(session().error).toBe("gone.sav not found");
 
     await session().requestOpen("C:/saves/gone.sav", { listings: null });
@@ -157,7 +160,7 @@ describe("openSave", () => {
     mockedIpc.saveDirs.mockResolvedValue(["C:/saves"]);
     mockedIpc.open.mockResolvedValueOnce(null);
     await session().pickAndOpen(undefined, undefined, null);
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
     expect(mockedIpc.confirm).not.toHaveBeenCalled();
 
     mockedIpc.open.mockResolvedValueOnce("C:/saves/picked.sav");
@@ -173,11 +176,11 @@ describe("openSave", () => {
         ],
       }),
     );
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBe("C:/saves/picked.sav");
 
     await session().chooseOpenMode("save");
-    expect(mockedIpc.openSave).toHaveBeenCalledWith("C:/saves/picked.sav");
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith("C:/saves/picked.sav");
     expect(session().pendingOpen).toBeNull();
     expect(session().status).toBe("ready");
   });
@@ -198,7 +201,7 @@ describe("openSave", () => {
       }),
     );
     expect(mockedIpc.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBeNull();
   });
 
@@ -275,11 +278,11 @@ describe("reload", () => {
 
     mockedIpc.confirm.mockResolvedValueOnce(false);
     await session().reload();
-    expect(mockedIpc.openSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.openDocument).toHaveBeenCalledTimes(1);
     expect(session().dirty).toBe(true);
 
     await session().reload();
-    expect(mockedIpc.openSave).toHaveBeenLastCalledWith(OPEN_RESULT.path);
+    expect(mockedIpc.openDocument).toHaveBeenLastCalledWith(OPEN_RESULT.path);
     expect(session().dirty).toBe(false);
   });
 });
@@ -301,7 +304,7 @@ describe("close", () => {
     await session().close();
 
     expect(mockedIpc.confirm).toHaveBeenCalledTimes(discard === null ? 0 : 1);
-    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(closed ? 1 : 0);
+    expect(mockedIpc.closeDocument).toHaveBeenCalledTimes(closed ? 1 : 0);
     expect(session().status).toBe(closed ? "empty" : "ready");
     expect(useGalaxyStore.getState().galaxy === null).toBe(closed);
   });
@@ -334,7 +337,7 @@ describe("recents", () => {
 describe("settling", () => {
   it("a scenario open with game data ready holds settling until the owners pass resolves", async () => {
     await loadGameData();
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     let resolveOwners!: (owners: null) => void;
     mockedIpc.getScenarioOwners.mockImplementationOnce(
       () => new Promise((resolve) => (resolveOwners = resolve)),
@@ -359,14 +362,14 @@ describe("settling", () => {
   });
 
   it("a scenario open before game data is ready never sets settling", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(session().settling).toBe(false);
   });
 
   it("a failing owners pass still clears settling", async () => {
     await loadGameData();
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     mockedIpc.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
 
     await session().openSave(SCENARIO_RESULT.path);
@@ -377,7 +380,7 @@ describe("settling", () => {
 
 describe("game data changing under an open scenario", () => {
   it("redraws each system with the star its initializer now names", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openScenario(SCENARIO_RESULT.path!);
     const [first] = SCENARIO_RESULT.galaxy.systems;
     mockedIpc.getGalaxy.mockResolvedValueOnce({

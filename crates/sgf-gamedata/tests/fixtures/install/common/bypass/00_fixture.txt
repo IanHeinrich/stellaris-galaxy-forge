@@ -1,8 +1,10 @@
 fixture_gateway = {
 	name = FIXTURE_GATEWAY
+	always_active = no
 	icon_frame = 25
 }
 
 fixture_rift = {
 	name = FIXTURE_RIFT
+	always_active = yes
 }

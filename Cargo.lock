@@ -3777,6 +3777,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "ts-rs",
+ "windows-registry",
 ]
 
 [[package]]

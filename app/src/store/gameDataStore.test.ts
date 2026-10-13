@@ -368,22 +368,22 @@ describe("unload", () => {
 });
 
 describe("save hooks", () => {
-  it("onSaveOpened classifies the save and fetches its names when ready", async () => {
+  it("onDocumentOpened classifies the save and fetches its names when ready", async () => {
     await useGameDataStore.getState().load();
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     useDetailsStore.setState({ version: 0 });
 
-    useGameDataStore.getState().onSaveOpened();
+    useGameDataStore.getState().onDocumentOpened();
     await until(() => expect(useGameDataStore.getState().special.size).toBe(1));
     await until(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
     expect(useDetailsStore.getState().version).toBe(1);
   });
 
-  it("onSaveOpened resolves each country's name template and keeps the key fetch to systems and nebulae", async () => {
+  it("onDocumentOpened resolves each country's name template and keeps the key fetch to systems and nebulae", async () => {
     await useGameDataStore.getState().load();
     useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, countries: [RIHINAR] });
 
-    useGameDataStore.getState().onSaveOpened();
+    useGameDataStore.getState().onDocumentOpened();
     await until(() => expect(mockedIpc.resolveNames).toHaveBeenCalledWith([RIHINAR.name]));
     expect(mockedIpc.getNames).toHaveBeenLastCalledWith(GALAXY_KEYS);
     expect(useGameDataStore.getState().names.get(templateKey(RIHINAR.name))).toBe(
@@ -391,14 +391,14 @@ describe("save hooks", () => {
     );
   });
 
-  it("onSaveOpened without game data only classifies by flags", async () => {
+  it("onDocumentOpened without game data only classifies by flags", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    useGameDataStore.getState().onSaveOpened();
+    useGameDataStore.getState().onDocumentOpened();
     await until(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1));
     expect(mockedIpc.getNames).not.toHaveBeenCalled();
   });
 
-  it("onSaveOpened resolves once the owners pass settles, and settles even when it fails", async () => {
+  it("onDocumentOpened resolves once the owners pass settles, and settles even when it fails", async () => {
     await useGameDataStore.getState().load();
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     let resolveOwners!: (owners: ScenarioOwners | null) => void;
@@ -409,7 +409,7 @@ describe("save hooks", () => {
     let settled = false;
     const p = useGameDataStore
       .getState()
-      .onSaveOpened()
+      .onDocumentOpened()
       .then(() => (settled = true));
     await flush();
     expect(settled).toBe(false);
@@ -419,15 +419,15 @@ describe("save hooks", () => {
     expect(settled).toBe(true);
 
     mockedIpc.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
-    await expect(useGameDataStore.getState().onSaveOpened()).resolves.toBeUndefined();
+    await expect(useGameDataStore.getState().onDocumentOpened()).resolves.toBeUndefined();
   });
 
-  it("onSaveClosed drops the special systems and keeps the game data", async () => {
+  it("onDocumentClosed drops the special systems and keeps the game data", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
     expect(useGameDataStore.getState().special.size).toBe(1);
 
-    useGameDataStore.getState().onSaveClosed();
+    useGameDataStore.getState().onDocumentClosed();
     const state = useGameDataStore.getState();
     expect(state.special.size).toBe(0);
     expect(state.counts).toEqual([]);
@@ -467,7 +467,7 @@ describe("scenario owners", () => {
     expect(mockedIpc.getScenarioOwners).not.toHaveBeenCalled();
 
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    useGameDataStore.getState().onSaveOpened();
+    useGameDataStore.getState().onDocumentOpened();
 
     await until(() => expect(useGameDataStore.getState().scenarioOwners).toBe(SCENARIO_OWNERS));
     expect(useGalaxyStore.getState().systems.get(1)?.owner).toBe(TERRITORY.id);

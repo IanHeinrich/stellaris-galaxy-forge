@@ -7,7 +7,6 @@
 
 use crate::cst::Node;
 use crate::format::save::added::{Table, row};
-use crate::format::save::ring_world;
 use crate::format::save::write::add_megastructure::same_point;
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::flags::add_flags;
@@ -41,7 +40,7 @@ pub(crate) fn plan_move(
         table: SavedTable::Megastructure,
         id,
     })?;
-    if ring_world::is_ring_row(&tied.kind) {
+    if s.ring_world_types().is_ring_row(&tied.kind) {
         return Err(refused(
             id,
             "it is part of a ring world, which stands where it is".to_owned(),

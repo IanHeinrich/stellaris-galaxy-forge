@@ -32,6 +32,9 @@ tauri-plugin-updater = "2"
 tokio = { version = "1.53.1", features = ["sync", "time"] }
 ts-rs = "12"
 
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6"
+
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 tempfile = "3.27.0"

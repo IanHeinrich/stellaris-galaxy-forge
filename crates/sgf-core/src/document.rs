@@ -92,6 +92,11 @@ pub fn sniff(path: impl AsRef<Path>) -> DocumentKind {
     }
 }
 
+/// Whether the file at `path` is a save, read as [`sniff`] does.
+pub fn is_save_file(path: impl AsRef<Path>) -> bool {
+    sniff(path) == DocumentKind::Save
+}
+
 /// What each kind keeps about its bytes beyond the index, read again by its format's
 /// refresh after every edit, undo and redo.
 #[derive(Clone, Debug)]

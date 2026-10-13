@@ -124,7 +124,7 @@ describe("Steam Cloud", () => {
   const CLOUD_PATH = "C:/Steam/userdata/1/281990/remote/save games/test/cloud.sav";
 
   async function openCloudSave() {
-    mockedIpc.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: CLOUD_PATH, cloud: true });
+    mockedIpc.openDocument.mockResolvedValueOnce({ ...OPEN_RESULT, path: CLOUD_PATH, cloud: true });
     await session().openSave(CLOUD_PATH);
     await edit();
     withIssues([]);
@@ -293,7 +293,7 @@ describe("issues a save stops on", () => {
     await answering("save", () => session().saveAs());
     expect(mockedIpc.saveAs).toHaveBeenCalledTimes(1);
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_RESULT.path, { listings: null });
     await withPaintMod(paintModView());
     await answering("cancel", () => session().saveIntoPaintMod());

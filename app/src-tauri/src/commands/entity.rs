@@ -16,13 +16,12 @@ use sgf_gamedata::GameData;
 use sgf_gamedata::special::{self, SpecialKind};
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::with_session;
+use super::with_open;
 use crate::state::{GameDataState, SpecialLabels};
 
 #[tauri::command]
 pub async fn get_system<R: Runtime>(app: AppHandle<R>, id: u32) -> Result<SystemDetail, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         SystemDetail::of(session.graph(), id)
             .ok_or_else(|| SgfError::not_found(format!("system {id}")))
     })
@@ -36,8 +35,7 @@ pub async fn get_entity<R: Runtime>(
     addr: EntityAddr,
     path: Vec<String>,
 ) -> Result<EntityView, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(entity::get_entity(session.doc(), addr, &path)?)
     })
     .await
@@ -49,8 +47,7 @@ pub async fn get_entity_source<R: Runtime>(
     app: AppHandle<R>,
     addr: EntityAddr,
 ) -> Result<EntitySource, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(entity::get_entity_source(session.doc(), addr)?)
     })
     .await
@@ -62,8 +59,7 @@ pub async fn get_planet_page<R: Runtime>(
     app: AppHandle<R>,
     id: u32,
 ) -> Result<PlanetPage, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(entity::get_planet_page(session.doc(), id)?)
     })
     .await
@@ -75,8 +71,7 @@ pub async fn planet_move_targets<R: Runtime>(
     app: AppHandle<R>,
     planets: Vec<u32>,
 ) -> Result<PlanetMoveTargets, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(session
             .save("moving planets")?
             .planet_move_targets(&planets))
@@ -93,8 +88,7 @@ pub async fn planet_move_check<R: Runtime>(
     to: u32,
     at: Option<OrbitPlacement>,
 ) -> Result<PlanetMoveCheck, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(session
             .save("moving planets")?
             .planet_move_check(&planets, to, at))
@@ -110,8 +104,7 @@ pub async fn planet_move_op<R: Runtime>(
     to: u32,
     at: Option<OrbitPlacement>,
 ) -> Result<Op, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(session
             .save("moving planets")?
             .planet_move_op(&planets, to, at)?)
@@ -125,8 +118,7 @@ pub async fn copy_bodies<R: Runtime>(
     app: AppHandle<R>,
     bodies: Vec<u32>,
 ) -> Result<Vec<NewBody>, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(session.save("copying planets")?.copy_bodies(&bodies)?)
     })
     .await
@@ -141,8 +133,7 @@ pub async fn paste_bodies_op<R: Runtime>(
     copies: Vec<NewBody>,
     at: Option<OrbitPlacement>,
 ) -> Result<Op, SgfError> {
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(session
             .save("pasting planets")?
             .paste_bodies_op(system, &copies, at)?)
@@ -164,8 +155,7 @@ pub async fn search<R: Runtime>(
     query: String,
     limit: usize,
 ) -> Result<SearchResult, SgfError> {
-    with_session(app.clone(), move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app.clone(), move |session| {
         let game_data = app.state::<GameDataState>();
         let snapshot = game_data.snapshot();
         let gd = snapshot.as_ref().map(|(_, gd)| gd);
@@ -188,18 +178,15 @@ fn special_labels(
     state: &GameDataState,
     generation: u64,
 ) -> Arc<SpecialLabels> {
-    let digest = classified_from(graph);
-    if let Some(cached) = state.special_labels(generation, digest) {
-        return cached;
-    }
-    let labels: SpecialLabels = special::classify(graph, Some(gd))
-        .systems
-        .into_iter()
-        .map(|s| (s.id, s.kinds.into_iter().filter_map(searchable).collect()))
-        .collect();
-    let labels = Arc::new(labels);
-    state.store_special_labels(generation, digest, Arc::clone(&labels));
-    labels
+    state
+        .special_labels
+        .get_or_compute(generation, classified_from(graph), || {
+            special::classify(graph, Some(gd))
+                .systems
+                .into_iter()
+                .map(|s| (s.id, s.kinds.into_iter().filter_map(searchable).collect()))
+                .collect()
+        })
 }
 
 /// What classifying a system reads of it: its id, initializer and flags.

@@ -122,7 +122,7 @@ describe("issuesStore", () => {
   });
 
   it("keeps the notes a document opened with out of the baseline and in the count", async () => {
-    mockedIpc.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
+    mockedIpc.openDocument.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
     await open();
 
     const { baseline, notes } = useIssuesStore.getState();
@@ -132,7 +132,7 @@ describe("issuesStore", () => {
   });
 
   it("carries the notes through an edit's fresh issue list", async () => {
-    mockedIpc.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
+    mockedIpc.openDocument.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
     await open();
     mockedIpc.applyOp.mockResolvedValue(editResult({ issues: [AT_LOAD, SPLIT] }));
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
@@ -145,12 +145,12 @@ describe("issuesStore", () => {
   });
 
   it("drops the notes when the document closes", async () => {
-    mockedIpc.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
+    mockedIpc.openDocument.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
     await open();
     await useFileSessionStore.getState().close();
     expect(useIssuesStore.getState().notes).toEqual([]);
 
-    mockedIpc.openSave.mockResolvedValue(OPEN_RESULT);
+    mockedIpc.openDocument.mockResolvedValue(OPEN_RESULT);
     await open();
     mockedIpc.applyOp.mockResolvedValue(editResult({ issues: [] }));
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
@@ -190,7 +190,7 @@ describe("issuesStore", () => {
 
   it("takes a fresh baseline when another save opens", async () => {
     await open();
-    mockedIpc.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, SPLIT] });
+    mockedIpc.openDocument.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, SPLIT] });
     await open("C:/saves/other.sav");
 
     const { baseline } = useIssuesStore.getState();

@@ -1,6 +1,6 @@
 use super::Session;
 use crate::format::scenario::effect;
-use crate::ops::{Op, Plan};
+use crate::ops::{Op, OpError, Plan};
 use crate::search;
 use crate::views::{SearchKind, SearchResult};
 
@@ -67,9 +67,13 @@ impl Session {
                 op.name()
             ));
         }
-        self.format()
-            .write(&mut Plan::new(), self, op)
-            .err()
-            .map(|error| error.to_string())
+        self.refusal(op).map(|error| error.to_string())
+    }
+
+    /// The error the format refuses `op` with, planned against the session as it is, or
+    /// `None` when it would apply. Nothing is written. Unlike [`Self::check_op`], it plans any
+    /// op it is given, so a caller checking a batch or a two-step op owns what that means.
+    pub fn refusal(&self, op: &Op) -> Option<OpError> {
+        self.format().write(&mut Plan::new(), self, op).err()
     }
 }

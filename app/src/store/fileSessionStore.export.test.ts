@@ -159,7 +159,7 @@ describe("exporting a save as a scenario", () => {
     expect(state.saving).toBe(false);
     expect(state.lastExport).toBeNull();
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_PATH);
     await session().exportScenario();
     expect(mockedIpc.previewExport).toHaveBeenCalledTimes(2);

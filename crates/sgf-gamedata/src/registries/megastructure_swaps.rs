@@ -10,6 +10,7 @@ use sgf_core::cst::Node;
 use crate::condition::{Condition, MAX_DEPTH};
 use crate::install::script::Def;
 use crate::install::walk::{self, Branch, Flow, Script, Statement, Visitor};
+use crate::registries::megastructures::MegastructureTypes;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 
 /// One swap of the finished row, with the conditions every branch on the way to it asks.
@@ -39,6 +40,84 @@ impl Swap {
             && self.classes.is_none()
             && self.not_classes.is_empty()
     }
+
+    /// Whether the completion makes this swap in a save with the global `flags`, the row
+    /// standing at the clicked body of class `class`: a star's class for a swap that tests it,
+    /// `None` in empty space or where the class is not known.
+    pub fn holds(&self, class: Option<&str>, flags: &[String]) -> bool {
+        let flagged = |flag: &String| flags.contains(flag);
+        self.resolved
+            && self.flags.iter().all(flagged)
+            && !self.no_flags.iter().any(flagged)
+            && self
+                .classes
+                .as_ref()
+                .is_none_or(|classes| class.is_some_and(|class| classes.iter().any(|c| c == class)))
+            && class.is_none_or(|class| !self.not_classes.iter().any(|c| c == class))
+    }
+}
+
+/// The type the game makes of a finished row of type `kind` added at the clicked body of class
+/// `class`, `None` in empty space, in a save with the global `flags`. The stage nearest
+/// `kind` back through each stage's first `upgrade_from` whose completion swaps its row, with
+/// a swap that holds, starts a chain: the type swapped in, then each type first built over the
+/// one before. The type made is the one as many stages along that chain as `kind` is past the
+/// swapping stage. It is `kind` itself when no stage on the way swaps, none of the nearest
+/// one's swaps holds, the chain is too short, or `kind` is on the chain already, made only by
+/// the swap.
+pub fn made_at(
+    types: &MegastructureTypes,
+    kind: &str,
+    class: Option<&str>,
+    flags: &[String],
+) -> String {
+    let mut at = kind;
+    let mut past = 0;
+    let mut seen = vec![kind];
+    let swaps = loop {
+        let Some(def) = types.get(at) else {
+            return kind.to_owned();
+        };
+        if !def.swaps.is_empty() {
+            break &def.swaps;
+        }
+        match def.upgrade_from.first() {
+            Some(from) if !seen.contains(&from.as_str()) => {
+                at = from;
+                past += 1;
+                seen.push(from);
+            }
+            _ => return kind.to_owned(),
+        }
+    };
+    let Some(swap) = swaps.iter().find(|swap| swap.holds(class, flags)) else {
+        return kind.to_owned();
+    };
+    let chain = swap_chain(types, &swap.into);
+    if chain.contains(&kind) {
+        return kind.to_owned();
+    }
+    chain
+        .get(past)
+        .map_or_else(|| kind.to_owned(), |&made| made.to_owned())
+}
+
+/// `into`, then each type first built over the one before, ruins and repairs left out.
+fn swap_chain<'t>(types: &'t MegastructureTypes, into: &'t str) -> Vec<&'t str> {
+    let mut chain = Vec::new();
+    let mut at = types.get(into).map(|def| def.key.as_str());
+    while let Some(key) = at {
+        chain.push(key);
+        at = types
+            .iter()
+            .filter(|def| def.variant_of.is_none())
+            .find(|def| {
+                def.upgrade_from.first().map(String::as_str) == Some(key)
+                    && !chain.contains(&def.key.as_str())
+            })
+            .map(|def| def.key.as_str());
+    }
+    chain
 }
 
 /// Every swap `def`'s `on_build_complete` makes, in the order it is written.

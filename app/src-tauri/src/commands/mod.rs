@@ -6,11 +6,12 @@ pub mod add_habitat;
 pub mod add_megastructure;
 pub mod add_ring_world;
 pub mod add_system;
+pub mod editors;
 pub mod entity;
 pub mod gamedata;
 pub mod listing;
 pub mod megastructure;
-pub mod names;
+pub mod megastructure_fits;
 pub mod nebula;
 pub mod paint;
 pub mod prepare;
@@ -23,11 +24,12 @@ pub use add_habitat::*;
 pub use add_megastructure::*;
 pub use add_ring_world::*;
 pub use add_system::*;
+pub use editors::*;
 pub use entity::*;
 pub use gamedata::*;
 pub use listing::*;
 pub use megastructure::*;
-pub use names::*;
+pub use megastructure_fits::*;
 pub use nebula::*;
 pub use paint::*;
 pub use prepare::*;
@@ -41,6 +43,7 @@ use std::sync::{Arc, MutexGuard};
 use sgf_core::ops::SystemRadii;
 use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, Progress, ProgressPhase, SgfError};
+use sgf_gamedata::construction::ring_world::ring_world_types;
 use sgf_gamedata::{GameData, LoadError};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
@@ -59,15 +62,20 @@ const DISCOVER_AT: f64 = 0.1;
 const DEFINITIONS_AT: f64 = 0.4;
 const LOCALISATION_AT: f64 = 0.7;
 
-/// Fit `session` to the loaded game data: systems sized by its defines and stars as the
-/// install names them, or vanilla's sizes and the name rule without any.
+/// Fit `session` to the loaded game data: systems sized by its defines, and stars and ring
+/// worlds as the install names them, or vanilla's sizes and the key rules without any.
 pub(crate) fn fit_to_game_data<R: Runtime>(app: &AppHandle<R>, session: &mut Session) {
     let gd = app.state::<GameDataState>().loaded();
     session.set_radii(
         gd.as_ref()
             .map_or(SystemRadii::VANILLA, |gd| gd.system_radii),
     );
-    session.set_star_classes(gd.map(|gd| gd.session_star_classes()).unwrap_or_default());
+    session.set_star_classes(
+        gd.as_ref()
+            .map(|gd| gd.session_star_classes())
+            .unwrap_or_default(),
+    );
+    session.set_ring_world_types(gd.map(|gd| ring_world_types(&gd)).unwrap_or_default());
 }
 
 /// [`fit_to_game_data`] for the open session, once game data has loaded, unloaded or reloaded.
@@ -94,8 +102,7 @@ async fn with_scenario<R: Runtime, T: Send + 'static>(
     app: AppHandle<R>,
     f: impl FnOnce(&Session, &GameData, &GameDataState, u64) -> Option<T> + Send + 'static,
 ) -> Result<Option<T>, SgfError> {
-    with_session(app.clone(), move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app.clone(), move |session| {
         let game_data = app.state::<GameDataState>();
         let Some((generation, gd)) = game_data.snapshot() else {
             return Ok(None);
@@ -119,6 +126,31 @@ async fn with_session<R: Runtime, T: Send + 'static>(
         .map_err(io_error)?
 }
 
+/// [`with_session`] for a command that only reads the open session: `f` runs on it, and with
+/// nothing open the answer is the `no_session` refusal.
+async fn with_open<R: Runtime, T: Send + 'static>(
+    app: AppHandle<R>,
+    f: impl FnOnce(&Session) -> Result<T, SgfError> + Send + 'static,
+) -> Result<T, SgfError> {
+    with_session(app, move |guard| f(opened(&guard)?)).await
+}
+
+/// [`with_open`] for a command that changes the open session.
+async fn with_open_mut<R: Runtime, T: Send + 'static>(
+    app: AppHandle<R>,
+    f: impl FnOnce(&mut Session) -> Result<T, SgfError> + Send + 'static,
+) -> Result<T, SgfError> {
+    with_session(app, move |mut guard| {
+        f(guard.as_mut().ok_or_else(SgfError::no_session)?)
+    })
+    .await
+}
+
+/// The open session, for a command that lets the lock go before it is done with the document.
+fn opened(guard: &Option<Session>) -> Result<&Session, SgfError> {
+    guard.as_ref().ok_or_else(SgfError::no_session)
+}
+
 /// The open session when its document can do what `can` asks of its capabilities; else
 /// `refusal`, as an `Op` error.
 fn require<S: Deref<Target = Session>>(
@@ -131,12 +163,6 @@ fn require<S: Deref<Target = Session>>(
         return Err(SgfError::new(ErrorKind::Op, refusal));
     }
     Ok(session)
-}
-
-/// A document with its own details is a save, of any version: the core refuses what that
-/// version cannot take.
-fn is_save(capabilities: Capabilities) -> bool {
-    capabilities.details
 }
 
 fn lock<'a>(state: &'a State<'_, AppState>) -> MutexGuard<'a, Option<Session>> {

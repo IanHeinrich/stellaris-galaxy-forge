@@ -11,7 +11,7 @@ use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::rows;
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::ring_world::{RING_SLACK, is_ring_row, is_segment};
+use crate::format::save::ring_world::{RING_SLACK, is_segment};
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::flags::{add_flags, drop_flags, today};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
@@ -29,15 +29,15 @@ use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::modifiers::{check_flags, check_timed, listed_once};
 use crate::ops::rules::{Form, check_text, named};
 use crate::ops::{
-    Emitted, NewRingWorld, Op, OpError, Plan, Planned, RingQuadrant, RingRow, RingSegment,
-    RingWorldWritten, Subject,
+    Emitted, MegastructureRefusal, NewRingWorld, Op, OpError, Plan, Planned, RingPart,
+    RingQuadrant, RingRow, RingSegment, RingWorldWritten, Subject,
 };
 use crate::projections::geometry::{Body, descendants, normalised, point, reach};
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
 use crate::views::{ClearedMegastructure, RingWorldClearing};
-use crate::{and_list, number, plural, plural_of};
+use crate::{and_list, plural, plural_of};
 
 /// What a refusal calls the structure.
 const RING_WORLD: &str = "ring world";
@@ -328,7 +328,7 @@ pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, Op
         let facts = megastructure::read(&row.node, row.src);
         if let Some(body) = facts
             .planet
-            .filter(|body| going.contains(body) && !is_ring_row(&facts.kind))
+            .filter(|body| going.contains(body) && !s.ring_world_types().is_ring_row(&facts.kind))
         {
             megastructures.push(ClearedMegastructure { id: row.id, body });
         }
@@ -543,19 +543,16 @@ fn the_star(s: &Session, system: u32, stored: &[Stored]) -> Result<u32, OpError>
             stars.push(body.body.id);
         }
     }
-    let refuse = megastructure_links::refuse(RING_WORLD);
-    match stars[..] {
-        [star] => Ok(star),
-        [] => Err(refuse(format!(
-            "{} has no star to stand round",
-            named(&s.graph, system)
-        ))),
-        _ => Err(refuse(format!(
-            "{} has {} stars, and a ring world stands round one",
-            named(&s.graph, system),
-            stars.len()
-        ))),
-    }
+    let place = named(&s.graph, system);
+    let reason = match stars[..] {
+        [star] => return Ok(star),
+        [] => MegastructureRefusal::NoStar { place },
+        _ => MegastructureRefusal::ManyStars {
+            place,
+            count: stars.len(),
+        },
+    };
+    Err(megastructure_links::refused(RING_WORLD, reason))
 }
 
 /// Refuse a ring that would overlap a ring world of the system: one with a segment or row
@@ -572,33 +569,38 @@ fn check_room(
             .iter()
             .any(|radius| (distance - radius).abs() <= RING_SLACK)
     };
-    let refuse = megastructure_links::refuse(RING_WORLD);
     let place = named(&s.graph, system);
+    let overlap = |part, orbit| {
+        megastructure_links::refused(
+            RING_WORLD,
+            MegastructureRefusal::RingOverlap {
+                place: place.clone(),
+                part,
+                orbit,
+            },
+        )
+    };
     for body in stored {
         let (node, src) = planet_entity(&s.doc, body.body.id)?;
         let distance = body.body.at.0.hypot(body.body.at.1);
         if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) && overlaps(distance) {
-            return Err(refuse(format!(
-                "planet {} of {place} is a segment of the ring world at orbit {}",
-                body.body.id,
-                number(distance)
-            )));
+            let planet = body.body.id;
+            return Err(overlap(RingPart::Segment { planet }, distance));
         }
     }
     for row in rows(&s.doc, MEGASTRUCTURES)? {
         let facts = megastructure::read(&row.node, row.src);
-        if facts.origin != Some(system) || !is_ring_row(&facts.kind) {
+        if facts.origin != Some(system) || !s.ring_world_types().is_ring_row(&facts.kind) {
             continue;
         }
         if let Some((x, y)) = facts.at
             && overlaps(x.hypot(y))
         {
-            return Err(refuse(format!(
-                "megastructure {} ({}) of {place} is part of the ring world at orbit {}",
-                row.id,
-                facts.kind,
-                number(x.hypot(y))
-            )));
+            let part = RingPart::Row {
+                megastructure: row.id,
+                kind: facts.kind,
+            };
+            return Err(overlap(part, x.hypot(y)));
         }
     }
     Ok(())

@@ -273,7 +273,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   ...refreshActions(session),
 
   openSave(path, profile) {
-    return openDocument(path, () => ipc.openSave(path), { profile });
+    return openDocument(path, () => ipc.openDocument(path), { profile });
   },
 
   async openScenario(path, profile) {
@@ -351,7 +351,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
     const { path, saving, paintChosen } = get();
     if (path === null || saving || !(await get().confirmDiscard())) return;
     // What the user said of the file when opening it is not in its bytes, so it is said again.
-    await openDocument(path, () => ipc.openSave(path), {
+    await openDocument(path, () => ipc.openDocument(path), {
       profile: paintChosen ? "paint_a_galaxy" : "plain",
     });
   },
@@ -359,7 +359,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   async close() {
     if (get().saving || !(await get().confirmDiscard())) return;
     try {
-      await ipc.closeSave();
+      await ipc.closeDocument();
     } finally {
       set({ ...INITIAL });
     }
@@ -475,12 +475,12 @@ async function openDocument(
     if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
       try {
-        await useGameDataStore.getState().onSaveOpened();
+        await useGameDataStore.getState().onDocumentOpened();
       } finally {
         setState({ settling: false, loadingName: null });
       }
     } else {
-      void useGameDataStore.getState().onSaveOpened();
+      void useGameDataStore.getState().onDocumentOpened();
       setState({ loadingName: null });
     }
     // Only once details are warm can the classifier name an event-spawned country.
@@ -499,7 +499,7 @@ async function openDocument(
     return true;
   } catch (e) {
     // A failed open leaves the previous session alive on the Rust side.
-    await ipc.closeSave().catch(() => undefined);
+    await ipc.closeDocument().catch(() => undefined);
     setState({
       ...INITIAL,
       status: "error",

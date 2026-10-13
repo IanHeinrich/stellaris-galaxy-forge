@@ -65,7 +65,7 @@ fn the_apps_own_save_is_not_reported_and_an_outside_write_is() {
     let heard = heard(&w);
 
     move_a_system(&w);
-    let saved: SaveResult = invoke(&w, "save", json!({})).expect("save in place");
+    let saved: SaveResult = invoke(&w, "save", json!({ "force": false })).expect("save in place");
     assert!(
         saved.backup_path.is_some(),
         "the save renamed the file aside"
@@ -104,7 +104,7 @@ fn a_file_moved_away_is_gone_and_nothing_is_checked_once_closed() {
     assert_eq!(found.change, DocumentChange::Gone);
     assert!(found.dirty);
 
-    invoke::<()>(&w, "close_save", json!({})).expect("close");
+    invoke::<()>(&w, "close_document", json!({})).expect("close");
     assert_eq!(check(&w), None);
 }
 
@@ -117,7 +117,11 @@ fn reading_the_file_again_keeps_unsaved_edits_unless_told_to_discard_them() {
     move_a_system(&w);
 
     assert_eq!(
-        kind(invoke::<OpenResult>(&w, "reload_document", json!({}))),
+        kind(invoke::<OpenResult>(
+            &w,
+            "reload_document",
+            json!({ "discard": false })
+        )),
         ErrorKind::Op
     );
     let reread: OpenResult =
@@ -126,8 +130,8 @@ fn reading_the_file_again_keeps_unsaved_edits_unless_told_to_discard_them() {
     let moved = |r: &OpenResult| r.galaxy.systems.iter().find(|s| s.id == 2).map(|s| s.x);
     assert_eq!(moved(&reread), moved(&before), "the edit was dropped");
 
-    let clean: OpenResult =
-        invoke(&w, "reload_document", json!({})).expect("a clean document reads again");
+    let clean: OpenResult = invoke(&w, "reload_document", json!({ "discard": false }))
+        .expect("a clean document reads again");
     assert_eq!(clean.path, before.path);
 }
 
@@ -135,7 +139,11 @@ fn reading_the_file_again_keeps_unsaved_edits_unless_told_to_discard_them() {
 fn a_document_with_no_file_has_nothing_to_read_again() {
     let w = webview();
     assert_eq!(
-        kind(invoke::<OpenResult>(&w, "reload_document", json!({}))),
+        kind(invoke::<OpenResult>(
+            &w,
+            "reload_document",
+            json!({ "discard": false })
+        )),
         ErrorKind::NoSession
     );
     invoke::<OpenResult>(
@@ -145,7 +153,11 @@ fn a_document_with_no_file_has_nothing_to_read_again() {
     )
     .expect("a new scenario");
     assert_eq!(
-        kind(invoke::<OpenResult>(&w, "reload_document", json!({}))),
+        kind(invoke::<OpenResult>(
+            &w,
+            "reload_document",
+            json!({ "discard": false })
+        )),
         ErrorKind::Op
     );
     assert_eq!(check(&w), None);

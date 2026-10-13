@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MegastructureView } from "../generated/MegastructureView";
-import { gigaStarSwaps, megastructureSwap, megastructureTypeView } from "../test/builders";
-import {
-  entryStages,
-  findStage,
-  megastructureEntries,
-  type MegastructureSpot,
-} from "./megastructurePicks";
+import { gigaStarSwaps, megastructureFits, megastructureTypeView } from "../test/builders";
+import { entryStages, megastructureEntries } from "./megastructurePicks";
 
 const GIGA = "Gigastructural Engineering";
 const giga = { source: GIGA, base_game: false } as const;
@@ -38,7 +33,7 @@ const starChain = (prefix: string, star: string, stages: number[], first: string
  * Giga's star-scaled megastructures as the registry reads them. The Dyson Swarm swaps its finished
  * stage, under the scaling flag by star class and without it for `_basic`. The Dyson Sphere and
  * the Matrioshka Brain swap their first stage, for an O star whatever the flags, and the class
- * chains run on from there. The Asteroid Artillery's second stage always becomes its working one.
+ * chains run on from there.
  */
 const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
   [
@@ -103,39 +98,6 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
     ...chain(["matrioshka_brain_1_g_star"], { ...onStar, ...giga }, ["matrioshka_brain_0_g_star"]),
     ...starChain("matrioshka_brain", "b", [0, 1], "matrioshka_brain_0_g_star"),
     ...starChain("matrioshka_brain", "o", [0, 1], "matrioshka_brain_0_g_star"),
-    megastructureTypeView("asteroid_artillery_0", giga),
-    megastructureTypeView("asteroid_artillery_1_fake", {
-      upgrade_from: ["asteroid_artillery_0"],
-      swaps: [megastructureSwap("asteroid_artillery_1")],
-      ...giga,
-    }),
-    megastructureTypeView("asteroid_artillery_1", {
-      upgrade_from: ["asteroid_artillery_config", "asteroid_artillery_repaired"],
-      ...giga,
-    }),
-    megastructureTypeView("asteroid_artillery_config", {
-      upgrade_from: ["asteroid_artillery_1"],
-      offer: { offer: "hidden", why: "state" },
-      ...giga,
-    }),
-    megastructureTypeView("asteroid_artillery_ruined", {
-      variant_of: "asteroid_artillery_0",
-      ...giga,
-    }),
-    megastructureTypeView("asteroid_artillery_repaired", {
-      variant_of: "asteroid_artillery_0",
-      upgrade_from: ["asteroid_artillery_ruined"],
-      swaps: [megastructureSwap("asteroid_artillery_1")],
-      ...giga,
-    }),
-    megastructureTypeView("vague_lifter_0", {
-      swaps: [
-        megastructureSwap("vague_lifter_0_b_star", { classes: ["pc_b_star"], resolved: false }),
-      ],
-      ...onStar,
-      ...giga,
-    }),
-    megastructureTypeView("vague_lifter_0_b_star", { upgrade_from: ["vague_lifter_0"], ...giga }),
   ].map((type) => [type.key, type]),
 );
 
@@ -143,105 +105,12 @@ const NAMES = new Map([
   ["dyson_swarm_3", "Dyson Swarm"],
   ["dyson_sphere_3", "Dyson Sphere"],
   ["matrioshka_brain_1_g_star", "Matrioshka Brain"],
-  ["asteroid_artillery_1_fake", "Asteroid Artillery"],
-  ["asteroid_artillery_1", "Asteroid Artillery"],
-  ["vague_lifter_0", "Vague Lifter"],
 ]);
-
-const star = (starClass: string): MegastructureSpot => ({
-  kind: "body",
-  body: 1,
-  star: true,
-  class: starClass,
-});
-
-/** What Add writes for each of `keys` at a star of `starClass` with the save's `flags`. */
-function written(starClass: string, flags: readonly string[], keys: readonly string[]): string[] {
-  const listed = megastructureEntries(TYPES, NAMES, star(starClass), undefined, {
-    globalFlags: new Set(flags),
-  });
-  return keys.map((key) => findStage(listed, key)?.stage.variant ?? `${key} not listed`);
-}
 
 const SPHERE = ["dyson_sphere_0", "dyson_sphere_1", "dyson_sphere_2", "dyson_sphere_3"];
 
-describe("the type the game makes of a stage at the clicked star", () => {
-  it("writes a Dyson Swarm's B-class variant with Giga's scaling, `_basic` without, and the plain stage on a black hole", () => {
-    expect(written("pc_b_star", [DYSON], ["dyson_swarm_2", "dyson_swarm_3"])).toEqual([
-      "dyson_swarm_2",
-      "dyson_swarm_3_b_star",
-    ]);
-    expect(written("pc_m_super_star", [DYSON], ["dyson_swarm_3"])).toEqual([
-      "dyson_swarm_3_b_star",
-    ]);
-    expect(written("pc_b_star", [], ["dyson_swarm_3"])).toEqual(["dyson_swarm_3_basic"]);
-    expect(written("pc_black_hole", [DYSON], ["dyson_swarm_3"])).toEqual(["dyson_swarm_3"]);
-  });
-
-  it("follows a Dyson Sphere's class chain from the site it swaps, and its O-class chain without the flag", () => {
-    expect(written("pc_b_star", [DYSON], SPHERE)).toEqual([
-      "dyson_sphere_0_b_star",
-      "dyson_sphere_1_b_star",
-      "dyson_sphere_2_b_star",
-      "dyson_sphere_3_b_star",
-    ]);
-    expect(written("pc_b_star", [], SPHERE)).toEqual(SPHERE);
-    expect(written("pc_o_star", [], SPHERE)).toEqual([
-      "dyson_sphere_0_o_star",
-      "dyson_sphere_1_o_star",
-      "dyson_sphere_2_o_star",
-      "dyson_sphere_3_o_star",
-    ]);
-    expect(written("pc_black_hole", [DYSON], SPHERE)).toEqual(SPHERE);
-  });
-
-  it("writes the plain stage past the end of a class chain that is too short", () => {
-    expect(written("pc_a_star", [DYSON], SPHERE)).toEqual([
-      "dyson_sphere_0_a_star",
-      "dyson_sphere_1_a_star",
-      "dyson_sphere_2",
-      "dyson_sphere_3",
-    ]);
-  });
-
-  it("scales a Matrioshka Brain by its own flag only, and keeps its G-class chain plain", () => {
-    const brain = ["matrioshka_brain_0_g_star", "matrioshka_brain_1_g_star"];
-    expect(written("pc_b_star", [BRAIN], brain)).toEqual([
-      "matrioshka_brain_0_b_star",
-      "matrioshka_brain_1_b_star",
-    ]);
-    expect(written("pc_b_star", [DYSON], brain)).toEqual(brain);
-    expect(written("pc_g_star", [BRAIN], brain)).toEqual(brain);
-    expect(written("pc_o_star", [], brain)).toEqual([
-      "matrioshka_brain_0_o_star",
-      "matrioshka_brain_1_o_star",
-    ]);
-  });
-
-  it("writes the type a stage always swaps for, from the build chain and from the repair", () => {
-    const listed = megastructureEntries(TYPES, NAMES, { kind: "body", body: 2, star: false });
-    const artillery = listed.find((entry) => entry.label === "Asteroid Artillery")!;
-    expect(artillery.chains.map((c) => c.stages.map((s) => [s.key, s.variant]))).toEqual([
-      [
-        ["asteroid_artillery_0", "asteroid_artillery_0"],
-        ["asteroid_artillery_1_fake", "asteroid_artillery_1"],
-      ],
-      [
-        ["asteroid_artillery_ruined", "asteroid_artillery_ruined"],
-        ["asteroid_artillery_repaired", "asteroid_artillery_1"],
-      ],
-    ]);
-  });
-
-  it("never applies a swap the files leave unresolved", () => {
-    expect(written("pc_b_star", [], ["vague_lifter_0"])).toEqual(["vague_lifter_0"]);
-  });
-});
-
 describe("the rows of a megastructure that swaps by star class", () => {
-  const listed = megastructureEntries(TYPES, NAMES, star("pc_b_star"), undefined, {
-    globalFlags: new Set([DYSON]),
-  });
+  const listed = megastructureEntries(TYPES, NAMES, megastructureFits(TYPES.keys()));
   const keys = (label: string) =>
     listed.find((entry) => entry.label === label)?.chains.map((c) => c.stages.map((s) => s.key));
 

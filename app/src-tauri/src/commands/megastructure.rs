@@ -1,5 +1,6 @@
 //! Deleting a megastructure from the open save, with what the install says its dismantle
-//! takes back, and deleting a ring world whole.
+//! takes back, and deleting a ring world whole, with the flags the install says each ring
+//! leaves.
 
 use sgf_core::ops::Op;
 use sgf_core::views::{EditResult, SgfError};
@@ -37,17 +38,25 @@ pub async fn delete_megastructure<R: Runtime>(
     .await
 }
 
-/// Delete the ring world of system `system` of the open save as one `DeleteRingWorld`: the
-/// ring at `radius`, or every ring of the system without one.
+/// Delete every ring world of system `system` of the open save as one `DeleteRingWorld`,
+/// taking the flags each ring's chain sets as the install lays it out. Without game data the
+/// system loses the base game's ring's flags.
 #[tauri::command]
 pub async fn delete_ring_world<R: Runtime>(
     app: AppHandle<R>,
     system: u32,
-    radius: Option<f64>,
 ) -> Result<EditResult, SgfError> {
+    let rings = app
+        .state::<GameDataState>()
+        .loaded()
+        .map(|gd| gd.ring_flags().to_vec());
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-        let result = session.apply(Op::DeleteRingWorld { system, radius })?;
+        let result = session.apply(Op::DeleteRingWorld {
+            system,
+            radius: None,
+            rings,
+        })?;
         Ok(session.edit_result(result))
     })
     .await

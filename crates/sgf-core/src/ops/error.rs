@@ -201,7 +201,10 @@ pub enum OpError {
     )]
     HasNaturalWormhole { system: u32, kind: String },
     #[error("a {kind} cannot be added there: {reason}")]
-    MegastructureRefused { kind: String, reason: String },
+    MegastructureRefused {
+        kind: String,
+        reason: MegastructureRefusal,
+    },
     #[error("systems {0} and {1} are not the two ends of a wormhole")]
     NotAWormholePair(u32, u32),
     #[error(
@@ -423,6 +426,87 @@ impl OpError {
         Self::Unchanged {
             what: what.to_string(),
             state: state.to_string(),
+        }
+    }
+}
+
+/// Why an add of a megastructure, a habitat or a ring world is refused. Each reason names
+/// what the caller needs to word it for the player; `Display` gives the core's own text.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MegastructureRefusal {
+    /// The system, named `place`, already has a bypass of type `kind`.
+    BypassPresent { place: String, kind: String },
+    /// Planet `body` has megastructure row `row`, or with none, the flag the game sets on a
+    /// body a megastructure was built at.
+    HoldsMegastructure { body: u32, row: Option<u32> },
+    /// Planet `body` orbits planet `parent`, and no habitat goes round a body that does.
+    HabitatRoundSatellite { body: u32, parent: u32 },
+    /// The system, named `place`, has no star for a ring world to stand round.
+    NoStar { place: String },
+    /// The system, named `place`, has `count` stars, and a ring world stands round one.
+    ManyStars { place: String, count: usize },
+    /// `part` of the system named `place` is part of a ring world at `orbit`, within the slack
+    /// of a radius the new ring stands at.
+    RingOverlap {
+        place: String,
+        part: RingPart,
+        orbit: f64,
+    },
+    /// Any other reason, as the core words it.
+    Other(String),
+}
+
+/// What part of a ring world stands in a new ring's way.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RingPart {
+    Segment { planet: u32 },
+    Row { megastructure: u32, kind: String },
+}
+
+impl fmt::Display for MegastructureRefusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BypassPresent { place, kind } => write!(f, "{place} already has a {kind}"),
+            Self::HoldsMegastructure {
+                body,
+                row: Some(row),
+            } => write!(f, "planet {body} already has megastructure {row}"),
+            Self::HoldsMegastructure { body, row: None } => write!(
+                f,
+                "the game counts a megastructure built at planet {body} already"
+            ),
+            Self::HabitatRoundSatellite { body, parent } => write!(
+                f,
+                "planet {body} orbits planet {parent}, and Galaxy Forge puts nothing round a body that orbits a planet"
+            ),
+            Self::NoStar { place } => write!(f, "{place} has no star to stand round"),
+            Self::ManyStars { place, count } => write!(
+                f,
+                "{place} has {count} stars, and a ring world stands round one"
+            ),
+            Self::RingOverlap {
+                place,
+                part: RingPart::Segment { planet },
+                orbit,
+            } => write!(
+                f,
+                "planet {planet} of {place} is a segment of the ring world at orbit {}",
+                crate::number(*orbit)
+            ),
+            Self::RingOverlap {
+                place,
+                part:
+                    RingPart::Row {
+                        megastructure,
+                        kind,
+                    },
+                orbit,
+            } => write!(
+                f,
+                "megastructure {megastructure} ({kind}) of {place} is part of the ring world at orbit {}",
+                crate::number(*orbit)
+            ),
+            Self::Other(reason) => f.write_str(reason),
         }
     }
 }

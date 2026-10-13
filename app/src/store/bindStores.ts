@@ -532,7 +532,7 @@ function followSession(): void {
     if (state.status === "loading") useLGateStore.getState().hide();
     if (state.status === "empty" || state.status === "error") {
       useGalaxyStore.getState().clear();
-      useGameDataStore.getState().onSaveClosed();
+      useGameDataStore.getState().onDocumentClosed();
     }
     if (state.status !== "ready") useLayoutStore.getState().hideOpenDialog();
     useEditorStore.getState().resetSession();

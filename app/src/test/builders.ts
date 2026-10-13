@@ -12,6 +12,7 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { Issue } from "../generated/Issue";
+import type { MegastructureFit } from "../generated/MegastructureFit";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
 import type { MegastructureSwap } from "../generated/MegastructureSwap";
 import type { MegastructureView } from "../generated/MegastructureView";
@@ -455,6 +456,22 @@ export function megastructureSwap(
     resolved: true,
     ...over,
   };
+}
+
+/**
+ * The shell's fits for a spot: each of `kinds` offered as itself at the point (0, 0), with no
+ * refusal, as `over` changes it by kind.
+ */
+export function megastructureFits(
+  kinds: Iterable<string>,
+  over: Readonly<Record<string, Partial<MegastructureFit>>> = {},
+): ReadonlyMap<string, MegastructureFit> {
+  return new Map(
+    [...kinds].map((kind) => [
+      kind,
+      { kind, variant: kind, place: { place: "free", x: 0, y: 0 }, refusal: null, ...over[kind] },
+    ]),
+  );
 }
 
 /**

@@ -317,3 +317,72 @@ fn gigas_larger_rings_are_added_whole() {
         );
     }
 }
+
+/// With Gigastructural Engineering enabled, the session takes the titanic ring's site, stages,
+/// frame sections and ruin as ring world rows, so none of them is deleted or moved on its own.
+#[test]
+fn gigas_titanic_ring_is_a_ring_world_to_the_session() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    let types = added::ring_world_types(gd);
+    for kind in [
+        "ringworld_titanic_0",
+        "ringworld_titanic_1",
+        "ringworld_t_3x_segment",
+        "ringworld_titanic_2",
+        "ring_world_titanic_ruined",
+    ] {
+        assert!(types.is_ring_row(kind), "{kind}");
+    }
+    assert!(!types.is_ring_row("dyson_sphere_1"));
+}
+
+/// With Gigastructural Engineering enabled, the rings a delete reads are laid out nearest the
+/// star first, each beside those before it. Giga's base ring at 45 takes `ring_01` to
+/// `ring_04`, and the titanic ring at 90 lists the flags the add writes beside it, `ring_05`
+/// to `ring_08`. Both name their sections `ring_` and a number.
+#[test]
+fn gigas_rings_list_the_flags_the_add_writes_beside_the_base_ring() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    let rings = gd.ring_flags();
+    let at = |radius: f64| {
+        rings
+            .iter()
+            .find(|ring| (ring.radius - radius).abs() < 1.0)
+            .unwrap_or_else(|| panic!("a ring at {radius}: {rings:?}"))
+    };
+    let base = at(45.0);
+    let held: Vec<String> = base
+        .flags
+        .iter()
+        .filter(|flag| flag.starts_with("ring_0"))
+        .cloned()
+        .collect();
+    assert_eq!(held, ["ring_01", "ring_02", "ring_03", "ring_04"]);
+    let written = added::ring_world(
+        gd,
+        "ringworld_titanic_0",
+        &[RingStage::Finished; 4],
+        Some("biogenesis_01"),
+        &held,
+    )
+    .expect("the titanic ring");
+    let titanic = at(90.0);
+    assert_eq!(titanic.flags, written.system_flags);
+    assert_eq!(
+        titanic.flags,
+        [
+            "giga_has_titanic_ring",
+            "ring_05",
+            "ring_06",
+            "ring_07",
+            "ring_world_built_one",
+            "ring_08"
+        ]
+    );
+    assert_eq!(base.sections, ["ring_"]);
+    assert_eq!(titanic.sections, ["ring_"]);
+}

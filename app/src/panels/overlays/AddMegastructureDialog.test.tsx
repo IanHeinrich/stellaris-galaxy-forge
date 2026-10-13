@@ -9,141 +9,24 @@ vi.mock("../useTextureUrl", () => ({
 }));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
-import type { RingWorldClearing } from "../../generated/RingWorldClearing";
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
 import {
-  BODY_HAS_MEGASTRUCTURE,
-  HABITAT_ORBITAL_HOST_TAKEN,
-  HABITAT_ORBITAL_OWNER_NOTE,
-  HABITAT_OWNER_NOTE,
   NO_MODEL,
   NO_OWNER_NOTE,
   OWNER_NOTE,
+  READING_FITS,
   WRITTEN_FINISHED,
-  habitatOrbitalNote,
-  writtenAsHabitat,
-  type MegastructureSpot,
-} from "../../lib/megastructurePicks";
-import { PLANET_CHANGE_LABEL, PLANET_KEPT_NOTE } from "../../lib/planetChangeAdd";
-import {
-  CLEAR_PLANETS,
-  LEAVE_PLANETS,
-  OTHER_SIZE,
-  QUADRANTS,
-  RING_WRITTEN,
-  SET_ALL,
-} from "../../lib/ringWorldAdd";
+  fitsUnread,
+} from "../../lib/megastructureCopy";
 import { bindStores } from "../../store/bindStores";
-import { useDetailsStore } from "../../store/detailsStore";
-import { OPEN_RESULT } from "../../store/fixture";
-import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMegastructureAddStore } from "../../store/megastructureAdd";
-import { armSession, resetStores } from "../../store/storeFixture";
-import {
-  megastructureSummary,
-  megastructureSwap,
-  megastructureTypeView,
-  planetSummary,
-  starbaseSummary,
-  systemDetails,
-} from "../../test/builders";
-import { inSystem, openWith } from "../../test/session";
 import { AddMegastructureDialog } from "./AddMegastructureDialog";
+import { OWNER, dialog, openAt, ownSystem, setUpDialog, space } from "./addMegastructureFixture";
 
 bindStores();
 
-const SYSTEM = 0;
-const OWNER = 3;
-const star: MegastructureSpot = { kind: "body", body: 1, star: true };
-const space: MegastructureSpot = { kind: "space", x: 10, y: 10 };
-const LOOM = ["loom_0", "loom_1", "loom_2", "loom_3", "loom_4", "loom_5"];
-
-const dialog = () => renderToStaticMarkup(<AddMegastructureDialog />);
-
-function ownSystem(owner: number | null) {
-  const systems = new Map(useGalaxyStore.getState().systems);
-  systems.set(SYSTEM, { ...systems.get(SYSTEM)!, owner });
-  useGalaxyStore.setState({ systems });
-}
-
-function openAt(spot: MegastructureSpot) {
-  useMegastructureAddStore.setState({ prompt: { system: SYSTEM, spot } });
-}
-
-beforeEach(async () => {
-  resetStores();
-  armSession();
-  await openWith(OPEN_RESULT);
-  inSystem(
-    systemDetails({
-      id: SYSTEM,
-      starbase: starbaseSummary({ owner: OWNER, culture: "mammalian_01" }),
-    }),
-  );
-  const onStar = { place: "body", star_only: true } as const;
-  const outside = { place: "free", outside_gravity_well: true } as const;
-  const types = [
-    megastructureTypeView("dyson_sphere_0", { placement: onStar }),
-    megastructureTypeView("dyson_sphere_5", {
-      upgrade_from: ["dyson_sphere_0"],
-      placement: onStar,
-      produces: [["energy", 1000]],
-      country_effects: [{ key: "country_resource_max_add", value: 5, text: "+5 Max Energy" }],
-      construction_summary: [
-        {
-          on: "system",
-          kind: "modifier",
-          key: "dyson_glow",
-          name: "Dyson Glow",
-          permanent: true,
-          conditional: false,
-        },
-      ],
-      swaps: [megastructureSwap("dyson_b_star", { classes: ["pc_b_star"] })],
-    }),
-    megastructureTypeView("dyson_b_star", { placement: onStar }),
-    ...LOOM.map((key, i) =>
-      megastructureTypeView(key, {
-        upgrade_from: i === 0 ? [] : [LOOM[i - 1]],
-        placement: onStar,
-        source: "Zeta Structures",
-        base_game: false,
-      }),
-    ),
-    megastructureTypeView("think_tank_0", { entity: null }),
-    megastructureTypeView("hyper_relay", { placement: outside, bypass_type: "relay_bypass" }),
-    megastructureTypeView("mod_beacon", {
-      placement: outside,
-      source: "Zeta Structures",
-      base_game: false,
-    }),
-  ];
-  useGameDataStore.setState({
-    status: "ready",
-    megastructureTypes: new Map(types.map((t) => [t.key, t])),
-    names: new Map([
-      ["dyson_sphere_0", "Dyson Sphere Site"],
-      ["dyson_sphere_5", "Dyson Sphere"],
-      ["think_tank_0", "Science Nexus Site"],
-      ["hyper_relay", "Hyper Relay"],
-      ["mod_beacon", "Beacon"],
-      ["dyson_b_star", "B-class Dyson Sphere"],
-      ["loom_0", "Loom Site"],
-      ["loom_1", "Loom Frame"],
-      ["loom_2", "Loom Weave"],
-      ["loom_3", "Loom Hum"],
-      ["loom_4", "Loom Glow"],
-      ["loom_5", "Loom"],
-    ]),
-    texts: new Map([
-      ["dyson_sphere_5_DESC", "A fully operational Dyson Sphere - §G100%§! energy generation."],
-      ["dyson_b_star_DESC", "A Dyson Sphere around a blue star."],
-    ]),
-  });
-  useMegastructureAddStore.setState({ last: null });
-  openAt(star);
-});
+beforeEach(setUpDialog);
 
 describe("the Add megastructure dialog", () => {
   it("opens on a star on the Dyson Sphere's finished stage, with its stages as tiles and its preview beside them", () => {
@@ -237,7 +120,7 @@ describe("the Add megastructure dialog", () => {
 
     useMegastructureAddStore.setState({ last: null });
     openAt({ kind: "body", body: 1, star: true, class: "pc_b_star" });
-    const html = dialog();
+    const html = dialog({ dyson_sphere_5: { variant: "dyson_b_star" } });
     expect(html).toContain("<h2>B-class Dyson Sphere</h2>");
     expect(html).toContain("A Dyson Sphere around a blue star.");
     expect(html).toContain(">Add Dyson Sphere, stage 2 of 2</button>");
@@ -257,11 +140,6 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain('src="tex:model:none:dyson_sphere_5_entity"');
   });
 
-  it("opens on the type added last when it goes here", () => {
-    useMegastructureAddStore.setState({ last: "dyson_sphere_0" });
-    expect(dialog()).toContain("<h2>Dyson Sphere Site</h2>");
-  });
-
   it("marks a type it has no model for, and shows the megastructure icon", () => {
     openAt({ kind: "body", body: 12, star: false });
     const html = dialog();
@@ -271,32 +149,14 @@ describe("the Add megastructure dialog", () => {
     expect(html).not.toContain("Stage ");
   });
 
-  it("swaps a stage for the star's type only while the save's global flags allow it", () => {
-    const types = new Map(useGameDataStore.getState().megastructureTypes);
-    const dyson = types.get("dyson_sphere_5")!;
-    types.set("dyson_sphere_5", {
-      ...dyson,
-      swaps: [
-        megastructureSwap("dyson_b_star", { flags: ["giga_scaling"], classes: ["pc_b_star"] }),
-      ],
-    });
-    useGameDataStore.setState({ megastructureTypes: types });
-    openAt({ kind: "body", body: 1, star: true, class: "pc_b_star" });
-    expect(dialog()).toContain("<h2>Dyson Sphere</h2>");
-
-    useGalaxyStore.setState({ globalFlags: new Set(["giga_scaling"]) });
-    expect(dialog()).toContain("<h2>B-class Dyson Sphere</h2>");
-  });
-
-  it("lists the base game's megastructures first and a mod's under its name, opens past a second relay, and greys it out with the reason", () => {
-    inSystem(
-      systemDetails({
-        id: SYSTEM,
-        megastructures: [megastructureSummary({ kind: "hyper_relay", planet: null })],
-      }),
-    );
+  it("lists the base game's megastructures first and a mod's under its name, opens past a second relay, and greys it out with the shell's reason", () => {
+    const relayed = {
+      hyper_relay: {
+        refusal: "The system already has a Hyper Relay.",
+      },
+    };
     openAt(space);
-    let html = dialog();
+    let html = dialog(relayed);
     expect(html.indexOf("Base game")).toBeLessThan(html.indexOf("Zeta Structures"));
     expect(html).toContain(">Hyper Relay</span>");
     expect(html).toContain("<h2>Beacon</h2>");
@@ -304,11 +164,21 @@ describe("the Add megastructure dialog", () => {
     const types = new Map(useGameDataStore.getState().megastructureTypes);
     types.delete("mod_beacon");
     useGameDataStore.setState({ megastructureTypes: types });
-    html = dialog();
+    html = dialog(relayed);
     expect(html).toContain("<h2>Hyper Relay</h2>");
     expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain("The system already has a hyper relay.");
+    expect(html).toContain("The system already has a Hyper Relay.");
     expect(html).toContain('type="submit" disabled=""');
+  });
+
+  it("says what goes at the spot is being read until the shell answers, and why it couldn't be", () => {
+    useMegastructureAddStore.setState({ fits: null, fitsError: null });
+    let html = renderToStaticMarkup(<AddMegastructureDialog />);
+    expect(html).toContain(READING_FITS);
+    expect(html).toContain('type="submit" disabled=""');
+    useMegastructureAddStore.setState({ fitsError: "no such system" });
+    html = renderToStaticMarkup(<AddMegastructureDialog />).replace(/&#x27;/g, "'");
+    expect(html).toContain(fitsUnread("no such system"));
   });
 
   it("says when no type fits the spot, and offers no Add", () => {
@@ -317,402 +187,5 @@ describe("the Add megastructure dialog", () => {
     const html = dialog();
     expect(html).toContain("No megastructure the game data defines can go here.");
     expect(html).toContain('type="submit" disabled=""');
-  });
-});
-
-describe("the Add megastructure dialog on a habitat", () => {
-  const planet: MegastructureSpot = { kind: "body", body: 2, star: false };
-  const footer = () => dialog().replace(/&#x27;/g, "'");
-
-  beforeEach(() => {
-    const complex = megastructureTypeView("habitat_central_complex", { habitat: true });
-    useGameDataStore.setState({
-      megastructureTypes: new Map([[complex.key, complex]]),
-      names: new Map([["habitat_central_complex", "Habitat Central Complex"]]),
-    });
-    useMegastructureAddStore.setState({ last: "habitat_central_complex" });
-    openAt(planet);
-  });
-
-  it("says the habitat has the owner's skin in a system an empire owns", () => {
-    ownSystem(OWNER);
-    const html = footer();
-    expect(html).toContain(writtenAsHabitat(true));
-    expect(html).toContain("It has the habitat skin of the empire that owns the system.");
-    expect(html).toContain(HABITAT_OWNER_NOTE);
-  });
-
-  it("says the habitat has the class's default skin in a system no one owns", () => {
-    ownSystem(null);
-    const html = footer();
-    expect(html).toContain(writtenAsHabitat(false));
-    expect(html).toContain("No one owns the system, so it has the habitat class's default skin.");
-    expect(html).not.toContain("the empire that owns the system");
-  });
-  it("keeps the restored complex a habitat round a planet that has a megastructure", () => {
-    const restored = megastructureTypeView("habitat_central_complex_restored", { habitat: true });
-    useGameDataStore.setState({
-      megastructureTypes: new Map([[restored.key, restored]]),
-      names: new Map([["habitat_central_complex_restored", "Restored Habitat Central Complex"]]),
-    });
-    useMegastructureAddStore.setState({ last: restored.key });
-    inSystem(
-      systemDetails({
-        id: SYSTEM,
-        megastructures: [megastructureSummary({ kind: "think_tank_3", planet: 2 })],
-      }),
-    );
-    ownSystem(OWNER);
-    const html = footer();
-    expect(html).toContain(writtenAsHabitat(true));
-    expect(html).toContain(HABITAT_OWNER_NOTE);
-    expect(html).not.toContain(BODY_HAS_MEGASTRUCTURE);
-    expect(html).not.toContain('aria-disabled="true"');
-    expect(html).not.toContain('type="submit" disabled=""');
-  });
-
-  describe("with a major orbital", () => {
-    beforeEach(() => {
-      const restored = megastructureTypeView("habitat_central_complex_restored", {
-        habitat: true,
-        habitat_orbital: true,
-      });
-      useGameDataStore.setState({
-        megastructureTypes: new Map([[restored.key, restored]]),
-        names: new Map([[restored.key, "Restored Habitat Central Complex"]]),
-      });
-      useMegastructureAddStore.setState({ last: restored.key });
-    });
-
-    it("says the orbital goes to the system's owner, in the footer and the Owner line", () => {
-      ownSystem(OWNER);
-      const html = footer();
-      expect(html).toContain(
-        "A major orbital is added at its host, owned by the empire that owns the system.",
-      );
-      expect(html).toContain(habitatOrbitalNote(true, false));
-      expect(html).toContain(HABITAT_ORBITAL_OWNER_NOTE);
-      expect(html).not.toContain(HABITAT_ORBITAL_HOST_TAKEN);
-    });
-
-    it("says the orbital has no owner in a system no one owns", () => {
-      ownSystem(null);
-      const html = footer();
-      expect(html).toContain("A major orbital is added at its host, with no owner.");
-      expect(html).not.toContain(HABITAT_ORBITAL_OWNER_NOTE);
-    });
-
-    it("says no orbital is added round a planet that has a megastructure", () => {
-      inSystem(
-        systemDetails({
-          id: SYSTEM,
-          megastructures: [megastructureSummary({ kind: "think_tank_3", planet: 2 })],
-        }),
-      );
-      ownSystem(OWNER);
-      const html = footer();
-      expect(html).toContain(HABITAT_ORBITAL_HOST_TAKEN);
-      expect(html).not.toContain("A major orbital is added");
-      expect(html).not.toContain(HABITAT_ORBITAL_OWNER_NOTE);
-    });
-
-    it("says nothing of an orbital for the base complex", () => {
-      const complex = megastructureTypeView("habitat_central_complex", { habitat: true });
-      useGameDataStore.setState({
-        megastructureTypes: new Map([[complex.key, complex]]),
-        names: new Map([[complex.key, "Habitat Central Complex"]]),
-      });
-      useMegastructureAddStore.setState({ last: complex.key });
-      ownSystem(OWNER);
-      const html = footer();
-      expect(html).not.toContain("major orbital");
-      expect(html).not.toContain(HABITAT_ORBITAL_HOST_TAKEN);
-    });
-  });
-});
-
-describe("the Add megastructure dialog on a ring world", () => {
-  const ringWorld = { place: "unsupported", why: { kind: "ring_world" } } as const;
-  const literal = (text: string) => ({
-    name: { key: text, literal: true, variables: [] },
-    name_key: text,
-  });
-  const html = () => dialog().replace(/&#x27;/g, "'");
-  const clearing = (over: Partial<RingWorldClearing> = {}): RingWorldClearing => ({
-    system: SYSTEM,
-    bodies: [5, 4, 2, 3],
-    moons: 1,
-    colonies: [2],
-    belts: 1,
-    starbase_bodies: [],
-    megastructures: [],
-    ...over,
-  });
-
-  beforeEach(() => {
-    const types = [
-      megastructureTypeView("ring_world_1", { placement: { place: "body", star_only: true } }),
-      megastructureTypeView("ring_world_2_intermediate", {
-        upgrade_from: ["ring_world_1"],
-        placement: ringWorld,
-      }),
-    ];
-    useGameDataStore.setState({
-      megastructureTypes: new Map(types.map((t) => [t.key, t])),
-      names: new Map([
-        ["ring_world_1", "Ring World Site"],
-        ["ring_world_2_intermediate", "Ring World Frame"],
-      ]),
-    });
-    inSystem(
-      systemDetails({
-        id: SYSTEM,
-        planets: [
-          planetSummary({ id: 1, role: "primary", class: "pc_g_star", ...literal("Lachium") }),
-          planetSummary({ id: 2, ...literal("Lachium I"), colonised: true }),
-          planetSummary({ id: 3, ...literal("Lachium II") }),
-        ],
-      }),
-    );
-    useMegastructureAddStore.setState({
-      last: "ring_world_2_intermediate",
-      ringStages: ["finished", "finished", "finished", "finished"],
-      ringSize: null,
-      ringClear: false,
-      clearing: clearing(),
-      clearingError: null,
-    });
-    openAt(star);
-  });
-
-  it("offers the site and the Ring on a star, with a grid of quadrants A to D, all finished", () => {
-    const page = html();
-    expect(page).toMatch(
-      /aria-selected="true"[^>]*><span[^>]*><\/span><span[^>]*><span[^>]*>Ring World<\/span>/,
-    );
-    expect(page).toMatch(/title="Ring World Site">.*?>Site<\/span>/);
-    expect(page).toMatch(/aria-selected="true"[^>]*title="Ring World">.*?>Ring<\/span>/);
-    expect(page).not.toContain('aria-disabled="true"');
-    for (const quadrant of QUADRANTS) {
-      expect(page).toMatch(new RegExp(`aria-label="${quadrant} Finished"[^>]*checked=""`));
-      expect(page).toContain(`aria-label="${quadrant} Damaged"`);
-    }
-    expect(page).not.toContain("Restored");
-    expect(page).not.toContain('aria-label="Size"');
-    expect(page).toContain(SET_ALL);
-    expect(page).not.toContain("quadrants are finished");
-    expect(page).toContain(LEAVE_PLANETS);
-    expect(page).toContain(CLEAR_PLANETS);
-    expect(page).toContain(RING_WRITTEN);
-    expect(page).toContain(">Add Ring World</button>");
-    expect(page).not.toContain("Clearing deletes");
-  });
-
-  it("warns before Add what clearing deletes, colonies by planet name", () => {
-    useMegastructureAddStore.setState({ ringClear: true });
-    const page = html();
-    expect(page).toContain(
-      "Clearing deletes 3 planets, 1 moon and 1 belt, and the colony on Lachium I.",
-    );
-    expect(page.indexOf("Clearing deletes")).toBeLessThan(page.indexOf(">Add Ring World</button>"));
-    expect(page).not.toContain('type="submit" disabled=""');
-  });
-
-  it("names the megastructure on a planet clearing deletes", () => {
-    useMegastructureAddStore.setState({
-      ringClear: true,
-      clearing: clearing({ megastructures: [{ id: 7, body: 3 }] }),
-    });
-    expect(html()).toContain(
-      "Clearing deletes 3 planets, 1 moon and 1 belt, and the colony on Lachium I and the megastructure on Lachium II.",
-    );
-  });
-
-  it("turns Clear off with the planet a starbase orbits, which the core refuses to clear", () => {
-    useMegastructureAddStore.setState({
-      ringClear: true,
-      clearing: clearing({ starbase_bodies: [3] }),
-    });
-    const page = html();
-    expect(page).toContain(
-      "Galaxy Forge can't clear this system: a starbase orbits Lachium II, which clearing would delete.",
-    );
-    expect(page).toMatch(/<input type="radio" disabled="" name="ring-planets"\/>/);
-    expect(page).not.toContain("Clearing deletes");
-    expect(page).toContain('type="submit" disabled=""');
-  });
-
-  it("greys out a ring world the game data lays out no ring for, with the reason", () => {
-    const types = new Map(useGameDataStore.getState().megastructureTypes);
-    const frame = types.get("ring_world_2_intermediate")!;
-    types.set(frame.key, { ...frame, ring_world_refused: "it lays out no ring" });
-    useGameDataStore.setState({ megastructureTypes: types });
-    const page = html();
-    expect(page).toContain(
-      "Galaxy Forge can't build this ring world from the game data: it lays out no ring.",
-    );
-    expect(page).toContain('aria-disabled="true"');
-    expect(page).not.toContain(SET_ALL);
-    expect(page).toContain(">Add Ring World Site</button>");
-  });
-
-  it("refuses the Ring in a system of two stars, as the core does", () => {
-    const planets = useDetailsStore.getState().details.get(SYSTEM)!.planets;
-    inSystem(
-      systemDetails({
-        id: SYSTEM,
-        planets: [...planets, planetSummary({ id: 9, role: "star", class: "pc_k_star" })],
-      }),
-    );
-    expect(html()).toContain("The system has 2 stars, and a ring world stands round one.");
-  });
-
-  describe("with Gigastructural Engineering's titanic ring", () => {
-    const giga = { source: "Gigastructural Engineering", base_game: false } as const;
-
-    beforeEach(() => {
-      const types = new Map(useGameDataStore.getState().megastructureTypes);
-      const frame = types.get("ring_world_2_intermediate")!;
-      types.set(frame.key, { ...frame, ring_world_radius: 45 });
-      for (const type of [
-        megastructureTypeView("ringworld_titanic_0", {
-          ...giga,
-          placement: { place: "body", star_only: true },
-        }),
-        megastructureTypeView("ringworld_titanic_1", {
-          ...giga,
-          upgrade_from: ["ringworld_titanic_0"],
-          placement: ringWorld,
-          ring_world_radius: 90,
-          ring_world_refused_stages: ["damaged", "restored"],
-        }),
-      ]) {
-        types.set(type.key, type);
-      }
-      useGameDataStore.setState({
-        megastructureTypes: types,
-        names: new Map([
-          ...useGameDataStore.getState().names,
-          ["ringworld_titanic_0", "Titanic Ringworld Site"],
-          ["ringworld_titanic_1", "Titanic Ringworld Frame"],
-        ]),
-      });
-    });
-
-    /** The picks area under the Size row, which keeps one height whatever it shows. */
-    const picksArea = (page: string) => {
-      const start = page.indexOf('<div class="ring-world-picks-area');
-      expect(start).toBeGreaterThan(-1);
-      return page.slice(start, page.indexOf('<aside class="megastructure-add-preview', start));
-    };
-    const sizeFirst = (page: string) =>
-      page.indexOf('class="ring-world-picks"') < page.indexOf('aria-label="Size"') &&
-      page.indexOf('aria-label="Size"') < page.indexOf("ring-world-picks-area");
-
-    const checked = (page: string, label: string) =>
-      new RegExp(`<input type="radio" name="ring-size" checked=""/><span>${label}</span>`).test(
-        page,
-      );
-
-    it("offers the sizes beside the grid, the base game's ring first, its stage columns all four", () => {
-      const page = html();
-      expect(page).toContain('aria-label="Size"');
-      expect(checked(page, "Ring World")).toBe(true);
-      expect(page).toContain("<span>Titanic</span>");
-      expect(page).toContain('aria-label="A Damaged"');
-      expect(page).toContain(">Add Ring World</button>");
-    });
-
-    it("adds the titanic ring once picked, with no Damaged column, and its site from the Site tile", () => {
-      useMegastructureAddStore.setState({ ringSize: "ringworld_titanic_1" });
-      const page = html();
-      expect(checked(page, "Titanic")).toBe(true);
-      expect(page).toContain('aria-label="A Ruined"');
-      expect(page).not.toContain("Damaged");
-      expect(page).toContain(">Add Titanic Ringworld</button>");
-      expect(page).toMatch(/title="Titanic Ringworld Site">.*?>Site<\/span>/);
-    });
-
-    it("greys out the Ring at a size whose ring would overlap one standing there, and keeps the sizes to pick another", () => {
-      const planets = useDetailsStore.getState().details.get(SYSTEM)!.planets;
-      inSystem(
-        systemDetails({
-          id: SYSTEM,
-          planets: [
-            ...planets,
-            planetSummary({ id: 7, class: "pc_ringworld_habitable", orbit: 45.20385 }),
-          ],
-        }),
-      );
-      const refused = "This ring would overlap the Ring World at orbit 45.";
-      const page = html();
-      expect(page).toContain('aria-label="Size"');
-      expect(page).toContain(`aria-disabled="true" title="${refused}"`);
-      expect(page).toContain(">Add Ring World Site</button>");
-      const area = picksArea(page);
-      expect(area).toContain("ring-world-picks-refused");
-      expect(area).toContain(`<p class="megastructure-add-refusal">${refused}</p>`);
-      expect(area).toContain(OTHER_SIZE);
-      expect(area).not.toContain("ring-world-quadrants");
-      expect(page).not.toContain(SET_ALL);
-      expect(sizeFirst(page)).toBe(true);
-
-      useMegastructureAddStore.setState({ ringSize: "ringworld_titanic_1" });
-      const titanic = html();
-      expect(titanic).not.toContain(refused);
-      expect(picksArea(titanic)).toContain("ring-world-quadrants");
-      expect(titanic).toContain(SET_ALL);
-      expect(sizeFirst(titanic)).toBe(true);
-      expect(titanic).not.toContain('type="submit" disabled=""');
-    });
-  });
-});
-
-describe("the Add megastructure dialog for a type that changes its planet", () => {
-  const gasGiant: MegastructureSpot = { kind: "body", body: 6, star: false, class: "pc_gas_giant" };
-
-  beforeEach(() => {
-    const orchid = megastructureTypeView("yggdrasil_orchid_3", {
-      planet_change: { class: "pc_food_giant", size: null },
-    });
-    const data = useGameDataStore.getState();
-    useGameDataStore.setState({
-      megastructureTypes: new Map([[orchid.key, orchid]]),
-      names: new Map([
-        ...data.names,
-        ["yggdrasil_orchid_3", "Orchid Project"],
-        ["pc_gas_giant", "Gas Giant"],
-        ["pc_food_giant", "Food Giant"],
-      ]),
-    });
-    openAt(gasGiant);
-  });
-
-  it("offers to change the planet as the game does, picked on opening, or keep its class", () => {
-    const html = dialog();
-    expect(html).toContain(PLANET_CHANGE_LABEL);
-    expect(html).toMatch(
-      /<input type="radio" name="megastructure-planet" checked=""\/><span>Change to Food Giant \(as the game does\)<\/span>/,
-    );
-    expect(html).toMatch(
-      /<input type="radio" name="megastructure-planet"\/><span>Keep Gas Giant<\/span>/,
-    );
-    expect(html).toContain("becomes a Food Giant.");
-  });
-
-  it("says the planet keeps its class once Keep is picked", () => {
-    useMegastructureAddStore.setState({ keepPlanet: true });
-    const html = dialog();
-    expect(html).toMatch(
-      /<input type="radio" name="megastructure-planet" checked=""\/><span>Keep Gas Giant<\/span>/,
-    );
-    expect(html).toContain(PLANET_KEPT_NOTE);
-    expect(html).not.toContain("becomes a Food Giant.");
-  });
-
-  it("shows no planet choice for a type that leaves its planet alone", () => {
-    const nexus = megastructureTypeView("think_tank_3");
-    useGameDataStore.setState({ megastructureTypes: new Map([[nexus.key, nexus]]) });
-    expect(dialog()).not.toContain('name="megastructure-planet"');
   });
 });

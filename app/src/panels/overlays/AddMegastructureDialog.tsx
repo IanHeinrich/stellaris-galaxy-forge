@@ -6,17 +6,20 @@ import {
   NO_OWNER,
   NO_OWNER_NOTE,
   OWNER_NOTE,
+  READING_FITS,
   WRITTEN_FINISHED,
   addLabel,
-  entryDefault,
+  fitsUnread,
   habitatOrbitalNote,
+  whereText,
+  writtenAsHabitat,
+} from "../../lib/megastructureCopy";
+import {
+  entryDefault,
   hostHasMegastructure,
   matchingEntries,
   megastructureEntries,
-  megastructureRefusal,
   selectedStage,
-  whereText,
-  writtenAsHabitat,
   type MegastructureStage,
 } from "../../lib/megastructurePicks";
 import {
@@ -42,6 +45,7 @@ import {
   useMegastructureAddStore,
   type MegastructureAddPrompt,
 } from "../../store/megastructureAdd";
+import { useOpCheckStore } from "../../store/opCheckStore";
 import { Dialog } from "../Dialog";
 import { useSystemBodyNames } from "../inspector/entity/useBodyName";
 import { useNamed } from "../useNamed";
@@ -91,11 +95,15 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const clearingError = useMegastructureAddStore((s) => s.clearingError);
   const loadClearing = useMegastructureAddStore((s) => s.loadClearing);
   const keepPlanet = useMegastructureAddStore((s) => s.keepPlanet);
+  const fits = useMegastructureAddStore((s) => s.fits);
+  const fitsError = useMegastructureAddStore((s) => s.fitsError);
+  const loadFits = useMegastructureAddStore((s) => s.loadFits);
   const { system, spot } = prompt;
+  const generation = useOpCheckStore((s) => s.generations.get(system) ?? 0);
+  const dataVersion = useGameDataStore((s) => s.version);
   const types = useGameDataStore((s) => s.megastructureTypes);
   const names = useGameDataStore((s) => s.names);
   const countries = useGalaxyStore((s) => s.countries);
-  const globalFlags = useGalaxyStore((s) => s.globalFlags);
   const owner = useGalaxyStore((s) => s.systems.get(system)?.owner ?? null);
   const details = useDetailsStore((s) => s.details);
   const icons = useDetailsStore((s) => s.resourceIcons);
@@ -104,17 +112,9 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const typeKeys = useMemo(() => [...types.keys()], [types]);
   useNamed(typeKeys);
   const rows = details.get(system)?.megastructures;
-  const planets = details.get(system)?.planets;
   const entries = useMemo(
-    () =>
-      megastructureEntries(
-        types,
-        names,
-        spot,
-        (type) => megastructureRefusal(type, spot, rows ?? [], types, planets ?? [], names),
-        { globalFlags, ringSize },
-      ),
-    [types, names, spot, rows, planets, globalFlags, ringSize],
+    () => (fits === null ? [] : megastructureEntries(types, names, fits, ringSize)),
+    [types, names, fits, ringSize],
   );
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -148,6 +148,10 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
         : clearRefusal(clearing, nameOf);
   const clears = ring && ringClear && clearBlocked === null;
   const addable = found !== null && found.stage.refused === null && !(ring && ringClear && !clears);
+
+  useEffect(() => {
+    void loadFits(generation);
+  }, [generation, dataVersion, loadFits]);
 
   useEffect(() => {
     if (ring) void loadClearing();
@@ -205,7 +209,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
           {entries.length === 0 ? (
             <div className="field">
               <span>Type</span>
-              <output className="muted">{NO_MEGASTRUCTURE_FITS}</output>
+              <output className="muted">
+                {fitsError !== null
+                  ? fitsUnread(fitsError)
+                  : fits === null
+                    ? READING_FITS
+                    : NO_MEGASTRUCTURE_FITS}
+              </output>
             </div>
           ) : (
             <div className="megastructure-add-browse">

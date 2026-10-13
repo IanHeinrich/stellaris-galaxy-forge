@@ -1,17 +1,16 @@
 //! Rolling a planet or moon from the install's rules and adding it to a system of the open
 //! save.
 
-use sgf_core::ops::Op;
-use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
+use sgf_core::views::{OrbitPlacement, SgfError};
 use sgf_gamedata::generate::{self, BodyAsk};
 use sgf_gamedata::picks::BodyClassPick;
 use tauri::{AppHandle, Runtime, State};
 
-use super::{game_data, is_save, require, with_session};
+use super::{game_data, require, with_session};
 use crate::state::GameDataState;
-use crate::views::AddedBody;
+use crate::views::Added;
 
-const ONLY_A_SAVE_ADDS: &str = "only a save takes an added planet";
+const NO_ADDED_BODIES: &str = "this document takes no added planet";
 
 /// Roll a body from `seed` and add it to system `system` of the open save as one
 /// `AddBody`, `radius` from what it orbits at `angle` degrees: a moon of `parent` when
@@ -29,7 +28,7 @@ pub async fn add_body<R: Runtime>(
     radius: f64,
     angle: f64,
     seed: u64,
-) -> Result<AddedBody, SgfError> {
+) -> Result<Added, SgfError> {
     let gd = game_data(
         &app,
         if parent.is_some() {
@@ -37,7 +36,7 @@ pub async fn add_body<R: Runtime>(
         } else {
             "add a planet"
         },
-    )?;
+    );
     let ask = BodyAsk {
         system,
         parent,
@@ -47,15 +46,11 @@ pub async fn add_body<R: Runtime>(
         name: None,
     };
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
+        let session = require(guard.as_mut(), |c| c.add_bodies, NO_ADDED_BODIES)?;
+        let gd = gd?;
         let op = generate::body_for_save(&gd, session, seed, ask)?;
         let result = session.apply(op)?;
-        let planet = added(&result.inverse)
-            .ok_or_else(|| SgfError::new(ErrorKind::Op, "the add named no new body"))?;
-        Ok(AddedBody {
-            edit: session.edit_result(result),
-            planet,
-        })
+        Ok(Added::of(session, result))
     })
     .await
 }
@@ -67,13 +62,4 @@ pub fn get_body_classes(game_data: State<'_, GameDataState>, moon: bool) -> Vec<
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.body_class_picks(moon))
-}
-
-/// The body an add's inverse takes out again.
-fn added(inverse: &Op) -> Option<u32> {
-    match inverse {
-        Op::RemoveBody { body: planet } => Some(*planet),
-        Op::Batch { ops, .. } => ops.iter().find_map(added),
-        _ => None,
-    }
 }

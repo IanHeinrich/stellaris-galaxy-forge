@@ -22,6 +22,7 @@ use ts_rs::TS;
 use super::{Input, TextureError, encode_png};
 use crate::GameData;
 use crate::install::layers::Layout;
+use crate::mod_compatibility::{SHADERS, Shaders};
 use assets::{Materials, Placed, ROOT, Step};
 use mesh::MeshFile;
 use space::{Affine, Vec3};
@@ -36,50 +37,6 @@ pub(crate) use assets::{Assets, MODELS_DIR};
 /// Shaders whose meshes are not drawn: collision volumes, glows added over the model, effects
 /// drawn by scrolling their texture, such as the Hyper Relay's portal, and planet atmospheres.
 const SKIPPED_SHADERS: [&str; 4] = ["Collision", "Additive", "AnimateUV", "Atmosphere"];
-/// Shaders the game blends at their diffuse alpha (`BlendStateAlphaBlend` and its kin), clouds
-/// and planet rings among them. Giga's `PdxMeshAlphaBlendPlanetNoEmissiveMult` also tests
-/// alpha in its blend state and writes depth, but blends.
-const ALPHA_BLENDED_SHADERS: [&str; 9] = [
-    "AlphaBlend_00",
-    "AlphaBlendNoDepth",
-    "AlphaBlendNoDepth_00",
-    "PdxMeshTerraAlphaBlend",
-    "PdxMeshShipDiffuseEmissiveAlpha",
-    "PdxMeshClouds",
-    "PdxMeshRingworldClouds",
-    "PdxMeshPlanetRings",
-    "PdxMeshAlphaBlendPlanetNoEmissiveMult",
-];
-/// Shaders the game adds onto what is behind them (`BlendStateAdditiveBlend`) that are drawn:
-/// Giga's shells. The game's own additive shaders are glows and are skipped. Giga's
-/// `OmniMeshED` and `OmniMeshEDSphere` add too, but their pixel shader builds its colour from a
-/// rim light and the owner's colour, so they are drawn opaque, as is the game's
-/// `PdxMeshExtraDimensionalShip`, until that is drawn.
-const ADDED_SHADERS: [&str; 1] = ["OmniMeshMegaAlpha"];
-/// Shaders the game draws only where their diffuse alpha is whole (`ALPHA_TEST`), opaque
-/// there. `PdxMeshAlphaBlend` is one, whatever its name says.
-const ALPHA_TESTED_SHADERS: [&str; 2] = ["PdxMeshAlphaBlend", "PdxMeshTerraAlphaTest"];
-/// See-through shaders that leave the specular map's red alone: they run
-/// `PixelPdxMeshStandard`, which recolours by it only with `ADD_COLOR`. The ship pixel shader
-/// the others run tints the masked parts in the owner's colour, as opaque ship surfaces are
-/// tinted.
-const UNMASKED_SHADERS: [&str; 6] = [
-    "PdxMeshTerraAlphaBlend",
-    "PdxMeshClouds",
-    "PdxMeshRingworldClouds",
-    "PdxMeshPlanetRings",
-    "PdxMeshAlphaBlendPlanetNoEmissiveMult",
-    "OmniMeshMegaAlpha",
-];
-/// Shaders the game draws both faces with (`CULL_NONE`). Every other shader shows only the
-/// faces wound towards the camera.
-const DOUBLE_SIDED_SHADERS: [&str; 5] = [
-    "PdxMeshPlanetRings",
-    "PdxMeshExtraDimensionalShip",
-    "PdxMeshAlphaBlendPlanetNoEmissiveMult",
-    "OmniMeshED",
-    "OmniMeshEDSphere",
-];
 /// Where planet textures are: a sphere about the model's origin drawn with one is the planet
 /// the model is built round.
 const PLANET_TEXTURES: &str = "gfx/models/planets/";
@@ -471,41 +428,49 @@ impl ModelJob {
     }
 }
 
-/// How meshes drawn with `shader` are drawn; `None` for a shader whose meshes are not drawn. A
-/// mod's shader that draws like one of the game's joins its tables here.
+/// How meshes drawn with `shader` are drawn; `None` for a shader whose meshes are not drawn,
+/// by the shader tables of [`crate::mod_compatibility`].
 fn drawn_as(shader: &str) -> Option<Drawn> {
     if SKIPPED_SHADERS.iter().any(|k| shader.contains(k)) {
         return None;
     }
-    let named = |table: &[&str]| table.iter().any(|k| k.eq_ignore_ascii_case(shader));
-    let blend = if named(&ALPHA_BLENDED_SHADERS) {
+    let named = |table: fn(&Shaders) -> &'static [&'static str]| {
+        SHADERS
+            .iter()
+            .flat_map(|shaders| table(shaders))
+            .any(|k| k.eq_ignore_ascii_case(shader))
+    };
+    let blend = if named(|s| s.alpha_blended) {
         raster::Blend::Alpha
-    } else if named(&ADDED_SHADERS) {
+    } else if named(|s| s.added) {
         raster::Blend::Added
-    } else if named(&ALPHA_TESTED_SHADERS) {
+    } else if named(|s| s.alpha_tested) {
         raster::Blend::AlphaTested
     } else {
         raster::Blend::Opaque
     };
     Some(Drawn {
         blend,
-        double_sided: named(&DOUBLE_SIDED_SHADERS),
-        empire_mask: !named(&UNMASKED_SHADERS),
+        double_sided: named(|s| s.double_sided),
+        empire_mask: !named(|s| s.unmasked),
     })
 }
 
 /// Whether one of the tables [`drawn_as`] reads names `shader`.
 fn tabled(shader: &str) -> bool {
-    [
-        &ALPHA_BLENDED_SHADERS[..],
-        &ADDED_SHADERS,
-        &ALPHA_TESTED_SHADERS,
-        &UNMASKED_SHADERS,
-        &DOUBLE_SIDED_SHADERS,
-    ]
-    .iter()
-    .flat_map(|table| table.iter())
-    .any(|k| k.eq_ignore_ascii_case(shader))
+    SHADERS
+        .iter()
+        .flat_map(|s| {
+            [
+                s.alpha_blended,
+                s.added,
+                s.alpha_tested,
+                s.unmasked,
+                s.double_sided,
+            ]
+        })
+        .flatten()
+        .any(|k| k.eq_ignore_ascii_case(shader))
 }
 
 fn folder(file: &str) -> &str {

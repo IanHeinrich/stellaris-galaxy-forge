@@ -8,12 +8,12 @@ use sgf_gamedata::picks::StarClassPick;
 use sgf_gamedata::summary::{self, AddSystemPicks};
 use tauri::{AppHandle, Runtime, State};
 
-use super::{game_data, is_save, require, with_session};
+use super::{game_data, require, with_session};
 use crate::state::GameDataState;
 
 const ADD_A_SYSTEM: &str = "add a system";
-const ONLY_A_SAVE_ROLLS: &str = "only a save takes a rolled system";
-const ONLY_A_SAVE_ADDS: &str = "only a save has systems added this session";
+const NO_ROLLS: &str = "this document takes no rolled system";
+const NO_ADDED: &str = "this document has no systems added this session";
 const NONE_ADDED: &str = "none of these systems was added this session";
 
 /// Roll a system at (`x`, `y`) from `seed`, around `star_class` when given, named from the
@@ -58,7 +58,7 @@ pub async fn reroll_system<R: Runtime>(
 ) -> Result<EditResult, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ROLLS)?;
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
         let keep_special = keep_special.unwrap_or(false);
         let spec = Pick::of_added(session, &gd, system, keep_special, star_class)
             .and_then(|pick| generate::reroll(&gd, session, seed, system, &pick))?;
@@ -76,7 +76,7 @@ pub async fn remove_added_systems<R: Runtime>(
     ids: Vec<u32>,
 ) -> Result<EditResult, SgfError> {
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ADDED)?;
         let added = generate::added_among(session, ids);
         if added.is_empty() {
             return Err(SgfError::new(ErrorKind::Op, NONE_ADDED));
@@ -95,7 +95,7 @@ pub async fn get_add_system_picks<R: Runtime>(
 ) -> Result<AddSystemPicks, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ROLLS)?;
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
         Ok(summary::add_system_picks(&gd, session))
     })
     .await
@@ -119,7 +119,7 @@ async fn add<R: Runtime>(
 ) -> Result<EditResult, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ROLLS)?;
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
         let spec = generate::for_save(&gd, session, seed, at, &pick)?;
         let result = session.apply(Op::AddSystemFromSpec { spec })?;
         Ok(session.edit_result(result))

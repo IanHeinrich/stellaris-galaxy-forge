@@ -6,12 +6,9 @@ import {
   resourceLabel,
   type ResourceRow,
 } from "../../lib/details/resources";
+import { entryHeading, NO_MODEL, NO_MODEL_NOTE, stageLine } from "../../lib/megastructureCopy";
 import {
-  entryHeading,
   entryStages,
-  NO_MODEL,
-  NO_MODEL_NOTE,
-  stageLine,
   type MegastructureChain,
   type MegastructureEntry,
   type MegastructureStage,

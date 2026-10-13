@@ -59,9 +59,8 @@ import { useMegastructureAddStore } from "../../store/megastructureAdd";
 import {
   ADD_MEGASTRUCTURE_HERE_LABEL,
   ADD_MEGASTRUCTURE_LABEL,
-  BODY_HAS_MEGASTRUCTURE,
   MEGASTRUCTURES_NEED_GAME_DATA,
-} from "../../lib/megastructurePicks";
+} from "../../lib/megastructureCopy";
 import { placementAt } from "../../lib/planetMove";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import { until } from "../../test/wait";
@@ -371,7 +370,8 @@ describe("adding a planet or moon in the system view", () => {
     useGeneratorStore.setState({ planetClasses: [desert], moonClasses: [barren] });
     vi.mocked(ipc.addBody).mockResolvedValue({
       edit: editResult({ details_stale: [0] }),
-      planet: 20,
+      planets: [20],
+      megastructures: [],
     });
   });
 
@@ -479,13 +479,13 @@ describe("adding a megastructure in the system view", () => {
     menuItem(<BodyMenu target={body(2)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
     expect(prompt()).toEqual({
       system: 0,
-      spot: { kind: "body", body: 2, star: false, class: "pc_continental", orbitsPlanet: false },
+      spot: { kind: "body", body: 2, star: false, class: "pc_continental" },
     });
 
     menuItem(<BodyMenu target={body(1)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
     expect(prompt()).toEqual({
       system: 0,
-      spot: { kind: "body", body: 1, star: true, class: "pc_g_star", orbitsPlanet: false },
+      spot: { kind: "body", body: 1, star: true, class: "pc_g_star" },
     });
   });
 
@@ -497,7 +497,6 @@ describe("adding a megastructure in the system view", () => {
     });
     let html = menuOn(body(2));
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
-    expect(html).not.toContain(BODY_HAS_MEGASTRUCTURE);
 
     useGameDataStore.setState({ status: "idle" });
     html = menuOn(space);

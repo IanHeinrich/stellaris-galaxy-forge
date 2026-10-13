@@ -31,7 +31,7 @@ pub use crate::projections::geometry::{
 };
 pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths};
-pub use error::{MegastructureEdit, OpError, ParseAt, StarEdit};
+pub use error::{MegastructureEdit, MegastructureRefusal, OpError, ParseAt, RingPart, StarEdit};
 pub use op::{DetailsReach, Kinds, Op, OpReach};
 pub use payload::*;
 pub(crate) use plan::{Emitted, Plan, Planned, slots};

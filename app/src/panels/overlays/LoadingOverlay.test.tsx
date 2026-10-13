@@ -65,7 +65,7 @@ describe("the loading overlay", () => {
   });
 
   it("leaves nothing behind when the open fails", async () => {
-    vi.mocked(ipc.openSave).mockRejectedValueOnce({ kind: "format", message: "not a zip" });
+    vi.mocked(ipc.openDocument).mockRejectedValueOnce({ kind: "format", message: "not a zip" });
     await useFileSessionStore.getState().openSave("C:/saves/bad.sav");
 
     expect(useFileSessionStore.getState().status).toBe("error");

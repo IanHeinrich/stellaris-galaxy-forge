@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::Session;
+use crate::format::save::ring_world::RingWorldTypes;
 use crate::ops::SystemRadii;
 use crate::projections::galaxy::{GalaxyGraph, StarClasses, draw_scenario_stars};
 
@@ -32,6 +33,17 @@ impl Session {
         }
         self.stars = Arc::new(classes);
         self.draw_stars();
+    }
+
+    /// Which megastructure types the loaded install makes ring worlds of.
+    pub fn ring_world_types(&self) -> &RingWorldTypes {
+        &self.ring_world_types
+    }
+
+    /// Take `types` as the install's word on which megastructure types make up a ring world,
+    /// from the next op on.
+    pub fn set_ring_world_types(&mut self, types: RingWorldTypes) {
+        self.ring_world_types = Arc::new(types);
     }
 
     /// Give the systems of a document whose layouts are rolled the star their initializer

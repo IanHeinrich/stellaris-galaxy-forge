@@ -1,5 +1,6 @@
 //! `common/bypass`: the frame of the map's `GFX_ship_class_small` sheet each
-//! kind of bypass draws with (gateway 25, wormhole 12, L-Gate 30 in vanilla).
+//! kind of bypass draws with (gateway 25, wormhole 12, L-Gate 30 in vanilla), and whether a
+//! new bypass of the kind is open.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -15,6 +16,8 @@ pub struct BypassDef {
     pub key: String,
     /// The frame of the map icon sheet; a negative `icon_frame` means none.
     pub icon_frame: Option<u32>,
+    /// `always_active = yes`: a bypass of this kind is open from the moment it is made.
+    pub always_active: bool,
 }
 
 impl FromDef for BypassDef {
@@ -28,6 +31,7 @@ impl FromDef for BypassDef {
                 .and_then(|s| s.parse::<i64>().ok())
                 .filter(|&n| n >= 0)
                 .and_then(|n| u32::try_from(n).ok()),
+            always_active: def.flag("always_active"),
         }
     }
 }

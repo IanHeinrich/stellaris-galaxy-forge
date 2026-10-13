@@ -15,6 +15,8 @@ use tauri::webview::InvokeRequest;
 use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
+/// The Stellaris 3.4 sample, whose saves take none of the whole-entry ops.
+pub const SAMPLE_34: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
 /// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance and whose
 /// pool holds 46 unused nebula names.
 pub const SAMPLE_45: &str = concat!(
@@ -53,7 +55,7 @@ pub fn invoke<T: DeserializeOwned>(
 /// Open the document at `path` as the session; the test fails if it does not open.
 pub fn open(webview: &WebviewWindow<MockRuntime>, path: impl Serialize) -> OpenResult {
     let path = json!(path);
-    invoke(webview, "open_save", json!({ "path": path }))
+    invoke(webview, "open_document", json!({ "path": path }))
         .unwrap_or_else(|e| panic!("open {path}: {}", e.message))
 }
 

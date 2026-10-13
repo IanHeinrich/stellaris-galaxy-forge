@@ -1,61 +1,24 @@
 /**
  * What the Add megastructure dialog offers at a spot of the system view: the megastructures the
- * editor adds there, each with its stages, and where the new row stands.
+ * game data defines, grouped as the player knows them, each with its stages. What goes at the
+ * spot, the type each stage writes and why the save would refuse it come from the shell.
  */
-import { RELAY_RADIUS_FACTOR, RING_WORLD_SLACK } from "../generated/constants";
+import type { MegastructureFit } from "../generated/MegastructureFit";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
 import type { MegastructureView } from "../generated/MegastructureView";
-import type { PlanetSummary } from "../generated/PlanetSummary";
 import type { RingStage } from "../generated/RingStage";
 import { megastructureLabel } from "./details/labels";
-import { isRingRow, isRingSegment } from "./details/ringWorldRemoval";
 import {
-  chainVariants,
-  swappedTypes,
-  swapsByStarClass,
-  type SwapContext,
-} from "./megastructureVariants";
-import { orbitText, placementAt } from "./planetMove";
+  FINISHED,
+  RING_STAGE,
+  RING_WORLD_LABEL,
+  RING_WORLD_SUMMARY,
+  refusalSentence,
+} from "./megastructureCopy";
+import { swappedTypes, swapsByStarClass } from "./megastructureVariants";
 import { offeredStages } from "./ringWorldAdd";
 
-export { RELAY_RADIUS_FACTOR };
-
-export const ADD_MEGASTRUCTURE_HERE_LABEL = "Add megastructure here…";
-export const ADD_MEGASTRUCTURE_LABEL = "Add megastructure…";
-export const MEGASTRUCTURES_NEED_GAME_DATA = "Load game data to add a megastructure.";
-export const BODY_HAS_MEGASTRUCTURE = "It already has a megastructure.";
-export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can go here.";
-
-/** What the dialog says before Add. */
-export const WRITTEN_FINISHED = "The megastructure is added finished.";
-/**
- * What the dialog says before Add of a type whose finished stage is a habitat, in a system an
- * empire owns when `owned`.
- */
-export function writtenAsHabitat(owned: boolean): string {
-  const skin = owned
-    ? "It has the habitat skin of the empire that owns the system."
-    : "No one owns the system, so it has the habitat class's default skin.";
-  return `The habitat is added finished, as a planet with no colony. ${skin}`;
-}
-/** What the dialog says of a habitat's owner. */
-export const HABITAT_OWNER_NOTE = "A habitat is added with no owner.";
-/** What the dialog says of the owner of the major orbital that comes with a habitat. */
-export const HABITAT_ORBITAL_OWNER_NOTE =
-  "Its major orbital goes to the empire that owns the system.";
-/** Why a habitat comes with no major orbital. */
-export const HABITAT_ORBITAL_HOST_TAKEN =
-  "Its host already has a megastructure, so no major orbital is added.";
-/**
- * What the dialog says of the major orbital that comes with a habitat, in a system an empire
- * owns when `owned`, and `hostTaken` when the habitat's host holds a megastructure already.
- */
-export function habitatOrbitalNote(owned: boolean, hostTaken: boolean): string {
-  if (hostTaken) return HABITAT_ORBITAL_HOST_TAKEN;
-  const owner = owned ? "owned by the empire that owns the system" : "with no owner";
-  return `A major orbital is added at its host, ${owner}.`;
-}
 /** Whether `spot` is a body that a row of `rows` stands at. */
 export function hostHasMegastructure(
   spot: MegastructureSpot,
@@ -63,9 +26,6 @@ export function hostHasMegastructure(
 ): boolean {
   return spot.kind === "body" && rows.some((row) => row.planet === spot.body);
 }
-/** Why no habitat goes round a body. */
-export const HABITAT_ROUND_SATELLITE =
-  "It orbits a planet, and Galaxy Forge puts no habitat round a body that orbits a planet.";
 
 /**
  * Where in the system view the Add megastructure menu was opened: on a body, with its class when
@@ -77,49 +37,12 @@ export type MegastructureSpot =
       readonly body: number;
       readonly star: boolean;
       readonly class?: string | null;
-      /** The body orbits a planet, as a moon or a habitat does: no habitat goes round it. */
-      readonly orbitsPlanet?: boolean;
     }
   | { readonly kind: "space"; readonly x: number; readonly y: number };
-
-/** What the dialog says of a type it lists but cannot add yet. */
-export const CHANGES_BODY =
-  "Changes the planet's class or size in a way Galaxy Forge can't work out from the game data.";
-export const FIXED_CLASS =
-  "Makes the planet a class Galaxy Forge doesn't give a planet, such as an artificial one.";
-export const WHOLE_STRUCTURE =
-  "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
-
-/** Why the dialog lists a type it cannot add, greyed out; null for one it adds or never lists. */
-function greyedOut(type: MegastructureView): string | null {
-  const { placement } = type;
-  if (placement.place !== "unsupported") return null;
-  if (placement.why.kind === "changes_body") return CHANGES_BODY;
-  if (placement.why.kind === "fixed_class") return FIXED_CLASS;
-  if (placement.why.kind === "whole_structure") return WHOLE_STRUCTURE;
-  return null;
-}
 
 /** Whether a type is a stage of a ring world past its site, which the dialog adds as the whole ring. */
 export function isRingWorld(type: MegastructureView): boolean {
   return type.placement.place === "unsupported" && type.placement.why.kind === "ring_world";
-}
-
-/** What the dialog calls a ring world, its tile that adds the whole ring, and the list's summary of it. */
-export const RING_WORLD_LABEL = "Ring World";
-export const RING_STAGE = "Ring";
-export const RING_WORLD_SUMMARY = "Site or whole ring";
-
-/** Why a ring world whose chain the game data lays out no ring for is greyed out. */
-export function ringLayoutRefusal(reason: string): string {
-  return `Galaxy Forge can't build this ring world from the game data: ${reason}.`;
-}
-
-export const RING_WORLD_NO_STAR = "The system has no star for a ring world to stand round.";
-
-/** Why a ring is refused where the ring world `name` stands `distance` from the star. */
-export function ringOverlap(name: string, distance: number): string {
-  return `This ring would overlap the ${name} at orbit ${Math.round(distance)}.`;
 }
 
 /** One size of ring world the game data defines, told by the radius its ring stands at. */
@@ -186,65 +109,11 @@ export function ringWorldSizes(
   });
 }
 
-/** What a refusal calls the ring world `distance` from the star: its size's name, when known. */
-function ringNameAt(distance: number, sizes: readonly RingWorldSizeName[]): string {
-  const size = sizes.find(
-    (s) => s.radius !== null && Math.abs(distance - s.radius) <= RING_WORLD_SLACK,
-  );
-  return sizes.length > 1 && size !== undefined ? size.name : "ring world";
-}
-
-/**
- * Why the save would refuse a whole ring world standing `radius` from the star in a system of
- * `planets` and `rows`, as the core refuses it: a system with other than one star, and a ring
- * world segment or row standing within the core's slack of that radius, named by its size among
- * `sizes`. A ring world of another size and a site on the star leave room. Null when it fits,
- * and past the star count for a ring whose radius the game data doesn't give.
- */
-export function ringWorldRefusal(
-  planets: readonly PlanetSummary[],
-  rows: readonly MegastructureSummary[],
-  radius: number | null,
-  sizes: readonly RingWorldSizeName[] = [],
-): string | null {
-  const stars = planets.filter((p) => p.role === "primary" || p.role === "star").length;
-  if (stars === 0) return RING_WORLD_NO_STAR;
-  if (stars > 1) return `The system has ${stars} stars, and a ring world stands round one.`;
-  if (radius === null) return null;
-  const distances = [
-    ...planets.filter((p) => isRingSegment(p.class)).map((p) => p.orbit),
-    ...rows.filter((row) => isRingRow(row.kind)).map((row) => row.at && Math.hypot(...row.at)),
-  ];
-  const distance = distances.find(
-    (d): d is number => d !== null && Math.abs(d - radius) <= RING_WORLD_SLACK,
-  );
-  return distance === undefined ? null : ringOverlap(ringNameAt(distance, sizes), distance);
-}
-
-/**
- * Whether a type goes at `spot`: a free point in empty space, a body on a body. A type whose
- * build changes its planet goes on a planet, not a star.
- */
-function fits(type: MegastructureView, spot: MegastructureSpot): boolean {
-  const { placement } = type;
-  if (spot.kind === "space") return placement.place === "free";
-  if (placement.place === "body") {
-    return spot.star ? !type.planet_only && type.planet_change === null : !placement.star_only;
-  }
-  if (placement.place !== "unsupported") return false;
-  const { why } = placement;
-  if (why.kind === "changes_body" || why.kind === "fixed_class") return true;
-  if (why.kind === "whole_structure") return !why.star_only || spot.star;
-  if (why.kind === "ring_world") return spot.star;
-  return false;
-}
-
-const VARIANT = /_(permanently_ruined|ruined|restored|destroyed|derelict)(_|$)/;
 const VARIANT_WORDS = new Set(["permanently", "ruined", "restored", "destroyed", "derelict"]);
 
 /** Whether a type is a ruined, restored, destroyed or derelict variant of a working one. */
 function isVariant(type: MegastructureView): boolean {
-  return type.variant_of !== null || VARIANT.test(type.key);
+  return type.variant_of !== null;
 }
 
 /** Whether the game data says the dialog leaves a type out, whatever the save. */
@@ -712,46 +581,50 @@ function shownRows(
     .filter((row) => row.keys.length > 0);
 }
 
-/** What the list asks of the save besides the spot. */
-export interface MegastructureEntriesOptions {
-  /** The save's global flags, such as Gigastructural Engineering's settings. They pick the
-   * variant a swap writes and never hide a type. */
-  globalFlags?: ReadonlySet<string>;
-  /** The ring world type of the ring world size picked; the first size for null or one not listed. */
-  ringSize?: string | null;
+/** The fits the shell answered for a spot, by the type offered. */
+export type MegastructureFits = ReadonlyMap<string, MegastructureFit>;
+
+/** The fits of `answer`, by the type offered. */
+export function fitsByKind(answer: readonly MegastructureFit[]): MegastructureFits {
+  return new Map(answer.map((fit) => [fit.kind, fit]));
 }
 
-const NO_FLAGS: ReadonlySet<string> = new Set();
+/** Where a row of `kind`, the type a stage writes, stands at the spot `fits` were read for. */
+export function placeOf(fits: MegastructureFits, kind: string): MegastructurePlace | null {
+  return [...fits.values()].find((fit) => fit.variant === kind)?.place ?? null;
+}
+
+/** Why the save would refuse `kind` at the spot, as a sentence; null when it goes. */
+function refusalOf(fits: MegastructureFits, kind: string): string | null {
+  const refusal = fits.get(kind)?.refusal ?? null;
+  return refusal === null ? null : refusalSentence(refusal);
+}
 
 /**
- * The megastructures that go at `spot`. Each is a group of types joined by the stages they are
- * built over, the working type a ruin belongs to and the type a build turns into, and the groups
- * of one name in one section are one megastructure. Its main build chain names it and comes
- * first, then its other chains, then its ruined and restored versions. The base game's come
- * first, then each mod's under its name, each section by name, and a mod's unnamed types last.
- * A type whose placement can never go at `spot` is left out, and so is one the editor does not
- * add, unless it only changes its planet or builds a whole structure: those are listed greyed
- * out with the reason. Every ring world chain is one Ring World megastructure, in the base
+ * The megastructures that go at the spot `fits` were read for. Each is a group of types joined
+ * by the stages they are built over, the working type a ruin belongs to and the type a build
+ * turns into, and the groups of one name in one section are one megastructure. Its main build
+ * chain names it and comes first, then its other chains, then its ruined and restored versions.
+ * The base game's come first, then each mod's under its name, each section by name, and a mod's
+ * unnamed types last. A type `fits` does not offer is left out, and one it refuses is listed
+ * greyed out with the reason. Every ring world chain is one Ring World megastructure, in the base
  * game's section when the base game defines a ring, with a size for each radius its chains' rings
  * stand at, the base game's first, then by radius. Its stages past its site are one Ring tile
- * after the site, which adds the ring whole; both add the size `options.ringSize` picks, else the
- * first, and keep the first size's keys. The Ring tile is greyed out with the reason when the game
- * data lays out no ring for the size or `refusalOf` refuses it. A row of a megastructure whose types are all made from
- * script and have no localised name, such as the Gateway family's `blokkat_dummy_mega`, is left
- * out. `refusalOf` says why the save would refuse a type that does fit.
+ * after the site, which adds the ring whole; both add the size `ringSize` picks, else the first,
+ * and keep the first size's keys. The Ring tile is greyed out with the reason `fits` gives for
+ * the size's ring world type. A row of a megastructure whose types are all made from script and
+ * have no localised name, such as the Gateway family's `blokkat_dummy_mega`, is left out.
  *
- * A type the game data does not offer is left out. The save's global flags in `options` never
- * hide a type; they decide which variant a swap writes. A type the game makes only by swapping a
+ * A type the game data does not offer is left out. A type the game makes only by swapping a
  * finished row, such as a star class's Dyson Sphere, is not listed: the stage it is swapped from
- * is, and its `variant` is the type the game makes of it at `spot`. The ruins of a star class's
- * chain go with it.
+ * is, and its `variant` is the type `fits` says the game makes of it there. The ruins of a
+ * star class's chain go with it.
  */
 export function megastructureEntries(
   types: ReadonlyMap<string, MegastructureView>,
   names: ReadonlyMap<string, string>,
-  spot: MegastructureSpot,
-  refusalOf: (type: MegastructureView) => string | null = () => null,
-  { globalFlags = NO_FLAGS, ringSize = null }: MegastructureEntriesOptions = {},
+  fits: MegastructureFits,
+  ringSize: string | null = null,
 ): MegastructureEntry[] {
   const named = (key: string) => cleanName(names.get(key) ?? "") !== "";
   const nameOf = (key: string) =>
@@ -759,15 +632,10 @@ export function megastructureEntries(
   const swapped = swappedTypes(types);
   const classStems = new Set([...swappedTypes(types, true)].map(stem));
   const listed = (type: MegastructureView) =>
-    fits(type, spot) &&
+    fits.has(type.key) &&
     !swapped.has(type.key) &&
     !(isVariant(type) && classStems.has(bareStem(type.key)));
   const fitting = new Map([...types].filter(([, type]) => listed(type)));
-  const at: SwapContext = {
-    starClass: spot.kind === "body" ? (spot.class ?? null) : null,
-    globalFlags,
-  };
-  const variants = new Map<string, string>();
   const known = new Map<string, number>();
   const order = new Map([...types.keys()].map((key, i) => [key, i]));
   const byStage = (a: MegastructureView, b: MegastructureView) =>
@@ -782,10 +650,6 @@ export function megastructureEntries(
     const built = groupRows(group, byStage, order);
     const shown = shownRows(built, types);
     if (shown === null) continue;
-    for (const row of built) {
-      const made = chainVariants(row.keys, types, at);
-      row.keys.forEach((key, i) => variants.set(key, made[i]));
-    }
     const byClass = swapsByStarClass(built[0].keys, types);
     const ring = shown.flatMap((row) => row.keys).find((k) => isRingWorld(types.get(k)!)) ?? null;
     if (ring !== null) {
@@ -839,8 +703,8 @@ export function megastructureEntries(
               : `${shorts[i]} (${i + 1})`,
           index: i + 1,
           count: row.keys.length,
-          refused: greyedOut(types.get(k)!) ?? refusalOf(types.get(k)!),
-          variant: variants.get(k) ?? k,
+          refused: refusalOf(fits, k),
+          variant: fits.get(k)?.variant ?? k,
         })),
         working,
         finished: row.keys[Math.max(working, 1) - 1],
@@ -871,10 +735,7 @@ export function megastructureEntries(
       const size: RingWorldSize = {
         ring: group.ring,
         label: sizeName?.label ?? RING_WORLD_LABEL,
-        refused:
-          type.ring_world_refused === null
-            ? refusalOf(type)
-            : ringLayoutRefusal(type.ring_world_refused),
+        refused: refusalOf(fits, group.ring),
         stages: offeredStages(type.ring_world_refused_stages),
       };
       return {
@@ -978,38 +839,6 @@ function ringChains(
   return [row, ...rest];
 }
 
-export const BASE_GAME = "Base game";
-export const UNNAMED_TYPES = "Unnamed types";
-
-/**
- * The heading the list shows `entry` under: its mod's name, `Base game`, or `Unnamed types` for
- * one the game names nothing of, which the list shows last.
- */
-export function entryHeading(entry: MegastructureEntry): string {
-  return entry.unnamed ? UNNAMED_TYPES : (entry.section ?? BASE_GAME);
-}
-
-const FINISHED = "Finished";
-
-/** Whether `stage` is told by its place in a build chain of more than one stage. */
-const numbered = (stage: MegastructureStage, chain: MegastructureChain) =>
-  chain.kind === "build" && stage.count > 1;
-
-/** `Stage 3 of 4: Maturity`; null for a chain of one, a ruins row or a variant's row. */
-export function stageLine(stage: MegastructureStage, chain: MegastructureChain): string | null {
-  return numbered(stage, chain) ? `Stage ${stage.index} of ${stage.count}: ${stage.short}` : null;
-}
-
-/**
- * The Add button's text: `Add Maturity, stage 3 of 4`, with the stage's full name for a finished
- * one; `Add <name>` for a chain of one, a ruins row or a variant's row.
- */
-export function addLabel(stage: MegastructureStage, chain: MegastructureChain): string {
-  if (!numbered(stage, chain)) return `Add ${stage.label}`;
-  const name = stage.short.startsWith(FINISHED) ? stage.label : stage.short;
-  return `Add ${name}, stage ${stage.index} of ${stage.count}`;
-}
-
 /** Every stage of `entry`, row by row. */
 export function entryStages(entry: MegastructureEntry): MegastructureStage[] {
   return entry.chains.flatMap((chain) => chain.stages);
@@ -1101,112 +930,4 @@ export function selectedStage(
     findStage(visible, picked ?? defaultStage(entries, spot, last)) ??
     findStage(visible, defaultStage(visible, spot, null))
   );
-}
-
-const BYPASS_NAMES: Readonly<Record<string, string>> = {
-  gateway: "gateway",
-  relay_bypass: "hyper relay",
-};
-
-/**
- * Why the save would refuse a row of `type` at `spot` of a system whose rows are `rows`: a second
- * gateway or relay in the system, or a body that has a megastructure already. A habitat is no
- * row, and is refused only round a body that orbits a planet. A whole ring world is refused as
- * `ringWorldRefusal` says of the system's `planets`, naming a ring in the way by its size's name
- * in `names`. Null when it fits.
- */
-export function megastructureRefusal(
-  type: MegastructureView,
-  spot: MegastructureSpot,
-  rows: readonly MegastructureSummary[],
-  types: ReadonlyMap<string, MegastructureView>,
-  planets: readonly PlanetSummary[] = [],
-  names: ReadonlyMap<string, string> = new Map(),
-): string | null {
-  if (isRingWorld(type)) {
-    return ringWorldRefusal(planets, rows, type.ring_world_radius, ringWorldSizes(types, names));
-  }
-  if (type.habitat && spot.kind === "body") {
-    return spot.orbitsPlanet === true ? HABITAT_ROUND_SATELLITE : null;
-  }
-  const bypass = type.bypass_type;
-  if (bypass !== null && bypass in BYPASS_NAMES) {
-    if (rows.some((row) => types.get(row.kind)?.bypass_type === bypass)) {
-      return `The system already has a ${BYPASS_NAMES[bypass]}.`;
-    }
-  }
-  if (hostHasMegastructure(spot, rows)) {
-    return BODY_HAS_MEGASTRUCTURE;
-  }
-  return null;
-}
-
-/** What the dialog says of the owner a new megastructure gets. */
-export const OWNER_NOTE = "It goes to the empire that owns the system.";
-export const NO_OWNER = "No owner";
-export const NO_OWNER_NOTE = "A megastructure goes to the empire that owns its system.";
-
-/** What the dialog says of a type it has no model for. */
-export const NO_MODEL = "No model yet";
-export const NO_MODEL_NOTE = "Galaxy Forge can't draw this type's model yet.";
-
-/**
- * The notice after an add that left out effects of its construction: `unsure` the editor could not
- * tell apply, `unwritten` that apply but that it does not write. Null when it left out none.
- */
-export function leftOutNotice(name: string, unsure: number, unwritten: number): string | null {
-  if (unsure === 0 && unwritten === 0) return null;
-  const parts = [`Added the ${name}.`];
-  if (unsure === 1) {
-    parts.push(
-      "Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
-    );
-  } else if (unsure > 1) {
-    parts.push(
-      `Galaxy Forge couldn't tell whether ${unsure} of its construction's effects apply, so it left them out.`,
-    );
-  }
-  if (unwritten === 1) {
-    parts.push(
-      "Galaxy Forge doesn't write 1 of its construction's effects yet, so it left it out.",
-    );
-  } else if (unwritten > 1) {
-    parts.push(
-      `Galaxy Forge doesn't write ${unwritten} of its construction's effects yet, so it left them out.`,
-    );
-  }
-  return parts.join(" ");
-}
-
-/** Whether a type stands just outside the system's inner radius, as relays and gateways do. */
-export function outsideGravityWell(type: MegastructureView | undefined): boolean {
-  return type?.placement.place === "free" && type.placement.outside_gravity_well;
-}
-
-/**
- * Where a row of `type` added at `spot` stands: on the body, at the point pressed, or for a
- * type built outside the gravity well, just outside `innerRadius` in the pressed direction.
- */
-export function megastructurePlace(
-  spot: MegastructureSpot,
-  type: MegastructureView | undefined,
-  innerRadius: number,
-): MegastructurePlace {
-  if (spot.kind === "body") return { place: "body", body: spot.body };
-  if (!outsideGravityWell(type)) return { place: "free", x: spot.x, y: spot.y };
-  const radius = RELAY_RADIUS_FACTOR * innerRadius;
-  const angle = Math.atan2(spot.y, spot.x);
-  return { place: "free", x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
-}
-
-/** The dialog's Where line: around the body, or where in the system the row stands. */
-export function whereText(
-  spot: MegastructureSpot,
-  type: MegastructureView | undefined,
-  bodyName: string | undefined,
-): string {
-  if (spot.kind === "body") return `Around ${bodyName ?? `#${spot.body}`}`;
-  const at = placementAt(spot.x, spot.y);
-  if (outsideGravityWell(type)) return `Just outside the inner radius, at ${at.angle}°`;
-  return `At ${orbitText(at)}`;
 }

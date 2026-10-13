@@ -25,7 +25,8 @@ use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::modifiers::check_flags;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
-    Emitted, HabitatOrbital, NewHabitat, NewPlanet, Op, OpError, ParseAt, Plan, Planned, Subject,
+    Emitted, HabitatOrbital, MegastructureRefusal, NewHabitat, NewPlanet, Op, OpError, ParseAt,
+    Plan, Planned, Subject,
 };
 use crate::projections::geometry::{Body, normalised, point, reach};
 use crate::projections::name::{NameTemplate, format};
@@ -62,9 +63,10 @@ pub(crate) fn plan_add(
     if let Some(parent) = host.body.parent
         && !body_is_star(s, &stored, parent)?
     {
-        return Err(refuse(format!(
-            "planet {body} orbits planet {parent}, and Galaxy Forge puts nothing round a body that orbits a planet"
-        )));
+        return Err(megastructure_links::refused(
+            HABITAT,
+            MegastructureRefusal::HabitatRoundSatellite { body, parent },
+        ));
     }
     if let Some(flag) = habitat_flag(&node, src) {
         return Err(refuse(format!(
