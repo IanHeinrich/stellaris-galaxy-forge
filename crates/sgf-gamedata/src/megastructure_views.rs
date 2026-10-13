@@ -101,7 +101,7 @@ fn radius(ring: &NewRingWorld) -> Option<f64> {
     match ring.quadrants.first()? {
         RingQuadrant::Finished { segments }
         | RingQuadrant::Restored { segments }
-        | RingQuadrant::Damaged { segments } => segments.first().map(|s| s.at.radius),
+        | RingQuadrant::Damaged { segments } => segments.first().map(|s| s.planet.at.radius),
         RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => Some(row.at.radius),
     }
 }

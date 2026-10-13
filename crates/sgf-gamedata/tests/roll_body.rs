@@ -196,7 +196,6 @@ fn bodies_rolled_from_the_real_install_are_added_to_a_save() {
                     class: spec.class,
                     size: spec.size,
                     moon_of,
-                    name: None,
                     deposits: spec.deposits,
                     ring: spec.ring,
                     ..NewBody::default()

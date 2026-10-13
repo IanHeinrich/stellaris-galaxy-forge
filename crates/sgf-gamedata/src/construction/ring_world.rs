@@ -4,10 +4,13 @@
 //! [`sgf_core::ops::Op::AddRingWorld`].
 
 use serde::{Deserialize, Serialize};
-use sgf_core::ops::{NewRingWorld, RingModifier, RingQuadrant, RingRow, RingSegment, RingVariable};
+use sgf_core::ops::{
+    NewPlanet, NewRingWorld, RingQuadrant, RingRow, RingSegment, RingVariable, TimedModifier,
+};
 use sgf_core::views::OrbitPlacement;
 use ts_rs::TS;
 
+use super::lasting;
 use super::layout::{self, Around, LaidPlanet, LaidRow, Plan, SectionStage, SystemLayout};
 use crate::GameData;
 use crate::registries::megastructures::{MegastructureDef, is_ruin};
@@ -277,25 +280,32 @@ fn segment(planet: &LaidPlanet, culture: Option<&str>) -> Result<RingSegment, St
             (true, None) => None,
         });
     Ok(RingSegment {
-        class: class.clone(),
-        size: planet
-            .size
-            .ok_or_else(|| format!("the game rolls the size of its {class}"))?,
-        at: OrbitPlacement {
-            radius: planet.at.distance,
-            angle: planet.at.save_angle(),
+        planet: NewPlanet {
+            class: class.clone(),
+            size: planet
+                .size
+                .ok_or_else(|| format!("the game rolls the size of its {class}"))?,
+            at: OrbitPlacement {
+                radius: planet.at.distance,
+                angle: planet.at.save_angle(),
+            },
+            name,
+            model,
+            flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
         },
-        name,
-        model,
-        flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
         megastructure_icon: planet.megastructure_icon,
         modifiers: planet
             .modifiers
             .iter()
-            .map(|(modifier, days)| RingModifier {
-                modifier: modifier.clone(),
-                days: *days,
+            .map(|(modifier, days)| {
+                let days = lasting(*days).ok_or_else(|| {
+                    format!("its {class} takes modifier {modifier} for {days} days, which Galaxy Forge does not write")
+                })?;
+                Ok(TimedModifier {
+                    modifier: modifier.clone(),
+                    days,
+                })
             })
-            .collect(),
+            .collect::<Result<_, String>>()?,
     })
 }

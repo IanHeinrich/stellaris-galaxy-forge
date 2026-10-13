@@ -29,7 +29,7 @@ use sgf_core::cst::Node;
 use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, ModifierHost,
-    VariableRaise,
+    TimedModifier, VariableStep,
 };
 use ts_rs::TS;
 
@@ -1053,7 +1053,7 @@ impl Construction {
         }
         for (variable, by) in variables {
             if by > 0.0 && by.fract() == 0.0 && by <= f64::from(u32::MAX) {
-                built.variables.push(VariableRaise {
+                built.variables.push(VariableStep {
                     variable,
                     by: by as u32,
                 });
@@ -1069,6 +1069,15 @@ impl Construction {
             unsure,
             unwritten,
         }
+    }
+}
+
+/// The days of an `add_modifier` as a payload takes them, `-1` being no end; `None` for any
+/// other negative count, which a payload cannot carry.
+pub(crate) fn lasting(days: i32) -> Option<Option<u32>> {
+    match days {
+        -1 => Some(None),
+        days => u32::try_from(days).ok().map(Some),
     }
 }
 
@@ -1123,18 +1132,30 @@ fn added_modifiers(
     built: &mut MegastructureConstruction,
     unwritten: &mut Vec<String>,
 ) {
+    let on = match host {
+        ModifierHost::System => "the system".to_owned(),
+        ModifierHost::Body { body } => format!("planet {body}"),
+    };
     for modifier in after.iter().filter(|m| !before.contains(m)) {
+        let given = days.get(&(host, modifier.clone())).copied().unwrap_or(-1);
+        let Some(lasts) = lasting(given) else {
+            note(
+                unwritten,
+                format!(
+                    "adds modifier {modifier} to {on} for {given} days, which Galaxy Forge does not write"
+                ),
+            );
+            continue;
+        };
         built.modifiers.push(ConstructionModifier {
             on: host,
-            modifier: modifier.clone(),
-            days: days.get(&(host, modifier.clone())).copied().unwrap_or(-1),
+            timed: TimedModifier {
+                modifier: modifier.clone(),
+                days: lasts,
+            },
         });
     }
     for modifier in before.iter().filter(|m| !after.contains(m)) {
-        let on = match host {
-            ModifierHost::System => "the system".to_owned(),
-            ModifierHost::Body { body } => format!("planet {body}"),
-        };
         note(unwritten, format!("removes modifier {modifier} from {on}"));
     }
 }

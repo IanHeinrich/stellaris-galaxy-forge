@@ -4,7 +4,7 @@
 //! they are given; conditions are not judged, so a removal behind an `if` counts.
 
 use sgf_core::cst::Node;
-use sgf_core::ops::{MegastructureDismantle, VariableDrop};
+use sgf_core::ops::{MegastructureDismantle, VariableStep};
 
 use crate::install::script::{Def, Names, written, written_key};
 use crate::scripts::ScriptIndex;
@@ -95,7 +95,7 @@ impl Walk<'_> {
 
     /// `change_variable = { which = v value = -n }` or `subtract_variable = { which = v
     /// value = n }` as a drop of a whole `n` above 0.
-    fn lowered(&self, key: &str, node: &Node, src: &[u8]) -> Option<VariableDrop> {
+    fn lowered(&self, key: &str, node: &Node, src: &[u8]) -> Option<VariableStep> {
         let field = |name: &str| {
             node.find(name, src)?
                 .scalar_str(src)
@@ -110,7 +110,7 @@ impl Walk<'_> {
         } else {
             value
         };
-        (by > 0.0 && by.fract() == 0.0 && by <= f64::from(u32::MAX)).then_some(VariableDrop {
+        (by > 0.0 && by.fract() == 0.0 && by <= f64::from(u32::MAX)).then_some(VariableStep {
             variable,
             by: by as u32,
         })

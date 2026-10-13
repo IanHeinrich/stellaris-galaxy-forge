@@ -6,7 +6,7 @@
 use crate::common;
 
 use sgf_core::format::save::details::UsageOdds;
-use sgf_core::ops::VariableDrop;
+use sgf_core::ops::VariableStep;
 use sgf_gamedata::body_effects::BodyEffect;
 use sgf_gamedata::condition::{Comparison, Condition};
 use sgf_gamedata::construction::Effect;
@@ -393,7 +393,7 @@ country_event = {
     );
     assert_eq!(
         calc.dismantle.variables,
-        [VariableDrop {
+        [VariableStep {
             variable: "mod_calc_a".to_owned(),
             by: 4,
         }]

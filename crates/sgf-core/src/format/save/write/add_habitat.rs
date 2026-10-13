@@ -29,7 +29,7 @@ use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
-    Emitted, HabitatOrbital, NewHabitat, Op, OpError, ParseAt, Plan, Planned, Subject,
+    Emitted, HabitatOrbital, NewHabitat, NewPlanet, Op, OpError, ParseAt, Plan, Planned, Subject,
 };
 use crate::projections::geometry::{Body, normalised, point, reach};
 use crate::projections::name::{NameTemplate, format};
@@ -74,26 +74,31 @@ pub(crate) fn plan_add(
         _ => None,
     };
 
-    let angle = normalised(habitat.at.angle);
-    let at = point(host.body.at, habitat.at.radius, angle);
-    let name = system_named(s, system, &habitat.name, habitat.system_name.as_deref())?;
+    let angle = normalised(habitat.planet.at.angle);
+    let at = point(host.body.at, habitat.planet.at.radius, angle);
+    let name = system_named(
+        s,
+        system,
+        &habitat.planet.name,
+        habitat.system_name.as_deref(),
+    )?;
     let date = today(&s.doc)?;
     let mut planets = SlotTable::planets(&s.doc)?;
     let slot = planets.take();
     let id = slot.id();
     let entry = HabitatEntry {
         id,
-        class: &habitat.class,
-        size: habitat.size,
+        class: &habitat.planet.class,
+        size: habitat.planet.size,
         name: &name,
         x: at.0,
         y: at.1,
         system,
-        orbit: habitat.at.radius,
+        orbit: habitat.planet.at.radius,
         host: body,
-        flags: &habitat.flags,
+        flags: &habitat.planet.flags,
         flag_date: &date,
-        entity_name: habitat.model.as_deref(),
+        entity_name: habitat.planet.model.as_deref(),
     };
     let emitted = Emitted::Planet { id, system };
     write_slot(plan, &s.doc, slot, &mut planets, emitted, |indent| {
@@ -132,7 +137,7 @@ pub(crate) fn plan_add(
         id,
         parent: Some(body),
         at,
-        orbit: habitat.at.radius,
+        orbit: habitat.planet.at.radius,
     };
     let mut after: Vec<Body> = stored.iter().map(|b| b.body).collect();
     after.push(added);
@@ -161,21 +166,21 @@ pub(crate) fn plan_add(
 
 /// Refuse a habitat whose values cannot be written.
 fn check(habitat: &NewHabitat) -> Result<(), OpError> {
-    check_text("a planet class", &habitat.class, Form::Bare)?;
-    if habitat.size == 0 {
+    check_text("a planet class", &habitat.planet.class, Form::Bare)?;
+    if habitat.planet.size == 0 {
         return Err(OpError::ZeroPlanetSize);
     }
-    check_placement(habitat.at.radius, habitat.at.angle)?;
-    check_text("a name key", &habitat.name, Form::Bare)?;
+    check_placement(habitat.planet.at.radius, habitat.planet.at.angle)?;
+    check_text("a name key", &habitat.planet.name, Form::Bare)?;
     if let Some(variable) = &habitat.system_name {
         check_text("a name variable", variable, Form::Bare)?;
     }
-    if let Some(model) = &habitat.model {
+    if let Some(model) = &habitat.planet.model {
         check_text("a model", model, Form::Bare)?;
     }
-    for (i, flag) in habitat.flags.iter().enumerate() {
+    for (i, flag) in habitat.planet.flags.iter().enumerate() {
         check_text("a planet flag", flag, Form::Bare)?;
-        if habitat.flags[..i].contains(flag) {
+        if habitat.planet.flags[..i].contains(flag) {
             return Err(OpError::InvalidText {
                 what: "a planet flag listed once",
                 text: flag.clone(),
@@ -396,8 +401,10 @@ pub(crate) fn untie(
 
 /// The orbital row `orbital`, as [`Op::AddHabitat`] would write it back.
 pub(crate) fn orbital_back(s: &Session, orbital: &Tied) -> Result<HabitatOrbital, OpError> {
-    let found = row(&s.doc, MEGASTRUCTURES, orbital.id)?
-        .ok_or(OpError::MegastructureNotAdded(orbital.id))?;
+    let found = row(&s.doc, MEGASTRUCTURES, orbital.id)?.ok_or(OpError::NotAdded {
+        kind: EntityKind::Megastructure,
+        id: orbital.id,
+    })?;
     let name = found
         .node
         .find(keys::NAME, found.src)
@@ -425,22 +432,24 @@ pub(crate) fn read_back(
 ) -> NewHabitat {
     let name = read::name(node, src);
     NewHabitat {
-        class: read::text(node, keys::PLANET_CLASS, src),
-        size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
-        at: placement(stored, own, Some(host)),
         system_name: name.variables.first().map(|variable| variable.name.clone()),
-        name: name.key,
-        model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
-        flags: node
-            .find(keys::FLAGS, src)
-            .map(|flags| {
-                flags
-                    .children()
-                    .iter()
-                    .filter_map(|flag| flag.key_str(src).map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default(),
+        planet: NewPlanet {
+            class: read::text(node, keys::PLANET_CLASS, src),
+            size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
+            at: placement(stored, own, Some(host)),
+            name: name.key,
+            model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+            flags: node
+                .find(keys::FLAGS, src)
+                .map(|flags| {
+                    flags
+                        .children()
+                        .iter()
+                        .filter_map(|flag| flag.key_str(src).map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default(),
+        },
         orbital,
     }
 }

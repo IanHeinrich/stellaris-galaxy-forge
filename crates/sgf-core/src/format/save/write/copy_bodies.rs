@@ -5,7 +5,7 @@
 
 use crate::cst::Node;
 use crate::format::save::read_spec::belts;
-use crate::format::save::write::add_body::{placement, spec_of};
+use crate::format::save::write::add_body::{moon_spec_of, placement, spec_of};
 use crate::format::save::write::bodies::{Stored, frame};
 use crate::format::save::write::move_planet::normalised_set;
 use crate::format::save::write::planet_entry::{is_star, role};
@@ -49,7 +49,7 @@ fn copy_one(s: &Session, body: u32) -> Result<NewBody, OpError> {
         let (node, src) = planet_entity(&s.doc, id)?;
         copyable(s, id, &node, src)?;
         spec.moons.push(NewMoon {
-            spec: spec_of(&s.doc, &node, src, None),
+            spec: moon_spec_of(&s.doc, &node, src),
             at: placement(&stored, &moon.body, Some(body)),
         });
     }
