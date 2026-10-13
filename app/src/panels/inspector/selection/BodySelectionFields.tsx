@@ -38,7 +38,7 @@ import { PlanetClassField } from "../entity/PlanetClassField";
 import { DepositRow } from "../entity/PlanetDeposits";
 import { ModifierRowView } from "../entity/PlanetModifiers";
 import { PlanetPicker } from "../entity/PlanetPicker";
-import { SizeField } from "../entity/StarBlock";
+import { SizeField } from "../entity/SizeField";
 import {
   useSelectedBodies,
   useSelectionListing,

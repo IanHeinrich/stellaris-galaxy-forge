@@ -8,7 +8,7 @@ import { MapCanvas } from "./map/MapCanvas";
 import { ContextMenu } from "./panels/overlays/ContextMenu";
 import { LoadingOverlay } from "./panels/overlays/LoadingOverlay";
 import { InitializerBrowser } from "./panels/initializers/Browser";
-import { browseInitializers } from "./panels/initializers/entry";
+import { browseInitializers } from "./panels/initializerEntry";
 import { DiskChangeNotice } from "./panels/chrome/DiskChangeNotice";
 import { Dock } from "./panels/chrome/Dock";
 import { EditMenu } from "./panels/chrome/EditMenu";

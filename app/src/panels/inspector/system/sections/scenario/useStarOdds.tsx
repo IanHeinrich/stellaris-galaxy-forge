@@ -1,4 +1,4 @@
-import type { SpawnStar } from "../../../../../generated/SpawnStar";
+import type { RolledStar } from "../../../../../lib/details/classList";
 import { oddsRows, starListName } from "../../../../../lib/details/oddsBars";
 import { readableTint } from "../../../../../lib/visual/color";
 import { starOdds } from "../../../../../lib/details/spawnFacts";
@@ -6,8 +6,6 @@ import { starGlyph } from "../../../../../lib/visual/starGlyphs";
 import type { ShownOdds } from "../../../entity/OddsBar";
 import { useNamed } from "../../../../useNamed";
 import { StarArt } from "./StarArt";
-
-type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
 /** The star classes an `rl_` list draws a star from, likeliest first, as an odds list's rows. */
 export function useStarOdds(star: RolledStar): ShownOdds[] {

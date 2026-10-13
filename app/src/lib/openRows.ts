@@ -388,8 +388,11 @@ export function detailsSave(row: Row | undefined, state: OpenLists): SaveFile | 
       const target = recentTarget(row.doc, state);
       return target?.kind === "save" ? target.file : null;
     }
-    default:
+    case "scenario":
+    case undefined:
       return null;
+    default:
+      return row satisfies never;
   }
 }
 
@@ -444,8 +447,10 @@ function baseFooterOpens(
       return { open: as(detailsSave(row, lists)?.path, "save"), asScenario: null };
     case "scenario":
       return { open: row.disabled ? null : as(row.listing.path, "save"), asScenario: null };
-    default:
+    case undefined:
       return { open: null, asScenario: null };
+    default:
+      return row satisfies never;
   }
 }
 

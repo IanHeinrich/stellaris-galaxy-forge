@@ -40,7 +40,7 @@ import {
 } from "../../store/megastructureAdd";
 import { useOpCheckStore } from "../../store/opCheckStore";
 import { Dialog } from "../Dialog";
-import { useSystemBodyNames } from "../inspector/entity/useBodyName";
+import { useSystemBodyNames } from "../useBodyName";
 import { useNamed } from "../useNamed";
 import {
   MegastructureList,

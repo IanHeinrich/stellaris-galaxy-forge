@@ -1,17 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../../api/ipc");
-vi.mock("../../../../api/events");
-vi.mock("../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
-vi.mock("zustand", () => import("../../../../test/zustandSnapshot"));
+vi.mock("../api/ipc");
+vi.mock("../api/events");
+vi.mock("./useTextureUrl", () => ({ useTextureUrl: () => undefined }));
+vi.mock("zustand", () => import("../test/zustandSnapshot"));
 
-import { PLANET_ICON_KEYS, SHATTERED_ICON_SEED } from "../../../../lib/details/icons";
-import { useGameDataStore } from "../../../../store/gameDataStore";
-import { planetClassView } from "../../../../test/builders";
-import { drawnBy, lastDrawn } from "../../../../test/drawn";
-import { Icon } from "../../../parts";
-import { PlanetIcon } from "./bodies";
+import { PLANET_ICON_KEYS, SHATTERED_ICON_SEED } from "../lib/details/icons";
+import { useGameDataStore } from "../store/gameDataStore";
+import { planetClassView } from "../test/builders";
+import { drawnBy, lastDrawn } from "../test/drawn";
+import { Icon } from "./parts";
+import { PlanetIcon } from "./PlanetIcon";
 
 beforeEach(() => {
   const shattered = { ...planetClassView("pc_shattered", false), shattered: true };

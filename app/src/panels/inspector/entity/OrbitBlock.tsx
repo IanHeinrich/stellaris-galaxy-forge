@@ -18,7 +18,7 @@ import type { IconPickerItem } from "../../IconPicker";
 import { Empty } from "../parts";
 import { RadiusAngleFields } from "../RadiusAngleFields";
 import { useGeometryEdit } from "../useGeometryEdit";
-import { useSystemBodyNamer } from "./useBodyName";
+import { useSystemBodyNamer } from "../../useBodyName";
 
 const READING = "Reading the system…";
 const THE_STAR = "star";

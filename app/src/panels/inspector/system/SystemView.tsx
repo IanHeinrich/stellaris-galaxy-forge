@@ -48,5 +48,7 @@ export function SystemView({ id }: { id: number }) {
       return <Data detail={detail} />;
     case "source":
       return <Source detail={detail} />;
+    default:
+      return tab satisfies never;
   }
 }

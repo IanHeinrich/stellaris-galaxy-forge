@@ -73,5 +73,7 @@ export function ContextMenu() {
       return <SceneSpaceMenu target={target} frame={frame} />;
     case "bodyRow":
       return <BodyRowMenu target={target} frame={frame} />;
+    default:
+      return target satisfies never;
   }
 }

@@ -1,23 +1,20 @@
-import type { Bounds } from "../../../generated/Bounds";
-import { bodySize, rangeText } from "./bodyFields";
+import { bodySize } from "./bodyFields";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemNode } from "../../../generated/SystemNode";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { starTypeChoices, starTypeRows } from "../../../lib/details/starBody";
 import { currentStarBodies, STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
-import { typedNumber } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { BoundsField } from "../../BoundsField";
-import { EditBlock, EditRow, PickerField, TextField } from "../../EditField";
+import { EditBlock, EditRow, PickerField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { StarRowIcon, StarTriggerIcon } from "../../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
 import { useNamed } from "../../useNamed";
+import { SizeField } from "./SizeField";
 import { useSingleStarClasses } from "./useStarClasses";
 
 const NO_CHOICE = "The game data has no other star type";
-const NO_SIZE = "The save gives this body no size";
 
 /**
  * A star body's type, as a field offering every planet class the game flags `star`. Like the
@@ -72,59 +69,6 @@ function StarTypeField({
       onPick={(key) => {
         if (fresh) void edits.setStarType(key, { ...system, bodies: fresh }, starClasses);
       }}
-    />
-  );
-}
-
-/**
- * A body's size, sent to `edits`, which refuses what its source can't take: a range, a fraction
- * or less than 1. A refused size puts the field back. For several bodies of different sizes,
- * `mixed` leaves the field empty with their range in grey, and a typed size goes to them all.
- */
-export function SizeField({
-  edits,
-  size,
-  mixed = false,
-  title = "Change the body's size",
-}: {
-  edits: PlanetEditAdapter;
-  size: Bounds | null;
-  mixed?: boolean;
-  title?: string;
-}) {
-  if (size === null) {
-    return (
-      <TextField
-        kind="text"
-        label="Size"
-        value="none"
-        disabledReason={NO_SIZE}
-        onCommit={() => undefined}
-      />
-    );
-  }
-  if (mixed) {
-    return (
-      <TextField
-        kind="text"
-        label="Size"
-        title={title}
-        value=""
-        placeholder={`${rangeText(size)} (mixed)`}
-        onCommit={(text) => {
-          const typed = typedNumber(text);
-          if (typed !== null) void edits.setSize({ min: typed, max: typed }, size.min);
-        }}
-      />
-    );
-  }
-  return (
-    <BoundsField
-      label="Size"
-      title={title}
-      value={size}
-      ranges={edits.ranges}
-      onCommit={(next) => void edits.setSize(next, size.min)}
     />
   );
 }

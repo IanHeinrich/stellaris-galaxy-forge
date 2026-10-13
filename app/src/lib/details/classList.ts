@@ -11,7 +11,8 @@ import type { Names } from "../names";
 import { bodyClassName } from "./labels";
 import { classOdds, mergedByName, type NamedPick, rowAsks, starOdds } from "./spawnFacts";
 
-type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
+/** A star whose class an `rl_` list rolls. */
+export type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
 /**
  * The list under a scenario body's Class row of what its class can be: the star classes of the

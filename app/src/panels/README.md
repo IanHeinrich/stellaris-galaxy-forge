@@ -8,6 +8,9 @@ menu, the map tooltip) and `search/` (the palette). A file more than one
 folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
 piece of script text the app shows: the Initializer sections' groups and the
 Inspector's Source tab.
+The root also holds `useBodyName` (the names a body shows), `initializerEntry`
+(opening the initializer browser), `paintMod` (opening the Workshop pages),
+`PlanetIcon` and `Select`.
 
 ## Stylesheets
 

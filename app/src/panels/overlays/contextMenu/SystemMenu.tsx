@@ -15,7 +15,7 @@ import {
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
-import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
 import { BulkActions, MarauderClanButton } from "../../BulkActions";
 import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
 import { MenuFrame, type Frame } from "./MenuFrame";

@@ -45,6 +45,8 @@ function glyphOf(kind: RowKind): ReactNode {
           <NebulaMark />
         </PaletteGlyph>
       );
+    default:
+      return kind satisfies never;
   }
 }
 

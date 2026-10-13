@@ -4,7 +4,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { Section } from "../parts";
 import { PlanetRow } from "../system/sections/Planets";
 import type { PlanetSectionProps } from "./planetSection";
-import { useGivenNames } from "./useBodyName";
+import { useGivenNames } from "../../useBodyName";
 
 /** The moons around the body, as its system's details list them, each opening its own page. */
 export function PlanetMoons({ read }: PlanetSectionProps) {

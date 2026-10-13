@@ -4,7 +4,7 @@ import { usePaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import "./chrome.css";
-import { openPaintWorkshop } from "./paintMod";
+import { openPaintWorkshop } from "../paintMod";
 
 /** The badge's words in the bar; the full wording is its accessible name. */
 const SHORT = "PaG";
