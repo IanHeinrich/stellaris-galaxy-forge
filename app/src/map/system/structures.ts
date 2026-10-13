@@ -242,8 +242,8 @@ function megastructure(
   const sizeBody = type?.scales_with_planet === true ? (body ?? homeBody) : undefined;
   const placed = placeStructure(look, { body, at, offset, sizeBody });
   if (placed === null) return null;
-  // Turned from where it is drawn, so a drag turns it as it goes.
-  const yaw = megastructureYaw(type, at);
+  // Held, it keeps the facing it had and turns once when dropped: a new facing is a new model to bake.
+  const yaw = megastructureYaw(type, moved === undefined ? at : sourceAt);
   const chance = structureChance(row.spawn);
   const name = megastructureName(row.kind, src.names);
   const art = stable(
@@ -262,7 +262,8 @@ function megastructure(
     {
       name: chance.random ? randomlyPlacedLabel(name) : name,
       // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
-      on,
+      // A held one keeps its own plate, so the labels lay out once at pickup, not at each body it crosses.
+      on: moved === undefined ? on : null,
       resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
     },
     samePlate,
