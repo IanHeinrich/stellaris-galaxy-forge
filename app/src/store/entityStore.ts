@@ -7,6 +7,7 @@ import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
 import type { PlanetPage } from "../generated/PlanetPage";
+import { keyedReads, type KeyedReads } from "./reads";
 
 /** One entity, whichever level of it is being read. */
 export function addrKey(addr: EntityAddr): string {
@@ -28,7 +29,6 @@ export function planetPageKey(id: number): string {
   return `page/${addrKey({ kind: "planet", id })}`;
 }
 
-const PAGE_PREFIX = "page/";
 const READ_PREFIX = /^(source|page)\//;
 
 /** The entity a key belongs to: the read it names, without its kind of read or its path. */
@@ -73,11 +73,68 @@ export interface EntityState {
   clear(): void;
 }
 
-/** Bumped by `clear`; an answer from an older session is dropped. */
-let generation = 0;
+/** One kind of read, held in `pending` and `errors` under `key`. */
+function entityReads<A, T>(
+  fetch: (ask: A) => Promise<T>,
+  key: (ask: A) => string,
+  apply: (ask: A, value: T) => Partial<EntityState>,
+): KeyedReads<A, string> {
+  return keyedReads(([ask]: A[]) => fetch(ask), {
+    key,
+    batch: 1,
+    answered: ([ask], value) => land(apply(ask, value)),
+    failed: ([ask], message) =>
+      land({ errors: new Map(useEntityStore.getState().errors).set(key(ask), message) }),
+  });
+}
 
-/** Reads an edit overtook: their answer reads the bytes as they were, so it is thrown away. */
-const dropped = new Set<string>();
+interface ViewAsk {
+  addr: EntityAddr;
+  path: readonly string[];
+}
+
+const viewReads = entityReads(
+  ({ addr, path }: ViewAsk) => ipc.getEntity(addr, [...path]),
+  ({ addr, path }) => viewKey(addr, path),
+  ({ addr, path }, view) => ({
+    views: new Map(useEntityStore.getState().views).set(viewKey(addr, path), view),
+  }),
+);
+
+const sourceReads = entityReads(
+  (addr: EntityAddr) => ipc.getEntitySource(addr),
+  sourceKey,
+  (addr, source) => ({
+    sources: new Map(useEntityStore.getState().sources).set(addrKey(addr), source),
+  }),
+);
+
+const schemaReads = entityReads(
+  (kind: EntityKind) => ipc.getEntitySchema(kind),
+  (kind) => `schema/${kind}`,
+  (kind, schema) => ({ schemas: new Map(useEntityStore.getState().schemas).set(kind, schema) }),
+);
+
+const pageReads = entityReads(
+  (id: number) => ipc.getPlanetPage(id),
+  planetPageKey,
+  (id, page) => {
+    const stalePages = new Set(useEntityStore.getState().stalePages);
+    stalePages.delete(id);
+    return { pages: new Map(useEntityStore.getState().pages).set(id, page), stalePages };
+  },
+);
+
+const ALL_READS: Omit<KeyedReads<never, string>, "read">[] = [
+  viewReads,
+  sourceReads,
+  schemaReads,
+  pageReads,
+];
+
+function pendingNow(): Set<string> {
+  return new Set(ALL_READS.flatMap((reads) => [...reads.pending()]));
+}
 
 export const useEntityStore = create<EntityState>((set, get) => ({
   views: new Map(),
@@ -91,35 +148,20 @@ export const useEntityStore = create<EntityState>((set, get) => ({
 
   request(addr, path = []) {
     const key = viewKey(addr, path);
-    if (!begin(key, get().views.has(key))) return;
-    void land(key, generation, ipc.getEntity(addr, [...path]), (view) => ({
-      views: new Map(useEntityStore.getState().views).set(key, view),
-    }));
+    begin(viewReads, { addr, path }, key, get().views.has(key));
   },
 
   requestSource(addr) {
-    const key = addrKey(addr);
-    if (!begin(sourceKey(addr), get().sources.has(key))) return;
-    void land(sourceKey(addr), generation, ipc.getEntitySource(addr), (source) => ({
-      sources: new Map(useEntityStore.getState().sources).set(key, source),
-    }));
+    begin(sourceReads, addr, sourceKey(addr), get().sources.has(addrKey(addr)));
   },
 
   requestSchema(kind) {
-    if (!begin(`schema/${kind}`, get().schemas.has(kind))) return;
-    void land(`schema/${kind}`, generation, ipc.getEntitySchema(kind), (schema) => ({
-      schemas: new Map(useEntityStore.getState().schemas).set(kind, schema),
-    }));
+    begin(schemaReads, kind, `schema/${kind}`, get().schemas.has(kind));
   },
 
   requestPlanetPage(id) {
-    const key = planetPageKey(id);
-    if (!begin(key, get().pages.has(id) && !get().stalePages.has(id))) return;
-    void land(key, generation, ipc.getPlanetPage(id), (page) => {
-      const stalePages = new Set(useEntityStore.getState().stalePages);
-      stalePages.delete(id);
-      return { pages: new Map(useEntityStore.getState().pages).set(id, page), stalePages };
-    });
+    const cached = get().pages.has(id) && !get().stalePages.has(id);
+    begin(pageReads, id, planetPageKey(id), cached);
   },
 
   noteEdit(result) {
@@ -149,18 +191,12 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     for (const id of get().pages.keys()) if (stale(planetPageKey(id))) stalePages.add(id);
     const errors = new Map([...get().errors].filter(([key]) => !stale(key)));
     // A read already out would land on the pre-edit bytes: it is dropped, not cached.
-    const pending = new Set(get().pending);
-    for (const key of pending) {
-      if (!stale(key)) continue;
-      pending.delete(key);
-      dropped.add(key);
-    }
-    set({ views, sources, stalePages, errors, pending, version: get().version + 1 });
+    for (const reads of ALL_READS) reads.drop([...reads.pending()].filter(stale));
+    set({ views, sources, stalePages, errors, pending: pendingNow(), version: get().version + 1 });
   },
 
   clear() {
-    generation++;
-    dropped.clear();
+    for (const reads of ALL_READS) reads.clear();
     set({
       views: new Map(),
       sources: new Map(),
@@ -190,39 +226,22 @@ function wormholeReads(state: EntityState): EntityAddr[] {
 
 /** A page read already out does not say which system it is in, so any edit to a system drops it. */
 function dropPendingPages(): void {
-  const { pending, version } = useEntityStore.getState();
-  const kept = new Set([...pending].filter((key) => !key.startsWith(PAGE_PREFIX)));
-  if (kept.size === pending.size) return;
-  for (const key of pending) if (!kept.has(key)) dropped.add(key);
-  useEntityStore.setState({ pending: kept, version: version + 1 });
+  const pages = pageReads.pending();
+  if (pages.size === 0) return;
+  pageReads.drop(pages);
+  const { version } = useEntityStore.getState();
+  useEntityStore.setState({ pending: pendingNow(), version: version + 1 });
 }
 
-/** Starts one read, or says the cache, a read in flight or a refusal already answers for it. */
-function begin(key: string, cached: boolean): boolean {
-  const { pending, errors, version } = useEntityStore.getState();
-  if (cached || pending.has(key) || errors.has(key)) return false;
-  dropped.delete(key);
-  useEntityStore.setState({ pending: new Set(pending).add(key), version: version + 1 });
-  return true;
+/** Starts one read, unless the cache, a read in flight or a refusal already answers for it. */
+function begin<A>(reads: KeyedReads<A, string>, ask: A, key: string, cached: boolean): void {
+  const { errors, version } = useEntityStore.getState();
+  if (cached || errors.has(key) || reads.asked(key)) return;
+  void reads.read([ask]);
+  useEntityStore.setState({ pending: pendingNow(), version: version + 1 });
 }
 
-async function land<T>(
-  key: string,
-  gen: number,
-  read: Promise<T>,
-  apply: (value: T) => Partial<EntityState>,
-): Promise<void> {
-  let patch: Partial<EntityState>;
-  try {
-    const value = await read;
-    if (gen !== generation || dropped.delete(key)) return;
-    patch = apply(value);
-  } catch (e) {
-    if (gen !== generation || dropped.delete(key)) return;
-    patch = { errors: new Map(useEntityStore.getState().errors).set(key, ipc.errorMessage(e)) };
-  }
-  const { pending, version } = useEntityStore.getState();
-  const next = new Set(pending);
-  next.delete(key);
-  useEntityStore.setState({ ...patch, pending: next, version: version + 1 });
+function land(patch: Partial<EntityState>): void {
+  const { version } = useEntityStore.getState();
+  useEntityStore.setState({ ...patch, pending: pendingNow(), version: version + 1 });
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { ClassRolls } from "../generated/ClassRolls";
+import { keyedReads } from "./reads";
 
 /** What a scenario body rolls as one class, or why that could not be told. */
 export type ClassRollsAnswer = { rolls: ClassRolls } | { error: string };
@@ -10,8 +11,6 @@ export interface ClassRollsState {
   answers: Map<string, ClassRollsAnswer>;
   /** The keys asked for and not answered yet. */
   pending: ReadonlySet<string>;
-  /** Bumped by `clear`, so an answer to an ask made before it is dropped. */
-  generation: number;
   /** Reads what body `body` of system `system` rolls as `className`, once per session. */
   request(system: number, body: number, className: string): void;
   /**
@@ -26,26 +25,41 @@ export function classRollsKey(system: number, body: number, className: string): 
   return `${system}:${body}:${className}`;
 }
 
+interface ClassRollsAsk {
+  system: number;
+  body: number;
+  className: string;
+}
+
+const keyOf = (ask: ClassRollsAsk) => classRollsKey(ask.system, ask.body, ask.className);
+
+const reads = keyedReads(
+  ([ask]: ClassRollsAsk[]) => ipc.getClassRolls(ask.system, ask.body, ask.className),
+  {
+    key: keyOf,
+    batch: 1,
+    answered: ([ask], rolls) => land(ask, { rolls }),
+    failed: ([ask], error) => land(ask, { error }),
+  },
+);
+
+function land(ask: ClassRollsAsk, answer: ClassRollsAnswer): void {
+  const { answers } = useClassRollsStore.getState();
+  useClassRollsStore.setState({
+    answers: new Map(answers).set(keyOf(ask), answer),
+    pending: reads.pending(),
+  });
+}
+
 export const useClassRollsStore = create<ClassRollsState>((set, get) => ({
   answers: new Map(),
   pending: new Set(),
-  generation: 0,
 
   request(system, body, className) {
     const key = classRollsKey(system, body, className);
-    const { answers, pending, generation } = get();
-    if (answers.has(key) || pending.has(key)) return;
-    set({ pending: new Set(pending).add(key) });
-    const land = (answer: ClassRollsAnswer) => {
-      if (get().generation !== generation) return;
-      const left = new Set(get().pending);
-      left.delete(key);
-      set({ answers: new Map(get().answers).set(key, answer), pending: left });
-    };
-    ipc.getClassRolls(system, body, className).then(
-      (rolls) => land({ rolls }),
-      (e: unknown) => land({ error: ipc.errorMessage(e) }),
-    );
+    if (get().answers.has(key) || reads.asked(key)) return;
+    void reads.read([{ system, body, className }]);
+    set({ pending: reads.pending() });
   },
 
   forget(systems) {
@@ -53,10 +67,12 @@ export const useClassRollsStore = create<ClassRollsState>((set, get) => ({
     for (const key of answers.keys()) {
       if (systems.some((system) => key.startsWith(`${system}:`))) answers.delete(key);
     }
-    set({ answers, pending: new Set(), generation: get().generation + 1 });
+    reads.clear();
+    set({ answers, pending: new Set() });
   },
 
   clear() {
-    set({ answers: new Map(), pending: new Set(), generation: get().generation + 1 });
+    reads.clear();
+    set({ answers: new Map(), pending: new Set() });
   },
 }));

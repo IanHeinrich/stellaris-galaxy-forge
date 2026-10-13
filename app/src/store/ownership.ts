@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { lastOf } from "../lib/memo";
 import { templateName } from "../lib/names";
 import {
   composeOwnership,
@@ -11,9 +12,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 
-let composedFrom: OwnershipInput | null = null;
-let composedNames: unknown = null;
-let composed: Ownership = NO_OWNERSHIP;
+const composed = lastOf<Ownership>();
 
 function inputNow(): OwnershipInput {
   const galaxy = useGalaxyStore.getState();
@@ -28,29 +27,24 @@ function inputNow(): OwnershipInput {
   };
 }
 
-function sameInput(a: OwnershipInput, b: OwnershipInput): boolean {
-  return (
-    a.kind === b.kind &&
-    a.systems === b.systems &&
-    a.countries === b.countries &&
-    a.countryTypes === b.countryTypes &&
-    a.mapColors === b.mapColors
-  );
-}
-
 /**
  * Who owns what, as the stores stand: composed once per change to what it reads, and kept
  * by identity while an edit leaves it as it was. The labels follow the localisation.
  */
 export function currentOwnership(): Ownership {
   const input = inputNow();
-  const names = useGameDataStore.getState().names;
-  if (composedFrom === null || !sameInput(composedFrom, input) || names !== composedNames) {
-    composedFrom = input;
-    composedNames = names;
-    composed = settledOwnership(composed, composeOwnership(input));
-  }
-  return composed;
+  const { kind, systems, countries, countryTypes, mapColors } = input;
+  const from = [
+    kind,
+    systems,
+    countries,
+    countryTypes,
+    mapColors,
+    useGameDataStore.getState().names,
+  ];
+  return composed(from, (previous) =>
+    settledOwnership(previous ?? NO_OWNERSHIP, composeOwnership(input)),
+  );
 }
 
 /** Calls `listener` whenever anything `currentOwnership` is composed from changes. */

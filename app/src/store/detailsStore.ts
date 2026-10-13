@@ -5,6 +5,7 @@ import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemRoll } from "../generated/SystemRoll";
 import { DETAILS_BATCH, DETAILS_DEBOUNCE_MS } from "./batching";
 import { VANILLA_SYSTEM_RADII } from "../generated/constants";
+import { keyedReads } from "./reads";
 
 export interface DetailsState {
   details: Map<number, SystemDetails>;
@@ -38,12 +39,18 @@ export interface DetailsState {
   clear(): void;
 }
 
-let queue: number[] = [];
-let timer: ReturnType<typeof setTimeout> | null = null;
-let generation = 0;
-let issued = 0;
-/** Id → the last batch an edit staled; an answer no newer than it is dropped. */
-const staled = new Map<number, number>();
+const detailReads = keyedReads((ids: number[]) => ipc.getSystemDetails(ids), {
+  batch: DETAILS_BATCH,
+  wait: DETAILS_DEBOUNCE_MS,
+  answered(ids, results) {
+    const wanted = new Set(ids);
+    const fresh = results.filter((d) => wanted.has(d.id));
+    const answered = new Set(fresh.map((d) => d.id));
+    settle({ fresh, unanswered: ids.filter((id) => !answered.has(id)) });
+  },
+  failed: (ids, message) => settle({ failed: { ids, message } }),
+});
+
 let iconsInFlight: Promise<void> | null = null;
 /** System → the roll last asked for; an answer lands only while its ask is still the one here. */
 const rollsAsked = new Map<number, { roll: number }>();
@@ -62,25 +69,18 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   resourceIconsError: null,
 
   request(ids) {
-    const { details, pending, failed, stale, missing } = get();
-    const asked = new Set(pending);
-    for (const id of ids) {
+    const { details, failed, stale, missing } = get();
+    const wanted = [...ids].filter(
       // A failure is not retried on its own: its own version bump would ask again forever.
-      if (
-        (details.has(id) && !stale.has(id)) ||
-        asked.has(id) ||
-        missing.has(id) ||
-        failed.has(id)
-      ) {
-        continue;
-      }
-      asked.add(id);
-      queue.push(id);
-    }
-    if (asked.size === pending.size) return;
-    set({ pending: asked });
-    if (timer !== null) clearTimeout(timer);
-    timer = setTimeout(flushQueue, DETAILS_DEBOUNCE_MS);
+      (id) =>
+        !(details.has(id) && !stale.has(id)) &&
+        !detailReads.asked(id) &&
+        !missing.has(id) &&
+        !failed.has(id),
+    );
+    if (wanted.length === 0) return;
+    void detailReads.read(wanted);
+    set({ pending: detailReads.pending() });
   },
 
   requestRoll(system, roll) {
@@ -98,7 +98,6 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
 
   invalidate(ids) {
     const { version, details } = get();
-    const pending = new Set(get().pending);
     const failed = new Map(get().failed);
     const stale = new Set(get().stale);
     const missing = new Set(get().missing);
@@ -111,13 +110,16 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
         dropped = true;
       }
       if (failed.delete(id)) dropped = true;
-      if (pending.delete(id)) {
-        staled.set(id, issued);
+      // A read already out would land on the pre-edit bytes: it is dropped and asked again.
+      if (detailReads.asked(id)) {
+        detailReads.drop([id]);
         dropped = true;
       }
     }
-    if (dropped) set({ pending, failed, stale, version: version + 1, ...(found && { missing }) });
-    else if (found) set({ missing });
+    if (dropped) {
+      const pending = detailReads.pending();
+      set({ pending, failed, stale, version: version + 1, ...(found && { missing }) });
+    } else if (found) set({ missing });
     for (const id of ids) {
       rollsAsked.delete(id);
       if (get().rolls.has(id)) staleRolls.add(id);
@@ -125,11 +127,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   },
 
   clear() {
-    generation++;
-    staled.clear();
-    if (timer !== null) clearTimeout(timer);
-    timer = null;
-    queue = [];
+    detailReads.clear();
     rollsAsked.clear();
     staleRolls.clear();
     set({
@@ -200,38 +198,14 @@ async function fetchResourceIcons(): Promise<void> {
   }
 }
 
-function flushQueue(): void {
-  timer = null;
-  const ids = queue;
-  queue = [];
-  for (let i = 0; i < ids.length; i += DETAILS_BATCH) {
-    void fetchBatch(ids.slice(i, i + DETAILS_BATCH), generation, ++issued);
-  }
-}
-
-async function fetchBatch(ids: number[], gen: number, serial: number): Promise<void> {
-  let results: SystemDetails[];
-  try {
-    results = await ipc.getSystemDetails(ids);
-  } catch (e) {
-    if (gen === generation) settle(ids, { failed: ipc.errorMessage(e) });
-    return;
-  }
-  if (gen !== generation) return;
-  const answered = new Set(results.map((d) => d.id));
-  const unanswered = ids.filter((id) => !answered.has(id) && (staled.get(id) ?? -1) < serial);
-  const fresh = results.filter((d) => (staled.get(d.id) ?? -1) < serial);
-  settle(ids, { fresh, unanswered });
-}
-
-/** Takes `ids` out of `pending` and records what the batch came back with. */
-function settle(
-  ids: number[],
-  outcome: { fresh?: SystemDetails[]; unanswered?: number[]; failed?: string },
-): void {
+/** Records what a batch still wanted came back with; its ids are no longer pending. */
+function settle(outcome: {
+  fresh?: SystemDetails[];
+  unanswered?: number[];
+  failed?: { ids: number[]; message: string };
+}): void {
   const state = useDetailsStore.getState();
-  const pending = new Set(state.pending);
-  for (const id of ids) pending.delete(id);
+  const pending = detailReads.pending();
   const details = new Map(state.details);
   const failed = new Map(state.failed);
   const stale = new Set(state.stale);
@@ -240,7 +214,9 @@ function settle(
     failed.delete(d.id);
     stale.delete(d.id);
   }
-  if (outcome.failed !== undefined) for (const id of ids) failed.set(id, outcome.failed);
+  if (outcome.failed !== undefined) {
+    for (const id of outcome.failed.ids) failed.set(id, outcome.failed.message);
+  }
   const unanswered = outcome.unanswered ?? [];
   const missing =
     unanswered.length > 0 ? new Set([...state.missing, ...unanswered]) : state.missing;

@@ -57,6 +57,7 @@ import {
   starbaseLook,
   type StructureLook,
 } from "../../lib/details/structures";
+import { lastOf } from "../../lib/memo";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
@@ -665,21 +666,6 @@ function sceneExits(src: SystemSources, radius: number): Exit[] {
 }
 
 /** Gives the last answer again while every input is the one it was computed from. */
-function lastOf<R>(): (inputs: readonly unknown[], compute: () => R) => R {
-  let last: { inputs: readonly unknown[]; result: R } | null = null;
-  return (inputs, compute) => {
-    if (
-      last &&
-      last.inputs.length === inputs.length &&
-      inputs.every((v, i) => v === last?.inputs[i])
-    ) {
-      return last.result;
-    }
-    last = { inputs, result: compute() };
-    return last.result;
-  };
-}
-
 const lastBodies = lastOf<readonly SceneBody[]>();
 const lastById = lastOf<ReadonlyMap<number, SceneBody>>();
 const lastBelts = lastOf<readonly SceneBelt[]>();

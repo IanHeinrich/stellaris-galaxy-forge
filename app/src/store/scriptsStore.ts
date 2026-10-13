@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { SystemScripts } from "../generated/SystemScripts";
+import { keyedReads } from "./reads";
 
 export interface ScriptsState {
   /** What the loaded scripts say about each system asked for so far. */
@@ -21,8 +22,11 @@ export interface ScriptsState {
   clear(): void;
 }
 
-/** Bumped by `clear`, so an answer from the game data that is gone is thrown away. */
-let generation = 0;
+const scriptReads = keyedReads(([id]: number[]) => ipc.getSystemScripts(id), {
+  batch: 1,
+  answered: ([id], scripts) => settle(id, scripts ? { scripts } : {}),
+  failed: ([id], failed) => settle(id, { failed }),
+});
 
 export const useScriptsStore = create<ScriptsState>((set, get) => ({
   scripts: new Map(),
@@ -35,8 +39,8 @@ export const useScriptsStore = create<ScriptsState>((set, get) => ({
     const { scripts, pending, missing, failed } = get();
     // A failure is not retried on its own: its own version bump would ask again forever.
     if (scripts.has(id) || pending.has(id) || missing.has(id) || failed.has(id)) return;
-    set({ pending: new Set(pending).add(id) });
-    void fetchScripts(id, generation);
+    void scriptReads.read([id]);
+    set({ pending: scriptReads.pending() });
   },
 
   invalidate(ids) {
@@ -51,7 +55,7 @@ export const useScriptsStore = create<ScriptsState>((set, get) => ({
   },
 
   clear() {
-    generation++;
+    scriptReads.clear();
     set({
       scripts: new Map(),
       pending: new Set(),
@@ -62,22 +66,10 @@ export const useScriptsStore = create<ScriptsState>((set, get) => ({
   },
 }));
 
-async function fetchScripts(id: number, gen: number): Promise<void> {
-  let result: SystemScripts | null;
-  try {
-    result = await ipc.getSystemScripts(id);
-  } catch (e) {
-    if (gen === generation) settle(id, { failed: ipc.errorMessage(e) });
-    return;
-  }
-  if (gen === generation) settle(id, result ? { scripts: result } : {});
-}
-
-/** Takes one system out of `pending` and records whatever came back for it. */
+/** Records whatever came back for one system, which is no longer pending. */
 function settle(id: number, outcome: { scripts?: SystemScripts; failed?: string }): void {
   const state = useScriptsStore.getState();
-  const pending = new Set(state.pending);
-  pending.delete(id);
+  const pending = scriptReads.pending();
   const scripts = new Map(state.scripts);
   const missing = new Set(state.missing);
   const failed = new Map(state.failed);

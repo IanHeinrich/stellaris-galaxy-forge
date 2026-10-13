@@ -5,7 +5,7 @@ import type { DocumentChange } from "../generated/DocumentChange";
 import type { DocumentChanged } from "../generated/DocumentChanged";
 import type { OpenResult } from "../generated/OpenResult";
 import { fileName } from "../lib/paths";
-import { useEditorStore } from "./editorStore";
+import { selectSystems, useEditorStore } from "./editorStore";
 import type { FileSessionState } from "./fileSessionStore";
 import type { SessionApi } from "./fileSessionStore.saveGate";
 import { useGalaxyStore } from "./galaxyStore";
@@ -149,7 +149,8 @@ function keepView({ setState }: SessionApi, result: OpenResult): void {
   editor.resetSession();
   useIssuesStore.getState().load(result.issues);
   useGalaxyStore.getState().load(result.galaxy, { keepView: true });
-  useEditorStore.setState({ selection, selectedLane, selectedNebula });
+  void selectSystems(selection, false);
+  useEditorStore.setState({ selectedLane, selectedNebula });
   void useGameDataStore.getState().onDocumentOpened();
   const opened = issuesDocument();
   void ipc

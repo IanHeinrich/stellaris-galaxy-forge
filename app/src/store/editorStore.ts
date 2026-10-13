@@ -606,7 +606,7 @@ function isSingle(selection: number[], id: number): boolean {
 }
 
 /** The one path every selection change takes: it owns `inspected` and clears the lane and nebula. */
-async function selectSystems(ids: number[], reveal = true): Promise<void> {
+export async function selectSystems(ids: number[], reveal = true): Promise<void> {
   const { setState, getState } = useEditorStore;
   setState({
     selection: ids,

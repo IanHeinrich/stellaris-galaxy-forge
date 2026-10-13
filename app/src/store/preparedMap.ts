@@ -5,6 +5,7 @@ import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
+import { lastOf } from "../lib/memo";
 import { templateName } from "../lib/names";
 import { composeOwnership, settledOwnership, type Ownership } from "../lib/ownership";
 import { composePrecursors, type PrecursorRegions } from "../lib/precursors";
@@ -33,25 +34,12 @@ export interface MapInputs {
 
 const NONE: ReadonlySet<number> = new Set<number>();
 
-/** `compute`'s last answer, computed again, from the answer before, when a value in `from` changes. */
-function memo<T>(): (from: readonly unknown[], compute: (previous: T | null) => T) => T {
-  let last: readonly unknown[] | null = null;
-  let value: T | null = null;
-  return (from, compute) => {
-    if (value === null || last === null || from.some((v, i) => v !== last?.[i])) {
-      last = from;
-      value = compute(value);
-    }
-    return value;
-  };
-}
-
 /** The map's inputs as the stores stand. */
 export function mapInputs(): MapInputs {
   return projectedInputs() ?? stored();
 }
 
-const projectedMemo = memo<MapInputs>();
+const projectedMemo = lastOf<MapInputs>();
 
 /** The map as Prepare's choices would leave it while it shows them, one object per change; else null. */
 function projectedInputs(): MapInputs | null {
@@ -92,7 +80,7 @@ function projected(projection: PreparedMap): MapInputs {
   };
 }
 
-const ownershipMemo = memo<Ownership>();
+const ownershipMemo = lastOf<Ownership>();
 
 /** Who owns what on the map: `currentOwnership`, or composed from the projection's inputs. */
 export function mapOwnership(): Ownership {
@@ -114,7 +102,7 @@ export function mapOwnership(): Ownership {
   });
 }
 
-const precursorsMemo = memo<PrecursorRegions>();
+const precursorsMemo = lastOf<PrecursorRegions>();
 
 /** Each system's precursors on the map: `currentPrecursors`, or read from the projection's systems. */
 export function mapPrecursors(): PrecursorRegions {
@@ -129,7 +117,7 @@ export interface MapDetails {
   readonly version: number;
 }
 
-const detailsMemo = memo<MapDetails>();
+const detailsMemo = lastOf<MapDetails>();
 let projectedVersion = -1;
 
 /**
