@@ -11,14 +11,7 @@ import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import {
-  OPEN_RESULT,
-  countryNode,
-  editResult,
-  name,
-  planetSummary,
-  systemDetails,
-} from "../../store/fixture";
+import { OPEN_RESULT, countryNode, name, planetSummary, systemDetails } from "../../store/fixture";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { inSystem, openWith } from "../../test/session";
 import { useSceneStore } from "../../store/sceneStore";
@@ -164,7 +157,6 @@ describe("the menus of moving planets", () => {
       { class: "pc_arid" },
       { class: "pc_desert" },
     ] as never);
-    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
     await selectBoth();
     const body = { kind: "body", system: SOL, id: EARTH } as const;
     openOn(body);
