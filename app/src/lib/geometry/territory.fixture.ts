@@ -3,7 +3,8 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
 import { seeded } from "../random";
 import { dist2 } from "./pt";
-import type { TerritoryParams } from "./territory";
+import type { Region } from "./polygon";
+import { InfluenceField, type TerritoryParams, type TerritorySystem } from "./territory";
 
 /** Vanilla's `NGraphics` border defines, as gamedata reads them from an unmodded install. */
 export const PARAMS: TerritoryParams = {
@@ -14,6 +15,25 @@ export const PARAMS: TerritoryParams = {
   reachFactor: 1.88,
   ownerlessReachFactor: 1.88,
 };
+
+/**
+ * The territory of every country, or with `only` of those countries alone; the systems of
+ * every other owner still claim their space.
+ */
+export function countryRegions(
+  systems: Iterable<TerritorySystem>,
+  params: TerritoryParams,
+  only?: ReadonlySet<number>,
+): Map<number, Region> {
+  const field = new InfluenceField(params, only ?? null);
+  field.reset(systems);
+  const regions = new Map<number, Region>();
+  for (const owner of field.drawnOwners()) {
+    const region = field.region(owner);
+    if (region.length > 0) regions.set(owner, region);
+  }
+  return regions;
+}
 
 const GALAXY_SEED = 0xc0ffee;
 const GALAXY_RADIUS = 500;

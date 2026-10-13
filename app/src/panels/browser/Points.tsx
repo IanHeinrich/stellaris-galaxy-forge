@@ -3,7 +3,7 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import { pointGroups } from "../../lib/browserRows";
 import { kindLabel, kindTitle } from "../../lib/special";
 import { kindVisible } from "../../lib/visual/layerGroups";
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import { KIND_STYLE } from "../../lib/visual/specialStyle";
 import { type PointGroup, type PointRow } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useEditorStore, type HeightChange } from "../store/editorStore";
 import { heightTint, isFlat, relativeHeight } from "../lib/height";
 import { useGalaxyStore } from "../store/galaxyStore";
-import { toCss } from "../lib/visual/ownerColors";
+import { toCss } from "../lib/visual/color";
 import { TextField } from "./EditField";
 import "./panels.css";
 

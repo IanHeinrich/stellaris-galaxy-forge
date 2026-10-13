@@ -7,7 +7,7 @@ import type { ResourceAmountView } from "../../generated/ResourceAmountView";
 import { plainGameText } from "../gameText";
 import { counted, keyWords } from "../text";
 import { formatAmount } from "./resources";
-import { NEUTRAL_RAMP, resourceRamp, shadeIndex, textOn } from "./resourceColors";
+import { NEUTRAL_RAMP, resourceRamp, shadeIndex, textOn } from "../visual/resourceColors";
 import { barLengths } from "./oddsBars";
 import { likeliestFirst, percent, type PoolPick } from "./spawnFacts";
 

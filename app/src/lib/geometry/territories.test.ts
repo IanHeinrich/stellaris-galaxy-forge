@@ -3,8 +3,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
 import { Territories, type BandWidths, type Shape } from "./territories";
 import { scanPiece } from "./labelFit";
-import { countryRegions } from "./territory";
-import { buildGalaxy, PARAMS } from "./territory.fixture";
+import { buildGalaxy, countryRegions, PARAMS } from "./territory.fixture";
 
 const NEAR: BandWidths = { band: 1.6, seam: 0.4 };
 const FAR: BandWidths = { band: 5.9, seam: 5.9 / 4 };

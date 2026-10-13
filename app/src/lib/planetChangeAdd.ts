@@ -7,6 +7,7 @@ import type { MegastructureView } from "../generated/MegastructureView";
 import { bodyClassName } from "./details/labels";
 import type { MegastructureSpot } from "./megastructurePicks";
 import type { Names } from "./names";
+import { withArticle } from "./text";
 
 export const PLANET_CHANGE_LABEL = "Planet";
 /** The planet's class when the spot doesn't say it. */
@@ -52,12 +53,8 @@ export function planetChangeNote(
   names: Names,
 ): string {
   if (change.class === null) return `${planet} becomes ${changedTo(change, names)}.`;
-  return `${planet} becomes ${article(changedTo(change, names))}.`;
+  return `${planet} becomes ${withArticle(changedTo(change, names))}.`;
 }
 
 /** What the dialog says before Add when the planet is kept. */
 export const PLANET_KEPT_NOTE = "The planet keeps its class and size.";
-
-function article(text: string): string {
-  return /^[aeiou]/i.test(text) ? `an ${text}` : `a ${text}`;
-}

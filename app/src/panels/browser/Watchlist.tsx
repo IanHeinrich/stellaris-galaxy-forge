@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import { shownLabel, unpinLabel, type WatchEntry } from "../../lib/watchlist";
 import { useEditorStore } from "../../store/editorStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";

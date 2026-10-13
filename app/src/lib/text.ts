@@ -34,6 +34,26 @@ export function counted(n: number, noun: string, plural = `${noun}s`): string {
   return `${n} ${n === 1 ? noun : plural}`;
 }
 
+const LISTS = {
+  and: new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" }),
+  or: new Intl.ListFormat("en-GB", { style: "long", type: "disjunction" }),
+};
+
+/** `["a", "b", "c"], "and"` → `a, b and c`; `"or"` gives `a, b or c`; one item stands alone. */
+export function listed(items: readonly string[], joiner: "and" | "or"): string {
+  return LISTS[joiner].format(items);
+}
+
+/** `add a system` → `Load game data to add a system.`: why a control is off until the install is read. */
+export function needsGameData(task: string): string {
+  return `Load game data to ${task}.`;
+}
+
+/** `Habitat` → `a Habitat`; `Ocean world` → `an Ocean world`. */
+export function withArticle(text: string): string {
+  return /^[aeiou]/i.test(text) ? `an ${text}` : `a ${text}`;
+}
+
 const DAY = 86400;
 
 /** "14:02" today, "yesterday", then "3 Sep" and the year once it is not this one. */

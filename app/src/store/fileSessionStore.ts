@@ -389,6 +389,11 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   },
 }));
 
+/** Puts the message of `promise`'s failure on the session, where every other failure lands. */
+export function reportFailure(promise: Promise<unknown>): void {
+  promise.catch((e: unknown) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+}
+
 /** Whether the open document supports `cap`, as `documentCapabilities` reads it. */
 export function canEdit(cap: keyof Capabilities): boolean {
   return supports(documentCapabilities(useFileSessionStore.getState()), cap);

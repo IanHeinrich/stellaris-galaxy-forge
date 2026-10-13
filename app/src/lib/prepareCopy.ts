@@ -10,7 +10,7 @@ import type { PrepareChoice } from "../generated/PrepareChoice";
 import type { PreparePreset } from "../generated/PreparePreset";
 import type { PrepareRow } from "../generated/PrepareRow";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import { counted } from "./text";
+import { counted, needsGameData } from "./text";
 
 /** A line that may name the row's count, which is null until the preview is read. */
 export type Line = string | ((n: number | null) => string);
@@ -69,8 +69,7 @@ export const PRESET_LABELS: Record<PreparePreset | "custom", string> = {
 export const PREPARE_TITLE = "Prepare for a new game";
 export const PREPARE_INTRO =
   "Choose what the new game takes from this map. Hover over a row to see what each choice does.";
-export const PREPARE_NEEDS_GAME_DATA =
-  "Load the game data to sort this scenario's systems into rows.";
+export const PREPARE_NEEDS_GAME_DATA = needsGameData("sort this scenario's systems into rows");
 export const PREPARE_MENU_ITEM = "Prepare for a new game…";
 export const APPLY_LABEL = "Apply";
 export const NOT_NOW_LABEL = "Not now";
@@ -188,16 +187,6 @@ export function rowCount(copy: RowCopy, n: number): string {
 /** `line` with the row's count `n` in it. */
 export function lineText(line: Line, n: number | null): string {
   return typeof line === "string" ? line : line(n);
-}
-
-/** What `copy`'s row does when it takes `choice`, with `n` systems in the row. */
-export function choiceText(
-  copy: RowCopy,
-  choice: PrepareChoice,
-  n: number | null,
-): string | undefined {
-  const answers = copy.answers[choice];
-  return answers === undefined ? undefined : lineText(answers.text, n);
 }
 
 /** Why `row` takes no choice on a map of `profile`; undefined while it takes one. */

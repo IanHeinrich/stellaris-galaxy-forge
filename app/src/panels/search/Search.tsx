@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { errorMessage } from "../../api/errors";
+import { errorMessage } from "../../api/ipc";
 import type { SearchHit } from "../../generated/SearchHit";
 import { bypassName, planetClassLabel } from "../../lib/details/labels";
 import { displayName, displayTemplate, templateName } from "../../lib/names";

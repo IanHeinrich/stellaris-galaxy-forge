@@ -5,7 +5,7 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import { WATCH_COLOURS } from "../../lib/watchlist";
 import { useWatchlistStore } from "../../store/watchlistStore";
 import { PINNED_GROUP, PinnedRows, PinToggle } from "./Pins";

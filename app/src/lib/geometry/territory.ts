@@ -378,25 +378,6 @@ export class InfluenceField {
   }
 }
 
-/**
- * The territory of every country, or with `only` of those countries alone; the systems of
- * every other owner still claim their space.
- */
-export function countryRegions(
-  systems: Iterable<TerritorySystem>,
-  params: TerritoryParams,
-  only?: ReadonlySet<number>,
-): Map<number, Region> {
-  const field = new InfluenceField(params, only ?? null);
-  field.reset(systems);
-  const regions = new Map<number, Region>();
-  for (const owner of field.drawnOwners()) {
-    const region = field.region(owner);
-    if (region.length > 0) regions.set(owner, region);
-  }
-  return regions;
-}
-
 function sameNumbers(a: readonly number[], b: readonly number[] | undefined): boolean {
   if (!b || a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;

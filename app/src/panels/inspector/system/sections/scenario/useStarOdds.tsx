@@ -1,5 +1,6 @@
 import type { SpawnStar } from "../../../../../generated/SpawnStar";
-import { oddsRows, readableTint, starListName } from "../../../../../lib/details/oddsBars";
+import { oddsRows, starListName } from "../../../../../lib/details/oddsBars";
+import { readableTint } from "../../../../../lib/visual/color";
 import { starOdds } from "../../../../../lib/details/spawnFacts";
 import { starGlyph } from "../../../../../lib/visual/starGlyphs";
 import type { ShownOdds } from "../../../entity/OddsBar";

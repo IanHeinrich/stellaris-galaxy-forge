@@ -6,6 +6,7 @@ import type { MapColor } from "../generated/MapColor";
 import type { Swatch } from "../panels/EditField";
 import type { TileGroup, TileItem } from "../panels/TilePicker";
 import { flagKey } from "./flagKey";
+import { needsGameData } from "./text";
 
 /** Which of a palette colour's looks a swatch shows: on the map, or in the flag. */
 export type PaletteUse = "map" | "flag";
@@ -26,7 +27,7 @@ export function paletteLines(
   palette: ReadonlyMap<string, MapColor>,
   source: string | null,
 ): string[] {
-  if (palette.size === 0) return ["Load game data to pick from the game's palette."];
+  if (palette.size === 0) return [needsGameData("pick from the game's palette")];
   if (source === null) return ["Palette: Stellaris"];
   return [`Palette: ${source}`, "The save needs this mod to show these colours."];
 }

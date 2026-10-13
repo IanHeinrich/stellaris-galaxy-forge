@@ -1,6 +1,6 @@
 import { BODIES_NEED_GAME_DATA, RANDOM_BODY_LABEL, sizeRange } from "../../../lib/addBody";
 import { PLANET_ICON_KEYS, planetTint } from "../../../lib/details/icons";
-import { toCss } from "../../../lib/visual/ownerColors";
+import { toCss } from "../../../lib/visual/color";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { Icon } from "../../parts";
 import { useBodyClasses } from "../../useBodyClasses";
