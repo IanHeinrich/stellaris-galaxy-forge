@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { listStep } from "./gridKeys";
 import { ENTER, ESCAPE } from "./keys";
 import "./panels.css";
 
@@ -63,13 +64,13 @@ export function ComboField({
 
   // The app's own keys act on the selection and the cut, so a key the field takes goes no further.
   const onKeyDown = (e: KeyboardEvent) => {
-    const move = (to: number) => setActive((to + shown.length) % shown.length);
+    const arrow = e.key === "ArrowDown" || e.key === "ArrowUp";
+    const to = arrow ? listStep(e.key, active, shown.length, { wrap: true }) : null;
     if (e.key === ESCAPE) {
       close();
       input.current?.blur();
     } else if (!open || shown.length === 0) return;
-    else if (e.key === "ArrowDown") move(active + 1);
-    else if (e.key === "ArrowUp") move(active - 1);
+    else if (to !== null) setActive(to);
     else if (e.key === ENTER && highlighted !== null) pick(highlighted);
     else return;
     e.preventDefault();

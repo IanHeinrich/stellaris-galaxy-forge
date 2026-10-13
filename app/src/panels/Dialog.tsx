@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { ESCAPE } from "./keys";
 
 const FOCUSABLE =
@@ -80,4 +80,44 @@ export function Dialog({
       {dialog}
     </div>
   );
+}
+
+/**
+ * What a dialog shows inside `Dialog`: its title, a body that scrolls, and a foot of buttons,
+ * Cancel first and the primary action last. `aside` goes beside the title and `note` under the
+ * buttons. With `onSubmit` the frame is a form, so Enter submits it.
+ */
+export function DialogFrame({
+  title,
+  aside,
+  bodyClassName,
+  actions,
+  note,
+  onSubmit,
+  children,
+}: {
+  title: ReactNode;
+  aside?: ReactNode;
+  bodyClassName?: string;
+  actions: ReactNode;
+  note?: ReactNode;
+  onSubmit?: (e: FormEvent) => void;
+  children: ReactNode;
+}) {
+  const frame = (
+    <>
+      <div className="dialog-head">
+        <h1>{title}</h1>
+        {aside}
+      </div>
+      <div className={bodyClassName === undefined ? "dialog-body" : `dialog-body ${bodyClassName}`}>
+        {children}
+      </div>
+      <div className="dialog-foot">
+        <div className="dialog-actions">{actions}</div>
+        {note}
+      </div>
+    </>
+  );
+  return onSubmit === undefined ? frame : <form onSubmit={onSubmit}>{frame}</form>;
 }

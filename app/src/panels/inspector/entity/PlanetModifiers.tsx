@@ -1,5 +1,3 @@
-import { useId, useState } from "react";
-import type { CardItem } from "./PickerCard";
 import type { ModifierRow } from "../../../lib/details/planetPage";
 import {
   bodyNoun,
@@ -9,32 +7,18 @@ import {
   modifierLine,
 } from "../../../lib/details/spawnFacts";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { Icon } from "../../parts";
 import { Section } from "../parts";
+import { ModifierArt } from "./ModifierArt";
 import { MODIFIER_PICKER } from "./ModifierPicker";
 import { PickedRow } from "./PickedRow";
 import type { Spread } from "./PlanetDeposits";
 import { modifierCard } from "./modifierCard";
-import { EffectSummary, PickerCard } from "./PickerCard";
+import { EffectSummary, HoverCard } from "../HoverCard";
+import { useHoverCard } from "../useHoverCard";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
 import { FeaturePool, PoolLines } from "./Pools";
 import { useFeatureNamer } from "./useFeatureNamer";
-
-/** A row's card while `shown`; nothing else. */
-function RowCard({
-  shown,
-  id,
-  item,
-  rowId,
-}: {
-  shown: boolean;
-  id: string;
-  item: CardItem;
-  rowId: string;
-}) {
-  return shown ? <PickerCard id={id} item={item} rowId={rowId} /> : null;
-}
 
 /**
  * A modifier's row: its first two effects and how long it lasts, its card while the pointer or
@@ -54,12 +38,7 @@ export function ModifierRowView({
   const view = row.view;
   const card = modifierCard(row);
   const name = card.label;
-  const id = useId();
-  const [shown, setShown] = useState(false);
-  const show = () => setShown(true);
-  const hide = () => setShown(false);
-  const cardId = `${id}-card`;
-  const describedBy = shown ? cardId : undefined;
+  const { id, cardId, shown, describedBy, hover, focus } = useHoverCard();
   const focusable = onRemove === null;
   const line =
     card.effects.length === 0 ? (
@@ -77,18 +56,11 @@ export function ModifierRowView({
       aria-label={focusable ? name : undefined}
       tabIndex={focusable ? 0 : undefined}
       aria-describedby={focusable ? describedBy : undefined}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
+      {...hover}
+      {...focus}
     >
       <PickedRow
-        art={
-          <>
-            <Icon keys={view?.icon == null ? [] : [view.icon]} glyph="◆" />
-            {view?.icon_frame != null && <Icon className="pl-mod-frame" keys={[view.icon_frame]} />}
-          </>
-        }
+        art={<ModifierArt icon={view?.icon} frame={view?.icon_frame} />}
         name={name}
         mono={view === undefined}
         lines={[
@@ -114,7 +86,7 @@ export function ModifierRowView({
               }
         }
       />
-      <RowCard shown={shown} id={cardId} item={card} rowId={id} />
+      {shown && <HoverCard id={cardId} item={card} rowId={id} />}
     </div>
   );
 }

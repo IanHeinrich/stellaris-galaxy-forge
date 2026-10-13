@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { SourceLine } from "../../generated/SourceLine";
 import type { SystemSpawn } from "../../generated/SystemSpawn";
 import type { StateText } from "../../lib/details/scenarioValues";
@@ -13,8 +13,9 @@ import {
 import { OpenButton } from "../OpenButton";
 import { Chip } from "../parts";
 import type { Press } from "./entity/OddsBar";
-import { PickerCard } from "./entity/PickerCard";
+import { HoverCard } from "./HoverCard";
 import { PropertyRow } from "./parts";
+import { useHoverCard } from "./useHoverCard";
 
 /**
  * The three states a scenario value is in, one look each wherever it shows: fixed is plain text,
@@ -121,30 +122,16 @@ export function Hinted({
   press?: Press;
   children: ReactNode;
 }) {
-  const id = useId();
-  const cardId = `${id}-card`;
-  const [shown, setShown] = useState(false);
+  const { id, cardId, shown, describedBy, hover, focus } = useHoverCard();
   const item = useMemo(() => ({ label, effects: [] }), [label]);
-  const describedBy = shown ? cardId : undefined;
-  const focus = { onFocus: () => setShown(true), onBlur: () => setShown(false) };
   const card = shown && (
-    <PickerCard
-      id={cardId}
-      rowId={id}
-      item={item}
-      beside=".ins-kv, .ins-group, .ins-sec, .ins-body"
-    >
+    <HoverCard id={cardId} rowId={id} item={item} beside=".ins-kv, .ins-group, .ins-sec, .ins-body">
       <span className="dp-card-text">{hint}</span>
-    </PickerCard>
+    </HoverCard>
   );
   if (press !== undefined) {
     return (
-      <span
-        id={id}
-        className="ins-hinted-toggle"
-        onMouseEnter={() => setShown(true)}
-        onMouseLeave={() => setShown(false)}
-      >
+      <span id={id} className="ins-hinted-toggle" {...hover}>
         <button
           type="button"
           className="ins-toggle"
@@ -166,8 +153,7 @@ export function Hinted({
       className="ins-hinted"
       tabIndex={focusable ? 0 : undefined}
       aria-describedby={describedBy}
-      onMouseEnter={() => setShown(true)}
-      onMouseLeave={() => setShown(false)}
+      {...hover}
       {...(focusable ? focus : {})}
     >
       {children}

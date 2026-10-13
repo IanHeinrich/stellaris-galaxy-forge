@@ -50,7 +50,7 @@ describe("the fit fallen empire zones dialog", () => {
 
     const html = dialog();
     expect(html).toContain("No room for a zone");
-    expect(html).toContain('type="submit" disabled=""');
+    expect(html).toContain('type="submit" class="primary" disabled=""');
     expect(html).toContain("0 of 0");
   });
 });

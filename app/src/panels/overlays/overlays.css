@@ -248,27 +248,10 @@
   margin-top: 5px;
 }
 
-.update-dialog {
+.notice-dialog.update-dialog {
   width: min(520px, 100%);
   max-height: min(70vh, 640px);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
   overflow-y: auto;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: var(--shadow-dialog);
-}
-
-.update-dialog h1 {
-  font-size: 15px;
-  margin: 0;
-}
-
-.update-dialog p {
-  margin: 0;
 }
 
 .update-notes {
@@ -315,14 +298,6 @@
   font-size: var(--text-control);
 }
 
-.update-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .fe-zone-fit-slider {
   display: flex;
   flex: 1;
@@ -343,7 +318,7 @@
 }
 
 /* A fixed height, so the dialog keeps its size as the selection and the filter change the tiles. */
-.open-dialog.megastructure-add-dialog {
+.dialog.megastructure-add-dialog {
   width: min(1040px, 100%);
   height: min(86vh, 800px);
   max-height: min(86vh, 800px);
@@ -722,7 +697,8 @@
   white-space: pre-line;
 }
 
-.save-issues-dialog {
+/* A short dialog: a title, a few lines and a row of buttons. */
+.notice-dialog {
   width: min(420px, 100%);
   display: flex;
   flex-direction: column;
@@ -734,16 +710,16 @@
   box-shadow: var(--shadow-dialog);
 }
 
-.save-issues-dialog h1 {
+.notice-dialog h1 {
   font-size: 15px;
   margin: 0;
 }
 
-.save-issues-dialog p {
+.notice-dialog p {
   margin: 0;
 }
 
-.save-issues-actions {
+.notice-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

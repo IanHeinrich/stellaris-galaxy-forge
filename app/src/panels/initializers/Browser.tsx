@@ -11,6 +11,7 @@ import {
   useInitializerBrowserStore,
   useVisibleEntries,
 } from "../../store/initializerBrowserStore";
+import { listStep } from "../gridKeys";
 import { ENTER } from "../keys";
 import { Dialog } from "../Dialog";
 import { HelpLink } from "../HelpLink";
@@ -98,24 +99,11 @@ function Browsing() {
       void assign(e.shiftKey);
       return;
     }
-    const last = keys.length - 1;
-    const to =
-      e.key === "ArrowDown"
-        ? keys.indexOf(highlighted ?? "") + 1
-        : e.key === "ArrowUp"
-          ? keys.indexOf(highlighted ?? "") - 1
-          : e.key === "PageDown"
-            ? keys.indexOf(highlighted ?? "") + PAGE
-            : e.key === "PageUp"
-              ? keys.indexOf(highlighted ?? "") - PAGE
-              : e.key === "Home" && !fromSearch
-                ? 0
-                : e.key === "End" && !fromSearch
-                  ? last
-                  : null;
-    if (to === null || last < 0) return;
+    if (fromSearch && (e.key === "Home" || e.key === "End")) return;
+    const to = listStep(e.key, keys.indexOf(highlighted ?? ""), keys.length, { page: PAGE });
+    if (to === null) return;
     e.preventDefault();
-    highlight(keys[Math.min(Math.max(to, 0), last)]);
+    highlight(keys[to]);
   };
 
   const creating = mode === "create";

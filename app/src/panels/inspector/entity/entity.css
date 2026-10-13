@@ -468,91 +468,11 @@
   overflow-wrap: anywhere;
 }
 
-/* A row's card, fixed over the map left of the dock, so the dock's scrolling doesn't clip it. */
-.dp-card {
-  position: fixed;
-  z-index: 4;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  padding: 8px 10px;
-  font-size: var(--text-hint);
-  color: var(--fg-soft);
-  overflow-wrap: anywhere;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
-  pointer-events: none;
-}
-
-/* Without room beside the dock, the card shows in place under its row. */
-.dp-card.under {
-  position: static;
-  margin-top: 6px;
-  padding: 6px 2px 0;
-  background: none;
-  border: none;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  box-shadow: none;
-  pointer-events: auto;
-}
-
 /* Under the picker's list, one height for every row; a long description scrolls. */
 .dp > .dp-card.under {
   height: 9em;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.dp-card-name {
-  font-size: var(--text-control);
-  color: var(--fg);
-}
-
-.dp-card-effects {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--fg);
-}
-
-.dp-card-note {
-  margin-top: 4px;
-}
-
-.dp-card-text {
-  margin-top: 6px;
-  padding-top: 6px;
-  white-space: pre-line;
-  border-top: 1px solid var(--border);
-}
-
-/* Beside the dock the card stays inside the window: its name, category and note always show, and a
-   long list of effects is cut where the window ends. */
-.dp-card:not(.under) {
-  max-height: calc(100vh - 16px);
-  overflow: hidden;
-}
-
-.dp-card:not(.under) > * {
-  flex: none;
-}
-
-.dp-card:not(.under) > .dp-card-effects {
-  flex: 0 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* Beside the dock the card takes no pointer to scroll, so a long description ends after a few lines. */
-.dp-card:not(.under) .dp-card-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 10;
-  line-clamp: 10;
 }
 
 .pl-sub-head {

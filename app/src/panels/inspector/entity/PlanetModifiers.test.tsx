@@ -15,6 +15,9 @@ import { open, resetStores } from "../inspectorFixture";
 import { drawnBy, drawnButton, lastDrawn } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { WORLD, EMPIRE, EMPIRE_NODE, landPage, render, districts, OLBERS } from "./bodyPageFixture";
+import type { ModifierRow } from "../../../lib/details/planetPage";
+import { modifierCard } from "./modifierCard";
+import { ModifierRowView } from "./PlanetModifiers";
 
 bindStores();
 
@@ -99,9 +102,8 @@ describe("a planet's modifiers", () => {
         '<span class="muted dp-more"> +1 more</span></span> · permanent</span>',
     );
     expect(html).not.toContain("dp-card");
-    const card = lastDrawn(({ props }) => "shown" in props && "rowId" in props, "modifier card");
-    expect(card.shown).toBe(false);
-    expect(card.item).toEqual({
+    const shownRow = lastDrawn(({ type }) => type === ModifierRowView, "modifier row");
+    expect(modifierCard(shownRow.row as ModifierRow)).toEqual({
       label: "Abundant Geothermal Activity",
       effects: [
         "+20 Max Agriculture Districts",

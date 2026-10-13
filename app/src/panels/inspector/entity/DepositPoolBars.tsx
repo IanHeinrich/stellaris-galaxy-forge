@@ -1,4 +1,3 @@
-import { useId, useState } from "react";
 import {
   DEPOSIT_CARD_NOTE,
   depositKinds,
@@ -18,7 +17,8 @@ import { counted } from "../../../lib/text";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { DependsOnClass, Hinted } from "../states";
 import { BarTrack, PoolList, PoolRow } from "./OddsBar";
-import { PickerCard } from "./PickerCard";
+import { HoverCard } from "../HoverCard";
+import { useHoverCard } from "../useHoverCard";
 import { ResourceIcon } from "./ResourceIcon";
 
 /** Whether a row shows its resource's icon; one with none shows its name instead. */
@@ -67,17 +67,17 @@ function DepositBarCardLines({ row }: { row: BarRow }) {
 }
 
 /** A resource's card: its heading with its icon, then its amounts. */
-function RowCard({ row, id, rowId }: { row: BarRow; id: string; rowId: string }) {
+export function DepositCard({ row, id, rowId }: { row: BarRow; id: string; rowId: string }) {
   const icon = hasIcon(row) ? row.icon : null;
   return (
-    <PickerCard
+    <HoverCard
       id={id}
       rowId={rowId}
       item={{ label: row.heading, effects: [] }}
       lead={icon !== null && <ResourceIcon amount={icon} />}
     >
       <DepositBarCardLines row={row} />
-    </PickerCard>
+    </HoverCard>
   );
 }
 
@@ -102,33 +102,20 @@ function RowBar({ row }: { row: BarRow }) {
 
 /**
  * One resource's row: its icon, or its name where it has none, its bar split by amount or its
- * amounts, its combined chance, and its card while `shown`.
+ * amounts, its combined chance, and its card on hover or focus.
  */
-export function BarLineView({
-  row,
-  shown,
-  onShow,
-}: {
-  row: BarRow;
-  shown: boolean;
-  onShow: (shown: boolean) => void;
-}) {
-  const id = useId();
-  const cardId = `${id}-card`;
+function BarLine({ row }: { row: BarRow }) {
+  const { id, cardId, shown, describedBy, hover, focus } = useHoverCard();
   const icon = hasIcon(row) ? row.icon : null;
-  const show = () => onShow(true);
-  const hide = () => onShow(false);
   return (
     <PoolRow
       id={id}
       role="group"
       aria-label={row.heading}
-      aria-describedby={shown ? cardId : undefined}
+      aria-describedby={describedBy}
       tabIndex={0}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
+      {...hover}
+      {...focus}
       icon={
         icon !== null && (
           <span role="img" aria-label={row.name}>
@@ -140,31 +127,17 @@ export function BarLineView({
       bar={<RowBar row={row} />}
       chance={row.chance}
     >
-      {shown && <RowCard row={row} id={cardId} rowId={id} />}
+      {shown && <DepositCard row={row} id={cardId} rowId={id} />}
     </PoolRow>
   );
-}
-
-function BarLine({ row }: { row: BarRow }) {
-  const [shown, setShown] = useState(false);
-  return <BarLineView row={row} shown={shown} onShow={setShown} />;
 }
 
 /**
  * One resource whose odds are unknown: a dashed chip with its icon, or its name where it has none,
  * and the amounts it can give, its card on hover or focus.
  */
-export function DepositChipView({
-  row,
-  shown,
-  onShow,
-}: {
-  row: BarRow;
-  shown: boolean;
-  onShow: (shown: boolean) => void;
-}) {
-  const id = useId();
-  const cardId = `${id}-card`;
+function DepositChip({ row }: { row: BarRow }) {
+  const { id, cardId, shown, describedBy, hover, focus } = useHoverCard();
   const icon = hasIcon(row) ? row.icon : null;
   return (
     <span
@@ -172,12 +145,10 @@ export function DepositChipView({
       className="chip pl-pool-chip"
       role="group"
       aria-label={row.heading}
-      aria-describedby={shown ? cardId : undefined}
+      aria-describedby={describedBy}
       tabIndex={0}
-      onMouseEnter={() => onShow(true)}
-      onMouseLeave={() => onShow(false)}
-      onFocus={() => onShow(true)}
-      onBlur={() => onShow(false)}
+      {...hover}
+      {...focus}
     >
       {icon === null ? (
         row.name
@@ -187,14 +158,9 @@ export function DepositChipView({
         </span>
       )}
       {row.amounts !== null && <span className="muted pl-pool-amounts">{row.amounts}</span>}
-      {shown && <RowCard row={row} id={cardId} rowId={id} />}
+      {shown && <DepositCard row={row} id={cardId} rowId={id} />}
     </span>
   );
-}
-
-function DepositChip({ row }: { row: BarRow }) {
-  const [shown, setShown] = useState(false);
-  return <DepositChipView row={row} shown={shown} onShow={setShown} />;
 }
 
 /** `Blockers: 3 kinds`, the kinds named in its card; nothing where there are none. */

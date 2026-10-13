@@ -484,3 +484,74 @@ kbd {
 [role="dialog"]:focus {
   outline: none;
 }
+
+/* The dialog shell, for Dialog and DialogFrame: a title, a body that scrolls, and a foot of
+   buttons with the primary action last. */
+.dialog {
+  width: min(560px, 100%);
+  max-height: min(70vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-dialog);
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-head .link {
+  margin-left: auto;
+}
+
+.dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 14px 10px;
+}
+
+.dialog-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.dialog h1 {
+  font-size: 15px;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.dialog-actions .hint {
+  margin-right: auto;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1407;
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled, [aria-disabled="true"]) {
+  border-color: var(--fg);
+}
+
+button.primary:disabled {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+}

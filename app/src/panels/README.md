@@ -7,7 +7,13 @@ browser), `inspector/` (the right-hand pane), `overlays/` (dialogs, the context
 menu, the map tooltip) and `search/` (the palette). A file more than one
 folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
 piece of script text the app shows: the Initializer sections' groups and the
-Inspector's Source tab.
+Inspector's Source tab. `Dialog.tsx` holds `Dialog` and `DialogFrame`, the
+title, body and foot of buttons (Cancel first, the primary action last) every
+dialog with a form uses; its rules (`.dialog*`, `button.primary`) are in
+`App.css`. `gridKeys.ts` holds the list and grid keyboards (`listStep`,
+`gridStep`) and `scrollParents.ts` the walk up to the boxes that scroll.
+`inspector/HoverCard.tsx` is the Inspector's hover card and
+`inspector/useHoverCard.ts` its wiring.
 
 ## Stylesheets
 

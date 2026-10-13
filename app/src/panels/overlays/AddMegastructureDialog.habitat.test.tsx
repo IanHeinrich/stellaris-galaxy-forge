@@ -74,7 +74,7 @@ describe("the Add megastructure dialog on a habitat", () => {
     expect(html).toContain(writtenAsHabitat(true));
     expect(html).toContain(HABITAT_OWNER_NOTE);
     expect(html).not.toContain('aria-disabled="true"');
-    expect(html).not.toContain('type="submit" disabled=""');
+    expect(html).not.toContain('type="submit" class="primary" disabled=""');
   });
 
   describe("with a major orbital", () => {

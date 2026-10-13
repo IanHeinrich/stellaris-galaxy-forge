@@ -66,7 +66,7 @@ export function Setup() {
             {notFound ? "Locate Stellaris…" : "Change install…"}
           </button>
         </div>
-        <div className="setup-actions">
+        <div className="dialog-actions">
           <span className="hint">You can change this later under Game data in the status bar.</span>
           <button type="submit" ref={go} disabled={status === "loading"}>
             Continue

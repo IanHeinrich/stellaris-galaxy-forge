@@ -5,7 +5,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { standingProfile } from "../../store/paintModStore";
-import { Dialog } from "../Dialog";
+import { Dialog, DialogFrame } from "../Dialog";
 import { HelpLink } from "../HelpLink";
 import {
   CATEGORY_LABELS,
@@ -105,24 +105,24 @@ export function ExportForm({
     void confirmExport(standingProfile());
   };
   return (
-    <form onSubmit={submit}>
-      <div className="open-dialog-head">
-        <h1>Export as scenario</h1>
-        <HelpLink place="exportScenario" topic="Export as scenario" />
-      </div>
-      <div className="open-dialog-body">
-        <ExportReportRows report={report} profile={profile} />
-        <PaintChoice />
-      </div>
-      <div className="open-dialog-foot">
-        <div className="setup-actions">
+    <DialogFrame
+      title="Export as scenario"
+      aside={<HelpLink place="exportScenario" topic="Export as scenario" />}
+      onSubmit={submit}
+      actions={
+        <>
           <button type="button" onClick={() => void confirmExport(null)}>
             Cancel
           </button>
-          <button type="submit">Export</button>
-        </div>
-      </div>
-    </form>
+          <button type="submit" className="primary">
+            Export
+          </button>
+        </>
+      }
+    >
+      <ExportReportRows report={report} profile={profile} />
+      <PaintChoice />
+    </DialogFrame>
   );
 }
 
@@ -134,7 +134,7 @@ export function ExportDialog() {
 
   const cancel = () => void confirmExport(null);
   return (
-    <Dialog className="open-dialog" label="Export as scenario" onClose={cancel} onDismiss={cancel}>
+    <Dialog className="dialog" label="Export as scenario" onClose={cancel} onDismiss={cancel}>
       <ExportForm report={pending.report} profile={pending.profile} />
     </Dialog>
   );

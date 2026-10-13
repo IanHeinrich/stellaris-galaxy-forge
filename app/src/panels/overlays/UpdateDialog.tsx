@@ -120,7 +120,7 @@ export function UpdateBody({
       <>
         <h1>Update failed</h1>
         <p className="warn">{error ?? "The update could not be checked for."}</p>
-        <div className="update-actions">
+        <div className="notice-actions">
           <button type="button" onClick={onReleases}>
             Open releases page
           </button>
@@ -137,7 +137,7 @@ export function UpdateBody({
       <>
         <h1>{status === "current" ? "Up to date" : "Checking for updates"}</h1>
         {status === "current" && <p>Stellaris Galaxy Forge {version} is up to date.</p>}
-        <div className="update-actions">
+        <div className="notice-actions">
           <button type="button" onClick={onClose}>
             Close
           </button>
@@ -160,7 +160,7 @@ export function UpdateBody({
       )}
       {installing && <DownloadState progress={progress} />}
       {error !== null && <p className="warn">{error}</p>}
-      <div className="update-actions">
+      <div className="notice-actions">
         {update.install === "app" && (
           <button type="button" disabled={installing} onClick={onInstall}>
             Install and restart
@@ -191,10 +191,12 @@ export function UpdateDialog() {
   const openReleases = useUpdateStore((s) => s.openReleases);
   const skip = useUpdateStore((s) => s.skip);
   const dismissDialog = useUpdateStore((s) => s.dismissDialog);
+  const shown = useUpdateStore((s) => s.dialog);
+  if (!shown) return null;
 
   return (
     <Dialog
-      className="update-dialog"
+      className="notice-dialog update-dialog"
       label="Update"
       onClose={dismissDialog}
       onDismiss={dismissDialog}

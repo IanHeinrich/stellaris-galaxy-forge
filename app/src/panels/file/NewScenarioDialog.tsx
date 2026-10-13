@@ -4,7 +4,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { Glyph } from "../Glyph";
-import { Dialog } from "../Dialog";
+import { Dialog, DialogFrame } from "../Dialog";
 import { HelpLink } from "../HelpLink";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
@@ -159,23 +159,30 @@ function start(route: Route, blank: Blank): void {
 
 export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
   return (
-    <div className="setup-actions">
+    <>
       <button type="button" onClick={() => useLayoutStore.getState().hideScenarioDialog()}>
         Cancel
       </button>
       <button
         type="button"
+        className="primary"
         disabled={route === "blank" && blank.name === ""}
         onClick={() => start(route, blank)}
       >
         {ROUTES.find((r) => r.id === route)?.primary}
       </button>
-    </div>
+    </>
   );
 }
 
 /** Where a scenario comes from: a canvas of your own, or a game's own galaxy. */
 export function NewScenarioDialog() {
+  const shown = useLayoutStore((s) => s.scenarioDialog);
+  return shown ? <NewScenarioForm /> : null;
+}
+
+/** The dialog's form, mounted afresh each time it opens. */
+function NewScenarioForm() {
   const hide = useLayoutStore((s) => s.hideScenarioDialog);
   const [route, setRoute] = useState<Route>("blank");
   const [name, setName] = useState(DEFAULT_NAME);
@@ -200,72 +207,68 @@ export function NewScenarioDialog() {
   };
 
   return (
-    <Dialog className="open-dialog" label="New scenario" onClose={hide} onDismiss={hide}>
-      <form onSubmit={submit}>
-        <div className="open-dialog-head">
-          <h1>New scenario</h1>
-          <HelpLink place="newScenario" topic="Make a scenario" />
-        </div>
-        <div className="open-dialog-body">
-          <RouteCards route={route} onRoute={setRoute} />
-          {route === "blank" ? (
-            <>
+    <Dialog className="dialog" label="New scenario" onClose={hide} onDismiss={hide}>
+      <DialogFrame
+        title="New scenario"
+        aside={<HelpLink place="newScenario" topic="Make a scenario" />}
+        onSubmit={submit}
+        actions={<RouteFoot route={route} blank={blank} />}
+      >
+        <RouteCards route={route} onRoute={setRoute} />
+        {route === "blank" ? (
+          <>
+            <label className="field">
+              <span>Name</span>
+              <input
+                value={name}
+                required
+                onChange={(e) => setName(e.currentTarget.value)}
+                placeholder={DEFAULT_NAME}
+              />
+            </label>
+            <label className="field">
+              <span>Size</span>
+              <select value={preset} onChange={(e) => setPreset(e.currentTarget.value)}>
+                {PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            {preset === "custom" && (
               <label className="field">
-                <span>Name</span>
-                <input
-                  value={name}
-                  required
-                  onChange={(e) => setName(e.currentTarget.value)}
-                  placeholder={DEFAULT_NAME}
-                />
-              </label>
-              <label className="field">
-                <span>Size</span>
-                <select value={preset} onChange={(e) => setPreset(e.currentTarget.value)}>
-                  {PRESETS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
-                  <option value="custom">Custom</option>
-                </select>
-              </label>
-              {preset === "custom" && (
-                <label className="field">
-                  <span>Radius</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_RADIUS}
-                    value={custom}
-                    onChange={(e) => setCustom(e.currentTarget.valueAsNumber)}
-                  />
-                </label>
-              )}
-              <label className="field">
-                <span>Core radius</span>
+                <span>Radius</span>
                 <input
                   type="number"
-                  min={0}
-                  max={radius}
-                  value={coreRadius}
-                  onChange={(e) => setCore(e.currentTarget.valueAsNumber)}
+                  min={1}
+                  max={MAX_RADIUS}
+                  value={custom}
+                  onChange={(e) => setCustom(e.currentTarget.valueAsNumber)}
                 />
               </label>
-              <div className="muted">
-                The radius only sizes the canvas until the systems you add give it an extent. The
-                core radius is written to the file and drawn as a ring: keep stars outside it.
-              </div>
-              <PaintChoice />
-            </>
-          ) : (
-            <RouteHelp />
-          )}
-        </div>
-        <div className="open-dialog-foot">
-          <RouteFoot route={route} blank={blank} />
-        </div>
-      </form>
+            )}
+            <label className="field">
+              <span>Core radius</span>
+              <input
+                type="number"
+                min={0}
+                max={radius}
+                value={coreRadius}
+                onChange={(e) => setCore(e.currentTarget.valueAsNumber)}
+              />
+            </label>
+            <div className="muted">
+              The radius only sizes the canvas until the systems you add give it an extent. The core
+              radius is written to the file and drawn as a ring: keep stars outside it.
+            </div>
+            <PaintChoice />
+          </>
+        ) : (
+          <RouteHelp />
+        )}
+      </DialogFrame>
     </Dialog>
   );
 }

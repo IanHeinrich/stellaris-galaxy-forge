@@ -11,13 +11,13 @@ import {
   type PickerMode,
 } from "../../../lib/details/depositPicker";
 import { chipLabel } from "../../../lib/details/picker";
-import { resourceAbbrev } from "../../../lib/details/resources";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { Icon } from "../../parts";
 import { ConfirmLine } from "./ConfirmLine";
 import type { PickerItem } from "./PickerMenu";
 import type { PickerKind } from "./PlanetPicker";
+import { ResourceIcon } from "./ResourceIcon";
 
 /** What the game will take away for adding the deposit type `key`, for the user to confirm. */
 export type DepositWarnings = (key: string) => readonly string[];
@@ -32,14 +32,7 @@ function depositItem(row: DepositRow): PickerItem {
     category: chipLabel(DEPOSIT_CHIPS, row.category),
     description: row.description,
     art: view !== undefined && <Icon className="pl-art" keys={[view.texture_key]} glyph="" />,
-    yields: view?.yields.map((y) => (
-      <Icon
-        key={y.resource}
-        className="gi"
-        keys={y.icon === null ? [] : [y.icon]}
-        glyph={resourceAbbrev(y.resource)}
-      />
-    )),
+    yields: view?.yields.map((y) => <ResourceIcon key={y.resource} amount={y} />),
     buttons: row.amounts.map((amount) => ({
       text: amountText(amount),
       label: `Add ${amount.amount === null ? "" : `${amountText(amount)} `}${row.label}`,

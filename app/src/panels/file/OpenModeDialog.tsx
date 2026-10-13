@@ -1,6 +1,6 @@
 import { fileName } from "../../lib/paths";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { Dialog } from "../Dialog";
+import { Dialog, DialogFrame } from "../Dialog";
 import { PaintChoice } from "./PaintChoice";
 import "./open.css";
 
@@ -25,15 +25,26 @@ function OpenAsDialog({
   const heading = onSave ? `Open ${fileName(path)}` : `Open ${fileName(path)} as a scenario`;
   return (
     <Dialog
-      className="open-dialog"
+      className="dialog"
       label={onSave ? "Open as" : "Open as scenario"}
       onClose={onCancel}
       onDismiss={onCancel}
     >
-      <div className="open-dialog-head">
-        <h1>{heading}</h1>
-      </div>
-      <div className="open-dialog-body">
+      <DialogFrame
+        title={heading}
+        actions={
+          <>
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+            {!onSave && (
+              <button type="button" className="primary" onClick={onScenario}>
+                Continue
+              </button>
+            )}
+          </>
+        }
+      >
         {onSave ? (
           <>
             <button type="button" className="mode-choice" onClick={onSave}>
@@ -58,19 +69,7 @@ function OpenAsDialog({
             <PaintChoice />
           </>
         )}
-      </div>
-      <div className="open-dialog-foot">
-        <div className="setup-actions">
-          <button type="button" onClick={onCancel}>
-            Cancel
-          </button>
-          {!onSave && (
-            <button type="button" className="open-primary" onClick={onScenario}>
-              Continue
-            </button>
-          )}
-        </div>
-      </div>
+      </DialogFrame>
     </Dialog>
   );
 }

@@ -168,14 +168,14 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain("<h2>Hyper Relay</h2>");
     expect(html).toContain('aria-disabled="true"');
     expect(html).toContain("The system already has a Hyper Relay.");
-    expect(html).toContain('type="submit" disabled=""');
+    expect(html).toContain('type="submit" class="primary" disabled=""');
   });
 
   it("says what goes at the spot is being read until the shell answers, and why it couldn't be", () => {
     useMegastructureAddStore.setState({ fits: null, fitsError: null });
     let html = renderToStaticMarkup(<AddMegastructureDialog />);
     expect(html).toContain(READING_FITS);
-    expect(html).toContain('type="submit" disabled=""');
+    expect(html).toContain('type="submit" class="primary" disabled=""');
     useMegastructureAddStore.setState({ fitsError: "no such system" });
     html = renderToStaticMarkup(<AddMegastructureDialog />).replace(/&#x27;/g, "'");
     expect(html).toContain(fitsUnread("no such system"));
@@ -186,6 +186,6 @@ describe("the Add megastructure dialog", () => {
     openAt(space);
     const html = dialog();
     expect(html).toContain("No megastructure the game data defines can go here.");
-    expect(html).toContain('type="submit" disabled=""');
+    expect(html).toContain('type="submit" class="primary" disabled=""');
   });
 });

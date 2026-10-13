@@ -44,12 +44,7 @@ export function EditorChooser() {
   const pickProgram = useScriptEditorStore((s) => s.pickProgram);
   if (chooser === null) return null;
   return (
-    <Dialog
-      className="save-issues-dialog"
-      label={CHOOSER_TITLE}
-      onClose={cancel}
-      onDismiss={cancel}
-    >
+    <Dialog className="notice-dialog" label={CHOOSER_TITLE} onClose={cancel} onDismiss={cancel}>
       {choices === null ? (
         <>
           <h1>{CHOOSER_TITLE}</h1>
@@ -168,7 +163,7 @@ export function ChooserBody({
         />
         <span>{REMEMBER_CHOICE}</span>
       </label>
-      <div className="save-issues-actions">
+      <div className="notice-actions">
         <button type="submit" autoFocus disabled={other && program === null}>
           {target === null ? "Save" : "Open"}
         </button>

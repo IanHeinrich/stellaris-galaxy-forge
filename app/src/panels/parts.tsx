@@ -1,26 +1,58 @@
-import type { ComponentProps, CSSProperties, ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { splitsBySource, type Source } from "../lib/visual/layerGroups";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useTextureUrl } from "./useTextureUrl";
 import "./panels.css";
 
-/** A sprite from the game with the map's own fallback when its art is unavailable. */
+const NO_KEYS: readonly string[] = [];
+
+/** Whether `ref`'s element has come into view; at once where the browser cannot tell. */
+function useSeen(ref: RefObject<HTMLElement | null>, watching: boolean): boolean {
+  const [seen, setSeen] = useState(() => !watching || typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    const element = ref.current;
+    if (seen || element === null) return;
+    const watch = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) setSeen(true);
+    });
+    watch.observe(element);
+    return () => watch.disconnect();
+  }, [ref, seen]);
+  return seen;
+}
+
+/**
+ * A sprite from the game with the map's own fallback when its art is unavailable. A `lazy` one
+ * asks for its art only once it scrolls into view.
+ */
 export function Icon({
   keys,
   glyph,
   className,
   style,
   title,
+  lazy = false,
 }: {
   keys: readonly string[];
   glyph?: string;
   className?: string;
   style?: CSSProperties;
   title?: string;
+  lazy?: boolean;
 }) {
-  const url = useTextureUrl(keys);
+  const ref = useRef<HTMLSpanElement>(null);
+  const seen = useSeen(ref, lazy);
+  const url = useTextureUrl(seen ? keys : NO_KEYS);
   return (
-    <span className={className} style={url ? undefined : style} title={title}>
+    <span ref={ref} className={className} style={url ? undefined : style} title={title}>
       {url ? <img src={url} alt="" /> : glyph}
     </span>
   );

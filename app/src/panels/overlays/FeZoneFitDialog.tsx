@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { counted } from "../../lib/text";
-import { useEditorStore } from "../../store/editorStore";
-import { Dialog } from "../Dialog";
-import "../file/open.css";
+import { useEditorStore, type EditorState } from "../../store/editorStore";
+import { Dialog, DialogFrame } from "../Dialog";
 import "./overlays.css";
 
 /**
@@ -11,10 +10,14 @@ import "./overlays.css";
  */
 export function FeZoneFitDialog() {
   const prompt = useEditorStore((s) => s.feZoneFitPrompt);
+  return prompt === null ? null : <FeZoneFitForm prompt={prompt} />;
+}
+
+/** The dialog's form for `prompt`, mounted afresh each time it opens. */
+function FeZoneFitForm({ prompt }: { prompt: NonNullable<EditorState["feZoneFitPrompt"]> }) {
   const cancel = useEditorStore((s) => s.cancelFeZoneFit);
   const fit = useEditorStore((s) => s.fitFeZones);
-  const candidates = prompt?.candidates ?? 0;
-  const automatic = prompt?.automatic ?? 0;
+  const { candidates, automatic } = prompt;
   const [count, setCount] = useState(automatic > 0 ? Math.min(automatic, candidates) : candidates);
   const roomless = candidates === 0;
 
@@ -25,55 +28,48 @@ export function FeZoneFitDialog() {
   };
 
   return (
-    <Dialog
-      className="open-dialog"
-      label="Fit fallen empire zones"
-      onClose={cancel}
-      onDismiss={cancel}
-    >
-      <form onSubmit={submit}>
-        <div className="open-dialog-head">
-          <h1>Fit fallen empire zones</h1>
-        </div>
-        <div className="open-dialog-body">
-          <div className="muted">
-            The mod fills empty space with fallen empire zones on its own. Choose how many to fit
-            here so you can see and adjust them. Zones you placed by hand stay. Fitting again
-            replaces the automatic ones.
-          </div>
-          <div className="field">
-            <span>Fallen empire zones</span>
-            <div className="fe-zone-fit-slider">
-              <span className="muted">none</span>
-              <input
-                type="range"
-                min={0}
-                max={candidates}
-                step={1}
-                value={count}
-                disabled={roomless}
-                autoFocus
-                onChange={(e) => setCount(Number(e.currentTarget.value))}
-                aria-label="Zones to fit"
-              />
-              <span className="muted">all</span>
-            </div>
-            <output className="fe-zone-fit-count">
-              {count} of {candidates}
-            </output>
-          </div>
-        </div>
-        <div className="open-dialog-foot">
-          <div className="setup-actions">
+    <Dialog className="dialog" label="Fit fallen empire zones" onClose={cancel} onDismiss={cancel}>
+      <DialogFrame
+        title="Fit fallen empire zones"
+        onSubmit={submit}
+        actions={
+          <>
             <button type="button" onClick={cancel}>
               Cancel
             </button>
-            <button type="submit" disabled={roomless}>
+            <button type="submit" className="primary" disabled={roomless}>
               {roomless ? "No room for a zone" : `Fit ${counted(count, "zone")}`}
             </button>
-          </div>
+          </>
+        }
+      >
+        <div className="muted">
+          The mod fills empty space with fallen empire zones on its own. Choose how many to fit here
+          so you can see and adjust them. Zones you placed by hand stay. Fitting again replaces the
+          automatic ones.
         </div>
-      </form>
+        <div className="field">
+          <span>Fallen empire zones</span>
+          <div className="fe-zone-fit-slider">
+            <span className="muted">none</span>
+            <input
+              type="range"
+              min={0}
+              max={candidates}
+              step={1}
+              value={count}
+              disabled={roomless}
+              autoFocus
+              onChange={(e) => setCount(Number(e.currentTarget.value))}
+              aria-label="Zones to fit"
+            />
+            <span className="muted">all</span>
+          </div>
+          <output className="fe-zone-fit-count">
+            {count} of {candidates}
+          </output>
+        </div>
+      </DialogFrame>
     </Dialog>
   );
 }

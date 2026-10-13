@@ -27,7 +27,7 @@ beforeEach(() => {
 describe("the open screen's footer", () => {
   it("carries New scenario and Browse as buttons, and names no keys", () => {
     const html = renderToStaticMarkup(<OpenSave modal={false} />);
-    const foot = html.slice(html.indexOf("open-dialog-foot"));
+    const foot = html.slice(html.indexOf("dialog-foot"));
     expect(buttons(foot)).toEqual(["New scenario…", "Browse…", "Open"]);
     expect(shown(html).match(/Browse…/g)).toHaveLength(1);
     expect(shown(foot)).not.toMatch(/Enter|Ctrl|↵|⇧/);

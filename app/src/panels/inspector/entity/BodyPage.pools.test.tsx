@@ -28,7 +28,7 @@ import {
   rolled,
   row,
 } from "../inspectorFixture";
-import { BarLineView, DepositChipView } from "./DepositPoolBars";
+import { DepositCard, DepositKindsList, DepositPoolBars } from "./DepositPoolBars";
 
 bindStores();
 
@@ -209,7 +209,7 @@ describe("the deposits and features a scenario body can roll", () => {
       ],
       views,
     );
-    const html = renderToStaticMarkup(<BarLineView row={row} shown onShow={() => undefined} />);
+    const html = renderToStaticMarkup(<DepositCard row={row} id="card" rowId="row" />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain(
       '<span class="dp-card-name"><span class="gi">E</span>Energy Credits · 44%</span>',
@@ -228,9 +228,11 @@ describe("the deposits and features a scenario body can roll", () => {
       '<span class="dp-card-note muted">How likely a deposit rolled here is to give this resource, at each amount.</span>',
     );
 
+    usePlanetDataStore.setState({ depositTypes: views });
     const unhovered = renderToStaticMarkup(
-      <BarLineView row={row} shown={false} onShow={() => undefined} />,
+      <DepositPoolBars picks={[{ key: "d_energy_2", chance: 0.26 }]} picked />,
     );
+    expect(unhovered).toContain("pl-pool-seg");
     expect(unhovered).not.toContain("dp-card");
   });
 
@@ -254,7 +256,7 @@ describe("the deposits and features a scenario body can roll", () => {
       ],
       views,
     );
-    const html = renderToStaticMarkup(<DepositChipView row={row} shown onShow={() => undefined} />);
+    const html = renderToStaticMarkup(<DepositCard row={row} id="card" rowId="row" />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain(
       '<span class="dp-card-name"><span class="gi">E</span>Energy Credits</span>',
@@ -269,12 +271,10 @@ describe("the deposits and features a scenario body can roll", () => {
     expect(card).not.toContain("How likely");
     expect(card).toContain('<span class="dp-card-note muted">Depends on the class it gets.</span>');
 
-    const asRow = renderToStaticMarkup(<BarLineView row={row} shown onShow={() => undefined} />);
-    expect(asRow).toContain("Depends on the class it gets.");
-    expect(asRow).not.toContain("pl-pool-mini");
     const unhovered = renderToStaticMarkup(
-      <DepositChipView row={row} shown={false} onShow={() => undefined} />,
+      <DepositKindsList kinds={{ resources: [row], blockers: [], other: [] }} picked />,
     );
+    expect(unhovered).toContain("pl-pool-chip");
     expect(unhovered).not.toContain("dp-card");
   });
 
@@ -283,7 +283,7 @@ describe("the deposits and features a scenario body can roll", () => {
       [{ key: "d_toxic_kelp", chance: 0.004 }],
       new Map([["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp" })]]),
     );
-    const html = renderToStaticMarkup(<BarLineView row={row} shown onShow={() => undefined} />);
+    const html = renderToStaticMarkup(<DepositCard row={row} id="card" rowId="row" />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain('<span class="dp-card-name">Toxic Kelp · &lt;1%</span>');
     expect(card).not.toContain("pl-pool-line");
