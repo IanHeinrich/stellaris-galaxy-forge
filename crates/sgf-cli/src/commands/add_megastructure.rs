@@ -11,8 +11,9 @@ use sgf_gamedata::generate::{self, HostMoons};
 use super::{Run, game_data, mutate};
 
 /// Add a megastructure of type `kind` to system `system` at `place`, changing its planet as
-/// its build does unless `keep_planet` and removing the planet's moons when its build does,
-/// and print each effect of its construction left out.
+/// its build does unless `keep_planet` and dealing with the planet's moons as `moons` says when
+/// its build removes them, and print each effect of its construction left out.
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     sav: &Path,
     out: Option<&Path>,
@@ -20,19 +21,13 @@ pub fn run(
     kind: &str,
     place: MegastructurePlace,
     keep_planet: bool,
+    moons: HostMoons,
     opts: &LoadOptions,
 ) -> Run {
     let gd = game_data(opts)?;
     let session = Session::open(sav)?;
-    let planned = generate::megastructure_op(
-        &gd,
-        &session,
-        system,
-        kind,
-        place,
-        keep_planet,
-        HostMoons::Remove,
-    )?;
+    let planned =
+        generate::megastructure_op(&gd, &session, system, kind, place, keep_planet, moons)?;
     let outcome = mutate::apply_all(session, out, vec![planned.op])?;
     for effect in &planned.unsure {
         println!("left out, unsure: {effect}");

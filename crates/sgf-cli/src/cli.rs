@@ -245,6 +245,9 @@ pub enum Command {
         /// Leave the planet's class and size as they are.
         #[arg(long)]
         keep_planet: bool,
+        /// Leave the planet's moons where they are.
+        #[arg(long)]
+        keep_moons: bool,
         #[command(flatten)]
         install: InstallArg,
         #[command(flatten)]
