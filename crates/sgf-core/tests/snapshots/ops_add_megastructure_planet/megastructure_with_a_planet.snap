@@ -1,0 +1,125 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (eq_shipyard_2) in Alari system #169, with planet Processing Ring #16777273
+inverse: Batch { description: "Undo of \"Added megastructure #16 (eq_shipyard_2) in Alari system #169, with planet Processing Ring #16777273\"", ops: [RemoveBody { body: 16777273 }, RemoveMegastructure { megastructure: 16, construction: None, left_out: 0 }] }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,11 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		planet=16777273
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -80096,11 +80101,12 @@
+ 			controller=0
+ 			moons=
+ 			{
+-				3 
++				3 16777273 
+ 			}
+ 			planet_orbitals=
+ 			{
+ 			}
++			megastructure=16
+ 			bombardment_damage=0
+ 			timed_modifier=
+ 			{
+@@ -82369,7 +82375,51 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_equatorial_shipyard"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="Processing Ring"
++			}
++			binary_flags=65
++			coordinate=
++			{
++				x=-41.70461
++				y=-56.2296
++				origin=169
++			}
++			orbit=0.00001
++			last_bombardment=			"0.01.01"
++			moon_of=2
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="ringyard_alloys"
++						days=-1
++					}
++ 
++				}
++			}
++			flags=
++			{
++				giga_equatorial_shipyard=62818656
++				forbid_guillis_planet_modifiers=62818656
++				megastructure=62818656
++				colony_event=62818656
++			}
++			entity=0
++			entity_name="mammalian_01_planetary_ring_game_01_entity"
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -417930,6 +417980,10 @@
+ 		{
+ 			587202589 385875995 452984858 452984857 452984856 154 
+ 		}
++		owned_megastructures=
++		{
++			16 
++		}
+ 		owned_armies=
+ 		{
+ 			40 41 42 43 44 
+@@ -1400882,6 +1400936,25 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="eq_shipyard_2"
++		coordinate=
++		{
++			x=-41.7046
++			y=-56.2296
++			origin=169
++		}
++		owner=0
++		graphical_culture="mammalian_01"
++		planet=2
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {

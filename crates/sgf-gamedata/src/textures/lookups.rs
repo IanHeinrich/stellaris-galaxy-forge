@@ -63,6 +63,11 @@ impl GameData {
         self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
     }
 
+    /// Each of `keys` as [`Self::texture`] makes it, in order, the keys shared among the cores.
+    pub fn textures(&self, textures: &Textures, keys: &[String]) -> Vec<TextureView> {
+        crate::report::on_every_core(keys, |key| self.texture(textures, key))
+    }
+
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
         self.with_lookups(|lookups| textures.png(&self.layout, lookups, key))
     }

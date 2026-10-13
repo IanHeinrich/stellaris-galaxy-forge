@@ -85,9 +85,9 @@ export function clearRefusal(
 }
 
 /** Why Clear is off while the dialog reads what clearing deletes. */
-export const CLEARING_LOADING = "Reading what clearing deletes…";
+export const CLEARING_LOADING = "Checking what clearing deletes…";
 
 /** Why the dialog can't say what clearing deletes. */
 export function clearingUnread(why: string): string {
-  return `Couldn't read what clearing the system deletes: ${why}`;
+  return `Couldn't check what clearing the system deletes: ${why}`;
 }

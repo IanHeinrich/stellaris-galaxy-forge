@@ -44,7 +44,7 @@ describe("the Add megastructure dialog for a type that changes its planet", () =
     const html = dialog();
     expect(html).toContain(PLANET_CHANGE_LABEL);
     expect(html).toMatch(
-      /<input type="radio" name="megastructure-planet" checked=""\/><span>Change to Food Giant \(as the game does\)<\/span>/,
+      /<input type="radio" name="megastructure-planet" checked=""\/><span>Change to Food Giant, as in the game<\/span>/,
     );
     expect(html).toMatch(
       /<input type="radio" name="megastructure-planet"\/><span>Keep Gas Giant<\/span>/,

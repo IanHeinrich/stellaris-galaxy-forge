@@ -94,7 +94,7 @@ describe("the Add megastructure dialog", () => {
       "Produces each month",
       "Empire effects",
       "+5 Max Energy",
-      "Adding it also writes",
+      "It also adds",
       "A Dyson Glow modifier on the system",
     ].map((part) => html.indexOf(part));
     expect(parts).not.toContain(-1);
@@ -107,7 +107,7 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain("<h2>Loom</h2>");
     expect(html).not.toContain("Produces each month");
     expect(html).not.toContain("Empire effects");
-    expect(html).not.toContain("Adding it also writes");
+    expect(html).not.toContain("It also adds");
     expect(html).not.toContain("megastructure-add-description");
   });
 
@@ -130,14 +130,14 @@ describe("the Add megastructure dialog", () => {
     ownSystem(OWNER);
     let html = dialog();
     expect(html).toContain(OWNER_NOTE);
-    expect(html).toContain('src="tex:model:mammalian_01:dyson_sphere_5_entity"');
+    expect(html).toContain('src="tex:model:mammalian_01:dyson_sphere_5_entity:tilt40:px256"');
     expect(html).not.toContain("<select");
 
     ownSystem(null);
     html = dialog();
     expect(html).toContain("No owner");
     expect(html).toContain(NO_OWNER_NOTE);
-    expect(html).toContain('src="tex:model:none:dyson_sphere_5_entity"');
+    expect(html).toContain('src="tex:model:none:dyson_sphere_5_entity:tilt40:px256"');
   });
 
   it("marks a type it has no model for, and shows the megastructure icon", () => {
@@ -175,6 +175,7 @@ describe("the Add megastructure dialog", () => {
     useMegastructureAddStore.setState({ fits: null, fitsError: null });
     let html = renderToStaticMarkup(<AddMegastructureDialog />);
     expect(html).toContain(READING_FITS);
+    expect(html).toContain('aria-busy="true"');
     expect(html).toContain('type="submit" class="primary" disabled=""');
     useMegastructureAddStore.setState({ fitsError: "no such system" });
     html = renderToStaticMarkup(<AddMegastructureDialog />).replace(/&#x27;/g, "'");
@@ -185,7 +186,7 @@ describe("the Add megastructure dialog", () => {
     useGameDataStore.setState({ megastructureTypes: new Map() });
     openAt(space);
     const html = dialog();
-    expect(html).toContain("No megastructure the game data defines can go here.");
+    expect(html).toContain("No megastructure can go here.");
     expect(html).toContain('type="submit" class="primary" disabled=""');
   });
 });

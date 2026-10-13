@@ -3,7 +3,7 @@
 
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::views::SgfError;
-use sgf_gamedata::generate;
+use sgf_gamedata::generate::{self, HostMoons};
 use tauri::{AppHandle, Runtime};
 
 use super::{game_data, require, with_session};
@@ -13,8 +13,9 @@ pub(super) const NO_MEGASTRUCTURES: &str = "this document takes no added megastr
 
 /// Add a finished megastructure of type `kind` to system `system` of the open save at
 /// `place`, as `sgf_gamedata::generate::megastructure_op` builds it, changing its planet as
-/// its build does unless `keep_planet`. Answers what it created and the effects of its
-/// construction left out.
+/// its build does unless `keep_planet`, and deleting the planet's moons first when its build
+/// removes them and `moons` asks. Answers what it created and the effects of its construction
+/// left out.
 #[tauri::command]
 pub async fn add_megastructure<R: Runtime>(
     app: AppHandle<R>,
@@ -22,12 +23,14 @@ pub async fn add_megastructure<R: Runtime>(
     kind: String,
     place: MegastructurePlace,
     keep_planet: bool,
+    moons: HostMoons,
 ) -> Result<AddedMegastructure, SgfError> {
     let gd = game_data(&app, "add a megastructure");
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.add_megastructures, NO_MEGASTRUCTURES)?;
         let gd = gd?;
-        let planned = generate::megastructure_op(&gd, session, system, &kind, place, keep_planet)?;
+        let planned =
+            generate::megastructure_op(&gd, session, system, &kind, place, keep_planet, moons)?;
         let result = session.apply(planned.op)?;
         Ok(AddedMegastructure {
             added: Added::of(session, result),

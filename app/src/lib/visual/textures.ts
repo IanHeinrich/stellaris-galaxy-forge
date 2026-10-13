@@ -165,7 +165,9 @@ function failed(key: string, error: unknown): null {
 
 async function decodePng(view: TextureView): Promise<Texture> {
   const { ImageSource, Texture } = await import("pixi.js");
-  const bytes = Uint8Array.from(atob(view.png_base64 ?? ""), (c) => c.charCodeAt(0));
+  const text = atob(view.png_base64 ?? "");
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
   const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
   const source = new ImageSource({
     resource: bitmap,

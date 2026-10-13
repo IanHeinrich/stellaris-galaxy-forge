@@ -135,6 +135,15 @@ export class Row {
     this.texts[this.usedTexts - 1].x += dx;
   }
 
+  /** A handle on the text placed last, for `moveText` once its neighbours are known. */
+  lastTextMark(): number {
+    return this.usedTexts - 1;
+  }
+
+  moveText(mark: number, x: number): void {
+    this.texts[mark].x = x;
+  }
+
   lastTextHeight(): number {
     return this.texts[this.usedTexts - 1].height;
   }

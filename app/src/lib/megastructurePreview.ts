@@ -22,6 +22,19 @@ import {
 } from "./megastructurePicks";
 
 /**
+ * The most pixels along a model's longer side in the dialog's tiles and its picture, the larger
+ * at about 200 px: a model baked at the system view's size takes seconds.
+ */
+export const MEGASTRUCTURE_THUMB_PX = 256;
+
+/**
+ * The camera's degrees off straight down in the dialog's tiles and its picture, steeper than the
+ * map's so a ring's side shows and a flat model reads as a ring rather than a line. The baker
+ * also draws a model seen at its own tilt brighter.
+ */
+export const MEGASTRUCTURE_THUMB_TILT = 40;
+
+/**
  * The textures a tile of `type` shows, the first that lands: its model in `culture`, bare for
  * no culture, else the game's megastructure icon when it has no model or the model fails.
  */
@@ -31,7 +44,11 @@ export function megastructureThumbKeys(
 ): string[] {
   const look = megastructureLook(type);
   if (look.kind !== "model") return [MEGASTRUCTURE_ICON_KEY];
-  return [modelKey(culture, look.entity), MEGASTRUCTURE_ICON_KEY];
+  const key = modelKey(culture, look.entity, 0, {
+    tilt: MEGASTRUCTURE_THUMB_TILT,
+    px: MEGASTRUCTURE_THUMB_PX,
+  });
+  return [key, MEGASTRUCTURE_ICON_KEY];
 }
 
 /**

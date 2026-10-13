@@ -4,9 +4,10 @@
 //! add dialog asks [`megastructure_fits`] which types go at a spot, and why the save would
 //! refuse each.
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
-use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
     NewMegastructure, NewMegastructurePlace, Op, OpError,
@@ -20,6 +21,7 @@ use crate::GameData;
 use crate::construction::PlanetChange;
 use crate::construction::habitat::habitat;
 use crate::construction::ring_world::{RingStage, ring_world};
+use crate::construction::spawned::{AtHost, at_host, spawns_beside};
 use crate::registries::megastructure_swaps::made_at;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 
@@ -53,11 +55,11 @@ pub enum Refusal {
     /// The editor does not add type `kind`, or not at the place asked; `reason` says why.
     #[error("{reason}")]
     NotAdded { kind: String, reason: String },
-    #[error("{0} is not finished as a habitat.")]
+    #[error("{0} doesn't become a habitat when it's finished.")]
     NoHabitat(String),
     #[error("planet {body} is not a body of system {system}")]
     NotInSystem { body: u32, system: u32 },
-    #[error("Galaxy Forge can't build {name} from the game data: {reason}.")]
+    #[error("Galaxy Forge can't add {name} yet, because {reason}.")]
     NoRingWorld { name: String, reason: String },
     #[error("the install has no planet class {0}")]
     NoClass(String),
@@ -76,14 +78,29 @@ impl From<Refusal> for SgfError {
     }
 }
 
+/// What an add does with the moons of the planet its row stands on, when its build chain
+/// removes them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum HostMoons {
+    Keep,
+    /// Delete them, as the game's build does.
+    Remove,
+}
+
 /// The op that adds a finished megastructure of type `kind` to system `system` of `session`'s
 /// save at `place`, as the game makes it on load: one `AddMegastructure`, with what its build
 /// chain adds in that system. A gateway, relay or L-Gate gets its bypass, open when the type
 /// opens it or its kind is always open, a type whose build marks its planet marks it, and an
-/// Orbital Ring ruin flags its planet. A type whose chain changes the class or size of its
-/// planet changes the planet too, in the same edit, unless `keep_planet`. A type the install
-/// does not define, one the editor does not add, and one whose placement `place` does not
-/// match are refused with the reason.
+/// Orbital Ring ruin flags its planet. A type whose chain spawns a planet round the body it
+/// stands on, its row left standing, writes that planet with no owner, and what the planet's
+/// own spawn does beyond it is listed as unwritten, in place of what the construction's walk
+/// could not follow in the spawn. A type whose chain changes the class or size of its planet
+/// changes the planet too, in the same edit, unless `keep_planet`, and one whose chain removes
+/// the planet's moons deletes them first when `moons` is [`HostMoons::Remove`]. A type the
+/// install does not define, one the editor does not add, one whose placement `place` does not
+/// match and one whose spawned planet the editor cannot write are refused with the reason.
 pub fn megastructure_op(
     gd: &GameData,
     session: &Session,
@@ -91,6 +108,7 @@ pub fn megastructure_op(
     kind: &str,
     place: MegastructurePlace,
     keep_planet: bool,
+    moons: HostMoons,
 ) -> Result<Planned, Refusal> {
     let def = defined(gd, kind)?;
     check_place(gd, def, place)?;
@@ -100,28 +118,58 @@ pub fn megastructure_op(
         MegastructurePlace::Free { .. } => None,
     };
     let change = match (host, &def.planet_change) {
-        (Some(body), Some(change)) if !keep_planet => Some((body, change)),
+        (Some(_), Some(change)) if !keep_planet => Some(change),
         _ => None,
     };
     let owner = owner(session, system);
-    let site = save.construction_site(system)?;
-    let built = match change {
-        Some(_) => def
-            .construction
-            .replay_changing_planet(gd, &site, host, owner.is_some()),
-        None => def.construction.replay(gd, &site, host, owner.is_some()),
+    let culture = culture(session, owner);
+    let at_host = match host {
+        Some(_) => at_host(gd, kind, culture.as_deref()),
+        None => AtHost::default(),
     };
-    let left_out = built.unsure.len() + built.unwritten.len();
-    let add = add_op(gd, def, system, place, owner, built.construction, left_out);
-    let op = match change {
-        Some((body, change)) => with_planet_change(session, save, gd, kind, body, change, add)?,
+    if at_host.planet.is_none() && spawns_beside(gd, kind) {
+        return Err(Refusal::NotAdded {
+            kind: def.key.clone(),
+            reason: WHOLE_STRUCTURE.to_owned(),
+        });
+    }
+    let site = save.construction_site(system)?;
+    let construction = match &at_host.planet {
+        Some(_) => Cow::Owned(def.construction.without_spawned()),
+        None => Cow::Borrowed(&def.construction),
+    };
+    let built = match change {
+        Some(_) => construction.replay_changing_planet(gd, &site, host, owner.is_some()),
+        None => construction.replay(gd, &site, host, owner.is_some()),
+    };
+    let mut unwritten = built.unwritten;
+    unwritten.extend(at_host.unwritten);
+    let left_out = built.unsure.len() + unwritten.len();
+    let mut add = add_op(gd, def, system, place, owner, built.construction, left_out);
+    if let Op::AddMegastructure { spec, .. } = &mut add {
+        spec.planet = at_host.planet;
+    }
+    let op = match host {
+        Some(body) => {
+            let moons = match moons {
+                HostMoons::Remove if at_host.removes_moons => host_moons(session, body)?,
+                _ => Vec::new(),
+            };
+            with_host_edits(session, save, gd, kind, body, change, &moons, add)?
+        }
         None => add,
     };
     Ok(Planned {
         op,
         unsure: built.unsure,
-        unwritten: built.unwritten,
+        unwritten,
     })
+}
+
+/// The moons of planet `body`, in the order it lists them.
+fn host_moons(session: &Session, body: u32) -> Result<Vec<u32>, Refusal> {
+    let planet = get_planet_page(session.doc(), body)?;
+    Ok(planet.moons.iter().map(|moon| moon.id).collect())
 }
 
 /// The op that adds the habitat finishing a megastructure of type `kind` at body `body` of
@@ -205,12 +253,25 @@ pub struct MegastructureFit {
     /// The type Add writes: the one the game swaps a finished row of `kind` for at the spot,
     /// else `kind`.
     pub variant: String,
-    /// Where a row of `variant` stands: on the body, at the point pressed, or for a type built
-    /// outside the gravity well, just outside the system's inner radius in the pressed
-    /// direction.
+    /// Where a row of `variant` stands: on the body, or at the point pressed.
     pub place: MegastructurePlace,
     /// Why the save would refuse `variant` there, as the add would say it; `None` when it goes.
     pub refusal: Option<String>,
+    /// What the add can do with the moons of the body, which `variant`'s build removes.
+    pub host_moons: HostMoonsFit,
+}
+
+/// Whether an add's [`HostMoons::Remove`] would delete the moons of the body it stands on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export)]
+pub enum HostMoonsFit {
+    /// The type removes no moons, or the body has none: the moons stay whatever is asked.
+    Kept,
+    /// The body's `count` moons can be deleted.
+    Removable { count: usize },
+    /// A moon cannot be deleted: `reason` names it and says why, as [`moons_fit`] words it.
+    Refused { reason: String },
 }
 
 /// Each type the install defines that goes at `spot` of system `system` of `session`'s save,
@@ -249,7 +310,6 @@ pub fn megastructure_fits(
     let raw = session.details().ok();
     let raw = raw.as_ref().and_then(|details| details.raw(system));
     let rows = raw.map_or(&[][..], |raw| raw.megastructures.as_slice());
-    let inner = raw.and_then(|raw| raw.inner_radius).unwrap_or(0.0);
     Ok(gd
         .megastructures
         .iter()
@@ -257,10 +317,11 @@ pub fn megastructure_fits(
         .map(|def| {
             let variant = made_at(&gd.megastructures, &def.key, class, flags);
             let made = gd.megastructures.get(&variant).unwrap_or(def);
-            let place = place_at(made, spot, inner);
+            let place = place_at(spot);
             MegastructureFit {
                 kind: def.key.clone(),
                 refusal: fit_refusal(gd, session, system, made, place, rows),
+                host_moons: moons_fit(gd, session, made, body, rows),
                 variant,
                 place,
             }
@@ -286,30 +347,83 @@ fn goes(def: &MegastructureDef, body: Option<&SiteBody>) -> bool {
     }
 }
 
-/// Where a row of `def` added at `spot` stands, in a system of `inner_radius`.
-fn place_at(def: &MegastructureDef, spot: AddSpot, inner_radius: f64) -> MegastructurePlace {
-    match (spot, &def.placement) {
-        (AddSpot::Body { body }, _) => MegastructurePlace::Body { body },
-        (
-            AddSpot::Space { x, y },
-            Placement::Free {
-                outside_gravity_well: true,
-            },
-        ) => {
-            let radius = RELAY_RADIUS_FACTOR * inner_radius;
-            let angle = y.atan2(x);
-            MegastructurePlace::Free {
-                x: radius * angle.cos(),
-                y: radius * angle.sin(),
-            }
+/// What an add of `def` on `body` can do with the body's moons, each checked for the deletion
+/// against the session as it is, in a system whose rows are `rows`. The first moon the core
+/// refuses to delete is named in the reason, as [`moon_kept`] words it.
+fn moons_fit(
+    gd: &GameData,
+    session: &Session,
+    def: &MegastructureDef,
+    body: Option<&SiteBody>,
+    rows: &[MegastructureSummary],
+) -> HostMoonsFit {
+    let Some(body) = body else {
+        return HostMoonsFit::Kept;
+    };
+    let removes = matches!(def.placement, Placement::Body { .. })
+        && at_host(gd, &def.key, None).removes_moons;
+    if !removes {
+        return HostMoonsFit::Kept;
+    }
+    let moons = match host_moons(session, body.id) {
+        Ok(moons) => moons,
+        Err(refused) => {
+            return HostMoonsFit::Refused {
+                reason: refused.to_string(),
+            };
         }
-        (AddSpot::Space { x, y }, _) => MegastructurePlace::Free { x, y },
+    };
+    if moons.is_empty() {
+        return HostMoonsFit::Kept;
+    }
+    let refused = moons
+        .iter()
+        .find_map(|&moon| Some((moon, session.refusal(&Op::DeleteBody { body: moon })?)));
+    match refused {
+        Some((moon, refused)) => HostMoonsFit::Refused {
+            reason: moon_kept(gd, session, moon, &refused, rows),
+        },
+        None => HostMoonsFit::Removable { count: moons.len() },
     }
 }
 
-/// Why the add of `def` at `place` would be refused, in a system whose rows are `rows`. Each
-/// op of a planet-change batch is checked against the planet as it is, not as the batch's class
-/// and size ops leave it. The core decides whether an add is refused, and [`worded`] says why.
+/// `refused`, the core's refusal to delete moon `moon` of a system whose rows are `rows`, in
+/// the player's words, naming the moon: "Kel has a megastructure." for a row on it, and
+/// "Kel can't be removed, because a starbase orbits it." for another reason the core gives.
+/// A refusal of any other kind keeps the core's text.
+fn moon_kept(
+    gd: &GameData,
+    session: &Session,
+    moon: u32,
+    refused: &OpError,
+    rows: &[MegastructureSummary],
+) -> String {
+    let (OpError::PlanetKept { reason, .. } | OpError::ColonyKept { reason, .. }) = refused else {
+        return refused.to_string();
+    };
+    let name = get_planet_page(session.doc(), moon)
+        .map(|page| gd.loc.resolve_template(&page.name))
+        .ok()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| format!("Moon #{moon}"));
+    if rows.iter().any(|row| row.planet == Some(moon)) {
+        return format!("{name} has a megastructure.");
+    }
+    format!("{name} can't be removed, because {reason}.")
+}
+
+/// Where a row added at `spot` stands: at the body, or at the clicked point.
+fn place_at(spot: AddSpot) -> MegastructurePlace {
+    match spot {
+        AddSpot::Body { body } => MegastructurePlace::Body { body },
+        AddSpot::Space { x, y } => MegastructurePlace::Free { x, y },
+    }
+}
+
+/// Why the add of `def` at `place` would be refused, in a system whose rows are `rows`, the
+/// body's moons kept: [`moons_fit`] says whether they can go. Each op of a planet-change batch
+/// is checked against the planet as it is, not as the batch's class and size ops leave it. The
+/// core decides whether an add is refused, and [`worded`] says why.
 fn fit_refusal(
     gd: &GameData,
     session: &Session,
@@ -326,7 +440,7 @@ fn fit_refusal(
         MegastructurePlace::Body { body } if habitat(gd, key, true, None).is_some() => {
             habitat_op(gd, session, system, body, key)
         }
-        _ => megastructure_op(gd, session, system, key, place, false),
+        _ => megastructure_op(gd, session, system, key, place, false, HostMoons::Keep),
     };
     let refused = match planned {
         Err(refused) => return Some(refused.to_string()),
@@ -376,7 +490,7 @@ fn worded(
             )
         }
         MegastructureRefusal::HoldsMegastructure { .. } => BODY_HAS_MEGASTRUCTURE.to_owned(),
-        MegastructureRefusal::HabitatRoundSatellite { .. } => HABITAT_ROUND_SATELLITE.to_owned(),
+        MegastructureRefusal::RoundSatellite { .. } => ROUND_SATELLITE.to_owned(),
         MegastructureRefusal::NoStar { .. } => RING_WORLD_NO_STAR.to_owned(),
         MegastructureRefusal::ManyStars { count, .. } => match count {
             2 => "Can't place a ring world in a binary system.".to_owned(),
@@ -417,41 +531,49 @@ fn culture(session: &Session, owner: Option<u32>) -> Option<String> {
         .and_then(|country| country.graphical_culture.clone())
 }
 
-/// `add` with planet `body` given the class and size `change` names, as one edit. The class
-/// and size go first: the core changes no class of a planet that has a megastructure, and
-/// the planet ends the same either way. A class or size the planet has already is left out,
-/// and so is the batch when nothing else is left.
-fn with_planet_change(
+/// `add` with planet `body` given the class and size `change` names and its moons `moons`
+/// deleted, as one edit. The class and size go first: the core changes no class of a planet
+/// that has a megastructure, and the planet ends the same either way. The moons go before the
+/// row, as the game removes them before the stage that spawns its planet. A class or size the
+/// planet has already is left out, and so is the batch when nothing else is left.
+#[allow(clippy::too_many_arguments)]
+fn with_host_edits(
     session: &Session,
     save: SaveQueries<'_>,
     gd: &GameData,
     kind: &str,
     body: u32,
-    change: &PlanetChange,
+    change: Option<&PlanetChange>,
+    moons: &[u32],
     add: Op,
 ) -> Result<Op, Refusal> {
-    let planet = get_planet_page(session.doc(), body)?;
-    let rule = |class: &str| {
-        gd.planet_class_rule(class)
-            .ok_or_else(|| Refusal::NoClass(class.to_owned()))
-    };
     let mut ops = Vec::new();
-    let class = change
-        .class
-        .as_deref()
-        .filter(|&class| class != planet.class);
-    if let Some(class) = class {
-        ops.push(Op::SetBodyClass {
-            body,
-            from: rule(&planet.class)?,
-            to: rule(class)?,
-            look: None,
-        });
+    let mut class = None;
+    let mut size = None;
+    if let Some(change) = change {
+        let planet = get_planet_page(session.doc(), body)?;
+        let rule = |class: &str| {
+            gd.planet_class_rule(class)
+                .ok_or_else(|| Refusal::NoClass(class.to_owned()))
+        };
+        class = change
+            .class
+            .as_deref()
+            .filter(|&class| class != planet.class);
+        if let Some(class) = class {
+            ops.push(Op::SetBodyClass {
+                body,
+                from: rule(&planet.class)?,
+                to: rule(class)?,
+                look: None,
+            });
+        }
+        size = change.size.filter(|&size| planet.size != Some(size));
+        if let Some(size) = size {
+            ops.push(Op::SetBodySize { body, size });
+        }
     }
-    let size = change.size.filter(|&size| planet.size != Some(size));
-    if let Some(size) = size {
-        ops.push(Op::SetBodySize { body, size });
-    }
+    ops.extend(moons.iter().map(|&moon| Op::DeleteBody { body: moon }));
     if ops.is_empty() {
         return Ok(add);
     }
@@ -462,6 +584,7 @@ fn with_planet_change(
         body,
         class_name.as_deref(),
         size,
+        moons.len(),
     )?;
     Ok(Op::Batch { description, ops })
 }
@@ -476,12 +599,12 @@ fn check_place(
     let reason = match (&def.placement, place) {
         (Placement::Unsupported { why }, _) => unsupported(gd, &name, why),
         (Placement::Body { .. }, MegastructurePlace::Free { .. }) => {
-            format!("{name} stands on or around a planet or star.")
+            format!("{name} goes on a planet or star, not in empty space.")
         }
         (
             Placement::Free { .. },
             MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. },
-        ) => format!("{name} stands at a point of its own."),
+        ) => format!("{name} goes in empty space, not on a planet or star."),
         _ => return Ok(()),
     };
     Err(Refusal::NotAdded {
@@ -538,6 +661,7 @@ fn add_op(
             owner,
             bypass,
             construction: (!construction.is_empty()).then_some(construction),
+            planet: None,
             left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
         },
     }
@@ -546,19 +670,22 @@ fn add_op(
 /// Why the editor does not add type `name`.
 fn unsupported(gd: &GameData, name: &str, why: &Unsupported) -> String {
     match why {
-        Unsupported::Bypass { bypass } => format!(
-            "{name} stands for a {} bypass, which hasn't been tried in game.",
-            gd.loc.name_or_readable(bypass)
-        ),
+        Unsupported::Bypass { .. } => {
+            format!(
+                "Galaxy Forge can't add {name} yet, because adding it hasn't been tested in game."
+            )
+        }
         Unsupported::RingWorld => {
-            format!("{name} is part of a ring world, which is added as a whole ring world.")
+            format!(
+                "{name} is a stage of a ring world. Add the ring world to build the whole ring."
+            )
         }
         Unsupported::BecomesStarbase => {
-            format!("Building {name} makes a starbase, which Galaxy Forge can't add yet.")
+            format!("Galaxy Forge can't add {name} yet, because building it creates a starbase.")
         }
         Unsupported::ChangesBody => CHANGES_BODY.to_owned(),
         Unsupported::FixedClass { class } => format!(
-            "Makes the planet a {}, a class Galaxy Forge doesn't give a planet.",
+            "Galaxy Forge can't add this yet, because it can't turn a planet into a {}.",
             gd.loc.name_or_readable(class)
         ),
         Unsupported::WholeStructure { .. } => WHOLE_STRUCTURE.to_owned(),
@@ -566,10 +693,10 @@ fn unsupported(gd: &GameData, name: &str, why: &Unsupported) -> String {
 }
 
 const CHANGES_BODY: &str =
-    "Changes the planet's class or size in a way Galaxy Forge can't work out from the game data.";
+    "Galaxy Forge can't add this yet, because it can't tell how building it changes the planet.";
 const WHOLE_STRUCTURE: &str =
-    "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
+    "Galaxy Forge can't add this yet, because building it also creates other planets or sections.";
 const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
-const HABITAT_ROUND_SATELLITE: &str =
-    "It orbits a planet, and Galaxy Forge puts no habitat round a body that orbits a planet.";
-const RING_WORLD_NO_STAR: &str = "The system has no star for a ring world to stand round.";
+const ROUND_SATELLITE: &str =
+    "Galaxy Forge can't add this round anything that orbits a planet, such as a moon.";
+const RING_WORLD_NO_STAR: &str = "Can't place a ring world in a system with no star.";

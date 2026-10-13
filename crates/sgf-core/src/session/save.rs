@@ -42,16 +42,18 @@ impl SaveQueries<'_> {
     /// What the [`Op::Batch`] that adds megastructure `shown`, as the install names it, at
     /// save planet `body` and changes the planet as the megastructure's build does, says in
     /// the undo list: "Added the Yggdrasil Orchid at Gas Giant Beta #6 and made it a Food
-    /// Giant". `class` is the new class as the install names it, and `size` the new size;
-    /// each is `None` when it stays.
+    /// Giant, removing its 3 moons". `class` is the new class as the install names it, and
+    /// `size` the new size; each is `None` when it stays. `moons` is how many of the planet's
+    /// moons the batch deletes.
     pub fn megastructure_planet_change_description(
         &self,
         shown: &str,
         body: u32,
         class: Option<&str>,
         size: Option<u32>,
+        moons: usize,
     ) -> Result<String, OpError> {
-        add_megastructure::planet_change_description(self.session, shown, body, class, size)
+        add_megastructure::planet_change_description(self.session, shown, body, class, size, moons)
     }
 
     /// What clearing save system `system` for a ring world takes, as the game's frame

@@ -8,6 +8,24 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-10-13
+
+### Added
+
+- Add Gigastructural Engineering's Equatorial Shipyard. Choose whether to
+  remove the planet's moons, as the game does, or keep them.
+
+### Fixed
+
+- Gateways, Hyper Relays and L-Gates you add now go where you click.
+- The pictures in the Add megastructure dialog load much faster, and
+  ring-shaped megastructures are easier to see.
+- Messages about megastructures are clearer, such as why one can't be
+  added or moved.
+- Large resource amounts in the system view no longer overlap.
+- Dragging a megastructure no longer stutters. It turns to its new facing
+  when you drop it.
+
 ## [0.25.0] - 2026-10-13
 
 ### Added

@@ -83,6 +83,10 @@ entity = {
 \tpdxmesh = \"tested_mesh\"
 }
 entity = {
+\tname = \"mammalian_01_wall_entity\"
+\tpdxmesh = \"wall_mesh\"
+}
+entity = {
 \tname = \"mammalian_01_mirrored_entity\"
 \tpdxmesh = \"mirrored_mesh\"
 \tscale = -1
@@ -117,6 +121,7 @@ const MESHES: &str = "objectTypes = {
 \t}
 \tpdxmesh = { name = \"tested_mesh\" file = \"gfx/models/test/tested.mesh\" }
 \tpdxmesh = { name = \"mirrored_mesh\" file = \"gfx/models/test/mirrored.mesh\" }
+\tpdxmesh = { name = \"wall_mesh\" file = \"gfx/models/test/wall.mesh\" }
 }
 ";
 
@@ -244,6 +249,12 @@ fn box_mesh() -> Vec<u8> {
     mesh_file(&[("boxShape", vec![cuboid(20.0, 3.0, 5.0)])])
 }
 
+/// A wall 40 world units across the screen and 6 tall, 0.2 thick along screen-up: a line from
+/// straight down, as a ring's side is.
+fn wall_mesh() -> Vec<u8> {
+    mesh_file(&[("wallShape", vec![cuboid(0.1, 3.0, 20.0)])])
+}
+
 /// A planet's texture, kept where the game keeps them.
 const LAVA: &str = "gfx/models/planets/lava_diffuse.dds";
 
@@ -362,6 +373,7 @@ pub(crate) fn boxes() -> (TempDir, GameData) {
         ("gfx/models/test/added.mesh", added_mesh()),
         ("gfx/models/test/tested.mesh", tested_mesh()),
         ("gfx/models/test/mirrored.mesh", mirrored_mesh()),
+        ("gfx/models/test/wall.mesh", wall_mesh()),
         ("gfx/models/test/green_half.dds", solid([0, 255, 0, 128])),
         ("gfx/models/test/red_half.dds", solid([255, 0, 0, 128])),
         ("gfx/models/test/grey.dds", solid([128, 128, 128, 255])),

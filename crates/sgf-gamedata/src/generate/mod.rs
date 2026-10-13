@@ -24,8 +24,8 @@ mod megastructure;
 mod save;
 
 pub use megastructure::{
-    AddSpot, MegastructureFit, Planned, Refusal, habitat_op, megastructure_fits, megastructure_op,
-    ring_world_op,
+    AddSpot, HostMoons, HostMoonsFit, MegastructureFit, Planned, Refusal, habitat_op,
+    megastructure_fits, megastructure_op, ring_world_op,
 };
 pub use save::{
     BodyAsk, ClassRulesError, ForSaveError, Pick, added_among, body_for_save, for_save, reroll,

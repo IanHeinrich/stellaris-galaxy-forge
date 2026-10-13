@@ -654,3 +654,30 @@ mod_row = { }
         ]
     );
 }
+
+/// A stage whose body removes every one of its moons, with no limit and nothing else, removes
+/// the host's moons. One with a limit, or with another effect beside the removal, is listed
+/// and removes none.
+#[test]
+fn every_moon_removed_is_counted_and_anything_more_is_listed() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        "mod_bare = { on_build_complete = { fromfrom.planet = { every_moon = { remove_planet = yes } } } }
+mod_limited = { on_build_complete = { fromfrom.planet = { every_moon = { limit = { is_colony = no } remove_planet = yes } } } }
+mod_marking = { on_build_complete = { fromfrom.planet = { every_moon = { remove_planet = yes set_planet_flag = mod_gone } } } }
+",
+    )]);
+    let laid = |key: &str| lay_out(&gd, key, &Plan::default()).expect(key);
+    let bare = laid("mod_bare");
+    assert!(bare.host_moons_removed);
+    assert!(bare.unfollowed.is_empty(), "{:?}", bare.unfollowed);
+    for key in ["mod_limited", "mod_marking"] {
+        let layout = laid(key);
+        assert!(!layout.host_moons_removed, "{key}");
+        assert_eq!(
+            layout.unfollowed,
+            [format!("{key}: every_moon on its body")],
+            "{key}"
+        );
+    }
+}

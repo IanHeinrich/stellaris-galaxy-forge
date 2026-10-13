@@ -22,6 +22,7 @@ import {
   clearingUnread,
   clearingWarning,
 } from "../../lib/ringWorldAdd";
+import { hostMoonsChoice, hostMoonsOf } from "../../lib/hostMoonsAdd";
 import { PLANET_KEPT_NOTE, planetChangeAt, planetChangeNote } from "../../lib/planetChangeAdd";
 import {
   megastructureDescriptionKeys,
@@ -47,6 +48,7 @@ import {
   MegastructurePreviewPane,
   MegastructureStages,
 } from "./MegastructureBrowser";
+import { HostMoonsPicks } from "./HostMoonsPicks";
 import { PlanetChangePicks } from "./PlanetChangePicks";
 import { RingWorldPicks } from "./RingWorldPicks";
 import "./overlays.css";
@@ -121,10 +123,14 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const type = found === null ? undefined : types.get(found.stage.variant);
   const culture = ownerCulture(owner, details.values(), countries);
   const ownerCountry = owner === null ? undefined : countries.get(owner);
-  const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
+  const where = whereText(spot, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
   const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
   const ring = found?.stage.ring === true;
   const planetChange = found?.stage.refused === null ? planetChangeAt(type, spot) : null;
+  const moonsChoice =
+    found?.stage.refused === null && spot.kind === "body"
+      ? hostMoonsChoice(type, hostMoonsOf(fits, found.stage.variant))
+      : null;
   const spotClass = spot.kind === "body" ? (spot.class ?? null) : null;
   const planetText = spot.kind === "body" ? bodyName(spot.body)?.text : undefined;
   const planetNote =
@@ -199,15 +205,16 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
             {owning.name} <span className="muted">{owning.note}</span>
           </output>
         </div>
-        {entries.length === 0 ? (
+        {fits === null && fitsError === null ? (
+          <div className="megastructure-add-loading" role="status" aria-busy="true">
+            <span className="spinner" aria-hidden="true" />
+            {READING_FITS}
+          </div>
+        ) : entries.length === 0 ? (
           <div className="field">
             <span>Type</span>
             <output className="muted">
-              {fitsError !== null
-                ? fitsUnread(fitsError)
-                : fits === null
-                  ? READING_FITS
-                  : NO_MEGASTRUCTURE_FITS}
+              {fitsError !== null ? fitsUnread(fitsError) : NO_MEGASTRUCTURE_FITS}
             </output>
           </div>
         ) : (
@@ -242,6 +249,9 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                 )}
                 {planetChange !== null && (
                   <PlanetChangePicks change={planetChange} planetClass={spotClass} names={names} />
+                )}
+                {moonsChoice !== null && (
+                  <HostMoonsPicks kind={found.stage.variant} choice={moonsChoice} />
                 )}
               </div>
             )}

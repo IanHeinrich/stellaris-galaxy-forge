@@ -184,7 +184,7 @@ export const DRAG_HINTS = {
   toBody: "drop it on a highlighted planet or star · Esc cancels",
   /** A megastructure tied to a body that stands at a point of its own. */
   floating:
-    "drag to move · Ctrl holds the distance or the angle · Shift snaps to 15° · drop it on a highlighted planet or star to tie it there · Esc cancels",
+    "drag to move · Ctrl holds the distance or the angle · Shift snaps to 15° · drop it on a highlighted planet or star to move it there · Esc cancels",
   /** Under the name of a megastructure at a point of its own. */
   movableMegastructure: "drag to move",
   /** Under the name of a megastructure tied to a body. */

@@ -417,6 +417,8 @@ export function megastructureTypeView(
     construction_summary: [],
     habitat: false,
     habitat_orbital: false,
+    host_planet: false,
+    removes_host_moons: false,
     ring_world_refused: null,
     ring_world_radius: null,
     ring_world_refused_stages: [],
@@ -471,7 +473,14 @@ export function megastructureFits(
   return new Map(
     [...kinds].map((kind) => [
       kind,
-      { kind, variant: kind, place: { place: "free", x: 0, y: 0 }, refusal: null, ...over[kind] },
+      {
+        kind,
+        variant: kind,
+        place: { place: "free", x: 0, y: 0 },
+        refusal: null,
+        host_moons: { kind: "kept" },
+        ...over[kind],
+      },
     ]),
   );
 }

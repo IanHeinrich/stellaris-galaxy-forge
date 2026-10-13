@@ -356,12 +356,20 @@ impl Completes {
     }
 
     /// It builds a structure of several rows or planets: whatever happens, it spawns two rows
-    /// or more, or it spawns a planet and does not stand in its place. A stage that takes its
-    /// own row away and puts its one planet in the orbit of a body, as the base game's
-    /// Cosmogenesis World does, is that planet alone.
+    /// or more, or it spawns a planet that neither stands in its place nor goes beside it. A
+    /// stage that takes its own row away and puts its one planet in the orbit of a body, as
+    /// the base game's Cosmogenesis World does, is that planet alone. A stage that never
+    /// removes its row and puts its one planet in the orbit of a body is its row with that
+    /// planet round its body, unless the editor cannot write the planet, which the layout
+    /// tells once the registry is built.
     pub(crate) fn builds_whole(&self) -> bool {
         let becomes_planet = self.always_removes_row && self.planet_in_body_orbit;
-        self.spawns_rows > 1 || (self.spawns_planet && !becomes_planet)
+        self.spawns_rows > 1 || (self.spawns_planet && !(becomes_planet || self.spawns_beside()))
+    }
+
+    /// It never removes its own row and puts its one planet in the orbit of a body.
+    pub(crate) fn spawns_beside(&self) -> bool {
+        self.spawns_planet && !self.removes_row && self.planet_in_body_orbit
     }
 }
 

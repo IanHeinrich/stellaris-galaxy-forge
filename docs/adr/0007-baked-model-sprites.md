@@ -13,7 +13,7 @@ may be bundled with the editor, so a picture of a structure has to be made from 
 ## Decision
 
 `sgf-gamedata` bakes a model into a 2D sprite when the app asks for it. The texture key is
-`model:<culture>:<entity>[:yaw<degrees>]`, and the answer is a PNG with the sprite's size in save units and the point
+`model:<culture>:<entity>[:yaw<degrees>][:tilt<degrees>][:px<pixels>]`, and the answer is a PNG with the sprite's size in save units and the point
 where the model's origin falls, kept in a text chunk of the PNG (`ModelPlacement`).
 
 - `textures/model/assets.rs` reads the `.asset` and `.gfx` files under `gfx/models` once per layout, as

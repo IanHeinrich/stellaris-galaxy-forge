@@ -59,7 +59,7 @@ use install::{discovery, mods, script};
 use layouts::Eligibility;
 use registries::galaxy_sizes::GalaxySizes;
 use registries::megastructure_offers;
-use registries::megastructures::{self, MegastructureDef};
+use registries::megastructures::{self, MegastructureDef, Placement, Unsupported};
 use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
@@ -480,6 +480,19 @@ impl GameData {
         self.megastructures = Arc::new(megastructures);
         self.ring_flags = Arc::default();
         self.planet_classes = Arc::new(planet_classes);
+        // Whether a planet beside a row can be written is read from the layout, which needs
+        // the registry built first.
+        for key in construction::spawned::unwritten_beside(self) {
+            let types = Arc::make_mut(&mut self.megastructures);
+            if let Some(def) = types.get_mut(&key)
+                && let Placement::Body { star_only } = def.placement
+            {
+                def.placement = Placement::Unsupported {
+                    why: Unsupported::WholeStructure { star_only },
+                };
+                def.planet_change = None;
+            }
+        }
     }
 }
 

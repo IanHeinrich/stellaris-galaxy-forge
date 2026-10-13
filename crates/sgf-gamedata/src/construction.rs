@@ -22,6 +22,7 @@ pub mod habitat;
 pub mod layout;
 mod replay;
 pub mod ring_world;
+pub mod spawned;
 
 pub use replay::Built;
 
@@ -90,6 +91,8 @@ pub struct Unfollowed {
     pub owned: bool,
     /// It would change a planet's class or size.
     pub reshapes: bool,
+    /// It stands in a `spawn_planet`, which [`layout`] walks as the planet it spawns.
+    pub spawned: bool,
 }
 
 /// Where a step runs.
@@ -254,6 +257,20 @@ impl Construction {
 }
 
 impl Construction {
+    /// The chain without what it lists as unfollowed inside a `spawn_planet`, for an add that
+    /// writes the planet as [`layout`] lays it out and lists what that walk leaves out.
+    pub fn without_spawned(&self) -> Construction {
+        Construction {
+            unfollowed: self
+                .unfollowed
+                .iter()
+                .filter(|line| !line.spawned)
+                .cloned()
+                .collect(),
+            ..self.clone()
+        }
+    }
+
     /// The class and size the chain leaves the planet the structure is built at, the last of
     /// each it sets; `None` when it changes neither. A change the walk could not place, and
     /// one on the structure's own planet that runs only on a condition or with an owner,
@@ -329,7 +346,8 @@ pub(crate) fn read(stages: &[&Def], scripts: &ScriptIndex) -> Construction {
                         what,
                         owned,
                         reshapes,
-                    } => note(what, owned, reshapes, &mut out),
+                        spawned,
+                    } => note(what, owned, reshapes, spawned, &mut out),
                 }
             }
         }
@@ -357,6 +375,7 @@ pub(crate) fn record(def: &Def, hook: &str, scripts: &ScriptIndex, events: usize
             doubt: None,
             owned: false,
             owner: false,
+            spawned: false,
             events: 0,
             origin: def.node.key_str(&def.src).unwrap_or_default().to_owned(),
         };
@@ -376,6 +395,8 @@ pub(crate) enum Record {
         owned: bool,
         /// It would change a planet's class or size.
         reshapes: bool,
+        /// It stands in a `spawn_planet`.
+        spawned: bool,
     },
 }
 
@@ -390,6 +411,8 @@ pub(crate) struct Met {
     pub owned: bool,
     /// It stands in the owner's scope, or a scope reached from there.
     pub owner: bool,
+    /// It stands in a `spawn_planet`.
+    pub spawned: bool,
     /// The stage or event it is in.
     pub origin: String,
 }
@@ -401,6 +424,7 @@ fn keep(met: Met, out: &mut Construction) {
         scope,
         doubt,
         owned,
+        spawned,
         origin,
         ..
     } = met;
@@ -410,14 +434,15 @@ fn keep(met: Met, out: &mut Construction) {
         | (_, Effect::ChangeVariable { .. }) => {
             if effect.written() {
                 let what = format!("{effect:?} on {}", scope.name());
-                note(walk::line(&origin, &what), owned, effect.reshapes(), out);
+                let line = walk::line(&origin, &what);
+                note(line, owned, effect.reshapes(), spawned, out);
             }
             return;
         }
         (Scope::System, Effect::SetFlag(_) | Effect::RemoveFlag(_)) => return,
         (Scope::System, effect) if effect.reshapes() => {
             let what = format!("{effect:?} on the system");
-            note(walk::line(&origin, &what), owned, true, out);
+            note(walk::line(&origin, &what), owned, true, spawned, out);
             return;
         }
         (Scope::System, _) => Target::System,
@@ -427,7 +452,8 @@ fn keep(met: Met, out: &mut Construction) {
     if let Some(doubt) = doubt {
         if effect.written() {
             let what = format!("{effect:?} {doubt}");
-            note(walk::line(&origin, &what), owned, effect.reshapes(), out);
+            let line = walk::line(&origin, &what);
+            note(line, owned, effect.reshapes(), spawned, out);
         }
         return;
     }
@@ -439,18 +465,20 @@ fn keep(met: Met, out: &mut Construction) {
     });
 }
 
-/// List `what` as unfollowed once, owned only when every path to it is, and marked when any
-/// would change a planet's class or size.
-fn note(what: String, owned: bool, reshapes: bool, out: &mut Construction) {
+/// List `what` as unfollowed once, owned only when every path to it is, in a `spawn_planet`
+/// only when every path to it is, and marked when any would change a planet's class or size.
+fn note(what: String, owned: bool, reshapes: bool, spawned: bool, out: &mut Construction) {
     match out.unfollowed.iter_mut().find(|line| line.what == what) {
         Some(line) => {
             line.owned &= owned;
+            line.spawned &= spawned;
             line.reshapes |= reshapes;
         }
         None => out.unfollowed.push(Unfollowed {
             what,
             owned,
             reshapes,
+            spawned,
         }),
     }
 }
@@ -476,6 +504,8 @@ struct At {
     owned: bool,
     /// The effects here stand in the owner's scope, or one reached from it.
     owner: bool,
+    /// The effects here stand in a `spawn_planet`.
+    spawned: bool,
     events: usize,
     /// The stage or event the walk is in, for what it lists as unfollowed.
     origin: String,
@@ -561,7 +591,8 @@ impl Visitor for Recorder<'_> {
                 if !walk::follow(self, scripts, script, at, key, node)
                     && node.scalar_span().is_none()
                 {
-                    let other = at.entering(Scope::Other(key.to_owned()), node, script);
+                    let mut other = at.entering(Scope::Other(key.to_owned()), node, script);
+                    other.spawned |= key == "spawn_planet";
                     walk::block(self, script, &other, node);
                 }
             }
@@ -660,6 +691,7 @@ impl Recorder<'_> {
             doubt: at.doubt.clone(),
             owned: at.owned,
             owner: at.owner,
+            spawned: at.spawned,
             origin: at.origin.clone(),
         }));
     }
@@ -673,6 +705,7 @@ impl Recorder<'_> {
             what: walk::line(&at.origin, what),
             owned: at.owned,
             reshapes,
+            spawned: at.spawned,
         });
     }
 }

@@ -33,6 +33,15 @@ habitat: boolean,
  */
 habitat_orbital: boolean, 
 /**
+ * A stage of its chain spawns a planet round the body it stands on and leaves the row
+ * there, so the row stays with that planet. The editor adds the planet with the row.
+ */
+host_planet: boolean, 
+/**
+ * Its build removes the moons of the body it stands on.
+ */
+removes_host_moons: boolean, 
+/**
  * For a ring world past its site, why the editor cannot add its chain's ring whole with
  * every quadrant finished; `None` when it can, and for any other type.
  */

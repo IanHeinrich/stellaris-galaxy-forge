@@ -111,3 +111,14 @@ fn a_description_names_what_it_mentions_with_its_id() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+/// A megastructure that spawns a planet names the planet after the row, as a body is named.
+#[test]
+fn a_megastructure_names_the_planet_it_spawns() {
+    let (text, before) = description(common::open_4_5(), examples::sol_shipyard());
+    assert_eq!(
+        text,
+        "Added megastructure #16 (eq_shipyard_2) in Alari system #169, with planet Processing Ring #16777273"
+    );
+    assert!(bare_mentions(&before, &text).is_empty(), "{text}");
+}

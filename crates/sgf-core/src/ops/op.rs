@@ -806,7 +806,9 @@ pub enum Op {
     /// orbital added with the host's habitats goes with the last of them added since the file
     /// was opened: the host's `megastructure` row added since then, when the host has
     /// `has_orbital`, with that flag. Its inverse is the [`Op::AddHabitat`] that adds it back
-    /// at the angle it stood at, [`HabitatPlacement::AtAngle`].
+    /// at the angle it stood at, [`HabitatPlacement::AtAngle`]. Any other planet that orbits a
+    /// body without the moon bit, as [`Op::AddMegastructure`] spawns one, inverts to the
+    /// [`Op::AddSpawnedPlanet`] that writes it back round that body as it stood.
     /// Stellaris 4.x save documents only.
     RemoveBody {
         body: u32,
@@ -832,6 +834,23 @@ pub enum Op {
     AddHabitat {
         body: u32,
         habitat: NewHabitat,
+    },
+    /// A planet a build effect spawned round save body `body`, written back as
+    /// [`Op::AddMegastructure`] writes its `spec.planet`: a new planet entry, taking a slot as
+    /// [`Op::AddBody`] does, with no owner and no colony, at `planet.at` about `body`. It
+    /// names `body` in `moon_of` without the moon bit, has its model, its timed modifiers and
+    /// its planet flags, each dated the save's date, and is named with its key. `body` lists
+    /// it in `moons`, the system lists it after its last `planet=` line, and the inner radius
+    /// grows when it lies past it. A body that orbits a planet, a placement that is not finite
+    /// or not past 0, a size of 0, a modifier of 0 days, of more than a save holds or listed
+    /// twice, and a class, name, model, flag or modifier that cannot be written are refused.
+    /// Only an inverse, of [`Op::RemoveBody`] on such a planet: the session refuses it from
+    /// [`crate::session::Session::apply`]. The inverse is [`Op::RemoveBody`], batched with the
+    /// old inner radius when it grew. Stellaris 4.x save documents only.
+    #[ts(skip)]
+    AddSpawnedPlanet {
+        body: u32,
+        planet: NewPlanet,
     },
     /// A ring world round the single star of save system `system`, as the game's build
     /// chain leaves one with each section at its own stage: each finished, restored or
@@ -915,7 +934,12 @@ pub enum Op {
     /// none, each deposit as [`Op::AddDeposit`] writes one, and each owner variable raised,
     /// written in its place among the owner's `variables` when the owner has none of it. A
     /// deposit on a body the file held and a deletion has left as `<id>=none` is written
-    /// naming it, with no planet to list it, as the deletion left it.
+    /// naming it, with no planet to list it, as the deletion left it. With `spec.planet`, the
+    /// planet its completion spawns is written round the body as [`Op::AddHabitat`] writes a
+    /// habitat, with no owner and no colony: `moon_of` the body without the moon bit, its
+    /// flags dated the save's date and each of its timed modifiers with its days, listed by
+    /// the system after its last `planet=` line and by the body in `moons`, and the inner
+    /// radius grows when it lies past it.
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
     /// is not a star for a `star_only` type, a body flag that is not one a megastructure
@@ -924,8 +948,13 @@ pub enum Op {
     /// not finite and a save before Stellaris 4.0 are refused, and so are a construction modifier the entity has already or that
     /// is listed twice, one that lasts no days, a construction body outside the system, a
     /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
-    /// is not an identifier. The inverse is [`Op::RemoveMegastructure`] with the
-    /// construction and `left_out`. Save documents only.
+    /// is not an identifier. With a planet, a point of its own with no body, a body that
+    /// orbits a planet, a size of 0, a placement that is not finite or not past 0, a modifier
+    /// of 0 days, of more than a save holds or listed twice, and a class, name, model, flag or
+    /// modifier that cannot be written are refused too. The inverse is
+    /// [`Op::RemoveMegastructure`] with the construction and `left_out`, after
+    /// [`Op::RemoveBody`] for the planet in a batch with the old inner radius when it grew.
+    /// Save documents only.
     AddMegastructure {
         system: u32,
         spec: NewMegastructure,
@@ -1091,6 +1120,10 @@ impl Op {
             | Self::AddHabitat { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
+            Self::AddSpawnedPlanet { .. } => OpReach::of(SAVE)
+                .details(Bodies)
+                .whole_entries()
+                .inverse_only(),
             // A megastructure written back stands in its system's details, though no body
             // of the system is rewritten.
             Self::RestoreEntities { .. } => OpReach::of(SAVE)

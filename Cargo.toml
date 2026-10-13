@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "app/src-tauri"]
 
 [workspace.package]
-version = "0.25.0"
+version = "0.25.1"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/IanHeinrich/stellaris-galaxy-forge"
@@ -18,6 +18,10 @@ codegen-units = 1
 
 # `tauri dev` runs the core unoptimised otherwise, and scenario edits then run tens of times slower than a release.
 [profile.dev.package.sgf-core]
+opt-level = 2
+
+# Model sprites bake about fourteen times slower unoptimised, so a drag or a thumbnail waits seconds.
+[profile.dev.package.sgf-gamedata]
 opt-level = 2
 
 # The tests run three to four times faster with dependencies optimised; memchr and similar alone give half of it.

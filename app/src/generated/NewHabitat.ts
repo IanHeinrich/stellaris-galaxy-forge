@@ -2,6 +2,7 @@
 import type { HabitatOrbital } from "./HabitatOrbital";
 import type { HabitatPlacement } from "./HabitatPlacement";
 import type { OrbitPlacement } from "./OrbitPlacement";
+import type { TimedModifier } from "./TimedModifier";
 
 /**
  * The habitat [`Op::AddHabitat`] writes, as the install's habitat effect makes it.
@@ -36,4 +37,8 @@ model: string | null,
 /**
  * Its planet flags, in the order they are set: `megastructure`, `habitat`.
  */
-flags: Array<string>, };
+flags: Array<string>, 
+/**
+ * Its timed modifiers, in the order they are added.
+ */
+modifiers: Array<TimedModifier>, };

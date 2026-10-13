@@ -19,11 +19,20 @@ export const PLANET_SCALED_DISC = 0.4488;
 
 /**
  * The texture key the baker draws `entity` under, in `culture` or its fallbacks, or bare for no
- * culture, turned `yaw` whole degrees about its up axis.
+ * culture, turned `yaw` whole degrees about its up axis, seen from `tilt` whole degrees off
+ * straight down (1 to 80) in place of the map's slight tilt, and baked at most `px` pixels along
+ * its longer side, each when given.
  */
-export function modelKey(culture: string | null, entity: string, yaw = 0): string {
+export function modelKey(
+  culture: string | null,
+  entity: string,
+  yaw = 0,
+  { tilt, px }: { tilt?: number; px?: number } = {},
+): string {
   const base = `model:${culture ?? NO_CULTURE}:${entity}`;
-  return yaw === 0 ? base : `${base}:yaw${yaw}`;
+  const turned = yaw === 0 ? base : `${base}:yaw${yaw}`;
+  const tilted = tilt === undefined ? turned : `${turned}:tilt${tilt}`;
+  return px === undefined ? tilted : `${tilted}:px${px}`;
 }
 
 /** Closer to the centre than this, in save units, a model stands on the star and is not turned. */

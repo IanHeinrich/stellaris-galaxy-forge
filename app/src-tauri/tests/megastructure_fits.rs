@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use serde_json::{Value, json};
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::views::ErrorKind;
-use sgf_gamedata::generate::MegastructureFit;
+use sgf_gamedata::generate::{HostMoonsFit, MegastructureFit};
 use tauri::WebviewWindow;
 use tauri::test::MockRuntime;
 
@@ -276,7 +276,8 @@ fn with_relay_and_ring() -> Option<WebviewWindow<MockRuntime>> {
     let (w, _) = with_game_data(SAMPLE_45)?;
     let relay = json!({
         "system": 0, "kind": "hyper_relay",
-        "place": { "place": "free", "x": 0.0, "y": -280.812 }, "keepPlanet": false
+        "place": { "place": "free", "x": 0.0, "y": -280.812 }, "keepPlanet": false,
+        "moons": "remove"
     });
     invoke::<Value>(&w, "add_megastructure", relay).expect("the relay");
     let ring = json!({
@@ -329,7 +330,45 @@ fn each_spot_offers_and_refuses_what_the_dialog_did() {
             keyed.is_empty(),
             "worded with a key in system {system}: {keyed:?}"
         );
+        let moons: Vec<_> = fits
+            .iter()
+            .filter(|fit| fit.host_moons != HostMoonsFit::Kept)
+            .map(|fit| (&fit.kind, &fit.host_moons))
+            .collect();
+        assert!(
+            moons.is_empty(),
+            "no base game type removes moons: {moons:?}"
+        );
     }
+}
+
+/// On the install of [`common::YARD`], the yard's stages on Alari's gas giant 6 can delete its
+/// three moons, and on molten planet 1, which has none, keep them.
+#[test]
+fn the_fits_say_whether_the_planets_moons_can_go() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let w = common::with_yard(dir.path());
+    let moons = |body: u32| -> Vec<(String, HostMoonsFit)> {
+        fits(&w, 169, Spot::Planet(body))
+            .into_iter()
+            .map(|fit| (fit.kind, fit.host_moons))
+            .collect()
+    };
+    let removable = HostMoonsFit::Removable { count: 3 };
+    assert_eq!(
+        moons(6),
+        [
+            ("fx_yard_0".to_owned(), removable.clone()),
+            ("fx_yard_1".to_owned(), removable),
+        ]
+    );
+    assert_eq!(
+        moons(1),
+        [
+            ("fx_yard_0".to_owned(), HostMoonsFit::Kept),
+            ("fx_yard_1".to_owned(), HostMoonsFit::Kept),
+        ]
+    );
 }
 
 /// A type is offered as itself, but for a stage the game swaps whatever the star: the Ring
@@ -355,8 +394,8 @@ fn each_type_is_written_as_the_game_swaps_it() {
     }
 }
 
-/// A row goes on the body clicked, at the point pressed in space, and a relay just outside the
-/// system's inner radius of 267.44 in the pressed direction.
+/// A row goes on the body clicked, or at the point pressed in space, whatever the type: a relay
+/// is not moved out to the system's inner radius.
 #[test]
 fn each_type_stands_where_the_add_puts_it() {
     let Some((w, _)) = with_game_data(SAMPLE_45) else {
@@ -377,13 +416,13 @@ fn each_type_stands_where_the_add_puts_it() {
         place(Spot::Space(30.0, 40.0), "shroud_seal"),
         MegastructurePlace::Free { x: 30.0, y: 40.0 }
     );
-    let MegastructurePlace::Free { x, y } = place(Spot::Space(0.0, -10.0), "hyper_relay") else {
-        panic!("a relay stands free");
-    };
-    assert!(
-        x.abs() < 1e-9 && (y + 1.05 * 267.44).abs() < 1e-9,
-        "({x}, {y})"
-    );
+    for kind in ["hyper_relay", "gateway_final", "lgate_base"] {
+        assert_eq!(
+            place(Spot::Space(0.0, -10.0), kind),
+            MegastructurePlace::Free { x: 0.0, y: -10.0 },
+            "{kind}"
+        );
+    }
 }
 
 #[test]

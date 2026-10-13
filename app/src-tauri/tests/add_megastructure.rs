@@ -13,7 +13,7 @@ fn nexus() -> serde_json::Value {
     json!({
         "system": 169, "kind": "think_tank_3",
         "place": { "place": "body", "body": 6 },
-        "keepPlanet": false
+        "keepPlanet": false, "moons": "remove"
     })
 }
 
@@ -54,7 +54,7 @@ fn a_megastructure_is_added_and_undone() {
         json!({
             "system": 0, "kind": "hyper_relay",
             "place": { "place": "free", "x": 0.0, "y": -260.0 },
-            "keepPlanet": false
+            "keepPlanet": false, "moons": "remove"
         }),
     )
     .expect("a relay");
@@ -96,7 +96,7 @@ fn a_star_only_type_is_refused_off_a_star() {
         json!({
             "system": 1, "kind": "dyson_sphere_5",
             "place": { "place": "body", "body": body },
-            "keepPlanet": false
+            "keepPlanet": false, "moons": "remove"
         })
     };
     let refused =
@@ -118,7 +118,7 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
         invoke::<AddedMegastructure>(
             &w,
             "add_megastructure",
-            json!({ "system": 1, "kind": kind, "place": place, "keepPlanet": false }),
+            json!({ "system": 1, "kind": kind, "place": place, "keepPlanet": false, "moons": "remove" }),
         )
         .expect_err(kind)
     };
@@ -128,7 +128,7 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
     assert!(
         catapult
             .message
-            .contains("bypass, which hasn't been tried in game"),
+            .contains("adding it hasn't been tested in game"),
         "{}",
         catapult.message
     );
@@ -150,7 +150,7 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
         "add_megastructure",
         json!({
             "system": 1, "kind": "ring_world_1",
-            "place": { "place": "body", "body": 584 }, "keepPlanet": false
+            "place": { "place": "body", "body": 584 }, "keepPlanet": false, "moons": "remove"
         }),
     )
     .expect("a ring world's site is one row round the star");
@@ -174,7 +174,7 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
         json!({
             "system": 169, "kind": "orbital_arc_furnace_4",
             "place": { "place": "body", "body": 1 },
-            "keepPlanet": false
+            "keepPlanet": false, "moons": "remove"
         }),
     )
     .expect("the Arc Furnace");
@@ -192,7 +192,7 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
         json!({
             "system": 1, "kind": "dyson_swarm_3",
             "place": { "place": "body", "body": 584 },
-            "keepPlanet": false
+            "keepPlanet": false, "moons": "remove"
         }),
     )
     .expect("the Dyson Swarm");
@@ -220,4 +220,44 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
         "{}",
         deleted.entry.description
     );
+}
+
+/// The yard on Alari's gas giant 6 does with the planet's three moons what `moons` asks: kept,
+/// the add is the row and its ring; removed, the moons go first in the same undo step. Each add
+/// is undone whole.
+#[test]
+fn the_planets_moons_go_only_when_asked() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let w = common::with_yard(dir.path());
+    let add = |moons: &str| -> AddedMegastructure {
+        invoke(
+            &w,
+            "add_megastructure",
+            json!({
+                "system": 169, "kind": "fx_yard_1",
+                "place": { "place": "body", "body": 6 },
+                "keepPlanet": false, "moons": moons
+            }),
+        )
+        .expect(moons)
+    };
+    let undo = || {
+        let undone: EditResult = invoke(&w, "undo", json!({})).expect("undo");
+        assert!(undone.history.undo.is_empty(), "{:?}", undone.history.undo);
+    };
+
+    let kept = add("keep");
+    assert_eq!(kept.added.planets.len(), 1, "the ring");
+    let description = &kept.added.edit.entry.description;
+    assert!(!description.contains("moons"), "{description}");
+    undo();
+
+    let removed = add("remove");
+    assert_eq!(removed.added.planets.len(), 1, "the ring");
+    let description = &removed.added.edit.entry.description;
+    assert!(
+        description.ends_with(", removing its 3 moons"),
+        "{description}"
+    );
+    undo();
 }

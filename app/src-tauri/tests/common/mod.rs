@@ -122,6 +122,53 @@ pub fn invoke_raw(
     get_ipc_response(webview, request)
 }
 
+/// An install of `files`, each a path under the install and its text, written under `dir`
+/// with an empty English localisation; returns its root.
+pub fn hand_written(dir: &std::path::Path, files: &[(&str, &str)]) -> std::path::PathBuf {
+    let install = dir.join("install");
+    let stub = [("localisation/english/fx_l_english.yml", "l_english:\n")];
+    for (rel, text) in stub.iter().chain(files) {
+        let file = install.join(rel);
+        std::fs::create_dir_all(file.parent().expect("a directory")).expect("the install tree");
+        std::fs::write(file, text).expect("an install file");
+    }
+    install
+}
+
+/// An install whose yard removes its planet's moons as its frame finishes and spawns a ring
+/// round the planet as it is finished.
+pub const YARD: &str = "fx_yard_0 = {
+	on_build_complete = { fromfrom.planet = { every_moon = { remove_planet = yes } } }
+}
+fx_yard_1 = {
+	upgrade_from = { fx_yard_0 }
+	on_build_complete = {
+		spawn_planet = {
+			class = pc_fx_ring
+			location = fromfrom.planet
+			orbit_location = yes
+			orbit_distance_offset = 0.00001
+			size = 12
+			init_effect = { set_name = \"Processing Ring\" }
+		}
+	}
+}
+";
+
+/// A fresh app with the 4.5 sample open and the install of [`YARD`], written under `dir`, as
+/// its game data.
+pub fn with_yard(dir: &std::path::Path) -> WebviewWindow<MockRuntime> {
+    let install = hand_written(dir, &[("common/megastructures/fx.txt", YARD)]);
+    let w = opened(SAMPLE_45);
+    invoke::<Value>(
+        &w,
+        "load_game_data",
+        json!({ "installPath": install, "mods": false }),
+    )
+    .unwrap_or_else(|e| panic!("load game data: {}", e.message));
+    w
+}
+
 /// The `rawVersion` of the install the tests read, so an assertion on the version
 /// survives a game update.
 pub fn install_version() -> Option<String> {

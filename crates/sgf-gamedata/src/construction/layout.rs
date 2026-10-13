@@ -120,6 +120,8 @@ pub struct SystemLayout {
     pub cleared: bool,
     /// Every asteroid belt is removed.
     pub belts_cleared: bool,
+    /// Every moon of the body the structure stands at is removed.
+    pub host_moons_removed: bool,
     /// What the walk read and does not lay out, as the script says it.
     pub unfollowed: Vec<String>,
 }
@@ -271,6 +273,7 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
         written_flags: BTreeSet::new(),
         cleared: false,
         belts_cleared: false,
+        host_moons_removed: false,
         unfollowed: Vec::new(),
     };
     for (at, stage) in chain.iter().enumerate() {
@@ -340,6 +343,7 @@ struct State<'g> {
     written_flags: BTreeSet<String>,
     cleared: bool,
     belts_cleared: bool,
+    host_moons_removed: bool,
     unfollowed: Vec<String>,
 }
 
@@ -570,6 +574,7 @@ impl<'g> State<'g> {
             host_flags: self.host_flags,
             cleared: self.cleared,
             belts_cleared: self.belts_cleared,
+            host_moons_removed: self.host_moons_removed,
             unfollowed: self.unfollowed,
         }
     }
@@ -711,6 +716,10 @@ impl<'w, 's> Walk<'w, 's> {
             }
             "every_system_planet" => {
                 self.every_planet(st, child);
+                Flow::Go
+            }
+            "every_moon" if self.this() == Scope::Host && self.removes_only(child) => {
+                st.host_moons_removed = true;
                 Flow::Go
             }
             "random_system_planet" if self.picks_ruin_body(st, child) => {
@@ -1117,6 +1126,15 @@ impl<'w, 's> Walk<'w, 's> {
             ),
             _ => self.note(st, "every_system_planet"),
         }
+    }
+
+    /// Whether block `node` holds `remove_planet = yes` and nothing else, not even a `limit`.
+    fn removes_only(&self, node: &Node) -> bool {
+        let src = self.src();
+        matches!(
+            node.children(),
+            [only] if only.key_str(src) == Some("remove_planet") && only.scalar_str(src) == Some("yes")
+        )
     }
 
     fn planet_flag(&self, st: &mut State<'_>, key: &str, value: Option<String>) {

@@ -56,6 +56,7 @@ pub(crate) mod rename_system;
 pub(crate) mod replace_system;
 pub(crate) mod restore;
 pub(crate) mod shared;
+pub(crate) mod spawned_planet;
 pub(crate) mod star_class;
 pub(crate) mod system_height;
 pub(crate) mod teardown;

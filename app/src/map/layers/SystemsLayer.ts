@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite, type Renderer, type Texture } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
+import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
@@ -96,6 +97,8 @@ export class SystemsLayer implements MapLayer {
   private squash = 1;
   private ctx: RenderContext = EMPTY_CONTEXT;
   private readonly unsubTextures: () => void;
+  private starKeysOf: ReadonlyMap<string, StarClassView> | null = null;
+  private starKeySet = new Set<string>();
 
   constructor(
     private readonly renderer: Renderer,
@@ -104,7 +107,9 @@ export class SystemsLayer implements MapLayer {
     this.glow = acquireGlow(renderer);
     this.ring = ringTexture(renderer);
     this.clusters = new StarClusters(this.container, this.glow);
-    this.unsubTextures = onTextures(() => this.replaceAll());
+    this.unsubTextures = onTextures((keys) => {
+      if (keys.some((k) => this.starKeys().has(k))) this.replaceAll();
+    });
   }
 
   rebuild(ctx: RenderContext): void {
@@ -131,6 +136,18 @@ export class SystemsLayer implements MapLayer {
     this.previews.length = 0;
     this.faded.clear();
     for (const s of ctx.systems.values()) this.place(s);
+  }
+
+  /**
+   * Every texture a star here is drawn from, alone or in a cluster, is some star class's: a
+   * landed texture outside them changes none of its sprites.
+   */
+  private starKeys(): ReadonlySet<string> {
+    if (this.starKeysOf !== this.ctx.starClasses) {
+      this.starKeysOf = this.ctx.starClasses;
+      this.starKeySet = new Set([...this.ctx.starClasses.values()].map((c) => c.texture_key));
+    }
+    return this.starKeySet;
   }
 
   /** Re-places every known system; `place` is idempotent, so this is cheap and safe to call often. */

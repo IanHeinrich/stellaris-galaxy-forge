@@ -131,7 +131,7 @@ fn a_document_without_the_capability_is_refused_every_add() {
             json!({
                 "system": 0, "kind": "hyper_relay",
                 "place": { "place": "free", "x": 0.0, "y": 0.0 },
-                "keepPlanet": false
+                "keepPlanet": false, "moons": "remove"
             }),
             "this document takes no added megastructure",
         ),

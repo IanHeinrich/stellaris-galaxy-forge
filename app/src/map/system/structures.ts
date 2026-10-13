@@ -229,7 +229,7 @@ function megastructure(
     [at, on] = [null, centred ? (body?.placement.id ?? null) : null];
   } else if (floats && homeBody) {
     const was = base.bodies.find((b) => b.id === homeBody.placement.id);
-    const point = sourceAt ?? (was ? ([was.x, was.y] as const) : null);
+    const point = floatPoint(sourceAt, was);
     at = drifted(point, homeBody.placement, was);
     body = undefined;
     const standard = point !== null && was !== undefined && atBody(point, was);
@@ -242,8 +242,15 @@ function megastructure(
   const sizeBody = type?.scales_with_planet === true ? (body ?? homeBody) : undefined;
   const placed = placeStructure(look, { body, at, offset, sizeBody });
   if (placed === null) return null;
-  // Turned from where it is drawn, so a drag turns it as it goes.
-  const yaw = megastructureYaw(type, at);
+  // Held, it keeps the facing it had and turns once when dropped: a new facing is a new model to bake.
+  const held =
+    floats && homeBody
+      ? floatPoint(
+          sourceAt,
+          base.bodies.find((b) => b.id === homeBody.placement.id),
+        )
+      : sourceAt;
+  const yaw = megastructureYaw(type, moved === undefined ? at : held);
   const chance = structureChance(row.spawn);
   const name = megastructureName(row.kind, src.names);
   const art = stable(
@@ -262,7 +269,8 @@ function megastructure(
     {
       name: chance.random ? randomlyPlacedLabel(name) : name,
       // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
-      on,
+      // A held one keeps its own plate, so the labels lay out once at pickup, not at each body it crosses.
+      on: moved === undefined ? on : null,
       resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
     },
     samePlate,
@@ -351,4 +359,12 @@ export function sceneStructures(scene: StructureScene): SceneStructure[] {
     ...details.megastructures.map((row) => megastructure(scene, row, scene.moved?.get(row.id))),
     ...stations.map((station) => starbase(scene, station)),
   ].filter((s): s is SceneStructure => s !== null);
+}
+
+/** Where a floating row stands before any drift: its own point, else its home body's. */
+function floatPoint(
+  sourceAt: readonly [number, number] | null,
+  was: { readonly x: number; readonly y: number } | undefined,
+): readonly [number, number] | null {
+  return sourceAt ?? (was ? ([was.x, was.y] as const) : null);
 }

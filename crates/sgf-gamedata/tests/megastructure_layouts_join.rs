@@ -12,7 +12,8 @@ use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::construction::ring_world::RingStage;
 use sgf_gamedata::generate::{
-    AddSpot, MegastructureFit, Planned, megastructure_fits, megastructure_op, ring_world_op,
+    AddSpot, HostMoons, MegastructureFit, Planned, megastructure_fits, megastructure_op,
+    ring_world_op,
 };
 
 /// Alari, owned by country 0, whose planet 6 is a gas giant.
@@ -61,7 +62,16 @@ fx_gate_opened = {
 }
 
 fn planned(gd: &GameData, kind: &str, place: MegastructurePlace, keep_planet: bool) -> Planned {
-    megastructure_op(gd, &common::open_4_5(), ALARI, kind, place, keep_planet).expect(kind)
+    megastructure_op(
+        gd,
+        &common::open_4_5(),
+        ALARI,
+        kind,
+        place,
+        keep_planet,
+        HostMoons::Remove,
+    )
+    .expect(kind)
 }
 
 /// The orchid on gas giant 6 makes it a food giant in the same edit, the class first, and the
@@ -146,13 +156,21 @@ fn the_join_places_a_relay_and_refuses_what_it_does_not_add() {
     assert_eq!(bypass_of("fx_gate"), gateway(false));
     assert_eq!(bypass_of("fx_gate_opened"), gateway(true));
     let refused = |kind: &str, place| {
-        megastructure_op(&gd, &common::open_4_5(), ALARI, kind, place, false)
-            .expect_err(kind)
-            .to_string()
+        megastructure_op(
+            &gd,
+            &common::open_4_5(),
+            ALARI,
+            kind,
+            place,
+            false,
+            HostMoons::Remove,
+        )
+        .expect_err(kind)
+        .to_string()
     };
     assert_eq!(
         refused("fx_relay", MegastructurePlace::Body { body: 6 }),
-        "Fx Relay stands at a point of its own.",
+        "Fx Relay goes in empty space, not on a planet or star.",
         "the type as the install names it"
     );
     assert_eq!(
@@ -209,12 +227,23 @@ fn the_fits_word_their_refusals_for_the_player() {
     };
     assert_eq!(
         refusal(&session, AddSpot::Body { body: 6 }, "fx_computer").as_deref(),
-        Some("Makes the planet a Planetary Computer, a class Galaxy Forge doesn't give a planet.")
+        Some(
+            "Galaxy Forge can't add this yet, because it can't turn a planet into a Planetary Computer."
+        )
     );
     let space = AddSpot::Space { x: 0.0, y: -10.0 };
     assert_eq!(refusal(&session, space, "fx_relay"), None);
     let free = MegastructurePlace::Free { x: 0.0, y: -300.0 };
-    let relay = megastructure_op(&gd, &session, ALARI, "fx_relay", free, false).expect("a relay");
+    let relay = megastructure_op(
+        &gd,
+        &session,
+        ALARI,
+        "fx_relay",
+        free,
+        false,
+        HostMoons::Remove,
+    )
+    .expect("a relay");
     session.apply(relay.op).expect("the relay applies");
     assert_eq!(
         refusal(&session, space, "fx_relay").as_deref(),

@@ -9,6 +9,7 @@ import type { AddSpot } from "../generated/AddSpot";
 import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
 import { megastructureName } from "../lib/details/labels";
+import { hostMoonsOf, hostMoonsSent } from "../lib/hostMoonsAdd";
 import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA, NOT_PLACED } from "../lib/megastructureCopy";
 import {
   fitsByKind,
@@ -57,6 +58,11 @@ interface MegastructureAddState {
    * off on opening, so the planet changes as the game changes it.
    */
   keepPlanet: boolean;
+  /**
+   * The type whose add keeps the moons of the body it stands on, which its build removes; null on
+   * opening, so the moons go as the game removes them, and picking another type removes them again.
+   */
+  keepMoonsOf: string | null;
   /** What clearing the system takes, once read. */
   clearing: RingWorldClearing | null;
   /** Why what clearing takes couldn't be read. */
@@ -75,6 +81,8 @@ interface MegastructureAddState {
   setRingSize(ring: string, offered: readonly RingStage[]): void;
   setRingClear(clear: boolean): void;
   setKeepPlanet(keep: boolean): void;
+  /** Keeps the moons for an add of `kind`, the type a stage writes, or removes them. */
+  setKeepMoons(kind: string, keep: boolean): void;
   /**
    * Asks the shell what goes at the dialog's spot, its system at `generation` and the game data
    * as loaded now, unless that has been asked already. An answer for another opening, an older
@@ -90,7 +98,8 @@ interface MegastructureAddState {
    * The row stands where the spot's fits place `kind`, and nothing is added before they are
    * read. The new row's page opens, and the status bar says how many effects of its
    * construction were left out, when any were. The planet changes class or size as the type's
-   * build changes it, unless the dialog keeps it. A type whose finished stage is a habitat adds
+   * build changes it, unless the dialog keeps it, and the moons of the body go as its build removes
+   * them, unless the dialog keeps them or the save refuses to remove them. A type whose finished stage is a habitat adds
    * the habitat round the body as a planet instead, and selects it with its page open.
    */
   add(kind: string, stage?: string): Promise<boolean>;
@@ -135,6 +144,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   ringSize: null,
   ringClear: false,
   keepPlanet: false,
+  keepMoonsOf: null,
 
   open(system, spot) {
     if (useGameDataStore.getState().status !== "ready") {
@@ -148,6 +158,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
       ringSize: null,
       ringClear: false,
       keepPlanet: false,
+      keepMoonsOf: null,
     });
     return true;
   },
@@ -175,6 +186,10 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
 
   setKeepPlanet(keep) {
     set({ keepPlanet: keep });
+  },
+
+  setKeepMoons(kind, keep) {
+    set({ keepMoonsOf: keep ? kind : null });
   },
 
   async loadFits(generation) {
@@ -217,7 +232,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   },
 
   async add(kind, stage = kind) {
-    const { prompt, keepPlanet, fits } = get();
+    const { prompt, keepPlanet, keepMoonsOf, fits } = get();
     if (prompt === null) return false;
     set(closed());
     const { system, spot } = prompt;
@@ -234,7 +249,9 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
       useFileSessionStore.getState().setError(NOT_PLACED);
       return false;
     }
-    const added = await useEditorStore.getState().addMegastructure(system, kind, at, keepPlanet);
+    const moons = hostMoonsSent(hostMoonsOf(fits, kind), keepMoonsOf, kind);
+    const editor = useEditorStore.getState();
+    const added = await editor.addMegastructure(system, kind, at, keepPlanet, moons);
     if (added === null) return false;
     set({ last: stage });
     const name = megastructureName(kind, data.names);

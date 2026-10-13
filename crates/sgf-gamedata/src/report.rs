@@ -294,6 +294,8 @@ fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
             culture: NO_CULTURE.to_owned(),
             entity: (*entity).to_owned(),
             yaw: 0,
+            tilt: None,
+            px: None,
         };
         gd.untabled_shaders(&key.to_string())
             .map_err(|e| e.to_string())
@@ -470,7 +472,7 @@ fn ring_bodies(gd: &GameData) -> BTreeSet<&str> {
 }
 
 /// `f` of each of `items`, in order, the items shared out among the machine's cores.
-fn on_every_core<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
+pub(crate) fn on_every_core<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
     let cores = std::thread::available_parallelism().map_or(1, NonZero::get);
     let share = items.len().div_ceil(cores).max(1);
     let f = &f;

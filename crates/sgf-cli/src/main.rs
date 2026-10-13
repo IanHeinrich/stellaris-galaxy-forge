@@ -6,7 +6,7 @@ use sgf_core::ops::MegastructurePlace;
 use sgf_core::prepare::PrepareOptions;
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
-use sgf_gamedata::generate::BodyAsk;
+use sgf_gamedata::generate::{BodyAsk, HostMoons};
 
 mod cli;
 mod commands;
@@ -159,6 +159,7 @@ fn run(cli: Cli) -> commands::Run {
             body,
             at,
             keep_planet,
+            keep_moons,
             install,
             out,
         }) => {
@@ -177,6 +178,11 @@ fn run(cli: Cli) -> commands::Run {
                 &kind,
                 place,
                 keep_planet,
+                if keep_moons {
+                    HostMoons::Keep
+                } else {
+                    HostMoons::Remove
+                },
                 &install.options(),
             )
         }

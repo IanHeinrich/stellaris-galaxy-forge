@@ -406,15 +406,15 @@ fn what_is_refused() {
             ),
             (
                 to_point(10, 30.0, 30.0),
-                "megastructure 10 cannot be moved: it is part of a ring world, which stands where it is",
+                "megastructure 10 cannot be moved: it is part of a ring world, which stays where it is",
             ),
             (
                 to_body(6, 1646),
-                "megastructure 6 cannot be moved: it stands at a point of its own, not on a planet or star",
+                "megastructure 6 cannot be moved: it sits in empty space and can't go on a planet or star",
             ),
             (
                 to_point(4, 30.0, 30.0),
-                "megastructure 4 cannot be moved: it stands on or around Sargas II #936, so it stays tied to a planet or star",
+                "megastructure 4 cannot be moved: it is built at Sargas II #936, so it has to stay at a planet or star",
             ),
             (to_body(4, 517), "planet 517 is not a body of system 38"),
             (
@@ -428,7 +428,7 @@ fn what_is_refused() {
             (to_point(6, f64::NAN, 0.0), "value is not a finite number"),
             (
                 beside(6, 1646, 10.0, 10.0),
-                "megastructure 6 cannot be moved: it stands at a point of its own, not on a planet or star",
+                "megastructure 6 cannot be moved: it sits in empty space and can't go on a planet or star",
             ),
             (
                 beside(4, 933, f64::NAN, 0.0),
@@ -569,11 +569,11 @@ fn a_structure_on_the_body_it_made_is_refused() {
         [
             (
                 to_body(16, 516),
-                "megastructure 16 cannot be moved: it made Vinh III #517, which stays where it is",
+                "megastructure 16 cannot be moved: building it created Vinh III #517, so it stays with that planet",
             ),
             (
                 beside(16, 517, 10.0, 10.0),
-                "megastructure 16 cannot be moved: it made Vinh III #517, which stays where it is",
+                "megastructure 16 cannot be moved: building it created Vinh III #517, so it stays with that planet",
             ),
         ],
     );

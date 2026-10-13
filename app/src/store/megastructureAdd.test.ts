@@ -35,6 +35,7 @@ function fitsFor(spot: AddSpot): MegastructureFit[] {
           ? RELAYED
           : { place: "free", x: spot.x, y: spot.y },
     refusal: null,
+    host_moons: { kind: "kept" },
   }));
 }
 
@@ -147,6 +148,36 @@ describe("adding a megastructure from the system view", () => {
     ]);
   });
 
+  it("removes the host's moons unless the dialog keeps them for the type or the save refuses, and removes them again on the next opening", async () => {
+    const planet = { kind: "body", body: 12, star: false } as const;
+    const moonsOf = (host_moons: MegastructureFit["host_moons"]) =>
+      mockedIpc.getMegastructureFits.mockImplementation(async (_system, spot) =>
+        fitsFor(spot).map((fit) => ({ ...fit, host_moons })),
+      );
+    moonsOf({ kind: "removable", count: 3 });
+    await opened(planet);
+    expect(adds().keepMoonsOf).toBeNull();
+    await adds().add("think_tank_3");
+    await opened(planet);
+    adds().setKeepMoons("think_tank_3", true);
+    await adds().add("think_tank_3");
+    await opened(planet);
+    adds().setKeepMoons("shroud_seal", true);
+    await adds().add("think_tank_3");
+    adds().open(SYSTEM, planet);
+    expect(adds().keepMoonsOf).toBeNull();
+    moonsOf({ kind: "refused", reason: "a moon holds a colony" });
+    await adds().loadFits(0);
+    await adds().add("think_tank_3");
+
+    expect(mockedIpc.addMegastructure.mock.calls.map(([, , , , moons]) => moons)).toEqual([
+      "remove",
+      "keep",
+      "remove",
+      "keep",
+    ]);
+  });
+
   it("opens the new megastructure's page, named as the game names it", async () => {
     await opened({ kind: "body", body: 12, star: false });
     await adds().add("think_tank_3");
@@ -161,7 +192,11 @@ describe("adding a megastructure from the system view", () => {
   });
 
   it("adds the type the game makes of a stage at the star, and remembers the stage", async () => {
-    const variant = { place: { place: "body", body: 12 }, refusal: null } as const;
+    const variant = {
+      place: { place: "body", body: 12 },
+      refusal: null,
+      host_moons: { kind: "kept" },
+    } as const;
     mockedIpc.getMegastructureFits.mockResolvedValue([
       { kind: "think_tank_3", variant: "think_tank_3_variant", ...variant },
     ]);
@@ -184,13 +219,13 @@ describe("adding a megastructure from the system view", () => {
     await adds().add("think_tank_3");
 
     expect(useFileSessionStore.getState().notice).toBe(
-      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 of its construction's effects apply, so it left them out. Galaxy Forge doesn't write 1 of its construction's effects yet, so it left it out.",
+      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 effects of building it apply here, so it left them out. Galaxy Forge can't add 1 effect of building it yet, so it left that out.",
     );
     expect(leftOutNotice("Arc Furnace", 1, 0)).toBe(
-      "Added the Arc Furnace. Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
+      "Added the Arc Furnace. Galaxy Forge couldn't tell whether 1 effect of building it applies here, so it left that out.",
     );
     expect(leftOutNotice("Arc Furnace", 0, 3)).toBe(
-      "Added the Arc Furnace. Galaxy Forge doesn't write 3 of its construction's effects yet, so it left them out.",
+      "Added the Arc Furnace. Galaxy Forge can't add 3 effects of building it yet, so it left them out.",
     );
     expect(leftOutNotice("Arc Furnace", 0, 0)).toBeNull();
   });

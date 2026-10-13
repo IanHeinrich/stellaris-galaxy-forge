@@ -44,12 +44,12 @@ pub(crate) fn plan_move(
     if s.ring_world_types().is_ring_row(&tied.kind) {
         return Err(refused(
             id,
-            "it is part of a ring world, which stands where it is".to_owned(),
+            "it is part of a ring world, which stays where it is".to_owned(),
         ));
     }
     let system = tied
         .system
-        .ok_or_else(|| refused(id, "it stands in no system".to_owned()))?;
+        .ok_or_else(|| refused(id, "it isn't in any system".to_owned()))?;
     if let Some(bypass) = tied.bypass
         && let Some(found) = row(doc, Table::Bypass, bypass)?
     {
@@ -57,7 +57,7 @@ pub(crate) fn plan_move(
         if !BYPASS_KINDS.contains(&kind.as_str()) {
             return Err(refused(
                 id,
-                format!("its bypass is a {kind}, which has not been tried in game"),
+                "moving it hasn't been tested in game".to_owned(),
             ));
         }
     }
@@ -86,14 +86,14 @@ pub(crate) fn plan_move(
         (None, MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. }) => {
             return Err(refused(
                 id,
-                "it stands at a point of its own, not on a planet or star".to_owned(),
+                "it sits in empty space and can't go on a planet or star".to_owned(),
             ));
         }
         (Some(from), MegastructurePlace::Free { .. }) => {
             return Err(refused(
                 id,
                 format!(
-                    "it stands on or around {}, so it stays tied to a planet or star",
+                    "it is built at {}, so it has to stay at a planet or star",
                     named_planet(s, from)?
                 ),
             ));
@@ -175,7 +175,7 @@ fn to_body(
         return Err(refused(
             id,
             format!(
-                "it made {}, which stays where it is",
+                "building it created {}, so it stays with that planet",
                 named_entity(&old, old_src, from)
             ),
         ));

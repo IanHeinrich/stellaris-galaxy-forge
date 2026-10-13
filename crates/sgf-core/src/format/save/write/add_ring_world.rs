@@ -6,7 +6,6 @@
 //! row. The op clears nothing: [`clearing`] lists the deletions that clear the system as the
 //! game's frame does, which go first in the same batch.
 
-use crate::emit::system::{SegmentEntry, segment_entry};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::rows;
@@ -20,17 +19,17 @@ use crate::format::save::write::megastructure_links::{
 };
 use crate::format::save::write::place::{self};
 use crate::format::save::write::planet_entry::{body_is_star, named_entity};
-use crate::format::save::write::shared::write_slot;
+use crate::format::save::write::spawned_planet::{self, Spawned};
 use crate::format::save::write::teardown::some_id;
 use crate::format::save::write::variables;
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
-use crate::ops::rules::modifiers::{check_flags, check_timed, listed_once};
+use crate::ops::rules::modifiers::{check_flags, listed_once};
 use crate::ops::rules::{Form, check_text, named};
 use crate::ops::{
-    Emitted, MegastructureRefusal, NewRingWorld, Op, OpError, Plan, Planned, RingPart,
-    RingQuadrant, RingRow, RingSegment, RingWorldWritten, Subject,
+    MegastructureRefusal, NewRingWorld, Op, OpError, Plan, Planned, RingPart, RingQuadrant,
+    RingRow, RingWorldWritten, Subject,
 };
 use crate::projections::geometry::{Body, descendants, normalised, point, reach};
 use crate::projections::name::NameTemplate;
@@ -98,45 +97,24 @@ pub(crate) fn plan_add(
             | RingQuadrant::Restored { segments }
             | RingQuadrant::Damaged { segments } => {
                 for segment in segments {
-                    let slot = planets.take();
-                    let id = slot.id();
                     let (at, orbit) = spawned(
                         &SEGMENT_POINTS,
                         segment.planet.at.radius,
                         segment.planet.at.angle,
                     );
                     let name = NameTemplate::plain(&segment.planet.name);
-                    let modifiers: Vec<(&str, i32)> = segment
-                        .modifiers
-                        .iter()
-                        .map(|m| (m.modifier.as_str(), m.written_days()))
-                        .collect();
-                    let entry = SegmentEntry {
-                        id,
-                        class: &segment.planet.class,
-                        size: segment.planet.size,
+                    let planet = Spawned {
+                        planet: &segment.planet,
                         name: &name,
-                        x: at.0,
-                        y: at.1,
-                        system,
-                        orbit,
-                        flags: &segment.planet.flags,
-                        flag_date: &date,
-                        entity_name: segment.planet.model.as_deref(),
-                        megastructure_icon: segment.megastructure_icon,
-                        modifiers: &modifiers,
-                    };
-                    let emitted = Emitted::Planet { id, system };
-                    write_slot(plan, &s.doc, slot, &mut planets, emitted, |indent| {
-                        segment_entry(indent, &entry)
-                    })?;
-                    written.push(id);
-                    added.push(Body {
-                        id,
-                        parent: None,
                         at,
                         orbit,
-                    });
+                        moon_of: None,
+                        megastructure_icon: segment.megastructure_icon,
+                    };
+                    let body =
+                        spawned_planet::write(plan, &s.doc, system, &mut planets, &planet, &date)?;
+                    written.push(body.id);
+                    added.push(body);
                 }
             }
             RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => {
@@ -482,7 +460,9 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
                 if segments.is_empty() {
                     return Err(refuse("a quadrant with no planets".to_owned()));
                 }
-                segments.iter().try_for_each(check_segment)?;
+                for segment in segments {
+                    spawned_planet::check(&segment.planet, Form::Quoted)?;
+                }
             }
             RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => check_row(row)?,
         }
@@ -501,26 +481,6 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
         .map(|v| v.name.as_str())
         .collect();
     listed_once("a variable listed once", &names, |name| (*name).to_owned())
-}
-
-fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
-    check_text("a planet class", &segment.planet.class, Form::Bare)?;
-    if segment.planet.size == 0 {
-        return Err(OpError::ZeroPlanetSize);
-    }
-    check_placement(segment.planet.at.radius, segment.planet.at.angle)?;
-    check_text("a name key", &segment.planet.name, Form::Quoted)?;
-    if let Some(model) = &segment.planet.model {
-        check_text("a model", model, Form::Bare)?;
-    }
-    segment.modifiers.iter().try_for_each(check_timed)?;
-    let names: Vec<&str> = segment
-        .modifiers
-        .iter()
-        .map(|m| m.modifier.as_str())
-        .collect();
-    listed_once("a modifier listed once", &names, |name| (*name).to_owned())?;
-    check_flags("a planet flag", &segment.planet.flags)
 }
 
 fn check_row(row: &RingRow) -> Result<(), OpError> {

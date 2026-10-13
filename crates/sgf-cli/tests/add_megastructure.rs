@@ -50,7 +50,7 @@ fn add_megastructure_refuses_a_place_its_type_does_not_take() {
     assert_eq!(relay.status.code(), Some(1));
     let err = String::from_utf8_lossy(&relay.stderr);
     assert!(
-        err.contains("Hyper Relay stands at a point of its own."),
+        err.contains("Hyper Relay goes in empty space, not on a planet or star."),
         "{err}"
     );
     assert!(!never.exists());

@@ -49,6 +49,7 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
                         flags: ["megastructure", "habitat", "habitat_level_1"]
                             .map(str::to_owned)
                             .to_vec(),
+                        modifiers: Vec::new(),
                     },
                     system_name: Some("prev.solar_system.GetName".to_owned()),
                     orbital: orbital.clone(),
@@ -320,7 +321,9 @@ neg_ring_3 = {
         .quadrants
         .iter()
         .flat_map(|q| match q {
-            RingQuadrant::Finished { segments } => segments.iter().flat_map(|s| &s.modifiers),
+            RingQuadrant::Finished { segments } => {
+                segments.iter().flat_map(|s| &s.planet.modifiers)
+            }
             other => panic!("{other:?}"),
         })
         .collect();
@@ -530,7 +533,7 @@ fz_built = {
                 (
                     section.planet.name.as_str(),
                     section.planet.size,
-                    section.modifiers.clone(),
+                    section.planet.modifiers.clone(),
                 )
             }
             other => panic!("{other:?}"),

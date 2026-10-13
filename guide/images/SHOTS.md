@@ -89,13 +89,17 @@ The Issues, Changes and added-system shots show those edits.
 | --- | --- | --- | --- |
 | `system/system-view.png` | `system/system-view.md` | The system view with the dock | On the unedited save, open Xraneax #322 with nothing selected inside it and the Hyperlanes section open. Full window. |
 | `system/orbit-radii.png` | `system/system-view.md` | Orbit radii in a system view | On the 4.4 save, open Amory and press 2. |
-| `system/megastructures.png` | `system/system-view.md` | A system with a megastructure, drawn from its game model | On a late-game 4.5 save, open a system with a finished Dyson Sphere with System details on, zoom in two steps past the whole system and crop to the star and its inner planets. Taken on Caehines #238 of a 4.5.2 autosave from 2333. |
+| `system/megastructures.png` | `system/system-view.md`, `system/megastructures.md` | A system with a megastructure, drawn from its game model | On a late-game 4.5 save, open a system with a finished Dyson Sphere with System details on, zoom in two steps past the whole system and crop to the star and its inner planets. Taken on Caehines #238 of a 4.5.2 autosave from 2333. |
 | `system/system-view-planet-selected.png` | `system/arrange-planets.md` | A selected planet with its radius line | In Xraneax, click Baloryz. |
 | `system/planet-menu.png` | `system/arrange-planets.md` | The right-click menu on a planet | In Xraneax, select Baloryz, TF-B-63 and JQQ-1-6498, then right-click Baloryz. |
 | `system/planet-page.png` | `system/planet-pages.md` | A planet's page | Click Baloryz and crop the dock. |
 | `system/deposit-picker.png` | `system/deposits-and-modifiers.md` | The Add deposit list | On Baloryz's page, click Add deposit… and hover Hot Springs. |
 | `system/edit-several-planets.png` | `system/edit-several-planets.md` | Three planets selected | In Xraneax, Ctrl-click Baloryz, TF-B-63 and JQQ-1-6498. |
 | `system/belts-section.png` | `system/belts.md` | The Belts section | Xraneax's page, scrolled to Belts. |
+| `system/add-megastructure-dialog.png` | `system/megastructures.md` | The Add megastructure dialog with the Dyson Sphere's finished stage picked | On a copy of `testdata/4.5-day-one.sav` with Gigastructural Engineering enabled, open Xraneax #322, right-click the star and select Add megastructure…. Dyson Sphere opens picked, on its finished stage. Crop to the dialog. Taken from `npm run tauri dev` on 4.5.2 game data. |
+| `system/add-ring-world.png` | `system/megastructures.md` | The Add megastructure dialog on Ring World, set to clear the system | On a fresh copy of the same save, right-click Xraneax #322's star, select Add megastructure…, filter for ring world and pick Ring World. Click the Ring tile, set quadrants A to D to Finished, Frame, Ruined and Damaged, and pick Clear system. Crop to the dialog. |
+| `system/megastructure-drag.png` | `system/megastructures.md` | A Science Nexus dragged over a star that can't take it | On the same copy, add a finished Science Nexus to Baloryz in Xraneax #322. Drag the Nexus and hold it over the star, so the star is ringed in red and the tooltip says it can't be attached to a star. Crop to the system, from the Nexus's label down past the star's labels. |
+| `system/add-equatorial-shipyard.png` | `system/megastructures.md` | The Add megastructure dialog on the Equatorial Shipyard, with the Moons choice | With Gigastructural Engineering enabled, on a 4.5 save with an owned molten planet that has 2 moons (Swur I in `giga-shipyard-0-before`), right-click the planet, select Add megastructure…, filter for equatorial and pick Equatorial Shipyard. Crop to the dialog. |
 
 ## Build a galaxy
 
