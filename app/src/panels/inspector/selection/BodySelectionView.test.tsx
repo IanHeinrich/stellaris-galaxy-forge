@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
 import { bindStores, summaryStep } from "../../../store/bindStores";

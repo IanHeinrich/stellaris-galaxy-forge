@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -80,6 +80,16 @@ beforeEach(async () => {
   mockedIpc.preparePreview.mockClear();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Lets the timer an edit started run out, however long it is, so what it would ask for is asked. */
+async function settled(): Promise<void> {
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+  await vi.runOnlyPendingTimersAsync();
+}
+
 describe("the Prepare choices", () => {
   it("name their preset, show Custom once they match none, and remember the preset picked", () => {
     expect(presetOf(prepare().choices, "plain")).toBe("faithful");
@@ -120,8 +130,9 @@ describe("the Prepare choices", () => {
   it("are read again only once the Galaxy page is in view", async () => {
     useLayoutStore.getState().setTab("issues");
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    vi.useFakeTimers();
     await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
-    await new Promise((r) => setTimeout(r, 400));
+    await settled();
     expect(mockedIpc.preparePreview).not.toHaveBeenCalled();
 
     useLayoutStore.getState().setTab("inspector");
@@ -135,8 +146,9 @@ describe("the Prepare choices", () => {
     useGameDataStore.setState({ status: "ready" });
     await prepare().refresh();
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    vi.useFakeTimers();
     await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
-    await new Promise((r) => setTimeout(r, 400));
+    await settled();
     expect(mockedIpc.preparePreview).not.toHaveBeenCalled();
     expect(prepare().preview).toBeNull();
 

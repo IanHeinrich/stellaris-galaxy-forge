@@ -4,14 +4,19 @@ vi.mock("../../../../../api/ipc");
 vi.mock("../../../../../api/events");
 vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../../../test/drawn"));
 
 import type { MarauderRole } from "../../../../../generated/MarauderRole";
 import { bindStores } from "../../../../../store/bindStores";
 import { detailOf } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
-import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import {
+  open,
+  overview,
+  patchSystem,
+  resetStores,
+  sections,
+  SYSTEM,
+} from "../../../inspectorFixture";
 import { ADD_BASES, NO_HOME_BESIDE } from "./MarauderSection";
 import { CLAN_CARD } from "./sectionCopy";
 import { drawnBy } from "../../../../../test/drawn";
@@ -46,16 +51,13 @@ async function openWith(
     };
   });
   await open("scenario");
-  const systems = new Map(useGalaxyStore.getState().systems);
   const put = (id: number, r: MarauderRole | null, site?: 2 | 3) =>
-    systems.set(id, {
-      ...systems.get(id)!,
+    patchSystem(id, {
       marauder: r,
       initializer: r === null ? "basic_init_01" : initializerOf(r, site),
     });
   put(SYSTEM, role);
   for (const [id, [r, site]] of Object.entries(others)) put(Number(id), r, site);
-  useGalaxyStore.setState({ systems });
 }
 
 beforeEach(resetStores);

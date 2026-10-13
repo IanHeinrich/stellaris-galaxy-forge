@@ -1,5 +1,3 @@
-import type { PlanetPage } from "../generated/PlanetPage";
-import { planetSummary } from "./fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
@@ -24,19 +22,10 @@ import { useDigSitePickerStore } from "./digSitePickerStore";
 import { editResult } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useModifierPickerStore } from "./modifierPickerStore";
-import { heldAnomaly, savePickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
 import { until } from "../test/wait";
 import { flush } from "../test/flush";
-
-/** Save body `page` in system 1, as its page hands it to the pickers. */
-const pickerTarget = (page: PlanetPage) =>
-  savePickerTarget(
-    1,
-    planetSummary({ id: page.id, class: page.class, size: page.size }),
-    page,
-    heldAnomaly(page),
-  );
+import { pickerTarget } from "../test/pickerTarget";
 
 bindStores();
 

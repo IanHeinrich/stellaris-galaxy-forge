@@ -11,7 +11,7 @@ const drawn: { type: unknown; props: DrawnProps }[] = [];
 
 /**
  * Stands in for React's JSX runtime in a component test, keeping every element a render draws so
- * the test can press the real control: `vi.mock("react/jsx-dev-runtime", () => import(...))`.
+ * the test can press the real control. `test/setup.ts` mocks the runtime with this module for every test file.
  */
 export const Fragment = actual.Fragment;
 export const jsxDEV: Runtime["jsxDEV"] = (type, props, ...rest) => {

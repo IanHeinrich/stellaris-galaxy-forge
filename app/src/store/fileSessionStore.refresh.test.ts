@@ -12,6 +12,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { edit, resetSession, session } from "./sessionFixture";
 import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
+import { flush } from "../test/flush";
 import { until } from "../test/wait";
 
 let heard: ((changed: DocumentChanged) => void) | null = null;
@@ -181,7 +182,7 @@ describe("a scenario with unsaved changes", () => {
     expect(diskChangeShown(session())).toBeNull();
 
     await edit();
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    await flush();
     await session().noteDiskChange(changed({ dirty: true }));
     expect(diskChangeShown(session())).toBe("banner");
   });

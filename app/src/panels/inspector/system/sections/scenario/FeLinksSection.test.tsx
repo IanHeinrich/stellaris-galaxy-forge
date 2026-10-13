@@ -10,8 +10,14 @@ import { newFeZone } from "../../../../../lib/feZone";
 import { bindStores } from "../../../../../store/bindStores";
 import { detailOf } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
-import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import {
+  open,
+  overview,
+  patchSystem,
+  resetStores,
+  sections,
+  SYSTEM,
+} from "../../../inspectorFixture";
 import { FE_LINKS_INTRO } from "./FeLinksSection";
 import { mockedIpc } from "../../../../../test/ipc";
 
@@ -33,11 +39,9 @@ async function openLinking(to: number[], anchorsItself = false): Promise<void> {
   });
   await open("scenario");
   useFileSessionStore.setState({ painted: true });
-  const systems = new Map(useGalaxyStore.getState().systems);
-  systems.set(SYSTEM, { ...systems.get(SYSTEM)!, fe_zone: zone, fe_link });
-  systems.set(3, { ...systems.get(3)!, fe_zone: newFeZone("s"), fe_link: TAKES_2 });
-  systems.set(5, { ...systems.get(5)!, fe_zone: newFeZone("n"), fe_link: TAKES_4 });
-  useGalaxyStore.setState({ systems });
+  patchSystem(SYSTEM, { fe_zone: zone, fe_link });
+  patchSystem(3, { fe_zone: newFeZone("s"), fe_link: TAKES_2 });
+  patchSystem(5, { fe_zone: newFeZone("n"), fe_link: TAKES_4 });
 }
 
 beforeEach(resetStores);

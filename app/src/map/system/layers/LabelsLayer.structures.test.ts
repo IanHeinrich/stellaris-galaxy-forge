@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { flush } from "../../../test/flush";
 import { until } from "../../../test/wait";
 
 vi.mock("../../../api/gamedata", () => import("../../../test/textures"));
@@ -159,7 +160,7 @@ describe("the system scene's labels layer at megastructures and starbases", () =
     viewport(layer, 2);
     const placed = layer.plates();
     requestTextures(["sprite:GFX_unrelated"]);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flush();
     expect(layer.plates()).toBe(placed);
 
     const relay = ctx.structures.find((s) => s.id === 2)!;

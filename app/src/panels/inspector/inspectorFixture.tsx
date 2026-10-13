@@ -1,8 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { vi } from "vitest";
+import { expect, vi } from "vitest";
+import type { BodySpawn } from "../../generated/BodySpawn";
 import type { FleetSummary } from "../../generated/FleetSummary";
 import type { InitializerView } from "../../generated/InitializerView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
+import type { SystemNode } from "../../generated/SystemNode";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { DETAILS_DEBOUNCE_MS } from "../../store/batching";
 import { useDetailsStore } from "../../store/detailsStore";
@@ -10,6 +12,8 @@ import { useEditorStore } from "../../store/editorStore";
 import { useEntityStore } from "../../store/entityStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useGalaxyStore } from "../../store/galaxyStore";
+import { useInspectorStore, type Entry } from "../../store/inspectorStore";
 import { usePlanetDataStore } from "../../store/planetDataStore";
 import { useScriptsStore } from "../../store/scriptsStore";
 import { armSession, resetStores as resetEveryStore } from "../../store/storeFixture";
@@ -24,8 +28,11 @@ import {
   SCENARIO_RESULT,
   systemDetails,
 } from "../../store/fixture";
+import { PlanetView } from "./entity/PlanetView";
+import { RolledMark } from "./states";
 import { SystemView } from "./system/SystemView";
 import { mockedIpc } from "../../test/ipc";
+import { bodySpawn } from "../../test/spawn";
 
 /** The system every test opens: Alpha Centauri, four lanes and the `basic_init_01` initializer. */
 export const SYSTEM = 1;
@@ -93,11 +100,85 @@ export async function land(record: SystemDetails): Promise<void> {
 
 export const overview = () => renderToStaticMarkup(<SystemView id={SYSTEM} />);
 
-/** Every section the overview opened with, in order, as their headers name them. */
+/**
+ * Every section the overview opened with, in order, as their headers read with the marks inside
+ * them left out.
+ */
 export function sections(html: string): string[] {
   return [
     ...html.matchAll(
-      /class="ins-sec-title(?: muted)?">(?:<span [^>]*class="ins-hinted"[^>]*>)?([^<]*)</g,
+      /class="ins-sec-title(?: muted)?">(.*?)<\/span>(?=<span class="(?:chip|ins-sec-aside)|<\/button>)/g,
     ),
-  ].map((m) => m[1]);
+  ].map((m) => m[1].replace(/<[^>]*>/g, ""));
+}
+
+/** The overview of body `id`'s page, drilled onto from its system under `label`. */
+export function page(id: number, label: string): string {
+  const entry: Entry = { ref: { kind: "body", system: SYSTEM, id }, label };
+  useInspectorStore.setState({ tab: "overview" });
+  return renderToStaticMarkup(<PlanetView entry={entry} />);
+}
+
+/** The value of the row labelled `label`, and what follows it up to the next row. */
+export function row(html: string, label: string): string {
+  const start = html.indexOf(`<span class="k">${label}</span>`);
+  expect(start, `a ${label} row`).toBeGreaterThan(-1);
+  const rest = html.slice(start + label.length + 22);
+  const next = rest.indexOf('<span class="k">');
+  return next === -1 ? rest : rest.slice(0, next);
+}
+
+/** The edit row labelled `label`, up to the next edit row. */
+export function editRow(html: string, label: string): string {
+  const start = html.indexOf(`<span class="edit-label">${label}</span>`);
+  expect(start, `a ${label} row`).toBeGreaterThan(-1);
+  const rest = html.slice(start + 1);
+  const next = rest.indexOf('<span class="edit-label">');
+  return next === -1 ? rest : rest.slice(0, next);
+}
+
+/** The die that marks a rolled value, as it renders. */
+export const DIE = renderToStaticMarkup(<RolledMark />);
+
+/** A value in the rolled look, as it renders. */
+export function rolled(text: string): string {
+  return `<span class="ins-st-rolled">${DIE}${text}</span>`;
+}
+
+/** Changes system `id` in the galaxy store, as an edit or a reread would. */
+export function patchSystem(id: number, patch: Partial<SystemNode>): void {
+  const systems = new Map(useGalaxyStore.getState().systems);
+  const system = systems.get(id);
+  if (system === undefined) throw new Error(`the fixture has no system ${id}`);
+  systems.set(id, { ...system, ...patch });
+  useGalaxyStore.setState({ systems });
+}
+
+/** Names system `SYSTEM` as the map does. */
+export function nameSystem(key: string): void {
+  patchSystem(SYSTEM, { name: { ...name(key), literal: true } });
+}
+
+/** A planet drawn from the classes that fit its orbit, named by the game. */
+export function randomPlanet(id: number, over: Partial<BodySpawn> = {}): PlanetSummary {
+  return planet(id, "", {
+    class: "random",
+    drawn: true,
+    size: null,
+    ring: null,
+    spawn: bodySpawn({
+      class: {
+        state: "rolled",
+        pool: {
+          kind: "random",
+          draw: "random",
+          at_orbit: [
+            { class: "pc_toxic", weight: 1 },
+            { class: "pc_barren", weight: 3 },
+          ],
+        },
+      },
+      ...over,
+    }),
+  });
 }
