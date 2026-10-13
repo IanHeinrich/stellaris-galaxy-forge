@@ -13,7 +13,7 @@ use sgf_core::ops::{
     NewMegastructure, NewMegastructurePlace, Op, OpError,
 };
 use sgf_core::session::{SaveQueries, Session};
-use sgf_core::views::details::{MegastructureSummary, SiteBody};
+use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
 use sgf_core::views::{ErrorKind, SgfError};
 use ts_rs::TS;
 
@@ -110,6 +110,21 @@ pub fn megastructure_op(
     keep_planet: bool,
     moons: HostMoons,
 ) -> Result<Planned, Refusal> {
+    megastructure_op_at(gd, session, system, None, kind, place, keep_planet, moons)
+}
+
+/// [`megastructure_op`] in a system whose construction site is `site`, read when `None`.
+#[allow(clippy::too_many_arguments)]
+fn megastructure_op_at(
+    gd: &GameData,
+    session: &Session,
+    system: u32,
+    site: Option<&ConstructionSite>,
+    kind: &str,
+    place: MegastructurePlace,
+    keep_planet: bool,
+    moons: HostMoons,
+) -> Result<Planned, Refusal> {
     let def = defined(gd, kind)?;
     check_place(gd, def, place)?;
     let save = session.save("adding a megastructure")?;
@@ -133,7 +148,7 @@ pub fn megastructure_op(
             reason: WHOLE_STRUCTURE.to_owned(),
         });
     }
-    let site = save.construction_site(system)?;
+    let site = site_or_read(save, system, site)?;
     let construction = match &at_host.planet {
         Some(_) => Cow::Owned(def.construction.without_spawned()),
         None => Cow::Borrowed(&def.construction),
@@ -184,10 +199,20 @@ pub fn habitat_op(
     body: u32,
     kind: &str,
 ) -> Result<Planned, Refusal> {
+    habitat_op_at(gd, session, system, None, body, kind)
+}
+
+/// [`habitat_op`] in a system whose construction site is `site`, read when `None`.
+fn habitat_op_at(
+    gd: &GameData,
+    session: &Session,
+    system: u32,
+    site: Option<&ConstructionSite>,
+    body: u32,
+    kind: &str,
+) -> Result<Planned, Refusal> {
     defined(gd, kind)?;
-    let site = session
-        .save("adding a habitat")?
-        .construction_site(system)?;
+    let site = site_or_read(session.save("adding a habitat")?, system, site)?;
     let host = site
         .bodies
         .iter()
@@ -218,12 +243,25 @@ pub fn ring_world_op(
     stages: &[RingStage],
     clear: bool,
 ) -> Result<Planned, Refusal> {
+    ring_world_op_at(gd, session, system, None, kind, stages, clear)
+}
+
+/// [`ring_world_op`] in a system whose construction site is `site`, read when `None`.
+fn ring_world_op_at(
+    gd: &GameData,
+    session: &Session,
+    system: u32,
+    site: Option<&ConstructionSite>,
+    kind: &str,
+    stages: &[RingStage],
+    clear: bool,
+) -> Result<Planned, Refusal> {
     defined(gd, kind)?;
     let save = session.save("adding a ring world")?;
     let owner = owner(session, system);
     let culture = culture(session, owner);
-    let held = save.construction_site(system)?.flags;
-    let ring = ring_world(gd, kind, stages, culture.as_deref(), &held).map_err(|reason| {
+    let site = site_or_read(save, system, site)?;
+    let ring = ring_world(gd, kind, stages, culture.as_deref(), &site.flags).map_err(|reason| {
         Refusal::NoRingWorld {
             name: gd.loc.name_or_readable(kind),
             reason,
@@ -320,7 +358,7 @@ pub fn megastructure_fits(
             let place = place_at(spot);
             MegastructureFit {
                 kind: def.key.clone(),
-                refusal: fit_refusal(gd, session, system, made, place, rows),
+                refusal: fit_refusal(gd, session, system, &site, made, place, rows),
                 host_moons: moons_fit(gd, session, made, body, rows),
                 variant,
                 place,
@@ -420,27 +458,39 @@ fn place_at(spot: AddSpot) -> MegastructurePlace {
     }
 }
 
-/// Why the add of `def` at `place` would be refused, in a system whose rows are `rows`, the
-/// body's moons kept: [`moons_fit`] says whether they can go. Each op of a planet-change batch
-/// is checked against the planet as it is, not as the batch's class and size ops leave it. The
-/// core decides whether an add is refused, and [`worded`] says why.
+/// Why the add of `def` at `place` would be refused, in system `system`, whose construction
+/// site is `site` and whose rows are `rows`, the body's moons kept: [`moons_fit`] says whether
+/// they can go. Each op of a planet-change batch is checked against the planet as it is, not as
+/// the batch's class and size ops leave it. The core decides whether an add is refused, and
+/// [`worded`] says why.
 fn fit_refusal(
     gd: &GameData,
     session: &Session,
     system: u32,
+    site: &ConstructionSite,
     def: &MegastructureDef,
     place: MegastructurePlace,
     rows: &[MegastructureSummary],
 ) -> Option<String> {
-    let key = &def.key;
+    let (key, site) = (&def.key, Some(site));
     let planned = match place {
         _ if is_ring_world(def) => {
-            ring_world_op(gd, session, system, key, &[RingStage::Finished; 4], false)
+            let finished = &[RingStage::Finished; 4];
+            ring_world_op_at(gd, session, system, site, key, finished, false)
         }
         MegastructurePlace::Body { body } if habitat(gd, key, true, None).is_some() => {
-            habitat_op(gd, session, system, body, key)
+            habitat_op_at(gd, session, system, site, body, key)
         }
-        _ => megastructure_op(gd, session, system, key, place, false, HostMoons::Keep),
+        _ => megastructure_op_at(
+            gd,
+            session,
+            system,
+            site,
+            key,
+            place,
+            false,
+            HostMoons::Keep,
+        ),
     };
     let refused = match planned {
         Err(refused) => return Some(refused.to_string()),
@@ -503,6 +553,18 @@ fn worded(
         ),
         MegastructureRefusal::Other(_) => refused.to_string(),
     }
+}
+
+/// `site`, or the construction site of system `system` read from `save` when it is `None`.
+fn site_or_read<'s>(
+    save: SaveQueries<'_>,
+    system: u32,
+    site: Option<&'s ConstructionSite>,
+) -> Result<Cow<'s, ConstructionSite>, Refusal> {
+    Ok(match site {
+        Some(site) => Cow::Borrowed(site),
+        None => Cow::Owned(save.construction_site(system)?),
+    })
 }
 
 fn defined<'g>(gd: &'g GameData, kind: &str) -> Result<&'g MegastructureDef, Refusal> {

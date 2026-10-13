@@ -220,6 +220,25 @@ pub(crate) struct Row<'d> {
 /// Every live row of `table` in file order: each one loaded that no op took out, and each
 /// one an op wrote.
 pub(crate) fn rows(doc: &Document, table: Table) -> Result<Vec<Row<'_>>, ProjectionError> {
+    rows_where(doc, table, |_| true)
+}
+
+/// [`rows`] whose bytes contain `text`; the rest are left unparsed.
+pub(crate) fn rows_containing<'d>(
+    doc: &'d Document,
+    table: Table,
+    text: &[u8],
+) -> Result<Vec<Row<'d>>, ProjectionError> {
+    let finder = memchr::memmem::Finder::new(text);
+    rows_where(doc, table, |bytes| finder.find(bytes).is_some())
+}
+
+/// [`rows`] whose bytes `keep` accepts.
+fn rows_where(
+    doc: &Document,
+    table: Table,
+    keep: impl Fn(&[u8]) -> bool,
+) -> Result<Vec<Row<'_>>, ProjectionError> {
     let mut anchors: Vec<(u32, Anchor)> = doc.added().entries(table).collect();
     if let Some((index, key)) = table.loaded(doc)? {
         for entity in index.entities(key) {
@@ -234,6 +253,9 @@ pub(crate) fn rows(doc: &Document, table: Table) -> Result<Vec<Row<'_>>, Project
     anchors.sort_by_key(|&(_, anchor)| anchor);
     let mut rows = Vec::new();
     for (id, anchor) in anchors {
+        if doc.current(anchor).is_ok_and(|bytes| !keep(bytes)) {
+            continue;
+        }
         rows.extend(row_at(doc, table, id, anchor)?);
     }
     Ok(rows)
