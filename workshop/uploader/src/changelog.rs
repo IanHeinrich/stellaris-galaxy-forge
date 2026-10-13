@@ -535,9 +535,13 @@ wrapped at the margin.
                 .filter(|line| line.starts_with("- ") || line.starts_with("  - "))
                 .count();
             assert_eq!(note.matches("[*]").count(), bullets, "{}", section.version);
-            let stray = note
-                .lines()
-                .find(|line| !line.starts_with('[') && !line.starts_with("Earlier versions"));
+            // A plain line may only label the list under it, as "Saves" does.
+            let lines: Vec<&str> = note.lines().collect();
+            let stray = lines.iter().enumerate().find(|&(i, line)| {
+                !line.starts_with('[')
+                    && !line.starts_with("Earlier versions")
+                    && lines.get(i + 1) != Some(&"[list]")
+            });
             assert_eq!(stray, None, "{} has text outside a list", section.version);
         }
     }

@@ -103,12 +103,15 @@ describe("a release's notes as blocks", () => {
     ]);
   });
 
-  it("reads every section of the changelog as headings and lists alone", () => {
+  it("reads every section of the changelog as headings, lists and the labels over lists", () => {
     const sections = changelog.split(/^## .*$/m).slice(1);
     expect(sections.length).toBeGreaterThan(10);
     for (const body of sections) {
       const blocks = parseReleaseNotes(body);
-      expect(blocks.filter((b) => b.kind === "paragraph")).toEqual([]);
+      const unlabelled = blocks.filter(
+        (b, i) => b.kind === "paragraph" && blocks[i + 1]?.kind !== "list",
+      );
+      expect(unlabelled).toEqual([]);
       const bullets = body.split(/\r?\n/).filter((l) => /^ {0,2}- /.test(l)).length;
       const items = blocks.flatMap((b) => (b.kind === "list" ? b.items : []));
       expect(items.length + items.flatMap((i) => i.items).length).toBe(bullets);
