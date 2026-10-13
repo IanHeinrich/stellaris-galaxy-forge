@@ -1,6 +1,6 @@
-//! `model:<culture>:<entity>[:yaw<degrees>]`: a megastructure's or starbase's model, its
-//! meshes read from their `.mesh` files, turned by the yaw about its up axis and drawn from
-//! above at a slight tilt, at the size the game draws it.
+//! `model:<culture>:<entity>[:yaw<degrees>][:px<pixels>]`: a megastructure's or starbase's
+//! model, its meshes read from their `.mesh` files, turned by the yaw about its up axis and
+//! drawn from above at a slight tilt, at the size the game draws it or the pixel cap if smaller.
 //! The entity is looked up as `<culture>_<entity>`, then `mammalian_01_<entity>`, then
 //! `<entity>`; for the culture `none`, what no empire owns, `<entity>` first. Skipped: skinned animation (the bind pose is drawn), particles, specular and
 //! environment light, bloom, atmospheres, and additive and scrolling extras such as the Dyson
@@ -79,6 +79,8 @@ pub(super) struct ModelJob {
     entity: String,
     /// The turn about model Y, in whole degrees.
     yaw: u16,
+    /// The most pixels along the sprite's longer side, when the key caps it.
+    px: Option<u32>,
     layout: Layout,
     assets: Arc<Assets>,
     parts: Vec<Part>,
@@ -136,6 +138,7 @@ impl Hash for ModelJob {
         self.parts.hash(state);
         self.textures.hash(state);
         self.yaw.hash(state);
+        self.px.hash(state);
     }
 }
 
@@ -155,6 +158,7 @@ impl ModelJob {
         cultures: &[String],
         entity: &str,
         yaw: u16,
+        px: Option<u32>,
     ) -> Result<Self, TextureError> {
         let missing = || TextureError::NoModel(entity.to_owned());
         let name = assets.entity_name(cultures, entity).ok_or_else(missing)?;
@@ -186,6 +190,7 @@ impl ModelJob {
         let mut job = Self {
             entity: entity.to_owned(),
             yaw,
+            px,
             layout: layout.clone(),
             assets,
             parts,
@@ -349,7 +354,8 @@ impl ModelJob {
 
     fn bake(&self) -> Result<(RgbaImage, ModelPlacement), TextureError> {
         let loaded = self.load()?;
-        let long_side = raster::long_side(loaded.iter().flat_map(Loaded::positions));
+        let natural = raster::long_side(loaded.iter().flat_map(Loaded::positions));
+        let long_side = self.px.map_or(natural, |px| natural.min(px));
         let texture_width = long_side.clamp(MIN_TEXTURE_WIDTH, MAX_TEXTURE_WIDTH);
         let mut maps: HashMap<&PathBuf, Option<raster::Map>> = HashMap::new();
         for path in loaded
@@ -420,6 +426,7 @@ impl ModelJob {
         Self {
             entity: String::new(),
             yaw: 0,
+            px: None,
             layout: Layout::default(),
             assets: Arc::default(),
             parts: Vec::new(),
@@ -621,6 +628,7 @@ impl GameData {
             culture,
             entity,
             yaw,
+            px,
         } = key.parse()?
         else {
             return Err(TextureError::BadKey(key.to_owned()));
@@ -631,6 +639,7 @@ impl GameData {
             &self.graphical_cultures.chain(&culture),
             &entity,
             yaw,
+            px,
         )
     }
 }

@@ -20,6 +20,10 @@ codegen-units = 1
 [profile.dev.package.sgf-core]
 opt-level = 2
 
+# Model sprites bake about fourteen times slower unoptimised, so a drag or a thumbnail waits seconds.
+[profile.dev.package.sgf-gamedata]
+opt-level = 2
+
 # The tests run three to four times faster with dependencies optimised; memchr and similar alone give half of it.
 [profile.dev.package."*"]
 opt-level = 2

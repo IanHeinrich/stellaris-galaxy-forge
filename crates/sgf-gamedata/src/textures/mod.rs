@@ -6,13 +6,14 @@
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
 //! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
 //! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>`,
-//! `model:<culture>:<entity>[:yaw<degrees>]` and `planet_ring`.
+//! `model:<culture>:<entity>[:yaw<degrees>][:px<pixels>]` and `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::prelude::*;
@@ -316,12 +317,14 @@ impl Job {
                 culture,
                 entity,
                 yaw,
+                px,
             } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
                 Arc::clone(lookups.models),
                 &(lookups.cultures)(culture),
                 entity,
                 *yaw,
+                *px,
             )?)),
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());
@@ -571,8 +574,10 @@ fn renew(path: &Path) {
     }
 }
 
-/// A cache write that fails leaves nothing behind and is not an error.
+/// A cache write that fails leaves nothing behind and is not an error. Each write has a
+/// temporary file of its own, so two threads baking one key never write into the same file.
 fn write_atomically(path: &Path, bytes: &[u8]) {
+    static WRITES: AtomicU64 = AtomicU64::new(0);
     let Some(dir) = path.parent() else {
         return;
     };
@@ -580,11 +585,12 @@ fn write_atomically(path: &Path, bytes: &[u8]) {
         return;
     }
     let tmp = dir.join(format!(
-        ".{}.{}.tmp",
+        ".{}.{}.{}.tmp",
         path.file_name()
             .map(|n| n.to_string_lossy())
             .unwrap_or_default(),
-        std::process::id()
+        std::process::id(),
+        WRITES.fetch_add(1, Ordering::Relaxed)
     ));
     if fs::write(&tmp, bytes).is_ok() && fs::rename(&tmp, path).is_err() {
         let _ = fs::remove_file(&tmp);

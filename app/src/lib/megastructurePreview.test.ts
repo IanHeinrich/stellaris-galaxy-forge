@@ -44,11 +44,11 @@ describe("the picture a megastructure's tile shows", () => {
   it("draws the model in the owner's culture, bare without one, with the map icon behind it", () => {
     const yard = TYPES.get("mega_shipyard_1");
     expect(megastructureThumbKeys(yard, "mammalian_01")).toEqual([
-      "model:mammalian_01:mega_shipyard_1_entity",
+      "model:mammalian_01:mega_shipyard_1_entity:px256",
       MEGASTRUCTURE_ICON_KEY,
     ]);
     expect(megastructureThumbKeys(yard, null)).toEqual([
-      "model:none:mega_shipyard_1_entity",
+      "model:none:mega_shipyard_1_entity:px256",
       MEGASTRUCTURE_ICON_KEY,
     ]);
   });

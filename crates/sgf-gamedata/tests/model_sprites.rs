@@ -604,6 +604,24 @@ fn a_yaw_in_the_key_turns_the_model_about_its_up_axis() {
 }
 
 #[test]
+fn a_pixel_cap_in_the_key_bakes_no_larger_and_keeps_the_placement() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let long = |image: &RgbaImage| image.width().max(image.height());
+    let (full, placement) = sprite(&gd, &textures, "model:mammalian_01:pair_entity");
+    let (capped, at) = sprite(&gd, &textures, "model:mammalian_01:pair_entity:px64");
+    assert!(long(&full) > 64, "{:?}", full.dimensions());
+    assert!(long(&capped) <= 64, "{:?}", capped.dimensions());
+    assert!(close(at.width, placement.width, 0.03), "{at:?}");
+    assert!(close(at.height, placement.height, 0.03), "{at:?}");
+    assert!((at.anchor_x - placement.anchor_x).abs() < 0.02, "{at:?}");
+    assert!((at.anchor_y - placement.anchor_y).abs() < 0.02, "{at:?}");
+
+    let (wide, _) = sprite(&gd, &textures, "model:mammalian_01:pair_entity:px4096");
+    assert_eq!(wide.dimensions(), full.dimensions(), "a cap above the size");
+}
+
+#[test]
 fn a_ring_world_quadrant_turns_its_side_pieces_to_face_its_star() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;

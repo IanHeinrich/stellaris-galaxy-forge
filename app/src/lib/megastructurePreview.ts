@@ -22,6 +22,12 @@ import {
 } from "./megastructurePicks";
 
 /**
+ * The most pixels along a model's longer side in the dialog's tiles and its picture, the larger
+ * at about 200 px: a model baked at the system view's size takes seconds.
+ */
+export const MEGASTRUCTURE_THUMB_PX = 256;
+
+/**
  * The textures a tile of `type` shows, the first that lands: its model in `culture`, bare for
  * no culture, else the game's megastructure icon when it has no model or the model fails.
  */
@@ -31,7 +37,7 @@ export function megastructureThumbKeys(
 ): string[] {
   const look = megastructureLook(type);
   if (look.kind !== "model") return [MEGASTRUCTURE_ICON_KEY];
-  return [modelKey(culture, look.entity), MEGASTRUCTURE_ICON_KEY];
+  return [modelKey(culture, look.entity, 0, MEGASTRUCTURE_THUMB_PX), MEGASTRUCTURE_ICON_KEY];
 }
 
 /**

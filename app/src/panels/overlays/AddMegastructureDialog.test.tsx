@@ -130,14 +130,14 @@ describe("the Add megastructure dialog", () => {
     ownSystem(OWNER);
     let html = dialog();
     expect(html).toContain(OWNER_NOTE);
-    expect(html).toContain('src="tex:model:mammalian_01:dyson_sphere_5_entity"');
+    expect(html).toContain('src="tex:model:mammalian_01:dyson_sphere_5_entity:px256"');
     expect(html).not.toContain("<select");
 
     ownSystem(null);
     html = dialog();
     expect(html).toContain("No owner");
     expect(html).toContain(NO_OWNER_NOTE);
-    expect(html).toContain('src="tex:model:none:dyson_sphere_5_entity"');
+    expect(html).toContain('src="tex:model:none:dyson_sphere_5_entity:px256"');
   });
 
   it("marks a type it has no model for, and shows the megastructure icon", () => {

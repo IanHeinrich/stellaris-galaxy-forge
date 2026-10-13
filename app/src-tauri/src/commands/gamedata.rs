@@ -427,7 +427,8 @@ pub async fn get_map_font<R: Runtime>(app: AppHandle<R>) -> Result<Option<String
     .map_err(io_error)
 }
 
-/// One view per key, in order; a key that fails carries its error instead of failing the call.
+/// One view per key, in order, the keys baked side by side; a key that fails carries its error
+/// instead of failing the call.
 #[tauri::command]
 pub async fn get_textures<R: Runtime>(
     app: AppHandle<R>,
@@ -436,14 +437,15 @@ pub async fn get_textures<R: Runtime>(
     tauri::async_runtime::spawn_blocking(move || {
         let gd = app.state::<GameDataState>().loaded();
         let textures = app.state::<TextureState>();
-        keys.iter()
-            .map(|key| match &gd {
-                Some(gd) => gd.texture(&textures.0, key),
-                None => {
-                    TextureView::failed(key, SgfError::no_game_data("show the game's art").message)
-                }
-            })
-            .collect()
+        match &gd {
+            Some(gd) => gd.textures(&textures.0, &keys),
+            None => {
+                let message = SgfError::no_game_data("show the game's art").message;
+                keys.iter()
+                    .map(|key| TextureView::failed(key, message.clone()))
+                    .collect()
+            }
+        }
     })
     .await
     .map_err(io_error)

@@ -60,12 +60,15 @@ pub enum TextureKey {
         class: String,
     },
     /// A megastructure's or starbase's model in a graphical culture, by its entity name
-    /// without the culture's prefix, turned `yaw` whole degrees about its up axis
-    /// (`model:<culture>:<entity>:yaw<degrees>`, the turn left out when it is 0).
+    /// without the culture's prefix, turned `yaw` whole degrees about its up axis and baked
+    /// at most `px` pixels along its longer side
+    /// (`model:<culture>:<entity>[:yaw<degrees>][:px<pixels>]`, the turn left out when it
+    /// is 0 and the cap when there is none).
     Model {
         culture: String,
         entity: String,
         yaw: u16,
+        px: Option<u32>,
     },
 }
 
@@ -167,15 +170,26 @@ impl FromStr for TextureKey {
                 class: component(rest).ok_or_else(bad)?,
             },
             "model" => {
-                let (culture, rest) = rest.split_once(':').ok_or_else(bad)?;
-                let (entity, yaw) = match rest.split_once(':') {
-                    Some((entity, turn)) => (entity, yaw_degrees(turn).ok_or_else(bad)?),
-                    None => (rest, 0),
+                let mut parts = rest.split(':');
+                let culture = parts.next().and_then(component).ok_or_else(bad)?;
+                let entity = parts.next().and_then(component).ok_or_else(bad)?;
+                let mut next = parts.next();
+                let yaw = match next.and_then(yaw_degrees) {
+                    Some(yaw) => {
+                        next = parts.next();
+                        yaw
+                    }
+                    None => 0,
                 };
+                let px = next.map(|cap| pixels(cap).ok_or_else(bad)).transpose()?;
+                if parts.next().is_some() {
+                    return Err(bad());
+                }
                 Self::Model {
-                    culture: component(culture).ok_or_else(bad)?,
-                    entity: component(entity).ok_or_else(bad)?,
+                    culture,
+                    entity,
                     yaw,
+                    px,
                 }
             }
             _ => return Err(bad()),
@@ -217,13 +231,18 @@ impl fmt::Display for TextureKey {
             Self::Model {
                 culture,
                 entity,
-                yaw: 0,
-            } => write!(f, "model:{culture}:{entity}"),
-            Self::Model {
-                culture,
-                entity,
                 yaw,
-            } => write!(f, "model:{culture}:{entity}:yaw{yaw}"),
+                px,
+            } => {
+                write!(f, "model:{culture}:{entity}")?;
+                if *yaw != 0 {
+                    write!(f, ":yaw{yaw}")?;
+                }
+                match px {
+                    Some(px) => write!(f, ":px{px}"),
+                    None => Ok(()),
+                }
+            }
         }
     }
 }
@@ -232,6 +251,13 @@ impl fmt::Display for TextureKey {
 fn yaw_degrees(s: &str) -> Option<u16> {
     let degrees: i32 = s.strip_prefix("yaw")?.parse().ok()?;
     u16::try_from(degrees.rem_euclid(360)).ok()
+}
+
+/// `px<pixels>`, a whole number of pixels above 0.
+fn pixels(s: &str) -> Option<u32> {
+    let digits = s.strip_prefix("px")?;
+    let clean = !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit());
+    digits.parse().ok().filter(|px| clean && *px > 0)
 }
 
 /// One path segment: non-empty, no separators, no `..`.
