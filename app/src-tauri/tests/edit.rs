@@ -6,9 +6,7 @@ use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 
 use crate::common;
-use common::{SAMPLE, SAMPLE_45, invoke, kind, opened, webview, with_game_data};
-
-const SAMPLE_34: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
+use common::{SAMPLE, SAMPLE_34, SAMPLE_45, invoke, kind, opened, webview, with_game_data};
 
 /// A 3.4 save has none of the capabilities that add systems, so the shell refuses the command
 /// before the core sees it.

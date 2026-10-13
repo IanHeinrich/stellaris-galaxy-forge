@@ -165,7 +165,7 @@ pub async fn get_class_rolls<R: Runtime>(
         if !Capabilities::of(session.doc()).rolled_layout {
             return Err(SgfError::new(
                 ErrorKind::Op,
-                "only a scenario's bodies are rolled",
+                "this document's bodies are not rolled",
             ));
         }
         let initializer = session

@@ -286,7 +286,7 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
 #[tauri::command]
 pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUse>, SgfError> {
     with_open(app, |session| {
-        if !Capabilities::of(session.doc()).export {
+        if !Capabilities::of(session.doc()).details {
             return Ok(Vec::new());
         }
         Ok(session.details().map_err(SessionError::from)?.models())

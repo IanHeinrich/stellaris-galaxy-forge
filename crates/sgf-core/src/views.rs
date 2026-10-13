@@ -179,7 +179,7 @@ pub struct Capabilities {
     /// The document is a text file of its own, so an editor can open it: a scenario script,
     /// not a save's archive.
     pub text_file: bool,
-    /// The document can be exported as a scenario script, and its models listed for baking.
+    /// The document can be exported as a scenario script.
     pub export: bool,
 }
 

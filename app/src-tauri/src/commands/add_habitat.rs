@@ -19,9 +19,10 @@ pub async fn add_habitat<R: Runtime>(
     body: u32,
     kind: String,
 ) -> Result<Added, SgfError> {
-    let gd = game_data(&app, "add a habitat")?;
+    let gd = game_data(&app, "add a habitat");
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.add_megastructures, NO_HABITATS)?;
+        let gd = gd?;
         let planned = generate::habitat_op(&gd, session, system, body, &kind)?;
         let result = session.apply(planned.op)?;
         Ok(Added::of(session, result))
