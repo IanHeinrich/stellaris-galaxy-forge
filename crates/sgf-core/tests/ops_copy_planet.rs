@@ -474,7 +474,9 @@ fn a_moon_with_an_asteroid_name_is_copied_lettered() {
     assert_eq!(copies[0].moons[0].spec.name, None, "{copies:?}");
     let mut session = open_4_5();
     let op = session
-        .save().expect("a save").paste_bodies_op(KAZAM, &copies, None)
+        .save()
+        .expect("a save")
+        .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
     let before = common::planet_ids(&session, KAZAM);
     session.apply(op).expect("the paste");
@@ -506,7 +508,11 @@ fn a_star_its_system_does_not_list_is_refused() {
         );
         *gamestate = gamestate.replacen(line, "", 1);
     });
-    let error = session.save().expect("a save").copy_bodies(&[327]).expect_err("a star");
+    let error = session
+        .save()
+        .expect("a save")
+        .copy_bodies(&[327])
+        .expect_err("a star");
     assert_eq!(
         error.to_string(),
         "planet 327 is a star: only a planet or moon can be copied"

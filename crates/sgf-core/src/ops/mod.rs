@@ -87,7 +87,17 @@ pub(crate) fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     }
 }
 
+/// Apply one op that is not a batch, and keep beside each row it added what the bytes
+/// cannot say, so a later op, in the same batch or not, finds it there.
 fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
+    let applied = commit_one(session, op)?;
+    if let Some(added) = session.doc.added_mut() {
+        added.keep_written(&applied.inverse);
+    }
+    Ok(applied)
+}
+
+fn commit_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     op.check_kind(session.kind())?;
     let mut plan = Plan::new();
     let planned = session.format().write(&mut plan, session, &op)?;
@@ -144,14 +154,9 @@ fn apply_batch(
     };
     let mut members: Vec<Applied> = Vec::with_capacity(ops.len());
     for member in ops {
-        let applied = apply_one(session, member);
-        if let Ok(applied) = &applied {
-            session.batch.push(applied.inverse.clone());
-        }
-        match applied {
+        match apply_one(session, member) {
             Ok(applied) => members.push(applied),
             Err(e) => {
-                session.batch.clear();
                 let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();
                 let touched: Vec<_> = members.iter().flat_map(|m| m.touched.clone()).collect();
                 let meta = members.iter().fold(None, |meta, member| {
@@ -162,7 +167,6 @@ fn apply_batch(
             }
         }
     }
-    session.batch.clear();
     let mut inverses = Vec::with_capacity(members.len());
     let mut before = Vec::new();
     let mut after = Vec::new();

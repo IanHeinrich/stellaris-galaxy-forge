@@ -14,9 +14,9 @@ use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
+use crate::format::save::galaxy::fleets;
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::system_spec::BeltSpec;
-use crate::format::save::write::fleets;
 use crate::format::save::{dig_sites, read_spec};
 use crate::format::save::{entity_at, planet_statement, planet_statements, system_statement};
 use crate::overlay::Anchor;
@@ -305,23 +305,10 @@ pub(super) fn planets(
 
 /// The modifier names of `node`'s permanent `timed_modifier.items` (`days = -1`).
 fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
-    let Some(items) = node
-        .find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-    else {
-        return Vec::new();
-    };
-    items
-        .children()
-        .iter()
+    read::timed_items(node, src)
         .filter(|item| read::text(item, keys::DAYS, src) == PERMANENT)
-        .filter_map(|item| {
-            Some(
-                read::scalar(item, keys::MODIFIER, src)?
-                    .trim_matches('"')
-                    .to_owned(),
-            )
-        })
+        .filter_map(|item| read::scalar(item, keys::MODIFIER, src))
+        .map(|modifier| modifier.trim_matches('"').to_owned())
         .collect()
 }
 
@@ -429,12 +416,8 @@ fn made_by_megastructure(doc: &Document, id: u32) -> Result<bool, ProjectionErro
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(false);
     };
-    Ok(
-        current_entity(doc, keys::PLANETS, u64::from(id), anchor)?.is_some_and(|(node, src)| {
-            node.find(keys::FLAGS, src)
-                .is_some_and(|flags| flags.find(keys::MEGASTRUCTURE, src).is_some())
-        }),
-    )
+    Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
+        .is_some_and(|(node, src)| read::has_flag(&node, src, keys::MEGASTRUCTURE)))
 }
 
 /// Every site of `archaeological_sites.sites` the save now holds on a planet, the ones an op

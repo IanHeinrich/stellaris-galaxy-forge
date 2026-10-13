@@ -259,6 +259,14 @@ impl Document {
         }
     }
 
+    /// A save's added registry, to keep what its bytes cannot say; `None` for a scenario.
+    pub(crate) fn added_mut(&mut self) -> Option<&mut Added> {
+        match &mut self.body {
+            Body::Save { added, .. } => Some(added),
+            Body::Scenario(_) => None,
+        }
+    }
+
     /// Re-read the scenario statements `slots` hold from their current bytes, so the id
     /// map matches what the document now holds.
     pub(crate) fn refresh_scenario(&mut self, slots: &[Anchor]) -> Result<Changes, Error> {

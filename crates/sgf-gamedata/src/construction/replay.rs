@@ -3,11 +3,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use sgf_core::views::details::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, ModifierHost,
     TimedModifier, VariableStep,
 };
+use sgf_core::views::details::{ConstructionSite, SiteBody};
 
 use super::{Construction, Effect, OWNER_EXISTS, Target, lasting};
 use crate::GameData;
