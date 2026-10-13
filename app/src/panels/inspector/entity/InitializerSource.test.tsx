@@ -5,7 +5,6 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { InitializerDefinition } from "../../../generated/InitializerDefinition";
 import { bindStores } from "../../../store/bindStores";
@@ -17,7 +16,16 @@ import { initializerView } from "../../../test/builders";
 import { drawnBy, drawnButton } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { bodySpawn } from "../../../test/spawn";
-import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import {
+  details,
+  land,
+  open,
+  overview,
+  patchSystem,
+  planet,
+  resetStores,
+  SYSTEM,
+} from "../inspectorFixture";
 import { useInitializerDefinitions } from "../../../store/initializerDefinitionStore";
 import { answerPage, render } from "./bodyPageFixture";
 import { name, planetPage } from "../../../store/fixture";
@@ -154,19 +162,12 @@ describe("a system's Source tab", () => {
     await open("scenario");
     landDefinition();
     useInspectorStore.setState({ tab: "source" });
-    const system = useGalaxyStore.getState().systems.get(SYSTEM)!;
-    useGalaxyStore.setState({
-      systems: new Map(useGalaxyStore.getState().systems).set(SYSTEM, {
-        ...system,
-        initializer: "",
-      }),
-    });
+    const { initializer } = useGalaxyStore.getState().systems.get(SYSTEM)!;
+    patchSystem(SYSTEM, { initializer: "" });
     expect(overview()).not.toContain("ins-init-source");
     expect(overview()).not.toContain("initializer");
 
-    useGalaxyStore.setState({
-      systems: new Map(useGalaxyStore.getState().systems).set(SYSTEM, system),
-    });
+    patchSystem(SYSTEM, { initializer });
     useGameDataStore.setState({ status: "idle" });
     expect(overview()).not.toContain("ins-init-source");
   });

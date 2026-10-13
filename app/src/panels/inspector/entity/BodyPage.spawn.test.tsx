@@ -6,7 +6,6 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { bindStores } from "../../../store/bindStores";
@@ -17,7 +16,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { bodyLayout, planetClassView } from "../../../test/builders";
 import { hintOf } from "../../../test/hints";
 import { poolRows } from "../../../test/poolRows";
-import { details, land, open, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import { details, land, open, planet, resetStores, row, SYSTEM } from "../inspectorFixture";
 import { PlanetView } from "./PlanetView";
 
 bindStores();
@@ -37,15 +36,6 @@ const page = (id: number, label: string) => {
   useInspectorStore.setState({ tab: "overview" });
   return renderToStaticMarkup(<PlanetView entry={entry} />);
 };
-
-/** The value of the row labelled `label`, and what follows it up to the next row. */
-function row(html: string, label: string): string {
-  const start = html.indexOf(`<span class="k">${label}</span>`);
-  expect(start, `a ${label} row`).toBeGreaterThan(-1);
-  const rest = html.slice(start + label.length + 22);
-  const next = rest.indexOf('<span class="k">');
-  return next === -1 ? rest : rest.slice(0, next);
-}
 
 const ROLLED = { state: "rolled" as const, pool: { kind: "random" as const, draw: "random" } };
 
