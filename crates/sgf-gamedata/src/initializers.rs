@@ -902,6 +902,17 @@ impl<'d> Origin<'d> {
         source_line(self.file, self.lines.line_of(in_file))
     }
 
+    /// The lines the block from byte `start` to `end` of the definition's text was written on:
+    /// its first, and its last where that is a later line of the same file.
+    pub(crate) fn block(&self, start: usize, end: usize) -> SourceLine {
+        let first = self.at(start);
+        let last = self.at(end.saturating_sub(1).max(start));
+        SourceLine {
+            last: (last.file == first.file && last.line > first.line).then_some(last.line),
+            ..first
+        }
+    }
+
     /// The script that `node` was read from, when one was.
     pub(crate) fn script_of(&self, node: &Node) -> Option<String> {
         InlineScript::holding(self.splices, node)
@@ -912,6 +923,7 @@ pub(crate) fn source_line(file: &Path, line: u32) -> SourceLine {
     SourceLine {
         file: file.display().to_string(),
         line,
+        last: None,
     }
 }
 

@@ -186,6 +186,14 @@ fn what_an_inline_script_supplies_is_where_the_scripts_file_writes_it() {
         "planet = { class = star orbit_distance = 0 }",
     );
     assert_at(bodies[1].at.as_ref(), BODIES_FILE, BODIES, "planet = {");
+    let block = bodies[1].at.as_ref().expect("its block");
+    let last = block.last.expect("a block over several lines");
+    let closing = SourceLine {
+        line: last,
+        ..block.clone()
+    };
+    assert_eq!(line_at(&closing), "}");
+    assert_eq!(bodies[0].at.as_ref().and_then(|at| at.last), None);
     let [script_key] = bodies[1].other_keys.as_slice() else {
         panic!(
             "one key the reader does not model: {:?}",

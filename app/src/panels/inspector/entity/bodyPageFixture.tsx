@@ -103,6 +103,29 @@ export async function answerPage(page: PlanetPage): Promise<void> {
   expect(useEntityStore.getState().pages.get(page.id)).toBe(page);
 }
 
+/**
+ * Answers the read of `page` alone, as the core reads a save body its system's details don't
+ * list: with its moons, in the system the page is open in. Its callers run fake timers.
+ */
+export async function answerUnlisted(page: PlanetPage): Promise<void> {
+  const moons = page.moons.map((moon) =>
+    planet(moon.id, moon.name_key, {
+      name: moon.name,
+      class: moon.class,
+      size: moon.size,
+      moon: true,
+      role: "moon",
+      parent: page.id,
+    }),
+  );
+  vi.mocked(ipc.getUnlistedBody).mockResolvedValueOnce(
+    details({ planets: [summaryOf(page), ...moons] }),
+  );
+  useEntityStore.getState().requestUnlisted(page.id, SYSTEM);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(useEntityStore.getState().unlisted.get(page.id)?.planets).toHaveLength(moons.length + 1);
+}
+
 /** The planet's page on `tab`, drilled onto from its system. */
 export function render(id: number, tab: InspectorTab = "overview"): string {
   const entry: Entry = { ref: { kind: "body", system: SYSTEM, id }, label: "Alpha" };

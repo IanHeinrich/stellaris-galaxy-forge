@@ -186,7 +186,7 @@ pub(crate) fn body(node: &Node, def: &Def, origin: &Origin) -> StatedBody {
     let src = &def.src;
     let mut out = StatedBody {
         from_script: origin.script_of(node),
-        at: Some(origin.at(node.span().start)),
+        at: Some(origin.block(node.span().start, node.span().end)),
         variables: variables(node, def, &["moon", "planet", "init_effect"]),
         ..StatedBody::default()
     };

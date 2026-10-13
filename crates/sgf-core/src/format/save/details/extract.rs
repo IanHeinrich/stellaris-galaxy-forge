@@ -362,6 +362,38 @@ pub(super) fn planet(
     )
 }
 
+/// A planet and its moons read without their system's tables.
+pub(super) struct PlanetAlone {
+    /// The system its `coordinate.origin` names.
+    pub origin: Option<u32>,
+    /// The planet, then the moons its entity lists.
+    pub planets: Vec<RawPlanet>,
+}
+
+/// Planet `id` and the moons its entity lists, as their entities now read, with what other
+/// tables say of them left empty; `None` when the save holds no such planet.
+pub(super) fn planet_alone(
+    doc: &Document,
+    id: u32,
+    stars: &StarClasses,
+) -> Result<Option<PlanetAlone>, ProjectionError> {
+    let Some(anchor) = planet_statement(doc, id)? else {
+        return Ok(None);
+    };
+    let Some((node, src)) = current_entity(doc, keys::PLANETS, u64::from(id), anchor)? else {
+        return Ok(None);
+    };
+    let facts = facts::planet::read(&node, src);
+    let mut planets = vec![raw_planet(id, &facts, &node, src, facts.role(false, stars))];
+    for moon in read::ids(&node, keys::MOONS, src) {
+        planets.extend(planet(doc, moon, false, stars)?);
+    }
+    Ok(Some(PlanetAlone {
+        origin: facts.origin,
+        planets,
+    }))
+}
+
 /// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may
 /// have rewritten or written, with those bytes; `None` for a tombstone.
 fn current_entity<'d>(

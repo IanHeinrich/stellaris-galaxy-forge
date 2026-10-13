@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import type { ClassRolls } from "../../../generated/ClassRolls";
+import { rolledAs } from "../../../lib/details/classList";
 import { offeredAsks } from "../../../lib/details/spawnFacts";
 import { classRollsKey, useClassRollsStore } from "../../../store/classRollsStore";
 import { classPickKey, useInspectorStore } from "../../../store/inspectorStore";
@@ -20,33 +20,6 @@ export interface ClassPreview {
   error: string | null;
 }
 
-/** `read` with the size, ring, deposits and planet features the body rolls as one class. */
-function rolledAs(read: BodyRead, rolls: ClassRolls): BodyRead {
-  const { summary } = read;
-  const spawn = summary.spawn;
-  if (spawn === undefined) return read;
-  const shown = {
-    ...summary,
-    size: null,
-    layout: {
-      orbit: null,
-      at: null,
-      orbit_step: null,
-      angle_step: null,
-      turns_from: null,
-      ...summary.layout,
-      size: rolls.size,
-    },
-    spawn: {
-      ...spawn,
-      ring: rolls.ring,
-      rolled_deposits: rolls.deposits,
-      rolled_features: rolls.features,
-    },
-  };
-  return { ...read, summary: shown, dataKeys: summaryDataKeys(shown), pickedClass: rolls.class };
-}
-
 /** The class picked in body `read`'s class list, and what the body rolls as it. */
 export function useClassPreview(read: BodyRead): ClassPreview {
   const system = read.details.id;
@@ -63,7 +36,11 @@ export function useClassPreview(read: BodyRead): ClassPreview {
     if (missing && picked !== null) useClassRollsStore.getState().request(system, body, picked);
   }, [missing, system, body, picked]);
   const rolls = answer !== undefined && "rolls" in answer ? answer.rolls : null;
-  const shown = useMemo(() => (rolls === null ? read : rolledAs(read, rolls)), [read, rolls]);
+  const shown = useMemo(() => {
+    if (rolls === null || read.summary.spawn === undefined) return read;
+    const summary = rolledAs(read.summary, rolls);
+    return { ...read, summary, dataKeys: summaryDataKeys(summary), pickedClass: rolls.class };
+  }, [read, rolls]);
   return {
     picked,
     pick: (className) => useInspectorStore.getState().pickClass(system, body, className),

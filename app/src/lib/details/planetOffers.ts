@@ -61,3 +61,33 @@ export function planetPageOffers(
     pageRemoval: capabilities.remove_bodies && planet,
   };
 }
+
+/** What a body's Overview shows beside the fields its offers give. */
+export interface OverviewParts {
+  /** A star's own fields. */
+  starBlock: boolean;
+  /** The line shown in their place while the star's system is read. */
+  starWait: boolean;
+  /** Plain rows for the class, size and ring no field shows. */
+  classRow: boolean;
+  sizeRow: boolean;
+  ringRow: boolean;
+}
+
+/**
+ * The parts of a body's Overview: `listed` where its system's details list it, `sized` where it
+ * has a size, and `systemRead` once its system is read.
+ */
+export function overviewParts(
+  offers: PlanetOffers,
+  body: { star: boolean; listed: boolean; sized: boolean; systemRead: boolean },
+): OverviewParts {
+  const starFields = offers.starFields && body.listed;
+  return {
+    starBlock: starFields && body.systemRead,
+    starWait: starFields && !body.systemRead,
+    classRow: !offers.planetClass && !starFields,
+    sizeRow: body.sized && !offers.planetFields && !starFields,
+    ringRow: !body.star && !offers.ring && body.listed,
+  };
+}

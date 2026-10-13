@@ -15,7 +15,7 @@ import { holdsModifier } from "./modifierPicker";
 import { CLASS_FIXED, classFieldReason, COLONY_CLASS_FIXED } from "./planetClass";
 import { depositGroups, type DepositGroup, type ModifierRow } from "./planetPage";
 import { hasRingCheckbox } from "./ring";
-import { isStarBody } from "./starBody";
+import { isStar } from "./starBody";
 
 /** A field of the selection page that some bodies take no edit of. Every body takes deposits. */
 export type BodyField = "size" | "class" | "ring" | "modifiers";
@@ -130,9 +130,7 @@ function ringSkip(summary: PlanetSummary, star: boolean, facts: BodyFacts): Skip
 /** Body `read`, named `name`, as the selection page edits it. */
 export function selectedBody(read: BodyReadOf, name: string, facts: BodyFacts): SelectedBody {
   const { summary } = read;
-  const star =
-    summary.star_class !== undefined ||
-    isStarBody(summary.class, facts.planetClasses, facts.starClasses);
+  const star = isStar(summary, facts);
   const skips: Partial<Record<BodyField, Skip>> = {
     size: summary.size === null ? { kind: "noSize", why: "has no size" } : undefined,
     class: classSkip(summary, star, facts),

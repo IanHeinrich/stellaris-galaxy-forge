@@ -1,8 +1,17 @@
 import { useEffect, type ReactNode } from "react";
 import type { BodySpawn } from "../../../generated/BodySpawn";
+import type { ClassPool } from "../../../generated/ClassPool";
 import type { SpawnPool } from "../../../generated/SpawnPool";
+import type { SpawnStar } from "../../../generated/SpawnStar";
 import { planetTint } from "../../../lib/details/icons";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodyName } from "../../../lib/details/labels";
+import {
+  CLASS_SUITED_VALUE,
+  classValue,
+  nameValue,
+  ringValue,
+  sizeValue,
+} from "../../../lib/details/scenarioValues";
 import { NEUTRAL_BAR, oddsRows } from "../../../lib/details/oddsBars";
 import { readableTint } from "../../../lib/visual/color";
 import { modelLabel } from "../../../lib/details/planetModel";
@@ -11,9 +20,7 @@ import {
   bodyFrom,
   bodyNoun,
   CAN_ROLL_TITLE,
-  CLASS_DECIDED,
   CLASS_SUITED,
-  classDraw,
   classFitHint,
   classListSource,
   classRollsFailed,
@@ -25,8 +32,6 @@ import {
   ifItRolls,
   LIST_ORBIT_HINT,
   mergedByName,
-  NAME_RANDOM,
-  NAME_RANDOM_WHY,
   neverLine,
   neverSpawns,
   offeredAsks,
@@ -34,28 +39,17 @@ import {
   poolTitle,
   type PoolPick,
   randomDrawHint,
-  RING_ROLLED,
-  ringWords,
   setsSize,
   sharedScriptHint,
   shownWithItsRow,
-  starClassesWords,
   starListSource,
   STOPPED_LABEL,
   stoppedFacts,
   unknownClassWhy,
   valueSources,
 } from "../../../lib/details/spawnFacts";
-import {
-  NAMED_AFTER_SYSTEM,
-  namedAfterParent,
-  parentUnnamedWhy,
-  rolledNameWhy,
-  SYSTEM_UNNAMED_WHY,
-} from "../../../lib/details/spawnNames";
 import { depositKinds, depositKindsTail } from "../../../lib/details/depositBars";
 import { templateName } from "../../../lib/names";
-import { capitalised } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
@@ -69,20 +63,21 @@ import {
   Rolled,
   SetByLines,
   SetByRows,
+  StateValue,
   StoppedTag,
-  Unknown,
   Why,
 } from "../states";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { useStarOdds } from "../system/sections/scenario/useStarOdds";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
-import { bodySize, rangeText } from "./bodyFields";
+import { bodySize } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
 import { DepositKindsList } from "./DepositPoolBars";
 import { OddsList, type Press, type ShownOdds } from "./OddsBar";
 import type { PlanetSectionProps } from "./planetSection";
 import { useGivenNames } from "./useBodyName";
-import { classDrawFit, useClassList, type ClassList } from "./useClassList";
+import { classDrawFit, type ClassList } from "../../../lib/details/classList";
+import { useClassList } from "./useClassList";
 import type { ClassPreview } from "./useClassPreview";
 import { useFeatureNamer } from "./useFeatureNamer";
 
@@ -211,65 +206,64 @@ function StarClassList({
   return <ClassChoices choices={choices} strip={false} pick={pick} />;
 }
 
+/**
+ * What the Class row's card says decides the class: the initializer's effect, why it can't be
+ * told, or what it is drawn from, `listed`'s star list where one draws it.
+ */
+function classHint(
+  spawn: BodySpawn,
+  listed: Extract<SpawnStar, { state: "rolled" }> | null,
+  read: BodyRead,
+): ReactNode {
+  if (spawn.changed_class !== null) return CHANGED_BY_EFFECT;
+  const cls = spawn.class;
+  if (cls.state === "unknown") return unknownClassWhy(cls.reason, cls.written);
+  if (cls.state === "fixed") return null;
+  return rolledClassHint(cls.pool, listed, read);
+}
+
+/** What a rolled class's card says it is drawn from: `listed`'s star list, or its pool. */
+function rolledClassHint(
+  pool: ClassPool,
+  listed: Extract<SpawnStar, { state: "rolled" }> | null,
+  read: BodyRead,
+): ReactNode {
+  if (listed !== null) return starListSource(listed.list);
+  if (pool.kind === "planet_list") {
+    return (
+      <>
+        <span className="ins-set-by">{classListSource(pool.list)}</span>
+        <span className="ins-set-by">{LIST_ORBIT_HINT}</span>
+      </>
+    );
+  }
+  if (pool.kind !== "random") return null;
+  const { orbitRanged, starRolled, exact } = classDrawFit(read.details, read.summary);
+  return (
+    <>
+      <span className="ins-set-by">{randomDrawHint(pool.draw)}</span>
+      {pool.at_orbit !== undefined && !exact && (
+        <span className="ins-set-by">{classFitHint(orbitRanged, starRolled)}</span>
+      )}
+    </>
+  );
+}
+
 /** The Class row, with what decides it in its card, and the list of what it can be under it. */
 function ClassRow({ spawn, read, pick }: { spawn: BodySpawn; read: BodyRead; pick: ClassPick }) {
   const names = useGameDataStore((s) => s.names);
   const list = useClassList(read);
-  const { summary } = read;
-  if (spawn.changed_class !== null) {
-    return (
-      <HintedRow label="Class" hint={CHANGED_BY_EFFECT}>
-        {bodyClassName(spawn.changed_class, names, summary.moon)}
+  const listed = list?.kind === "stars" ? list.star : null;
+  const value = classValue(spawn, names, read.summary.moon, listed?.members.length ?? null);
+  return (
+    <>
+      <HintedRow label="Class" hint={classHint(spawn, listed, read)}>
+        <StateValue value={value} />
       </HintedRow>
-    );
-  }
-  const cls = spawn.class;
-  switch (cls.state) {
-    case "fixed":
-      return (
-        <PropertyRow label="Class">{bodyClassName(cls.class, names, summary.moon)}</PropertyRow>
-      );
-    case "unknown":
-      return (
-        <HintedRow label="Class" hint={unknownClassWhy(cls.reason, cls.written)}>
-          <Unknown>{CLASS_DECIDED}</Unknown>
-        </HintedRow>
-      );
-    case "rolled": {
-      const pool = cls.pool;
-      const listed = list?.kind === "stars" ? list.star : null;
-      const { orbitRanged, starRolled, exact } = classDrawFit(read);
-      const hint =
-        listed !== null ? (
-          starListSource(listed.list)
-        ) : pool.kind === "planet_list" ? (
-          <>
-            <span className="ins-set-by">{classListSource(pool.list)}</span>
-            <span className="ins-set-by">{LIST_ORBIT_HINT}</span>
-          </>
-        ) : pool.kind === "random" ? (
-          <>
-            <span className="ins-set-by">{randomDrawHint(pool.draw)}</span>
-            {pool.at_orbit !== undefined && !exact && (
-              <span className="ins-set-by">{classFitHint(orbitRanged, starRolled)}</span>
-            )}
-          </>
-        ) : null;
-      return (
-        <>
-          <HintedRow label="Class" hint={hint}>
-            <Rolled>
-              {listed === null
-                ? capitalised(classDraw(pool))
-                : starClassesWords(listed.members.length)}
-            </Rolled>
-          </HintedRow>
-          {list?.kind === "stars" && <StarClassList list={list} pick={pick} />}
-          {list?.kind === "planets" && <PlanetClassList list={list} pick={pick} />}
-        </>
-      );
-    }
-  }
+      {list?.kind === "stars" && <StarClassList list={list} pick={pick} />}
+      {list?.kind === "planets" && <PlanetClassList list={list} pick={pick} />}
+    </>
+  );
 }
 
 /** The Name row: the name the game gives the body, with how it numbers it in its card. */
@@ -280,30 +274,13 @@ function NameRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
   const given = useGivenNames(read.details).get(summary.id);
   const stated = spawn.name ?? (templateName(summary) === "" ? null : bodyName(summary, names));
   const naming = spawn.naming;
-  if (given !== undefined) {
-    return (
-      <HintedRow label="Name" hint={given.rolled ? rolledNameWhy(given, noun) : null}>
-        {given.rolled ? <Rolled>{given.text}</Rolled> : given.text}
-      </HintedRow>
-    );
-  }
-  if (naming?.state === "template" && stated === null) {
-    const parent =
-      naming.parent === null ? undefined : read.details.planets.find((p) => p.id === naming.parent);
-    const parentNoun = parent === undefined ? "planet" : bodyNoun(parent, planetClasses);
-    return naming.parent === null ? (
-      <HintedRow label="Name" hint={SYSTEM_UNNAMED_WHY}>
-        <Unknown>{NAMED_AFTER_SYSTEM}</Unknown>
-      </HintedRow>
-    ) : (
-      <HintedRow label="Name" hint={parentUnnamedWhy(parentNoun)}>
-        <Unknown>{namedAfterParent(parentNoun)}</Unknown>
-      </HintedRow>
-    );
-  }
+  const parentId = naming?.state === "template" ? naming.parent : null;
+  const parent = read.details.planets.find((p) => p.id === parentId);
+  const parentNoun = parent === undefined ? "planet" : bodyNoun(parent, planetClasses);
+  const { value, hint } = nameValue(given, naming, stated, noun, parentNoun);
   return (
-    <HintedRow label="Name" hint={stated === null ? NAME_RANDOM_WHY : null}>
-      {stated ?? <Rolled>{NAME_RANDOM}</Rolled>}
+    <HintedRow label="Name" hint={hint}>
+      <StateValue value={value} />
     </HintedRow>
   );
 }
@@ -338,19 +315,10 @@ function SizeRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
         <SetByLines sources={sources} />
       </>
     );
+  const value = sizeValue(spawn.changed_size, size);
   return (
     <HintedRow label="Size" hint={hint}>
-      {spawn.changed_size !== null ? (
-        <PlanetSize size={spawn.changed_size} />
-      ) : size === null ? (
-        <Rolled>{CLASS_SUITED}</Rolled>
-      ) : size.min === size.max ? (
-        <PlanetSize size={rangeText(size)} />
-      ) : (
-        <Rolled>
-          <PlanetSize size={rangeText(size)} />
-        </Rolled>
-      )}
+      <StateValue value={value}>{suited ? undefined : <PlanetSize size={value.text} />}</StateValue>
     </HintedRow>
   );
 }
@@ -359,7 +327,7 @@ function SizeRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
 function ClassSuitedRow({ label, noun }: { label: string; noun: string }) {
   return (
     <HintedRow label={label} hint={classSuitedHint(noun)}>
-      <Rolled>{CLASS_SUITED}</Rolled>
+      <StateValue value={CLASS_SUITED_VALUE} />
     </HintedRow>
   );
 }
@@ -425,19 +393,7 @@ function RingRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
   if (ring?.state === "unknown") return <ClassSuitedRow label="Ring" noun={noun} />;
   return (
     <PropertyRow label="Ring">
-      {ring === undefined ? (
-        read.summary.ring === null ? (
-          <Rolled>{RING_ROLLED}</Rolled>
-        ) : read.summary.ring ? (
-          "Yes"
-        ) : (
-          "No"
-        )
-      ) : ring.state === "rolled" ? (
-        <Rolled>{ringWords(ring)}</Rolled>
-      ) : (
-        ringWords(ring)
-      )}
+      <StateValue value={ringValue(ring, read.summary.ring)} />
     </PropertyRow>
   );
 }
@@ -662,7 +618,7 @@ export function PoolLines({
     return (
       <div className="pl-sub-head">
         <Hinted label={CLASS_SUITED} hint={classSuitedHint(noun)}>
-          <Rolled>{CLASS_SUITED}</Rolled>
+          <StateValue value={CLASS_SUITED_VALUE} />
         </Hinted>
       </div>
     );

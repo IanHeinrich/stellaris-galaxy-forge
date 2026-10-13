@@ -366,3 +366,56 @@ fn sites_and_pre_ftl_planets_are_where_the_save_puts_them() {
             .all(|p| !p.pre_ftl || p.colonised)
     );
 }
+
+#[test]
+fn a_body_alone_reads_as_its_system_lists_it() {
+    let session = common::warmed();
+    let details = session.details().expect("build details");
+    let (system, planet) = session
+        .graph()
+        .systems
+        .keys()
+        .filter_map(|&id| details.resolve(id, &HeuristicResolver, false))
+        .find_map(|d| {
+            let planet = d
+                .planets
+                .iter()
+                .find(|p| !p.moon && d.planets.iter().any(|m| m.parent == Some(p.id)))?
+                .id;
+            Some((d, planet))
+        })
+        .expect("a planet with moons");
+    let alone = session
+        .unlisted_body(planet, 9999, &HeuristicResolver, false)
+        .expect("read the body")
+        .expect("the save holds it");
+    assert_eq!(alone.id, system.id);
+    let listed: Vec<_> = system
+        .planets
+        .iter()
+        .filter(|p| p.id == planet || p.parent == Some(planet))
+        .collect();
+    assert_eq!(alone.planets.len(), listed.len());
+    for (read, listed) in alone.planets.iter().zip(listed) {
+        assert_eq!(
+            (&read.id, &read.class, &read.name, &read.size, &read.moon),
+            (
+                &listed.id,
+                &listed.class,
+                &listed.name,
+                &listed.size,
+                &listed.moon
+            )
+        );
+        assert_eq!(
+            (&read.parent, &read.layout, &read.ring),
+            (&listed.parent, &listed.layout, &listed.ring)
+        );
+    }
+    assert!(
+        session
+            .unlisted_body(9_999_999, 0, &HeuristicResolver, false)
+            .expect("read")
+            .is_none()
+    );
+}

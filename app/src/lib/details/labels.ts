@@ -165,13 +165,17 @@ export function initClassLabel(planetClass: string): string {
   return planetClassLabel(planetClass);
 }
 
+/** Whether a body's class is left to the game to roll: none written, or the bare `random`. */
+export function isUnrolledClass(planetClass: string): boolean {
+  return planetClass === "" || planetClass === "random";
+}
+
 /** What a body's class reads as: the game's name, else the random kinds' words or the key made readable. */
 export function bodyClassName(planetClass: string, names: Names, moon = false): string {
   // The game localises the class key "random" to nothing, so an empty entry is a miss.
   const text = names.get(planetClass);
   if (text) return text;
-  const unrolled = planetClass === "" || planetClass === "random";
-  return unrolled && moon ? "random moon" : initClassLabel(planetClass);
+  return isUnrolledClass(planetClass) && moon ? "random moon" : initClassLabel(planetClass);
 }
 
 /** A body's name: its own, else its class's, capitalised. */

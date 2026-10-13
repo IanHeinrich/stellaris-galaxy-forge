@@ -9,6 +9,8 @@ use sgf_core::entity::{
 };
 use sgf_core::ops::{NewBody, Op};
 use sgf_core::projections::galaxy::GalaxyGraph;
+use sgf_core::session::SessionError;
+use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{
     OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, SearchResult, SgfError, SystemDetail,
 };
@@ -61,6 +63,34 @@ pub async fn get_planet_page<R: Runtime>(
 ) -> Result<PlanetPage, SgfError> {
     with_open(app, move |session| {
         Ok(entity::get_planet_page(session.doc(), id)?)
+    })
+    .await
+}
+
+/// Save body `id` and its moons as the details of a system that lists only them, for a body
+/// its system's details don't list: the system the body names, else `system`. Resolved
+/// through the install's definitions when game data is loaded, else by guessing from the
+/// keys. `None` for a scenario, and for a planet the save doesn't hold.
+#[tauri::command]
+pub async fn get_unlisted_body<R: Runtime>(
+    app: AppHandle<R>,
+    id: u32,
+    system: u32,
+) -> Result<Option<SystemDetails>, SgfError> {
+    with_open(app.clone(), move |session| {
+        let gd = app.state::<GameDataState>().loaded();
+        let resolver = sgf_gamedata::resolver(gd.as_deref());
+        let Some(mut alone) = session
+            .unlisted_body(id, system, resolver, gd.is_some())
+            .map_err(SessionError::from)?
+        else {
+            return Ok(None);
+        };
+        if let Some(gd) = gd.as_deref() {
+            let star = session.system(alone.id).map(|s| s.star_class.clone());
+            gd.resolve_save_bodies(&mut alone, star.as_deref().unwrap_or_default());
+        }
+        Ok(Some(alone))
     })
     .await
 }

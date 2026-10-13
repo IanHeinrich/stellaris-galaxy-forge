@@ -177,7 +177,7 @@ describe("a body's Source tab", () => {
     await open("scenario");
     landDefinition();
     const second = planet(101, "", {
-      spawn: bodySpawn({ at: { file: FILE.replace(/\//g, "\\"), line: 127 } }),
+      spawn: bodySpawn({ at: { file: FILE.replace(/\//g, "\\"), line: 127, last: 130 } }),
     });
     await land(details({ planets: [second] }));
 
@@ -197,27 +197,6 @@ describe("a body's Source tab", () => {
     const html = drawnBy(() => render(101, "source"));
     expect(html).toContain('<span class="mono ins-init-name">basic_init_01</span>');
     expect(markedLines(html)).toEqual([7]);
-  });
-
-  it("counts a block's braces from its key when a brace closes the one before it on its line", async () => {
-    await open("scenario");
-    landDefinition({
-      ...DEFINITION,
-      text: [
-        "basic_init_01 = {",
-        "\tplanet = { class = pc_gas_giant",
-        "\t} planet = {",
-        "\t\tclass = pc_barren",
-        "\t}",
-        "\tplanet = { class = pc_frozen }",
-        "}",
-      ].join("\n"),
-      inline_scripts: [],
-    });
-    const second = planet(101, "", { spawn: bodySpawn({ at: { file: FILE, line: 122 } }) });
-    await land(details({ planets: [second] }));
-
-    expect(markedLines(drawnBy(() => render(101, "source")))).toEqual([3, 4, 5]);
   });
 
   it("shows a save body's own text with its system's initializer below, unmarked", async () => {

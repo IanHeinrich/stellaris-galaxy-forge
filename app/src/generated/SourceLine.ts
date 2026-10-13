@@ -7,4 +7,9 @@ export type SourceLine = {
 /**
  * The file's absolute path.
  */
-file: string, line: number, };
+file: string, line: number, 
+/**
+ * The last line of the block that starts on `line`, where it ends on a later line of the
+ * same file; `None` for a statement on one line, and wherever only its start is given.
+ */
+last?: number, };

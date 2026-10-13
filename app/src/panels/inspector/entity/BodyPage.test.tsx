@@ -32,6 +32,7 @@ import {
   stars,
   landPage,
   answerPage,
+  answerUnlisted,
   render,
 } from "./bodyPageFixture";
 
@@ -249,6 +250,7 @@ describe("a save body its system's details can't list", () => {
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
     expect(useDetailsStore.getState().failed.has(SYSTEM)).toBe(true);
     await answerPage(NEKKAR);
+    await answerUnlisted(NEKKAR);
 
     expectDrawnFromItsPage();
   });
@@ -257,6 +259,7 @@ describe("a save body its system's details can't list", () => {
     await open("save");
     await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
     await answerPage(NEKKAR);
+    await answerUnlisted(NEKKAR);
 
     expectDrawnFromItsPage();
   });
@@ -332,7 +335,9 @@ describe("Show in system view", () => {
   it("hides on a body its system's details don't list, which the system view can't select", async () => {
     await open("save");
     await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
-    await answerPage(planetPage({ id: WORLD, name: name("Tarkin"), name_key: "Tarkin" }));
+    const tarkin = planetPage({ id: WORLD, name: name("Tarkin"), name_key: "Tarkin" });
+    await answerPage(tarkin);
+    await answerUnlisted(tarkin);
 
     const html = render(WORLD);
     expect(html).toContain('<span class="name">Tarkin</span>');

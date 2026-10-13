@@ -1,6 +1,6 @@
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { isAsteroidClass, planetCounts, type PlanetCounts } from "../../../lib/details/spawnFacts";
-import { isStarBody } from "../../../lib/details/starBody";
+import { isStar } from "../../../lib/details/starBody";
 import { useGameDataStore } from "../../../store/gameDataStore";
 
 /** Counts the planets, moons and asteroids of a system's details, as the loaded classes tell them apart. */
@@ -12,7 +12,7 @@ export function usePlanetCounter(): (
   return (details) =>
     planetCounts(
       details,
-      (p) => isStarBody(p.class, planetClasses, starClasses),
+      (p) => isStar(p, { planetClasses, starClasses }),
       (p) => isAsteroidClass(p.class, planetClasses),
     );
 }

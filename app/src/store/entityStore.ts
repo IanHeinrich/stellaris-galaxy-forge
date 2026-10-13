@@ -7,6 +7,7 @@ import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
 import type { PlanetPage } from "../generated/PlanetPage";
+import type { SystemDetails } from "../generated/SystemDetails";
 import { keyedReads, type KeyedReads } from "./reads";
 
 /** One entity, whichever level of it is being read. */
@@ -29,7 +30,12 @@ export function planetPageKey(id: number): string {
   return `page/${addrKey({ kind: "planet", id })}`;
 }
 
-const READ_PREFIX = /^(source|page)\//;
+/** A save body read alone, where its system's details don't list it. */
+function unlistedKey(id: number): string {
+  return `unlisted/${addrKey({ kind: "planet", id })}`;
+}
+
+const READ_PREFIX = /^(source|page|unlisted)\//;
 
 /** The entity a key belongs to: the read it names, without its kind of read or its path. */
 function ownerOf(key: string): string {
@@ -51,6 +57,8 @@ export interface EntityState {
   pages: Map<number, PlanetPage>;
   /** The pages an edit made stale, read again on their next request. */
   stalePages: Set<number>;
+  /** Save bodies and their moons read alone by planet id, `null` where the save holds none. */
+  unlisted: Map<number, SystemDetails | null>;
   /** Reads asked for and not yet answered, by the key of what was asked for. */
   pending: Set<string>;
   /** What a refused read said, by the same key; a refused read is not asked for again. */
@@ -62,6 +70,8 @@ export interface EntityState {
   requestSource(addr: EntityAddr): void;
   requestSchema(kind: EntityKind): void;
   requestPlanetPage(id: number): void;
+  /** Reads save body `id` alone, in the system it names, else `system`. */
+  requestUnlisted(id: number, system: number): void;
   /**
    * What an applied edit, undo or redo leaves behind: every entity it rewrote is stale, and so
    * is the page of every planet listing a rewritten moon. A touched or removed system also
@@ -125,11 +135,18 @@ const pageReads = entityReads(
   },
 );
 
+const unlistedReads = entityReads(
+  ({ id, system }: { id: number; system: number }) => ipc.getUnlistedBody(id, system),
+  ({ id }) => unlistedKey(id),
+  ({ id }, alone) => ({ unlisted: new Map(useEntityStore.getState().unlisted).set(id, alone) }),
+);
+
 const ALL_READS: Omit<KeyedReads<never, string>, "read">[] = [
   viewReads,
   sourceReads,
   schemaReads,
   pageReads,
+  unlistedReads,
 ];
 
 function pendingNow(): Set<string> {
@@ -142,6 +159,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   schemas: new Map(),
   pages: new Map(),
   stalePages: new Set(),
+  unlisted: new Map(),
   pending: new Set(),
   errors: new Map(),
   version: 0,
@@ -162,6 +180,10 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   requestPlanetPage(id) {
     const cached = get().pages.has(id) && !get().stalePages.has(id);
     begin(pageReads, id, planetPageKey(id), cached);
+  },
+
+  requestUnlisted(id, system) {
+    begin(unlistedReads, { id, system }, unlistedKey(id), get().unlisted.has(id));
   },
 
   noteEdit(result) {
@@ -189,10 +211,19 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     const sources = new Map([...get().sources].filter(([key]) => !stale(key)));
     const stalePages = new Set(get().stalePages);
     for (const id of get().pages.keys()) if (stale(planetPageKey(id))) stalePages.add(id);
+    const unlisted = new Map([...get().unlisted].filter(([id]) => !stale(unlistedKey(id))));
     const errors = new Map([...get().errors].filter(([key]) => !stale(key)));
     // A read already out would land on the pre-edit bytes: it is dropped, not cached.
     for (const reads of ALL_READS) reads.drop([...reads.pending()].filter(stale));
-    set({ views, sources, stalePages, errors, pending: pendingNow(), version: get().version + 1 });
+    set({
+      views,
+      sources,
+      stalePages,
+      unlisted,
+      errors,
+      pending: pendingNow(),
+      version: get().version + 1,
+    });
   },
 
   clear() {
@@ -203,6 +234,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       schemas: new Map(),
       pages: new Map(),
       stalePages: new Set(),
+      unlisted: new Map(),
       pending: new Set(),
       errors: new Map(),
       version: get().version + 1,

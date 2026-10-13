@@ -2,36 +2,17 @@ import type { BodySpawn } from "../../../generated/BodySpawn";
 import type { InitializerDefinition } from "../../../generated/InitializerDefinition";
 import type { SourceLine } from "../../../generated/SourceLine";
 import { fileName, normalise } from "../../../lib/paths";
-import { scriptLines } from "../../../lib/scriptText";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { ScriptSnippet, type LineLink, type SnippetMark } from "../../ScriptSnippet";
 import { useInitializerDefinition } from "../../../store/initializerDefinitionStore";
 
-const BODY_KEYS = new Set(["planet", "moon"]);
-
-/**
- * The lines of `definition` the block written at `at` spans, its braces counted from the first
- * `planet` or `moon` key on its line; none for a block written in another file.
- */
+/** The lines of `definition` the block written at `at` spans; none for one written in another file. */
 function blockMark(definition: InitializerDefinition, at: SourceLine): SnippetMark | undefined {
   if (normalise(at.file) !== normalise(definition.at.file)) return undefined;
+  const lines = definition.text.split("\n").length;
   const first = at.line - definition.at.line + 1;
-  const lines = scriptLines(definition.text);
-  if (first < 1 || first > lines.length) return undefined;
-  const head = lines[first - 1].tokens;
-  const key = head.findIndex(
-    (t) => (t.kind === "key" || t.kind === "keyword") && BODY_KEYS.has(t.text.toLowerCase()),
-  );
-  let depth = 0;
-  for (let n = first; n <= lines.length; n++) {
-    const tokens = n === first ? head.slice(Math.max(key, 0)) : lines[n - 1].tokens;
-    for (const token of tokens) {
-      if (token.kind !== "brace") continue;
-      depth += token.text === "{" ? 1 : -1;
-      if (depth === 0) return { first, last: n };
-    }
-  }
-  return { first, last: lines.length };
+  if (first < 1 || first > lines) return undefined;
+  return { first, last: Math.min((at.last ?? at.line) - definition.at.line + 1, lines) };
 }
 
 /**

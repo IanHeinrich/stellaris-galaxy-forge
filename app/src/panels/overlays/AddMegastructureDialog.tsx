@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  HABITAT_ORBITAL_OWNER_NOTE,
-  HABITAT_OWNER_NOTE,
   NO_MEGASTRUCTURE_FITS,
-  NO_OWNER,
-  NO_OWNER_NOTE,
-  OWNER_NOTE,
   READING_FITS,
-  WRITTEN_FINISHED,
   addLabel,
   fitsUnread,
-  habitatOrbitalNote,
+  footerLine,
+  ownerLine,
   whereText,
-  writtenAsHabitat,
 } from "../../lib/megastructureCopy";
 import {
   entryDefault,
@@ -24,7 +18,6 @@ import {
 } from "../../lib/megastructurePicks";
 import {
   CLEARING_LOADING,
-  RING_WRITTEN,
   clearRefusal,
   clearingUnread,
   clearingWarning,
@@ -148,6 +141,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
         : clearRefusal(clearing, nameOf);
   const clears = ring && ringClear && clearBlocked === null;
   const addable = found !== null && found.stage.refused === null && !(ring && ringClear && !clears);
+  const owning = ownerLine(
+    type?.habitat === true,
+    owner,
+    ownerCountry === undefined ? null : templateName(ownerCountry),
+    orbitHosted,
+  );
+  const kind = { ring, habitat: type?.habitat === true, orbital: type?.habitat_orbital === true };
 
   useEffect(() => {
     void loadFits(generation);
@@ -186,24 +186,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
           <div className="field">
             <span>Owner</span>
             <output>
-              {type?.habitat ? (
-                <>
-                  {NO_OWNER}{" "}
-                  <span className="muted">
-                    {HABITAT_OWNER_NOTE}
-                    {orbitHosted && owner !== null ? ` ${HABITAT_ORBITAL_OWNER_NOTE}` : ""}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {owner === null
-                    ? NO_OWNER
-                    : ownerCountry
-                      ? templateName(ownerCountry)
-                      : `Empire #${owner}`}{" "}
-                  <span className="muted">{owner === null ? NO_OWNER_NOTE : OWNER_NOTE}</span>
-                </>
-              )}
+              {owning.name} <span className="muted">{owning.note}</span>
             </output>
           </div>
           {entries.length === 0 ? (
@@ -279,17 +262,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
           {clears && clearing !== null ? (
             <div className="megastructure-add-refusal">{clearingWarning(clearing, nameOf)}</div>
           ) : (
-            <div className="muted">
-              {ring
-                ? RING_WRITTEN
-                : type?.habitat
-                  ? writtenAsHabitat(owner !== null)
-                  : WRITTEN_FINISHED}
-              {type?.habitat && type.habitat_orbital
-                ? ` ${habitatOrbitalNote(owner !== null, !orbitHosted)}`
-                : ""}
-              {ring ? "" : planetNote}
-            </div>
+            <div className="muted">{footerLine(kind, owner !== null, orbitHosted, planetNote)}</div>
           )}
         </div>
         <div className="open-dialog-foot">
