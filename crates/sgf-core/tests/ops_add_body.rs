@@ -70,7 +70,7 @@ fn a_planet_added_to_an_owned_system() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Added Alari system I #{id} to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, \
+            "Added planet Alari system I #{id} to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, \
              with 2 deposits; set the inner radius of Alari system #169 from 215 to 270"
         )
     );
@@ -91,7 +91,7 @@ fn a_planet_added_to_an_unowned_system_takes_the_next_numeral() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Added Meissa V #{id} to Meissa #408 (pc_barren, size 10) at orbit 45 at 300°, \
+            "Added planet Meissa V #{id} to Meissa #408 (pc_barren, size 10) at orbit 45 at 300°, \
              with 1 deposit"
         )
     );

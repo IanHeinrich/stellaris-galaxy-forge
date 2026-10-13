@@ -53,7 +53,7 @@ pub(crate) fn plan_rename(
     edit.replace_span(value, written);
 
     rename_copies(plan, &s.doc, id, moons, &old, &new)?;
-    let named = named_planet(&s.doc, id)?;
+    let named = named_planet(s, id)?;
     let description = match name {
         NewName::Literal(name) => format!("Renamed {named} to {name}"),
         NewName::Block { .. } => format!("Put back the name of {named}"),

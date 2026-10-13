@@ -62,7 +62,7 @@ pub(crate) fn plan_add(
     Ok(Planned {
         description: format!(
             "Added anomaly {category} to {}{found}",
-            named_planet(&s.doc, id)?
+            named_planet(s, id)?
         ),
         inverse: Op::RemoveAnomaly { body: id },
     })
@@ -89,10 +89,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     }
 
     Ok(Planned {
-        description: format!(
-            "Removed anomaly {category} from {}",
-            named_planet(&s.doc, id)?
-        ),
+        description: format!("Removed anomaly {category} from {}", named_planet(s, id)?),
         inverse: Op::AddAnomaly {
             body: id,
             category,

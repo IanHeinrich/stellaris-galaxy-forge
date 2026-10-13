@@ -47,7 +47,7 @@ pub(crate) fn plan_add(
     write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, text)?;
     list(plan.edit_planet(&s.doc, planet, system)?, id)?;
     Ok(Planned {
-        description: format!("Added {kind} (#{id}) to {}", named_planet(&s.doc, planet)?),
+        description: format!("Added {kind} (#{id}) to {}", named_planet(s, planet)?),
         inverse: Op::RemoveDeposit { deposit: id },
     })
 }
@@ -68,7 +68,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, deposit: u32) -> Result<
         description: format!(
             "Removed {} (#{deposit}) from {}",
             held.kind,
-            named_planet(&s.doc, planet)?
+            named_planet(s, planet)?
         ),
         inverse: Op::AddDeposit {
             body: planet,

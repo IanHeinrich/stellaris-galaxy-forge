@@ -33,7 +33,7 @@ pub(crate) fn plan_set(
         return Err(OpError::unchanged(format!("planet {id}"), state));
     }
 
-    let named = named_planet(&s.doc, id)?;
+    let named = named_planet(s, id)?;
     let edit = plan.edit_planet(&s.doc, id, system)?;
     write_entity_name(edit, entity)?;
     let description = match entity {

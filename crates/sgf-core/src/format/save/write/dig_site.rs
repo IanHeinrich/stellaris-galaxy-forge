@@ -41,7 +41,7 @@ pub(crate) fn plan_add(
     Ok(Planned {
         description: format!(
             "Added dig site {kind} (#{id}) to {}",
-            named_planet(&s.doc, planet)?
+            named_planet(s, planet)?
         ),
         inverse: Op::RemoveDigSite { site: id },
     })
@@ -66,7 +66,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, site: u32) -> Result<Pla
         description: format!(
             "Removed dig site {} (#{site}) from {}{dig}",
             found.kind,
-            named_planet(&s.doc, planet).unwrap_or_else(|_| format!("planet #{planet}"))
+            named_planet(s, planet).unwrap_or_else(|_| format!("planet #{planet}"))
         ),
         inverse: Op::AddDigSite {
             body: planet,

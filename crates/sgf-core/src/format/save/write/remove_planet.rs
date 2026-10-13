@@ -58,7 +58,7 @@ pub(crate) fn plan_remove_colony(
     check_planet(s, planet, &node, src, refuse)?;
     let mut saved = Saved::default();
     teardown.write(plan, s, &mut saved, true)?;
-    let named = named_planet(&s.doc, planet)?;
+    let named = named_planet(s, planet)?;
     let description = format!(
         "Removed colony #{} from {named}{}",
         teardown.colony,

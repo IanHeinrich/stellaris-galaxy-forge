@@ -94,7 +94,7 @@ pub(crate) fn plan_set(
     Ok(Planned {
         description: format!(
             "Set the class of {} from {class} to {}",
-            named_planet(&s.doc, id)?,
+            named_planet(s, id)?,
             to.class
         ),
         inverse: Op::SetBodyClass {

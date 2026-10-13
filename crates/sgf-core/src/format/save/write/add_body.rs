@@ -31,7 +31,7 @@ use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::check_name;
 use crate::ops::rules::modifiers::listed_once;
-use crate::ops::rules::{named, named_as, named_body};
+use crate::ops::rules::{named, named_as};
 use crate::ops::{
     BodyName, BodyNaming, GivenName, MoonSpec, NewBody, NewModifier, Op, OpError, Plan, Planned,
     Subject,
@@ -166,9 +166,9 @@ pub(crate) fn plan_add(
         Some(parent) => format!(
             "{} of {} in",
             named_as("moon", &name, id),
-            named_planet(&s.doc, parent)?
+            named_planet(s, parent)?
         ),
-        None => format!("{} to", named_body(&name, id)),
+        None => format!("{} to", named_as("planet", &name, id)),
     };
     let description = format!(
         "Added {whose} {} ({}, size {}) at orbit {} at {}°{}",
@@ -449,10 +449,10 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         (Some(parent), _) => format!(
             "{} of {}",
             named_as("moon", &name, planet),
-            named_planet(&s.doc, parent)?
+            named_planet(s, parent)?
         ),
         (None, Some(_)) => named_as("habitat", &name, planet),
-        (None, None) => named_body(&name, planet),
+        (None, None) => named_as("planet", &name, planet),
     };
     Ok(Planned {
         description: format!("Removed {whose} from {}", named(&s.graph, system)),

@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the initializer of Late Name #77 to random_empire_init_01
+touched: [77]
+inverse: SetInitializer { system: 77, initializer: None }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
+… and 3 other issues
+
+--- scenario
++++ scenario
+@@ -53,6 +53,7 @@
+ 		id = "77"
+ 		position = { x = -30 y = 120 }
+ 		name = "Late Name"
++		initializer = random_empire_init_01
+ 	}
+ 	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+ 	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
