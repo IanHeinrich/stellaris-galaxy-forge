@@ -16,14 +16,13 @@ use crate::format::save::added::rows;
 use crate::format::save::alloc::SlotTable;
 use crate::format::save::ring_world::{RING_SLACK, is_ring_row, is_segment};
 use crate::format::save::write::add_megastructure::today;
-use crate::format::save::write::add_system::write_slot;
 use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
+use crate::format::save::write::flags::{add_flags, drop_flags};
 use crate::format::save::write::id_list::{append, list_planets, unlist_planets};
-use crate::format::save::write::megastructure_links::{
-    self, MEGASTRUCTURES, Tied, add_flags, drop_flags, unlink_all,
-};
+use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, Tied, unlink_all};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{is_star, role};
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::write::teardown::some_id;
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;

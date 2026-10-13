@@ -12,7 +12,9 @@ use crate::format::save::added::{Table, row};
 use crate::format::save::ring_world;
 use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
-use crate::format::save::write::megastructure_links::{self, Tied, drop_bypass, unlink};
+use crate::format::save::write::megastructure_links::{
+    self, BYPASS_KINDS, Tied, drop_bypass, unlink,
+};
 use crate::format::save::write::remove_planet::{SEGMENT_KEEPS_COLONY, check_segment};
 use crate::format::save::write::restore::{Saved, tombstoned};
 use crate::format::save::write::teardown::Teardown;
@@ -28,9 +30,6 @@ use crate::session::Session;
 
 /// Why a ring world's row is not deleted alone.
 pub(crate) const RING_ROW: &str = "it is part of a ring world: delete the ring world";
-
-/// The bypass kinds a deletion takes along; another has not been tried in game.
-const DROPPED_BYPASSES: [&str; 2] = ["gateway", "relay_bypass"];
 
 pub(crate) fn plan_delete(
     plan: &mut Plan,
@@ -64,7 +63,7 @@ pub(crate) fn plan_delete(
         Some(bypass) => match row(doc, Table::Bypass, bypass)? {
             Some(found) => {
                 let kind = read::text(&found.node, keys::TYPE, found.src);
-                if !DROPPED_BYPASSES.contains(&kind.as_str()) {
+                if !BYPASS_KINDS.contains(&kind.as_str()) {
                     return Err(refuse(format!(
                         "its bypass is a {kind}, which has not been tried in game"
                     )));
@@ -130,10 +129,9 @@ fn made_colony(s: &Session, tied: &Tied) -> Result<Option<Teardown>, OpError> {
     else {
         return Ok(None);
     };
-    let made = node
-        .find(keys::FLAGS, src)
-        .is_some_and(|flags| flags.find(keys::MEGASTRUCTURE, src).is_some());
-    if !made || read::scalar_u32(&node, keys::COLONY, src).is_none() {
+    if !megastructure_links::made(&node, src)
+        || read::scalar_u32(&node, keys::COLONY, src).is_none()
+    {
         return Ok(None);
     }
     let system = planet_system(&node, src, planet)?;

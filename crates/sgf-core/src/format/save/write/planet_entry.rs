@@ -6,6 +6,7 @@ use crate::cst::Node;
 use crate::emit::system::ANY_FLAG;
 use crate::entity::facts::planet::{self, BodyRole};
 use crate::format::save::read_spec::bodies;
+use crate::format::save::write::bodies::Stored;
 use crate::format::save::write::id_list::{Emptied, items, statement, unlist};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::{planet_entity, planet_system};
@@ -51,6 +52,16 @@ pub(crate) fn role(node: &Node, src: &[u8], primary: bool, stars: &StarClasses) 
 /// Whether `role` is a star's: the system's primary or another star.
 pub(crate) fn is_star(role: BodyRole) -> bool {
     matches!(role, BodyRole::Primary | BodyRole::Star)
+}
+
+/// Whether body `id` of the system whose bodies are `stored` is a star: the system's primary
+/// or another star. A body `stored` does not hold is not one.
+pub(crate) fn body_is_star(s: &Session, stored: &[Stored], id: u32) -> Result<bool, OpError> {
+    let Some(at) = stored.iter().position(|b| b.body.id == id) else {
+        return Ok(false);
+    };
+    let (node, src) = planet_entity(&s.doc, id)?;
+    Ok(is_star(role(&node, src, at == 0, s.star_classes())))
 }
 
 /// Write `moon_of`, before `moons` or `planet_orbitals` when the body has none, or take it

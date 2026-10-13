@@ -19,15 +19,16 @@ use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
-use crate::format::save::write::add_system::{day_one, write_slot};
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::construction;
+use crate::format::save::write::flags::{add_flags, day_one};
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{
-    self, HAS_ORBITAL, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
+    self, HAS_ORBITAL, MEGASTRUCTURES, drop_bypass, unlink,
 };
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{is_star, role};
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named, named_body};

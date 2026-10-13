@@ -27,7 +27,7 @@ pub(super) fn extract(
         reason,
     };
     let (x, y) = read::coordinate(node, src).map_err(field)?;
-    let flags = star_flags(node, src).map(str::to_owned).collect();
+    let flags = read::flags(node, src).map(str::to_owned).collect();
     let owner = read::scalar_u32(node, keys::SECTOR, src)
         .and_then(|s| sector_owner.get(&s).copied())
         .or_else(|| {
@@ -83,20 +83,9 @@ pub(super) fn extract(
     })
 }
 
-/// The star flags a `galactic_object` entity's `flags` block sets, in file order.
-pub(crate) fn star_flags<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a str> {
-    node.find(keys::FLAGS, src)
-        .into_iter()
-        .flat_map(|flags| flags.children())
-        .filter_map(|flag| flag.key_str(src))
-}
-
 /// The modifier every entry of the node's `timed_modifier.items` names, in file order.
 pub(crate) fn timed_modifiers<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a str> {
-    node.find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-        .into_iter()
-        .flat_map(|items| items.children())
+    read::timed_items(node, src)
         .filter_map(|item| read::scalar(item, keys::MODIFIER, src))
         .map(|m| m.trim_matches('"'))
 }

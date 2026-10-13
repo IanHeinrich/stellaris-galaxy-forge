@@ -8,28 +8,27 @@
 
 use std::collections::BTreeMap;
 
-use crate::cst;
 use crate::document::Document;
 use crate::emit::system::{
     DepositEntry, PlanetEntry, SystemEntry, deposit_entry, planet_entry, system_entry,
 };
-use crate::emit::{coord, inline, roman, rounded};
+use crate::emit::{coord, roman, rounded};
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
-use crate::format::save::entity_at;
 use crate::format::save::system_spec::{BodySpec, SystemSpec, polar};
 use crate::format::save::write::asteroid_names::Pool;
 use crate::format::save::write::deposits::check_deposit_kind;
+use crate::format::save::write::flags::day_one;
 use crate::format::save::write::game_tables::SPAWN_BUFFER;
 use crate::format::save::write::initializer_counter;
 use crate::format::save::write::lanes::insert_entries;
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::write::nebula::{plan_membership, written_literal};
-use crate::keys::{self, GAME_STARTED};
+use crate::format::save::write::shared::write_slot;
+use crate::keys;
 use crate::ops::rules::nebula::{Membership, describe_membership, prospective};
 use crate::ops::rules::{Form, check_name, check_text, labelled};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, SystemMove};
-use crate::overlay::Anchor;
 use crate::plural;
 use crate::projections::galaxy::{GalaxyGraph, lane_length, nearest_prospective};
 use crate::projections::name::{NameTemplate, format, letter, literal};
@@ -219,20 +218,6 @@ pub(crate) fn belts(spec: &SystemSpec) -> Vec<(&str, f64)> {
         .collect()
 }
 
-/// The save's day one as its global `game_started` flag dates it.
-pub(crate) fn day_one(doc: &Document) -> Result<String, OpError> {
-    let missing = OpError::MissingKey(GAME_STARTED);
-    let section = doc.index().section(keys::FLAGS).ok_or(missing)?;
-    entity_at(doc, Anchor::Original(section.stmt))
-        .ok()
-        .flatten()
-        .and_then(|(flags, bytes)| {
-            let date = flags.find(GAME_STARTED, bytes)?.scalar_str(bytes)?;
-            Some(date.to_owned())
-        })
-        .ok_or(OpError::MissingKey(GAME_STARTED))
-}
-
 /// Refuse a spec whose `capped` differs from that of a system added since the file was
 /// opened with the same layout, other than `except`. The core cannot read `max_instances`,
 /// so it holds the flag to one value per layout, and a removal can tell from the count
@@ -367,49 +352,6 @@ pub(crate) fn write_body(
     let text = |indent: &[u8]| planet_entry(indent, &entry);
     let emitted = Emitted::Planet { id: planet, system };
     write_slot(plan, doc, slot, planets, emitted, text)
-}
-
-/// Write an entry where `slot` stands: in place of its tombstone, indented as that was,
-/// or at the end of `table`.
-pub(crate) fn write_slot(
-    plan: &mut Plan,
-    doc: &Document,
-    slot: Slot,
-    table: &mut SlotTable,
-    emitted: Emitted,
-    entry: impl Fn(&[u8]) -> Vec<u8>,
-) -> Result<(), OpError> {
-    match slot {
-        Slot::Reused {
-            tombstone: tombstone @ Anchor::Original(_),
-            ..
-        } => {
-            let indent = cst::indent_of(doc.original(), tombstone.start());
-            let text = inline(indent, &entry(indent)).into_bytes();
-            plan.replace(doc, emitted.subject(tombstone), tombstone, text)
-        }
-        // A tombstone a removal left in an appended slot carries its line with it.
-        Slot::Reused { tombstone, .. } => {
-            let subject = emitted.subject(tombstone);
-            let current = doc.current(tombstone)?;
-            let span = alloc::statement_span(current)
-                .ok_or_else(|| subject.parse_error(0, "the tombstone holds no statement"))?;
-            let indent = cst::indent_of(current, span.start);
-            let text = inline(indent, &entry(indent));
-            let bytes = [
-                &current[..span.start],
-                text.as_bytes(),
-                &current[span.end..],
-            ]
-            .concat();
-            plan.replace(doc, subject, tombstone, bytes)
-        }
-        Slot::Appended { .. } => {
-            let text = table.end.shape(entry(table.end.indent()));
-            plan.emit(emitted, table.end.at(), text);
-            Ok(())
-        }
-    }
 }
 
 /// A body of the spec with its name and position, in the order the system lists them:

@@ -27,6 +27,9 @@ export const RING_WORLD_ROW_PREFIXES = ["ring_world", "ringworld"] as const;
 /** How near a radius a ring world's segment or row stands for a new ring there to overlap it. */
 export const RING_WORLD_SLACK = 5;
 
+/** The bypass types a megastructure the editor adds, moves or deletes may stand for. */
+export const MEGASTRUCTURE_BYPASS_KINDS = ["gateway", "relay_bypass"] as const;
+
 /** The first major version whose saves take an added system. */
 export const ADDED_SYSTEMS_FROM_MAJOR = 4;
 

@@ -18,15 +18,13 @@ use crate::document::Document;
 use crate::emit::system::{AmbientEntry, ambient_entry, ambient_list};
 use crate::emit::{coord, inline, quoted};
 use crate::format::save::alloc::{self, Slot, SlotTable};
-use crate::format::save::galaxy::systems::{
-    TURBULENT_NEBULA, star_flags, timed_modifiers as modifiers_of,
-};
-use crate::format::save::write::add_system::write_slot;
+use crate::format::save::galaxy::systems::{TURBULENT_NEBULA, timed_modifiers as modifiers_of};
 use crate::format::save::write::game_tables::{
     CLASS_A, FIRST_CONTACT, HOME_SYSTEM, OCEAN_PARADISE, TURBULENT_KINDS, beside, calm_kinds,
     calm_of, is_cloud_kind, turbulent_of,
 };
 use crate::format::save::write::place;
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::write::timed_modifiers::{self, End, ItemEdit};
 use crate::format::save::{entity, entity_at, planet_statement, system_statement};
 use crate::keys;
@@ -163,7 +161,7 @@ impl<'d> Footprints<'d> {
             }
         }
         let modifiers: Vec<&str> = modifiers_of(node, src).collect();
-        let flags: Vec<&str> = star_flags(node, src).collect();
+        let flags: Vec<&str> = read::flags(node, src).collect();
         let star = match node.find(keys::PLANET, src).and_then(|p| p.scalar_str(src)) {
             Some(planet) => planet
                 .parse()
