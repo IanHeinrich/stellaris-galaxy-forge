@@ -24,11 +24,11 @@ Scenarios
 
 - The system view shows what each system's initializer places and what the
   game can roll for its planets.
+- Open a script file in your own text editor, such as VS Code, at the line
+  you're looking at.
 
 Both
 
-- Open a script file in your own text editor, such as VS Code, at the line
-  you're looking at.
 - When another program saves the file you have open, Galaxy Forge reloads it,
   or asks first if you have unsaved changes.
 - Search finds star types, such as `pulsar`.
