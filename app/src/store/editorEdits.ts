@@ -315,6 +315,22 @@ export async function runAdd(
   return result && { result, added: addedNear(result.delta, held, { x, y }) };
 }
 
+/**
+ * Runs the edit `call` asks the core for through `runEdit`, and answers what the core answered
+ * with it, edit included; null when the call answered null or the edit was refused.
+ */
+export async function runAnswered<T extends { edit: EditResult }>(
+  runEdit: RunEdit,
+  call: () => Promise<T | null>,
+): Promise<T | null> {
+  let answer: T | null = null;
+  const result = await runEdit(async () => {
+    answer = await call();
+    return answer?.edit ?? null;
+  });
+  return result === null ? null : answer;
+}
+
 export function systems() {
   return useGalaxyStore.getState().systems;
 }

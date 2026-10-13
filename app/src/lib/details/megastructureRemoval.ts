@@ -9,7 +9,6 @@ import type { MegastructureDismantle } from "../../generated/MegastructureDisman
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
-import { megastructureLabel } from "./labels";
 import { colonyParts } from "./planetRemoval";
 
 export const DELETE_MEGASTRUCTURE = "Delete megastructure";
@@ -21,10 +20,7 @@ export function deleteMegastructureOp(megastructure: number): Op {
   return { type: "DeleteMegastructure", megastructure };
 }
 
-/** A megastructure of `kind`, named as the game localises it, else from its key. */
-export function megastructureName(kind: string, names: ReadonlyMap<string, string>): string {
-  return names.get(kind) ?? megastructureLabel(kind);
-}
+export { megastructureName } from "./labels";
 
 /** The system of `details` that lists megastructure `id`, or null where none read so far does. */
 export function systemOfMegastructure(

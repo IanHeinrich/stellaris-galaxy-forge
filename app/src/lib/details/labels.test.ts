@@ -13,6 +13,7 @@ import {
   isWaystationLevel,
   megastructureIcon,
   megastructureLabel,
+  megastructureName,
   megastructureParts,
   planetClassLabel,
   planetLine,
@@ -136,6 +137,16 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
     ["lgate_base", { name: "L-Gate", state: "complete", warn: false }],
   ])("reads the name and the state the type name encodes: %s", (kind, parts) => {
     expect(megastructureParts(kind)).toEqual(parts);
+  });
+
+  it("names a kind as the game localises it, else from its key", () => {
+    const names = new Map([
+      ["dyson_sphere", "Dyson Sphere"],
+      ["think_tank", "\u200b"],
+    ]);
+    expect(megastructureName("dyson_sphere", names)).toBe("Dyson Sphere");
+    expect(megastructureName("think_tank", names)).toBe("Think Tank");
+    expect(megastructureName("ring_world_ruined", names)).toBe("Ring World (ruined)");
   });
 
   it.each([

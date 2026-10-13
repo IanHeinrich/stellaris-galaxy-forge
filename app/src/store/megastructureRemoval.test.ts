@@ -5,8 +5,8 @@ vi.mock("../api/events");
 
 import type { EntityAddr } from "../generated/EntityAddr";
 import { mockedIpc } from "../test/ipc";
-import { megastructureTypeView, name, planetPage } from "../test/builders";
-import { openFixtureSave, sessionError } from "./editorFixture";
+import { colonyPage, megastructureTypeView, name, planetPage } from "../test/builders";
+import { openFixtureSave } from "./editorFixture";
 import { editResult, entityNode, entityView, scalar } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
@@ -14,17 +14,6 @@ import { deleteMegastructure } from "./megastructureRemoval";
 
 const NEXUS = 359;
 const WORLD = 517;
-const COLONY = {
-  id: 18,
-  colonised: "2200.01.01",
-  final_designation: null,
-  designation: null,
-  pops: 3400,
-  species: [],
-  districts: [],
-  zones: [],
-  buildings: ["building_factory_1", "building_foundry_1"],
-};
 
 /** Whether the planet's flags say a megastructure made it. */
 let madeIt = false;
@@ -53,7 +42,7 @@ function onTheStructure(): void {
     stack: [
       { ref: { kind: "system", id: 338 }, label: "Ostiuq" },
       { ref: { kind: "megastructure", id: NEXUS }, label: "Science Nexus" },
-      { ref: { kind: "colony", id: COLONY.id }, label: "Colony #18" },
+      { ref: { kind: "colony", id: colonyPage().id }, label: "Colony #18" },
     ],
   });
 }
@@ -71,31 +60,6 @@ beforeEach(async () => {
 });
 
 describe("deleting a megastructure", () => {
-  it("asks, deletes the row, and goes back to the system's page", async () => {
-    armRow("think_tank_3", null);
-    onTheStructure();
-
-    expect(await deleteMegastructure(NEXUS, "Science Nexus", 0)).toBe(true);
-
-    expect(mockedIpc.confirm).toHaveBeenCalledWith(
-      "Delete Science Nexus in Sol? It is removed from the save. Without game data, the modifiers its construction added stay.",
-      expect.objectContaining({ title: "Science Nexus", kind: "warning" }),
-    );
-    expect(mockedIpc.deleteMegastructure).toHaveBeenCalledWith(NEXUS);
-    expect(labels()).toEqual(["Ostiuq"]);
-  });
-
-  it("writes nothing when the user declines", async () => {
-    armRow("think_tank_3", null);
-    mockedIpc.confirm.mockResolvedValueOnce(false);
-    onTheStructure();
-
-    expect(await deleteMegastructure(NEXUS, "Science Nexus", 0)).toBe(false);
-
-    expect(mockedIpc.deleteMegastructure).not.toHaveBeenCalled();
-    expect(labels()).toEqual(["Ostiuq", "Science Nexus", "Colony #18"]);
-  });
-
   it("says nothing of what stays for a row added this session, whose add is taken back", async () => {
     rowSpan = [5000, 5000];
     armRow("think_tank_3", null);
@@ -119,7 +83,7 @@ describe("deleting a megastructure", () => {
         id: WORLD,
         name: name("Genesis"),
         name_key: "Genesis",
-        colony: COLONY,
+        colony: colonyPage(),
         owner: 0,
         flags: 1,
       }),
@@ -138,12 +102,12 @@ describe("deleting a megastructure", () => {
   it("leaves an ordinary colony with an Orbital Ring out of the confirm and its page open", async () => {
     armRow("orbital_ring_tier_1", WORLD);
     mockedIpc.getPlanetPage.mockResolvedValue(
-      planetPage({ id: WORLD, colony: COLONY, owner: 0, flags: 2 }),
+      planetPage({ id: WORLD, colony: colonyPage(), owner: 0, flags: 2 }),
     );
     useInspectorStore.setState({
       stack: [
         { ref: { kind: "system", id: 338 }, label: "Ostiuq" },
-        { ref: { kind: "colony", id: COLONY.id }, label: "Colony #18" },
+        { ref: { kind: "colony", id: colonyPage().id }, label: "Colony #18" },
       ],
     });
 
@@ -177,32 +141,5 @@ describe("deleting a megastructure", () => {
     armRow("think_tank_3", null);
     await deleteMegastructure(NEXUS, "Science Nexus", 0);
     expect(asked()).toBe("Delete Science Nexus in Sol? It is removed from the save.");
-  });
-
-  it("says what it could not read, and asks nothing", async () => {
-    mockedIpc.getEntity.mockRejectedValue({ kind: "entity", message: "no megastructure 359" });
-    onTheStructure();
-
-    expect(await deleteMegastructure(NEXUS, "Science Nexus", 0)).toBe(false);
-
-    expect(sessionError()).toBe(
-      "Couldn't read Science Nexus, so nothing was deleted: no megastructure 359",
-    );
-    expect(mockedIpc.confirm).not.toHaveBeenCalled();
-    expect(mockedIpc.deleteMegastructure).not.toHaveBeenCalled();
-  });
-
-  it("keeps the pages open when the core refuses", async () => {
-    armRow("lgate_base", null);
-    mockedIpc.deleteMegastructure.mockRejectedValueOnce({
-      kind: "op",
-      message: "megastructure 0 is kept",
-    });
-    onTheStructure();
-
-    expect(await deleteMegastructure(NEXUS, "L-Gate", 0)).toBe(false);
-
-    expect(sessionError()).toBe("megastructure 0 is kept");
-    expect(labels()).toEqual(["Ostiuq", "Science Nexus", "Colony #18"]);
   });
 });

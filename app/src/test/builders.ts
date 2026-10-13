@@ -21,6 +21,7 @@ import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
+import type { PlanetPageColony } from "../generated/PlanetPageColony";
 import type { PlanetSummary } from "../generated/PlanetSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { ScenarioSummary } from "../generated/ScenarioSummary";
@@ -740,6 +741,22 @@ export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
     terraforming: false,
     clearing: [],
     dig_site: null,
+    ...over,
+  };
+}
+
+/** The colony of a `PlanetPage`: 3,400 pops and two buildings, nothing else. */
+export function colonyPage(over: Partial<PlanetPageColony> = {}): PlanetPageColony {
+  return {
+    id: 18,
+    colonised: "2200.01.01",
+    final_designation: null,
+    designation: null,
+    pops: 3400,
+    species: [],
+    districts: [],
+    zones: [],
+    buildings: ["building_factory_1", "building_foundry_1"],
     ...over,
   };
 }

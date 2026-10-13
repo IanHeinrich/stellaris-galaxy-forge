@@ -68,6 +68,16 @@ export interface Entry {
 
 export const GALAXY_ENTRY: Entry = { ref: { kind: "galaxy" }, label: "Galaxy" };
 
+/** What a change took away, by the pages that showed it. */
+export interface GonePages {
+  /** Bodies the document rolls: those in these systems, or every one for `true`. */
+  bodies?: readonly number[] | true;
+  /** Save planets and moons, by id. */
+  planets?: readonly number[];
+  megastructures?: readonly number[];
+  colonies?: readonly number[];
+}
+
 /** The ref of kind `K`. */
 type RefOf<K extends EntityRef["kind"]> = Extract<EntityRef, { kind: K }>;
 
@@ -372,21 +382,11 @@ export interface InspectorState {
   dropClassPicks(systems?: readonly number[]): void;
   /** Moves every page on one of `bodies` to `system`, where a move has taken them. */
   moveBodies(bodies: readonly number[], system: number): void;
-  /** Closes every page on one of `planets` or `colonies`, with everything opened from it. */
-  dropPlanets(planets: readonly number[], colonies: readonly number[]): void;
-  /** Closes every page on `megastructure` or one of `colonies`, with everything opened from it. */
-  dropMegastructure(megastructure: number, colonies: readonly number[]): void;
   /**
-   * Closes every page on one of a ring world's `planets`, `megastructures` or `colonies`, with
-   * everything opened from it. A stack rooted on one of them restarts on `system`, its system's
-   * page.
+   * Closes every page on something `gone` names, with everything opened from it. A stack rooted
+   * on one of them restarts on `root`.
    */
-  dropRingWorld(
-    system: Entry,
-    planets: readonly number[],
-    megastructures: readonly number[],
-    colonies: readonly number[],
-  ): void;
+  dropPages(gone: GonePages, root?: Entry): void;
   /**
    * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
    * rooted on a selection says false, and clearing the selection restarts it instead.
@@ -463,11 +463,15 @@ function tabFor(ref: EntityRef, tab: InspectorTab): InspectorTab {
   return tabs.includes(tab) ? tab : tabs[0];
 }
 
-/** `stack` with the first page `gone` names closed, and every page above it; null where none is. */
-function closing(stack: readonly Entry[], gone: (ref: EntityRef) => boolean): Entry[] | null {
-  const at = stack.findIndex(({ ref }) => gone(ref));
-  if (at < 0) return null;
-  return at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
+/** Whether `gone` names the page `ref` shows; `rolled` says its bodies are the document's own rolls. */
+function isGone(ref: EntityRef, gone: GonePages, rolled: boolean): boolean {
+  if (ref.kind === "body") {
+    const inSystem = gone.bodies === true || gone.bodies?.includes(ref.system) === true;
+    return (rolled && inSystem) || gone.planets?.includes(ref.id) === true;
+  }
+  if (ref.kind === "megastructure") return gone.megastructures?.includes(ref.id) === true;
+  if (ref.kind === "colony") return gone.colonies?.includes(ref.id) === true;
+  return false;
 }
 
 export const useInspectorStore = create<InspectorState>((set, get) => ({
@@ -524,14 +528,7 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   },
 
   dropBodies(systems) {
-    if (planetPages()) return;
-    const { stack, tab } = get();
-    const at = stack.findIndex(
-      ({ ref }) => ref.kind === "body" && (systems === undefined || systems.includes(ref.system)),
-    );
-    if (at < 0) return;
-    const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
-    set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
+    get().dropPages({ bodies: systems ?? true });
   },
 
   dropClassPicks(systems) {
@@ -558,39 +555,13 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     });
   },
 
-  dropPlanets(planets, colonies) {
+  dropPages(gone, root = GALAXY_ENTRY) {
     const { stack, tab } = get();
-    const next = closing(
-      stack,
-      (ref) =>
-        (ref.kind === "body" && planets.includes(ref.id)) ||
-        (ref.kind === "colony" && colonies.includes(ref.id)),
-    );
-    if (next !== null) set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
-  },
-
-  dropRingWorld(system, planets, megastructures, colonies) {
-    const { stack, tab } = get();
-    const at = stack.findIndex(
-      ({ ref }) =>
-        (ref.kind === "body" && planets.includes(ref.id)) ||
-        (ref.kind === "megastructure" && megastructures.includes(ref.id)) ||
-        (ref.kind === "colony" && colonies.includes(ref.id)),
-    );
+    const rolled = gone.bodies !== undefined && !planetPages();
+    const at = stack.findIndex(({ ref }) => isGone(ref, gone, rolled));
     if (at < 0) return;
-    const next = at === 0 ? [system] : stack.slice(0, at);
+    const next = at === 0 ? [root] : stack.slice(0, at);
     set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
-  },
-
-  dropMegastructure(megastructure, colonies) {
-    const { stack, tab } = get();
-    const next = closing(
-      stack,
-      (ref) =>
-        (ref.kind === "megastructure" && ref.id === megastructure) ||
-        (ref.kind === "colony" && colonies.includes(ref.id)),
-    );
-    if (next !== null) set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
   },
 
   home() {

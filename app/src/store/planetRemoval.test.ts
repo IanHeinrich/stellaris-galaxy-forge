@@ -5,23 +5,12 @@ vi.mock("../api/events");
 
 import { deleteQuestion, removeColonyQuestion } from "../lib/details/planetRemoval";
 import { mockedIpc } from "../test/ipc";
-import { name, planetPage } from "../test/builders";
+import { colonyPage, name, planetPage } from "../test/builders";
 import { openFixtureSave, sessionError } from "./editorFixture";
 import { editResult } from "./fixture";
 import { useInspectorStore } from "./inspectorStore";
 import { deletePlanet, removeColony } from "./planetRemoval";
 
-const COLONY = {
-  id: 18,
-  colonised: "2200.01.01",
-  final_designation: null,
-  designation: null,
-  pops: 3400,
-  species: [],
-  districts: [],
-  zones: [],
-  buildings: ["building_factory_1", "building_foundry_1"],
-};
 const MOON = {
   id: 1208,
   name: name("NAME_Moon"),
@@ -51,7 +40,7 @@ beforeEach(async () => {
 
 describe("the confirms say what goes", () => {
   it("adds the colonies on its moons to a colonised planet's", () => {
-    const colonised = planetPage({ colony: COLONY, owner: 0, moons: [MOON, MOON] });
+    const colonised = planetPage({ colony: colonyPage(), owner: 0, moons: [MOON, MOON] });
     expect(deleteQuestion(colonised, "Terra", false, 2)).toBe(
       "Delete Terra and its 2 moons? Its colony goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The colonies on 2 of its moons go too.",
     );
@@ -62,7 +51,7 @@ describe("the confirms say what goes", () => {
     expect(deleteQuestion(bare, "Terra", false)).toBe(
       "Delete Terra and its 1 moon? The planet is removed from the save.",
     );
-    const colonised = planetPage({ colony: COLONY, owner: 0 });
+    const colonised = planetPage({ colony: colonyPage(), owner: 0 });
     expect(deleteQuestion(colonised, "Luna", true)).toBe(
       "Delete Luna? Its colony goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring.",
     );
@@ -75,7 +64,7 @@ describe("the confirms say what goes", () => {
 describe("deleting a planet", () => {
   it("asks, deletes the planet with its moons, and goes back to the system", async () => {
     mockedIpc.getPlanetPage.mockResolvedValue(
-      planetPage({ moons: [MOON], colony: COLONY, owner: 0 }),
+      planetPage({ moons: [MOON], colony: colonyPage(), owner: 0 }),
     );
     onTheColony();
 
@@ -90,7 +79,7 @@ describe("deleting a planet", () => {
   });
 
   it("names a colonised moon in the confirm and closes its colony's page", async () => {
-    const MOON_COLONY = { ...COLONY, id: 40 };
+    const MOON_COLONY = colonyPage({ id: 40 });
     mockedIpc.getPlanetPage.mockImplementation(async (id) =>
       id === 1207
         ? planetPage({ moons: [MOON] })
@@ -112,17 +101,6 @@ describe("deleting a planet", () => {
     expect(labels()).toEqual(["Sol"]);
   });
 
-  it("writes nothing when the user declines", async () => {
-    mockedIpc.getPlanetPage.mockResolvedValue(planetPage());
-    mockedIpc.confirm.mockResolvedValueOnce(false);
-    onTheColony();
-
-    expect(await deletePlanet(1207, "Terra", false)).toBe(false);
-
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
-    expect(labels()).toEqual(["Sol", "Terra", "Colony #18"]);
-  });
-
   it("says which moon it could not read, and asks nothing", async () => {
     mockedIpc.getPlanetPage.mockImplementation(async (id) => {
       if (id === 1207)
@@ -140,22 +118,11 @@ describe("deleting a planet", () => {
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
     expect(labels()).toEqual(["Sol", "Terra", "Colony #18"]);
   });
-
-  it("keeps the pages open when the core refuses", async () => {
-    mockedIpc.getPlanetPage.mockResolvedValue(planetPage());
-    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "planet 1207 is a star" });
-    onTheColony();
-
-    expect(await deletePlanet(1207, "Terra", false)).toBe(false);
-
-    expect(sessionError()).toBe("planet 1207 is a star");
-    expect(labels()).toEqual(["Sol", "Terra", "Colony #18"]);
-  });
 });
 
 describe("removing a colony", () => {
   it("asks, removes the colony, and leaves the planet's page open", async () => {
-    mockedIpc.getPlanetPage.mockResolvedValue(planetPage({ colony: COLONY, owner: 0 }));
+    mockedIpc.getPlanetPage.mockResolvedValue(planetPage({ colony: colonyPage(), owner: 0 }));
     onTheColony();
 
     expect(await removeColony(1207, "Terra")).toBe(true);

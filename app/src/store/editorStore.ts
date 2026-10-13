@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import type { Added } from "../generated/Added";
+import type { AddedMegastructure } from "../generated/AddedMegastructure";
 import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
@@ -21,7 +23,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import { wormholePartnerOf } from "../lib/wormholes";
 import { addSystemActions } from "./editorStore.addSystem";
-import { editPipeline, runAdd, systems, type OpSource } from "./editorEdits";
+import { editPipeline, runAdd, runAnswered, systems, type OpSource } from "./editorEdits";
 import { brushActions } from "./editorStore.brush";
 import { feZoneActions } from "./editorStore.feZones";
 import { heightActions, type HeightChange } from "./editorStore.heights";
@@ -226,7 +228,7 @@ export interface EditorState {
     kind: string,
     at: MegastructurePlace,
     keepPlanet?: boolean,
-  ): Promise<{ megastructure: number; unsure: string[]; unwritten: string[] } | null>;
+  ): Promise<(Pick<AddedMegastructure, "unsure" | "unwritten"> & { megastructure: number }) | null>;
   /**
    * Adds the habitat a megastructure of type `kind` finishes as round body `body` of system
    * `system` in one edit: a planet with no owner. Answers the new planet's id, or null when the
@@ -244,7 +246,7 @@ export interface EditorState {
     kind: string,
     stages: readonly RingStage[],
     clear: boolean,
-  ): Promise<{ planets: number[]; megastructures: number[] } | null>;
+  ): Promise<Omit<Added, "edit"> | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any
@@ -540,13 +542,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async prepareForNewGame(choices, options) {
-      let changes = 0;
-      const result = await edits.runEdit(async () => {
-        const prepared = await ipc.prepareApply(choices, options);
-        changes = prepared?.changes ?? 0;
-        return prepared?.edit ?? null;
-      });
-      return result === null ? null : { seq: result.entry.seq, changes };
+      const prepared = await runAnswered(edits.runEdit, () => ipc.prepareApply(choices, options));
+      return prepared && { seq: prepared.edit.entry.seq, changes: prepared.changes };
     },
 
     async updateEmpireCounts() {
