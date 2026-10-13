@@ -18,10 +18,14 @@ pub fn run(
 ) -> Run {
     let session = Session::open(sav)?;
     let copies = match from {
-        Some(source) => Session::open(source)?.copy_bodies(bodies)?,
-        None => session.copy_bodies(bodies)?,
+        Some(source) => Session::open(source)?
+            .save("copying planets")?
+            .copy_bodies(bodies)?,
+        None => session.save("copying planets")?.copy_bodies(bodies)?,
     };
     let at = at.map(|(radius, angle)| OrbitPlacement { radius, angle });
-    let op = session.paste_bodies_op(to, &copies, at)?;
+    let op = session
+        .save("pasting planets")?
+        .paste_bodies_op(to, &copies, at)?;
     mutate::apply_all(session, out, vec![op])
 }

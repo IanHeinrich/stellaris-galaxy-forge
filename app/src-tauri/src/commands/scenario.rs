@@ -2,8 +2,8 @@
 
 use std::sync::{Arc, MutexGuard};
 
-use sgf_core::format::save::details::{ClassRolls, SystemDetails};
 use sgf_core::session::{Session, SessionError};
+use sgf_core::views::details::{ClassRolls, SystemDetails};
 use sgf_core::views::{DocumentKind, ErrorKind, SgfError};
 use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{

@@ -27,7 +27,7 @@ use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{
     ConstructionDeposit, ConstructionModifier, Edit, Emitted, MegastructureConstruction,
-    ModifierHost, Op, OpError, Plan, SavedTable, VariableStep,
+    ModifierHost, OpError, Plan, SavedTable, VariableStep,
 };
 use crate::overlay::Anchor;
 use crate::projections::read;
@@ -501,25 +501,11 @@ fn lower(
 }
 
 /// The construction the add that wrote row `megastructure` this session gave it, and how
-/// many of its effects it left out: what the latest undoable edit, or earlier member of the
-/// batch being applied, naming the row's removal as its inverse carries.
+/// many of its effects it left out, as the document keeps them beside the row.
 pub(crate) fn of_session(
     s: &Session,
     megastructure: u32,
 ) -> Option<(Option<MegastructureConstruction>, u32)> {
-    fn find(op: &Op, megastructure: u32) -> Option<(Option<&MegastructureConstruction>, u32)> {
-        match op {
-            Op::RemoveMegastructure {
-                megastructure: id,
-                construction,
-                left_out,
-            } if *id == megastructure => Some((construction.as_ref(), *left_out)),
-            Op::Batch { ops, .. } => ops.iter().rev().find_map(|op| find(op, megastructure)),
-            _ => None,
-        }
-    }
-    s.applied_inverses()
-        .rev()
-        .find_map(|inverse| find(inverse, megastructure))
-        .map(|(construction, left_out)| (construction.cloned(), left_out))
+    let written = s.doc.added().written(megastructure)?;
+    Some((written.construction.clone(), written.left_out))
 }

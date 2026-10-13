@@ -360,6 +360,31 @@ fn a_furnace_added_and_deleted_in_one_batch_leaves_nothing() {
     assert_eq!(current(&session), after);
 }
 
+/// What the furnace's add wrote stays with its row through a removal, its undo, the add's
+/// undo and redo, and the removal's own inverse: each removal reads back the same
+/// construction.
+#[test]
+fn every_removal_reads_back_what_the_add_wrote() {
+    let mut session = open_4_5();
+    session.apply(furnace()).expect("the furnace");
+    let removed = session.apply(remove(16)).expect("the removal");
+    assert_eq!(removed.inverse, furnace());
+    session.undo().expect("undo the removal");
+    let again = session.apply(remove(16)).expect("removed again");
+    assert_eq!(again.inverse, furnace());
+    session.undo().expect("undo the second removal");
+    session.undo().expect("undo the add");
+    session.redo().expect("redo the add");
+    let redone = session.apply(remove(16)).expect("removed after a redo");
+    assert_eq!(redone.inverse, furnace());
+    session
+        .apply_inverse(redone.inverse)
+        .expect("the removal's inverse adds it back");
+    let last = session.apply(remove(16)).expect("removed once more");
+    assert_eq!(last.inverse, furnace());
+    assert_eq!(current(&session), session.doc().original());
+}
+
 /// The furnace's add undone and redone through the history still knows what it wrote, so
 /// deleting the row afterwards takes it all back.
 #[test]

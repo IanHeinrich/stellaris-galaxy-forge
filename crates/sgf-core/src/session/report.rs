@@ -1,35 +1,28 @@
 use std::collections::HashSet;
 
 use super::{OpResult, Session};
-use crate::archive;
 use crate::document::{Document, SaveOutcome};
 use crate::entity::views::{EntityAddr, EntityKind};
-use crate::format::scenario::is_painted;
 use crate::keys;
 use crate::library;
 use crate::ops::Subject;
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{BypassLink, Wayline};
 use crate::views::{
-    Capabilities, DocumentKind, EditResult, GalaxyDelta, GalaxyView, OpenResult, SaveResult,
-    SgfError,
+    Capabilities, EditResult, GalaxyDelta, GalaxyView, OpenResult, SaveResult, SgfError,
 };
 
 impl Session {
     /// What opening the document reports to the app: where it is, what it is, its galaxy,
     /// its issues and what it supports.
     pub fn open_result(&self) -> Result<OpenResult, SgfError> {
-        let (meta, painted) = match self.kind() {
-            DocumentKind::Save => (Some(archive::parse_meta(self.doc.meta())?), false),
-            DocumentKind::Scenario => (None, is_painted(self.doc.original())),
-        };
         Ok(OpenResult {
             path: self.path.as_ref().map(|p| p.to_string_lossy().into_owned()),
             cloud: self.path.as_deref().is_some_and(library::is_cloud_save),
             kind: self.kind(),
-            painted,
+            painted: self.format().painted(&self.doc),
             title: self.title(),
-            meta,
+            meta: self.format().meta(&self.doc)?,
             galaxy: GalaxyView::from(&self.graph),
             issues: self.validate(),
             capabilities: Capabilities::of(&self.doc),

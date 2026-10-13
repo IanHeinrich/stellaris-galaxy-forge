@@ -3,11 +3,11 @@
 
 use crate::common;
 
-use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
     ModifierHost, TimedModifier, VariableStep,
 };
+use sgf_core::views::details::{ConstructionSite, SiteBody};
 use sgf_gamedata::registries::megastructures::{Linked, Placement};
 
 /// What each vanilla type's dismantle takes back, followed through the scripted effects it

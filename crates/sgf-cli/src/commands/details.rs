@@ -3,8 +3,8 @@
 
 use std::path::Path;
 
-use sgf_core::format::save::details::SystemDetails;
 use sgf_core::session::Session;
+use sgf_core::views::details::SystemDetails;
 
 use super::{Outcome, Run, join};
 

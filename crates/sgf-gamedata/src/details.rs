@@ -6,18 +6,20 @@
 //! (`create_fe_citadel = yes`). Anything else an effect hides (`spawn_dreadnought = yes`) is
 //! not resolved, so a system shows what its initializer file writes out and little more.
 
+mod save;
+
 use std::convert::Infallible;
 
-use sgf_core::format::save::details::{
-    AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
-    ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep,
-    DetailsResolver, FleetPresence, ListMember, NeighborSystem, OrbitFit, PlanetSummary,
-    RawStatement, ResourceAmount, SpawnClass, SpawnStar, StatedAnomalies, StatedFeatures,
-    SystemDetails, SystemSpawn, UnknownClass,
-};
-use sgf_core::projections::galaxy::StarClasses;
+use sgf_core::format::save::details::DetailsResolver;
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
+use sgf_core::views::details::{
+    AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
+    ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep,
+    FleetPresence, ListMember, NeighborSystem, OrbitFit, PlanetSummary, RawStatement,
+    ResourceAmount, SpawnClass, SpawnStar, StatedAnomalies, StatedFeatures, SystemDetails,
+    SystemSpawn, UnknownClass,
+};
 use sgf_core::views::{ErrorKind, SgfError};
 
 use crate::GameData;
@@ -484,37 +486,6 @@ impl GameData {
             .collect()
     }
 
-    /// Save system details with the star class each star is drawn as, in a system of star
-    /// class `system`. Which bodies are stars is the session's to say, from
-    /// [`Self::session_star_classes`].
-    pub fn resolve_save_bodies(&self, details: &mut SystemDetails, system: &str) {
-        for planet in &mut details.planets {
-            planet.star_class = self.drawn_star_class(&planet.class, system);
-        }
-    }
-
-    /// What the install says of stars, for a session: the planet classes flagged `star`, and
-    /// the star class each initializer that names one gives a scenario system.
-    pub fn session_star_classes(&self) -> StarClasses {
-        StarClasses {
-            bodies: Some(
-                self.planet_classes
-                    .iter()
-                    .filter(|c| c.star)
-                    .map(|c| c.key.clone())
-                    .collect(),
-            ),
-            initializers: self
-                .initializers
-                .iter()
-                .filter_map(|i| {
-                    let class = i.class.as_deref().filter(|c| c.starts_with("sc_"))?;
-                    Some((i.name.clone(), class.to_owned()))
-                })
-                .collect(),
-        }
-    }
-
     /// One example roll, `roll`, of scenario system `id` of `initializer`: where each body
     /// its details list lands, and each megastructure that stands at one, the same for the
     /// same system and roll. Roll 0 is the one the details' own points are taken from. When
@@ -724,7 +695,7 @@ impl GameData {
             layout: Some(layout),
             ring: self.ring(body, expanded.moon),
             star_class: self.drawn_star_class(&class, system),
-            drawn: Some(self.drawn(&class)),
+            drawn: self.drawn(&class),
             permanent_modifiers: None,
             anomaly: None,
             entity_name: None,

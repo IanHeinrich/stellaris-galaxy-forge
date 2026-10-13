@@ -1,5 +1,5 @@
 //! A save system's bodies as the install resolves them.
-use sgf_core::format::save::details::BodyRole;
+use sgf_core::views::details::BodyRole;
 
 use crate::common;
 

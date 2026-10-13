@@ -57,13 +57,6 @@ const KIND_SEAM: &[&str] = &[
 /// Today's kind checks, each with the batch that turns it into a capability read.
 const KIND_OFFENDERS: &[(&str, &str)] = &[
     ("crates/sgf-core/src/export/mod.rs", "2h"),
-    ("crates/sgf-core/src/format/save/write/copy_bodies.rs", "2b"),
-    ("crates/sgf-core/src/format/save/write/move_planet.rs", "2b"),
-    ("crates/sgf-core/src/search/star_types.rs", "2b"),
-    ("crates/sgf-core/src/session/edit.rs", "2b"),
-    ("crates/sgf-core/src/session/game_data.rs", "2b"),
-    ("crates/sgf-core/src/session/report.rs", "2b"),
-    ("crates/sgf-core/src/validate/mod.rs", "2b"),
     ("crates/sgf-cli/src/commands/mod.rs", "3b"),
     ("crates/sgf-cli/src/commands/prepare.rs", "2h"),
     ("app/src-tauri/src/commands/add_body.rs", "3b"),

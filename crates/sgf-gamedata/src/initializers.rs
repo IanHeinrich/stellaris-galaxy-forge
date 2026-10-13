@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::{self, Node};
-use sgf_core::format::save::details::{CountRange, InlineScriptUse, SourceLine};
 use sgf_core::span::Span;
+use sgf_core::views::details::{CountRange, InlineScriptUse, SourceLine};
 use ts_rs::TS;
 
 use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};

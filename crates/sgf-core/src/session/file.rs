@@ -35,7 +35,6 @@ impl Session {
             graph,
             details: OnceCell::new(),
             history: History::new(),
-            batch: Vec::new(),
             saved_at,
             radii: SystemRadii::VANILLA,
             stars: Arc::default(),

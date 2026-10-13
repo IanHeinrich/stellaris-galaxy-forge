@@ -2,13 +2,13 @@
 //! a companion star, the resolver, names and flags.
 use std::fmt::Write as _;
 
-use sgf_core::format::save::details::{
-    BodyRole, DepositCount, DetailsResolver, FleetPresence, FleetSummary, HeuristicResolver,
-    ResourceAmount, SystemDetails,
-};
+use sgf_core::format::save::details::{DetailsResolver, HeuristicResolver};
 use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
 use sgf_core::session::Session;
+use sgf_core::views::details::{
+    BodyRole, DepositCount, FleetPresence, FleetSummary, ResourceAmount, SystemDetails,
+};
 
 use crate::common;
 use crate::ops_move_planet::with_planet;

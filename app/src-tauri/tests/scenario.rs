@@ -2,9 +2,7 @@
 //! say about a scenario's systems.
 
 use serde_json::json;
-use sgf_core::format::save::details::{
-    ClassPool, ClassRolls, SpawnClass, SpawnPool, SystemDetails,
-};
+use sgf_core::views::details::{ClassPool, ClassRolls, SpawnClass, SpawnPool, SystemDetails};
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::special::{SpecialKind, SpecialSystems};

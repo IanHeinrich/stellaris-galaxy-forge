@@ -4,11 +4,12 @@
 use crate::common;
 
 use sgf_core::document::Document;
-use sgf_core::format::save::details::{
-    ClassPool, HeuristicResolver, MegastructureSummary, PlanetSummary, SpawnClass, SpawnPlace,
-    StarbaseSummary, StructureSpawn, SystemDetails,
-};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::session::Session;
+use sgf_core::views::details::{
+    ClassPool, MegastructureSummary, PlanetSummary, SpawnClass, SpawnPlace, StarbaseSummary,
+    StructureSpawn, SystemDetails,
+};
 use sgf_gamedata::GameData;
 use sgf_gamedata::initializers::{self, Initializer};
 use sgf_gamedata::scripts::ScenarioSystem;
