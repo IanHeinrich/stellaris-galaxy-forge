@@ -220,6 +220,9 @@ export const RING_ROLLED = "Rolled";
 
 /** What a value the class a body gets decides says beside its die, and its card. */
 export const CLASS_SUITED = "Suits its class";
+
+/** What a row's card says of a value the block states and the initializer's effect changes. */
+export const CHANGED_BY_EFFECT = "The initializer changes it when a new game starts.";
 export function classSuitedHint(noun: string): string {
   return `The game rolls these to suit the class the ${noun} gets.`;
 }

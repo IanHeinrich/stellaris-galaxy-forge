@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
-    ArchaeologySite, FleetPresence, FleetSummary, MegastructureSummary,
+    ArchaeologySite, BodyRole, FleetPresence, FleetSummary, MegastructureSummary,
 };
 
 use crate::common;
@@ -385,32 +385,40 @@ fn a_body_alone_reads_as_its_system_lists_it() {
             Some((d, planet))
         })
         .expect("a planet with moons");
-    let alone = session
-        .unlisted_body(planet, 9999, &HeuristicResolver, false)
-        .expect("read the body")
-        .expect("the save holds it");
-    assert_eq!(alone.id, system.id);
-    let listed: Vec<_> = system
+    let primary = system
         .planets
         .iter()
-        .filter(|p| p.id == planet || p.parent == Some(planet))
-        .collect();
-    assert_eq!(alone.planets.len(), listed.len());
-    for (read, listed) in alone.planets.iter().zip(listed) {
-        assert_eq!(
-            (&read.id, &read.class, &read.name, &read.size, &read.moon),
-            (
-                &listed.id,
-                &listed.class,
-                &listed.name,
-                &listed.size,
-                &listed.moon
-            )
-        );
-        assert_eq!(
-            (&read.parent, &read.layout, &read.ring),
-            (&listed.parent, &listed.layout, &listed.ring)
-        );
+        .find(|p| p.role == BodyRole::Primary)
+        .expect("a primary star")
+        .id;
+    for body in [planet, primary] {
+        let alone = session
+            .unlisted_body(body, 9999, &HeuristicResolver, false)
+            .expect("read the body")
+            .expect("the save holds it");
+        assert_eq!(alone.id, system.id);
+        let listed: Vec<_> = system
+            .planets
+            .iter()
+            .filter(|p| p.id == body || p.parent == Some(body))
+            .collect();
+        assert_eq!(alone.planets.len(), listed.len());
+        for (read, listed) in alone.planets.iter().zip(listed) {
+            assert_eq!(
+                (&read.id, &read.class, &read.name, &read.size, &read.role),
+                (
+                    &listed.id,
+                    &listed.class,
+                    &listed.name,
+                    &listed.size,
+                    &listed.role
+                )
+            );
+            assert_eq!(
+                (&read.parent, &read.layout, &read.ring),
+                (&listed.parent, &listed.layout, &listed.ring)
+            );
+        }
     }
     assert!(
         session

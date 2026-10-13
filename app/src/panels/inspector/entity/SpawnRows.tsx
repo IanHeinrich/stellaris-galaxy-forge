@@ -12,6 +12,7 @@ import {
   bodyFrom,
   bodyNoun,
   CAN_ROLL_TITLE,
+  CHANGED_BY_EFFECT,
   classSuitedHint,
   copyFacts,
   depositsWithClass,
@@ -47,7 +48,7 @@ import type { PlanetSectionProps } from "./planetSection";
 import { useGivenNames } from "./useBodyName";
 import type { ClassPreview } from "./useClassPreview";
 import { useFeatureNamer } from "./useFeatureNamer";
-import { CHANGED_BY_EFFECT, ClassRow } from "./ClassChooser";
+import { ClassRow } from "./ClassChooser";
 import { FeaturePool } from "./Pools";
 
 /** The Name row: the name the game gives the body, with how it numbers it in its card. */

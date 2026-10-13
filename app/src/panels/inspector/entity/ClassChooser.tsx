@@ -17,6 +17,7 @@ import {
   randomDrawHint,
   starListSource,
   unknownClassWhy,
+  CHANGED_BY_EFFECT,
 } from "../../../lib/details/spawnFacts";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { Hinted, HintedRow, StateValue, Why } from "../states";
@@ -27,9 +28,6 @@ import { OddsList, type Press, type ShownOdds } from "./OddsBar";
 import { classDrawFit, type ClassList } from "../../../lib/details/classList";
 import { useClassList } from "./useClassList";
 import type { ClassPreview } from "./useClassPreview";
-
-/** What the initializer's effect does to a value the block states. */
-export const CHANGED_BY_EFFECT = "The initializer changes it when a new game starts.";
 
 /** The most classes listed a row each where none of their odds are known; more show as icons. */
 const MOST_CLASS_ROWS = 4;

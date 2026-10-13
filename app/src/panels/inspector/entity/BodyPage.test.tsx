@@ -263,6 +263,20 @@ describe("a save body its system's details can't list", () => {
     expectDrawnFromItsPage();
   });
 
+  it.each([
+    ["the read fails", () => mockedIpc.getUnlistedBody.mockRejectedValueOnce(new Error("gone"))],
+    ["the save holds no such planet", () => mockedIpc.getUnlistedBody.mockResolvedValueOnce(null)],
+  ])("falls back to the generic view where its own read can't list it: %s", async (_, arm) => {
+    await open("save");
+    await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
+    await answerPage(NEKKAR);
+    arm();
+    useEntityStore.getState().requestUnlisted(WORLD, SYSTEM);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(render(WORLD)).toContain(GENERIC_HEAD);
+  });
+
   it("heads the page with the save's entity id while it reads", async () => {
     await open("save");
     const html = render(WORLD);

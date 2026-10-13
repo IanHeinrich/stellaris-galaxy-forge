@@ -384,9 +384,14 @@ pub(super) fn planet_alone(
         return Ok(None);
     };
     let facts = facts::planet::read(&node, src);
-    let mut planets = vec![raw_planet(id, &facts, &node, src, facts.role(false, stars))];
+    let primary = match facts.origin {
+        Some(system) => primary_of(doc, system)?,
+        None => None,
+    };
+    let role = facts.role(primary == Some(id), stars);
+    let mut planets = vec![raw_planet(id, &facts, &node, src, role)];
     for moon in read::ids(&node, keys::MOONS, src) {
-        planets.extend(planet(doc, moon, false, stars)?);
+        planets.extend(planet(doc, moon, primary == Some(moon), stars)?);
     }
     Ok(Some(PlanetAlone {
         origin: facts.origin,
@@ -622,6 +627,17 @@ pub(super) fn present(
         }
     }
     Ok(())
+}
+
+/// The first body system `id`'s entry now lists, which it is centred on.
+fn primary_of(doc: &Document, id: u32) -> Result<Option<u32>, ProjectionError> {
+    let Some(anchor) = system_statement(doc, id) else {
+        return Ok(None);
+    };
+    Ok(
+        current_entity(doc, keys::GALACTIC_OBJECT, u64::from(id), anchor)?
+            .and_then(|(node, src)| planet_ids(&node, src).first().copied()),
+    )
 }
 
 /// Read again system `id`'s belts and `inner_radius` from the bytes now standing for its

@@ -18,7 +18,7 @@ use sgf_gamedata::GameData;
 use sgf_gamedata::special::{self, SpecialKind};
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::with_open;
+use super::{opened, with_open, with_session};
 use crate::state::{GameDataState, SpecialLabels};
 
 #[tauri::command]
@@ -77,7 +77,8 @@ pub async fn get_unlisted_body<R: Runtime>(
     id: u32,
     system: u32,
 ) -> Result<Option<SystemDetails>, SgfError> {
-    with_open(app.clone(), move |session| {
+    with_session(app.clone(), move |guard| {
+        let session = opened(&guard)?;
         let gd = app.state::<GameDataState>().loaded();
         let resolver = sgf_gamedata::resolver(gd.as_deref());
         let Some(mut alone) = session
@@ -86,9 +87,13 @@ pub async fn get_unlisted_body<R: Runtime>(
         else {
             return Ok(None);
         };
+        let star = session
+            .system(alone.id)
+            .map(|s| s.star_class.clone())
+            .unwrap_or_default();
+        drop(guard);
         if let Some(gd) = gd.as_deref() {
-            let star = session.system(alone.id).map(|s| s.star_class.clone());
-            gd.resolve_save_bodies(&mut alone, star.as_deref().unwrap_or_default());
+            gd.resolve_save_bodies(&mut alone, &star);
         }
         Ok(Some(alone))
     })
