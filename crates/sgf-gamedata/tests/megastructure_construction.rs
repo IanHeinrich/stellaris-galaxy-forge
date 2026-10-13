@@ -420,7 +420,7 @@ fn a_ruin_a_scripted_effect_spawns_takes_its_working_types_placement() {
 
 /// A scripted effect's `[[PARAM] … ]` block runs only when its call passes the parameter,
 /// and its `[[!PARAM] … ]` block only when the call does not, in a construction and in a
-/// dismantle alike.
+/// dismantle alike, its closing bracket on a line of its own or at the end of a value.
 #[test]
 fn a_parameter_block_runs_only_on_the_arm_its_call_takes() {
     let (_dir, gd) = common::hand_written(&[
@@ -445,6 +445,8 @@ fn a_parameter_block_runs_only_on_the_arm_its_call_takes() {
 	[[!HOT]
 	add_deposit = d_mod_cold
 	]
+	[[HOT] add_deposit = d_mod_glued]
+	[[!HOT] add_deposit = d_mod_wrong]
 }
 mod_unmark = {
 	[[HOT]
@@ -466,10 +468,16 @@ mod_unmark = {
     let built = furnace.construction.replay(&gd, &site, Some(11), true);
     assert_eq!(
         built.construction.deposits,
-        [ConstructionDeposit {
-            body: 11,
-            kind: "d_mod_hot".to_owned(),
-        }]
+        [
+            ConstructionDeposit {
+                body: 11,
+                kind: "d_mod_hot".to_owned(),
+            },
+            ConstructionDeposit {
+                body: 11,
+                kind: "d_mod_glued".to_owned(),
+            }
+        ]
     );
     assert_eq!(furnace.dismantle.deposits, ["d_mod_hot"]);
 }

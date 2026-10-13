@@ -160,9 +160,9 @@ const ROW: &str = "fromfrom";
 
 /// Whether block `node` removes the row its completion runs for.
 pub(crate) fn removes_row(node: &Node, script: &Script<'_>) -> bool {
-    script.children(node).iter().any(|child| {
-        script.key(child).as_deref() == Some("remove_megastructure")
-            && script.value(child).as_deref() == Some(ROW)
+    script.children(node).iter().any(|kept| {
+        script.key(kept.node).as_deref() == Some("remove_megastructure")
+            && script.kept_value(kept).as_deref() == Some(ROW)
     })
 }
 
