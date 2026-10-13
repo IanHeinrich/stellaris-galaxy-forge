@@ -3,8 +3,9 @@
 use std::fmt::Write as _;
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::format::save::details::{Bounds, HeuristicResolver, SystemDetails};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::Op;
+use sgf_core::views::details::{Bounds, SystemDetails};
 
 use crate::common;
 

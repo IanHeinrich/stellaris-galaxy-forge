@@ -5,9 +5,10 @@
 
 use std::collections::BTreeSet;
 
-use sgf_core::format::save::details::{Bounds, HeuristicResolver};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::{Op, SystemSpec};
 use sgf_core::session::Session;
+use sgf_core::views::details::Bounds;
 
 use crate::common;
 use common::diff::{report, round_trip_step};

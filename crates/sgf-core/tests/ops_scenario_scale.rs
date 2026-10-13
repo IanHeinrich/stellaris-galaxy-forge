@@ -122,7 +122,7 @@ fn next_id(session: &Session) -> u32 {
 /// What the app receives after an edit, built and serialised piece by piece.
 fn report_edit(session: &Session, label: &str, applied: Duration, result: OpResult) {
     let start = Instant::now();
-    let issues = sgf_core::validate::validate(session.graph());
+    let issues = session.validate();
     let validate_time = start.elapsed();
     let start = Instant::now();
     let history = session.history();

@@ -26,11 +26,11 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
-use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, ModifierHost,
     TimedModifier, VariableStep,
 };
+use sgf_core::views::details::{ConstructionSite, SiteBody};
 use ts_rs::TS;
 
 use crate::GameData;

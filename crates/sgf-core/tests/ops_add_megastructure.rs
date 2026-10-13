@@ -2,10 +2,11 @@
 //! what the details read back, the ids the rows take and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::format::save::details::{HeuristicResolver, MegastructureSummary};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::{MegastructurePlace, NewBypass, NewMegastructure, NewMegastructurePlace, Op};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
+use sgf_core::views::details::MegastructureSummary;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};

@@ -10,18 +10,17 @@ use crate::format::save::write::bodies::{Stored, frame};
 use crate::format::save::write::move_planet::normalised_set;
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::write::remove_planet::{check_planet, check_segment_stays};
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::named;
 use crate::ops::{NewBody, NewMoon, Op, OpError, StarEdit};
 use crate::projections::geometry::system_reach;
 use crate::session::Session;
-use crate::views::{DocumentKind, OrbitPlacement};
+use crate::views::OrbitPlacement;
 
 /// The bodies of `bodies` as specs, each planet with its moons: see
 /// [`Session::copy_bodies`].
 pub(crate) fn copy(s: &Session, bodies: &[u32]) -> Result<Vec<NewBody>, OpError> {
-    supported(s, "copying planets")?;
     let bodies = normalised_set(s, bodies);
     if bodies.is_empty() {
         return Err(OpError::NoEntries);
@@ -63,7 +62,6 @@ pub(crate) fn paste_op(
     copies: &[NewBody],
     at: Option<OrbitPlacement>,
 ) -> Result<Op, OpError> {
-    supported(s, "AddBody")?;
     if copies.is_empty() {
         return Err(OpError::NoEntries);
     }
@@ -115,14 +113,6 @@ fn outer_reach(s: &Session, system: u32) -> Result<f64, OpError> {
         .map(|belt| belt.inner_radius)
         .collect();
     Ok(system_reach(&bodies, &belt_radii))
-}
-
-/// Refuse `op` on a document other than a save, and on a save before Stellaris 4.0.
-fn supported(s: &Session, op: &'static str) -> Result<(), OpError> {
-    match s.kind() {
-        DocumentKind::Save => check_version(&s.doc),
-        kind => Err(OpError::Unsupported { op, kind }),
-    }
 }
 
 /// Whether body `id` is a star: the system's primary or a body of a star's class.

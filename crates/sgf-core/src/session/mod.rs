@@ -14,6 +14,7 @@ mod file;
 mod game_data;
 mod query;
 mod report;
+mod save;
 
 use std::cell::OnceCell;
 use std::path::{Path, PathBuf};
@@ -31,6 +32,7 @@ use crate::validate::{self, Issue, validate};
 use crate::views::{DocumentKind, ErrorKind, HistoryEntry, HistoryView, SgfError};
 pub use file::DiskChange;
 use file::DiskStamp;
+pub use save::SaveQueries;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
@@ -70,7 +72,44 @@ pub struct OpResult {
     /// See [`crate::ops::Applied::renumbered`]; an undo reports the renumbering that takes it
     /// back.
     pub renumbered: Vec<(u32, Option<u32>)>,
+    /// What an apply or a redo added; nothing for an undo.
+    pub created: Created,
     pub issues: Vec<Issue>,
+}
+
+/// The systems, planets and megastructure rows an op added, in the order it wrote them, as
+/// the inverse its writer returned takes them out again. A planet comes before its moons.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Created {
+    pub systems: Vec<u32>,
+    pub planets: Vec<u32>,
+    pub megastructures: Vec<u32>,
+}
+
+impl Created {
+    /// What the op whose inverse is `inverse` added.
+    fn of(inverse: &Op) -> Self {
+        let mut created = Self::default();
+        created.read(inverse);
+        created
+    }
+
+    fn read(&mut self, inverse: &Op) {
+        match inverse {
+            Op::Batch { ops, .. } => ops.iter().rev().for_each(|op| self.read(op)),
+            Op::RemoveSystem { system } => self.systems.push(*system),
+            Op::RemoveSystems { systems } => self.systems.extend(systems),
+            Op::RemoveBody { body } => self.planets.push(*body),
+            Op::RemoveMegastructure { megastructure, .. } => {
+                self.megastructures.push(*megastructure);
+            }
+            Op::RemoveRingWorld { written, .. } => {
+                self.planets.extend(&written.planets);
+                self.megastructures.extend(&written.rows);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -165,7 +204,7 @@ impl Session {
 
 fn validate_document(doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
     let mut issues = validate(graph);
-    issues.extend(format::of(doc.kind()).issues(doc));
+    issues.extend(format::of(doc.kind()).issues(doc, graph));
     validate::sort(&mut issues);
     issues
 }

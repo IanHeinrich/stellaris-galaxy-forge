@@ -30,16 +30,29 @@ fn refusals(targets: &PlanetMoveTargets) -> Vec<(u32, &str)> {
 fn move_targets_drop_what_moves_with_its_parent_and_list_the_systems() {
     let session = open_4_5();
 
-    let stations = session.planet_move_targets(&[11, 10, 13, 10, 14]);
+    let stations = session
+        .save()
+        .expect("a save")
+        .planet_move_targets(&[11, 10, 13, 10, 14]);
     assert_eq!(stations.planets, [10, 14]);
     assert!(stations.refused.is_empty());
     let listed = ids(&stations);
     assert!(listed.contains(&2) && listed.contains(&216) && !listed.contains(&169));
     assert!(listed.is_sorted());
 
-    assert_eq!(session.planet_move_targets(&[100]).planets, [100]);
+    assert_eq!(
+        session
+            .save()
+            .expect("a save")
+            .planet_move_targets(&[100])
+            .planets,
+        [100]
+    );
 
-    let colonies = session.planet_move_targets(&[402, 2]);
+    let colonies = session
+        .save()
+        .expect("a save")
+        .planet_move_targets(&[402, 2]);
     assert!(colonies.refused.is_empty());
     let listed = ids(&colonies);
     for (to, expected) in [
@@ -52,7 +65,10 @@ fn move_targets_drop_what_moves_with_its_parent_and_list_the_systems() {
         assert_eq!(listed.contains(&to), expected, "system {to}");
     }
 
-    let refused = session.planet_move_targets(&[86, 936, 99, 99_999]);
+    let refused = session
+        .save()
+        .expect("a save")
+        .planet_move_targets(&[86, 936, 99, 99_999]);
     assert_eq!(refused.planets, [86, 936, 99, 99_999]);
     assert_eq!(
         refusals(&refused),
@@ -95,13 +111,16 @@ fn the_dry_run_agrees_with_the_targets() {
         let mut systems: Vec<u32> = session.graph().systems.keys().copied().collect();
         systems.sort_unstable();
         for &set in sets {
-            let targets = session.planet_move_targets(set);
+            let targets = session.save().expect("a save").planet_move_targets(set);
             let checked = systems
                 .iter()
                 .enumerate()
                 .filter(|&(i, id)| i % 7 == 0 || session.graph().systems[id].owner.is_some());
             for (_, &to) in checked {
-                let check = session.planet_move_check(set, to, None);
+                let check = session
+                    .save()
+                    .expect("a save")
+                    .planet_move_check(set, to, None);
                 let target = targets.systems.iter().find(|t| t.system == to);
                 assert_eq!(
                     check.refusal.is_none(),
@@ -128,6 +147,8 @@ fn a_batch_moves_station_planets_together() {
     let before = findings(&session);
 
     let op = session
+        .save()
+        .expect("a save")
         .planet_move_op(&[8, 10, 14], 2, None)
         .expect("an op");
     let Op::Batch { description, ops } = &op else {
@@ -165,11 +186,20 @@ fn a_batch_with_a_refused_planet_changes_nothing() {
     let set = [8, 10, 14, 86];
     let refusal = "planet 86 is a star: only a planet can move to another system";
     assert_eq!(
-        session.planet_move_check(&set, 2, None).refusal.as_deref(),
+        session
+            .save()
+            .expect("a save")
+            .planet_move_check(&set, 2, None)
+            .refusal
+            .as_deref(),
         Some(refusal)
     );
 
-    let op = session.planet_move_op(&set, 2, None).expect("an op");
+    let op = session
+        .save()
+        .expect("a save")
+        .planet_move_op(&set, 2, None)
+        .expect("an op");
     let error = session.apply(op).expect_err("86 is a star");
     assert_eq!(error.to_string(), refusal);
     assert_eq!(current(&session), original);
@@ -189,7 +219,10 @@ fn a_move_into_another_countrys_system_warns() {
         owner,
         new_owner,
     };
-    let colony = session.planet_move_check(&[402], 169, None);
+    let colony = session
+        .save()
+        .expect("a save")
+        .planet_move_check(&[402], 169, None);
     assert_eq!(colony.refusal, None);
     assert_eq!(
         colony.warnings,
@@ -197,15 +230,21 @@ fn a_move_into_another_countrys_system_warns() {
     );
     assert!(
         session
+            .save()
+            .expect("a save")
             .planet_move_check(&[402], 216, None)
             .warnings
             .is_empty()
     );
     assert_eq!(
-        session.planet_move_check(&[14], 378, None).warnings,
+        session
+            .save()
+            .expect("a save")
+            .planet_move_check(&[14], 378, None)
+            .warnings,
         [warning(14, PlanetMoveWarningKind::Station, 0, 16_777_226)]
     );
-    let targets = session.planet_move_targets(&[402]);
+    let targets = session.save().expect("a save").planet_move_targets(&[402]);
     let into = |to| {
         targets
             .systems
@@ -220,9 +259,14 @@ fn a_move_into_another_countrys_system_warns() {
 #[test]
 fn an_empty_set_is_refused() {
     let session = open_4_5();
-    let check = session.planet_move_check(&[], 216, None);
+    let check = session
+        .save()
+        .expect("a save")
+        .planet_move_check(&[], 216, None);
     assert_eq!(check.refusal.as_deref(), Some("no planets to move"));
     let error = session
+        .save()
+        .expect("a save")
         .planet_move_op(&[], 216, None)
         .expect_err("no planets");
     assert_eq!(error.to_string(), "no planets to move");
@@ -234,7 +278,11 @@ fn an_empty_set_is_refused() {
 fn a_batch_detaches_two_moons_of_one_planet() {
     let mut session = open_4_5();
     let original = current(&session);
-    let op = session.planet_move_op(&[11, 12], 216, None).expect("an op");
+    let op = session
+        .save()
+        .expect("a save")
+        .planet_move_op(&[11, 12], 216, None)
+        .expect("an op");
     session.apply(op).expect("move 11 and 12");
     let under_10: Vec<u32> = planets(&session, 169)
         .iter()

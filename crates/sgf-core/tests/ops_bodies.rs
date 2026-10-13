@@ -2,11 +2,12 @@
 //! inner radius it grows, byte-exact undo, and what is refused.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::format::save::details::{Bounds, HeuristicResolver, RawPlanet};
+use sgf_core::format::save::details::{HeuristicResolver, RawPlanet};
 use sgf_core::ops::Parent;
 use sgf_core::ops::{Op, OpError, Subject, SystemRadii};
 use sgf_core::projections::geometry::{Body, system_reach};
 use sgf_core::session::Session;
+use sgf_core::views::details::Bounds;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};

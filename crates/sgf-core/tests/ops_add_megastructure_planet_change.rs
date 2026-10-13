@@ -31,6 +31,8 @@ fn a_megastructure_that_changes_its_planet_is_added_with_the_change_in_one_edit(
     let add = on_body(ALARI, "yggdrasil_orchid_3", 6);
     let said = |class: Option<&str>, size: Option<u32>| {
         open_4_5()
+            .save()
+            .expect("a save")
             .megastructure_planet_change_description("Yggdrasil Orchid", 6, class, size)
             .expect("planet 6")
     };

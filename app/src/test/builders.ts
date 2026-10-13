@@ -224,6 +224,7 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     parent: null,
     layout: null,
     ring: null,
+    drawn: false,
     ...over,
   };
 }

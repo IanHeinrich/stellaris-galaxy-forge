@@ -3,10 +3,10 @@
 //! them, and what a star parent refuses.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::format::save::details::BodyRole;
 use sgf_core::ops::Parent;
 use sgf_core::ops::{Op, Subject};
 use sgf_core::projections::galaxy::StarClasses;
+use sgf_core::views::details::BodyRole;
 
 use crate::common;
 use crate::ops_bodies::{

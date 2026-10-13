@@ -7,6 +7,8 @@
 //! The document itself never crosses IPC. The map receives one [`GalaxyView`]
 //! on open and, later, [`GalaxyDelta`]s naming the systems an op re-projected.
 
+pub mod details;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -111,8 +113,6 @@ pub struct Capabilities {
     /// initializer, so the paint and erase brushes, spawn points, marauder clans and the
     /// day-one layers.
     pub create_systems: bool,
-    /// Lanes carry a `bridge` flag.
-    pub lane_bridges: bool,
     /// Waystations and the waylines the game derives between them.
     pub waylines: bool,
     /// Systems can be added to the save, and the ones added this session rerolled, renamed
@@ -163,6 +163,12 @@ pub struct Capabilities {
     pub rename_systems: bool,
     /// The document has a header of its own: the galaxy's name, sizes and core radius.
     pub header: bool,
+    /// The document is a scenario a new game can start from, so Prepare can choose its seats,
+    /// fallen empires and marauders and write them in one batch.
+    pub prepare: bool,
+    /// Several bodies selected together can be edited at once, as the system view's
+    /// selection offers.
+    pub edit_bodies: bool,
     /// Empires are seated by the scripts the systems name: the territories, day-one claims
     /// and marauder clans the game data resolves.
     pub scripted_owners: bool,

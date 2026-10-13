@@ -9,8 +9,8 @@
 use std::collections::{BTreeMap, HashSet};
 
 use sgf_core::cst::Node;
-use sgf_core::format::save::details::{BodySpawn, RawStatement, SystemDetails, VariableUse};
 use sgf_core::span::Span;
+use sgf_core::views::details::{BodySpawn, RawStatement, SystemDetails, VariableUse};
 use sgf_gamedata::install::script::{Def, Range, continuation, statement_span, whole};
 
 /// Rows of a raw-key table.

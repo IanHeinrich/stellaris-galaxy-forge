@@ -169,6 +169,8 @@ fn the_star_loses_its_megastructure_flag_unless_another_row_names_it() {
 fn two_rings() -> Session {
     let mut session = open_4_5();
     let op = session
+        .save()
+        .expect("a save")
         .ring_world_op(LACHIUM, None, titanic_ring(), false)
         .expect("the titanic ring");
     session.apply(op).expect("the titanic ring");
@@ -278,7 +280,11 @@ fn what_is_refused() {
             (move_planet(2446, 216), SEGMENT_2446_STAYS),
         ],
     );
-    let error = open_4_5().copy_bodies(&[2446]).expect_err("a segment");
+    let error = open_4_5()
+        .save()
+        .expect("a save")
+        .copy_bodies(&[2446])
+        .expect_err("a segment");
     assert_eq!(error.to_string(), SEGMENT_2446_STAYS);
 }
 

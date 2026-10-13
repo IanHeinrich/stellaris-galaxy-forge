@@ -21,7 +21,6 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
-use crate::format::Format;
 use crate::format::save::write::{
     add_body, add_habitat, add_megastructure, add_ring_world, add_system, anomaly, belts, bodies,
     bulk, delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, flag, lanes,
@@ -30,15 +29,16 @@ use crate::format::save::write::{
     rename_planet, rename_system, replace_system, restore, star_class, system_height, wormhole,
     wormhole_pair,
 };
+use crate::format::{self, Format};
 use crate::keys;
-use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
+use crate::ops::{DetailsReach, Op, OpError, ParseAt, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::read;
 use crate::scan::{self, Value};
 use crate::session::Session;
 use crate::validate::Issue;
-use crate::views::{Capabilities, DocumentKind};
+use crate::views::{Capabilities, DocumentKind, SaveMeta};
 
 pub(crate) struct Save;
 
@@ -365,12 +365,31 @@ impl Format for Save {
             .unwrap_or_default()
     }
 
-    fn issues(&self, _doc: &Document) -> Vec<Issue> {
+    fn meta(&self, doc: &Document) -> Result<Option<SaveMeta>, archive::Error> {
+        archive::parse_meta(doc.meta()).map(Some)
+    }
+
+    fn painted(&self, _doc: &Document) -> bool {
+        false
+    }
+
+    fn issues(&self, _doc: &Document, _graph: &GalaxyGraph) -> Vec<Issue> {
         Vec::new()
     }
 
     fn curates_entities(&self) -> bool {
         true
+    }
+
+    /// A save system's lanes rewrite its neighbours, so an op that writes bodies stales only
+    /// the systems whose bodies it wrote.
+    fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32> {
+        let bodies_only = matches!(reach, DetailsReach::Bodies | DetailsReach::SaveBodies);
+        format::stale_systems(subjects, bodies_only)
+    }
+
+    fn save_queries(&self, doc: &Document) -> Result<(), OpError> {
+        check_version(doc)
     }
 
     fn capabilities(&self, doc: &Document) -> Capabilities {
@@ -384,7 +403,6 @@ impl Format for Save {
             bypasses: true,
             special: true,
             precursors: true,
-            lane_bridges: true,
             waylines: true,
             added_systems: whole_entries,
             bodies: true,
@@ -404,6 +422,7 @@ impl Format for Save {
             anomalies: whole_entries,
             dig_sites: whole_entries,
             add_megastructures: whole_entries,
+            edit_bodies: true,
             ..Capabilities::default()
         }
     }

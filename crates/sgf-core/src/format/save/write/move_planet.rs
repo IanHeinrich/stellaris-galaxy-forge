@@ -19,7 +19,7 @@ use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{self, role};
 use crate::format::save::write::planet_entry::{and_its_moons, set_flag, set_moon_of, unlist_moon};
 use crate::format::save::write::remove_planet::check_segment_stays;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::named;
@@ -30,8 +30,8 @@ use crate::projections::geometry::{
 use crate::projections::read;
 use crate::session::Session;
 use crate::views::{
-    DocumentKind, OrbitPlacement, PlanetMoveCheck, PlanetMoveTarget, PlanetMoveTargets,
-    PlanetMoveWarning, PlanetMoveWarningKind, PlanetRefusal,
+    OrbitPlacement, PlanetMoveCheck, PlanetMoveTarget, PlanetMoveTargets, PlanetMoveWarning,
+    PlanetMoveWarningKind, PlanetRefusal,
 };
 
 /// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
@@ -191,9 +191,7 @@ pub(crate) fn targets(s: &Session, planets: &[u32]) -> PlanetMoveTargets {
     let mut sources = Vec::new();
     let mut claims = Vec::new();
     for &planet in &planets {
-        let checked = supported(s)
-            .and_then(|()| origin(s, planet))
-            .and_then(|from| Ok((from, leaving(s, planet, from)?)));
+        let checked = origin(s, planet).and_then(|from| Ok((from, leaving(s, planet, from)?)));
         match checked {
             Ok((from, leaving)) => {
                 sources.push(from);
@@ -357,18 +355,6 @@ fn parents(s: &Session, planet: u32) -> Vec<u32> {
         at = parent;
     }
     chain
-}
-
-/// Refuse what the save format refuses the op for: a document other than a save, or a save
-/// it cannot write whole entries into.
-fn supported(s: &Session) -> Result<(), OpError> {
-    match s.kind() {
-        DocumentKind::Save => check_version(&s.doc),
-        kind => Err(OpError::Unsupported {
-            op: "MoveBodyToSystem",
-            kind,
-        }),
-    }
 }
 
 /// The system planet `planet` stands in.

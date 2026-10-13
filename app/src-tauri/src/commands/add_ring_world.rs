@@ -43,7 +43,7 @@ pub async fn add_ring_world<R: Runtime>(
         let culture = owner
             .and_then(|owner| graph.countries.iter().find(|c| c.id == owner))
             .and_then(|country| country.graphical_culture.clone());
-        let held = session.construction_site(system)?.flags;
+        let held = session.save()?.construction_site(system)?.flags;
         let ring =
             ring_world(&gd, &kind, &stages, culture.as_deref(), &held).map_err(|reason| {
                 SgfError::new(
@@ -51,7 +51,7 @@ pub async fn add_ring_world<R: Runtime>(
                     format!("a ring world of {kind} cannot be added: {reason}"),
                 )
             })?;
-        let op = session.ring_world_op(system, owner, ring, clear)?;
+        let op = session.save()?.ring_world_op(system, owner, ring, clear)?;
         let result = session.apply(op)?;
         let written = match &result.inverse {
             Op::Batch { ops, .. } => ops.iter().find_map(written_by),
@@ -76,7 +76,7 @@ pub async fn get_ring_world_clearing<R: Runtime>(
 ) -> Result<RingWorldClearing, SgfError> {
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
-        Ok(session.ring_world_clearing(system)?)
+        Ok(session.save()?.ring_world_clearing(system)?)
     })
     .await
 }

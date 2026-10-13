@@ -1,11 +1,11 @@
 //! The megastructures and starbase a scenario system's initializer places, in the shape a
 //! save's rows have: the body each is tied to, where it stands and who owns it.
 
-use sgf_core::format::save::details::{
-    Bounds, MegastructureSummary, PlanetSummary, SpawnPlace, StarbaseSummary, StructureSpawn,
-};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
+use sgf_core::views::details::{
+    Bounds, MegastructureSummary, PlanetSummary, SpawnPlace, StarbaseSummary, StructureSpawn,
+};
 
 use crate::GameData;
 use crate::details::{MEGASTRUCTURE_BASE, STARBASE_BASE, bounds, index};

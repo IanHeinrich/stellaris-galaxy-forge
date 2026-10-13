@@ -20,12 +20,13 @@ use std::sync::{LazyLock, Mutex, MutexGuard, OnceLock};
 use sgf_core::archive::{self, MetaFlag};
 use sgf_core::document::Document;
 use sgf_core::entity::{EntityAddr, EntityKind, get_entity_source};
-use sgf_core::format::save::details::{HeuristicResolver, RawPlanet, WormholeSummary};
+use sgf_core::format::save::details::{HeuristicResolver, RawPlanet};
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph};
 use sgf_core::session::{OpResult, Session};
-use sgf_core::validate::{Issue, IssueCode, validate};
+use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::DocumentKind;
+use sgf_core::views::details::WormholeSummary;
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
 /// A Stellaris 4.5.0 save on its first day, whose player empire set independent map colours.
@@ -146,7 +147,7 @@ pub fn issues_at_open(session: &Session) -> Vec<Issue> {
             .is_some_and(|sample| std::ptr::eq(sample.original(), original))
         {
             return issues
-                .get_or_init(|| validate(open_cached(cache, path).graph()))
+                .get_or_init(|| galaxy_issues(&open_cached(cache, path)))
                 .clone();
         }
     }
@@ -158,7 +159,15 @@ pub fn issues_at_open(session: &Session) -> Vec<Issue> {
     };
     let opened = Session::from_document(None, doc.expect("index the original bytes"))
         .expect("project the original bytes");
-    validate(opened.graph())
+    galaxy_issues(&opened)
+}
+
+/// The issues `session` finds in its galaxy, leaving out what the document says of itself,
+/// which every op's report lists.
+fn galaxy_issues(session: &Session) -> Vec<Issue> {
+    let mut issues = session.validate();
+    issues.retain(|issue| issue.code != IssueCode::CoordinateTransform);
+    issues
 }
 
 /// The 4.4 sample with `edit` applied to its gamestate: see [`open_edited_sample`].

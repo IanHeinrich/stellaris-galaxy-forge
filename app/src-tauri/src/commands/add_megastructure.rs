@@ -61,7 +61,7 @@ pub async fn add_megastructure<R: Runtime>(
             .systems
             .get(&system)
             .and_then(|node| node.owner);
-        let site = session.construction_site(system)?;
+        let site = session.save()?.construction_site(system)?;
         let built = match change {
             Some(_) => def
                 .construction
@@ -146,7 +146,7 @@ fn with_planet_change(
     }
     ops.push(add);
     let class_name = class.map(|class| gd.loc.name_or_readable(class));
-    let description = session.megastructure_planet_change_description(
+    let description = session.save()?.megastructure_planet_change_description(
         &gd.loc.name_or_readable(kind),
         body,
         class_name.as_deref(),

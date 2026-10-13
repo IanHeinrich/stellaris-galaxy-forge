@@ -118,7 +118,6 @@ export const SAVE_CAPABILITIES: Capabilities = {
   special: true,
   precursors: true,
   create_systems: false,
-  lane_bridges: true,
   waylines: true,
   added_systems: true,
   bodies: true,
@@ -142,6 +141,8 @@ export const SAVE_CAPABILITIES: Capabilities = {
   add_megastructures: true,
   rename_systems: false,
   header: false,
+  prepare: false,
+  edit_bodies: true,
   scripted_owners: false,
   scripts: false,
 };
@@ -157,7 +158,6 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   special: true,
   precursors: false,
   create_systems: true,
-  lane_bridges: false,
   waylines: false,
   added_systems: false,
   bodies: false,
@@ -181,6 +181,8 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   add_megastructures: false,
   rename_systems: true,
   header: true,
+  prepare: true,
+  edit_bodies: false,
   scripted_owners: true,
   scripts: true,
 };

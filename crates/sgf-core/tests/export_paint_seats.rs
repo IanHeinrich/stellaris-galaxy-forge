@@ -143,7 +143,7 @@ fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
     assert_eq!(seated_as(PaintSpawnKind::Sol, true), [player]);
     assert_eq!(seated_as(PaintSpawnKind::Enabled, false).len(), 16);
 
-    let issues = sgf_core::validate::validate(reopened.graph());
+    let issues = reopened.validate();
     assert!(
         !issues
             .iter()
@@ -263,7 +263,7 @@ fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
         }
     );
     assert_eq!(seats.safe(), 16);
-    let issues = sgf_core::validate::validate(reopened.graph());
+    let issues = reopened.validate();
     assert!(
         !issues
             .iter()

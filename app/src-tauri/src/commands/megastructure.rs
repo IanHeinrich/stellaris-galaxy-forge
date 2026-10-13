@@ -21,7 +21,7 @@ pub async fn delete_megastructure<R: Runtime>(
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let dismantle = gd.and_then(|gd| {
-            let kind = session.megastructure_kind(megastructure)?;
+            let kind = session.save().ok()?.megastructure_kind(megastructure)?;
             let dismantle = gd.megastructures.get(&kind)?.dismantle.clone();
             (!dismantle.is_empty()).then_some(dismantle)
         });
