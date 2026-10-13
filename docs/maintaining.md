@@ -124,7 +124,8 @@ that leaves the app the same take the label.
 The changelog uses a small subset of Markdown, because the update dialog
 and the Workshop change note each parse it: `###` headings, `- ` bullets
 at the start of a line, one nested level of `- ` bullets at two spaces,
-and wrapped lines indented under their bullet. Inline, only `code`,
+and wrapped lines indented under their bullet. A plain line on its own,
+such as `Saves`, may label the list under it. Inline, only `code`,
 `**bold**` and `[links](url)`. Anything else shows as plain text. Both
 parsers' tests read the real `CHANGELOG.md`.
 

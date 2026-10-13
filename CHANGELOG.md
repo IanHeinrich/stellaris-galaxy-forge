@@ -8,6 +8,41 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-13
+
+### Added
+
+Saves
+
+- Megastructures are now fully rendered in the system view, using their game
+  models.
+- Add, move and delete megastructures, including ring worlds, with support for
+  Gigastructural Engineering.
+
+Scenarios
+
+- The system view shows what each system's initializer places and what the
+  game can roll for its planets.
+
+Both
+
+- Open a script file in your own text editor, such as VS Code, at the line
+  you're looking at.
+- When another program saves the file you have open, Galaxy Forge reloads it,
+  or asks first if you have unsaved changes.
+- Search finds star types, such as `pulsar`.
+
+### Fixed
+
+Saves
+
+- Dragging a planet now moves its stations and megastructures with it in game.
+
+Both
+
+- The system view sizes planets and stars by class, as the game does.
+- Keys pressed in a dialog no longer change the map behind it.
+
 ## [0.24.0] - 2026-10-07
 
 ### Added
