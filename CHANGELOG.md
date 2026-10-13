@@ -29,8 +29,8 @@ Scenarios
 
 Both
 
-- When another program saves the file you have open, Galaxy Forge reloads it,
-  or asks first if you have unsaved changes.
+- When a file you have open is updated outside Galaxy Forge, the updates now
+  show in the app, or it asks first if you have unsaved changes to that file.
 - Search finds star types, such as `pulsar`.
 
 ### Fixed
