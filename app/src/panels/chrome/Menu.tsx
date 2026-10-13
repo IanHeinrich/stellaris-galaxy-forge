@@ -4,6 +4,7 @@ import { menuItems, menuKeyDown } from "../menuKeys";
 import { useOutsidePress } from "../useOutsidePress";
 import "./chrome.css";
 import type { Pressed } from "./layerState";
+import "../panels.css";
 
 /**
  * A drop-down: the label opens a panel that closes on Esc, on a click outside, or on `close`.
@@ -68,7 +69,7 @@ export function Menu({
       </button>
       {open && (
         <div
-          className={`menu-pop ${align}${up ? " up" : ""}`}
+          className={`menu-pop pop-surface ${align}${up ? " up" : ""}`}
           role="menu"
           aria-label={label}
           ref={pop}

@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import "../../panels.css";
 
 /** What the shell pins a menu with: its element for focus, its keyboard handling and its position. */
 export type Frame = Pick<ComponentProps<"div">, "ref" | "onKeyDown" | "style">;
@@ -14,7 +15,7 @@ export function MenuFrame({
   return (
     <div
       ref={ref}
-      className="context-menu"
+      className="context-menu pop-surface"
       role="menu"
       aria-label={label}
       onKeyDown={onKeyDown}

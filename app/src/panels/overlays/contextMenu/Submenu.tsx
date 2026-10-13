@@ -131,7 +131,7 @@ export function Submenu({
       {open && (
         <div
           ref={list}
-          className="context-menu context-submenu-list"
+          className="context-menu context-submenu-list pop-surface"
           role="menu"
           aria-label={label}
           style={place ? { position: "fixed", left: place.left, top: place.top } : undefined}

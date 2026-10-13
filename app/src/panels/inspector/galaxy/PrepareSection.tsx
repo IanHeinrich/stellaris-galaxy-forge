@@ -57,7 +57,7 @@ import {
 import { PickerField } from "../../EditField";
 import { HelpLink } from "../../HelpLink";
 import { Twisty } from "../../Twisty";
-import { PickerCard, type CardItem } from "../entity/PickerCard";
+import { HoverCard, type CardItem } from "../HoverCard";
 import { Section } from "../parts";
 
 /** The list item the pointer or the arrows are on in a row's open picker. */
@@ -277,7 +277,7 @@ function ClearAroundCard() {
   const on = usePrepareStore((s) => s.options.clear_around_seats);
   const kept = usePrepareStore((s) => s.preview?.kept_clear.length ?? null);
   return (
-    <PickerCard
+    <HoverCard
       key={`clear_around:${on}:${kept}`}
       id={CARD_ID}
       item={CLEAR_AROUND_ITEM}
@@ -285,7 +285,7 @@ function ClearAroundCard() {
     >
       <CardChoice label={CLEAR_AROUND_STATES.on} current={on} answers={KEPT_CLEAR} n={kept} />
       <CardChoice label={CLEAR_AROUND_STATES.off} current={!on} answers={NOT_KEPT_CLEAR} n={null} />
-    </PickerCard>
+    </HoverCard>
   );
 }
 
@@ -316,7 +316,7 @@ function RowCard({
   const shown =
     reason !== undefined ? [] : active !== null ? [active] : offeredChoices(row, profile);
   return (
-    <PickerCard
+    <HoverCard
       key={`${row}:${active}:${choice}:${count}`}
       id={CARD_ID}
       item={item}
@@ -336,7 +336,7 @@ function RowCard({
           />
         );
       })}
-    </PickerCard>
+    </HoverCard>
   );
 }
 

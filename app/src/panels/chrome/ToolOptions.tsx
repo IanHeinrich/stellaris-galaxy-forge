@@ -38,6 +38,7 @@ import { Select } from "../Select";
 import { LaneDensitySlider } from "../LaneDensitySlider";
 import { useDraft } from "../useDraft";
 import "./chrome.css";
+import "../panels.css";
 
 /** A number field that applies on Enter or when it loses focus, and drops what Escape abandons. */
 function DraftNumber({
@@ -388,7 +389,7 @@ export function ToolOptions() {
   const { help, label } = TOOL_ENTRY[tool];
   if (Options === null) return null;
   return (
-    <div className="tool-options" role="toolbar" aria-label="Brush options">
+    <div className="tool-options pop-surface" role="toolbar" aria-label="Brush options">
       <Options />
       {help !== null && <HelpLink place={help} topic={label} />}
     </div>

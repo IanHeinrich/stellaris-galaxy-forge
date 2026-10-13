@@ -190,10 +190,6 @@ button.master.init[aria-pressed="true"] {
   max-width: min(560px, calc(100vw - 16px));
   margin-top: 4px;
   padding: 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .menu-pop.right {
@@ -273,10 +269,6 @@ button.master.init[aria-pressed="true"] {
   width: 300px;
   max-height: calc(100vh - (var(--bar-h) - 6px) - 16px);
   padding: 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .menu-flyout > :not(.menu-list) {
@@ -558,10 +550,10 @@ button.master.init[aria-pressed="true"] {
   gap: 8px;
   max-width: calc(100% - 16px);
   padding: 4px 8px;
+}
+
+.tool-options.pop-surface {
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .scene-crumb {
@@ -821,11 +813,12 @@ button.badge.paint-badge:hover {
   font-size: var(--text-control);
   color: var(--fg-muted);
   white-space: nowrap;
-  background: var(--bg-elevated);
-  border: 1px solid var(--accent-dim);
-  border-radius: 6px;
-  box-shadow: var(--shadow-pop);
   pointer-events: auto;
+}
+
+.cut-bar.pop-surface {
+  border-color: var(--accent-dim);
+  border-radius: 6px;
 }
 
 .cut-bar b {
@@ -860,10 +853,10 @@ button.badge.paint-badge:hover {
   padding: 4px 8px;
   font-size: var(--text-control);
   white-space: nowrap;
+}
+
+.tilt-slider.pop-surface {
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .tilt-track {
@@ -929,11 +922,11 @@ button.badge.paint-badge:hover {
   gap: 2px;
   padding: 6px 10px;
   font-size: var(--text-control);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: var(--shadow-pop);
   pointer-events: none;
+}
+
+.prepare-legend.pop-surface {
+  border-radius: 6px;
 }
 
 .prepare-legend-row {

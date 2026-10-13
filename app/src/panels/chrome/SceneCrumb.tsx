@@ -2,6 +2,7 @@ import { useSystemNames } from "../../store/browserRows";
 import { backToGalaxy, rollAgain } from "../../store/commands";
 import { useCanRollAgain } from "../../store/sceneStore";
 import "./chrome.css";
+import "../panels.css";
 
 /** What Roll again says it does, on its button and in the View menu. */
 export const ROLL_AGAIN_TITLE = "Draw another roll of the system's initializer";
@@ -14,7 +15,7 @@ export function SceneCrumb({ system }: { system: number }) {
   const rollable = useCanRollAgain();
   const [name] = useSystemNames([system]);
   return (
-    <nav className="tool-options scene-crumb" aria-label="Scene">
+    <nav className="tool-options scene-crumb pop-surface" aria-label="Scene">
       <button type="button" className="link" onClick={backToGalaxy}>
         Galaxy
       </button>
