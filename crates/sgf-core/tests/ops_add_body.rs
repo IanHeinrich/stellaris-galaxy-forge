@@ -271,7 +271,7 @@ fn adds_and_removals_are_refused() {
         ),
         (
             Op::RemoveBody { body: 138 },
-            "planet 138 was in the save when it was opened: only one added since then can be changed this way",
+            "planet 138 was in the save when it was opened: only a planet added since then can be removed or changed",
         ),
     ];
     common::assert_refusals(&mut session, refusals);

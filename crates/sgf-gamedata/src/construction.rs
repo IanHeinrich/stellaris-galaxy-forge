@@ -20,27 +20,23 @@
 
 pub mod habitat;
 pub mod layout;
+mod replay;
 pub mod ring_world;
 
+pub use replay::Built;
+
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
-use sgf_core::ops::{
-    ConstructionDeposit, ConstructionModifier, MegastructureConstruction, ModifierHost,
-    TimedModifier, VariableStep,
-};
-use sgf_core::views::details::{ConstructionSite, SiteBody};
 use ts_rs::TS;
 
-use crate::GameData;
-use crate::condition::{Condition, Subject};
-use crate::install::script::{Def, Names, written, written_key};
-use crate::registries::scripted_triggers::ScriptedTriggers;
+use crate::condition::Condition;
+use crate::install::script::{Def, Names};
+use crate::install::walk::{self, Branch, Flow, Script, Statement, Visitor};
 use crate::scripts::ScriptIndex;
 
-/// How deep scripted effects calling scripted effects are followed.
-const MAX_DEPTH: usize = 8;
 /// How many events deep the walk follows, from the type's own hooks.
 const MAX_EVENTS: usize = 1;
 /// The hooks of a stage that run as it is built, in the order they run.
@@ -287,9 +283,18 @@ impl Construction {
     }
 }
 
+/// The days of an `add_modifier` as a payload takes them, `-1` being no end; `None` for any
+/// other negative count, which a payload cannot carry.
+pub(crate) fn lasting(days: i32) -> Option<Option<u32>> {
+    match days {
+        -1 => Some(None),
+        days => u32::try_from(days).ok().map(Some),
+    }
+}
+
 /// The scope a walk stands in.
 #[derive(Debug, Clone, PartialEq)]
-enum Scope {
+pub(crate) enum Scope {
     System,
     Owner,
     Megastructure,
@@ -297,6 +302,19 @@ enum Scope {
     Planets(Condition),
     /// Any other scope, by the key that reached it.
     Other(String),
+}
+
+impl Scope {
+    fn name(&self) -> String {
+        match self {
+            Self::System => "the system".to_owned(),
+            Self::Owner => "the owner".to_owned(),
+            Self::Megastructure => "the megastructure".to_owned(),
+            Self::Host(_) => "its body".to_owned(),
+            Self::Planets(_) => "the system's planets".to_owned(),
+            Self::Other(key) => key.clone(),
+        }
+    }
 }
 
 /// The chain of `key`, the type's own stage last, each once.
@@ -334,41 +352,150 @@ pub(crate) fn read(defs: &BTreeMap<String, Def>, key: &str, scripts: &ScriptInde
     };
     for stage in chain(defs, key) {
         for hook in HOOKS {
-            if let Some(block) = stage.node.find(hook, &stage.src) {
-                let walk = Walk {
-                    scripts,
-                    names: stage.names(),
-                    params: Vec::new(),
-                    scope: Scope::System,
-                    frame: [
-                        Scope::System,
-                        Scope::Owner,
-                        Scope::Megastructure,
-                        Scope::Other("fromfromfrom".to_owned()),
-                    ],
-                    doubt: None,
-                    owned: false,
-                    depth: 0,
-                    events: 0,
-                    origin: stage
-                        .node
-                        .key_str(&stage.src)
-                        .unwrap_or_default()
-                        .to_owned(),
-                };
-                walk.block(block, &stage.src, &mut out);
+            for record in record(stage, hook, scripts, MAX_EVENTS) {
+                match record {
+                    Record::Effect(met) => keep(met, &mut out),
+                    Record::Note {
+                        what,
+                        owned,
+                        reshapes,
+                    } => note(what, owned, reshapes, &mut out),
+                }
             }
         }
     }
     out
 }
 
-#[derive(Clone)]
-struct Walk<'a> {
+/// What the walk meets running hook `hook` of `def`, in the order it meets it, following
+/// the events it fires `events` deep.
+pub(crate) fn record(def: &Def, hook: &str, scripts: &ScriptIndex, events: usize) -> Vec<Record> {
+    let mut recorder = Recorder {
+        scripts,
+        events,
+        records: Vec::new(),
+    };
+    if let Some(block) = def.node.find(hook, &def.src) {
+        let at = At {
+            scope: Scope::System,
+            frame: [
+                Scope::System,
+                Scope::Owner,
+                Scope::Megastructure,
+                Scope::Other("fromfromfrom".to_owned()),
+            ],
+            doubt: None,
+            owned: false,
+            owner: false,
+            events: 0,
+            origin: def.node.key_str(&def.src).unwrap_or_default().to_owned(),
+        };
+        walk::block(&mut recorder, &Script::of_def(def), &at, block);
+    }
+    recorder.records
+}
+
+/// One thing the walk met.
+#[derive(Debug, Clone)]
+pub(crate) enum Record {
+    Effect(Met),
+    /// What the walk cannot read or follow, said as the script says it.
+    Note {
+        what: String,
+        /// It would run only when the structure has an owner.
+        owned: bool,
+        /// It would change a planet's class or size.
+        reshapes: bool,
+    },
+}
+
+/// An effect the walk read, and where it stood.
+#[derive(Debug, Clone)]
+pub(crate) struct Met {
+    pub effect: Effect,
+    pub scope: Scope,
+    /// Why it may not run, when a condition the walk cannot judge guards it.
+    pub doubt: Option<String>,
+    /// It runs only when the structure has an owner.
+    pub owned: bool,
+    /// It stands in the owner's scope, or a scope reached from there.
+    pub owner: bool,
+    /// The stage or event it is in.
+    pub origin: String,
+}
+
+/// Keep `met`'s effect where it stood, or list why it cannot be.
+fn keep(met: Met, out: &mut Construction) {
+    let Met {
+        effect,
+        scope,
+        doubt,
+        owned,
+        origin,
+        ..
+    } = met;
+    let target = match (&scope, &effect) {
+        (Scope::Owner, Effect::ChangeVariable { .. }) => Target::Owner,
+        (Scope::Owner | Scope::Megastructure | Scope::Other(_), _)
+        | (_, Effect::ChangeVariable { .. }) => {
+            if effect.written() {
+                let what = format!("{effect:?} on {}", scope.name());
+                note(walk::line(&origin, &what), owned, effect.reshapes(), out);
+            }
+            return;
+        }
+        (Scope::System, Effect::SetFlag(_) | Effect::RemoveFlag(_)) => return,
+        (Scope::System, effect) if effect.reshapes() => {
+            let what = format!("{effect:?} on the system");
+            note(walk::line(&origin, &what), owned, true, out);
+            return;
+        }
+        (Scope::System, _) => Target::System,
+        (Scope::Host(guard), _) => Target::Host(guard.clone()),
+        (Scope::Planets(guard), _) => Target::Planets(guard.clone()),
+    };
+    if let Some(doubt) = doubt {
+        if effect.written() {
+            let what = format!("{effect:?} {doubt}");
+            note(walk::line(&origin, &what), owned, effect.reshapes(), out);
+        }
+        return;
+    }
+    let owned = owned || target == Target::Owner;
+    out.steps.push(Step {
+        on: target,
+        effect,
+        owned,
+    });
+}
+
+/// List `what` as unfollowed once, owned only when every path to it is, and marked when any
+/// would change a planet's class or size.
+fn note(what: String, owned: bool, reshapes: bool, out: &mut Construction) {
+    match out.unfollowed.iter_mut().find(|line| line.what == what) {
+        Some(line) => {
+            line.owned &= owned;
+            line.reshapes |= reshapes;
+        }
+        None => out.unfollowed.push(Unfollowed {
+            what,
+            owned,
+            reshapes,
+        }),
+    }
+}
+
+/// The walk that records each effect it meets, with where it stands.
+struct Recorder<'a> {
     scripts: &'a ScriptIndex,
-    /// The `@variables` the file the walk stands in can name.
-    names: Names,
-    params: Vec<(String, String)>,
+    /// How many events deep the walk follows.
+    events: usize,
+    records: Vec<Record>,
+}
+
+/// Where the recorded walk stands.
+#[derive(Clone)]
+struct At {
     scope: Scope,
     /// `root`, `from`, `fromfrom` and `fromfromfrom` where the walk stands.
     frame: [Scope; 4],
@@ -377,145 +504,242 @@ struct Walk<'a> {
     /// The effects here run only when the structure has an owner: they stand in the
     /// owner's scope, or behind a guard asking that it exists.
     owned: bool,
-    depth: usize,
+    /// The effects here stand in the owner's scope, or one reached from it.
+    owner: bool,
     events: usize,
     /// The stage or event the walk is in, for what it lists as unfollowed.
     origin: String,
 }
 
-impl Walk<'_> {
-    fn block(&self, block: &Node, src: &[u8], out: &mut Construction) {
-        let mut earlier: Vec<Condition> = Vec::new();
-        for child in block.children() {
-            let Some(key) = child.key_str(src) else {
-                continue;
-            };
-            let key = self.substitute(key);
-            let value = child.scalar_str(src).map(|v| self.substitute(v));
-            match key.as_str() {
-                "limit" | "custom_tooltip" | "tooltip" => {}
-                "if" => {
-                    earlier.clear();
-                    self.branch(child, src, &mut earlier, out);
+impl Visitor for Recorder<'_> {
+    type At = At;
+    /// The `limit` of each earlier branch of the chain.
+    type Chain = Vec<Condition>;
+
+    /// An `if` or `else_if` runs when its `limit` holds and no earlier branch's did; an
+    /// `else` when none did.
+    fn branch(
+        &mut self,
+        script: &Script<'_>,
+        at: &At,
+        branch: Branch,
+        node: &Node,
+        earlier: &mut Vec<Condition>,
+    ) -> Flow {
+        let not_earlier = Condition::Not(Box::new(Condition::Any(earlier.clone())));
+        match branch {
+            Branch::If | Branch::ElseIf => {
+                let limit = node
+                    .find("limit", script.src())
+                    .map_or(Condition::Always(true), |limit| {
+                        Condition::in_walk(limit, script)
+                    });
+                let guard = Condition::All(vec![not_earlier, limit.clone()]);
+                walk::block(self, script, &at.guarded(guard), node);
+                earlier.push(limit);
+            }
+            Branch::Else => {
+                walk::block(self, script, &at.guarded(not_earlier), node);
+                earlier.clear();
+            }
+        }
+        Flow::Go
+    }
+
+    fn statement(&mut self, script: &Script<'_>, at: &At, statement: Statement<'_>) -> Flow {
+        let Statement { key, value, node } = statement;
+        let value = value.map(str::to_owned);
+        match key {
+            "limit" | "custom_tooltip" | "tooltip" => {}
+            "hidden_effect" | "AND" => {
+                walk::block(self, script, at, node);
+            }
+            "add_modifier" => {
+                let effect = match value {
+                    Some(modifier) => Some(Effect::AddModifier { modifier, days: -1 }),
+                    None => timed(script, node),
+                };
+                match effect {
+                    Some(effect) => self.keep(at, effect),
+                    None => self.unfollowed(at, "add_modifier with no modifier or days"),
                 }
-                "else_if" => self.branch(child, src, &mut earlier, out),
-                "else" => {
-                    let not_earlier = Condition::Not(Box::new(Condition::Any(earlier.clone())));
-                    self.guarded(not_earlier).block(child, src, out);
-                    earlier.clear();
+            }
+            "remove_modifier" => self.keep_named(at, value, Effect::RemoveModifier, key),
+            "add_deposit" => self.keep_named(at, value, Effect::AddDeposit, key),
+            "remove_deposit" => self.keep_named(at, value, Effect::RemoveDeposit, key),
+            "set_planet_flag" => self.keep_named(at, value, Effect::SetFlag, key),
+            "remove_planet_flag" => self.keep_named(at, value, Effect::RemoveFlag, key),
+            "change_pc" => self.class_change(script, at, node, value),
+            "set_planet_size" => match value.and_then(|v| script.number_of(&v)).and_then(size) {
+                Some(size) => self.keep(at, Effect::SetSize(size)),
+                None => self.note(at, "set_planet_size with a value that is not a size", true),
+            },
+            "change_variable" | "subtract_variable" => match variable(script, key, node) {
+                Some(effect) => self.keep(at, effect),
+                None => self.unfollowed(at, &format!("{key} with a value that is not a number")),
+            },
+            "fire_on_action" => self.unfollowed(at, "fire_on_action"),
+            _ if EVENT_KEYS.contains(&key) => self.event(script, at, node),
+            _ => {
+                if let Some(scope) = at.scope_of(key) {
+                    if node.scalar_span().is_none() {
+                        walk::block(self, script, &at.entering(scope, node, script), node);
+                    }
+                    return Flow::Go;
                 }
-                "hidden_effect" | "AND" => self.block(child, src, out),
-                "add_modifier" => {
-                    let effect = match value {
-                        Some(modifier) => Some(Effect::AddModifier { modifier, days: -1 }),
-                        None => self.timed(child, src),
-                    };
-                    match effect {
-                        Some(effect) => self.keep(effect, out),
-                        None => self.unfollowed("add_modifier with no modifier or days", out),
-                    }
+                let scripts = self.scripts;
+                if !walk::follow(self, scripts, script, at, key, node)
+                    && node.scalar_span().is_none()
+                {
+                    let other = at.entering(Scope::Other(key.to_owned()), node, script);
+                    walk::block(self, script, &other, node);
                 }
-                "remove_modifier" => self.keep_named(value, Effect::RemoveModifier, &key, out),
-                "add_deposit" => self.keep_named(value, Effect::AddDeposit, &key, out),
-                "remove_deposit" => self.keep_named(value, Effect::RemoveDeposit, &key, out),
-                "set_planet_flag" => self.keep_named(value, Effect::SetFlag, &key, out),
-                "remove_planet_flag" => self.keep_named(value, Effect::RemoveFlag, &key, out),
-                "change_pc" => self.class_change(child, src, value, out),
-                "set_planet_size" => {
-                    match value.and_then(|v| self.names.number_of(&v)).and_then(size) {
-                        Some(size) => self.keep(Effect::SetSize(size), out),
-                        None => {
-                            self.note("set_planet_size with a value that is not a size", true, out)
-                        }
-                    }
-                }
-                "change_variable" | "subtract_variable" => match self.variable(&key, child, src) {
-                    Some(effect) => self.keep(effect, out),
-                    None => {
-                        self.unfollowed(&format!("{key} with a value that is not a number"), out)
-                    }
-                },
-                "fire_on_action" => self.unfollowed("fire_on_action", out),
-                _ if EVENT_KEYS.contains(&key.as_str()) => self.event(child, src, out),
-                _ => {
-                    if let Some(scope) = self.scope_of(&key) {
-                        if child.scalar_span().is_none() {
-                            self.entering(scope, child, src).block(child, src, out);
-                        }
-                        continue;
-                    }
-                    match self.scripts.effect(&key) {
-                        Some(effect) if self.depth < MAX_DEPTH => {
-                            let mut inner = self.clone();
-                            inner.params = self.arguments(child, src);
-                            inner.names = effect.names();
-                            inner.depth += 1;
-                            inner.block(&effect.node, &effect.src, out);
-                        }
-                        _ if child.scalar_span().is_none() => {
-                            let other = Scope::Other(key.clone());
-                            self.entering(other, child, src).block(child, src, out);
-                        }
-                        _ => {}
-                    }
-                }
+            }
+        }
+        Flow::Go
+    }
+}
+
+impl Recorder<'_> {
+    /// Follow an event `node` fires, as deep as the walk follows events.
+    fn event(&mut self, script: &Script<'_>, at: &At, node: &Node) {
+        let id = node
+            .find("id", script.src())
+            .and_then(|id| script.value(id))
+            .or_else(|| script.value(node));
+        let Some(id) = id.map(Cow::into_owned) else {
+            return;
+        };
+        if at.events >= self.events {
+            self.unfollowed(at, &format!("event {id}, fired from an event"));
+            return;
+        }
+        let Some(found) = self.scripts.event(&id) else {
+            self.unfollowed(
+                at,
+                &format!("event {id}, which the install does not define"),
+            );
+            return;
+        };
+        let Some(parsed) = self.scripts.parsed(&found.file) else {
+            return;
+        };
+        let Some(event) = parsed.at(found.offset) else {
+            return;
+        };
+        let mut inner = at.clone();
+        inner.frame = [
+            at.scope.clone(),
+            at.frame[0].clone(),
+            at.frame[1].clone(),
+            at.frame[2].clone(),
+        ];
+        inner.events += 1;
+        inner.origin = id;
+        let names = Names::of_file(
+            parsed.root.children(),
+            &parsed.src,
+            script.names().globals(),
+        );
+        let text = Script::of_file(&parsed.src, names);
+        if let Some(trigger) = event.find("trigger", &parsed.src) {
+            inner.scope = inner.frame[0].clone();
+            inner = inner.guarded(Condition::in_walk(trigger, &text));
+        }
+        for block in EVENT_BLOCKS {
+            if let Some(effects) = event.find(block, &parsed.src) {
+                walk::block(self, &text, &inner, effects);
             }
         }
     }
 
-    /// An `if` or `else_if`: its effects run when its `limit` holds and no earlier branch's
-    /// did.
-    fn branch(
-        &self,
-        node: &Node,
-        src: &[u8],
-        earlier: &mut Vec<Condition>,
-        out: &mut Construction,
-    ) {
-        let limit = node
-            .find("limit", src)
-            .map_or(Condition::Always(true), |limit| {
-                Condition::compile(limit, src)
-            });
-        let guard = Condition::All(vec![
-            Condition::Not(Box::new(Condition::Any(earlier.clone()))),
-            limit.clone(),
-        ]);
-        self.guarded(guard).block(node, src, out);
-        earlier.push(limit);
+    /// `change_pc = class`, or the block form with its `class`. The block form that keeps the
+    /// planet's model with `inherit_entity = yes` is unfollowed.
+    fn class_change(&mut self, script: &Script<'_>, at: &At, node: &Node, value: Option<String>) {
+        let class = match value {
+            Some(class) => Some(class),
+            None if script.field(node, "inherit_entity").as_deref() == Some("yes") => {
+                self.note(at, "change_pc keeping the planet's model", true);
+                return;
+            }
+            None => script.field(node, "class"),
+        };
+        match class.filter(|c| !c.is_empty() && !c.contains('$')) {
+            Some(class) => self.keep(at, Effect::ChangeClass(class)),
+            None => self.note(at, "change_pc with no plain class", true),
+        }
     }
 
+    fn keep_named(
+        &mut self,
+        at: &At,
+        value: Option<String>,
+        make: fn(String) -> Effect,
+        key: &str,
+    ) {
+        match value.filter(|v| !v.is_empty() && !v.contains('$')) {
+            Some(value) => self.keep(at, make(value)),
+            None => self.unfollowed(at, &format!("{key} with no plain value")),
+        }
+    }
+
+    fn keep(&mut self, at: &At, effect: Effect) {
+        self.records.push(Record::Effect(Met {
+            effect,
+            scope: at.scope.clone(),
+            doubt: at.doubt.clone(),
+            owned: at.owned,
+            owner: at.owner,
+            origin: at.origin.clone(),
+        }));
+    }
+
+    fn unfollowed(&mut self, at: &At, what: &str) {
+        self.note(at, what, false);
+    }
+
+    fn note(&mut self, at: &At, what: &str, reshapes: bool) {
+        self.records.push(Record::Note {
+            what: walk::line(&at.origin, what),
+            owned: at.owned,
+            reshapes,
+        });
+    }
+}
+
+impl At {
     /// The walk with `condition` guarding what follows: folded into a body scope's
     /// condition, marking what follows as owned when it only asks that the owner exists,
     /// and otherwise a doubt.
     fn guarded(&self, condition: Condition) -> Self {
         let condition = self.resolved(condition);
-        let mut walk = self.clone();
-        match &mut walk.scope {
+        let mut at = self.clone();
+        match &mut at.scope {
             Scope::Host(guard) | Scope::Planets(guard) => {
                 *guard = Condition::All(vec![guard.clone(), condition]);
             }
             _ => match asks_owner(&condition) {
-                Some(owned) => walk.owned |= owned,
-                None if walk.doubt.is_some() => {}
+                Some(owned) => at.owned |= owned,
+                None if at.doubt.is_some() => {}
                 None => {
                     let mut keys = Vec::new();
                     leaf_keys(&condition, &mut keys);
                     let doubt = format!(
                         "behind a condition on {}: {}",
-                        self.scope_name(),
+                        self.scope.name(),
                         keys.join(", ")
                     );
-                    walk.doubt = Some(doubt);
+                    at.doubt = Some(doubt);
                 }
             },
         }
-        walk
+        at
     }
 
     /// `condition` with each `exists` answered that names a scope of the walk: the system,
-    /// the structure and the planet it is built at always exist, and one that is the owner becomes `exists = from`,
-    /// which [`asks_owner`] and a body read as the structure having an owner.
+    /// the structure and the planet it is built at always exist, and one that is the owner
+    /// becomes `exists = from`, which [`asks_owner`] and a body read as the structure having
+    /// an owner.
     fn resolved(&self, condition: Condition) -> Condition {
         match condition {
             Condition::Exists(scope) => match self.scope_of(&scope.to_ascii_lowercase()) {
@@ -533,17 +757,6 @@ impl Walk<'_> {
                 Condition::Any(items.into_iter().map(|c| self.resolved(c)).collect())
             }
             other => other,
-        }
-    }
-
-    fn scope_name(&self) -> String {
-        match &self.scope {
-            Scope::System => "the system".to_owned(),
-            Scope::Owner => "the owner".to_owned(),
-            Scope::Megastructure => "the megastructure".to_owned(),
-            Scope::Host(_) => "its body".to_owned(),
-            Scope::Planets(_) => "the system's planets".to_owned(),
-            Scope::Other(key) => key.clone(),
         }
     }
 
@@ -573,225 +786,44 @@ impl Walk<'_> {
     }
 
     /// The walk inside a block that moves to `scope`, its own `limit` folded in.
-    fn entering(&self, scope: Scope, node: &Node, src: &[u8]) -> Self {
-        let mut walk = self.clone();
-        walk.owned |= scope == Scope::Owner;
-        walk.scope = scope;
-        match node.find("limit", src) {
-            Some(limit) => walk.guarded(Condition::compile(limit, src)),
-            None => walk,
+    fn entering(&self, scope: Scope, node: &Node, script: &Script<'_>) -> Self {
+        let mut at = self.clone();
+        if scope == Scope::Owner {
+            at.owned = true;
+            at.owner = true;
+        }
+        at.scope = scope;
+        match node.find("limit", script.src()) {
+            Some(limit) => at.guarded(Condition::in_walk(limit, script)),
+            None => at,
         }
     }
+}
 
-    /// Follow an event `node` fires, one level deep.
-    fn event(&self, node: &Node, src: &[u8], out: &mut Construction) {
-        let id = node
-            .find("id", src)
-            .and_then(|id| id.scalar_str(src))
-            .or_else(|| node.scalar_str(src))
-            .map(|id| self.substitute(id));
-        let Some(id) = id else {
-            return;
-        };
-        if self.events >= MAX_EVENTS {
-            self.unfollowed(&format!("event {id}, fired from an event"), out);
-            return;
-        }
-        let Some(found) = self.scripts.event(&id) else {
-            self.unfollowed(
-                &format!("event {id}, which the install does not define"),
-                out,
-            );
-            return;
-        };
-        let Some(parsed) = self.scripts.parsed(&found.file) else {
-            return;
-        };
-        let Some(event) = parsed.at(found.offset) else {
-            return;
-        };
-        let mut walk = self.clone();
-        walk.frame = [
-            self.scope.clone(),
-            self.frame[0].clone(),
-            self.frame[1].clone(),
-            self.frame[2].clone(),
-        ];
-        walk.events += 1;
-        walk.depth = 0;
-        walk.params = Vec::new();
-        walk.names = Names::of_file(parsed.root.children(), &parsed.src, self.names.globals());
-        walk.origin = id.clone();
-        if let Some(trigger) = event.find("trigger", &parsed.src) {
-            walk = walk.guarded_event(Condition::compile(trigger, &parsed.src));
-        }
-        for block in EVENT_BLOCKS {
-            if let Some(effects) = event.find(block, &parsed.src) {
-                walk.block(effects, &parsed.src, out);
+fn timed(script: &Script<'_>, node: &Node) -> Option<Effect> {
+    let modifier = script.field(node, "modifier")?;
+    let days = match node.find("days", script.src()) {
+        Some(_) => {
+            let days = script.number(node, "days")?;
+            if days.fract() != 0.0 || days < f64::from(i32::MIN) || days > f64::from(i32::MAX) {
+                return None;
             }
+            days as i32
         }
-    }
+        None => -1,
+    };
+    Some(Effect::AddModifier { modifier, days })
+}
 
-    /// An event's `trigger` is judged in the scope it fires in, as a guard.
-    fn guarded_event(self, trigger: Condition) -> Self {
-        let mut walk = self;
-        walk.scope = walk.frame[0].clone();
-        walk.guarded(trigger)
-    }
-
-    fn timed(&self, node: &Node, src: &[u8]) -> Option<Effect> {
-        let field = |name: &str| {
-            node.find(name, src)?
-                .scalar_str(src)
-                .map(|v| self.substitute(v))
-        };
-        let modifier = field("modifier")?;
-        let days = match node.find("days", src) {
-            Some(_) => {
-                let days = self.number(node, "days", src)?;
-                if days.fract() != 0.0 || days < f64::from(i32::MIN) || days > f64::from(i32::MAX) {
-                    return None;
-                }
-                days as i32
-            }
-            None => -1,
-        };
-        Some(Effect::AddModifier { modifier, days })
-    }
-
-    fn variable(&self, key: &str, node: &Node, src: &[u8]) -> Option<Effect> {
-        let field = |name: &str| {
-            node.find(name, src)?
-                .scalar_str(src)
-                .map(|v| self.substitute(v))
-        };
-        let variable = field("which")?;
-        let value = self.number(node, "value", src)?;
-        let by = if key == "subtract_variable" {
-            -value
-        } else {
-            value
-        };
-        Some(Effect::ChangeVariable { variable, by })
-    }
-
-    /// `change_pc = class`, or the block form with its `class`. The block form that keeps the
-    /// planet's model with `inherit_entity = yes` is unfollowed.
-    fn class_change(&self, node: &Node, src: &[u8], value: Option<String>, out: &mut Construction) {
-        let field = |name: &str| {
-            node.find(name, src)?
-                .scalar_str(src)
-                .map(|v| self.substitute(v))
-        };
-        let class = match value {
-            Some(class) => Some(class),
-            None if field("inherit_entity").as_deref() == Some("yes") => {
-                self.note("change_pc keeping the planet's model", true, out);
-                return;
-            }
-            None => field("class"),
-        };
-        match class.filter(|c| !c.is_empty() && !c.contains('$')) {
-            Some(class) => self.keep(Effect::ChangeClass(class), out),
-            None => self.note("change_pc with no plain class", true, out),
-        }
-    }
-
-    fn keep_named(
-        &self,
-        value: Option<String>,
-        make: fn(String) -> Effect,
-        key: &str,
-        out: &mut Construction,
-    ) {
-        match value.filter(|v| !v.is_empty() && !v.contains('$')) {
-            Some(value) => self.keep(make(value), out),
-            None => self.unfollowed(&format!("{key} with no plain value"), out),
-        }
-    }
-
-    /// Keep `effect` where the walk stands, or list why it cannot be.
-    fn keep(&self, effect: Effect, out: &mut Construction) {
-        let target = match (&self.scope, &effect) {
-            (Scope::Owner, Effect::ChangeVariable { .. }) => Target::Owner,
-            (Scope::Owner | Scope::Megastructure | Scope::Other(_), _)
-            | (_, Effect::ChangeVariable { .. }) => {
-                if effect.written() {
-                    let what = format!("{effect:?} on {}", self.scope_name());
-                    self.note(&what, effect.reshapes(), out);
-                }
-                return;
-            }
-            (Scope::System, Effect::SetFlag(_) | Effect::RemoveFlag(_)) => return,
-            (Scope::System, effect) if effect.reshapes() => {
-                self.note(&format!("{effect:?} on the system"), true, out);
-                return;
-            }
-            (Scope::System, _) => Target::System,
-            (Scope::Host(guard), _) => Target::Host(guard.clone()),
-            (Scope::Planets(guard), _) => Target::Planets(guard.clone()),
-        };
-        if let Some(doubt) = &self.doubt {
-            if effect.written() {
-                self.note(&format!("{effect:?} {doubt}"), effect.reshapes(), out);
-            }
-            return;
-        }
-        let owned = self.owned || target == Target::Owner;
-        out.steps.push(Step {
-            on: target,
-            effect,
-            owned,
-        });
-    }
-
-    /// List `what` as unfollowed once, owned only when every path to it is.
-    fn unfollowed(&self, what: &str, out: &mut Construction) {
-        self.note(what, false, out);
-    }
-
-    /// List `what` as [`Self::unfollowed`] does, marked when it would change a planet's
-    /// class or size.
-    fn note(&self, what: &str, reshapes: bool, out: &mut Construction) {
-        let what = format!("{}: {what}", self.origin);
-        match out.unfollowed.iter_mut().find(|line| line.what == what) {
-            Some(line) => {
-                line.owned &= self.owned;
-                line.reshapes |= reshapes;
-            }
-            None => out.unfollowed.push(Unfollowed {
-                what,
-                owned: self.owned,
-                reshapes,
-            }),
-        }
-    }
-
-    fn arguments(&self, call: &Node, src: &[u8]) -> Vec<(String, String)> {
-        let args = call.children();
-        (0..args.len())
-            .filter_map(|at| {
-                let name = args[at].key_str(src)?;
-                let value = written(args, at, src)?;
-                Some((name.to_owned(), self.substitute(&value)))
-            })
-            .collect()
-    }
-
-    /// `node`'s `key` as a number, its `$PARAM$`s put in and its `@variables` read as the file
-    /// the walk stands in has them.
-    fn number(&self, node: &Node, key: &str, src: &[u8]) -> Option<f64> {
-        let text = self.substitute(&written_key(node, key, src)?);
-        self.names.number_of(&text)
-    }
-
-    fn substitute(&self, text: &str) -> String {
-        let mut out = text.to_owned();
-        for (name, value) in &self.params {
-            out = out.replace(&format!("${name}$"), value);
-        }
-        out
-    }
+fn variable(script: &Script<'_>, key: &str, node: &Node) -> Option<Effect> {
+    let variable = script.field(node, "which")?;
+    let value = script.number(node, "value")?;
+    let by = if key == "subtract_variable" {
+        -value
+    } else {
+        value
+    };
+    Some(Effect::ChangeVariable { variable, by })
 }
 
 /// `value` as a planet size: a whole number from 1.
@@ -799,7 +831,7 @@ fn size(value: f64) -> Option<u32> {
     (value >= 1.0 && value.fract() == 0.0 && value <= f64::from(u32::MAX)).then_some(value as u32)
 }
 
-/// What a [`Walk::resolved`] guard asks: `Some(true)` that the owner exists and nothing
+/// What a [`At::resolved`] guard asks: `Some(true)` that the owner exists and nothing
 /// else, `Some(false)` nothing, `None` something more.
 fn asks_owner(condition: &Condition) -> Option<bool> {
     match condition {
@@ -829,338 +861,4 @@ fn leaf_keys(condition: &Condition, out: &mut Vec<String>) {
             }
         }
     }
-}
-
-/// What an added row of a type brings with it in one save system, and what of its
-/// construction is not written there.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct Built {
-    pub construction: MegastructureConstruction,
-    /// Each effect the replay could not tell applies, or where.
-    pub unsure: Vec<String>,
-    /// Each effect that applies but that the editor does not write: a modifier or deposit
-    /// the construction removes, a deposit on the system, an owner variable lowered.
-    pub unwritten: Vec<String>,
-}
-
-/// One body as a step's condition judges it, as the replay has left it so far.
-struct Body<'a> {
-    site: &'a SiteBody,
-    /// Its class key, and what the install says of that class.
-    class_key: String,
-    class: Option<&'a crate::registries::planet_classes::PlanetClassDef>,
-    deposits: Vec<String>,
-    modifiers: Vec<String>,
-    flags: Vec<String>,
-    gd: &'a GameData,
-    /// The structure has an owner.
-    owned: bool,
-}
-
-impl Subject for Body<'_> {
-    fn leaf(&self, leaf: &Condition) -> Option<bool> {
-        let class = self.class;
-        match leaf {
-            Condition::PlanetClass(key) => Some(&self.class_key == key),
-            Condition::Star(want) => Some(self.site.star == *want),
-            Condition::Moon(want) => Some(self.site.moon == *want),
-            Condition::Asteroid(want) => Some(class?.asteroid == *want),
-            Condition::Colonizable(want) => Some(class?.colonizable == *want),
-            Condition::HasDeposit(key) => Some(self.deposits.contains(key)),
-            Condition::HasModifier(key) => Some(self.modifiers.contains(key)),
-            Condition::PlanetFlag(key) => Some(self.flags.contains(key)),
-            Condition::DepositFor(station) => Some(self.deposits.iter().any(|kind| {
-                self.gd
-                    .deposits
-                    .get(kind)
-                    .is_some_and(|d| d.station.as_deref() == Some(station))
-            })),
-            Condition::Exists(scope) if scope == OWNER_EXISTS => Some(self.owned),
-            Condition::Call(name, want) => {
-                let holds = match name.as_str() {
-                    "is_astral_scar" => class?.astral_scar,
-                    "is_artificial" => class?.artificial,
-                    "is_ringworld" => class?.ringworld,
-                    "is_colony" | "has_owner" => self.site.colony,
-                    _ => return None,
-                };
-                Some(holds == *want)
-            }
-            _ => None,
-        }
-    }
-
-    fn triggers(&self) -> Option<&ScriptedTriggers> {
-        Some(&self.gd.scripted_triggers)
-    }
-}
-
-impl Construction {
-    /// Replay the chain against `site`, the structure built at body `host` (none for one at
-    /// a point of its own) and owned when `has_owner`: the timed modifiers, deposits and
-    /// owner variables it leaves that the system did not have, and what else it would
-    /// change that is not written. The class and size changes of its planet are not made.
-    pub fn replay(
-        &self,
-        gd: &GameData,
-        site: &ConstructionSite,
-        host: Option<u32>,
-        has_owner: bool,
-    ) -> Built {
-        self.replay_as(gd, site, host, has_owner, false)
-    }
-
-    /// Replay the chain as [`Self::replay`] does, with the class changes of the structure's
-    /// own planet made, so that what follows them sees the planet as they leave it.
-    pub fn replay_changing_planet(
-        &self,
-        gd: &GameData,
-        site: &ConstructionSite,
-        host: Option<u32>,
-        has_owner: bool,
-    ) -> Built {
-        self.replay_as(gd, site, host, has_owner, true)
-    }
-
-    fn replay_as(
-        &self,
-        gd: &GameData,
-        site: &ConstructionSite,
-        host: Option<u32>,
-        has_owner: bool,
-        changes_planet: bool,
-    ) -> Built {
-        let mut unwritten: Vec<String> = Vec::new();
-        let mut unsure: Vec<String> = self
-            .unfollowed
-            .iter()
-            .filter(|unfollowed| has_owner || !unfollowed.owned)
-            .map(|unfollowed| unfollowed.what.clone())
-            .collect();
-        let mut bodies: Vec<Body<'_>> = site
-            .bodies
-            .iter()
-            .map(|body| Body {
-                site: body,
-                class_key: body.class.clone(),
-                class: gd.planet_classes.get(&body.class),
-                deposits: body.deposits.clone(),
-                modifiers: body.modifiers.clone(),
-                flags: body.flags.clone(),
-                gd,
-                owned: has_owner,
-            })
-            .collect();
-        let mut system_modifiers = site.modifiers.clone();
-        let mut variables: BTreeMap<String, f64> = BTreeMap::new();
-        let mut days: BTreeMap<(ModifierHost, String), i32> = BTreeMap::new();
-
-        for step in self.steps.iter().filter(|step| has_owner || !step.owned) {
-            match &step.on {
-                Target::Owner => {
-                    if let Effect::ChangeVariable { variable, by } = &step.effect {
-                        *variables.entry(variable.clone()).or_default() += by;
-                    }
-                }
-                Target::System => {
-                    apply_modifier(
-                        &mut system_modifiers,
-                        &step.effect,
-                        ModifierHost::System,
-                        &mut days,
-                    );
-                    if matches!(
-                        step.effect,
-                        Effect::AddDeposit(_) | Effect::RemoveDeposit(_)
-                    ) {
-                        note(&mut unwritten, format!("{:?} on the system", step.effect));
-                    }
-                }
-                Target::Host(guard) | Target::Planets(guard) => {
-                    let only = match &step.on {
-                        Target::Host(_) => match host {
-                            Some(host) => Some(host),
-                            None => continue,
-                        },
-                        _ => None,
-                    };
-                    for body in &mut bodies {
-                        if only.is_some_and(|host| host != body.site.id) {
-                            continue;
-                        }
-                        match guard.evaluate(&*body) {
-                            Some(true) => {
-                                if let (Target::Host(_), Effect::ChangeClass(class), true) =
-                                    (&step.on, &step.effect, changes_planet)
-                                {
-                                    body.class_key = class.clone();
-                                    body.class = gd.planet_classes.get(class);
-                                }
-                                apply(body, &step.effect, &mut days);
-                            }
-                            Some(false) => {}
-                            None => {
-                                let mut keys = std::collections::BTreeSet::new();
-                                guard.unknown_keys(&*body, &mut keys);
-                                note(
-                                    &mut unsure,
-                                    format!(
-                                        "{:?} on planet {}: cannot judge {}",
-                                        step.effect,
-                                        body.site.id,
-                                        keys.into_iter().collect::<Vec<_>>().join(", ")
-                                    ),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut built = MegastructureConstruction::default();
-        added_modifiers(
-            &site.modifiers,
-            &system_modifiers,
-            ModifierHost::System,
-            &days,
-            &mut built,
-            &mut unwritten,
-        );
-        for body in &bodies {
-            let host = ModifierHost::Body { body: body.site.id };
-            added_modifiers(
-                &body.site.modifiers,
-                &body.modifiers,
-                host,
-                &days,
-                &mut built,
-                &mut unwritten,
-            );
-            let (gained, lost) = multiset_diff(&body.site.deposits, &body.deposits);
-            for kind in gained {
-                built.deposits.push(ConstructionDeposit {
-                    body: body.site.id,
-                    kind,
-                });
-            }
-            for kind in lost {
-                note(
-                    &mut unwritten,
-                    format!("removes deposit {kind} from planet {}", body.site.id),
-                );
-            }
-        }
-        for (variable, by) in variables {
-            if by > 0.0 && by.fract() == 0.0 && by <= f64::from(u32::MAX) {
-                built.variables.push(VariableStep {
-                    variable,
-                    by: by as u32,
-                });
-            } else if by != 0.0 {
-                note(
-                    &mut unwritten,
-                    format!("changes owner variable {variable} by {by}"),
-                );
-            }
-        }
-        Built {
-            construction: built,
-            unsure,
-            unwritten,
-        }
-    }
-}
-
-/// The days of an `add_modifier` as a payload takes them: `None` for a negative count, which
-/// the game reads as no end.
-pub(crate) fn lasting(days: i32) -> Option<u32> {
-    u32::try_from(days).ok()
-}
-
-fn note(lines: &mut Vec<String>, line: String) {
-    if !lines.contains(&line) {
-        lines.push(line);
-    }
-}
-
-fn apply(body: &mut Body<'_>, effect: &Effect, days: &mut BTreeMap<(ModifierHost, String), i32>) {
-    let host = ModifierHost::Body { body: body.site.id };
-    apply_modifier(&mut body.modifiers, effect, host, days);
-    match effect {
-        Effect::AddDeposit(kind) => body.deposits.push(kind.clone()),
-        Effect::RemoveDeposit(kind) => {
-            if let Some(at) = body.deposits.iter().position(|d| d == kind) {
-                body.deposits.remove(at);
-            }
-        }
-        Effect::SetFlag(flag) if !body.flags.contains(flag) => body.flags.push(flag.clone()),
-        Effect::RemoveFlag(flag) => body.flags.retain(|f| f != flag),
-        _ => {}
-    }
-}
-
-fn apply_modifier(
-    modifiers: &mut Vec<String>,
-    effect: &Effect,
-    host: ModifierHost,
-    days: &mut BTreeMap<(ModifierHost, String), i32>,
-) {
-    match effect {
-        Effect::AddModifier {
-            modifier,
-            days: lasts,
-        } => {
-            if !modifiers.contains(modifier) {
-                modifiers.push(modifier.clone());
-            }
-            days.insert((host, modifier.clone()), *lasts);
-        }
-        Effect::RemoveModifier(modifier) => modifiers.retain(|m| m != modifier),
-        _ => {}
-    }
-}
-
-fn added_modifiers(
-    before: &[String],
-    after: &[String],
-    host: ModifierHost,
-    days: &BTreeMap<(ModifierHost, String), i32>,
-    built: &mut MegastructureConstruction,
-    unwritten: &mut Vec<String>,
-) {
-    for modifier in after.iter().filter(|m| !before.contains(m)) {
-        built.modifiers.push(ConstructionModifier {
-            on: host,
-            timed: TimedModifier {
-                modifier: modifier.clone(),
-                days: days
-                    .get(&(host, modifier.clone()))
-                    .copied()
-                    .and_then(lasting),
-            },
-        });
-    }
-    for modifier in before.iter().filter(|m| !after.contains(m)) {
-        let on = match host {
-            ModifierHost::System => "the system".to_owned(),
-            ModifierHost::Body { body } => format!("planet {body}"),
-        };
-        note(unwritten, format!("removes modifier {modifier} from {on}"));
-    }
-}
-
-/// What `after` has that `before` has not, and the other way round, counting repeats.
-fn multiset_diff(before: &[String], after: &[String]) -> (Vec<String>, Vec<String>) {
-    let mut lost: Vec<String> = before.to_vec();
-    let mut gained = Vec::new();
-    for item in after {
-        match lost.iter().position(|b| b == item) {
-            Some(at) => {
-                lost.remove(at);
-            }
-            None => gained.push(item.clone()),
-        }
-    }
-    (gained, lost)
 }

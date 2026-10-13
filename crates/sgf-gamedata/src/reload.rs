@@ -30,14 +30,14 @@ use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::static_modifiers::StaticModifierDef;
 use crate::registries::{
-    colors, flags, galaxy_shapes, precursors, registry, section_templates, star_names,
+    colors, flags, galaxy_shapes, gfx, precursors, registry, section_templates, star_names,
     starbase_levels, terraform_links,
 };
 use crate::scripts::{ScriptIndex, index};
-use crate::textures::planet_disc;
+use crate::textures::{self, MODELS_DIR, WORLDGFX};
 use crate::{
     Bypasses, Colors, CountryTypes, DEFINES_DIR, Diagnostic, Flags, GalaxyShapes, GameData,
-    Initializers,
+    Initializers, Sprites,
 };
 
 /// A registry a watched file can belong to; the others are only rebuilt by
@@ -61,9 +61,12 @@ pub enum RegistryKind {
     /// offer. Galaxy Forge saves scenarios into `map/setup_scenarios`, so these are reread
     /// on their own.
     GalaxyOptions,
+    /// `gfx/models`, `gfx/worldgfx` and the `.gfx` files of `interface`: the models, the star
+    /// lighting and the sprites the textures are drawn from.
+    Graphics,
 }
 
-const ALL: [RegistryKind; 10] = [
+const ALL: &[RegistryKind] = &[
     RegistryKind::Initializers,
     RegistryKind::Scripts,
     RegistryKind::CountryTypes,
@@ -74,10 +77,11 @@ const ALL: [RegistryKind; 10] = [
     RegistryKind::Variables,
     RegistryKind::Definitions,
     RegistryKind::GalaxyOptions,
+    RegistryKind::Graphics,
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 33] = [
+const DIRS: &[(&str, RegistryKind)] = &[
     (Initializer::DIR, RegistryKind::Initializers),
     ("common/inline_scripts", RegistryKind::Definitions),
     (index::EFFECTS_DIR, RegistryKind::Scripts),
@@ -133,6 +137,7 @@ impl RegistryKind {
             Self::Variables => "variables",
             Self::Definitions => "definitions",
             Self::GalaxyOptions => "galaxy_options",
+            Self::Graphics => "graphics",
         }
     }
 
@@ -159,6 +164,12 @@ impl RegistryKind {
         if rel.starts_with("localisation/") && rel.ends_with(".yml") {
             return Some(Self::Localisation);
         }
+        if under(MODELS_DIR)
+            || under(WORLDGFX)
+            || (under(gfx::INTERFACE_DIR) && rel.ends_with(".gfx"))
+        {
+            return Some(Self::Graphics);
+        }
         None
     }
 
@@ -181,7 +192,7 @@ impl GameData {
     /// result.
     pub fn rebuild(&self, kinds: &BTreeSet<RegistryKind>) -> (GameData, BTreeSet<RegistryKind>) {
         if kinds.contains(&RegistryKind::Variables) || kinds.contains(&RegistryKind::Definitions) {
-            return (self.reread(), ALL.into_iter().collect());
+            return (self.reread(), ALL.iter().copied().collect());
         }
         let kinds = RegistryKind::closure(kinds);
         let mut fresh = Vec::new();
@@ -211,13 +222,24 @@ impl GameData {
                 &mut fresh,
             );
         }
-        if replaced.contains(&RegistryKind::Scripts) {
-            let marked = self.planet_classes.marked(
-                out.scripts.class_uses(),
-                &self.planet_lists,
-                |entity| planet_disc::draws_nothing(self.models(), entity),
+        if kinds.contains(&RegistryKind::Graphics) {
+            out.models = Arc::new(textures::Assets::read(&self.layout, &mut fresh));
+            out.worlds = Arc::default();
+            out.flat_art = Arc::default();
+            out.shattered = Arc::default();
+            replaced.insert(RegistryKind::Graphics);
+            let built = gfx::load(&self.layout, &mut fresh);
+            out.sprites = kept(
+                RegistryKind::Graphics,
+                &self.sprites,
+                built,
+                Sprites::is_empty,
+                &mut replaced,
+                &mut fresh,
             );
-            out.planet_classes = Arc::new(marked);
+        }
+        if replaced.contains(&RegistryKind::Scripts) || replaced.contains(&RegistryKind::Graphics) {
+            out.derive();
         }
         if kinds.contains(&RegistryKind::CountryTypes) {
             let built = registry::load(&self.layout, &self.variables, &mut fresh);
@@ -353,12 +375,17 @@ mod tests {
             language: "english".to_owned(),
             mods: true,
         };
-        let (loaded, walked) = Layout::record_walks(|| crate::load(&opts, &mut |_| {}));
-        loaded.expect("the fixture loads");
+        let ((), walked) = Layout::record_walks(|| {
+            let gd = crate::load(&opts, &mut |_| {}).expect("the fixture loads");
+            gd.worlds();
+            gd.flat_art("");
+            gd.shattered("");
+            gd.eligibility();
+        });
         assert!(!walked.is_empty());
         let unread: Vec<&String> = walked
             .iter()
-            .filter(|dir| RegistryKind::of_relative(&format!("{dir}/probe.txt")).is_none())
+            .filter(|probe| RegistryKind::of_relative(&probe.to_ascii_lowercase()).is_none())
             .collect();
         assert!(unread.is_empty(), "no registry for {unread:?}");
     }

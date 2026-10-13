@@ -6,8 +6,6 @@
 //! row. The op clears nothing: [`clearing`] lists the deletions that clear the system as the
 //! game's frame does, which go first in the same batch.
 
-use crate::NULL_ID;
-use crate::emit::megastructure::{MegastructureRow, megastructure_row};
 use crate::emit::system::{SegmentEntry, segment_entry};
 use crate::emit::{Lines, coord, inline};
 use crate::entity::facts::megastructure;
@@ -15,15 +13,15 @@ use crate::entity::views::EntityKind;
 use crate::format::save::added::rows;
 use crate::format::save::alloc::SlotTable;
 use crate::format::save::ring_world::{RING_SLACK, is_ring_row, is_segment};
-use crate::format::save::write::add_megastructure::today;
-use crate::format::save::write::add_system::write_slot;
-use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
-use crate::format::save::write::id_list::{append, list_planets, unlist_planets};
+use crate::format::save::write::bodies::{Stored, frame, grow_past};
+use crate::format::save::write::flags::{add_flags, drop_flags, today};
+use crate::format::save::write::id_list::{list_planets, unlist_planets};
 use crate::format::save::write::megastructure_links::{
-    self, MEGASTRUCTURES, Tied, add_flags, drop_flags, unlink_all,
+    self, MEGASTRUCTURES, NewRow, Tied, unlink_all, write_rows,
 };
 use crate::format::save::write::place::{self, insert_key};
-use crate::format::save::write::planet_entry::{is_star, role};
+use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::write::teardown::some_id;
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;
@@ -38,7 +36,7 @@ use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
 use crate::views::{ClearedMegastructure, RingWorldClearing};
-use crate::{plural, plural_of};
+use crate::{and_list, number, plural, plural_of};
 
 /// What a refusal calls the structure.
 const RING_WORLD: &str = "ring world";
@@ -90,11 +88,9 @@ pub(crate) fn plan_add(
 
     let date = today(&s.doc)?;
     let mut planets = SlotTable::planets(&s.doc)?;
-    let mut table = SlotTable::megastructures(&s.doc)?;
     let mut written = Vec::new();
     let mut added = Vec::new();
-    let mut row_ids = Vec::new();
-    let mut owned = Vec::new();
+    let mut framed = Vec::new();
     for quadrant in &ring.quadrants {
         match quadrant {
             RingQuadrant::Finished { segments }
@@ -143,48 +139,29 @@ pub(crate) fn plan_add(
                 }
             }
             RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => {
-                let slot = table.append();
-                let id = slot.id();
-                let row_owner = owner.filter(|_| row.owned);
                 let (at, _) = spawned(&ROW_POINTS, row.at.radius, row.at.angle);
                 let name = row.name.as_deref().map(NameTemplate::plain);
-                let text = MegastructureRow {
-                    id,
-                    name: name.as_ref(),
-                    kind: &row.kind,
-                    at,
-                    system,
-                    owner: row_owner.map(|owner| (owner, row.culture.as_deref())),
-                    planet: NULL_ID,
-                    bypass: None,
-                };
-                write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
-                    megastructure_row(indent, &text)
-                })?;
-                row_ids.push(id);
-                if row_owner.is_some() {
-                    owned.push(id);
-                }
+                framed.push((row, at, name));
             }
         }
     }
     if !written.is_empty() {
         list_planets(plan.edit(&s.doc, system)?, &written)?;
     }
-    if !row_ids.is_empty() {
-        append(
-            plan.edit(&s.doc, system)?,
-            &place::system::MEGASTRUCTURES,
-            &row_ids,
-        )?;
-    }
-    if let (Some(owner), false) = (owner, owned.is_empty()) {
-        append(
-            plan.edit_country(&s.doc, owner)?,
-            &place::country::OWNED_MEGASTRUCTURES,
-            &owned,
-        )?;
-    }
+    let rows: Vec<NewRow> = framed
+        .iter()
+        .map(|(row, at, name)| NewRow {
+            name: name.as_ref(),
+            kind: &row.kind,
+            at: *at,
+            owner: owner
+                .filter(|_| row.owned)
+                .map(|owner| (owner, row.culture.as_deref())),
+            planet: None,
+            bypass: None,
+        })
+        .collect();
+    let row_ids = write_rows(plan, s, system, &rows)?;
     let system_flags = missing_flags(s, system, &ring.system_flags)?;
     let lines: Vec<(&str, String)> = system_flags
         .iter()
@@ -193,12 +170,13 @@ pub(crate) fn plan_add(
     add_flags(plan.edit(&s.doc, system)?, &lines, &place::system::FLAGS)?;
     let (variables, variables_block) =
         set_variables(plan.edit(&s.doc, system)?, &ring.system_variables)?;
-    let mut star_flags = Vec::new();
-    for flag in &ring.star_flags {
-        if !has_flag(s, star, flag)? {
-            star_flags.push(flag.clone());
-        }
-    }
+    let (star_node, star_src) = planet_entity(&s.doc, star)?;
+    let star_flags: Vec<String> = ring
+        .star_flags
+        .iter()
+        .filter(|flag| !read::has_flag(&star_node, star_src, flag))
+        .cloned()
+        .collect();
     let lines: Vec<(&str, String)> = star_flags
         .iter()
         .map(|flag| (flag.as_str(), date.clone()))
@@ -312,12 +290,12 @@ pub(crate) fn clearing(s: &Session, system: u32) -> Result<RingWorldClearing, Op
     let bodies: Vec<Body> = stored.iter().map(|b| b.body).collect();
     let mut kept = Vec::new();
     let mut going = Vec::new();
-    for (i, body) in stored.iter().enumerate() {
+    for body in &stored {
         let (node, src) = planet_entity(&s.doc, body.body.id)?;
         if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) {
             kept.push(body.body.id);
             kept.extend(descendants(&bodies, body.body.id));
-        } else if !is_star(role(&node, src, i == 0, s.star_classes())) {
+        } else if !body_is_star(s, &stored, body.body.id)? {
             going.push(body.body.id);
         }
     }
@@ -388,13 +366,10 @@ pub(crate) fn add_op(
         return Ok(add);
     }
     if let Some(&body) = cleared.starbase_bodies.first() {
-        return Err(OpError::MegastructureRefused {
-            kind: RING_WORLD.to_owned(),
-            reason: format!(
-                "a starbase orbits planet {body}, which clearing {} would delete; add the ring with the planets left in place",
-                named(&s.graph, system)
-            ),
-        });
+        return Err(megastructure_links::refuse(RING_WORLD)(format!(
+            "a starbase orbits planet {body}, which clearing {} would delete; add the ring with the planets left in place",
+            named(&s.graph, system)
+        )));
     }
     let mut ops: Vec<Op> = cleared
         .megastructures
@@ -431,11 +406,10 @@ impl RingWorldClearing {
         .filter(|&(n, _, _)| n > 0)
         .map(|(n, noun, nouns)| plural_of(n, noun, nouns))
         .collect();
-        let listed = match parts.split_last() {
-            None => return String::new(),
-            Some((last, [])) => last.clone(),
-            Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
-        };
+        if parts.is_empty() {
+            return String::new();
+        }
+        let listed = and_list(&parts);
         let colonies = match self.colonies.as_slice() {
             [] => None,
             [one] => Some(format!("the colony on planet #{one}")),
@@ -450,7 +424,7 @@ impl RingWorldClearing {
         let with = if with.is_empty() {
             String::new()
         } else {
-            format!(", with {}", with.join(" and "))
+            format!(", with {}", and_list(&with))
         };
         format!(", removing {listed}{with}")
     }
@@ -487,21 +461,14 @@ fn description(s: &Session, system: u32, quadrants: &[RingQuadrant]) -> String {
         .filter(|&(&n, _)| n > 0)
         .map(|(&n, word)| plural(n, &format!("{word} section")))
         .collect();
-    let listed = match parts.split_last() {
-        Some((last, rest)) if !rest.is_empty() => format!("{} and {last}", rest.join(", ")),
-        _ => parts.join(""),
-    };
-    format!("Added a ring world round {place} with {listed}")
+    format!("Added a ring world round {place} with {}", and_list(&parts))
 }
 
 /// Refuse a ring whose values cannot be written.
 fn check(ring: &NewRingWorld) -> Result<(), OpError> {
-    let refuse = |reason: &str| OpError::MegastructureRefused {
-        kind: RING_WORLD.to_owned(),
-        reason: reason.to_owned(),
-    };
+    let refuse = megastructure_links::refuse(RING_WORLD);
     if ring.quadrants.is_empty() {
-        return Err(refuse("it has no quadrants"));
+        return Err(refuse("it has no quadrants".to_owned()));
     }
     for quadrant in &ring.quadrants {
         match quadrant {
@@ -509,7 +476,7 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
             | RingQuadrant::Restored { segments }
             | RingQuadrant::Damaged { segments } => {
                 if segments.is_empty() {
-                    return Err(refuse("a quadrant with no planets"));
+                    return Err(refuse("a quadrant with no planets".to_owned()));
                 }
                 segments.iter().try_for_each(check_segment)?;
             }
@@ -549,14 +516,11 @@ fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
     for (i, item) in segment.modifiers.iter().enumerate() {
         check_text("a modifier", &item.modifier, Form::Bare)?;
         if item.lasts_wrongly() {
-            return Err(OpError::MegastructureRefused {
-                kind: RING_WORLD.to_owned(),
-                reason: format!(
-                    "modifier {} would last {} days",
-                    item.modifier,
-                    item.days.unwrap_or_default()
-                ),
-            });
+            return Err(megastructure_links::refuse(RING_WORLD)(format!(
+                "modifier {} would last {} days",
+                item.modifier,
+                item.days.unwrap_or_default()
+            )));
         }
         if segment.modifiers[..i]
             .iter()
@@ -599,16 +563,12 @@ fn check_flags(what: &'static str, flags: &[String]) -> Result<(), OpError> {
 /// The system's one star body, refused for none or more than one.
 fn the_star(s: &Session, system: u32, stored: &[Stored]) -> Result<u32, OpError> {
     let mut stars = Vec::new();
-    for (i, body) in stored.iter().enumerate() {
-        let (node, src) = planet_entity(&s.doc, body.body.id)?;
-        if is_star(role(&node, src, i == 0, s.star_classes())) {
+    for body in stored {
+        if body_is_star(s, stored, body.body.id)? {
             stars.push(body.body.id);
         }
     }
-    let refuse = |reason: String| OpError::MegastructureRefused {
-        kind: RING_WORLD.to_owned(),
-        reason,
-    };
+    let refuse = megastructure_links::refuse(RING_WORLD);
     match stars[..] {
         [star] => Ok(star),
         [] => Err(refuse(format!(
@@ -637,10 +597,7 @@ fn check_room(
             .iter()
             .any(|radius| (distance - radius).abs() <= RING_SLACK)
     };
-    let refuse = |reason: String| OpError::MegastructureRefused {
-        kind: RING_WORLD.to_owned(),
-        reason,
-    };
+    let refuse = megastructure_links::refuse(RING_WORLD);
     let place = named(&s.graph, system);
     for body in stored {
         let (node, src) = planet_entity(&s.doc, body.body.id)?;
@@ -794,20 +751,11 @@ fn restore_variables(
 fn missing_flags(s: &Session, system: u32, flags: &[String]) -> Result<Vec<String>, OpError> {
     let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     let (node, src) = entity(&s.doc, Subject::System(system), anchor)?;
-    let block = node.find(keys::FLAGS, src);
     Ok(flags
         .iter()
-        .filter(|flag| !block.is_some_and(|b| b.find(flag, src).is_some()))
+        .filter(|flag| !read::has_flag(&node, src, flag))
         .cloned()
         .collect())
-}
-
-/// Whether planet `id` has the planet flag `flag`.
-fn has_flag(s: &Session, id: u32, flag: &str) -> Result<bool, OpError> {
-    let (node, src) = planet_entity(&s.doc, id)?;
-    Ok(node
-        .find(keys::FLAGS, src)
-        .is_some_and(|flags| flags.find(flag, src).is_some()))
 }
 
 /// Where a spawn `radius` out at save `angle` lands and the `orbit` it keeps, as the game

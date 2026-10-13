@@ -6,9 +6,10 @@
 use crate::cst::Node;
 use crate::emit::system::{belt_entry, belts_block};
 use crate::emit::{coord, inline, quoted};
-use crate::format::save::write::bodies::{self, number};
+use crate::format::save::write::bodies;
 use crate::format::save::write::place::{self, insert_key};
 use crate::keys;
+use crate::number;
 use crate::ops::rules::bodies::check_radius;
 use crate::ops::rules::named;
 use crate::ops::rules::{Form, check_text};

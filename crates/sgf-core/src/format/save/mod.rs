@@ -13,6 +13,8 @@ pub mod site;
 pub mod system_spec;
 pub(crate) mod write;
 
+pub use write::megastructure_links::BYPASS_KINDS;
+
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

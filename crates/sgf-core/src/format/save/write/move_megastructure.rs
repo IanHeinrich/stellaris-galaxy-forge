@@ -6,18 +6,22 @@
 //! a structure leaves and an Arc Furnace's hiding model, goes to the new body with it.
 
 use crate::cst::Node;
-use crate::format::save::added::{Table, row, rows};
+use crate::format::save::added::{Table, row};
 use crate::format::save::ring_world;
-use crate::format::save::write::add_megastructure::{is_star_body, planet_flag, same_point};
+use crate::format::save::write::add_megastructure::same_point;
+use crate::format::save::write::bodies::frame;
+use crate::format::save::write::flags::add_flags;
 use crate::format::save::write::megastructure_links::{
-    self, BODY_FLAGS, MEGASTRUCTURES, Tied, add_flags, unlink_body,
+    self, BODY_FLAGS, BYPASS_KINDS, Holders, Tied, unlink_body,
 };
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entity::write_entity_name;
+use crate::format::save::write::planet_entry::body_is_star;
 use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
+use crate::number;
 use crate::ops::rules::{FURNACE_ENTITY, named};
 use crate::ops::{
     MegastructureEdit, MegastructurePlace, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
@@ -25,11 +29,6 @@ use crate::ops::{
 use crate::projections::geometry::written_angle;
 use crate::projections::read;
 use crate::session::Session;
-
-use super::bodies::number;
-
-/// The bypass kinds a moved row may stand for; another has not been tried in game.
-const MOVED_BYPASSES: [&str; 2] = ["gateway", "relay_bypass"];
 
 pub(crate) fn plan_move(
     plan: &mut Plan,
@@ -55,7 +54,7 @@ pub(crate) fn plan_move(
         && let Some(found) = row(doc, Table::Bypass, bypass)?
     {
         let kind = read::text(&found.node, keys::TYPE, found.src);
-        if !MOVED_BYPASSES.contains(&kind.as_str()) {
+        if !BYPASS_KINDS.contains(&kind.as_str()) {
             return Err(refused(
                 id,
                 format!("its bypass is a {kind}, which has not been tried in game"),
@@ -171,7 +170,7 @@ fn to_body(
     let to_at = read::coordinate(&target, src)
         .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
     let (old, old_src) = planet_entity(doc, from)?;
-    if planet_flag(&old, old_src, keys::MEGASTRUCTURE) {
+    if megastructure_links::made(&old, old_src) {
         return Err(refused(
             id,
             format!("it made planet {from}, which stays where it is"),
@@ -180,13 +179,10 @@ fn to_body(
     if body == from {
         return beside(plan, s, tied, system, body, point.unwrap_or(to_at), to_at);
     }
-    let held = rows(doc, MEGASTRUCTURES)?.into_iter().find(|row| {
-        row.id != id && read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(body)
-    });
-    if let Some(held) = held {
+    if let Some(held) = Holders::read(doc, body, &target, src)?.row_besides(&[id]) {
         return Err(refused(
             id,
-            format!("planet {body} already has megastructure {}", held.id),
+            format!("planet {body} already has megastructure {held}"),
         ));
     }
     let target_flags = flags_of(&target, src);
@@ -202,7 +198,7 @@ fn to_body(
         .filter(|(flag, _)| !target_flags.iter().any(|(held, _)| held == flag))
         .collect();
     let furnace = read::scalar(&old, keys::ENTITY_NAME, old_src) == Some(FURNACE_ENTITY);
-    if furnace && is_star_body(s, system, body, &target, src)? {
+    if furnace && body_is_star(s, &frame(s, system)?, body)? {
         return Err(refused(
             id,
             format!("an Arc Furnace hides the planet it stands at, and planet {body} is a star"),

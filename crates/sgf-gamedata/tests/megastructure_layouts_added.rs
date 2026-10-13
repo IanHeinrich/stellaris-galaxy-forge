@@ -236,6 +236,26 @@ mod_ring_3 = {
 		remove_megastructure = fromfrom
 	}
 }
+neg_ring_frame = {
+	on_build_complete = {
+		spawn_megastructure = { type = neg_ring_2 orbit_angle = 0 orbit_distance = 50 }
+		spawn_megastructure = { type = neg_ring_2 orbit_angle = 180 orbit_distance = 50 }
+		remove_megastructure = fromfrom
+	}
+}
+neg_ring_2 = { }
+neg_ring_3 = {
+	upgrade_from = { neg_ring_2 }
+	on_build_complete = {
+		spawn_planet = {
+			class = pc_neg_segment
+			location = fromfrom
+			size = 10
+			init_effect = { add_modifier = { modifier = neg_housing days = -2 } }
+		}
+		remove_megastructure = fromfrom
+	}
+}
 ",
     )]);
     let frame = added::ring_world(
@@ -290,6 +310,12 @@ mod_ring_3 = {
     assert!(
         refused.starts_with("the model of its pc_mod_segment hangs on what Galaxy Forge cannot follow: mod_ring_3: a branch behind has_country_flag"),
         "{refused}"
+    );
+    let negative = added::ring_world(&gd, "neg_ring_2", &[Finished, Finished], None, &[])
+        .expect_err("a modifier of -2 days");
+    assert_eq!(
+        negative,
+        "its pc_neg_segment takes modifier neg_housing for -2 days, which Galaxy Forge does not write"
     );
 }
 

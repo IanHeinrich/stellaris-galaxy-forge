@@ -3,7 +3,11 @@
 
 use std::collections::BTreeSet;
 
-use super::{Assets, StarAtmosphere, TextureError, TextureView, Textures, planet_disc};
+use std::sync::Arc;
+
+use super::{
+    Assets, StarAtmosphere, TextureError, TextureView, Textures, Worlds, planet_disc, star_disc,
+};
 use crate::GameData;
 use crate::registries::gfx::Sprites;
 
@@ -37,9 +41,11 @@ pub(crate) type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
 /// A graphical culture, then the cultures its models fall back to, in order.
 pub(crate) type CultureLookup<'a> = &'a dyn Fn(&str) -> Vec<String>;
 
-/// How a key's names are looked up in the install: an install's own, or [`Lookups::none`]'s
-/// stand-ins for a caller that only cares about one of them.
-pub struct Lookups<'a> {
+/// The install's `gfx/worldgfx` settings, read the first time a star disc asks for them.
+pub(crate) type WorldsLookup<'a> = &'a dyn Fn() -> &'a Worlds;
+
+/// How a key's names are looked up in the install.
+pub(crate) struct Lookups<'a> {
     pub sprites: &'a Sprites,
     pub colour: ColourLookup<'a>,
     pub planet_surface: SurfaceLookup<'a>,
@@ -47,46 +53,18 @@ pub struct Lookups<'a> {
     pub model_surface: ModelLookup<'a>,
     pub star_body: StarLookup<'a>,
     pub cultures: CultureLookup<'a>,
-}
-
-impl<'a> Lookups<'a> {
-    /// No flag colour, planet surface or pieces, model surface or star body: every one of those
-    /// keys fails, and only `sprites` resolves. A culture falls back to none.
-    pub fn none(sprites: &'a Sprites) -> Self {
-        fn no_colour(_: &str) -> Option<[u8; 3]> {
-            None
-        }
-        fn no_surface(_: &str) -> Option<String> {
-            None
-        }
-        fn no_star(_: &str) -> Option<StarBody> {
-            None
-        }
-        fn no_fallback(culture: &str) -> Vec<String> {
-            vec![culture.to_owned()]
-        }
-        Self {
-            sprites,
-            colour: &no_colour,
-            planet_surface: &no_surface,
-            planet_pieces: &no_surface,
-            model_surface: &no_surface,
-            star_body: &no_star,
-            cultures: &no_fallback,
-        }
-    }
+    pub models: &'a Arc<Assets>,
+    pub worlds: WorldsLookup<'a>,
 }
 
 impl GameData {
     /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
-        let models = Some(&self.models);
-        self.with_lookups(|lookups| textures.load_with(&self.layout, lookups, models, key))
+        self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
-        let models = Some(&self.models);
-        self.with_lookups(|lookups| textures.png_with(&self.layout, lookups, models, key))
+        self.with_lookups(|lookups| textures.png(&self.layout, lookups, key))
     }
 
     /// This install's own lookups, built once and handed to `use_lookups`.
@@ -105,7 +83,14 @@ impl GameData {
             model_surface: &model,
             star_body: &star,
             cultures: &cultures,
+            models: &self.models,
+            worlds: &|| self.worlds(),
         })
+    }
+
+    /// The install's `gfx/worldgfx` settings, read once for these registries.
+    pub(crate) fn worlds(&self) -> &Worlds {
+        self.worlds.get_or_init(|| star_disc::worlds(&self.layout))
     }
 
     fn star_disc_inputs(&self, class: &str) -> Option<StarBody> {

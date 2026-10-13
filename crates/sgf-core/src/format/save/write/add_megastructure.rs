@@ -9,41 +9,36 @@
 
 use std::collections::BTreeMap;
 
-use crate::NULL_ID;
-use crate::archive;
-use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::coord;
-use crate::emit::megastructure::{BypassRow, MegastructureRow, bypass_row, megastructure_row};
+use crate::emit::megastructure::{BypassRow, bypass_row};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
-use crate::format::save::write::add_system::{day_one, write_slot};
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::construction;
+use crate::format::save::write::flags::{day_one, today};
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{
-    self, HAS_ORBITAL, MEGASTRUCTURES, add_flags, drop_bypass, unlink,
+    self, BODY_FLAGS, BYPASS_KINDS, GATEWAY, Holders, MEGASTRUCTURES, NewRow, RELAY, drop_bypass,
+    unlink, write_rows,
 };
-use crate::format::save::write::place::{self, insert_key};
-use crate::format::save::write::planet_entry::{is_star, role};
+use crate::format::save::write::place;
+use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::shared::{culture_of, tie};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named, named_body};
 use crate::ops::{
-    Edit, Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
+    Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
     NewMegastructurePlace, Op, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
 };
 use crate::overlay::Anchor;
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
-use crate::{plural, plural_of};
-
-/// The bypass types a row the editor adds may stand for.
-const GATEWAY: &str = "gateway";
-const RELAY: &str = "relay_bypass";
+use crate::{and_list, plural, plural_of};
 
 pub(crate) fn plan_add(
     plan: &mut Plan,
@@ -58,10 +53,7 @@ pub(crate) fn plan_add(
     if !s.graph.systems.contains_key(&system) {
         return Err(OpError::UnknownSystem(system));
     }
-    let refuse = |reason: String| OpError::MegastructureRefused {
-        kind: new.kind.to_owned(),
-        reason,
-    };
+    let refuse = megastructure_links::refuse(&new.kind);
     let live = Live::read(&s.doc)?;
     let (at, body, body_flags) = match &new.at {
         &NewMegastructurePlace::Free { x, y } => {
@@ -82,27 +74,35 @@ pub(crate) fn plan_add(
             ..
         } => {
             let (body, star_only) = (*body, *star_only);
-            for flag in body_flags {
-                check_text("a planet flag", flag, Form::Bare)?;
+            for (i, flag) in body_flags.iter().enumerate() {
+                if !BODY_FLAGS.contains(&flag.as_str()) {
+                    return Err(refuse(format!(
+                        "{flag} is not a planet flag a megastructure leaves"
+                    )));
+                }
+                if body_flags[..i].contains(flag) {
+                    return Err(OpError::InvalidText {
+                        what: "a planet flag listed once",
+                        text: flag.clone(),
+                    });
+                }
             }
             let (node, src) = planet_entity(&s.doc, body)?;
             if planet_system(&node, src, body)? != system {
                 return Err(OpError::NotABody { body, system });
             }
-            let held = read::scalar_u32(&node, keys::MEGASTRUCTURE, src)
-                .filter(|&id| id != NULL_ID)
-                .or_else(|| live.on_body(body));
-            if let Some(held) = held {
+            let holders = Holders::read(&s.doc, body, &node, src)?;
+            if let Some(held) = holders.key.or(holders.rows.first().copied()) {
                 return Err(refuse(format!(
                     "planet {body} already has megastructure {held}"
                 )));
             }
-            if planet_flag(&node, src, keys::HAS_MEGASTRUCTURE) {
+            if holders.flags.contains(&keys::HAS_MEGASTRUCTURE) {
                 return Err(refuse(format!(
                     "the game counts a megastructure built at planet {body} already"
                 )));
             }
-            if star_only && !is_star_body(s, system, body, &node, src)? {
+            if star_only && !body_is_star(s, &frame(s, system)?, body)? {
                 return Err(refuse(format!(
                     "it is built only around a star, and planet {body} is not one"
                 )));
@@ -119,7 +119,7 @@ pub(crate) fn plan_add(
         }
     };
     if let Some(bypass) = &new.bypass {
-        if bypass.kind != GATEWAY && bypass.kind != RELAY {
+        if !BYPASS_KINDS.contains(&bypass.kind.as_str()) {
             return Err(refuse(format!(
                 "its bypass is a {}, which has not been tried in game",
                 bypass.kind
@@ -137,46 +137,25 @@ pub(crate) fn plan_add(
         construction::check(s, &new.kind, system, new.owner, built)?;
     }
     let culture = match new.owner {
-        Some(owner) => Some(culture_of(plan.edit_country(&s.doc, owner)?)?),
+        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
         None => None,
     };
 
-    let mut table = SlotTable::megastructures(&s.doc)?;
-    let slot = table.append();
-    let id = slot.id();
     let bypass_id = match &new.bypass {
         Some(_) => Some(next_id(&s.doc, Table::Bypass)?),
         None => None,
     };
-    let row = MegastructureRow {
-        id,
+    let row = NewRow {
         name: new.name.as_ref(),
         kind: &new.kind,
         at,
-        system,
-        owner: new
-            .owner
-            .map(|owner| (owner, culture.as_ref().and_then(Option::as_deref))),
-        planet: body.unwrap_or(NULL_ID),
+        owner: new.owner.map(|owner| (owner, culture.as_deref())),
+        planet: body,
         bypass: bypass_id,
     };
-    write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
-        megastructure_row(indent, &row)
-    })?;
+    let id = write_rows(plan, s, system, &[row])?[0];
     if let (Some(bypass), Some(bypass_id)) = (&new.bypass, bypass_id) {
         connect(plan, s, &live, system, id, bypass_id, bypass)?;
-    }
-    append(
-        plan.edit(&s.doc, system)?,
-        &place::system::MEGASTRUCTURES,
-        &[id],
-    )?;
-    if let Some(owner) = new.owner {
-        append(
-            plan.edit_country(&s.doc, owner)?,
-            &place::country::OWNED_MEGASTRUCTURES,
-            &[id],
-        )?;
     }
     if let Some(built) = &new.construction {
         construction::write_modifiers(plan, s, &new.kind, system, built)?;
@@ -208,7 +187,7 @@ pub(crate) fn plan_add(
     );
     let mut with = match with.as_slice() {
         [] => String::new(),
-        parts => format!(", with {}", parts.join(" and ")),
+        parts => format!(", with {}", and_list(parts)),
     };
     if new.left_out > 0 {
         with.push_str(&format!(
@@ -272,15 +251,11 @@ pub(crate) fn plan_remove(
             let (node, src) = planet_entity(&s.doc, body)?;
             let home = read::coordinate(&node, src)
                 .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
-            let body_flags = [
-                keys::HAS_MEGASTRUCTURE,
-                keys::RUINED_ORBITAL_RING_PLANET,
-                HAS_ORBITAL,
-            ]
-            .into_iter()
-            .filter(|flag| planet_flag(&node, src, flag))
-            .map(str::to_owned)
-            .collect();
+            let body_flags = BODY_FLAGS
+                .into_iter()
+                .filter(|flag| read::has_flag(&node, src, flag))
+                .map(str::to_owned)
+                .collect();
             match same_point(home, (x, y)) {
                 true => NewMegastructurePlace::Body {
                     body,
@@ -299,7 +274,17 @@ pub(crate) fn plan_remove(
         None => NewMegastructurePlace::Free { x, y },
     };
 
-    let built = built.cloned().or_else(|| construction::of_session(s, id));
+    let found = match built {
+        Some(_) => None,
+        None => construction::of_session(s, id),
+    };
+    let built = built
+        .cloned()
+        .or_else(|| found.as_ref().and_then(|(built, _)| built.clone()));
+    let left_out = match (left_out, &found) {
+        (0, Some((_, found))) => *found,
+        _ => left_out,
+    };
     let taken = match &built {
         Some(built) => construction::take_back(plan, s, system, tied.owner, built)?,
         None => MegastructureConstruction::default(),
@@ -364,67 +349,7 @@ fn counts(built: &MegastructureConstruction) -> String {
     if !built.variables.is_empty() {
         parts.push(plural_of(built.variables.len(), "counter", "counters"));
     }
-    match parts.split_last() {
-        None => String::new(),
-        Some((last, [])) => last.clone(),
-        Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
-    }
-}
-
-/// Whether the planet `node` holds has the planet flag `flag`.
-pub(crate) fn planet_flag(node: &Node, src: &[u8], flag: &str) -> bool {
-    node.find(keys::FLAGS, src)
-        .is_some_and(|flags| flags.find(flag, src).is_some())
-}
-
-/// Whether body `body` of `system`, whose entry is `node`, is a star.
-pub(crate) fn is_star_body(
-    s: &Session,
-    system: u32,
-    body: u32,
-    node: &Node,
-    src: &[u8],
-) -> Result<bool, OpError> {
-    let primary = frame(s, system)?
-        .first()
-        .is_some_and(|first| first.body.id == body);
-    Ok(is_star(role(node, src, primary, s.star_classes())))
-}
-
-/// The save's current date as the game dates a planet flag it sets: hours counted from a
-/// fixed origin, in the game's years of twelve 30-day months. The save's `meta` holds the
-/// date it was written on.
-pub(crate) fn today(doc: &Document) -> Result<String, OpError> {
-    let date = archive::parse_meta(doc.meta())
-        .map(|meta| meta.date)
-        .map_err(|_| OpError::MissingKey(keys::meta::DATE))?;
-    flag_hours(&date)
-        .map(|hours| hours.to_string())
-        .ok_or_else(|| OpError::parse(ParseAt::Meta, 0, format!("date {date:?} is not a date")))
-}
-
-/// Days in each of the game's months and years.
-const MONTH_DAYS: u64 = 30;
-const YEAR_DAYS: u64 = 360;
-/// The hour count of year 0's first day: `2200.01.01` is 62808000, the date of
-/// `game_started` in both 4.x samples.
-const FLAG_ORIGIN: u64 = 43_800_000;
-
-/// `yyyy.mm.dd` as a planet flag's date.
-fn flag_hours(date: &str) -> Option<u64> {
-    let mut parts = date.split('.').map(|part| part.parse::<u64>().ok());
-    let (year, month, day) = (parts.next()??, parts.next()??, parts.next()??);
-    if !(1..=12).contains(&month) || !(1..=MONTH_DAYS).contains(&day) {
-        return None;
-    }
-    let days = year * YEAR_DAYS + (month - 1) * MONTH_DAYS + day - 1;
-    Some(days * 24 + FLAG_ORIGIN)
-}
-
-/// The `graphical_culture` the country `edit` holds names, when it names one.
-pub(crate) fn culture_of(edit: &Edit) -> Result<Option<String>, OpError> {
-    let country = edit.entity()?;
-    Ok(read::scalar(country, keys::GRAPHICAL_CULTURE, &edit.buf).map(str::to_owned))
+    and_list(&parts)
 }
 
 /// Write the new bypass `bypass_id`, owned by row `id` in `system`, and its id into the
@@ -494,14 +419,6 @@ fn connect(
     Ok(())
 }
 
-/// Tie the body `edit` holds to row `id`, with the planet flags `flags`, each with its date.
-pub(crate) fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError> {
-    insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
-        format!("{}={id}", keys::MEGASTRUCTURE)
-    })?;
-    add_flags(edit, flags, &place::planet::FLAGS)
-}
-
 /// One live `bypasses` row, and the system its megastructure stands in.
 struct LiveBypass {
     id: u32,
@@ -511,22 +428,16 @@ struct LiveBypass {
     system: Option<u32>,
 }
 
-/// The live `megastructures` and `bypasses` rows an add looks at.
+/// The live `bypasses` rows an add looks at.
 struct Live {
-    /// Body → the first row tied to it.
-    on_body: BTreeMap<u32, u32>,
     bypasses: BTreeMap<u32, LiveBypass>,
 }
 
 impl Live {
     fn read(doc: &Document) -> Result<Self, OpError> {
-        let mut on_body = BTreeMap::new();
         let mut bypass_system = BTreeMap::new();
         for row in rows(doc, Table::Entity(EntityKind::Megastructure))? {
             let facts = megastructure::read(&row.node, row.src);
-            if let Some(body) = facts.planet {
-                on_body.entry(body).or_insert(row.id);
-            }
             if let (Some(bypass), Some(system)) = (facts.bypass, facts.origin) {
                 bypass_system.insert(bypass, system);
             }
@@ -544,11 +455,7 @@ impl Live {
                 (row.id, bypass)
             })
             .collect();
-        Ok(Self { on_body, bypasses })
-    }
-
-    fn on_body(&self, body: u32) -> Option<u32> {
-        self.on_body.get(&body).copied()
+        Ok(Self { bypasses })
     }
 
     /// The bypass of type `kind` a megastructure in `system` stands for.

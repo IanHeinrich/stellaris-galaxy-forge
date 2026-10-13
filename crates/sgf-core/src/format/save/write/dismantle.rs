@@ -20,7 +20,7 @@ use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
 use crate::span::Span;
-use crate::{plural, plural_of};
+use crate::{and_list, plural, plural_of};
 
 /// Refuse a modifier, deposit type or variable that is not an identifier.
 pub(crate) fn check(dismantle: &MegastructureDismantle) -> Result<(), OpError> {
@@ -57,10 +57,9 @@ impl TakenBack {
         if self.variables > 0 {
             parts.push(plural_of(self.variables, "counter", "counters"));
         }
-        match parts.split_last() {
-            None => String::new(),
-            Some((last, [])) => format!(", and took back {last}"),
-            Some((last, rest)) => format!(", and took back {} and {last}", rest.join(", ")),
+        match parts.is_empty() {
+            true => String::new(),
+            false => format!(", and took back {}", and_list(&parts)),
         }
     }
 }
@@ -142,18 +141,12 @@ pub(crate) fn take_back(
 
 /// How many items of the entity's `timed_modifier` name one of `modifiers`.
 fn modifier_items(node: &Node, src: &[u8], modifiers: &[String]) -> usize {
-    node.find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-        .map_or(0, |items| {
-            items
-                .children()
-                .iter()
-                .filter(|item| {
-                    read::scalar(item, keys::MODIFIER, src)
-                        .is_some_and(|m| modifiers.iter().any(|listed| listed == m))
-                })
-                .count()
+    read::timed_items(node, src)
+        .filter(|item| {
+            read::scalar(item, keys::MODIFIER, src)
+                .is_some_and(|m| modifiers.iter().any(|listed| listed == m))
         })
+        .count()
 }
 
 /// The deposits planet `node` lists whose type is one of `kinds`, with their entries. A

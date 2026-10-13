@@ -9,13 +9,12 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime};
 
 use image::{DynamicImage, GenericImageView, Rgba};
-use sgf_gamedata::install::layers::Layout;
-use sgf_gamedata::registries::gfx::Sprites;
-use sgf_gamedata::textures::{Lookups, TextureError, TextureKey, Textures};
+use sgf_gamedata::GameData;
+use sgf_gamedata::textures::{TextureError, TextureKey, Textures};
 
-fn decode(textures: &Textures, layout: &Layout, sprites: &Sprites, key: &str) -> DynamicImage {
-    let png = textures
-        .png(layout, &Lookups::none(sprites), key)
+fn decode(gd: &GameData, textures: &Textures, key: &str) -> DynamicImage {
+    let png = gd
+        .texture_png(textures, key)
         .unwrap_or_else(|e| panic!("{key}: {e}"));
     image::load_from_memory(&png).expect("valid PNG")
 }
@@ -99,12 +98,7 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
 fn uncompressed_bgra_decodes_with_channels_in_rgba_order() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
-    let image = decode(
-        &textures,
-        &gd.layout,
-        gd.sprites.as_ref(),
-        "sprite:GFX_fixture_bgra",
-    );
+    let image = decode(gd, &textures, "sprite:GFX_fixture_bgra");
     assert_eq!(image.dimensions(), (4, 4));
     for y in 0..4u8 {
         for x in 0..4u8 {
@@ -118,12 +112,7 @@ fn uncompressed_bgra_decodes_with_channels_in_rgba_order() {
 fn dxt1_solid_block_decodes_to_its_colour() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
-    let image = decode(
-        &textures,
-        &gd.layout,
-        gd.sprites.as_ref(),
-        "sprite:GFX_fixture_dxt1",
-    );
+    let image = decode(gd, &textures, "sprite:GFX_fixture_dxt1");
     assert_eq!(image.dimensions(), (4, 4));
     assert!(image.pixels().all(|(_, _, p)| p == Rgba([255, 0, 0, 255])));
 }
@@ -132,28 +121,23 @@ fn dxt1_solid_block_decodes_to_its_colour() {
 fn a_frame_crops_its_slice_of_the_strip() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let whole = decode(&textures, layout, sprites, "sprite:GFX_fixture_strip");
+    let whole = decode(gd, &textures, "sprite:GFX_fixture_strip");
     assert_eq!(whole.dimensions(), (8, 4));
-    let first = decode(&textures, layout, sprites, "sprite:GFX_fixture_strip#1");
+    let first = decode(gd, &textures, "sprite:GFX_fixture_strip#1");
     assert_eq!(first.dimensions(), (4, 4));
     assert!(
         first
             .pixels()
             .all(|(_, _, p)| p == Rgba([20, 40, 200, 255]))
     );
-    let second = decode(&textures, layout, sprites, "sprite:GFX_fixture_strip#2");
+    let second = decode(gd, &textures, "sprite:GFX_fixture_strip#2");
     assert_eq!(second.dimensions(), (4, 4));
     assert!(
         second
             .pixels()
             .all(|(_, _, p)| p == Rgba([200, 40, 20, 255]))
     );
-    let third = textures.png(
-        layout,
-        &Lookups::none(sprites),
-        "sprite:GFX_fixture_strip#3",
-    );
+    let third = gd.texture_png(&textures, "sprite:GFX_fixture_strip#3");
     assert!(
         matches!(
             third,
@@ -171,8 +155,7 @@ fn a_frame_crops_its_slice_of_the_strip() {
 fn failures_are_errors_in_the_view_never_panics() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let cut = textures.load(layout, &Lookups::none(sprites), "sprite:GFX_fixture_cut");
+    let cut = gd.texture(&textures, "sprite:GFX_fixture_cut");
     assert!(cut.png_base64.is_none());
     assert_eq!((cut.width, cut.height), (0, 0));
     assert!(
@@ -182,10 +165,10 @@ fn failures_are_errors_in_the_view_never_panics() {
         "{cut:?}"
     );
 
-    let bad = textures.load(layout, &Lookups::none(sprites), "nonsense");
+    let bad = gd.texture(&textures, "nonsense");
     assert_eq!(bad.error.as_deref(), Some("bad texture key `nonsense`"));
 
-    let missing = textures.load(layout, &Lookups::none(sprites), "star_class:nowhere");
+    let missing = gd.texture(&textures, "star_class:nowhere");
     assert!(
         missing
             .error
@@ -194,7 +177,7 @@ fn failures_are_errors_in_the_view_never_panics() {
         "{missing:?}"
     );
 
-    let unknown = textures.load(layout, &Lookups::none(sprites), "sprite:GFX_unregistered");
+    let unknown = gd.texture(&textures, "sprite:GFX_unregistered");
     assert!(
         unknown
             .error
@@ -205,7 +188,7 @@ fn failures_are_errors_in_the_view_never_panics() {
 
     // Vanilla ships an icon that is empty and one that is only a byte-order mark.
     for key in ["sprite:GFX_fixture_empty", "sprite:GFX_fixture_bom"] {
-        let view = textures.load(layout, &Lookups::none(sprites), key);
+        let view = gd.texture(&textures, key);
         assert_eq!(
             view.error.as_deref().map(|e| e.ends_with("not a DDS file")),
             Some(true),
@@ -224,12 +207,7 @@ fn a_flag_colour_of_six_bytes_but_not_six_hex_digits_is_unknown() {
         ("gfx/interface/flags/empire_flag_64_frame.dds", grey()),
     ]);
     let (_cache, textures) = common::temp_textures();
-    let lookups = Lookups::none(gd.sprites.as_ref());
-    let view = textures.load(
-        &gd.layout,
-        &lookups,
-        "empire_flag:bg.dds::#aééb,null,null,null",
-    );
+    let view = gd.texture(&textures, "empire_flag:bg.dds::#aééb,null,null,null");
     assert_eq!(
         view.error.as_deref(),
         Some("unknown flag colour `#aééb`"),
@@ -241,9 +219,8 @@ fn a_flag_colour_of_six_bytes_but_not_six_hex_digits_is_unknown() {
 fn second_call_is_served_from_the_cache_file() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let first = textures
-        .png(layout, &Lookups::none(sprites), "sprite:GFX_fixture_bgra")
+    let first = gd
+        .texture_png(&textures, "sprite:GFX_fixture_bgra")
         .unwrap();
     let cached: Vec<PathBuf> = fs::read_dir(textures.cache_dir())
         .unwrap()
@@ -255,20 +232,16 @@ fn second_call_is_served_from_the_cache_file() {
 
     let mutated = b"not a png at all".to_vec();
     fs::write(&cached[0], &mutated).unwrap();
-    let second = textures
-        .png(layout, &Lookups::none(sprites), "sprite:GFX_fixture_bgra")
+    let second = gd
+        .texture_png(&textures, "sprite:GFX_fixture_bgra")
         .unwrap();
     assert_eq!(second, mutated);
-    let view = textures.load(layout, &Lookups::none(sprites), "sprite:GFX_fixture_bgra");
+    let view = gd.texture(&textures, "sprite:GFX_fixture_bgra");
     assert!(view.error.is_none());
     assert_eq!((view.width, view.height), (0, 0));
 
-    let other = textures
-        .png(
-            layout,
-            &Lookups::none(sprites),
-            "sprite:GFX_fixture_strip#2",
-        )
+    let other = gd
+        .texture_png(&textures, "sprite:GFX_fixture_strip#2")
         .unwrap();
     assert_ne!(other, mutated);
     assert_eq!(fs::read_dir(textures.cache_dir()).unwrap().count(), 2);
@@ -279,7 +252,6 @@ fn install_star_classes_flags_and_sprites_decode() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let (_dir, textures) = common::temp_textures();
     for (key, width, height) in [
         ("star_class:g_star", 128, 128),
@@ -297,7 +269,7 @@ fn install_star_classes_flags_and_sprites_decode() {
         ("planet_ring", 32, 1024),
     ] {
         let started = Instant::now();
-        let image = decode(&textures, layout, sprites, key);
+        let image = decode(gd, &textures, key);
         if key.starts_with("symbol:") {
             let rgba = image.to_rgba8();
             assert!(rgba.pixels().all(|p| p.0[..3] == [255, 255, 255]));
@@ -315,11 +287,12 @@ fn install_star_classes_flags_and_sprites_decode() {
             "{key} is fully transparent"
         );
     }
-    let g_star = decode(&textures, layout, sprites, "star_class:g_star");
+    let g_star = decode(gd, &textures, "star_class:g_star");
     let centre = g_star.get_pixel(64, 64);
     assert!(centre.0[3] > 200 && centre.0[0] > 150, "{centre:?}");
 
-    let (arrow_file, _) = sprites
+    let (arrow_file, _) = gd
+        .sprites
         .resolve("GFX_vertical_arrow", None)
         .expect("GFX_vertical_arrow is a vanilla sprite");
     assert!(
@@ -333,15 +306,14 @@ fn install_second_call_hits_the_cache() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let (_dir, textures) = common::temp_textures();
     let key = "star_class:black_hole";
     let started = Instant::now();
-    let first = textures.png(layout, &Lookups::none(sprites), key).unwrap();
+    let first = gd.texture_png(&textures, key).unwrap();
     let cold = started.elapsed();
     assert_eq!(fs::read_dir(textures.cache_dir()).unwrap().count(), 1);
     let started = Instant::now();
-    let second = textures.png(layout, &Lookups::none(sprites), key).unwrap();
+    let second = gd.texture_png(&textures, key).unwrap();
     let warm = started.elapsed();
     eprintln!("{key}: decode {cold:.2?}, cache hit {warm:.2?}");
     assert_eq!(first, second);
@@ -353,27 +325,17 @@ fn install_empire_flag_composes() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let (_dir, textures) = common::temp_textures();
-    let colour = |name: &str| match name {
-        "blue" => Some([34, 88, 218]),
-        "black" => Some([20, 20, 20]),
-        _ => None,
-    };
-    let lookups = Lookups {
-        colour: &colour,
-        ..Lookups::none(sprites)
-    };
     let key = "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null";
-    let png = textures
-        .png(layout, &lookups, key)
+    let png = gd
+        .texture_png(&textures, key)
         .unwrap_or_else(|e| panic!("{key}: {e}"));
     let image = image::load_from_memory(&png).unwrap();
     assert_eq!(image.dimensions(), (70, 70));
     assert_eq!(image.get_pixel(0, 0).0[3], 0, "corner is outside the mask");
     let bg = image.get_pixel(10, 35);
     assert!(
-        bg.0[2] > 120 && bg.0[0] < 80 && bg.0[3] == 255,
+        bg.0[2] > bg.0[0] + 40 && bg.0[2] > bg.0[1] + 40 && bg.0[3] == 255,
         "background not blue: {bg:?}"
     );
     let distinct: std::collections::HashSet<[u8; 4]> =
@@ -384,9 +346,8 @@ fn install_empire_flag_composes() {
         distinct.len()
     );
 
-    let unknown = textures.load(
-        layout,
-        &lookups,
+    let unknown = gd.texture(
+        &textures,
         "empire_flag:00_solid.dds:human/flag_human_9.dds:mauve,black,null,null",
     );
     assert!(unknown.error.is_none(), "{unknown:?}");
@@ -394,21 +355,20 @@ fn install_empire_flag_composes() {
         unknown.width > 0,
         "an unknown colour still composes the flag"
     );
-    let hex = textures.load(
-        layout,
-        &Lookups::none(sprites),
+    let hex = gd.texture(
+        &textures,
         "empire_flag:diagonal.dds:human/flag_human_9.dds:#ff0000,#00ff00,null,null",
     );
     assert!(hex.error.is_none(), "{hex:?}");
 
     let key = "empire_flag:00_solid.dds::blue,black,null,null";
-    let png = textures
-        .png(layout, &lookups, key)
+    let png = gd
+        .texture_png(&textures, key)
         .unwrap_or_else(|e| panic!("{key}: {e}"));
     let plain = image::load_from_memory(&png).unwrap();
     let centre = plain.get_pixel(35, 35);
     assert!(
-        centre.0[2] > 120 && centre.0[0] < 80,
+        centre.0[2] > centre.0[0] + 40 && centre.0[2] > centre.0[1] + 40,
         "the centre shows the background, not an emblem: {centre:?}"
     );
 }
@@ -459,11 +419,8 @@ fn starting_up_removes_cached_pngs_nobody_has_used_for_a_month() {
 fn a_cache_hit_renews_the_file_so_a_texture_in_use_is_not_pruned() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
-    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let key = "sprite:GFX_fixture_bgra";
-    textures
-        .png(layout, &Lookups::none(sprites), key)
-        .expect("a baked texture");
+    gd.texture_png(&textures, key).expect("a baked texture");
     let baked = fs::read_dir(textures.cache_dir())
         .unwrap()
         .next()
@@ -472,9 +429,7 @@ fn a_cache_hit_renews_the_file_so_a_texture_in_use_is_not_pruned() {
         .path();
     age(&baked, 20);
 
-    textures
-        .png(layout, &Lookups::none(sprites), key)
-        .expect("a cache hit");
+    gd.texture_png(&textures, key).expect("a cache hit");
 
     let modified = fs::metadata(&baked).unwrap().modified().unwrap();
     assert!(modified > SystemTime::now() - Duration::from_secs(24 * 60 * 60));

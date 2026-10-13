@@ -174,7 +174,7 @@ pub(crate) fn check_new(
 /// planet has that; the others stand alone. An item whose days are not a number is left out.
 pub(crate) fn read_all(node: &Node, src: &[u8]) -> Vec<NewModifier> {
     let mut modifiers: Vec<NewModifier> = Vec::new();
-    for item in timed_items(node, src) {
+    for item in read::timed_items(node, src) {
         let modifier = read::text(item, keys::MODIFIER, src);
         let Ok(days) = read::text(item, keys::DAYS, src).parse() else {
             continue;
@@ -243,15 +243,7 @@ fn timed_days<'a>(
     src: &'a [u8],
     modifier: &'a str,
 ) -> impl Iterator<Item = (usize, String)> {
-    timed_items(node, src)
+    read::timed_items(node, src)
         .filter(move |item| read::text(item, keys::MODIFIER, src) == modifier)
         .map(move |item| (item.span().start, read::text(item, keys::DAYS, src)))
-}
-
-/// The planet's `timed_modifier` items, in order.
-fn timed_items<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a Node> {
-    node.find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-        .into_iter()
-        .flat_map(|items| items.children())
 }

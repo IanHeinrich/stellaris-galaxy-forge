@@ -12,19 +12,18 @@ use crate::emit::system::{FIXED_NAME_FLAG, MOON_FLAG, RING_FLAG};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::{Slot, SlotTable};
-use crate::format::save::read_spec::written_angle;
 use crate::format::save::system_spec::BodySpec;
 use crate::format::save::write::add_habitat;
 use crate::format::save::write::add_system::{
     self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, write_body,
 };
 use crate::format::save::write::asteroid_names::{self, Pool};
-use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
+use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
-use crate::format::save::write::planet_entry::{is_star, role};
-use crate::format::save::write::planet_entry::{list_moon, unlist_moon};
+use crate::format::save::write::planet_entry::{body_is_star, list_moon, unlist_moon};
 use crate::format::save::write::planet_modifier;
 use crate::format::save::write::remove_system::return_asteroid_names_of;
+use crate::format::save::write::shared::placement;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
@@ -34,13 +33,13 @@ use crate::ops::{
     BodyName, BodyNaming, GivenName, MoonSpec, NewBody, NewModifier, Op, OpError, Plan, Planned,
     Subject,
 };
-use crate::plural;
-use crate::projections::geometry::{Body, drawn_radius, normalised, point, reach};
+use crate::projections::geometry::{Body, normalised, point, reach};
 use crate::projections::name::{NameTemplate, NameVariable};
 use crate::projections::name::{format, letter, literal};
 use crate::projections::read;
 use crate::session::Session;
 use crate::views::OrbitPlacement;
+use crate::{number, plural};
 
 pub(crate) fn plan_add(
     plan: &mut Plan,
@@ -506,10 +505,7 @@ fn moon_parent(s: &Session, stored: &[Stored], system: u32, parent: u32) -> Resu
             system,
         })?;
     let (node, src) = planet_entity(&s.doc, parent)?;
-    let primary = stored
-        .first()
-        .is_some_and(|primary| primary.body.id == parent);
-    let star = is_star(role(&node, src, primary, s.star_classes()))
+    let star = body_is_star(s, stored, parent)?
         || stored
             .iter()
             .any(|b| b.body.parent == Some(parent) && !b.moon);
@@ -664,16 +660,4 @@ pub(crate) fn moon_spec_of(doc: &Document, node: &crate::cst::Node, src: &[u8]) 
 fn deposit_kind(doc: &Document, id: u32) -> Option<String> {
     let deposit = row(doc, EntityKind::Deposit.into(), id).ok()??;
     read::scalar(&deposit.node, keys::TYPE, deposit.src).map(str::to_owned)
-}
-
-/// Where `body` stands about the point a spec with `moon_of` places it from.
-pub(crate) fn placement(stored: &[Stored], body: &Body, moon_of: Option<u32>) -> OrbitPlacement {
-    let centre = moon_of
-        .and_then(|parent| stored.iter().find(|b| b.body.id == parent))
-        .map_or((0.0, 0.0), |parent| parent.body.at);
-    let radius = drawn_radius(body.at, centre, Some(body.orbit));
-    OrbitPlacement {
-        radius,
-        angle: written_angle(centre, body.at, radius),
-    }
 }

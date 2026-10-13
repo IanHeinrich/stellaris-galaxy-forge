@@ -10,10 +10,13 @@ use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::fleets::{move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::write::planet_entry::{
+    body_is_star, list_moon, set_flag, set_moon_of, unlist_moon,
+};
 use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
+use crate::number;
 use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Parent, ParseAt, Plan, Planned};
@@ -29,8 +32,6 @@ pub(crate) struct Stored {
     /// It holds the moon bit of `binary_flags`: a planet orbiting a star names it as
     /// `moon_of` without the bit.
     pub(crate) moon: bool,
-    /// Its planet class.
-    class: String,
     orbit: String,
     x: String,
     y: String,
@@ -93,7 +94,13 @@ pub(crate) fn plan_parent(
     let stored = frame_of(s, system, body, radius, angle)?;
     let parent = parent.body();
     let primary = listed(&s.doc, system)?.first().copied();
-    let star = parent.is_some_and(|p| Some(p) != primary && is_star(s, &stored, p));
+    // A body orbiting the primary is a planet, so the primary is no star parent here.
+    let star = match parent {
+        Some(p) if Some(p) != primary => {
+            stored.iter().any(|b| b.body.id == p) && body_is_star(s, &stored, p)?
+        }
+        _ => false,
+    };
     let before: Vec<Body> = stored.iter().map(|b| b.body).collect();
     let is_moon = |id| stored.iter().any(|b| b.body.id == id && b.moon);
     check_parent(&before, system, body, parent, star, is_moon)?;
@@ -192,18 +199,10 @@ fn stored(node: &Node, src: &[u8], id: u32) -> Result<Stored, OpError> {
             orbit,
         },
         moon: read::scalar_u32(node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0),
-        class: read::text(node, keys::PLANET_CLASS, src),
         orbit: read::text(node, keys::ORBIT, src),
         x: axis(keys::X),
         y: axis(keys::Y),
     })
-}
-
-/// Whether body `id` is of a star's class, as the session's install says, without the moon bit.
-fn is_star(s: &Session, stored: &[Stored], id: u32) -> bool {
-    stored
-        .iter()
-        .any(|b| b.body.id == id && !b.moon && s.star_classes().is_star_body(&b.class))
 }
 
 /// "moon" for a body holding the moon bit, else "planet".
@@ -429,11 +428,4 @@ fn grow_by(
         },
         description,
     })
-}
-
-/// A radius or an angle as a description names it: up to two decimals.
-pub(crate) fn number(v: f64) -> String {
-    let text = format!("{v:.2}");
-    let text = text.trim_end_matches('0').trim_end_matches('.');
-    if text == "-0" { "0" } else { text }.to_owned()
 }

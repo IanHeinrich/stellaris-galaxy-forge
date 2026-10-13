@@ -460,8 +460,8 @@ pub enum NewMegastructurePlace {
     /// On or around a body of the system, at the body's point.
     Body {
         body: u32,
-        /// The planet flags the body gets, in order, each dated the save's date but
-        /// `ruined_orbital_ring_planet`, which is dated day one.
+        /// The planet flags the body gets, in order, each one a megastructure leaves, and
+        /// each dated the save's date but `ruined_orbital_ring_planet`, which is dated day one.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         #[ts(optional, as = "Option<Vec<String>>")]
         body_flags: Vec<String>,

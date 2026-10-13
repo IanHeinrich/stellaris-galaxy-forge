@@ -907,10 +907,10 @@ pub enum Op {
     /// naming it, with no planet to list it, as the deletion left it.
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
-    /// is not a star for a `star_only` type, a flag that is not an identifier, a bypass
-    /// other than a gateway or a relay, a second bypass of that kind in the system, a type
-    /// that is not an identifier, a point that is not finite and a save before Stellaris
-    /// 4.0 are refused, and so are a construction modifier the entity has already or that
+    /// is not a star for a `star_only` type, a body flag that is not one a megastructure
+    /// leaves or that is listed twice, a bypass other than a gateway or a relay, a second
+    /// bypass of that kind in the system, a type that is not an identifier, a point that is
+    /// not finite and a save before Stellaris 4.0 are refused, and so are a construction modifier the entity has already or that
     /// is listed twice, one that lasts no days, a construction body outside the system, a
     /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
     /// is not an identifier. The inverse is [`Op::RemoveMegastructure`] with the

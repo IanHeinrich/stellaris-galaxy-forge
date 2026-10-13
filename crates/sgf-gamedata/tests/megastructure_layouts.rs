@@ -463,7 +463,7 @@ mod_row = { }
     ), (
         "common/scripted_effects/mod.txt",
         "mod_spawn_at = {
-	spawn_planet = { class = pc_mod location = fromfrom.planet orbit_location = yes orbit_distance_offset = $DISTANCE$ orbit_angle_offset = $ANGLE|10$ }
+	spawn_planet = { class = pc_mod location = fromfrom.planet orbit_location = yes orbit_distance_offset = $DISTANCE$ orbit_angle_offset = $ANGLE$ }
 }
 ",
     )]);
@@ -478,7 +478,7 @@ mod_row = { }
     for unreadable in [
         "orbit_distance = { … }",
         "orbit_angle = @mod_undefined",
-        "orbit_angle_offset = $ANGLE|10$",
+        "orbit_angle_offset = $ANGLE$",
         "size = { … }",
     ] {
         assert!(
@@ -490,6 +490,65 @@ mod_row = { }
             layout.unfollowed
         );
     }
+}
+
+/// A spawn's `$PARAM|default$` takes its default when the call passes none.
+#[test]
+fn a_spawn_parameter_left_out_takes_its_default() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_spawner = {
+	on_build_complete = { mod_spawn_at = { DISTANCE = 5 } }
+}
+",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_spawn_at = {
+	spawn_planet = { class = pc_mod location = fromfrom.planet orbit_location = yes orbit_distance_offset = $DISTANCE$ orbit_angle_offset = $ANGLE|10$ }
+}
+",
+        ),
+    ]);
+    let layout = lay_out(&gd, "mod_spawner", &Plan::default()).expect("mod_spawner");
+    let at: Vec<Orbit> = layout.planets.iter().map(|planet| planet.at).collect();
+    assert_eq!(
+        at,
+        [Orbit {
+            around: Around::Host,
+            angle: 10.0,
+            distance: 5.0,
+        }],
+        "{:?}",
+        layout.unfollowed
+    );
+}
+
+/// A `limit` reads only the arm of a `[[PARAM] … ]` block the call takes.
+#[test]
+fn a_limit_reads_only_the_parameter_block_its_call_takes() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_spawner = {
+	on_build_complete = { mod_spawn_if = { X = yes } }
+}
+",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_spawn_if = {
+	if = {
+		limit = { [[!X] always = no ] }
+		spawn_planet = { class = pc_mod location = fromfrom.planet orbit_location = yes orbit_distance_offset = 5 }
+	}
+}
+",
+        ),
+    ]);
+    let layout = lay_out(&gd, "mod_spawner", &Plan::default()).expect("mod_spawner");
+    assert_eq!(layout.planets.len(), 1, "{:?}", layout.unfollowed);
 }
 
 /// `planet = star` is the game's no-link spawn and passes silently. A row spawned on the

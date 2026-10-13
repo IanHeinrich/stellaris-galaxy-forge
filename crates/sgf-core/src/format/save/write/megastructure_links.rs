@@ -6,26 +6,37 @@
 //! an inverse can write it back; one an op wrote is erased. Either way nothing is left in
 //! the table, since a tombstone there shows a broken bypass on the galaxy map.
 
+use crate::NULL_ID;
 use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::{Lines, inline};
+use crate::emit::megastructure::{MegastructureRow, megastructure_row};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
-use crate::format::save::write::id_list::{Emptied, unlist};
-use crate::format::save::write::place::{Place, insert_key};
+use crate::format::save::alloc::SlotTable;
+use crate::format::save::write::flags;
+use crate::format::save::write::id_list::{Emptied, append, unlist};
+use crate::format::save::write::place;
 use crate::format::save::write::restore::{Saved, live};
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
 use crate::ops::rules::FURNACE_ENTITY;
-use crate::ops::{Edit, OpError, Plan, SavedTable, Subject};
+use crate::ops::{Emitted, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
+use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
 
 /// The `megastructures` table.
 pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure);
+
+/// The bypass types a row the editor adds, moves or deletes may stand for: those tried in
+/// game.
+pub const BYPASS_KINDS: [&str; 2] = [GATEWAY, RELAY];
+pub(crate) const GATEWAY: &str = "gateway";
+pub(crate) const RELAY: &str = "relay_bypass";
 
 /// The planet flag the game's habitat orbitals set on their body when they are spawned.
 pub(crate) const HAS_ORBITAL: &str = "has_orbital";
@@ -37,6 +48,61 @@ pub(crate) const BODY_FLAGS: [&str; 4] = [
     keys::RUINED_ORBITAL_RING_PLANET,
     HAS_ORBITAL,
 ];
+
+/// What refuses an add of megastructure type `kind`, for the reason it is given.
+pub(crate) fn refuse(kind: &str) -> impl Fn(String) -> OpError + '_ {
+    move |reason| OpError::MegastructureRefused {
+        kind: kind.to_owned(),
+        reason,
+    }
+}
+
+/// What holds a body, for each op to choose what it refuses. Whether a structure made the
+/// body is [`made`].
+#[derive(Debug)]
+pub(crate) struct Holders {
+    /// The row the body's `megastructure` key names, unless it names the null id.
+    pub(crate) key: Option<u32>,
+    /// The live rows whose `planet` is the body, in table order.
+    pub(crate) rows: Vec<u32>,
+    /// The flags of [`BODY_FLAGS`] the body has.
+    pub(crate) flags: Vec<&'static str>,
+}
+
+impl Holders {
+    /// What holds body `body`, whose entry is `node`.
+    pub(crate) fn read(
+        doc: &Document,
+        body: u32,
+        node: &Node,
+        src: &[u8],
+    ) -> Result<Self, OpError> {
+        let rows = rows(doc, MEGASTRUCTURES)?
+            .iter()
+            .filter(|row| read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(body))
+            .map(|row| row.id)
+            .collect();
+        Ok(Self {
+            key: read::scalar_u32(node, keys::MEGASTRUCTURE, src).filter(|&id| id != NULL_ID),
+            rows,
+            flags: BODY_FLAGS
+                .into_iter()
+                .filter(|flag| read::has_flag(node, src, flag))
+                .collect(),
+        })
+    }
+
+    /// The first live row naming the body other than those in `going`.
+    pub(crate) fn row_besides(&self, going: &[u32]) -> Option<u32> {
+        self.rows.iter().copied().find(|id| !going.contains(id))
+    }
+}
+
+/// Whether the body `node` has the planet flag `megastructure`, which a structure that made
+/// the body leaves on it, such as a cosmogenesis world.
+pub(crate) fn made(node: &Node, src: &[u8]) -> bool {
+    read::has_flag(node, src, keys::MEGASTRUCTURE)
+}
 
 /// One live `megastructures` row and what it names.
 #[derive(Debug, Clone)]
@@ -71,6 +137,71 @@ pub(crate) fn read(doc: &Document, id: u32) -> Result<Option<Tied>, OpError> {
         bypass: facts.bypass,
         save_on_death: read::scalar(&row.node, keys::SAVE_ON_DEATH, row.src) == Some("1"),
     }))
+}
+
+/// A `megastructures` row [`write_rows`] writes finished.
+pub(crate) struct NewRow<'a> {
+    pub(crate) name: Option<&'a NameTemplate>,
+    pub(crate) kind: &'a str,
+    pub(crate) at: (f64, f64),
+    /// The owner and the `graphical_culture` it names.
+    pub(crate) owner: Option<(u32, Option<&'a str>)>,
+    pub(crate) planet: Option<u32>,
+    pub(crate) bypass: Option<u32>,
+}
+
+/// Write `rows` of system `system`, each in the slot past the highest the table has used,
+/// and list them in the system's `megastructures` and each owner's `owned_megastructures`.
+/// Returns their ids. The counterpart of [`unlink_all`].
+pub(crate) fn write_rows(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    rows: &[NewRow],
+) -> Result<Vec<u32>, OpError> {
+    let mut table = SlotTable::megastructures(&s.doc)?;
+    let mut ids = Vec::with_capacity(rows.len());
+    for new in rows {
+        let slot = table.append();
+        let id = slot.id();
+        let row = MegastructureRow {
+            id,
+            name: new.name,
+            kind: new.kind,
+            at: new.at,
+            system,
+            owner: new.owner,
+            planet: new.planet.unwrap_or(NULL_ID),
+            bypass: new.bypass,
+        };
+        write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
+            megastructure_row(indent, &row)
+        })?;
+        ids.push(id);
+    }
+    append(
+        plan.edit(&s.doc, system)?,
+        &place::system::MEGASTRUCTURES,
+        &ids,
+    )?;
+    let owner_of = |new: &NewRow| new.owner.map(|(owner, _)| owner);
+    let mut owners: Vec<u32> = rows.iter().filter_map(owner_of).collect();
+    owners.sort_unstable();
+    owners.dedup();
+    for owner in owners {
+        let owned: Vec<u32> = rows
+            .iter()
+            .zip(&ids)
+            .filter(|(new, _)| owner_of(new) == Some(owner))
+            .map(|(_, &id)| id)
+            .collect();
+        append(
+            plan.edit_country(&s.doc, owner)?,
+            &place::country::OWNED_MEGASTRUCTURES,
+            &owned,
+        )?;
+    }
+    Ok(ids)
 }
 
 /// Take row `tied`'s id out of its system's `megastructures` and its owner's
@@ -200,85 +331,15 @@ fn body_keys(node: &Node, src: &[u8], ids: &[u32], alone: bool) -> Vec<Span> {
     if !alone {
         return spans;
     }
-    spans.extend(flag_spans(node, src, |flag| BODY_FLAGS.contains(&flag)));
+    spans.extend(flags::flag_spans(node, src, |flag| {
+        BODY_FLAGS.contains(&flag)
+    }));
     spans.extend(
         node.find_all(keys::ENTITY_NAME, src)
             .filter(|name| name.scalar_str(src) == Some(FURNACE_ENTITY))
             .map(Node::span),
     );
     spans
-}
-
-/// The flags of entity `node` that `gone` picks, or its whole `flags` block when they are
-/// all it holds.
-pub(crate) fn flag_spans(node: &Node, src: &[u8], gone: impl Fn(&str) -> bool) -> Vec<Span> {
-    let Some(flags) = node.find(keys::FLAGS, src) else {
-        return Vec::new();
-    };
-    let picked: Vec<Span> = flags
-        .children()
-        .iter()
-        .filter(|flag| flag.key_str(src).is_some_and(&gone))
-        .map(Node::span)
-        .collect();
-    if !picked.is_empty() && picked.len() == flags.children().len() {
-        return vec![flags.span()];
-    }
-    picked
-}
-
-/// Take the flags `gone` picks off the entity `edit` holds, as [`flag_spans`] finds them.
-/// Whether any went.
-pub(crate) fn drop_flags(edit: &mut Edit, gone: impl Fn(&str) -> bool) -> Result<bool, OpError> {
-    let spans = flag_spans(edit.entity()?, &edit.buf, gone);
-    for &span in &spans {
-        edit.bytes().remove_statement(span);
-    }
-    Ok(!spans.is_empty())
-}
-
-/// Give the entity `edit` holds the flags `flags`, each with its date, after its last flag,
-/// writing its `flags` block where `place` says when it has none.
-pub(crate) fn add_flags(
-    edit: &mut Edit,
-    flags: &[(&str, String)],
-    place: &Place,
-) -> Result<(), OpError> {
-    if flags.is_empty() {
-        return Ok(());
-    }
-    let lines: Vec<String> = flags
-        .iter()
-        .map(|(flag, date)| format!("{flag}={date}"))
-        .collect();
-    let block = edit.entity()?.find(keys::FLAGS, &edit.buf).cloned();
-    match block.as_ref().and_then(|block| block.children().last()) {
-        Some(last) => {
-            let end = last.span().end;
-            for line in &lines {
-                edit.bytes().insert_after(end, line);
-            }
-        }
-        None => {
-            let write = |indent: &[u8]| {
-                let mut w = Lines::new(indent);
-                w.open(0, keys::FLAGS);
-                for line in &lines {
-                    w.line(1, line);
-                }
-                w.close(0);
-                inline(indent, &w.into_bytes())
-            };
-            match block {
-                Some(block) => {
-                    let text = write(&edit.indent(block.span().start));
-                    edit.bytes().replace_statement(block.span(), &text);
-                }
-                None => insert_key(edit, &[], place, write)?,
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Take bypass `bypass` of system `system` out: the row is emptied when the file held it

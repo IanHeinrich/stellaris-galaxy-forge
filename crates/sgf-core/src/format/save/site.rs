@@ -5,7 +5,7 @@
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
 use crate::format::save::galaxy::bodies::planet_ids;
-use crate::format::save::galaxy::systems::{star_flags, timed_modifiers};
+use crate::format::save::galaxy::systems::timed_modifiers;
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;
@@ -21,7 +21,7 @@ pub(crate) fn read(s: &Session, system: u32) -> Result<ConstructionSite, OpError
     let mut site = ConstructionSite {
         system,
         modifiers: owned(timed_modifiers(&node, src)),
-        flags: owned(star_flags(&node, src)),
+        flags: owned(read::flags(&node, src)),
         bodies: Vec::new(),
     };
     for (i, id) in planet_ids(&node, src).into_iter().enumerate() {
@@ -47,7 +47,7 @@ pub(crate) fn read(s: &Session, system: u32) -> Result<ConstructionSite, OpError
                 .is_some_and(|owner| owner != crate::NULL_ID),
             deposits,
             modifiers: owned(timed_modifiers(&planet, src)),
-            flags: owned(star_flags(&planet, src)),
+            flags: owned(read::flags(&planet, src)),
         });
     }
     Ok(site)

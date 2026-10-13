@@ -14,7 +14,7 @@ use crate::ops::{Edit, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
-use crate::{NULL_ID, plural, plural_of};
+use crate::{NULL_ID, and_list, plural, plural_of};
 
 /// The level every orbital ring's starbase has, whatever its tier.
 const ORBITAL_RING_LEVEL: &str = "starbase_level_orbital_ring";
@@ -231,10 +231,9 @@ impl Teardown {
         if self.ring.is_some() {
             parts.push("its orbital ring".to_owned());
         }
-        match parts.split_last() {
-            None => String::new(),
-            Some((last, [])) => format!(", with {last}"),
-            Some((last, rest)) => format!(", with {} and {last}", rest.join(", ")),
+        match parts.is_empty() {
+            true => String::new(),
+            false => format!(", with {}", and_list(&parts)),
         }
     }
 
