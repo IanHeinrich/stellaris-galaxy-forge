@@ -269,6 +269,7 @@ impl Format for Scenario {
             scripted_owners: true,
             scripts: true,
             prepare: true,
+            text_file: true,
             ..Capabilities::default()
         }
     }

@@ -11,25 +11,25 @@ use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{
-    DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult, ProgressPhase,
-    SaveResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
+    ProgressPhase, SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
-    DONE, START, VALIDATE_AT, fit_to_game_data, io_error, is_save, progress, require, with_session,
+    DONE, START, VALIDATE_AT, fit_to_game_data, io_error, progress, require, with_session,
 };
 use crate::state::GameDataState;
 use crate::views::DocumentChanged;
 use crate::watch::document as watched;
 
-const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
+const NO_EXPORT: &str = "this document cannot be exported as a scenario";
 
 /// Open `path`, a save or a scenario script, as the session, replacing any open one.
 /// Emits `sgf://progress`.
 #[tauri::command]
-pub async fn open_save<R: Runtime>(
+pub async fn open_document<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<OpenResult, SgfError> {
@@ -167,7 +167,7 @@ pub async fn export_scenario<R: Runtime>(
     let (text, report, dirty) = with_session(app.clone(), {
         let path = path.clone();
         move |guard| {
-            let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
+            let session = require(guard.as_ref(), |c| c.details, NO_EXPORT)?;
             let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
             let name = Path::new(&path)
                 .file_stem()
@@ -208,7 +208,7 @@ pub async fn preview_export<R: Runtime>(
 ) -> Result<ExportReport, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
+        let session = require(guard.as_ref(), |c| c.details, NO_EXPORT)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::scenario_text(
             session.graph(),
@@ -291,7 +291,7 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
 pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUse>, SgfError> {
     with_session(app, |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if session.kind() != DocumentKind::Save {
+        if !Capabilities::of(session.doc()).details {
             return Ok(Vec::new());
         }
         Ok(session.details().map_err(SessionError::from)?.models())
@@ -386,7 +386,7 @@ async fn save_to<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn close_save<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
+pub async fn close_document<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
     with_session(app.clone(), |mut guard| {
         *guard = None;
         Ok(())

@@ -53,7 +53,7 @@ pub fn invoke<T: DeserializeOwned>(
 /// Open the document at `path` as the session; the test fails if it does not open.
 pub fn open(webview: &WebviewWindow<MockRuntime>, path: impl Serialize) -> OpenResult {
     let path = json!(path);
-    invoke(webview, "open_save", json!({ "path": path }))
+    invoke(webview, "open_document", json!({ "path": path }))
         .unwrap_or_else(|e| panic!("open {path}: {}", e.message))
 }
 

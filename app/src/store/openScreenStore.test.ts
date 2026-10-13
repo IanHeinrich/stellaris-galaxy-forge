@@ -53,7 +53,7 @@ beforeEach(() => {
   mockedIpc.listCampaignSaves.mockResolvedValue([campaignSave()]);
   mockedIpc.listScenarios.mockResolvedValue(listed([modScenario()]));
   mockedIpc.missingPaths.mockResolvedValue([]);
-  mockedIpc.closeSave.mockResolvedValue();
+  mockedIpc.closeDocument.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
 });

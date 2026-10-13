@@ -55,7 +55,7 @@ beforeEach(() => {
   mockedIpc.listCampaignSaves.mockResolvedValue([campaignSave()]);
   mockedIpc.listScenarios.mockResolvedValue(listed([modScenario()]));
   mockedIpc.missingPaths.mockResolvedValue([]);
-  mockedIpc.closeSave.mockResolvedValue();
+  mockedIpc.closeDocument.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
 });
@@ -66,7 +66,7 @@ describe("open", () => {
   });
 
   it("marks a recent document whose file is gone, and forgets it on request", async () => {
-    mockedIpc.openSave.mockRejectedValue({
+    mockedIpc.openDocument.mockRejectedValue({
       kind: "not_found",
       message: "The system cannot find the file specified. (os error 2)",
     });
@@ -84,7 +84,10 @@ describe("open", () => {
   });
 
   it("leaves a readable file that failed for another reason listed as it was", async () => {
-    mockedIpc.openSave.mockRejectedValue({ kind: "format", message: "meta is not a save header" });
+    mockedIpc.openDocument.mockRejectedValue({
+      kind: "format",
+      message: "meta is not a save header",
+    });
 
     await screen().open(RECENT.path, "save");
 
@@ -105,7 +108,7 @@ describe("open", () => {
   });
 
   it("closes the dialog once the document is open", async () => {
-    mockedIpc.openSave.mockResolvedValue(OPEN_RESULT);
+    mockedIpc.openDocument.mockResolvedValue(OPEN_RESULT);
     useLayoutStore.setState({ openDialog: true });
 
     await screen().open(OPEN_RESULT.path, "save");
@@ -116,7 +119,7 @@ describe("open", () => {
 
   it("leaves the dialog standing when another document is still opening", async () => {
     let finish!: (result: typeof OPEN_RESULT) => void;
-    mockedIpc.openSave.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    mockedIpc.openDocument.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
     useLayoutStore.setState({ openDialog: true });
     const first = useFileSessionStore.getState().openSave("C:/saves/terran/other.sav");
 
@@ -124,7 +127,7 @@ describe("open", () => {
 
     expect(useLayoutStore.getState().openDialog).toBe(true);
     expect(screen().rowError?.path).toBe(OPEN_RESULT.path);
-    expect(mockedIpc.openSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.openDocument).toHaveBeenCalledTimes(1);
 
     finish(OPEN_RESULT);
     await first;
@@ -147,14 +150,14 @@ describe("opening a scenario file", () => {
       warnNotForPaint: true,
     });
     mockedIpc.listScenarios.mockResolvedValue(listed([PAINTED, PLAIN]));
-    mockedIpc.openSave.mockResolvedValue(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValue(SCENARIO_RESULT);
     await screen().load(null);
   });
 
   it("opens a scenario for Paint a Galaxy at once while the mod is enabled", async () => {
     await screen().open(PAINTED.path, "save");
     expect(prompt()).toBeNull();
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(PAINTED.path);
     expect(session().status).toBe("ready");
   });
 
@@ -163,13 +166,13 @@ describe("opening a scenario file", () => {
     await until(() => expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "not_for_paint" }));
     session().answerScenarioPrompt(null);
     await cancelled;
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
 
     const opening = screen().open(PLAIN.path, "save");
     await until(() => expect(prompt()).not.toBeNull());
     session().answerScenarioPrompt("paint_a_galaxy");
     await opening;
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(PLAIN.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(PLAIN.path);
     expect(session().paintChosen).toBe(true);
   });
 
@@ -184,7 +187,7 @@ describe("opening a scenario file", () => {
     );
     session().answerScenarioPrompt("plain");
     await opening;
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(PAINTED.path);
 
     usePaintModStore.setState({ known: false, paintMod: null });
     const asking = screen().open(PAINTED.path, "save");
@@ -212,12 +215,12 @@ describe("opening a scenario file", () => {
     usePaintModStore.setState({ warnNotForPaint: false });
     await screen().open(PLAIN.path, "save");
     expect(prompt()).toBeNull();
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(PLAIN.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(PLAIN.path);
     expect(session().paintChosen).toBe(false);
 
     await screen().open("C:/elsewhere/unlisted.txt", "save");
     expect(prompt()).toBeNull();
-    expect(mockedIpc.openSave).toHaveBeenLastCalledWith("C:/elsewhere/unlisted.txt");
+    expect(mockedIpc.openDocument).toHaveBeenLastCalledWith("C:/elsewhere/unlisted.txt");
   });
 
   it("asks the same of a scenario file picked with Browse", async () => {
@@ -225,10 +228,10 @@ describe("opening a scenario file", () => {
     await until(() => expect(prompt()?.kind).toBe("not_for_paint"));
     session().answerScenarioPrompt(null);
     await asking;
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
 
     await session().requestOpen(PAINTED.path, { listings: screen().scenarios });
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(PAINTED.path);
     expect(mockedIpc.scenarioPainted).not.toHaveBeenCalled();
   });
 
@@ -238,7 +241,7 @@ describe("opening a scenario file", () => {
     await session().requestOpen(painted, { listings: screen().scenarios });
     expect(mockedIpc.scenarioPainted).toHaveBeenCalledWith(painted);
     expect(prompt()).toBeNull();
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(painted);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(painted);
 
     const plain = "C:/elsewhere/plain.txt";
     mockedIpc.scenarioPainted.mockResolvedValueOnce(false);
@@ -246,7 +249,7 @@ describe("opening a scenario file", () => {
     await until(() => expect(prompt()?.kind).toBe("not_for_paint"));
     session().answerScenarioPrompt(null);
     await asking;
-    expect(mockedIpc.openSave).not.toHaveBeenCalledWith(plain);
+    expect(mockedIpc.openDocument).not.toHaveBeenCalledWith(plain);
   });
 
   it("asks nothing more of a save once the user chose to edit it as a scenario", async () => {

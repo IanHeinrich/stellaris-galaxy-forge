@@ -151,8 +151,8 @@ export interface GameDataState {
   /** Asks for one template's text, with every other asked for on the same tick. */
   requestName(name: NameTemplate): void;
   /** Resolves once the initial scenario owners pass has settled; special and names stay fire-and-forget. */
-  onSaveOpened(): Promise<void>;
-  onSaveClosed(): void;
+  onDocumentOpened(): Promise<void>;
+  onDocumentClosed(): void;
   displayNameOf(key: string): string | undefined;
 }
 

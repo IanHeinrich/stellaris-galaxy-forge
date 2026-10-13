@@ -51,11 +51,15 @@ pub fn game_data(opts: &LoadOptions) -> Result<GameData, LoadError> {
     sgf_gamedata::load(opts, &mut |_| {})
 }
 
-/// A save-only command's refusal, printed and returned when `path` holds a scenario.
+/// A save-only command's refusal, printed and returned when `path` holds anything but a save.
 pub fn saves_only(command: &str, path: &Path) -> Option<Outcome> {
-    (path.is_file() && document::sniff(path) == DocumentKind::Scenario).then(|| {
+    if !path.is_file() {
+        return None;
+    }
+    let kind = document::sniff(path);
+    (kind != DocumentKind::Save).then(|| {
         println!(
-            "{command}: {} is a scenario; this command reads saves only",
+            "{command}: {} is a {kind}; this command reads saves only",
             path.display()
         );
         Outcome::Failed

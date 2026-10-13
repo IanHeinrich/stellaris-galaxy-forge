@@ -90,7 +90,7 @@ describe("layers", () => {
   });
 
   it("a scenario opens on the overlays its own scripts fill", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(chrome().layers).toEqual(DEFAULT_LAYERS);
   });
@@ -120,7 +120,7 @@ describe("layers", () => {
     await session().openSave(OPEN_RESULT.path);
     chrome().resetLayers();
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(chrome().layers).toEqual(DEFAULT_LAYERS);
   });
@@ -327,7 +327,7 @@ describe("group toggles", () => {
   });
 
   it("a save is split by nothing, so it carries no group button at all", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(splitsBySource(session().kind)).toBe(true);
 

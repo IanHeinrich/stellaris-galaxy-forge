@@ -14,7 +14,7 @@ export type OpenPatch = Partial<Omit<Opened, "galaxy">> & { galaxy?: Partial<Gal
 /** Opens `result` with `patch` laid over it, as the session opens a file the user picked. */
 export async function openWith(result: Opened, patch: OpenPatch = {}): Promise<void> {
   const opened: Opened = { ...result, ...patch, galaxy: { ...result.galaxy, ...patch.galaxy } };
-  mockedIpc.openSave.mockResolvedValue(opened);
+  mockedIpc.openDocument.mockResolvedValue(opened);
   await useFileSessionStore.getState().openSave(opened.path);
 }
 

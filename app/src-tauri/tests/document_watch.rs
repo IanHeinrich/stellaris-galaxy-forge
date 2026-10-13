@@ -104,7 +104,7 @@ fn a_file_moved_away_is_gone_and_nothing_is_checked_once_closed() {
     assert_eq!(found.change, DocumentChange::Gone);
     assert!(found.dirty);
 
-    invoke::<()>(&w, "close_save", json!({})).expect("close");
+    invoke::<()>(&w, "close_document", json!({})).expect("close");
     assert_eq!(check(&w), None);
 }
 

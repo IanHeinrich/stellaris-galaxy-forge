@@ -63,12 +63,7 @@ const KIND_OFFENDERS: &[(&str, &str)] = &[
     ("app/src-tauri/src/commands/add_habitat.rs", "3b"),
     ("app/src-tauri/src/commands/add_megastructure.rs", "3b"),
     ("app/src-tauri/src/commands/add_ring_world.rs", "3b"),
-    ("app/src-tauri/src/commands/add_system.rs", "3b"),
-    ("app/src-tauri/src/commands/gamedata.rs", "3b"),
     ("app/src-tauri/src/commands/mod.rs", "3b"),
-    ("app/src-tauri/src/commands/prepare.rs", "3b"),
-    ("app/src-tauri/src/commands/scenario.rs", "3b"),
-    ("app/src-tauri/src/commands/session.rs", "3b"),
 ];
 
 /// `source` up to its inline `#[cfg(test)] mod tests`, if it has one.

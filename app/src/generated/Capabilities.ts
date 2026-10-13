@@ -152,4 +152,9 @@ scripted_owners: boolean,
  * Systems name the initializers and scripts that generate them: the initializer
  * labels, the scripts tab and the initializer a system opens.
  */
-scripts: boolean, };
+scripts: boolean, 
+/**
+ * The document is a text file of its own, so an editor can open it: a scenario script,
+ * not a save's archive.
+ */
+text_file: boolean, };
