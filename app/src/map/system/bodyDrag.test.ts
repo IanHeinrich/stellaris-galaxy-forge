@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DRAG_HINTS, GEOMETRY_REASONS, toMoonHint } from "../../lib/details/orbitIntent";
 import { polar } from "../../lib/details/orbits";
-import { NO_GEOMETRY, SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
+import { NO_GEOMETRY } from "../../lib/details/geometryAdapters";
+import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { sceneRecorder as recorder } from "../../test/mapIntent";
 import { systemContext } from "./context";

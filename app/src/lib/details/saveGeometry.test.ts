@@ -3,7 +3,8 @@ import { orbitSystem, saveBody } from "../../test/builders";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../capabilities";
 import { ASTEROID, frameOf, LONE, MOON, move, PLANET, reparent, STAR, SYSTEM } from "./fixture";
 import type { GeometryIntent } from "./orbitIntent";
-import { geometryAdapterFor, NO_GEOMETRY, SAVE_GEOMETRY } from "./saveGeometry";
+import { geometryAdapterFor, NO_GEOMETRY } from "./geometryAdapters";
+import { SAVE_GEOMETRY } from "./saveGeometry";
 
 describe("what a save lets the system view edit", () => {
   const editing = SAVE_GEOMETRY.editing(frameOf());

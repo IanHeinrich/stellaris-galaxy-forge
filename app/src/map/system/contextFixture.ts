@@ -9,7 +9,8 @@ import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
-import { geometryAdapterFor, SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
+import { geometryAdapterFor } from "../../lib/details/geometryAdapters";
+import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import {
   bodyLayout,
   byId,

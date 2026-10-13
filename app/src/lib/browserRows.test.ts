@@ -5,6 +5,7 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { Issue } from "../generated/Issue";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { SpecialSystem } from "../generated/SpecialSystem";
+import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../generated/constants";
 import { appIssue, countryNode, systemNode } from "../test/builders";
 import { composeOwnership } from "./ownership";
 import {
@@ -114,7 +115,7 @@ function special(id: number, extra: Partial<SpecialSystem> = {}): SpecialSystem 
 
 describe("the Empires tab", () => {
   const ownership = composeOwnership({
-    kind: "save",
+    capabilities: SAVE_CAPABILITIES,
     systems: new Map(),
     countries: COUNTRIES,
     countryTypes: TYPES,
@@ -149,7 +150,7 @@ describe("the Empires tab", () => {
     const home = { ...systemNode({ id: 1, marauder: { home: 1 } }), lanes: [lane(2)] };
     const base = { ...systemNode({ id: 2, marauder: { base: 1 } }), lanes: [lane(1)] };
     const clans = composeOwnership({
-      kind: "scenario",
+      capabilities: SCENARIO_CAPABILITIES,
       systems: new Map([
         [1, home],
         [2, base],

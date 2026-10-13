@@ -9,7 +9,7 @@ import {
   type Span,
 } from "../../../lib/details/orbitIntent";
 import { orbitParent } from "../../../lib/details/orbitReach";
-import { NO_GEOMETRY } from "../../../lib/details/saveGeometry";
+import { NO_GEOMETRY } from "../../../lib/details/geometryAdapters";
 import { polarAbout, type BodyPlacement, type Point } from "../../../lib/details/orbits";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useSystemGeometry, type SystemGeometry } from "../../../store/systemGeometry";

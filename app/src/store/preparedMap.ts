@@ -6,6 +6,7 @@ import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
+import { documentCapabilities } from "../lib/capabilities";
 import type { AppIssue } from "../lib/issues";
 import { lastOf } from "../lib/memo";
 import { templateName } from "../lib/names";
@@ -91,11 +92,11 @@ export function mapOwnership(): Ownership {
   const shown = projectedInputs();
   if (shown === null) return currentOwnership();
   const data = useGameDataStore.getState();
-  const kind = useFileSessionStore.getState().kind;
-  const from = [shown, kind, data.countryTypes, data.mapColors, data.names];
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  const from = [shown, capabilities, data.countryTypes, data.mapColors, data.names];
   return ownershipMemo(from, (previous) => {
     const next = composeOwnership({
-      kind,
+      capabilities,
       systems: shown.systems,
       countries: shown.countries,
       countryTypes: data.countryTypes,

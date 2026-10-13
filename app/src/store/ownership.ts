@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { documentCapabilities } from "../lib/capabilities";
 import { lastOf } from "../lib/memo";
 import { templateName } from "../lib/names";
 import {
@@ -18,7 +19,7 @@ function inputNow(): OwnershipInput {
   const galaxy = useGalaxyStore.getState();
   const data = useGameDataStore.getState();
   return {
-    kind: useFileSessionStore.getState().kind,
+    capabilities: documentCapabilities(useFileSessionStore.getState()),
     systems: galaxy.systems,
     countries: galaxy.countries,
     countryTypes: data.countryTypes,
@@ -33,9 +34,9 @@ function inputNow(): OwnershipInput {
  */
 export function currentOwnership(): Ownership {
   const input = inputNow();
-  const { kind, systems, countries, countryTypes, mapColors } = input;
+  const { capabilities, systems, countries, countryTypes, mapColors } = input;
   const from = [
-    kind,
+    capabilities,
     systems,
     countries,
     countryTypes,
@@ -51,7 +52,7 @@ export function currentOwnership(): Ownership {
 export function subscribeOwnership(listener: () => void): () => void {
   const offs = [
     useFileSessionStore.subscribe((s, prev) => {
-      if (s.kind !== prev.kind) listener();
+      if (s.capabilities !== prev.capabilities) listener();
     }),
     useGalaxyStore.subscribe((s, prev) => {
       if (s.systems !== prev.systems || s.countries !== prev.countries) listener();

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CountryNode } from "../generated/CountryNode";
 import type { MarauderRole } from "../generated/MarauderRole";
 import type { SystemNode } from "../generated/SystemNode";
+import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../generated/constants";
 import { byId, countryNode, systemNode } from "../test/builders";
 import {
   clanSystemsOf,
@@ -48,7 +49,7 @@ const NO_TYPES = new Map();
 
 function input(over: Partial<OwnershipInput>): OwnershipInput {
   return {
-    kind: "save",
+    capabilities: SAVE_CAPABILITIES,
     systems: new Map(),
     countries: new Map(),
     countryTypes: NO_TYPES,
@@ -103,7 +104,7 @@ describe("composeOwnership", () => {
     const claimed = system(6, 7, null, 5);
     const ownership = composeOwnership(
       input({
-        kind: "scenario",
+        capabilities: SCENARIO_CAPABILITIES,
         systems: byId(home, baseA, baseB, stray, owned, claimed),
         countries: new Map([
           [7, EMPIRE],
@@ -133,7 +134,7 @@ describe("composeOwnership", () => {
   it("keeps a scripted marauder country that holds a system of no clan, for that system", () => {
     const { owners, table } = composeOwnership(
       input({
-        kind: "scenario",
+        capabilities: SCENARIO_CAPABILITIES,
         systems: byId(system(1, 9, { home: 1 }, 2), system(2, 9, { base: 1 }, 1), system(3, 9)),
         countries: new Map([[9, SCRIPTED_CLAN]]),
       }),
@@ -146,7 +147,7 @@ describe("composeOwnership", () => {
   it("keeps a second clan apart from the first, and a base of no home out of both", () => {
     const { owners, table } = composeOwnership(
       input({
-        kind: "scenario",
+        capabilities: SCENARIO_CAPABILITIES,
         systems: byId(
           system(1, null, { home: 1 }, 2),
           system(2, null, { base: 1 }, 1),

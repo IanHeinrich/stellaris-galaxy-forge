@@ -15,7 +15,7 @@ import { documentCapabilities } from "../../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
 import type { BypassKinds } from "../../lib/details/icons";
 import type { GeometryAdapter } from "../../lib/details/orbitIntent";
-import { geometryAdapterFor, NO_GEOMETRY } from "../../lib/details/saveGeometry";
+import { geometryAdapterFor, NO_GEOMETRY } from "../../lib/details/geometryAdapters";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import type { SceneLayerId } from "../../lib/visual/layerIds";
