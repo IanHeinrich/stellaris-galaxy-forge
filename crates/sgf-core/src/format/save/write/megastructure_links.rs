@@ -13,7 +13,7 @@ use crate::document::Document;
 use crate::emit::megastructure::{MegastructureRow, megastructure_row};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
-use crate::format::save::added::{Table, row, rows};
+use crate::format::save::added::{Table, row, rows, rows_containing};
 use crate::format::save::alloc::SlotTable;
 use crate::format::save::write::flags;
 use crate::format::save::write::id_list::{Emptied, append, unlist};
@@ -91,14 +91,9 @@ impl Holders {
         node: &Node,
         src: &[u8],
     ) -> Result<Self, OpError> {
-        let rows = rows(doc, MEGASTRUCTURES)?
-            .iter()
-            .filter(|row| read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(body))
-            .map(|row| row.id)
-            .collect();
         Ok(Self {
             key: read::scalar_u32(node, keys::MEGASTRUCTURE, src).filter(|&id| id != NULL_ID),
-            rows,
+            rows: rows_on(doc, body)?,
             flags: BODY_FLAGS
                 .into_iter()
                 .filter(|flag| read::has_flag(node, src, flag))
@@ -110,6 +105,17 @@ impl Holders {
     pub(crate) fn row_besides(&self, going: &[u32]) -> Option<u32> {
         self.rows.iter().copied().find(|id| !going.contains(id))
     }
+}
+
+/// The live rows whose `planet` is body `body`, in table order.
+fn rows_on(doc: &Document, body: u32) -> Result<Vec<u32>, OpError> {
+    // A row's planet is written in decimal, so a row without the body's digits is not on it.
+    let digits = body.to_string();
+    Ok(rows_containing(doc, MEGASTRUCTURES, digits.as_bytes())?
+        .iter()
+        .filter(|row| read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(body))
+        .map(|row| row.id)
+        .collect())
 }
 
 /// Whether the body `node` has the planet flag `megastructure`, which a structure that made
@@ -313,10 +319,7 @@ pub(crate) fn unlink_body(
         return Ok(());
     };
     let system = planet_system(&node, src, planet)?;
-    let alone = !rows(doc, MEGASTRUCTURES)?.iter().any(|row| {
-        !going.contains(&row.id)
-            && read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(planet)
-    });
+    let alone = rows_on(doc, planet)?.iter().all(|id| going.contains(id));
     let spans = body_keys(&node, src, named, alone);
     if spans.is_empty() {
         return Ok(());

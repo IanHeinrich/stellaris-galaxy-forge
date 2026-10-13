@@ -62,7 +62,10 @@ pub(crate) fn plan_add(
         return Err(OpError::UnknownSystem(system));
     }
     let refuse = megastructure_links::refuse(&new.kind);
-    let live = Live::read(&s.doc)?;
+    let bypass = match &new.bypass {
+        Some(bypass) => Some((bypass, Live::read(&s.doc)?)),
+        None => None,
+    };
     let (at, body, body_flags) = match &new.at {
         &NewMegastructurePlace::Free { x, y } => {
             if !(x.is_finite() && y.is_finite()) {
@@ -137,7 +140,7 @@ pub(crate) fn plan_add(
         }
         (Some(_), Some(body)) => Some(spawned_planet::host(s, &stored, system, body, &new.kind)?),
     };
-    if let Some(bypass) = &new.bypass {
+    if let Some((bypass, live)) = &bypass {
         if !BYPASS_KINDS.contains(&bypass.kind.as_str()) {
             return Err(refuse("adding it hasn't been tested in game".to_owned()));
         }
@@ -170,7 +173,7 @@ pub(crate) fn plan_add(
         }
         _ => None,
     };
-    let bypass_id = match &new.bypass {
+    let bypass_id = match &bypass {
         Some(_) => Some(next_id(&s.doc, Table::Bypass)?),
         None => None,
     };
@@ -183,8 +186,8 @@ pub(crate) fn plan_add(
         bypass: bypass_id,
     };
     let id = write_rows(plan, s, system, &[row])?[0];
-    if let (Some(bypass), Some(bypass_id)) = (&new.bypass, bypass_id) {
-        connect(plan, s, &live, system, id, bypass_id, bypass)?;
+    if let (Some((bypass, live)), Some(bypass_id)) = (&bypass, bypass_id) {
+        connect(plan, s, live, system, id, bypass_id, bypass)?;
         if let Some(flag) = system_flag(&bypass.kind) {
             let edit = plan.edit(&s.doc, system)?;
             if !read::has_flag(edit.entity()?, &edit.buf, flag) {
