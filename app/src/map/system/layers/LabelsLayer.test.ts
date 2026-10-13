@@ -46,9 +46,11 @@ import {
   WORMHOLE,
 } from "../drawFixture";
 import { drawnWormhole } from "../geometry";
-import { pickPlate, pickStructurePlate } from "../picking";
+import { withStructures } from "../contextFixture";
+import { plateUnder } from "../picking";
 import { NO_SOURCES } from "../sources";
-import { BASE_OUTPUT_LINE, LabelsLayer } from "./LabelsLayer";
+import { LabelsLayer } from "./LabelsLayer";
+import { BASE_OUTPUT_LINE } from "./structureLabels";
 import { NO_HIGHLIGHT } from "./SystemLayer";
 
 stubTextMeasurement();
@@ -532,25 +534,21 @@ describe("the system scene's labels layer at megastructures and starbases", () =
   });
 
   const structured = (layers: { labels: boolean; details: boolean }) => {
-    const base = context({
-      planets: [SUN, EARTH],
-      wormholes: [],
-      megastructures: [
-        megastructureSummary({ id: 1, kind: NEXUS.key, planet: EARTH.id, at: [90, 0] }),
-        megastructureSummary({ id: 2, kind: RELAY.key, at: [-120, 60] }),
-      ],
-      starbase: starbaseSummary({ level: PORT.key, name_key: "Sol Station", at: [30, -40] }),
-    });
-    return systemContext({
-      ...base,
-      megastructureTypes: new Map([NEXUS, RELAY].map((t) => [t.key, t])),
-      starbaseLevels: new Map([[PORT.key, PORT]]),
-      names: new Map([
-        [NEXUS.key, "Science Nexus"],
-        [RELAY.key, "Hyper Relay"],
-      ]),
-      sceneLayers: { ...base.sceneLayers, labels: layers.labels, details: layers.details },
-    });
+    const base = context({ planets: [SUN, EARTH], wormholes: [] });
+    const rows = [
+      megastructureSummary({ id: 1, kind: NEXUS.key, planet: EARTH.id, at: [90, 0] }),
+      megastructureSummary({ id: 2, kind: RELAY.key, at: [-120, 60] }),
+    ];
+    return withStructures(
+      systemContext({ ...base, sceneLayers: { ...base.sceneLayers, ...layers } }),
+      rows,
+      {
+        types: [NEXUS, RELAY],
+        levels: [PORT],
+        names: { [NEXUS.key]: "Science Nexus", [RELAY.key]: "Hyper Relay" },
+        stations: [starbaseSummary({ level: PORT.key, name_key: "Sol Station", at: [30, -40] })],
+      },
+    );
   };
 
   const shownHolders = (layer: LabelsLayer) =>
@@ -617,13 +615,13 @@ describe("the system scene's labels layer at megastructures and starbases", () =
       const top = cam.worldToScreen(p.x, p.y);
       return { x: top.x + 2, y: top.y + p.h / 2 };
     };
-    expect(pickStructurePlate(layer.structurePlates(), cam, inside(nexus))).toEqual({
+    expect(plateUnder(layer.structurePlates(), cam, inside(nexus))?.target).toEqual({
       kind: "megastructure",
       id: 1,
     });
-    expect(pickPlate(layer.plates(), cam, inside(nexus))).toBeNull();
-    expect(pickPlate(layer.plates(), cam, inside(earth))).toBe(EARTH.id);
-    expect(pickStructurePlate(layer.structurePlates(), cam, inside(earth))).toBeNull();
+    expect(plateUnder(layer.plates(), cam, inside(nexus))).toBeNull();
+    expect(plateUnder(layer.plates(), cam, inside(earth))?.id).toBe(EARTH.id);
+    expect(plateUnder(layer.structurePlates(), cam, inside(earth))).toBeNull();
 
     const top = cam.worldToScreen(nexus.x, nexus.y);
     const tips = [];

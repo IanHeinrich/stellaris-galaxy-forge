@@ -1,21 +1,29 @@
 /** The save and scenario systems a context test builds its scene from, without PixiJS. */
+import { expect } from "vitest";
 import type { BodyLayout } from "../../generated/BodyLayout";
+import type { MegastructureSummary } from "../../generated/MegastructureSummary";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
+import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
+import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
-import { geometryAdapterFor } from "../../lib/details/saveGeometry";
+import { geometryAdapterFor, SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import {
   bodyLayout,
   byId,
+  megastructureTypeView,
   placedNode,
   planetClassView,
   planetSummary,
+  starbaseLevelView,
   starClassView,
   systemDetails,
 } from "../../test/builders";
-import { systemContext } from "./context";
-import { fixed, SYSTEM } from "./fixture";
+import { systemContext, type SystemContext } from "./context";
+import { EARTH, fixed, LUNA, MARS, SUN, SYSTEM } from "./fixture";
+import type { SceneStructure } from "./structures";
 import { NO_SOURCES, placeIn, type SceneSubject, type SystemSources } from "./sources";
 
 export const INITIALIZER = "context_init";
@@ -102,3 +110,88 @@ export const sun = planetSummary({
 });
 
 export const scenarioSun = body(1, "pc_g_star", { orbit: fixed(0) }, { star_class: "sc_g" });
+
+/** What `withStructures` draws a system's rows and stations with; each left out stays as it was. */
+export interface StructureData {
+  readonly types?: readonly MegastructureView[];
+  readonly levels?: readonly StarbaseLevelView[];
+  /** Localised names, by key, added to the system's. */
+  readonly names?: Readonly<Record<string, string>>;
+  /** The system's starbase first, then its other stations. */
+  readonly stations?: readonly StarbaseSummary[];
+}
+
+/** `ctx` again with `rows` as its megastructures, drawn from the types and levels given. */
+export function withStructures(
+  ctx: SystemContext,
+  rows: readonly MegastructureSummary[],
+  { types, levels, names = {}, stations }: StructureData = {},
+): SystemContext {
+  const [starbase = null, ...others] = stations ?? [];
+  const placed = stations && { starbase, other_starbases: others };
+  return systemContext({
+    ...ctx,
+    details: ctx.details && { ...ctx.details, megastructures: [...rows], ...placed },
+    megastructureTypes: types ? new Map(types.map((t) => [t.key, t])) : ctx.megastructureTypes,
+    starbaseLevels: levels ? new Map(levels.map((l) => [l.key, l])) : ctx.starbaseLevels,
+    names: new Map([...ctx.names, ...Object.entries(names)]),
+  });
+}
+
+/** The one structure `ctx` draws. */
+export function onlyStructure(ctx: SystemContext): SceneStructure {
+  expect(ctx.structures).toHaveLength(1);
+  return ctx.structures[0];
+}
+
+export const NEXUS = megastructureTypeView("think_tank_3", {
+  entity: "thinktank_phase_03_entity",
+  entity_offset: [0, -20],
+});
+export const RELAY = megastructureTypeView("hyper_relay", { entity: "hyper_relay_entity" });
+export const FURNACE = megastructureTypeView("orbital_arc_furnace_1", {
+  entity: "arc_furnace_entity",
+  scales_with_planet: true,
+});
+export const FURNACE_SITE = megastructureTypeView("orbital_arc_furnace_0", {
+  entity: null,
+  construction_entity: "arc_furnace_construction_entity",
+  construction_scale: 1.02,
+});
+export const RING_ROW = megastructureTypeView("orbital_ring", {
+  entity: null,
+  scales_with_planet: true,
+});
+export const ART = megastructureTypeView("art_installation_1", { entity_offset: [-27, -27] });
+
+export const STARPORT = starbaseLevelView("starbase_level_starport", {
+  icon_frame: 2,
+  station_entity: "starbase_starport_section_entity",
+});
+export const ORBITAL_RING = starbaseLevelView("starbase_level_orbital_ring_tier_1", {
+  station_entity: "orbital_ring_section_entity",
+  scales_with_planet: true,
+});
+export const MARAUDER = starbaseLevelView("starbase_level_marauder", {
+  empire_shield: true,
+  station_entity: "empty_section_entity",
+});
+
+export const SAVE_TYPES = [NEXUS, RELAY, FURNACE, FURNACE_SITE, RING_ROW, ART];
+export const SAVE_LEVELS = [STARPORT, ORBITAL_RING, MARAUDER];
+
+/** A model 10 units wide and 6 tall whose origin is a quarter in and halfway down. */
+export const PLACEMENT = { width: 10, height: 6, anchor_x: 0.25, anchor_y: 0.5 };
+
+/**
+ * The save system of the sun, Earth, Luna and Mars, its geometry editable, with `rows` and
+ * `stations` drawn from `SAVE_TYPES` and `SAVE_LEVELS`.
+ */
+export function structuredSave(
+  rows: readonly MegastructureSummary[],
+  stations: readonly StarbaseSummary[] = [],
+  over: Partial<SystemSources> = {},
+): SystemContext {
+  const ctx = save([SUN, EARTH, LUNA, MARS], { geometry: SAVE_GEOMETRY, ...over });
+  return withStructures(ctx, rows, { types: SAVE_TYPES, levels: SAVE_LEVELS, stations });
+}

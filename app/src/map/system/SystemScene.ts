@@ -22,7 +22,8 @@ import {
 import { documentSubject, readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { moveMarks } from "./moveMarks";
-import { pickPlate, pickStructurePlate, type SceneTarget } from "./picking";
+import { plateUnder, type SceneTarget } from "./picking";
+import { isStructure, STRUCTURE_KINDS } from "./SystemGestureModel";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { ExitsLayer } from "./layers/ExitsLayer";
@@ -193,15 +194,16 @@ export class SystemScene implements Scene, SceneView, InteractionScene {
 
   plateAt(sx: number, sy: number): SceneTarget | null {
     const at = { x: sx, y: sy };
-    const structure = pickStructurePlate(this.labels.structurePlates(), this.cam, at);
-    if (structure !== null) return structure;
-    const body = pickPlate(this.labels.plates(), this.cam, at);
-    return body === null ? null : { kind: "body", id: body };
+    const structure = plateUnder(this.labels.structurePlates(), this.cam, at);
+    if (structure !== null) return structure.target;
+    const body = plateUnder(this.labels.plates(), this.cam, at);
+    return body === null ? null : { kind: "body", id: body.id };
   }
 
   markTipAt(target: SceneTarget, sx: number, sy: number): Tip | null {
     if (target.kind === "body") return this.labels.tipAt(target.id, sx, sy);
-    return target.kind === "megastructure" ? this.labels.structureTipAt(target, sx, sy) : null;
+    const tips = isStructure(target) && STRUCTURE_KINDS[target.kind].tips;
+    return tips ? this.labels.structureTipAt(target, sx, sy) : null;
   }
 
   /** Does nothing while the scene is hidden: showing it reads the stores again. */

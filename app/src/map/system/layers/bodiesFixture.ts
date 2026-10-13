@@ -17,7 +17,6 @@ import { until } from "../../../test/wait";
 import { systemContext } from "../context";
 import { rollOf, SUN, SYSTEM } from "../fixture";
 import { NO_SOURCES } from "../sources";
-import type { BodiesLayer } from "./BodiesLayer";
 
 /** Drops the last fetch's answer, so a test waits for its own. */
 export function forgetFetch(): void {
@@ -86,8 +85,8 @@ export const scenarioContext = (planets: PlanetSummary[]) =>
     ]),
   });
 
-/** The holder a body is drawn in, found by its drawn point. */
-export const holderAt = (layer: BodiesLayer, x: number, y: number) => {
+/** The holder a body or a structure is drawn in, found by its drawn point. */
+export const holderAt = (layer: { readonly container: Container }, x: number, y: number) => {
   const holder = layer.container.children.find(
     (c) => Math.abs(c.x - x) < 1e-6 && Math.abs(c.y - y) < 1e-6,
   );

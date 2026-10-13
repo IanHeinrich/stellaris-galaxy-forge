@@ -1,7 +1,19 @@
 import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
+import { PLATE_PAD_PX } from "../../../lib/details/layout";
+import type { ResourceRow } from "../../../lib/details/resources";
+import type { Names } from "../../../lib/names";
 import { ACCENT_COLOR, MAP_FONT } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
+import type { Textures } from "../../layers/details/cell";
+import {
+  RESOURCE_AMOUNT_PX,
+  type ResourceReach,
+  resourceIcons,
+  type ResourceStyles,
+} from "../../layers/details/resources";
+import type { Row } from "../../layers/details/Row";
 import type { LabelBox } from "./labelSlots";
+import { NAME_FRAME } from "./nameMarks";
 
 /** The plate behind a name: a dark wash with a faint edge, raised a little while hovered. */
 const PLATE_FILL = 0x000000;
@@ -138,4 +150,75 @@ export function standTag(tag: RadiusTag, cam: Camera, box: LabelBox, k: number):
   tag.holder.position.set(at.x, at.y);
   tag.holder.scale.set(scale.x, scale.y);
   tag.holder.visible = true;
+}
+
+/** The gap between the plate and the row of icons. */
+export const RESOURCE_GAP_PX = 2;
+
+/** A planet's name, and the name on a snug plate of anything shown like one. */
+export const PLANET_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: 12,
+  fontWeight: "600",
+  fill: 0xf2f5f9,
+  stroke: { color: 0x000000, width: 2 },
+});
+const AMOUNT_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: RESOURCE_AMOUNT_PX,
+  fill: 0xffffff,
+  stroke: { color: 0x000000, width: 2 },
+});
+const ABBREV_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: 10,
+  fontWeight: "600",
+  fill: 0xd6dde8,
+  stroke: { color: 0x000000, width: 2 },
+});
+/** A plain body's resource row; a marked body's has the galaxy row's styles. */
+export const PLAIN_RESOURCE_STYLES: ResourceStyles = { abbrev: ABBREV_STYLE, amount: AMOUNT_STYLE };
+
+/** Draws `rows` into a label's resource row, its middle at x = 0 and its top at 0. */
+export function drawResources(
+  row: Row,
+  names: Names,
+  tex: Textures,
+  rows: readonly ResourceRow[],
+  styles: ResourceStyles | undefined,
+): ResourceReach {
+  row.begin();
+  const reach = resourceIcons(row, names, tex, rows, 0, styles);
+  row.end();
+  return reach;
+}
+
+/** A body's name, its plate and how far down the plate the name stands. */
+export interface Nameplate {
+  plate: Plate;
+  name: BitmapText;
+  nameY: number;
+}
+
+/** `text` in `style` on the galaxy row's plate when `big`, else a snug one, with room for a colony's bar. */
+export function nameplate(
+  text: string,
+  style: TextStyle,
+  big: boolean,
+  colony: number | null,
+): Nameplate {
+  const g = new Graphics();
+  g.label = "plate";
+  const name = new BitmapText({ text, style });
+  name.label = "name";
+  name.anchor.set(0.5, 0);
+  const bar = colonyBarReach(colony);
+  if (big) {
+    const w = name.width + 2 * PLATE_PAD_PX + bar;
+    const plate = { g, x: 0, w, h: NAME_FRAME.height, colony };
+    return { plate, name, nameY: -NAME_FRAME.y };
+  }
+  const w = name.width + 2 * PLATE_PAD_X + bar;
+  const plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony };
+  return { plate, name, nameY: PLATE_PAD_Y };
 }

@@ -1,13 +1,54 @@
+import type { Capabilities } from "../../generated/Capabilities";
 import type { GeometryIntent } from "../../lib/details/orbitIntent";
+import { capabilityFor } from "../../lib/entities";
 import type { Pt } from "../../lib/geometry/pt";
+import { megastructureEntry, starbaseEntry, type Entry } from "../../store/inspectorStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";
 import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
 import type { SystemContext } from "./context";
-import type { StructureKind } from "./context";
+import type { StructureKind } from "./structures";
 import { HandleDrag, MegastructureDrag, WormholeDrag } from "./drags";
 import type { SceneTarget } from "./picking";
+
+/** What the scene does with a megastructure or a starbase. */
+interface StructureKindRow {
+  /** The Inspector page a click opens, named `label`. */
+  entry(system: number, id: number, label: string): Entry;
+  /** What the open document must support for that page. */
+  capability: keyof Capabilities | undefined;
+  /** The menu a right-click opens; null for the system space's. */
+  menu(system: number, id: number): ContextTarget | null;
+  /** The drag a press starts, from the scene `frame`; null where it may not move. */
+  drag(frame: SystemContext, id: number, from: Pt): Drag | null;
+  /** Its plate's resource icons show tooltips. */
+  tips: boolean;
+}
+
+export const STRUCTURE_KINDS: Readonly<Record<StructureKind, StructureKindRow>> = {
+  megastructure: {
+    entry: (_system, id, label) => megastructureEntry(id, label),
+    capability: capabilityFor("megastructure"),
+    menu: (system, id) => ({ kind: "megastructure", system, id }),
+    drag: (frame, id, from) => MegastructureDrag.start(frame, id, from),
+    tips: true,
+  },
+  starbase: {
+    entry: starbaseEntry,
+    capability: capabilityFor("starbase"),
+    menu: () => null,
+    drag: () => null,
+    tips: false,
+  },
+};
+
+/** Whether `target` names a megastructure or a starbase. */
+export function isStructure(
+  target: SceneTarget | null,
+): target is { readonly kind: StructureKind; readonly id: number } {
+  return target !== null && target.kind in STRUCTURE_KINDS;
+}
 
 /** One pointer event in the system scene, with the body, wormhole, handle or arrow under it. */
 export interface SystemInput {
@@ -86,7 +127,8 @@ function pointerOf(input: SystemInput): DragPointer {
 /** The menu a right-click opens: a body's, a belt's, a megastructure's, or the space's. */
 function menuTarget(system: number, { target, wx, wy }: SystemInput): ContextTarget {
   if (target?.kind === "body") return { kind: "body", system, id: target.id };
-  if (target?.kind === "megastructure") return { kind: "megastructure", system, id: target.id };
+  const menu = isStructure(target) ? STRUCTURE_KINDS[target.kind].menu(system, target.id) : null;
+  if (menu) return menu;
   if (target?.kind === "handle" && target.ref.kind === "belt") {
     return { kind: "belt", system, index: target.ref.index };
   }
@@ -103,9 +145,9 @@ function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | nul
     case "handle":
       return HandleDrag.start(frame, target.ref, from);
     case "megastructure":
-      return MegastructureDrag.start(frame, target.id, from);
-    case "exit":
     case "starbase":
+      return STRUCTURE_KINDS[target.kind].drag(frame, target.id, from);
+    case "exit":
       return null;
   }
 }
@@ -217,9 +259,7 @@ export class SystemGestureModel {
     if (system === null || target === null) return;
     if (target.kind === "body") intent.openBody(system, target.id);
     else if (target.kind === "wormhole") intent.openWormhole(system, target.id);
-    else if (target.kind === "megastructure" || target.kind === "starbase") {
-      intent.openStructure(system, target.kind, target.id);
-    }
+    else if (isStructure(target)) intent.openStructure(system, target.kind, target.id);
   }
 
   /** A pointer up comes once the last button is released, so it ends whatever gesture is going. */
