@@ -88,7 +88,7 @@ fn seat_odds() -> u32 {
     SEAT_INITIALIZERS.iter().map(|(_, odds)| odds).sum()
 }
 
-pub(crate) use crate::rng::{GOLDEN, mix, unit};
+pub(crate) use crate::rng::unit;
 
 /// The statements of a system's `effect` block that make the game treat it as an empire's
 /// home, written whole by the plain profile on a seat it gives one of

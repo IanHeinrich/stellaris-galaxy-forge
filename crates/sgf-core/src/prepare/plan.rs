@@ -8,9 +8,9 @@ use super::{Drawn, PrepareChoice, PrepareError, PrepareRow, RowChoice, RowSystem
 use crate::format::scenario::ScenarioProfile;
 use crate::format::scenario::fe_zone::{self, FeZone, Site};
 use crate::format::scenario::header_counts::{MOST_FALLEN_EMPIRES, is_seat};
-use crate::format::scenario::{GOLDEN, mix};
 use crate::ops::rules::fe_zone as rules;
 use crate::projections::galaxy::{GalaxyGraph, SystemNode};
+use crate::rng::{GOLDEN, Rng, mix};
 use crate::session::Session;
 
 /// The draws one seed feeds beside Plain system's, each from its own stream, so that one
@@ -26,25 +26,12 @@ impl Stream {
     pub(super) fn seed(self, seed: u64) -> u64 {
         mix(seed ^ (self as u64).wrapping_mul(GOLDEN))
     }
-}
 
-/// SplitMix64 over one [`Stream`] of a seed.
-pub(super) struct SplitMix(u64);
-
-impl SplitMix {
-    pub(super) fn new(seed: u64, stream: Stream) -> Self {
-        Self(stream.seed(seed))
-    }
-
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(GOLDEN);
-        mix(self.0)
-    }
-
-    /// `items` in an order the stream draws, by Fisher and Yates' shuffle.
-    pub(super) fn shuffle<T>(&mut self, items: &mut [T]) {
+    /// `items` in an order this stream of `seed` draws, by Fisher and Yates' shuffle.
+    pub(super) fn shuffle<T>(self, seed: u64, items: &mut [T]) {
+        let mut rng = Rng::new(self.seed(seed));
         for i in (1..items.len()).rev() {
-            let j = (self.next() % (i as u64 + 1)) as usize;
+            let j = (rng.next_u64() % (i as u64 + 1)) as usize;
             items.swap(i, j);
         }
     }
@@ -162,7 +149,7 @@ impl<'a> Plan<'a> {
             })
             .collect();
         let mut candidates = rules::candidates(&sites);
-        SplitMix::new(self.seed, Stream::Zones).shuffle(&mut candidates);
+        Stream::Zones.shuffle(self.seed, &mut candidates);
         let seats: Vec<(f64, f64)> = self
             .seats
             .iter()

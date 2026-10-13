@@ -1,16 +1,17 @@
 //! The seats: the ones that stay, New random seats, UNE seat, and the home system effect
 //! that follows them.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
-use super::plan::{KEPT_FROM_SEATS, Plan, SplitMix, Stream, in_row, nodes};
+use super::plan::{KEPT_FROM_SEATS, Plan, Stream, in_row, nodes};
 use super::{PlainDraw, PrepareChoice, PrepareError, PrepareRow, RANDOM_START_DISTANCE};
 use super::{initializer, plain_system};
 use crate::format::scenario::fe_zone;
 use crate::format::scenario::header_counts::{SeatCounts, is_seat};
-use crate::format::scenario::{ScenarioProfile, is_seat_initializer, unit};
+use crate::format::scenario::{ScenarioProfile, is_seat_initializer};
 use crate::ops::Op;
 use crate::projections::galaxy::{GalaxyGraph, PaintSpawnKind, SpawnScript, SystemNode};
+use crate::rng::unit;
 
 /// How far the spacing between new seats comes down each time they do not fit.
 const SEAT_SPACING_STEP: f64 = 5.0;
@@ -123,7 +124,7 @@ impl<'a> Plan<'a> {
             return Err(PrepareError::NoSeatsToDraw);
         }
         let mut candidates = self.seat_candidates();
-        SplitMix::new(self.seed, Stream::Seats).shuffle(&mut candidates);
+        Stream::Seats.shuffle(self.seed, &mut candidates);
         let staying: Vec<(f64, f64)> = self
             .seats_after()
             .iter()
@@ -201,38 +202,13 @@ fn spaced(
 
 /// The systems of the largest part of the map that hyperlanes join, lower ids first on a tie.
 fn largest_by_lanes(graph: &GalaxyGraph) -> BTreeSet<u32> {
-    let mut adjacent: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
-    for system in graph.systems.values() {
-        for lane in system
-            .lanes
-            .iter()
-            .filter(|l| graph.systems.contains_key(&l.to))
-        {
-            adjacent.entry(system.id).or_default().push(lane.to);
-            adjacent.entry(lane.to).or_default().push(system.id);
-        }
-    }
-    let mut seen = BTreeSet::new();
-    let mut largest = BTreeSet::new();
-    for &start in adjacent.keys() {
-        if !seen.insert(start) {
-            continue;
-        }
-        let mut part = BTreeSet::from([start]);
-        let mut stack = vec![start];
-        while let Some(id) = stack.pop() {
-            for &next in &adjacent[&id] {
-                if seen.insert(next) {
-                    part.insert(next);
-                    stack.push(next);
-                }
-            }
-        }
-        if part.len() > largest.len() {
-            largest = part;
-        }
-    }
-    largest
+    graph
+        .lane_components()
+        .into_iter()
+        .next()
+        .filter(|part| part.len() > 1)
+        .map(BTreeSet::from_iter)
+        .unwrap_or_default()
 }
 
 /// The one Sol UNE seat seats. Several Sols are refused, and so is a Sol seat another

@@ -5,8 +5,8 @@ use ts_rs::TS;
 
 use crate::format::scenario::ScenarioProfile;
 use crate::format::scenario::fe_zone::FeZone;
-use crate::format::scenario::unit;
 use crate::ops::Op;
+use crate::rng::unit;
 
 /// One row of the panel. Each system stands in exactly one of the initializer rows, Home
 /// starts to Ordinary systems, unless it is a seat or a fallen empire's; Empire seats,
