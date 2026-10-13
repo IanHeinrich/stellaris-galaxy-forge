@@ -3,6 +3,7 @@
 //! one back and gives up the new one, undo is byte-exact, a removal after it gives back
 //! the file as opened, and what the op refuses.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::ops::{Op, OpError, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 
@@ -138,7 +139,7 @@ fn what_a_rename_refuses() {
         let home = sample.home();
         let error = session.apply(rename(home, UNPOOLED)).expect_err("original");
         assert!(
-            matches!(error, OpError::SystemNotAdded(held) if held == home),
+            matches!(error, OpError::NotAdded { kind: EntityKind::System, id: held } if held == home),
             "{error}"
         );
         let error = session

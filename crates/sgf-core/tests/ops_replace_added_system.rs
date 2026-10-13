@@ -6,6 +6,7 @@
 
 use std::collections::BTreeSet;
 
+use sgf_core::entity::EntityKind;
 use sgf_core::ops::{Op, OpError, SystemSpec};
 use sgf_core::views::{GalaxyView, SystemDetail};
 
@@ -265,7 +266,7 @@ fn what_a_reroll_refuses() {
             .apply(reroll(sample.joiner, rerolled(spike.clone())))
             .expect_err("a system the file held");
         assert!(
-            matches!(error, OpError::SystemNotAdded(id) if id == sample.joiner),
+            matches!(error, OpError::NotAdded { kind: EntityKind::System, id } if id == sample.joiner),
             "{error}"
         );
         let error = session
@@ -296,7 +297,7 @@ fn what_a_reroll_refuses() {
             .apply(reroll(first, rerolled(spike.clone())))
             .expect_err("added before the file was reopened");
         assert!(
-            matches!(error, OpError::SystemNotAdded(id) if id == first),
+            matches!(error, OpError::NotAdded { kind: EntityKind::System, id } if id == first),
             "{error}"
         );
         assert!(!reopened.is_dirty());

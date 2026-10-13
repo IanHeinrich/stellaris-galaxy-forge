@@ -4,7 +4,7 @@
 
 use sgf_core::entity::views::EntityKind;
 use sgf_core::format::save::details::HeuristicResolver;
-use sgf_core::ops::{MegastructurePlace, Op};
+use sgf_core::ops::{MegastructurePlace, NewMegastructure, Op};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
 
@@ -351,25 +351,27 @@ fn a_row_dropped_on_another_planet_at_its_own_point_takes_it_as_its_planet() {
 fn a_row_added_beside_its_planet_comes_back_there() {
     let mut session = open_4_5();
     let mut nexus = common::examples::sol_nexus();
-    if let Op::AddMegastructure { at, .. } = &mut nexus {
-        *at = MegastructurePlace::Beside {
+    if let Op::AddMegastructure { spec, .. } = &mut nexus {
+        spec.at = MegastructurePlace::Beside {
             body: 6,
             x: 40.0,
             y: -30.0,
-        };
+        }
+        .into();
     }
     session.apply(nexus).expect("the add");
     let removed = session
         .apply(Op::RemoveMegastructure {
             megastructure: ADDED_MEGASTRUCTURE,
             construction: None,
+            left_out: 0,
         })
         .expect("the removal");
-    let Op::AddMegastructure { at, .. } = removed.inverse else {
+    let Op::AddMegastructure { spec, .. } = removed.inverse else {
         panic!("an add, not {:?}", removed.inverse);
     };
     assert_eq!(
-        at,
+        spec.at.place(),
         MegastructurePlace::Beside {
             body: 6,
             x: 40.0,
@@ -449,17 +451,11 @@ fn a_planet_the_game_counts_a_megastructure_at_takes_one() {
     session
         .apply(Op::AddMegastructure {
             system: 596,
-            kind: "think_tank_3".to_owned(),
-            name: None,
-            at: MegastructurePlace::Body { body: 6266 },
-            owner: None,
-            bypass: None,
-            ruined_orbital_ring: false,
-            megastructure_flag: false,
-            orbital_flag: false,
-            star_only: false,
-            construction: None,
-            left_out: 0,
+            spec: NewMegastructure {
+                kind: "think_tank_3".to_owned(),
+                at: MegastructurePlace::Body { body: 6266 }.into(),
+                ..NewMegastructure::default()
+            },
         })
         .expect("the add");
     round_trip_step(&mut session, "flagged", to_body(ADDED_MEGASTRUCTURE, 6267));

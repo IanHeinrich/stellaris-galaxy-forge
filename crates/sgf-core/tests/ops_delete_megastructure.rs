@@ -3,7 +3,7 @@
 //! structure made, byte-exact undo and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::{MegastructureDismantle, Op, VariableDrop};
+use sgf_core::ops::{MegastructureDismantle, Op, VariableStep};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
 
@@ -309,7 +309,7 @@ fn furnace_dismantle() -> MegastructureDismantle {
             .map(|n| format!("orbital_arc_furnace_{n}_mod"))
             .collect(),
         deposits: (1..=4).map(|n| format!("d_arc_furnace_{n}")).collect(),
-        variables: vec![VariableDrop {
+        variables: vec![VariableStep {
             variable: "arc_furnace_counter".to_owned(),
             by: 1,
         }],
@@ -465,7 +465,7 @@ fn a_dyson_swarm_takes_back_its_stars_modifier() {
         dismantle: Some(MegastructureDismantle {
             modifiers: vec!["dyson_swarm_3_mod".to_owned()],
             deposits: Vec::new(),
-            variables: vec![VariableDrop {
+            variables: vec![VariableStep {
                 variable: "dyson_swarm_counter".to_owned(),
                 by: 1,
             }],

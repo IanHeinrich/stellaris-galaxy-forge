@@ -33,6 +33,16 @@ pub struct CstError {
     pub reason: &'static str,
 }
 
+/// The reason of the error raised when the input ends inside an open block.
+const UNCLOSED: &str = "unclosed '{'";
+
+impl CstError {
+    /// Whether the input ended inside a block it never closed.
+    pub fn ended_inside_a_block(&self) -> bool {
+        self.reason == UNCLOSED
+    }
+}
+
 /// Parse `bytes` (one statement or a whole block body) with spans offset by `base`.
 ///
 /// The result is always a synthetic root `Node { key: None, value: Block }`
@@ -76,7 +86,7 @@ fn parse_with(bytes: &[u8], base: usize, mode: Mode) -> Result<Node, CstError> {
         let open = parser.stack.last().map_or(base, |f| f.open.start);
         return Err(CstError {
             offset: open,
-            reason: "unclosed '{'",
+            reason: UNCLOSED,
         });
     }
     let root = parser.stack.pop().expect("root frame is never popped");
