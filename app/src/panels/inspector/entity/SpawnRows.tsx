@@ -1,51 +1,32 @@
 import { useEffect, type ReactNode } from "react";
 import type { BodySpawn } from "../../../generated/BodySpawn";
-import type { ClassPool } from "../../../generated/ClassPool";
-import type { SpawnPool } from "../../../generated/SpawnPool";
-import type { SpawnStar } from "../../../generated/SpawnStar";
-import { planetTint } from "../../../lib/details/icons";
 import { bodyName } from "../../../lib/details/labels";
 import {
   CLASS_SUITED_VALUE,
-  classValue,
   nameValue,
   ringValue,
   sizeValue,
 } from "../../../lib/details/scenarioValues";
-import { NEUTRAL_BAR, oddsRows } from "../../../lib/details/oddsBars";
-import { readableTint } from "../../../lib/visual/color";
 import { modelLabel } from "../../../lib/details/planetModel";
 import {
-  ANY_CLASS,
   bodyFrom,
   bodyNoun,
   CAN_ROLL_TITLE,
-  CLASS_SUITED,
-  classFitHint,
-  classListSource,
-  classRollsFailed,
   classSuitedHint,
   copyFacts,
   depositsWithClass,
+  emptyPool,
   featuresTail,
   featuresWithClass,
-  ifItRolls,
-  LIST_ORBIT_HINT,
   mergedByName,
   neverLine,
   neverSpawns,
-  offeredAsks,
-  poolPicks,
-  poolTitle,
-  type PoolPick,
-  randomDrawHint,
+  picksOf,
   setsSize,
   sharedScriptHint,
   shownWithItsRow,
-  starListSource,
   STOPPED_LABEL,
   stoppedFacts,
-  unknownClassWhy,
   valueSources,
 } from "../../../lib/details/spawnFacts";
 import { depositKinds, depositKindsTail } from "../../../lib/details/depositBars";
@@ -56,215 +37,18 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { OpenButton } from "../../OpenButton";
 import { Group, Properties, PropertyRow, Section } from "../parts";
 import { OtherLinesGroup, ScriptGroup } from "../ScriptGroup";
-import {
-  DependsOnClass,
-  Hinted,
-  HintedRow,
-  Rolled,
-  SetByLines,
-  SetByRows,
-  StateValue,
-  StoppedTag,
-  Why,
-} from "../states";
-import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
-import { useStarOdds } from "../system/sections/scenario/useStarOdds";
+import { Hinted, HintedRow, SetByLines, SetByRows, StateValue, StoppedTag } from "../states";
+import { PlanetSize } from "../system/sections/bodies";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
 import { DepositKindsList } from "./DepositPoolBars";
-import { OddsList, type Press, type ShownOdds } from "./OddsBar";
 import type { PlanetSectionProps } from "./planetSection";
 import { useGivenNames } from "./useBodyName";
-import { classDrawFit, type ClassList } from "../../../lib/details/classList";
-import { useClassList } from "./useClassList";
 import type { ClassPreview } from "./useClassPreview";
 import { useFeatureNamer } from "./useFeatureNamer";
-
-/** What the initializer's effect does to a value the block states. */
-const CHANGED_BY_EFFECT = "The initializer changes it when a new game starts.";
-
-/** The most classes listed a row each where none of their odds are known; more show as icons. */
-const MOST_CLASS_ROWS = 4;
-
-/** One class a body's class can be, as its list shows it, and the class its rolls are read as. */
-interface ClassChoice extends ShownOdds {
-  /** The class the picker reads what the body rolls as; `null` where it can't be picked. */
-  ask: string | null;
-}
-
-/** A class list that picks a class: which one is picked, how to pick another, and why its rolls failed. */
-type ClassPick = Pick<ClassPreview, "picked" | "pick" | "error">;
-
-/**
- * The classes a body's class can be: a strip of icons, each named in its card, or an odds list.
- * With `pick` and more than one class to pick, each is a toggle after an Any that unpicks them,
- * and the line under it names the class picked.
- */
-function ClassChoices({
-  choices,
-  strip,
-  pick,
-}: {
-  choices: readonly ClassChoice[];
-  strip: boolean;
-  pick: ClassPick | null;
-}) {
-  const offered = pick !== null && offeredAsks(choices.map((c) => c.ask)).length > 0 ? pick : null;
-  const any: Press | undefined =
-    offered === null
-      ? undefined
-      : { pressed: offered.picked === null, onPress: () => offered.pick(null) };
-  const picked = offered?.picked ?? null;
-  const pickedChoice = picked === null ? undefined : choices.find((c) => c.ask === picked);
-  const pickedName = picked === null ? null : (pickedChoice?.name ?? picked);
-  const pressOf = ({ row, ask }: ClassChoice): Press | undefined =>
-    offered === null || ask === null
-      ? undefined
-      : { pressed: pickedChoice?.row.key === row.key, onPress: () => offered.pick(ask) };
-  return (
-    <Why>
-      {strip ? (
-        <span className="pl-class-strip">
-          {any !== undefined && (
-            <button
-              type="button"
-              className="pl-class-pick pl-class-any"
-              aria-pressed={any.pressed}
-              onClick={any.onPress}
-            >
-              {ANY_CLASS}
-            </button>
-          )}
-          {choices.map((choice) => (
-            <Hinted
-              key={choice.row.key}
-              label={choice.name}
-              hint={<span className="mono">{choice.row.key}</span>}
-              press={pressOf(choice)}
-            >
-              <span role="img" aria-label={choice.name}>
-                {choice.icon}
-              </span>
-            </Hinted>
-          ))}
-        </span>
-      ) : (
-        <OddsList
-          lead={any === undefined ? undefined : { name: ANY_CLASS, press: any }}
-          rows={choices.map((choice) => ({ ...choice, press: pressOf(choice) }))}
-        />
-      )}
-      {pickedName !== null && <div className="muted ins-hint">{ifItRolls(pickedName)}</div>}
-      {pickedName !== null && offered?.error != null && (
-        <div className="ins-warn">
-          <Hinted label={pickedName} hint={offered.error}>
-            {classRollsFailed(pickedName)}
-          </Hinted>
-        </div>
-      )}
-    </Why>
-  );
-}
-
-/**
- * Planet classes a draw can give, as an odds list: each class's icon and name, a bar and its share
- * where known, classes that show under one name as one. More than a few classes with no odds known
- * show as a strip of icons, each named in its card.
- */
-function PlanetClassList({
-  list,
-  pick,
-}: {
-  list: Extract<ClassList, { kind: "planets" }>;
-  pick: ClassPick | null;
-}) {
-  const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const { rows: merged, asks } = list;
-  const strip = merged.length > MOST_CLASS_ROWS && merged.every((o) => o.chance === null);
-  const choices = oddsRows(
-    merged.map((o) => ({ key: o.key, share: o.chance })),
-    (key) => readableTint(planetTint(key)),
-  ).map((row, i) => ({
-    row,
-    name: merged[i].name,
-    icon: <PlanetIcon planetClass={row.key} sprite={planetClasses.get(row.key)?.icon_sprite} />,
-    ask: asks[i],
-  }));
-  return <ClassChoices choices={choices} strip={strip} pick={pick} />;
-}
-
-/** The star classes a star list draws a star body from, each picked as its star's planet class. */
-function StarClassList({
-  list,
-  pick,
-}: {
-  list: Extract<ClassList, { kind: "stars" }>;
-  pick: ClassPick | null;
-}) {
-  const choices = useStarOdds(list.star).map((odds, i) => ({ ...odds, ask: list.asks[i] }));
-  return <ClassChoices choices={choices} strip={false} pick={pick} />;
-}
-
-/**
- * What the Class row's card says decides the class: the initializer's effect, why it can't be
- * told, or what it is drawn from, `listed`'s star list where one draws it.
- */
-function classHint(
-  spawn: BodySpawn,
-  listed: Extract<SpawnStar, { state: "rolled" }> | null,
-  read: BodyRead,
-): ReactNode {
-  if (spawn.changed_class !== null) return CHANGED_BY_EFFECT;
-  const cls = spawn.class;
-  if (cls.state === "unknown") return unknownClassWhy(cls.reason, cls.written);
-  if (cls.state === "fixed") return null;
-  return rolledClassHint(cls.pool, listed, read);
-}
-
-/** What a rolled class's card says it is drawn from: `listed`'s star list, or its pool. */
-function rolledClassHint(
-  pool: ClassPool,
-  listed: Extract<SpawnStar, { state: "rolled" }> | null,
-  read: BodyRead,
-): ReactNode {
-  if (listed !== null) return starListSource(listed.list);
-  if (pool.kind === "planet_list") {
-    return (
-      <>
-        <span className="ins-set-by">{classListSource(pool.list)}</span>
-        <span className="ins-set-by">{LIST_ORBIT_HINT}</span>
-      </>
-    );
-  }
-  if (pool.kind !== "random") return null;
-  const { orbitRanged, starRolled, exact } = classDrawFit(read.details, read.summary);
-  return (
-    <>
-      <span className="ins-set-by">{randomDrawHint(pool.draw)}</span>
-      {pool.at_orbit !== undefined && !exact && (
-        <span className="ins-set-by">{classFitHint(orbitRanged, starRolled)}</span>
-      )}
-    </>
-  );
-}
-
-/** The Class row, with what decides it in its card, and the list of what it can be under it. */
-function ClassRow({ spawn, read, pick }: { spawn: BodySpawn; read: BodyRead; pick: ClassPick }) {
-  const names = useGameDataStore((s) => s.names);
-  const list = useClassList(read);
-  const listed = list?.kind === "stars" ? list.star : null;
-  const value = classValue(spawn, names, read.summary.moon, listed?.members.length ?? null);
-  return (
-    <>
-      <HintedRow label="Class" hint={classHint(spawn, listed, read)}>
-        <StateValue value={value} />
-      </HintedRow>
-      {list?.kind === "stars" && <StarClassList list={list} pick={pick} />}
-      {list?.kind === "planets" && <PlanetClassList list={list} pick={pick} />}
-    </>
-  );
-}
+import { CHANGED_BY_EFFECT, ClassRow } from "./ClassChooser";
+import { FeaturePool } from "./Pools";
 
 /** The Name row: the name the game gives the body, with how it numbers it in its card. */
 function NameRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun: string }) {
@@ -330,16 +114,6 @@ function ClassSuitedRow({ label, noun }: { label: string; noun: string }) {
       <StateValue value={CLASS_SUITED_VALUE} />
     </HintedRow>
   );
-}
-
-/** A pool's picks, or none where the install can't tell them. */
-function picksOf(pool: SpawnPool | undefined): PoolPick[] {
-  return pool?.state === "rolled" ? poolPicks(pool) : [];
-}
-
-/** Whether a pool holds nothing the roll can give, so a body has no row for it. */
-function emptyPool(pool: SpawnPool | undefined): boolean {
-  return pool?.state === "rolled" && pool.entries.length === 0;
 }
 
 /** The Deposits row of deposits rolled to suit the class, and what they can be folded under it. */
@@ -550,88 +324,5 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
         <OtherLinesGroup id="planet.initializer.other" statements={spawn.other_keys} file={file} />
       </div>
     </Section>
-  );
-}
-
-/** The most feature names listed where none of their odds are known; the rest show as a count. */
-const MOST_FEATURE_NAMES = 8;
-
-/**
- * Planet features the roll can give, each name once and likeliest first: a bar for each whose
- * chance is known, or where none is, the names in one line, after a line saying the class decides
- * unless a class is `picked`. More than a few names are cut to a count that has the whole list in
- * its card.
- */
-export function FeaturePool({ picks, picked }: { picks: readonly PoolPick[]; picked: boolean }) {
-  const named = useFeatureNamer();
-  const merged = mergedByName(picks, named);
-  if (merged.every((pick) => pick.chance === null)) {
-    const names = merged.map((pick) => pick.name);
-    const cut = names.length - MOST_FEATURE_NAMES;
-    return (
-      <>
-        {!picked && <DependsOnClass />}
-        <div className="pl-pool-names">
-          {cut > 0 ? (
-            <>
-              {names.slice(0, MOST_FEATURE_NAMES).join(", ")},{" "}
-              <Hinted label="All planet features" hint={names.join(", ")}>
-                +{cut} more
-              </Hinted>
-            </>
-          ) : (
-            names.join(", ")
-          )}
-        </div>
-      </>
-    );
-  }
-  const rows = oddsRows(
-    merged.map((p) => ({ key: p.key, share: p.chance })),
-    () => NEUTRAL_BAR,
-  );
-  return <OddsList rows={rows.map((row, i) => ({ row, name: merged[i].name }))} />;
-}
-
-/**
- * After the rows a scenario body's initializer states, what its own roll can give it, likeliest
- * first: nothing where it rolls none, and why where the class it rolls decides. `body` shows the
- * picks, and `tail` counts them as they show.
- */
-export function PoolLines({
-  pool,
-  stated,
-  noun,
-  tail,
-  body,
-}: {
-  pool: SpawnPool | undefined;
-  stated: number;
-  /** What the page calls the body, for the cards. */
-  noun: string;
-  /** The line's tail after "Can roll ·". */
-  tail: (picks: PoolPick[]) => string;
-  body: (picks: PoolPick[]) => ReactNode;
-}) {
-  if (pool === undefined || pool.state === "fixed") return null;
-  if (pool.state === "unknown") {
-    return (
-      <div className="pl-sub-head">
-        <Hinted label={CLASS_SUITED} hint={classSuitedHint(noun)}>
-          <StateValue value={CLASS_SUITED_VALUE} />
-        </Hinted>
-      </div>
-    );
-  }
-  const picks = poolPicks(pool);
-  if (picks.length === 0) return null;
-  return (
-    <>
-      <div className="pl-sub-head">
-        <Rolled />
-        {poolTitle(stated, tail(picks))}
-      </div>
-      {body(picks)}
-    </>
   );
 }

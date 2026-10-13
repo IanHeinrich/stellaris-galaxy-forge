@@ -52,7 +52,7 @@ import {
   ClassDependent,
   SpawnHeadNotes,
   SpawnProperties,
-} from "./SpawnFacts";
+} from "./SpawnRows";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useGivenNames } from "./useBodyName";
 import { useClassPreview } from "./useClassPreview";

@@ -432,6 +432,16 @@ export function poolPicks(pool: Extract<SpawnPool, { state: "rolled" }>): PoolPi
   }));
 }
 
+/** A pool's picks, or none where the install can't tell them. */
+export function picksOf(pool: SpawnPool | undefined): PoolPick[] {
+  return pool?.state === "rolled" ? poolPicks(pool) : [];
+}
+
+/** Whether a pool holds nothing the roll can give, so a body has no row for it. */
+export function emptyPool(pool: SpawnPool | undefined): boolean {
+  return pool?.state === "rolled" && pool.entries.length === 0;
+}
+
 /** The keys a pool can give, for their names to be read. */
 export function poolKeys(pool: SpawnPool | undefined): string[] {
   return pool?.state === "rolled" ? pool.entries.map((e) => e.key) : [];
