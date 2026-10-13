@@ -269,10 +269,16 @@ button.chip.jump:hover {
   height: 22px;
 }
 
+/* Its inputs shrink below their default width, so a narrow dock doesn't scroll sideways. */
 .ins-header-row.add {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   margin-top: 4px;
   padding-top: 6px;
   border-top: 1px solid var(--ins-rule);
+}
+
+.ins-header-row.add input {
+  min-width: 0;
 }
 
 .ins-header-row.repeated {
