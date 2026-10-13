@@ -205,15 +205,16 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
             {owning.name} <span className="muted">{owning.note}</span>
           </output>
         </div>
-        {entries.length === 0 ? (
+        {fits === null && fitsError === null ? (
+          <div className="megastructure-add-loading" role="status" aria-busy="true">
+            <span className="spinner" aria-hidden="true" />
+            {READING_FITS}
+          </div>
+        ) : entries.length === 0 ? (
           <div className="field">
             <span>Type</span>
             <output className="muted">
-              {fitsError !== null
-                ? fitsUnread(fitsError)
-                : fits === null
-                  ? READING_FITS
-                  : NO_MEGASTRUCTURE_FITS}
+              {fitsError !== null ? fitsUnread(fitsError) : NO_MEGASTRUCTURE_FITS}
             </output>
           </div>
         ) : (

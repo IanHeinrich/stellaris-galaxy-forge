@@ -175,6 +175,7 @@ describe("the Add megastructure dialog", () => {
     useMegastructureAddStore.setState({ fits: null, fitsError: null });
     let html = renderToStaticMarkup(<AddMegastructureDialog />);
     expect(html).toContain(READING_FITS);
+    expect(html).toContain('aria-busy="true"');
     expect(html).toContain('type="submit" class="primary" disabled=""');
     useMegastructureAddStore.setState({ fitsError: "no such system" });
     html = renderToStaticMarkup(<AddMegastructureDialog />).replace(/&#x27;/g, "'");
