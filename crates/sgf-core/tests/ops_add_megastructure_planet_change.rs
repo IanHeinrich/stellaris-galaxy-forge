@@ -14,8 +14,8 @@ use common::{assert_refusals, entity_text, open_4_5};
 /// with that change, Alari's gas giant 6 changes class and takes the row in one edit, named as
 /// the session names it, and undo gives the bytes back. The class goes first: the class op refuses a planet that has a
 /// megastructure, which the game's own order, row first, would meet. Added without the
-/// change, only the row is written and the planet stays a gas giant. The batch is the one
-/// sgf-gamedata's megastructure join builds for the Orchid, which its
+/// change, only the row is written and the planet stays a gas giant. The class change is the
+/// class change the join builds for the Orchid, which sgf-gamedata's
 /// `the_join_builds_the_orchids_batch_from_the_playset` test pins.
 #[test]
 fn a_megastructure_that_changes_its_planet_is_added_with_the_change_in_one_edit() {
