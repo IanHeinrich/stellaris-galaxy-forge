@@ -4,6 +4,7 @@
 mod common;
 
 mod add_body;
+mod add_megastructure;
 mod add_system;
 mod apply;
 mod details;

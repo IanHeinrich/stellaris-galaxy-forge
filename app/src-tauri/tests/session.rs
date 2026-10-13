@@ -117,7 +117,7 @@ fn save_and_save_as() {
     let w = webview();
 
     assert_eq!(
-        kind(invoke::<SaveResult>(&w, "save", json!({}))),
+        kind(invoke::<SaveResult>(&w, "save", json!({ "force": false }))),
         ErrorKind::NoSession,
         "save before any open"
     );
@@ -139,7 +139,7 @@ fn save_and_save_as() {
 
     std::fs::copy(SAMPLE_45, &copy_path).expect("the game writes the file meanwhile");
     assert_eq!(
-        kind(invoke::<SaveResult>(&w, "save", json!({}))),
+        kind(invoke::<SaveResult>(&w, "save", json!({ "force": false }))),
         ErrorKind::ChangedOnDisk,
         "a file written since it was opened is not overwritten unasked"
     );
@@ -184,8 +184,12 @@ fn save_and_save_as() {
 
     let second_path = dir.path().join("moved-elsewhere.sav");
     let second_path = second_path.to_string_lossy().into_owned();
-    let saved_as: SaveResult =
-        invoke(&w, "save_as", json!({ "path": second_path })).expect("save_as a fresh path");
+    let saved_as: SaveResult = invoke(
+        &w,
+        "save_as",
+        json!({ "path": second_path, "force": false }),
+    )
+    .expect("save_as a fresh path");
     assert_eq!(saved_as.path, second_path, "save_as writes to the new path");
     assert_eq!(
         saved_as.backup_path, None,
@@ -267,7 +271,7 @@ fn scenario_documents_open_start_and_export() {
     assert!(fresh.galaxy.systems.is_empty());
     assert!((fresh.galaxy.galaxy_radius - 300.0).abs() < 1e-9);
     assert_eq!(
-        kind(invoke::<SaveResult>(&w, "save", json!({}))),
+        kind(invoke::<SaveResult>(&w, "save", json!({ "force": false }))),
         ErrorKind::Io,
         "a pathless session cannot save in place"
     );
@@ -276,7 +280,8 @@ fn scenario_documents_open_start_and_export() {
         .join("sgf_test.txt")
         .to_string_lossy()
         .into_owned();
-    let saved: SaveResult = invoke(&w, "save_as", json!({ "path": fresh_path })).expect("save as");
+    let saved: SaveResult =
+        invoke(&w, "save_as", json!({ "path": fresh_path, "force": false })).expect("save as");
     assert_eq!(saved.path, fresh_path);
     assert!(!saved.dirty);
 
@@ -373,7 +378,8 @@ fn a_save_opened_as_a_scenario_shows_the_issues_of_the_scenario_it_opened() {
             .join(format!("{i}.txt"))
             .to_string_lossy()
             .into_owned();
-        invoke::<SaveResult>(&w, "save_as", json!({ "path": path })).expect("save as");
+        invoke::<SaveResult>(&w, "save_as", json!({ "path": path, "force": false }))
+            .expect("save as");
         let reopened = open(&w, &path);
         let (dropped, own): (Vec<_>, Vec<_>) = as_scenario
             .issues

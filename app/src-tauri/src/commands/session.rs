@@ -45,9 +45,8 @@ pub async fn open_document<R: Runtime>(
 #[tauri::command]
 pub async fn reload_document<R: Runtime>(
     app: AppHandle<R>,
-    discard: Option<bool>,
+    discard: bool,
 ) -> Result<OpenResult, SgfError> {
-    let discard = discard.unwrap_or(false);
     let path = with_session(app.clone(), move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         if !discard {
@@ -167,7 +166,7 @@ pub async fn export_scenario<R: Runtime>(
     let (text, report, dirty) = with_session(app.clone(), {
         let path = path.clone();
         move |guard| {
-            let session = require(guard.as_ref(), |c| c.details, NO_EXPORT)?;
+            let session = require(guard.as_ref(), |c| c.export, NO_EXPORT)?;
             let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
             let name = Path::new(&path)
                 .file_stem()
@@ -208,7 +207,7 @@ pub async fn preview_export<R: Runtime>(
 ) -> Result<ExportReport, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), |c| c.details, NO_EXPORT)?;
+        let session = require(guard.as_ref(), |c| c.export, NO_EXPORT)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::scenario_text(
             session.graph(),
@@ -291,7 +290,7 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
 pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUse>, SgfError> {
     with_session(app, |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if !Capabilities::of(session.doc()).details {
+        if !Capabilities::of(session.doc()).export {
             return Ok(Vec::new());
         }
         Ok(session.details().map_err(SessionError::from)?.models())
@@ -348,11 +347,8 @@ pub async fn redo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, S
 /// `changed_on_disk` when something else wrote the file since it was opened or last saved,
 /// unless `force`. Emits `sgf://progress`.
 #[tauri::command]
-pub async fn save<R: Runtime>(
-    app: AppHandle<R>,
-    force: Option<bool>,
-) -> Result<SaveResult, SgfError> {
-    save_to(app, None, force.unwrap_or(false)).await
+pub async fn save<R: Runtime>(app: AppHandle<R>, force: bool) -> Result<SaveResult, SgfError> {
+    save_to(app, None, force).await
 }
 
 /// Write the open session to `path`, which becomes the session's path. When `path` is the
@@ -361,9 +357,9 @@ pub async fn save<R: Runtime>(
 pub async fn save_as<R: Runtime>(
     app: AppHandle<R>,
     path: String,
-    force: Option<bool>,
+    force: bool,
 ) -> Result<SaveResult, SgfError> {
-    save_to(app, Some(path), force.unwrap_or(false)).await
+    save_to(app, Some(path), force).await
 }
 
 async fn save_to<R: Runtime>(

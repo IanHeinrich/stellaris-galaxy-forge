@@ -149,6 +149,7 @@ export const SAVE_CAPABILITIES: Capabilities = {
   scripted_owners: false,
   scripts: false,
   text_file: false,
+  export: true,
 };
 
 /** What a static galaxy scenario supports. */
@@ -190,4 +191,5 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   scripted_owners: true,
   scripts: true,
   text_file: true,
+  export: false,
 };

@@ -133,12 +133,6 @@ fn require<S: Deref<Target = Session>>(
     Ok(session)
 }
 
-/// A document with its own details is a save, of any version: the core refuses what that
-/// version cannot take.
-fn is_save(capabilities: Capabilities) -> bool {
-    capabilities.details
-}
-
 fn lock<'a>(state: &'a State<'_, AppState>) -> MutexGuard<'a, Option<Session>> {
     relock(&state.0)
 }

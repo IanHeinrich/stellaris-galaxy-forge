@@ -82,7 +82,8 @@ describe("adding a planet or moon to a save system", () => {
   it("rolls the body in one edit and shows it alone, with its page open", async () => {
     mockedIpc.addBody.mockResolvedValueOnce({
       edit: editResult({ details_stale: [0] }),
-      planet: 20,
+      planets: [20],
+      megastructures: [],
     });
 
     expect(await editor().addBodyAt(0, at, null, "pc_desert")).toBe(true);
@@ -104,7 +105,11 @@ describe("adding a planet or moon to a save system", () => {
   });
 
   it("asks for a random moon of a planet", async () => {
-    mockedIpc.addBody.mockResolvedValueOnce({ edit: editResult(), planet: 21 });
+    mockedIpc.addBody.mockResolvedValueOnce({
+      edit: editResult(),
+      planets: [21],
+      megastructures: [],
+    });
     expect(await editor().addBodyAt(0, { radius: 25, angle: 0 }, 2)).toBe(true);
     expect(mockedIpc.addBody.mock.calls[0].slice(0, 6)).toEqual([0, 2, null, null, 25, 0]);
   });

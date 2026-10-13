@@ -226,6 +226,30 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Add a finished megastructure of type KIND to a system of a Stellaris 4.x save, as the
+    /// app adds one: on or around --body, beside --body at --at, or at its own point --at as
+    /// `X,Y` about the star. It goes to the system's owner with what its build chain adds
+    /// there, and changes its planet's class or size as the build does, unless --keep-planet:
+    ///   sgf add-megastructure game.sav 169 think_tank_3 --body 6
+    #[command(verbatim_doc_comment)]
+    AddMegastructure {
+        sav: PathBuf,
+        system: u32,
+        kind: String,
+        /// The body it stands on or around, or beside with --at.
+        #[arg(long, required_unless_present = "at")]
+        body: Option<u32>,
+        /// Its own point about the star, as `X,Y`.
+        #[arg(long, value_parser = point, allow_hyphen_values = true)]
+        at: Option<(f64, f64)>,
+        /// Leave the planet's class and size as they are.
+        #[arg(long)]
+        keep_planet: bool,
+        #[command(flatten)]
+        install: InstallArg,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Copy save planets, each with its moons, and paste the copies as new bodies into
     /// system --to: one at --at when given as `RADIUS,ANGLE`, else each on the next free
     /// orbit past the system's reach. --from copies them from another save:

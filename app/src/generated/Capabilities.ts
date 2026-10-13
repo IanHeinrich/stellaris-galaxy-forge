@@ -157,4 +157,8 @@ scripts: boolean,
  * The document is a text file of its own, so an editor can open it: a scenario script,
  * not a save's archive.
  */
-text_file: boolean, };
+text_file: boolean, 
+/**
+ * The document can be exported as a scenario script, and its models listed for baking.
+ */
+export: boolean, };

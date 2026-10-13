@@ -57,13 +57,7 @@ const KIND_SEAM: &[&str] = &[
 /// Today's kind checks, each with the batch that turns it into a capability read.
 const KIND_OFFENDERS: &[(&str, &str)] = &[
     ("crates/sgf-core/src/export/mod.rs", "2h"),
-    ("crates/sgf-cli/src/commands/mod.rs", "3b"),
     ("crates/sgf-cli/src/commands/prepare.rs", "2h"),
-    ("app/src-tauri/src/commands/add_body.rs", "3b"),
-    ("app/src-tauri/src/commands/add_habitat.rs", "3b"),
-    ("app/src-tauri/src/commands/add_megastructure.rs", "3b"),
-    ("app/src-tauri/src/commands/add_ring_world.rs", "3b"),
-    ("app/src-tauri/src/commands/mod.rs", "3b"),
 ];
 
 /// `source` up to its inline `#[cfg(test)] mod tests`, if it has one.
