@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use sgf_core::emit::roman;
+use sgf_core::projections::name::letter;
 use sgf_core::views::details::{
     BodyRole, Bounds, ClassPool, ClassRolls, DepositStep, OrbitFit, PlanetSummary, PoolClass,
     PoolEntry, SpawnClass, SpawnName, SpawnPool, SpawnRing,
 };
-use sgf_core::projections::name::letter;
 
 use crate::GameData;
 use crate::deposit_roll::{self, Kind, RollBody};
