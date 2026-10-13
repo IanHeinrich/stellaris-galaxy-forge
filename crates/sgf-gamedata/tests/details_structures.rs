@@ -98,7 +98,7 @@ fn every_way_an_initializer_places_a_megastructure_gives_a_row_where_it_stands()
             true,
         ),
         ("fixture_gateway", None, SpawnPlace::Random, true),
-        ("hyper_relay_ruined", None, SpawnPlace::Random, true),
+        ("fixture_relay_ruined", None, SpawnPlace::Random, true),
         (
             "fixture_lost",
             None,
