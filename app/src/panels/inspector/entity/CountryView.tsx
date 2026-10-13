@@ -10,6 +10,7 @@ import {
   emblemGroups,
   emblemItem,
   empireFlag,
+  FLAG_NEEDS_GAME_DATA,
   flagMods,
   paletteLines,
   paletteSwatch,
@@ -43,7 +44,6 @@ import { useEntityView } from "./useEntity";
 
 export const MAP_COLORS_NEED_4_5 = "Map colours need a Stellaris 4.5 save";
 export const INDEPENDENT_MAP_COLOUR = "Independent map colour";
-export const FLAG_NEEDS_GAME_DATA = "Load game data to change the flag";
 export const FLAG_UNREADABLE = "The save has no complete flag for this empire";
 
 /** The root level of the country, whose government the About block reads. */

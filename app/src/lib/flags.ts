@@ -22,6 +22,9 @@ export function paletteSwatch(
   return { key: name, label: name, color: color[use] };
 }
 
+/** Why the flag is read-only until the install's emblems and backgrounds are read. */
+export const FLAG_NEEDS_GAME_DATA = needsGameData("change the flag");
+
 /** Which palette the swatches come from, and what choosing from a mod's asks of the save. */
 export function paletteLines(
   palette: ReadonlyMap<string, MapColor>,

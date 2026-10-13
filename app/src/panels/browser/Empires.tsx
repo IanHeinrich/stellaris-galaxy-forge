@@ -4,6 +4,7 @@ import type { Territory } from "../../generated/Territory";
 import { empireGroups, specialSystemOfCountry } from "../../lib/browserRows";
 import { empireFlagKey } from "../../lib/details/fleets";
 import { ASSUMED_CLAIM_TITLE, systemsOf, type Ownership } from "../../lib/ownership";
+import { needsGameData } from "../../lib/text";
 import { toCss } from "../../lib/visual/color";
 import { ownerColor } from "../../lib/visual/ownerColors";
 import { rowLookups, type EmpireRow } from "../../store/browserRows";
@@ -148,8 +149,9 @@ export const TERRITORY_NOTE =
 const TERRITORY_NONE =
   "No initializer script in the loaded game data gives any of this scenario's systems an owner.";
 
-const TERRITORY_NEEDS_GAME_DATA =
-  "Load game data to read the territories from the initializer scripts the install and its mods define.";
+const TERRITORY_NEEDS_GAME_DATA = needsGameData(
+  "read the territories from the initializer scripts the install and its mods define",
+);
 
 /**
  * Every country in the save but the enclaves, grouped by type. A row goes to its capital, or

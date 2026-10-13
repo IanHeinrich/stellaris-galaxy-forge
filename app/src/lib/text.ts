@@ -34,14 +34,11 @@ export function counted(n: number, noun: string, plural = `${noun}s`): string {
   return `${n} ${n === 1 ? noun : plural}`;
 }
 
-const LISTS = {
-  and: new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" }),
-  or: new Intl.ListFormat("en-GB", { style: "long", type: "disjunction" }),
-};
+const LIST_TYPES = { and: "conjunction", or: "disjunction" } as const;
 
 /** `["a", "b", "c"], "and"` → `a, b and c`; `"or"` gives `a, b or c`; one item stands alone. */
 export function listed(items: readonly string[], joiner: "and" | "or"): string {
-  return LISTS[joiner].format(items);
+  return new Intl.ListFormat("en-GB", { style: "long", type: LIST_TYPES[joiner] }).format(items);
 }
 
 /** `add a system` → `Load game data to add a system.`: why a control is off until the install is read. */

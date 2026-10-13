@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listed, needsGameData, withArticle } from "./text";
+import { listed, withArticle } from "./text";
 
 describe("listed", () => {
   it("joins with and, without a comma before the last", () => {
@@ -15,12 +15,6 @@ describe("listed", () => {
     expect(listed(["Kanthe II", "Kanthe III", "Kanthe IV"], "or")).toBe(
       "Kanthe II, Kanthe III or Kanthe IV",
     );
-  });
-});
-
-describe("needsGameData", () => {
-  it("words the reason with a full stop", () => {
-    expect(needsGameData("add a system")).toBe("Load game data to add a system.");
   });
 });
 
