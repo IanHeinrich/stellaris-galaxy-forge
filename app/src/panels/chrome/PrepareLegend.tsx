@@ -3,6 +3,7 @@ import { toCss } from "../../lib/visual/color";
 import { OUTCOME_COLORS, OUTCOME_STROKE } from "../../lib/visual/outcomeColors";
 import { shownProjection, systemOutcomes, usePrepareStore } from "../../store/prepareStore";
 import "./chrome.css";
+import "../panels.css";
 
 const OUTCOMES: readonly Outcome[] = ["seat", "zone"];
 
@@ -22,7 +23,7 @@ export function PrepareLegend() {
   }
   if (counts.size === 0 && !projected) return null;
   return (
-    <div className="prepare-legend" role="note" aria-label="What the map shows">
+    <div className="prepare-legend pop-surface" role="note" aria-label="What the map shows">
       {projected && <div className="muted">{MAP_PREVIEW_NOTE}</div>}
       {OUTCOMES.filter((outcome) => counts.has(outcome)).map((outcome) => (
         <div key={outcome} className="prepare-legend-row">

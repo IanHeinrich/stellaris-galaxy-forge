@@ -10,6 +10,7 @@ import type {
   MegastructureStage,
 } from "./megastructurePicks";
 import { orbitText, placementAt } from "./planetMove";
+import { RING_WRITTEN } from "./ringWorldAdd";
 import { capitalised, needsGameData } from "./text";
 
 export const ADD_MEGASTRUCTURE_HERE_LABEL = "Add megastructure here…";
@@ -106,6 +107,52 @@ export function addLabel(stage: MegastructureStage, chain: MegastructureChain): 
 export const OWNER_NOTE = "It goes to the empire that owns the system.";
 export const NO_OWNER = "No owner";
 export const NO_OWNER_NOTE = "A megastructure goes to the empire that owns its system.";
+
+/**
+ * The dialog's Owner line: who the megastructure goes to, `ownerName` naming the empire that owns
+ * the system, and the note after it. `orbitHosted` when a habitat's major orbital comes with it.
+ */
+export function ownerLine(
+  habitat: boolean,
+  owner: number | null,
+  ownerName: string | null,
+  orbitHosted: boolean,
+): { name: string; note: string } {
+  if (habitat) {
+    const orbital = orbitHosted && owner !== null ? ` ${HABITAT_ORBITAL_OWNER_NOTE}` : "";
+    return { name: NO_OWNER, note: `${HABITAT_OWNER_NOTE}${orbital}` };
+  }
+  if (owner === null) return { name: NO_OWNER, note: NO_OWNER_NOTE };
+  return { name: ownerName ?? `Empire #${owner}`, note: OWNER_NOTE };
+}
+
+/** What the type being added is, as the dialog's closing line tells it. */
+export interface AddedKind {
+  ring: boolean;
+  habitat: boolean;
+  /** A habitat whose type adds a major orbital at its host. */
+  orbital: boolean;
+}
+
+/**
+ * The dialog's closing line: what Add writes, in a system an empire owns when `owned`, with
+ * `orbitHosted` when a habitat's major orbital comes with it, and `planetNote`, what happens to the
+ * planet the megastructure changes, after anything but a ring world.
+ */
+export function footerLine(
+  kind: AddedKind,
+  owned: boolean,
+  orbitHosted: boolean,
+  planetNote: string,
+): string {
+  const written = kind.ring
+    ? RING_WRITTEN
+    : kind.habitat
+      ? writtenAsHabitat(owned)
+      : WRITTEN_FINISHED;
+  const orbital = kind.habitat && kind.orbital ? ` ${habitatOrbitalNote(owned, !orbitHosted)}` : "";
+  return `${written}${orbital}${kind.ring ? "" : planetNote}`;
+}
 
 /** What the dialog says of a type it has no model for. */
 export const NO_MODEL = "No model yet";

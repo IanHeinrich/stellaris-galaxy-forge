@@ -16,7 +16,7 @@ import {
 import { useEditorStore } from "../../../../../store/editorStore";
 import { useCanEdit } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { openLocalClusterWorkshop, openReservedSpawnsWorkshop } from "../../../../chrome/paintMod";
+import { openLocalClusterWorkshop, openReservedSpawnsWorkshop } from "../../../../paintMod";
 
 /** `k`'s label, marked "in use" when a system other than the one being edited already holds it. */
 function optionLabel(k: { key: string; label: string }, others: ReturnType<typeof seatSummary>) {

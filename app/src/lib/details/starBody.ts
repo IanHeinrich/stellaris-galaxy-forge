@@ -54,6 +54,22 @@ export function isStarBody(
   return planetClasses.get(planetClass)?.star ?? starClasses.has(planetClass);
 }
 
+/** The game data that tells a star body from a planet. */
+export interface StarFacts {
+  planetClasses: ReadonlyMap<string, PlanetClassView>;
+  starClasses: ReadonlyMap<string, StarClassView>;
+}
+
+/** Whether `body` is a star: one the core gives a star class, else one its class makes a star. */
+export function isStar(
+  body: Pick<PlanetSummary, "class" | "star_class">,
+  facts: StarFacts,
+): boolean {
+  return (
+    body.star_class !== undefined || isStarBody(body.class, facts.planetClasses, facts.starClasses)
+  );
+}
+
 /** Whether two lists hold the same classes, in any order. */
 export function sameBodies(a: readonly string[], b: readonly string[]): boolean {
   const sorted = (keys: readonly string[]) => [...keys].sort().join("|");

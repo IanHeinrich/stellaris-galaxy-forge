@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { Tab } from "../../lib/openRows";
+import { listStep } from "../gridKeys";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { tabKeyLabel } from "./openKeys";
 
@@ -9,20 +10,11 @@ function tabId(tab: Tab["id"]): string {
   return `open-tab-${tab}`;
 }
 
-/** The tab an arrow, Home or End press on the tab at `at` moves to, wrapping round. */
-function tabStep(key: string, at: number, count: number): number | null {
-  if (key === "ArrowDown") return (at + 1) % count;
-  if (key === "ArrowUp") return (at - 1 + count) % count;
-  if (key === "Home") return 0;
-  if (key === "End") return count - 1;
-  return null;
-}
-
 export function TabRail({ tabs, onPick }: { tabs: Tab[]; onPick: (tab: Tab["id"]) => void }) {
   const chosen = useOpenScreenStore((s) => s.tab);
   const buttons = useRef<Array<HTMLButtonElement | null>>([]);
   const onKeyDown = (e: KeyboardEvent, at: number) => {
-    const next = tabStep(e.key, at, tabs.length);
+    const next = listStep(e.key, at, tabs.length, { wrap: true });
     if (next === null) return;
     e.preventDefault();
     e.stopPropagation();

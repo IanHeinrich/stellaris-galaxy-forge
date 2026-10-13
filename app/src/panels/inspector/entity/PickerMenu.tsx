@@ -15,10 +15,12 @@ import {
 } from "../../../lib/details/picker";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
+import { listStep } from "../../gridKeys";
 import { ENTER, ESCAPE } from "../../keys";
+import { scrollParents } from "../../scrollParents";
 import { IconPicker } from "../../IconPicker";
 import { useOutsidePress } from "../../useOutsidePress";
-import { EffectSummary, PickerCard, type CardItem } from "./PickerCard";
+import { EffectSummary, HoverCard, type CardItem } from "../HoverCard";
 import type { PickerKind } from "./PlanetPicker";
 
 /** The open picker's height where the page has room for it. */
@@ -155,15 +157,6 @@ function ChipDropDown<C extends string>({
   );
 }
 
-/** The nearest ancestor that scrolls, which is the page the picker sits in. */
-function scrollingPage(el: HTMLElement): HTMLElement | null {
-  for (let at = el.parentElement; at !== null; at = at.parentElement) {
-    const { overflowY } = getComputedStyle(at);
-    if (overflowY === "auto" || overflowY === "scroll") return at;
-  }
-  return null;
-}
-
 /**
  * The picker's height: its own where the page shows that much, else what the page shows, down to
  * its least. Once on open, the page scrolls the least that brings the whole picker into view, so
@@ -174,7 +167,7 @@ function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
   const [fitted, setFitted] = useState(false);
   useLayoutEffect(() => {
     const el = root.current;
-    const page = el === null ? null : scrollingPage(el);
+    const page = el === null ? null : (scrollParents(el)[0] ?? null);
     if (page === null) return;
     const fit = () => {
       const room = page.clientHeight - PAGE_ROOM_MARGIN;
@@ -261,8 +254,8 @@ export function PickerMenu<R, C extends string, T, X>({
         button: Math.max(0, Math.min(cursor.button + by, item(row).buttons.length - 1)),
       });
     if (e.key === ESCAPE) close();
-    else if (e.key === "ArrowDown") move(at + 1);
-    else if (e.key === "ArrowUp") move(at - 1);
+    else if (e.key === "ArrowDown" || e.key === "ArrowUp")
+      move(listStep(e.key, at, flat.length) ?? 0);
     else if (e.key === "ArrowRight" && stepping) step(1);
     else if (e.key === "ArrowLeft" && stepping) step(-1);
     else if (e.key === ENTER && inSearch && row !== undefined) onAdd(row, cursor.button);
@@ -386,7 +379,7 @@ export function PickerMenu<R, C extends string, T, X>({
         ))}
       </div>
       {detailed !== undefined && (
-        <PickerCard id={detailsId} item={item(detailed)} rowId={rowId(lit)} />
+        <HoverCard id={detailsId} item={item(detailed)} rowId={rowId(lit)} />
       )}
     </div>
   );

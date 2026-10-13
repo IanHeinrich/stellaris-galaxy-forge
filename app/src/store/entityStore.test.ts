@@ -7,6 +7,7 @@ import { bindStores } from "./bindStores";
 import { addrKey, useEntityStore, viewKey } from "./entityStore";
 import { editResult, entityAddrOf, entitySchema, entitySource, entityView } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
+import { planetSummary, systemDetails } from "../test/builders";
 import { until } from "../test/wait";
 
 const getEntity = vi.mocked(ipc.getEntity);
@@ -123,6 +124,48 @@ describe("an applied edit", () => {
     entities().requestSource(PLANET);
     await until(() => expect(entities().sources.has(addrKey(PLANET))).toBe(true));
   });
+});
+
+describe("a save body read alone", () => {
+  const SYSTEM = 7;
+  const BODY = 40;
+  const MOON = 41;
+  const getUnlistedBody = vi.mocked(ipc.getUnlistedBody);
+
+  async function readAlone(): Promise<void> {
+    entities().requestUnlisted(BODY, SYSTEM);
+    await until(() => expect(entities().pending.size).toBe(0));
+  }
+
+  it.each([
+    ["the body", { kind: "planet" as const, id: BODY }],
+    ["a moon it hosts", { kind: "planet" as const, id: MOON }],
+    ["its system, whose star class it resolves through", { kind: "system" as const, id: SYSTEM }],
+  ])(
+    "keeps its read through an edit to %s, and reads it again on the next request",
+    async (_, addr) => {
+      getUnlistedBody.mockResolvedValue(
+        systemDetails({
+          id: SYSTEM,
+          planets: [
+            planetSummary({ id: BODY }),
+            planetSummary({ id: MOON, moon: true, role: "moon", parent: BODY }),
+          ],
+        }),
+      );
+      await readAlone();
+      entities().requestUnlisted(BODY, SYSTEM);
+      expect(getUnlistedBody).toHaveBeenCalledTimes(1);
+
+      entities().noteEdit(editResult({ touched_entities: [addr] }));
+      expect(entities().unlisted.has(BODY)).toBe(true);
+      expect(entities().staleUnlisted.has(BODY)).toBe(true);
+
+      await readAlone();
+      expect(getUnlistedBody).toHaveBeenCalledTimes(2);
+      expect(entities().staleUnlisted.has(BODY)).toBe(false);
+    },
+  );
 });
 
 describe("clear", () => {

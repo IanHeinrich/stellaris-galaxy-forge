@@ -5,11 +5,13 @@ import "./overlays.css";
 
 /** A save whose file something else wrote since it was opened, and the three ways on from it. */
 export function ChangedOnDiskDialog() {
+  const shown = useFileSessionStore((s) => s.changedOnDiskPrompt !== null);
   const answer = useFileSessionStore((s) => s.answerChangedOnDisk);
+  if (!shown) return null;
 
   return (
     <Dialog
-      className="save-issues-dialog"
+      className="notice-dialog"
       label="The file changed on disk"
       onClose={() => answer("cancel")}
       onDismiss={() => answer("cancel")}
@@ -21,7 +23,7 @@ export function ChangedOnDiskDialog() {
         Something (probably Stellaris) wrote this file after you opened it. Overwriting keeps that
         newer version as a backup beside it.
       </p>
-      <div className="save-issues-actions">
+      <div className="notice-actions">
         <button type="button" autoFocus onClick={() => answer("save_as")}>
           Save As…
         </button>

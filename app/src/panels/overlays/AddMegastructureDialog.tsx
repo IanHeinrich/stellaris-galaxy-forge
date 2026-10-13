@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  HABITAT_ORBITAL_OWNER_NOTE,
-  HABITAT_OWNER_NOTE,
   NO_MEGASTRUCTURE_FITS,
-  NO_OWNER,
-  NO_OWNER_NOTE,
-  OWNER_NOTE,
   READING_FITS,
-  WRITTEN_FINISHED,
   addLabel,
   fitsUnread,
-  habitatOrbitalNote,
+  footerLine,
+  ownerLine,
   whereText,
-  writtenAsHabitat,
 } from "../../lib/megastructureCopy";
 import {
   entryDefault,
@@ -24,7 +18,6 @@ import {
 } from "../../lib/megastructurePicks";
 import {
   CLEARING_LOADING,
-  RING_WRITTEN,
   clearRefusal,
   clearingUnread,
   clearingWarning,
@@ -46,8 +39,8 @@ import {
   type MegastructureAddPrompt,
 } from "../../store/megastructureAdd";
 import { useOpCheckStore } from "../../store/opCheckStore";
-import { Dialog } from "../Dialog";
-import { useSystemBodyNames } from "../inspector/entity/useBodyName";
+import { Dialog, DialogFrame } from "../Dialog";
+import { useSystemBodyNames } from "../useBodyName";
 import { useNamed } from "../useNamed";
 import {
   MegastructureList,
@@ -148,6 +141,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
         : clearRefusal(clearing, nameOf);
   const clears = ring && ringClear && clearBlocked === null;
   const addable = found !== null && found.stage.refused === null && !(ring && ringClear && !clears);
+  const owning = ownerLine(
+    type?.habitat === true,
+    owner,
+    ownerCountry === undefined ? null : templateName(ownerCountry),
+    orbitHosted,
+  );
+  const kind = { ring, habitat: type?.habitat === true, orbital: type?.habitat_orbital === true };
 
   useEffect(() => {
     void loadFits(generation);
@@ -169,140 +169,108 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
 
   return (
     <Dialog
-      className="open-dialog megastructure-add-dialog"
+      className="dialog megastructure-add-dialog"
       label={`Add a megastructure in ${systemName}`}
       onClose={cancel}
       onDismiss={cancel}
     >
-      <form onSubmit={submit}>
-        <div className="open-dialog-head">
-          <h1>Add a megastructure in {systemName}</h1>
-        </div>
-        <div className="open-dialog-body megastructure-add-body">
-          <div className="field">
-            <span>Where</span>
-            <output>{where}</output>
-          </div>
-          <div className="field">
-            <span>Owner</span>
-            <output>
-              {type?.habitat ? (
-                <>
-                  {NO_OWNER}{" "}
-                  <span className="muted">
-                    {HABITAT_OWNER_NOTE}
-                    {orbitHosted && owner !== null ? ` ${HABITAT_ORBITAL_OWNER_NOTE}` : ""}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {owner === null
-                    ? NO_OWNER
-                    : ownerCountry
-                      ? templateName(ownerCountry)
-                      : `Empire #${owner}`}{" "}
-                  <span className="muted">{owner === null ? NO_OWNER_NOTE : OWNER_NOTE}</span>
-                </>
-              )}
-            </output>
-          </div>
-          {entries.length === 0 ? (
-            <div className="field">
-              <span>Type</span>
-              <output className="muted">
-                {fitsError !== null
-                  ? fitsUnread(fitsError)
-                  : fits === null
-                    ? READING_FITS
-                    : NO_MEGASTRUCTURE_FITS}
-              </output>
-            </div>
-          ) : (
-            <div className="megastructure-add-browse">
-              <MegastructureList
-                entries={visible}
-                current={found?.entry ?? null}
-                query={query}
-                onQuery={setQuery}
-                onSelect={(entry) => setPicked(entryDefault(entry))}
-                onConfirm={confirm}
-              />
-              {found === null ? (
-                <div className="muted">No megastructure matches.</div>
-              ) : (
-                <div className="megastructure-add-middle">
-                  <MegastructureStages
-                    entry={found.entry}
-                    types={types}
-                    culture={culture}
-                    current={found.stage.key}
-                    onSelect={setPicked}
-                    onConfirm={confirm}
-                  />
-                  {size !== null && (ring || found.entry.sizes.length > 1) && (
-                    <RingWorldPicks
-                      sizes={found.entry.sizes}
-                      size={size}
-                      ring={ring}
-                      clearBlocked={clearBlocked}
-                    />
-                  )}
-                  {planetChange !== null && (
-                    <PlanetChangePicks
-                      change={planetChange}
-                      planetClass={spotClass}
-                      names={names}
-                    />
-                  )}
-                </div>
-              )}
-              {found !== null && (
-                <MegastructurePreviewPane
-                  preview={ringPreview(
-                    megastructurePreview(
-                      found.stage,
-                      found.chain,
-                      found.entry,
-                      type,
-                      names,
-                      icons,
-                      text,
-                    ),
-                    found.stage,
-                  )}
-                  type={type}
-                  culture={culture}
-                />
-              )}
-            </div>
-          )}
-          {clears && clearing !== null ? (
-            <div className="megastructure-add-refusal">{clearingWarning(clearing, nameOf)}</div>
-          ) : (
-            <div className="muted">
-              {ring
-                ? RING_WRITTEN
-                : type?.habitat
-                  ? writtenAsHabitat(owner !== null)
-                  : WRITTEN_FINISHED}
-              {type?.habitat && type.habitat_orbital
-                ? ` ${habitatOrbitalNote(owner !== null, !orbitHosted)}`
-                : ""}
-              {ring ? "" : planetNote}
-            </div>
-          )}
-        </div>
-        <div className="open-dialog-foot">
-          <div className="setup-actions">
+      <DialogFrame
+        title={<>Add a megastructure in {systemName}</>}
+        bodyClassName="megastructure-add-body"
+        onSubmit={submit}
+        actions={
+          <>
             <button type="button" onClick={cancel}>
               Cancel
             </button>
-            <button type="submit" disabled={!addable}>
+            <button type="submit" className="primary" disabled={!addable}>
               {found === null ? "Add" : addLabel(found.stage, found.chain)}
             </button>
-          </div>
+          </>
+        }
+      >
+        <div className="field">
+          <span>Where</span>
+          <output>{where}</output>
         </div>
-      </form>
+        <div className="field">
+          <span>Owner</span>
+          <output>
+            {owning.name} <span className="muted">{owning.note}</span>
+          </output>
+        </div>
+        {entries.length === 0 ? (
+          <div className="field">
+            <span>Type</span>
+            <output className="muted">
+              {fitsError !== null
+                ? fitsUnread(fitsError)
+                : fits === null
+                  ? READING_FITS
+                  : NO_MEGASTRUCTURE_FITS}
+            </output>
+          </div>
+        ) : (
+          <div className="megastructure-add-browse">
+            <MegastructureList
+              entries={visible}
+              current={found?.entry ?? null}
+              query={query}
+              onQuery={setQuery}
+              onSelect={(entry) => setPicked(entryDefault(entry))}
+              onConfirm={confirm}
+            />
+            {found === null ? (
+              <div className="muted">No megastructure matches.</div>
+            ) : (
+              <div className="megastructure-add-middle">
+                <MegastructureStages
+                  entry={found.entry}
+                  types={types}
+                  culture={culture}
+                  current={found.stage.key}
+                  onSelect={setPicked}
+                  onConfirm={confirm}
+                />
+                {size !== null && (ring || found.entry.sizes.length > 1) && (
+                  <RingWorldPicks
+                    sizes={found.entry.sizes}
+                    size={size}
+                    ring={ring}
+                    clearBlocked={clearBlocked}
+                  />
+                )}
+                {planetChange !== null && (
+                  <PlanetChangePicks change={planetChange} planetClass={spotClass} names={names} />
+                )}
+              </div>
+            )}
+            {found !== null && (
+              <MegastructurePreviewPane
+                preview={ringPreview(
+                  megastructurePreview(
+                    found.stage,
+                    found.chain,
+                    found.entry,
+                    type,
+                    names,
+                    icons,
+                    text,
+                  ),
+                  found.stage,
+                )}
+                type={type}
+                culture={culture}
+              />
+            )}
+          </div>
+        )}
+        {clears && clearing !== null ? (
+          <div className="megastructure-add-refusal">{clearingWarning(clearing, nameOf)}</div>
+        ) : (
+          <div className="muted">{footerLine(kind, owner !== null, orbitHosted, planetNote)}</div>
+        )}
+      </DialogFrame>
     </Dialog>
   );
 }

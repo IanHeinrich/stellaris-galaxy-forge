@@ -3,12 +3,11 @@ import type { CountRange } from "../../../../generated/CountRange";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { nameSpan, type GivenName } from "../../../../lib/details/spawnNames";
-import { bodyClassName, boundsText, givenBodyName } from "../../../../lib/details/labels";
+import { boundsText, isUnrolledClass } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
-import { isStarBody } from "../../../../lib/details/starBody";
+import { copiesValue, planetsSummaryValue, rowLabel } from "../../../../lib/details/scenarioValues";
+import { isStar } from "../../../../lib/details/starBody";
 import { bodyEditHint } from "../../../../lib/details/planetEdits";
-import { templateName } from "../../../../lib/names";
-import { capitalised } from "../../../../lib/text";
 import {
   blockCountTitle,
   blockNoun,
@@ -16,11 +15,7 @@ import {
   moonsEach,
 } from "../../../../lib/details/bodyBlocks";
 import {
-  classDraw,
   countWords,
-  CLASS_DECIDED_ROW,
-  HOME_PLANET_TITLE,
-  START_PLANET_TITLE,
   EVERY_BODY_FROM,
   sharedScriptHint,
   isAsteroidClass,
@@ -29,7 +24,6 @@ import {
   neverLine,
   neverSpawns,
   PLANETS_FROM_SCRIPT,
-  RANDOM_CLASS,
   type PlanetCounts,
 } from "../../../../lib/details/spawnFacts";
 import { useDetailsStore } from "../../../../store/detailsStore";
@@ -38,12 +32,14 @@ import { useGameDataStore } from "../../../../store/gameDataStore";
 import { bodyEntry, useInspectorStore } from "../../../../store/inspectorStore";
 import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
-import { Chip, Icon } from "../../../parts";
+import { Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
-import { Hinted, NeverPlaced, Rolled, Unknown } from "../../states";
-import { useGivenNames } from "../../entity/useBodyName";
+import { Hinted, NeverPlaced, StateValue } from "../../states";
+import { BodyChips } from "../../entity/BodyChips";
+import { useGivenNames } from "../../../useBodyName";
 import { usePlanetCounter } from "../usePlanetCounter";
-import { PlanetIcon, Pills, PlanetSize } from "./bodies";
+import { PlanetIcon } from "../../PlanetIcon";
+import { Pills, PlanetSize } from "./bodies";
 import {
   depositTitle,
   formatPops,
@@ -55,16 +51,20 @@ import {
   POP_ICON_KEY,
 } from "../../rows";
 
+function Pops({ pops }: { pops: number }) {
+  return (
+    <span className="pops">
+      <Icon className="gi" keys={[POP_ICON_KEY]} glyph="⚇" />
+      {formatPops(pops)}
+    </span>
+  );
+}
+
 function SizeAndPops({ size, pops }: { size: string | number | null; pops: number }) {
   return (
     <>
       {size !== null && <PlanetSize size={size} />}
-      {pops > 0 && (
-        <span className="pops">
-          <Icon className="gi" keys={[POP_ICON_KEY]} glyph="⚇" />
-          {formatPops(pops)}
-        </span>
-      )}
+      {pops > 0 && <Pops pops={pops} />}
     </>
   );
 }
@@ -92,11 +92,7 @@ function BlockCount({
 }) {
   return (
     <Hinted label="Copies" hint={blockCountTitle(count, moon, asteroid)} focusable={false}>
-      {isRanged(count) ? (
-        <Rolled className="ins-block-count">{boundsText(count)}</Rolled>
-      ) : (
-        <span className="ins-block-count">×{count.max}</span>
-      )}
+      <StateValue className="ins-block-count" value={copiesValue(count)} />
     </Hinted>
   );
 }
@@ -149,48 +145,11 @@ export function PlanetRow({
   const sprite = classes.get(planet.class)?.icon_sprite;
   const rows = resourceRows({ ...details, resources: planet.deposits }, icons);
   const wide = rows.length > INLINE_RESOURCES;
-  const unrolled = planet.class === "" || planet.class === "random";
-  const classText = bodyClassName(planet.class, names, planet.moon);
-  const named = given?.text ?? templateName(planet);
-  const name = givenBodyName(planet, given, names);
+  const label = rowLabel(planet, given, count, span, { names, planetClasses: classes });
+  const { name, described } = label;
   const size = planet.layout?.size ? boundsText(planet.layout.size) : planet.size;
   const spawn = planet.spawn;
-  const state = spawn?.class.state;
   const asteroid = isAsteroidClass(planet.class, classes);
-  const plural = count !== null && count.max > 1;
-  const noun = blockNoun(planet.moon, asteroid, !plural);
-  const random = unrolled || (state !== undefined && state !== "fixed");
-  const described = named === "" && (plural || random);
-  const title =
-    span !== undefined
-      ? span
-      : given !== undefined
-        ? nameSpan(given, given)
-        : !described
-          ? name
-          : random
-            ? `Random ${noun}`
-            : capitalised(noun);
-  const shownName: ReactNode =
-    given?.rolled === true || (span !== undefined && count !== null && isRanged(count)) ? (
-      <Rolled>{title}</Rolled>
-    ) : named !== "" || state === undefined || state === "fixed" ? (
-      title
-    ) : state === "rolled" ? (
-      <Rolled>{title}</Rolled>
-    ) : (
-      <Unknown>{title}</Unknown>
-    );
-  const classShown: ReactNode =
-    named === "" && !described ? null : spawn?.class.state === "rolled" ? (
-      <Rolled>{classDraw(spawn.class.pool)}</Rolled>
-    ) : state === "unknown" ? (
-      <Unknown>{CLASS_DECIDED_ROW}</Unknown>
-    ) : described && unrolled ? (
-      RANDOM_CLASS
-    ) : (
-      classText
-    );
   const never = count !== null ? count.max === 0 : neverSpawns(spawn);
   const parentNever =
     never && details.planets.some((p) => p.id === planet.parent && neverSpawns(p.spawn));
@@ -210,19 +169,8 @@ export function PlanetRow({
       <span>
         <span className="l1">
           {planet.colonised && <Swatch owner={planet.owner} />}
-          {shownName}
-          {planet.capital && <Chip>capital</Chip>}
-          {planet.pre_ftl && <Chip>pre-FTL</Chip>}
-          {spawn?.starting_planet && (
-            <Hinted label="Start planet" hint={START_PLANET_TITLE} focusable={false}>
-              <Chip>start planet</Chip>
-            </Hinted>
-          )}
-          {spawn?.home_planet && (
-            <Hinted label="Home planet" hint={HOME_PLANET_TITLE} focusable={false}>
-              <Chip>home planet</Chip>
-            </Hinted>
-          )}
+          <StateValue value={label.title} />
+          <BodyChips body={planet} />
           {editHint !== null && (
             <span className="ins-edit-chip">
               <span aria-hidden="true">✎</span> Edit
@@ -233,15 +181,12 @@ export function PlanetRow({
           <SecondLine
             dotted={spawn !== undefined || described}
             parts={[
-              classShown,
-              planet.moon && !flat && !unrolled && count === null && <span>moon</span>,
-              size !== null && <PlanetSize size={size} />,
-              planet.pops > 0 && (
-                <span className="pops">
-                  <Icon className="gi" keys={[POP_ICON_KEY]} glyph="⚇" />
-                  {formatPops(planet.pops)}
-                </span>
+              label.class !== null && <StateValue value={label.class} />,
+              planet.moon && !flat && !isUnrolledClass(planet.class) && count === null && (
+                <span>moon</span>
               ),
+              size !== null && <PlanetSize size={size} />,
+              planet.pops > 0 && <Pops pops={planet.pops} />,
               moons > 0 && <span>{moonsEach(moons)}</span>,
               planet.orbit !== null && count === null && (
                 <span>orbit {Math.round(planet.orbit)}</span>
@@ -295,8 +240,9 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const inView = useSceneSystem() === details.id;
   const enterSystem = useSceneStore((s) => s.enterSystem);
   const [all, setAll] = useState(false);
-  const isStar = (p: PlanetSummary) => isStarBody(p.class, classes, starClasses);
-  const planets = orderedPlanets(details.planets, isStar);
+  const planets = orderedPlanets(details.planets, (p) =>
+    isStar(p, { planetClasses: classes, starClasses }),
+  );
   const blocks = bodyBlocks(planets);
   const given = useGivenNames(details);
   const spanOf = (copies: readonly PlanetSummary[]): string | undefined => {
@@ -310,12 +256,8 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const counts = usePlanetCounter()(details);
   const fixed = counts.planets !== null && !isRanged(counts.planets) ? counts.planets.min : null;
   const shown = all ? blocks : blocks.slice(0, LIST_LIMIT);
-  const summary: ReactNode =
-    fixed !== null ? undefined : counts.planets === null ? (
-      <Unknown>from a script</Unknown>
-    ) : (
-      <Rolled>{boundsText(counts.planets)}</Rolled>
-    );
+  const summaryValue = planetsSummaryValue(counts);
+  const summary = summaryValue === null ? undefined : <StateValue value={summaryValue} />;
   const total = [
     planetsText(counts),
     ...moonsAndAsteroids(counts),

@@ -1,11 +1,9 @@
-import type { SpawnStar } from "../../../../../generated/SpawnStar";
+import type { RolledStar } from "../../../../../lib/details/classList";
 import { starListSource } from "../../../../../lib/details/spawnFacts";
 import { OddsList } from "../../../entity/OddsBar";
 import { Section } from "../../../parts";
 import { Hinted, Rolled } from "../../../states";
 import { useStarOdds } from "./useStarOdds";
-
-type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
 /** The star classes an `rl_` list draws a star from, likeliest first, each with its bar and odds. */
 export function StarOddsList({ star }: { star: RolledStar }) {

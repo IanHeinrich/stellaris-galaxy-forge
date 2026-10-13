@@ -30,7 +30,7 @@ export function OpenFooter({
     else if (target) void useOpenScreenStore.getState().open(target.path, target.mode);
   };
   return (
-    <div className="open-dialog-foot">
+    <div className="dialog-foot">
       <div className="open-actions">
         <button type="button" onClick={onNewScenario}>
           New scenario…
@@ -67,7 +67,7 @@ export function OpenFooter({
         )}
         <button
           type="button"
-          className="open-primary"
+          className="primary"
           title={`Open it as it is (${OPEN_KEYS.open.label} asks first for a save)`}
           aria-disabled={footer.open === null || !idle}
           onMouseDown={(e) => e.preventDefault()}

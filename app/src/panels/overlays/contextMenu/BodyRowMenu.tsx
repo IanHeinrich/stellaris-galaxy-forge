@@ -1,10 +1,10 @@
-import { isStarBody } from "../../../lib/details/starBody";
+import { isStar } from "../../../lib/details/starBody";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
-import { useSystemBodyNamer } from "../../inspector/entity/useBodyName";
+import { useSystemBodyNamer } from "../../useBodyName";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 
@@ -33,9 +33,7 @@ export function BodyRowMenu({
   const enterable = useFileSessionStore(canEnterSystem);
   const goToBody = useSceneStore((s) => s.goToBody);
   const name = useSystemBodyNamer(target.system)(target.id);
-  const star =
-    planet !== undefined &&
-    (planet.star_class !== undefined || isStarBody(planet.class, planetClasses, starClasses));
+  const star = planet !== undefined && isStar(planet, { planetClasses, starClasses });
   // The rows sit in the dock at the window's right edge, so the menu opens left of the pointer.
   const style = { ...frame.style, transform: "translateX(-100%)" };
   return (

@@ -11,9 +11,11 @@ import {
   PICKER_CARD_WIDTH,
   pickerCardPlace,
   visibleSpan,
-  type Span,
-} from "../../../lib/details/picker";
-import { GameText } from "../../GameText";
+} from "../../lib/details/picker";
+import { GameText } from "../GameText";
+import { scrollParents } from "../scrollParents";
+import "../panels.css";
+import "./inspector.css";
 
 export const NO_DESCRIPTION = "No description";
 export const NO_EFFECT = "No effect";
@@ -50,7 +52,7 @@ export function EffectSummary({ effects }: { effects: readonly string[] }) {
  * What the card says of a row: its name, its category, every effect, its note, then its
  * description where it has a place for one.
  */
-function PickerCardBody({ item, lead }: { item: CardItem; lead?: ReactNode }) {
+function HoverCardBody({ item, lead }: { item: CardItem; lead?: ReactNode }) {
   return (
     <>
       <span className="dp-card-name">
@@ -87,19 +89,12 @@ function PickerCardBody({ item, lead }: { item: CardItem; lead?: ReactNode }) {
  */
 type CardPlace = { left: number; top: number } | "hidden" | "under";
 
-/** The boxes `el` scrolls in, nearest first. */
-function scrollingBoxes(el: HTMLElement): Span[] {
-  const boxes: Span[] = [];
-  for (let at = el.parentElement; at !== null; at = at.parentElement) {
-    const { overflowY } = getComputedStyle(at);
-    if (overflowY === "auto" || overflowY === "scroll") boxes.push(at.getBoundingClientRect());
-  }
-  return boxes;
-}
-
 /** Where a card of `height` goes beside `box`, level with what shows of `row`. */
 function placeCard(box: HTMLElement, row: HTMLElement, height: number): CardPlace {
-  const shown = visibleSpan(row.getBoundingClientRect(), scrollingBoxes(row));
+  const shown = visibleSpan(
+    row.getBoundingClientRect(),
+    scrollParents(row).map((box) => box.getBoundingClientRect()),
+  );
   const place = pickerCardPlace(
     box.getBoundingClientRect(),
     shown?.top ?? 0,
@@ -146,11 +141,11 @@ function useCardPlace(
 }
 
 /**
- * A row's card, left of the element that holds it, over the map and level with the row `rowId`
- * names. Where the window has no room there, it shows in place at a fixed height. `children` go
+ * The Inspector's hover card, left of the element that holds it, over the map and level with the
+ * row `rowId` names. Where the window has no room there, it shows in place at a fixed height. `children` go
  * after what the card says of the row, and a new `item` measures it again.
  */
-export function PickerCard({
+export function HoverCard({
   id,
   item,
   rowId,
@@ -173,7 +168,7 @@ export function PickerCard({
     <div
       id={id}
       ref={card}
-      className={under ? "dp-card under" : "dp-card"}
+      className={under ? "dp-card pop-surface under" : "dp-card pop-surface"}
       style={
         under
           ? undefined
@@ -185,7 +180,7 @@ export function PickerCard({
             }
       }
     >
-      <PickerCardBody item={item} lead={lead} />
+      <HoverCardBody item={item} lead={lead} />
       {children}
     </div>
   );

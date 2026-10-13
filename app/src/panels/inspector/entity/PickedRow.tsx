@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RemoveButton, SpreadLines, type RemoveAction, type Spread } from "./RowParts";
 
 /** A line under a picked row's name; `className` is the line's own style. */
 export interface PickedLine {
@@ -6,24 +7,17 @@ export interface PickedLine {
   text: ReactNode;
 }
 
-/** The button that takes a picked row off its body. */
-export interface PickedRemove {
-  title: string;
-  label: string;
-  run: () => void;
-  /** The id of what describes the row, while it shows. */
-  describedBy?: string;
-}
-
 /**
  * A modifier, anomaly or dig site the body holds: its art, its name, the lines under it, and
- * where `remove` is given a button that takes it off.
+ * where `remove` is given a button that takes it off. With `spread`, the row stands for several
+ * bodies and says who has it.
  */
 export function PickedRow({
   art,
   name,
   mono = false,
   lines,
+  spread,
   remove,
 }: {
   art: ReactNode;
@@ -31,7 +25,8 @@ export function PickedRow({
   /** The name is a key the game data does not describe. */
   mono?: boolean;
   lines: readonly PickedLine[];
-  remove: PickedRemove | null;
+  spread?: Spread;
+  remove: RemoveAction | null;
 }) {
   return (
     <div className="pl-mod">
@@ -43,19 +38,9 @@ export function PickedRow({
             {line.text}
           </span>
         ))}
+        <SpreadLines spread={spread} />
       </span>
-      {remove !== null && (
-        <button
-          type="button"
-          className="pl-dep-remove pl-mod-remove"
-          title={remove.title}
-          aria-label={remove.label}
-          aria-describedby={remove.describedBy}
-          onClick={remove.run}
-        >
-          ✕
-        </button>
-      )}
+      {remove !== null && <RemoveButton remove={remove} className="pl-dep-remove pl-mod-remove" />}
     </div>
   );
 }

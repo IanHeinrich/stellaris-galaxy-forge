@@ -1,4 +1,42 @@
 /**
+ * Where a key moves the active row of a list of `count` rows from `at`: Up and Down a row, Home
+ * and End to either end, and with `page` PageUp and PageDown that many rows. With `wrap` Up and
+ * Down run on round the ends; without, every move stops at them. Null for a key the list does not
+ * move on, or for a list with no rows.
+ */
+export function listStep(
+  key: string,
+  at: number,
+  count: number,
+  { page, wrap = false }: { page?: number; wrap?: boolean } = {},
+): number | null {
+  if (count === 0) return null;
+  const last = count - 1;
+  const clamp = (to: number) => Math.min(last, Math.max(0, to));
+  switch (key) {
+    case "ArrowDown":
+      return wrap ? (at + 1) % count : clamp(at + 1);
+    case "ArrowUp":
+      return wrap ? (at - 1 + count) % count : clamp(at - 1);
+    case "Home":
+      return 0;
+    case "End":
+      return last;
+    case "PageDown":
+      return page === undefined ? null : clamp(at + page);
+    case "PageUp":
+      return page === undefined ? null : clamp(at - page);
+    default:
+      return null;
+  }
+}
+
+/** How many tiles a row of `grid` holds, as its layout resolved them. */
+export function columnsOf(grid: HTMLElement): number {
+  return getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+}
+
+/**
  * Where a key moves the active tile of a grid of `count` tiles laid out `columns` to a row: the
  * new index, `"above"` for Up on the first row, or null for a key the grid does not move on.
  * Left and Right run on across rows; Down onto a short last row lands on its last tile.

@@ -10,7 +10,7 @@ import { Chip, FILTER_MIN, FilterField } from "../../../../parts";
 import { Empty, MoreButton } from "../../../parts";
 import { ScriptActions } from "./scriptActions";
 import { groupRows, rowKey, summaryLine } from "./scriptRows";
-import "./scripts.css";
+import "../../system.css";
 
 const KIND_LABEL: Record<ScriptRowKind, string> = {
   initializer: "Initializer",

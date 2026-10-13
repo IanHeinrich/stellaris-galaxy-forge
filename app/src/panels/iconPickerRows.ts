@@ -25,9 +25,17 @@ export function iconPickerRows(items: readonly IconPickerItem[], query: string):
           (item) =>
             item.label.toLowerCase().includes(needle) || item.key.toLowerCase().includes(needle),
         );
-  return shown.map((item, i) => ({
+  return headerRows(shown, (item) => item.group);
+}
+
+/** `items` in order, each marked where its group differs from the one before, so a header starts there. */
+export function headerRows<T>(
+  items: readonly T[],
+  groupOf: (item: T) => string | undefined,
+): { item: T; header: boolean }[] {
+  return items.map((item, i) => ({
     item,
-    header: item.group !== undefined && item.group !== shown[i - 1]?.group,
+    header: groupOf(item) !== undefined && (i === 0 || groupOf(item) !== groupOf(items[i - 1])),
   }));
 }
 

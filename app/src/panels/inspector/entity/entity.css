@@ -187,13 +187,13 @@
 
 .pl-dep .l2 {
   margin-top: 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-soft);
 }
 
 .pl-dep .l3 {
   margin-top: 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
 }
 
@@ -385,7 +385,7 @@
 .dp-added {
   margin: 0 0 4px;
   font-size: var(--text-hint);
-  color: var(--ok, var(--accent));
+  color: var(--ins-ok);
 }
 
 .dp > .dp-list {
@@ -397,7 +397,7 @@
 
 .dp-group {
   padding: 6px 2px 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--fg-muted);
@@ -468,37 +468,6 @@
   overflow-wrap: anywhere;
 }
 
-/* A row's card, fixed over the map left of the dock, so the dock's scrolling doesn't clip it. */
-.dp-card {
-  position: fixed;
-  z-index: 4;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  padding: 8px 10px;
-  font-size: var(--text-hint);
-  color: var(--fg-soft);
-  overflow-wrap: anywhere;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
-  pointer-events: none;
-}
-
-/* Without room beside the dock, the card shows in place under its row. */
-.dp-card.under {
-  position: static;
-  margin-top: 6px;
-  padding: 6px 2px 0;
-  background: none;
-  border: none;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  box-shadow: none;
-  pointer-events: auto;
-}
-
 /* Under the picker's list, one height for every row; a long description scrolls. */
 .dp > .dp-card.under {
   height: 9em;
@@ -506,61 +475,12 @@
   overscroll-behavior: contain;
 }
 
-.dp-card-name {
-  font-size: var(--text-control);
-  color: var(--fg);
-}
-
-.dp-card-effects {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--fg);
-}
-
-.dp-card-note {
-  margin-top: 4px;
-}
-
-.dp-card-text {
-  margin-top: 6px;
-  padding-top: 6px;
-  white-space: pre-line;
-  border-top: 1px solid var(--border);
-}
-
-/* Beside the dock the card stays inside the window: its name, category and note always show, and a
-   long list of effects is cut where the window ends. */
-.dp-card:not(.under) {
-  max-height: calc(100vh - 16px);
-  overflow: hidden;
-}
-
-.dp-card:not(.under) > * {
-  flex: none;
-}
-
-.dp-card:not(.under) > .dp-card-effects {
-  flex: 0 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* Beside the dock the card takes no pointer to scroll, so a long description ends after a few lines. */
-.dp-card:not(.under) .dp-card-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 10;
-  line-clamp: 10;
-}
-
 .pl-sub-head {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 8px 0 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
 }
 
@@ -602,14 +522,14 @@
 .pl-mod .l2 {
   display: block;
   margin-top: 1px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-soft);
 }
 
 .pl-anomaly-desc {
   display: block;
   margin-top: 3px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   line-height: 1.4;
   color: var(--fg-muted);
   white-space: normal;
@@ -618,7 +538,7 @@
 .pl-mod .l3 {
   display: block;
   margin-top: 3px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   line-height: 1.35;
   color: var(--fg-muted);
   white-space: pre-line;
@@ -632,7 +552,7 @@
 .pl-dep .mono,
 .pl-mod .mono {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 
@@ -703,7 +623,9 @@
 }
 
 .pl-pool-row[tabindex]:hover,
-.pl-pool-row[tabindex]:focus-visible {
+.pl-pool-row[tabindex]:focus-visible,
+button.pl-pool-row:hover,
+button.pl-pool-row:focus-visible {
   background: var(--bg-elevated);
 }
 
@@ -743,7 +665,8 @@
   transition: background 80ms;
 }
 
-.pl-pool-row[tabindex]:hover .pl-pool-track {
+.pl-pool-row[tabindex]:hover .pl-pool-track,
+button.pl-pool-row:hover .pl-pool-track {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -759,7 +682,7 @@
   min-width: 2px;
   overflow: hidden;
   border-radius: 2px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   font-weight: 600;
   line-height: 14px;
   text-align: center;
@@ -866,7 +789,14 @@
   color: var(--fg);
 }
 
-.pl-pool-row[role="button"] {
+button.pl-pool-row {
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
   cursor: pointer;
 }
 

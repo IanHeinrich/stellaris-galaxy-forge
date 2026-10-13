@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScenarioListing } from "../generated/ScenarioListing";
-import type { ScenarioListings } from "../generated/ScenarioListings";
-import { TERRAN, VOID, campaignSave, modScenario, paintModView } from "../test/builders";
+import { modScenario, paintModView } from "../test/builders";
 import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 
 vi.mock("../api/ipc");
@@ -11,54 +9,11 @@ import { mockedIpc } from "../test/ipc";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
 import { usePaintModStore } from "./paintModStore";
-import { openSections, type Section } from "../lib/openRows";
-import { useOpenScreenStore } from "./openScreenStore";
-import { resetStores } from "./storeFixture";
-import { useRecentsStore, type RecentDoc } from "./recentsStore";
+import { RECENT, armScreen, listed, rowKeys, screen, section } from "./openScreenStore.fixture";
+import { useRecentsStore } from "./recentsStore";
 import { until } from "../test/wait";
 
-const screen = () => useOpenScreenStore.getState();
-
-/** What `list_scenarios` resolves to: the files, and what the mod descriptors could not say. */
-function listed(scenarios: ScenarioListing[], diagnostics: string[] = []): ScenarioListings {
-  return { scenarios, diagnostics };
-}
-
-const RECENT: RecentDoc = {
-  kind: "save",
-  path: "C:/saves/terran/2206.11.16.sav",
-  title: "Terran Federation",
-  subtitle: "Terran Federation · 2206.11.16 · v4.4.6",
-  openedAt: 5,
-};
-
-/** The sections as the screen shows them for the current state. */
-function sections(): Section[] {
-  return openSections(screen(), useRecentsStore.getState().recents);
-}
-
-function section(id: string): Section {
-  return sections().find((s) => s.id === id)!;
-}
-
-function rowKeys(id: string): string[] {
-  return (
-    sections()
-      .find((s) => s.id === id)
-      ?.rows.map((r) => r.key) ?? []
-  );
-}
-
-beforeEach(() => {
-  resetStores();
-  mockedIpc.listCampaigns.mockResolvedValue([VOID, TERRAN]);
-  mockedIpc.listCampaignSaves.mockResolvedValue([campaignSave()]);
-  mockedIpc.listScenarios.mockResolvedValue(listed([modScenario()]));
-  mockedIpc.missingPaths.mockResolvedValue([]);
-  mockedIpc.closeDocument.mockResolvedValue();
-  mockedIpc.warmDetails.mockResolvedValue([]);
-  mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
-});
+beforeEach(armScreen);
 
 describe("open", () => {
   beforeEach(() => {

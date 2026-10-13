@@ -7,11 +7,12 @@ import "./overlays.css";
 export function SaveIssuesDialog() {
   const prompt = useFileSessionStore((s) => s.saveIssuesPrompt);
   const answer = useFileSessionStore((s) => s.answerSaveIssues);
-  const count = prompt?.count ?? 0;
+  if (prompt === null) return null;
+  const { count } = prompt;
 
   return (
     <Dialog
-      className="save-issues-dialog"
+      className="notice-dialog"
       label="Save this map?"
       onClose={() => answer("cancel")}
       onDismiss={() => answer("cancel")}
@@ -22,7 +23,7 @@ export function SaveIssuesDialog() {
       <p>
         This map has {count === 1 ? "1 issue" : `${count} issues`} that may change how it plays.
       </p>
-      <div className="save-issues-actions">
+      <div className="notice-actions">
         <button type="button" autoFocus onClick={() => answer("review")}>
           View issues
         </button>

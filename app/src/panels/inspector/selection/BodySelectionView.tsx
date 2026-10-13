@@ -13,7 +13,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { bodyEntry, useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { cutAvailability, cutPlanets, usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { useSceneStore, type BodySelection } from "../../../store/sceneStore";
-import { useSystemBodyNamer } from "../entity/useBodyName";
+import { useSystemBodyNamer } from "../../useBodyName";
 import { DrillLink, Empty, Section } from "../parts";
 import { BodySelectionFields } from "./BodySelectionFields";
 

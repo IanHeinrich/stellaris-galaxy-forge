@@ -39,6 +39,8 @@ export function GameTextSpans({
                 <GameTextSpans spans={span.children} icons={icons} />
               </span>
             );
+          default:
+            return span satisfies never;
         }
       })}
     </>

@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { EditRow } from "./EditField";
-import { gridPlace, gridStep } from "./gridKeys";
+import { columnsOf, gridPlace, gridStep } from "./gridKeys";
 import { groupItems } from "./tileGroups";
 import { IconPicker } from "./IconPicker";
 import { ENTER, ESCAPE, SPACE } from "./keys";
-import { useTextureUrl } from "./useTextureUrl";
+import { Icon } from "./parts";
 import "./panels.css";
 
 export interface TileItem {
@@ -23,16 +23,6 @@ export interface TileGroup {
   /** A short muted line beside the label in the dropdown, such as the mod the group comes from. */
   note?: string;
   items: readonly TileItem[];
-}
-
-function Thumb({ textures, className }: { textures: readonly string[]; className: string }) {
-  const url = useTextureUrl(textures);
-  return <span className={className}>{url !== undefined && <img src={url} alt="" />}</span>;
-}
-
-/** How many tiles a row of `grid` holds, as its layout resolved them. */
-function columnsOf(grid: HTMLElement): number {
-  return getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
 }
 
 /** Scrolls `grid` alone, not the page around it, so that `tile` shows. */
@@ -137,7 +127,11 @@ function TilePanel({
             key={item.key}
             id={tileId(i)}
             role="option"
-            className={i === active ? "tile-panel-tile active" : "tile-panel-tile"}
+            className={
+              i === active
+                ? "tile-panel-tile listbox-option active"
+                : "tile-panel-tile listbox-option"
+            }
             aria-selected={item.key === current.key}
             aria-label={item.label}
             title={item.label}
@@ -147,7 +141,7 @@ function TilePanel({
               onPick(item.key);
             }}
           >
-            <Thumb className="tile-panel-thumb" textures={item.textures} />
+            <Icon className="tile-panel-thumb" keys={item.textures} />
           </li>
         ))}
       </ul>
@@ -211,7 +205,7 @@ export function TilePicker({
           onClick={() => onOpenChange(!open)}
           onKeyDown={onTriggerKey}
         >
-          <Thumb className="tile-picker-thumb" textures={current.textures} />
+          <Icon className="tile-picker-thumb" keys={current.textures} />
           <span className="tile-picker-label">{current.label}</span>
           <span className="icon-picker-caret">{shown ? "▴" : "▾"}</span>
         </button>

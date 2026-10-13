@@ -9,9 +9,11 @@ import {
   type RefObject,
 } from "react";
 import { opensUp, popupPlace, type Across, type Down } from "./iconPickerPlace";
+import { listStep } from "./gridKeys";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { FilterField } from "./parts";
+import { scrollParents } from "./scrollParents";
 import { useOutsidePress } from "./useOutsidePress";
 import "./panels.css";
 
@@ -57,13 +59,10 @@ function shownAcross(el: HTMLElement): Across {
  * ancestor that scrolls vertically, else the window.
  */
 function shownDown(el: HTMLElement): Down {
-  for (let at = el.parentElement; at !== null; at = at.parentElement) {
-    const { overflowY } = getComputedStyle(at);
-    if (overflowY !== "auto" && overflowY !== "scroll") continue;
-    const { top, bottom } = at.getBoundingClientRect();
-    return { top: Math.max(0, top), bottom: Math.min(window.innerHeight, bottom) };
-  }
-  return { top: 0, bottom: window.innerHeight };
+  const [box] = scrollParents(el);
+  if (box === undefined) return { top: 0, bottom: window.innerHeight };
+  const { top, bottom } = box.getBoundingClientRect();
+  return { top: Math.max(0, top), bottom: Math.min(window.innerHeight, bottom) };
 }
 
 /**
@@ -197,15 +196,12 @@ export function IconPicker({
 
   // The app's own keys act on the selection, so a key the list takes goes no further.
   const onListKey = (e: KeyboardEvent) => {
-    const move = (to: number) => setActive((to + rows.length) % rows.length);
+    const to = listStep(e.key, at, rows.length, { wrap: true });
     if (e.key === "Tab") setOpen(false);
     if (e.key === ESCAPE) close();
     else if (rows.length === 0) return;
-    else if (e.key === "ArrowDown") move(at + 1);
-    else if (e.key === "ArrowUp") move(at - 1);
-    else if (e.key === "Home") move(0);
-    else if (e.key === "End") move(rows.length - 1);
     else if (e.key === ENTER || e.key === SPACE) pick(rows[at].item.key);
+    else if (to !== null) setActive(to);
     else return;
     e.preventDefault();
     e.stopPropagation();
@@ -226,7 +222,7 @@ export function IconPicker({
 
   const listbox = (
     <ul
-      className={filtered ? "icon-picker-list" : "icon-picker-pop"}
+      className={filtered ? "icon-picker-list" : "icon-picker-pop pop-surface"}
       id={listId}
       role="listbox"
       aria-label={label}
@@ -280,7 +276,7 @@ export function IconPicker({
       {open &&
         !disabled &&
         (filtered ? (
-          <div className="icon-picker-pop icon-picker-filtered" ref={filteredPop}>
+          <div className="icon-picker-pop icon-picker-filtered pop-surface" ref={filteredPop}>
             <FilterField
               label={`Filter ${items.length} choices`}
               value={query}
@@ -328,7 +324,9 @@ function Option({
       <li
         id={id}
         role="option"
-        className={active ? "icon-picker-option active" : "icon-picker-option"}
+        className={
+          active ? "icon-picker-option listbox-option active" : "icon-picker-option listbox-option"
+        }
         aria-selected={selected}
         onMouseMove={active ? undefined : onHover}
         onClick={onPick}

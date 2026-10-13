@@ -5,6 +5,17 @@ vi.mock("../../../api/events");
 // The star icons and deposit art come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+// Shows every hover card while `hover.shown`, as the pointer on each row would.
+const hover = vi.hoisted(() => ({ shown: false }));
+vi.mock("../useHoverCard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../useHoverCard")>();
+  return {
+    useHoverCard: () => {
+      const card = actual.useHoverCard();
+      return hover.shown ? { ...card, shown: true, describedBy: card.cardId } : card;
+    },
+  };
+});
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bindStores } from "../../../store/bindStores";
@@ -15,6 +26,7 @@ import { open, resetStores } from "../inspectorFixture";
 import { drawnBy, drawnButton, lastDrawn } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { WORLD, EMPIRE, EMPIRE_NODE, landPage, render, districts, OLBERS } from "./bodyPageFixture";
+import { HoverCard } from "../HoverCard";
 
 bindStores();
 
@@ -99,8 +111,10 @@ describe("a planet's modifiers", () => {
         '<span class="muted dp-more"> +1 more</span></span> · permanent</span>',
     );
     expect(html).not.toContain("dp-card");
-    const card = lastDrawn(({ props }) => "shown" in props && "rowId" in props, "modifier card");
-    expect(card.shown).toBe(false);
+    hover.shown = true;
+    drawnBy(() => render(WORLD));
+    hover.shown = false;
+    const card = lastDrawn(({ type }) => type === HoverCard, "modifier card");
     expect(card.item).toEqual({
       label: "Abundant Geothermal Activity",
       effects: [

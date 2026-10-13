@@ -1,7 +1,7 @@
-import * as ipc from "../../api/ipc";
-import type { WorkshopLinks } from "../../generated/WorkshopLinks";
-import { reportFailure } from "../../store/fileSessionStore";
-import { usePaintModStore } from "../../store/paintModStore";
+import * as ipc from "../api/ipc";
+import type { WorkshopLinks } from "../generated/WorkshopLinks";
+import { reportFailure } from "../store/fileSessionStore";
+import { usePaintModStore } from "../store/paintModStore";
 
 /** Opens one of the shell's Workshop pages in the user's browser; a refusal lands on the session. */
 function openWorkshop(page: keyof WorkshopLinks): void {

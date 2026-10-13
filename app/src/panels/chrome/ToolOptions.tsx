@@ -8,16 +8,14 @@ import {
 } from "../../lib/brush/heightBrush";
 import { heightTint } from "../../lib/height";
 import { typedNumber } from "../../lib/text";
-import { TOOLS, type Tool } from "../../lib/tools";
+import { TOOL_ENTRY, type Tool } from "../../lib/tools";
 import {
-  choiceOf,
   densityLimit,
   ERASE_TARGET_CHOICES,
   HEIGHT_MODE_HINTS,
   HEIGHT_MODE_LABELS,
   LANE_MODE_CHOICES,
   RIPPLE_PRESET_LABELS,
-  type Choice,
 } from "../../lib/toolCopy";
 import { toCss } from "../../lib/visual/color";
 import {
@@ -35,11 +33,12 @@ import {
   spacingOfSlider,
   useToolStore,
 } from "../../store/toolStore";
-import type { GuidePlace } from "../../lib/guideLinks";
 import { HelpLink } from "../HelpLink";
+import { Select } from "../Select";
 import { LaneDensitySlider } from "../LaneDensitySlider";
 import { useDraft } from "../useDraft";
 import "./chrome.css";
+import "../panels.css";
 
 /** A number field that applies on Enter or when it loses focus, and drops what Escape abandons. */
 function DraftNumber({
@@ -96,33 +95,6 @@ function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
   );
 }
 
-/** A drop-down over `choices`; it reports a choice, never the text the element hands back. */
-function ChoiceSelect<T extends string>({
-  value,
-  choices,
-  onChange,
-}: {
-  value: T;
-  choices: readonly Choice<T>[];
-  onChange(value: T): void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => {
-        const chosen = choiceOf(choices, e.target.value);
-        if (chosen !== null) onChange(chosen);
-      }}
-    >
-      {choices.map((choice) => (
-        <option key={choice.value} value={choice.value}>
-          {choice.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 function PaintOptions() {
   const size = useToolStore((s) => s.size);
   const chosen = useToolStore((s) => s.spacing);
@@ -169,7 +141,7 @@ function PaintOptions() {
       </label>
       <label className="tool-option">
         Lanes
-        <ChoiceSelect value={laneMode} choices={LANE_MODE_CHOICES} onChange={setLaneMode} />
+        <Select value={laneMode} choices={LANE_MODE_CHOICES} onChange={setLaneMode} />
       </label>
       <LaneDensityOption disabled={laneMode === "off"} />
     </>
@@ -186,11 +158,7 @@ function EraseOptions() {
       <SizeOption />
       <label className="tool-option">
         Target
-        <ChoiceSelect
-          value={eraseTarget}
-          choices={ERASE_TARGET_CHOICES}
-          onChange={setEraseTarget}
-        />
+        <Select value={eraseTarget} choices={ERASE_TARGET_CHOICES} onChange={setEraseTarget} />
       </label>
       <label className="tool-option">
         <input
@@ -404,26 +372,26 @@ function HeightOptions() {
   );
 }
 
-/** The controls a tool shows while active and its place in the guide; null for none. */
-const OPTIONS: Record<Tool, { Options: ComponentType; help: GuidePlace } | null> = {
+/** The controls a tool shows while active; null for none. */
+const OPTIONS: Record<Tool, ComponentType | null> = {
   select: null,
-  paint: { Options: PaintOptions, help: "paintBrushes" },
-  erase: { Options: EraseOptions, help: "paintBrushes" },
-  connect: { Options: ConnectOptions, help: "laneBrushes" },
-  cut: { Options: SizeOption, help: "laneBrushes" },
-  height: { Options: HeightOptions, help: "heightBrush" },
+  paint: PaintOptions,
+  erase: EraseOptions,
+  connect: ConnectOptions,
+  cut: SizeOption,
+  height: HeightOptions,
 };
 
 /** The active brush's options, floating over the map's top-left corner beside the tool rail. */
 export function ToolOptions() {
   const tool = useToolStore((s) => s.tool);
-  const options = OPTIONS[tool];
-  if (options === null) return null;
-  const { Options, help } = options;
+  const Options = OPTIONS[tool];
+  const { help, label } = TOOL_ENTRY[tool];
+  if (Options === null) return null;
   return (
-    <div className="tool-options" role="toolbar" aria-label="Brush options">
+    <div className="tool-options pop-surface" role="toolbar" aria-label="Brush options">
       <Options />
-      <HelpLink place={help} topic={TOOLS.find((t) => t.id === tool)!.label} />
+      {help !== null && <HelpLink place={help} topic={label} />}
     </div>
   );
 }

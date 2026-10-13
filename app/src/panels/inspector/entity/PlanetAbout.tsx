@@ -3,23 +3,25 @@ import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyName, stepText, turnText } from "../../../lib/details/labels";
 import { rangeText } from "./bodyFields";
-import { ANY_ANGLE, systemLayout } from "../../../lib/details/orbits";
+import { ANY_ANGLE } from "../../../lib/details/orbits";
+import { listedNameValue } from "../../../lib/details/scenarioValues";
 import { setsOrbitStep, valueSources } from "../../../lib/details/spawnFacts";
 import { counted } from "../../../lib/text";
 import { openSystem } from "../../../store/commands";
 import { useSystemRoll } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
-import { moonScaleOf, useGameDataStore } from "../../../store/gameDataStore";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useSceneStore } from "../../../store/sceneStore";
+import { useSystemGeometry } from "../../../store/systemGeometry";
 import { DrillLink, LinkRow, Properties, PropertyRow } from "../parts";
 import { openBody } from "./openBody";
 import { AnomalyRow } from "./PlanetAnomaly";
 import { CountryRow } from "./PlanetColony";
 import type { PlanetSectionProps } from "./planetSection";
 import { AngleDial } from "../AngleDial";
-import { HintedRow, Rolled, SetByLines } from "../states";
-import { useSystemBodyNames } from "./useBodyName";
+import { HintedRow, SetByLines, StateValue } from "../states";
+import { useSystemBodyNames } from "../../useBodyName";
 
 /** What the body orbits, opening its page, and its radius where no row of its own gives it. */
 function Orbits({
@@ -31,15 +33,15 @@ function Orbits({
   parent: number;
   radius: Bounds | null;
 }) {
-  const listed = useSystemBodyNames(system)(parent);
-  const name = listed?.text ?? `#${parent}`;
+  const listed = useSystemBodyNames(system)(parent) ?? { text: `#${parent}`, rolled: false };
+  const name = listed.text;
   return (
     <PropertyRow label="Orbits">
       <DrillLink
         title="Open the page of the body it orbits"
         onOpen={() => openBody(system, parent, name)}
       >
-        {listed?.rolled ? <Rolled>{name}</Rolled> : name}
+        <StateValue value={listedNameValue(listed)} />
       </DrillLink>
       {radius !== null && <span className="muted"> radius {rangeText(radius)}</span>}
     </PropertyRow>
@@ -62,8 +64,11 @@ function Anchor({
   const names = useGameDataStore((s) => s.names);
   const open = useInspectorStore((s) => s.open);
   const setLinkedBody = useSceneStore((s) => s.setLinkedBody);
-  const listed = useSystemBodyNames(details.id)(anchor.id);
-  const name = listed?.text ?? bodyName(anchor, names);
+  const listed = useSystemBodyNames(details.id)(anchor.id) ?? {
+    text: bodyName(anchor, names),
+    rolled: false,
+  };
+  const name = listed.text;
   return (
     <DrillLink
       title="Open the page of the body its angle turns from"
@@ -73,7 +78,7 @@ function Anchor({
         open({ ref: { kind: "body", system: details.id, id: anchor.id }, label: name });
       }}
     >
-      {listed?.rolled ? <Rolled>{name}</Rolled> : name}
+      <StateValue value={listedNameValue(listed)} />
       {` (orbit ${Math.round(radius)})`}
     </DrillLink>
   );
@@ -89,13 +94,12 @@ function Steps({
   body: PlanetSummary;
   step: Bounds;
 }) {
-  const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const moonScale = useGameDataStore(moonScaleOf);
   const shown = useSceneStore((s) =>
     s.scene.kind === "system" && s.scene.id === details.id ? s.roll : 0,
   );
-  const roll = useSystemRoll(details.id, shown);
-  const placed = systemLayout(details, roll, planetClasses, moonScale).bodies;
+  // Asks for the roll while the system view shows another system; the layout reads it.
+  useSystemRoll(details.id, shown);
+  const placed = useSystemGeometry(details.id).layout.bodies;
   // A body at the centre of the walk marks no direction to turn from, so it anchors no turn.
   const anchorId = placed.find((p) => p.id === body.id)?.turn?.anchor ?? null;
   const anchor = details.planets.find((p) => p.id === anchorId);

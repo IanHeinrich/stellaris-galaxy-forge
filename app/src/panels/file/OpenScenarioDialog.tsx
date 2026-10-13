@@ -10,7 +10,7 @@ import { fileName } from "../../lib/paths";
 import { useFileSessionStore, type ScenarioPrompt } from "../../store/fileSessionStore";
 import { standingProfile, usePaintModStore } from "../../store/paintModStore";
 import { PaintModStatus } from "../chrome/PaintModStatus";
-import { Dialog } from "../Dialog";
+import { Dialog, DialogFrame } from "../Dialog";
 import { PaintChoice } from "./PaintChoice";
 import "./open.css";
 
@@ -36,11 +36,31 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
     answer(notForPaint ? standingProfile() : "plain");
   };
   return (
-    <Dialog className="open-dialog" label="Open scenario" onClose={cancel} onDismiss={cancel}>
-      <div className="open-dialog-head">
-        <h1>Open {fileName(prompt.path)}</h1>
-      </div>
-      <div className="open-dialog-body">
+    <Dialog className="dialog" label="Open scenario" onClose={cancel} onDismiss={cancel}>
+      <DialogFrame
+        title={<>Open {fileName(prompt.path)}</>}
+        note={notForPaint && <p className="hint never-warn-why">{NEVER_WARN_WHY}</p>}
+        actions={
+          <>
+            {notForPaint && (
+              <label className="hint never-warn">
+                <input
+                  type="checkbox"
+                  checked={neverWarn}
+                  onChange={(e) => setNeverWarn(e.currentTarget.checked)}
+                />
+                {NEVER_WARN}
+              </label>
+            )}
+            <button type="button" onClick={cancel}>
+              Cancel
+            </button>
+            <button type="button" className="primary" onClick={proceed}>
+              Continue
+            </button>
+          </>
+        }
+      >
         {notForPaint ? (
           <>
             <p className="muted">{OPEN_NOT_FOR_PAINT}</p>
@@ -55,28 +75,7 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
             <PaintModStatus />
           </>
         )}
-      </div>
-      <div className="open-dialog-foot">
-        <div className="setup-actions">
-          {notForPaint && (
-            <label className="hint never-warn">
-              <input
-                type="checkbox"
-                checked={neverWarn}
-                onChange={(e) => setNeverWarn(e.currentTarget.checked)}
-              />
-              {NEVER_WARN}
-            </label>
-          )}
-          <button type="button" onClick={cancel}>
-            Cancel
-          </button>
-          <button type="button" className="open-primary" onClick={proceed}>
-            Continue
-          </button>
-        </div>
-        {notForPaint && <p className="hint never-warn-why">{NEVER_WARN_WHY}</p>}
-      </div>
+      </DialogFrame>
     </Dialog>
   );
 }

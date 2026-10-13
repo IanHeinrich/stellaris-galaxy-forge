@@ -18,3 +18,10 @@ A wait on a debounce advances fake timers instead.
 To let every answer already on its way land before asserting, `await flush()`
 from `test/flush`. It waits one real macrotask, so under fake timers it never
 resolves: there, `await vi.advanceTimersByTimeAsync(0)` does the same.
+
+To test over a folder's files, `readTree(root, keep)` from `test/files` reads them at run time. Use it in
+place of `import.meta.glob`, whose expanded file list a cached transform keeps after a file moves.
+
+`setup.ts` mocks the dialog plugin and the JSX runtime (`test/drawn`) for every test file, so a
+component test does not repeat that mock. When two test files of one store split its tests, the
+helpers they share live in a `<store>.fixture.ts` beside them.

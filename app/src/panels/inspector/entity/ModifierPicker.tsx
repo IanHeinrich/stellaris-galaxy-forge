@@ -11,9 +11,9 @@ import { chipLabel, type PickerTarget } from "../../../lib/details/picker";
 import { terraformCandidateTitle } from "../../../lib/details/terraform";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useModifierPickerStore } from "../../../store/modifierPickerStore";
-import { Icon } from "../../parts";
 import { ModifierDuration } from "./ModifierDuration";
 import type { PickerItem } from "./PickerMenu";
+import { ModifierArt } from "./ModifierArt";
 import type { PickerKind } from "./PlanetPicker";
 
 /** What a row's Add button says and its hover, for one planet or for several. */
@@ -42,12 +42,7 @@ function modifierItem(row: ModifierPickRow): PickerItem {
     category: chipLabel(MODIFIER_CHIPS, row.choice.category),
     description: row.description,
     artClass: "pl-mod-icon",
-    art: (
-      <>
-        <Icon keys={view.icon === null ? [] : [view.icon]} glyph="◆" />
-        {view.icon_frame !== null && <Icon className="pl-mod-frame" keys={[view.icon_frame]} />}
-      </>
-    ),
+    art: <ModifierArt icon={view.icon} frame={view.icon_frame} />,
     buttons: [
       {
         text: button.text,

@@ -3,7 +3,7 @@ import type { MovedPlanet, WarningNames } from "../lib/planetMove";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
-import { useBodyLookup } from "./inspector/entity/useBodyName";
+import { useBodyLookup } from "./useBodyName";
 
 const NONE: readonly number[] = [];
 

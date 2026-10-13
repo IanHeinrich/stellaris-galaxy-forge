@@ -1,5 +1,5 @@
 import { daysLeft, lastsFor, type ModifierRow } from "../../../lib/details/planetPage";
-import type { CardItem } from "./PickerCard";
+import type { CardItem } from "../HoverCard";
 
 /** What a modifier's card shows: its name, every effect, and how long it lasts. */
 export function modifierCard(row: ModifierRow): CardItem {

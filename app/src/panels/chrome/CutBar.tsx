@@ -2,6 +2,7 @@ import { shortcutLabel } from "../../lib/keys";
 import { copiedLabel, movingLabel } from "../../lib/planetMove";
 import { useClipboard } from "../useCut";
 import "./chrome.css";
+import "../panels.css";
 
 /**
  * What waits for a paste, at the top centre of the map in either view until it is pasted or
@@ -13,7 +14,7 @@ export function CutBar() {
   const copy = clipboard.kind === "copy";
   return (
     <div className="cut-bar-lane">
-      <div className="cut-bar" role="status">
+      <div className="cut-bar pop-surface" role="status">
         <b>
           {copy ? copiedLabel(clipboard.planets) : movingLabel(clipboard.planets, clipboard.from)}
         </b>{" "}

@@ -1,13 +1,13 @@
-import type { NameTemplate } from "../../../generated/NameTemplate";
-import type { PlanetSummary } from "../../../generated/PlanetSummary";
-import type { SystemDetails } from "../../../generated/SystemDetails";
-import { bodyName, shownBodyName } from "../../../lib/details/labels";
-import { givenNamesFrom, nameFormats, type GivenName } from "../../../lib/details/spawnNames";
-import { findPlanet } from "../../../lib/details/starBody";
-import { useDetailsStore } from "../../../store/detailsStore";
-import { useGalaxyStore } from "../../../store/galaxyStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
-import { useNameFormatsStore } from "../../../store/nameFormatsStore";
+import type { NameTemplate } from "../generated/NameTemplate";
+import type { PlanetSummary } from "../generated/PlanetSummary";
+import type { SystemDetails } from "../generated/SystemDetails";
+import { bodyName, shownBodyName } from "../lib/details/labels";
+import { givenNamesFrom, nameFormats, type GivenName } from "../lib/details/spawnNames";
+import { findPlanet } from "../lib/details/starBody";
+import { useDetailsStore } from "../store/detailsStore";
+import { useGalaxyStore } from "../store/galaxyStore";
+import { useGameDataStore } from "../store/gameDataStore";
+import { useNameFormatsStore } from "../store/nameFormatsStore";
 
 /** Body `id` as the system list names it, and whether it is a moon; `#id` while no read system lists it. */
 export function useBodyLookup(): (id: number) => { name: string; moon: boolean } {

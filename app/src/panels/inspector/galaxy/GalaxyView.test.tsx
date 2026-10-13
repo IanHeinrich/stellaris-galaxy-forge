@@ -9,7 +9,6 @@ import type { PrepareRow } from "../../../generated/PrepareRow";
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import {

@@ -4,7 +4,7 @@
  * gives back to remove it, the adapter that edits the body, and the save's own read for the
  * sections only a save has.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { ModifierView } from "../../../generated/ModifierView";
@@ -29,6 +29,7 @@ import {
 } from "../../../lib/details/planetPage";
 import type { Names } from "../../../lib/names";
 import { poolKeys, statedModifierKeys, statedModifierRows } from "../../../lib/details/spawnFacts";
+import { unlistedKey, useEntityStore } from "../../../store/entityStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import {
   bodyPickerTarget,
@@ -169,63 +170,23 @@ function saveDataKeys(page: PlanetPage): PlanetDataKeys {
   };
 }
 
-/** A body a save's own read names, where no details list it: its id, name, class and size. */
-function pageBody(
-  body: Pick<PlanetPage, "id" | "name" | "name_key" | "class" | "size">,
-  parent: number | null,
-): PlanetSummary {
-  const moon = parent !== null;
-  return {
-    id: body.id,
-    class: body.class,
-    name: body.name,
-    name_key: body.name_key,
-    colonised: false,
-    capital: false,
-    habitable: null,
-    owner: null,
-    moon,
-    role: moon ? "moon" : "planet",
-    pre_ftl: false,
-    size: body.size,
-    orbit: null,
-    deposits: [],
-    deposit_keys: [],
-    pops: 0,
-    parent,
-    layout: null,
-    ring: null,
-    drawn: false,
-  };
-}
-
-/** Save body `page` and its moons in system `system`, as its own read gives them. */
-function pageListing(page: PlanetPage, system: number) {
-  const summary: PlanetSummary = {
-    ...pageBody(page, null),
-    colonised: page.colony !== null,
-    owner: page.owner,
-    orbit: page.orbit,
-    pops: page.colony?.pops ?? 0,
-    ...(page.entity_name === null ? {} : { entity_name: page.entity_name }),
-    ...(page.anomaly === null ? {} : { anomaly: page.anomaly.category }),
-  };
-  const details: SystemDetails = {
-    id: system,
-    resources: [],
-    planets: [summary, ...page.moons.map((moon) => pageBody(moon, page.id))],
-    starbase: null,
-    other_starbases: [],
-    fleets: { fleet_count: 0, military_count: 0, ship_count: 0, military_power: 0 },
-    fleets_present: [],
-    megastructures: [],
-    sites: [],
-    with_game_data: false,
-    belts: [],
-    inner_radius: null,
-    wormholes: [],
-  };
-  return { details, summary };
+/**
+ * Save body `id` and its moons as the core reads them alone, asked for once `wanted`: where its
+ * system's details won't list it. `undefined` while it is read, `null` where it can't be.
+ */
+function useUnlisted(
+  id: number,
+  system: number,
+  wanted: boolean,
+): SystemDetails | null | undefined {
+  const request = useEntityStore((s) => s.requestUnlisted);
+  const alone = useEntityStore((s) => s.unlisted.get(id));
+  const failed = useEntityStore((s) => s.errors.has(unlistedKey(id)));
+  const version = useEntityStore((s) => s.version);
+  useEffect(() => {
+    if (wanted) request(id, system);
+  }, [wanted, request, id, system, version]);
+  return failed ? null : alone;
 }
 
 function useSaveRead(system: number, id: number, listed: Listed): BodyAnswer {
@@ -233,11 +194,14 @@ function useSaveRead(system: number, id: number, listed: Listed): BodyAnswer {
   const views = usePlanetDataStore((s) => s.depositTypes);
   const modifiers = usePlanetDataStore((s) => s.modifiers);
   const names = useGameDataStore((s) => s.names);
+  const alone = useUnlisted(id, system, "waiting" in listed && listed.settled);
   const own = useMemo(() => {
     if (page === undefined) return null;
     if (!("waiting" in listed)) return { ...listed, listed: true };
-    return listed.settled ? { ...pageListing(page, page.system ?? system), listed: false } : null;
-  }, [page, listed, system]);
+    const summary = alone?.planets.find((p) => p.id === id);
+    if (!listed.settled || alone == null || summary === undefined) return null;
+    return { details: alone, summary, listed: false };
+  }, [page, listed, alone, id]);
   const anomaly = useMemo(() => (page === undefined ? null : heldAnomaly(page)), [page]);
   const target = useMemo(
     () =>
@@ -251,7 +215,8 @@ function useSaveRead(system: number, id: number, listed: Listed): BodyAnswer {
     [page, anomaly, views, modifiers, names],
   );
   const dataKeys = useMemo(() => (page === undefined ? null : saveDataKeys(page)), [page]);
-  if (error !== undefined) return { generic: true };
+  const unreadable = "waiting" in listed && listed.settled && alone === null;
+  if (error !== undefined || unreadable) return { generic: true };
   if (page === undefined || rows === null || dataKeys === null) return { waiting: READING_PLANET };
   if (own === null || target === null) {
     return { waiting: "waiting" in listed ? listed.waiting : READING_PLANET };

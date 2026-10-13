@@ -4,6 +4,7 @@ import type { Names } from "../../lib/names";
 import { changePlanetText, keepPlanetText, PLANET_CHANGE_LABEL } from "../../lib/planetChangeAdd";
 import { useMegastructureAddStore } from "../../store/megastructureAdd";
 import { useNamed } from "../useNamed";
+import { RadioChoice } from "./RadioChoice";
 
 /**
  * The choice under the tiles of a type whose build changes its planet: change the planet as the
@@ -28,26 +29,23 @@ export function PlanetChangePicks({
   useNamed(classKeys);
 
   return (
-    <div role="radiogroup" aria-label={PLANET_CHANGE_LABEL} className="ring-world-planets">
-      <span className="muted">{PLANET_CHANGE_LABEL}</span>
-      <label>
-        <input
-          type="radio"
-          name="megastructure-planet"
-          checked={!keep}
-          onChange={() => setKeepPlanet(false)}
-        />
-        <span>{changePlanetText(change, names)}</span>
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="megastructure-planet"
-          checked={keep}
-          onChange={() => setKeepPlanet(true)}
-        />
-        <span>{keepPlanetText(change, planetClass, names)}</span>
-      </label>
-    </div>
+    <RadioChoice
+      label={PLANET_CHANGE_LABEL}
+      name="megastructure-planet"
+      options={[
+        {
+          key: "change",
+          label: changePlanetText(change, names),
+          checked: !keep,
+          onPick: () => setKeepPlanet(false),
+        },
+        {
+          key: "keep",
+          label: keepPlanetText(change, planetClass, names),
+          checked: keep,
+          onPick: () => setKeepPlanet(true),
+        },
+      ]}
+    />
   );
 }

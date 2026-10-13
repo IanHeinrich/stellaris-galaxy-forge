@@ -4,18 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../test/drawn"));
 
 import * as dialog from "@tauri-apps/plugin-dialog";
 import * as ipc from "../../api/ipc";
 import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import {
   OPEN_RESULT,
   SCENARIO_RESULT,
-  countryNode,
   editResult,
   entityNode,
   entityView,
@@ -31,8 +28,8 @@ import { useSceneStore } from "../../store/sceneStore";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { buttons, escaped, menuItem } from "../../test/elements";
-import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
+import { buttons, menuItem } from "../../test/elements";
+import { drawnBy, lastDrawn } from "../../test/drawn";
 import {
   megastructureSummary,
   megastructureTypeView,
@@ -44,7 +41,6 @@ import {
   solWithBelt,
 } from "../../test/builders";
 import { ContextMenu } from "./ContextMenu";
-import { MapTooltip } from "./MapTooltip";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { BodyRowMenu } from "./contextMenu/BodyRowMenu";
@@ -53,7 +49,6 @@ import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
 import { MenuItem } from "./contextMenu/MenuItem";
 import type { BodyClassPick } from "../../generated/BodyClassPick";
 import { useGeneratorStore } from "../../store/generatorStore";
-import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import { useMegastructureAddStore } from "../../store/megastructureAdd";
 import {
@@ -121,7 +116,7 @@ describe("the system view's menus", () => {
     expect(menu()).toContain(">Open system view</button>");
   });
 
-  it("deletes a save body after asking, and offers no deletion on a scenario", async () => {
+  it("deletes a save body after asking", async () => {
     const moon = planetSummary({ id: 13, name: name("Luna"), name_key: "Luna", moon: true });
     inSystem(systemDetails({ id: 0, planets: [moon] }));
     const body = { kind: "body", system: 0, id: 13 } as const;
@@ -137,11 +132,6 @@ describe("the system view's menus", () => {
       "Delete Luna? The moon is removed from the save.",
       expect.objectContaining({ kind: "warning" }),
     );
-
-    await openWith(SCENARIO_RESULT);
-    useSceneStore.getState().enterSystem(0);
-    useMapChromeStore.getState().openContextMenu({ target: body, x: 0, y: 0 });
-    expect(menu()).not.toContain("Delete");
   });
 });
 
@@ -184,12 +174,6 @@ describe("a body's lock in the system view", () => {
     expect(useSceneStore.getState().lockedBodies.has(MOON)).toBe(false);
     expect(ipc.applyOp).not.toHaveBeenCalled();
   });
-
-  it("offers no lock on a scenario", async () => {
-    await openWith(SCENARIO_RESULT);
-    inBinary();
-    expect(menuOn(PLANET).some((b) => b.startsWith("Lock"))).toBe(false);
-  });
 });
 
 describe("a belt's handle in the system view", () => {
@@ -206,14 +190,6 @@ describe("a belt's handle in the system view", () => {
     );
     const removes = vi.mocked(ipc.applyOp).mock.calls.filter(([op]) => op.type === "RemoveBelt");
     expect(removes).toHaveLength(1);
-  });
-
-  it("offers no removal on a scenario", async () => {
-    await openWith(SCENARIO_RESULT);
-    inSol(target);
-    const html = menu();
-    expect(html).not.toContain("Remove belt");
-    expect(html).toContain(">Back to galaxy</button>");
   });
 });
 
@@ -298,16 +274,6 @@ describe("a megastructure in the system view", () => {
     atTheNexus();
     expect(menu()).not.toContain("Snap to");
   });
-
-  it("offers neither a page nor a deletion on a scenario", async () => {
-    await openWith(SCENARIO_RESULT);
-    atTheNexus();
-    const html = menu();
-    expect(html).toContain('<div class="context-menu-header">Science Nexus</div>');
-    expect(html).not.toContain("Inspect");
-    expect(html).not.toContain("Delete megastructure");
-    expect(html).toContain(">Back to galaxy</button>");
-  });
 });
 
 describe("the system view's empty space", () => {
@@ -347,14 +313,6 @@ describe("the system view's empty space", () => {
     await until(() =>
       expect(ipc.pasteBodiesOp).toHaveBeenCalledWith(0, copies, placementAt(target.x, target.y)),
     );
-  });
-
-  it("offers no belt on a scenario", async () => {
-    await openWith(SCENARIO_RESULT);
-    inSol(target);
-    const html = menu();
-    expect(html).not.toContain("Add belt here");
-    expect(html).toContain(">Back to galaxy</button>");
   });
 });
 
@@ -438,15 +396,10 @@ describe("adding a planet or moon in the system view", () => {
     for (const id of [1, 3, 6]) expect(menuOn(body(id))).not.toContain("Add moon");
   });
 
-  it("is not offered on a scenario or a save that cannot take it", async () => {
+  it("is not offered on a save that cannot take it", () => {
     useFileSessionStore.setState({
       capabilities: { ...useFileSessionStore.getState().capabilities!, add_bodies: false },
     });
-    expect(menuOn(space)).not.toContain("Add planet here");
-    expect(menuOn(body(2))).not.toContain("Add moon");
-
-    await openWith(SCENARIO_RESULT);
-    useSceneStore.getState().enterSystem(0);
     expect(menuOn(space)).not.toContain("Add planet here");
     expect(menuOn(body(2))).not.toContain("Add moon");
   });
@@ -503,207 +456,6 @@ describe("adding a megastructure in the system view", () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure here…/);
     expect(html).toContain(MEGASTRUCTURES_NEED_GAME_DATA);
   });
-
-  it("is not offered on a scenario", async () => {
-    await openWith(SCENARIO_RESULT);
-    useSceneStore.getState().enterSystem(0);
-    expect(menuOn(space)).not.toContain("Add megastructure");
-    expect(menuOn(body(2))).not.toContain("Add megastructure");
-  });
-});
-
-describe("moving planets", () => {
-  const [SOL, CENTAURI, BARNARD] = [0, 1, 2];
-  const [EARTH, MARS] = [12, 13];
-  const HISSMAN = 7;
-  const colony = { planet: MARS, kind: "colony", owner: 0, new_owner: HISSMAN } as const;
-  const station = { planet: EARTH, kind: "station", owner: 0, new_owner: HISSMAN } as const;
-  const moves = () => usePlanetMoveStore.getState();
-  const targets = (planets: number[], over: Partial<PlanetMoveTargets> = {}) => ({
-    planets,
-    refused: [],
-    systems: [
-      { system: CENTAURI, warnings: [] },
-      { system: BARNARD, warnings: [colony, station] },
-    ],
-    ...over,
-  });
-
-  beforeEach(() => {
-    const planets = [
-      planetSummary({ id: EARTH, name: name("Earth"), name_key: "Earth" }),
-      planetSummary({ id: MARS, name: name("Mars"), name_key: "Mars" }),
-    ];
-    inSystem(systemDetails({ id: SOL, planets }));
-    const hissman = { key: "Hissman Consciousness", literal: true, variables: [] };
-    useGalaxyStore.setState({
-      countries: new Map([
-        [HISSMAN, countryNode({ id: HISSMAN, name: hissman, name_key: hissman.key })],
-      ]),
-    });
-    vi.mocked(ipc.planetMoveTargets).mockImplementation(async (ids) => targets(ids));
-  });
-
-  async function selectBoth(): Promise<void> {
-    useSceneStore.getState().selectBody(SOL, EARTH);
-    useSceneStore.getState().toggleBody(SOL, MARS);
-    await flush();
-  }
-
-  const openOn = (target: ContextTarget) =>
-    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
-
-  it("cuts the selection from a body's menu, and says why it cannot", async () => {
-    useSceneStore.getState().selectBody(SOL, EARTH);
-    useSceneStore.getState().toggleBody(SOL, MARS);
-    const body = { kind: "body", system: SOL, id: EARTH } as const;
-    openOn(body);
-    expect(menu()).toMatch(
-      /<button[^>]*disabled=""[^>]*>Cut 2 planets<kbd>Ctrl\+X<\/kbd><\/button>/,
-    );
-
-    await flush();
-    expect(menu()).toContain('class="keyed">Cut 2 planets<kbd>Ctrl+X</kbd></button>');
-    menuItem(<BodyMenu target={body} frame={{}} />, "Cut 2 planets").props.onClick();
-    expect(moves().cut).toMatchObject({ planets: [EARTH, MARS], from: SOL });
-
-    const reason = "Earth has an arc furnace: planets with a megastructure can't move";
-    vi.mocked(ipc.planetMoveTargets).mockResolvedValue(
-      targets([EARTH, MARS], { refused: [{ planet: EARTH, reason }], systems: [] }),
-    );
-    useSceneStore.getState().toggleBody(SOL, MARS);
-    useSceneStore.getState().toggleBody(SOL, MARS);
-    await flush();
-    openOn(body);
-    expect(menu()).toContain(`title="${escaped(reason)}">Cut 2 planets<kbd>Ctrl+X</kbd></button>`);
-  });
-
-  it("puts Paste first on a system's menu, with the first warning under it and all of them on hover", async () => {
-    await selectBoth();
-    moves().cutSelection();
-    useSceneStore.getState().exitScene();
-
-    openOn({ kind: "system", id: CENTAURI });
-    let html = menu();
-    expect(buttons(html)[0]).toBe("Paste 2 planets here Ctrl+V");
-    expect(html).not.toContain("⚠");
-
-    openOn({ kind: "system", id: BARNARD });
-    html = menu();
-    expect(buttons(html)[0]).toBe(
-      "Paste 2 planets here ⚠ Mars will change ownership to Hissman Consciousness about a month after you load (and 1 more) Ctrl+V",
-    );
-    expect(html).toContain(
-      'title="Mars will change ownership to Hissman Consciousness about a month after you load\n' +
-        'Earth&#x27;s station will change ownership to Hissman Consciousness"',
-    );
-
-    drawnBy(menu);
-    drawnButton("Paste 2 planets here").onClick();
-    await until(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH, MARS], BARNARD, null));
-  });
-
-  it("refuses a paste back into the planets' own system without asking the core", async () => {
-    await selectBoth();
-    moves().cutSelection();
-    openOn({ kind: "system", id: SOL });
-    expect(menu()).toContain(
-      'disabled="" title="These planets are already in Sol">Paste 2 planets here<kbd>Ctrl+V</kbd></button>',
-    );
-
-    useSceneStore.getState().selectBody(SOL, EARTH);
-    await flush();
-    moves().cutSelection();
-    openOn({ kind: "systemSpace", system: SOL, x: 0, y: 50 });
-    expect(menu()).toContain('disabled="" title="Earth is already in Sol">Paste Earth here');
-    expect(ipc.planetMoveCheck).not.toHaveBeenCalled();
-  });
-
-  it("pastes a lone planet where the system view's space was pressed, and names the orbit", async () => {
-    useSceneStore.getState().selectBody(SOL, EARTH);
-    await flush();
-    moves().cutSelection();
-    useSceneStore.getState().enterSystem(CENTAURI);
-    const target = { kind: "systemSpace", system: CENTAURI, x: 0, y: 108 } as const;
-    const at = { radius: 108, angle: 90 };
-    vi.mocked(ipc.planetMoveCheck).mockResolvedValue({ refusal: null, warnings: [] });
-    await moves().checkPaste(CENTAURI, at);
-    openOn(target);
-    const label = "Paste Earth here (orbit 108 · 90°)";
-    expect(buttons(menu())[0]).toBe(`${label} Ctrl+V`);
-
-    drawnBy(menu);
-    drawnButton(label).onClick();
-    await until(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH], CENTAURI, at));
-  });
-
-  it("names a lone body in its Cut", async () => {
-    useSceneStore.getState().selectBody(SOL, EARTH);
-    await flush();
-    openOn({ kind: "body", system: SOL, id: EARTH });
-    expect(menu()).toContain('class="keyed">Cut Earth<kbd>Ctrl+X</kbd></button>');
-  });
-
-  it("hides the map's tooltip while a menu is open", () => {
-    const tooltip = () => renderToStaticMarkup(<MapTooltip />);
-    useMapChromeStore.getState().showTooltip({ x: 0, y: 0, title: "Sol", lines: [] });
-    expect(tooltip()).toContain("Sol");
-    openOn({ kind: "system", id: SOL });
-    expect(tooltip()).toBe("");
-  });
-
-  it("copies from a body's menu, and pastes a copy into any system, its own included", async () => {
-    const copies = [{ class: "pc_arid" }, { class: "pc_desert" }];
-    vi.mocked(ipc.copyBodies).mockResolvedValue(copies as never);
-    vi.mocked(ipc.pasteBodiesOp).mockResolvedValue({ type: "Batch", description: "x", ops: [] });
-    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
-    await selectBoth();
-    const body = { kind: "body", system: SOL, id: EARTH } as const;
-    openOn(body);
-    expect(menu()).toContain('class="keyed">Copy 2 planets<kbd>Ctrl+C</kbd></button>');
-    menuItem(<BodyMenu target={body} frame={{}} />, "Copy 2 planets").props.onClick();
-    await until(() => expect(moves().copy?.copies).toEqual(copies));
-
-    openOn({ kind: "system", id: SOL });
-    expect(menu()).toContain('class="context-menu-lead keyed">Paste 2 planets here<kbd>');
-    drawnBy(menu);
-    drawnButton("Paste 2 planets here").onClick();
-    await until(() => expect(ipc.pasteBodiesOp).toHaveBeenCalledWith(SOL, copies, null));
-    expect(ipc.planetMoveCheck).not.toHaveBeenCalled();
-
-    useFileSessionStore.setState({
-      capabilities: { ...useFileSessionStore.getState().capabilities!, add_bodies: false },
-    });
-    openOn(body);
-    expect(menu()).not.toContain("Copy");
-    openOn({ kind: "system", id: SOL });
-    expect(menu()).not.toContain("Paste");
-  });
-
-  it("offers no Cut or Copy on a ring world segment", async () => {
-    const SEGMENT = 14;
-    const segment = planetSummary({
-      id: SEGMENT,
-      name: name("Ring Section"),
-      name_key: "Ring Section",
-      class: "pc_ringworld_seam",
-    });
-    inSystem(systemDetails({ id: SOL, planets: [segment] }));
-    useSceneStore.getState().selectBody(SOL, SEGMENT);
-    await flush();
-    openOn({ kind: "body", system: SOL, id: SEGMENT });
-    const html = menu();
-    expect(html).toContain(">Delete ring world</button>");
-    expect(html).not.toContain("Cut");
-    expect(html).not.toContain("Copy");
-  });
-
-  it("offers no Paste without a cut", () => {
-    openOn({ kind: "system", id: CENTAURI });
-    expect(menu()).not.toContain("Paste");
-    openOn({ kind: "systemSpace", system: SOL, x: 5, y: 5 });
-    expect(menu()).not.toContain("Paste");
-  });
 });
 
 describe("a body row's menu", () => {
@@ -747,4 +499,108 @@ describe("a body row's menu", () => {
     expect(scene.bodySelection).toEqual({ system: 0, ids: [13] });
     expect(scene.bodyFocus?.id).toBe(13);
   });
+});
+
+describe("a scenario's system view menus", () => {
+  const body = (id: number) => ({ kind: "body", system: 0, id }) as const;
+  const space = { kind: "systemSpace", system: 0, x: 90, y: -120 } as const;
+
+  function inOrbitSystem(): void {
+    const details = orbitSystem({ id: 0 });
+    inSystem({ ...details, planets: namedPlanets(details.planets) });
+    useGameDataStore.setState({ status: "ready", planetClasses: orbitClasses() });
+    useGeneratorStore.setState({
+      planetClasses: [{ key: "pc_desert", name: "Desert", min_size: 10, max_size: 25 }],
+      moonClasses: [{ key: "pc_barren", name: "Barren", min_size: 5, max_size: 5 }],
+    });
+  }
+
+  const cases: {
+    name: string;
+    setup: () => void;
+    /** What a save's menu on each target offers. */
+    offers: [ContextTarget, string][];
+    /** The name in the menu's header, which a scenario's menu keeps. */
+    header?: string;
+  }[] = [
+    {
+      name: "body deletion",
+      setup: () =>
+        inSystem(
+          systemDetails({
+            id: 0,
+            planets: [planetSummary({ id: 13, name: name("Luna"), name_key: "Luna", moon: true })],
+          }),
+        ),
+      offers: [[body(13), "Delete moon"]],
+    },
+    { name: "body lock", setup: inOrbitSystem, offers: [[body(2), "Lock to"]] },
+    {
+      name: "belt removal",
+      setup: () => inSystem(solWithBelt()),
+      offers: [[{ kind: "belt", system: 0, index: 0 }, "Remove belt"]],
+    },
+    {
+      name: "belt in empty space",
+      setup: () => inSystem(solWithBelt()),
+      offers: [[space, "Add belt here"]],
+    },
+    {
+      name: "megastructure page and deletion",
+      setup: () => {
+        inSystem(
+          systemDetails({
+            id: 0,
+            megastructures: [megastructureSummary({ id: 6, kind: "think_tank_3" })],
+          }),
+        );
+        useGameDataStore.setState({ names: new Map([["think_tank_3", "Science Nexus"]]) });
+      },
+      header: "Science Nexus",
+      offers: [
+        [{ kind: "megastructure", system: 0, id: 6 }, "Inspect"],
+        [{ kind: "megastructure", system: 0, id: 6 }, "Delete megastructure"],
+      ],
+    },
+    {
+      name: "planet and moon",
+      setup: inOrbitSystem,
+      offers: [
+        [space, "Add planet here"],
+        [body(2), "Add moon"],
+      ],
+    },
+    {
+      name: "megastructure add",
+      setup: inOrbitSystem,
+      offers: [
+        [space, "Add megastructure"],
+        [body(2), "Add megastructure"],
+      ],
+    },
+  ];
+
+  const menuOn = (target: ContextTarget) => {
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+    return menu();
+  };
+
+  it.each(cases)(
+    "offers no $name, which a save's menu offers",
+    async ({ setup, offers, header }) => {
+      setup();
+      for (const [target, text] of offers) expect(menuOn(target)).toContain(text);
+
+      await openWith(SCENARIO_RESULT);
+      setup();
+      for (const [target, text] of offers) {
+        const html = menuOn(target);
+        expect(html).not.toContain(text);
+        expect(html).toContain(">Back to galaxy</button>");
+        if (header !== undefined) {
+          expect(html).toContain(`<div class="context-menu-header">${header}</div>`);
+        }
+      }
+    },
+  );
 });

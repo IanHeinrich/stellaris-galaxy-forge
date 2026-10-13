@@ -8,11 +8,11 @@ import { useSystemGeometry } from "../../../../store/systemGeometry";
 import { EditRow, PickerField, TextField } from "../../../EditField";
 import { useGeometryEdit } from "../../useGeometryEdit";
 import type { Bounds } from "../../../../generated/Bounds";
-import { boundsText } from "../../../../lib/details/labels";
+import { innerRadiusValue, radiusValue } from "../../../../lib/details/scenarioValues";
 import { innerOffsetHint } from "../../../../lib/details/spawnFacts";
 import { needsGameData } from "../../../../lib/text";
 import { LockedRow, Section } from "../../parts";
-import { Hinted, Rolled, Unknown } from "../../states";
+import { Hinted, StateValue } from "../../states";
 
 const KINDS_NEED_GAME_DATA = needsGameData("change a belt's kind");
 const NO_KINDS: readonly Named[] = [];
@@ -23,37 +23,21 @@ function kindName(kind: string, kinds: readonly Named[]): string {
 
 type Send = (intent: GeometryIntent) => void;
 
-/** `40.5`, or `40 to 60` for a radius the game rolls. */
-function radiusText(bounds: Bounds): string {
-  return bounds.min === bounds.max ? `${rounded(bounds.min)}` : boundsText(bounds);
-}
-
-/** A radius the game may draw: a range in the rolled look, or the one number. */
-function RadiusText({ bounds }: { bounds: Bounds }) {
-  return bounds.min === bounds.max ? (
-    <>{radiusText(bounds)}</>
-  ) : (
-    <Rolled>{radiusText(bounds)}</Rolled>
-  );
-}
-
 /**
  * A scenario's inner radius: as the game derives it from the bodies, and where the initializer
  * also writes an offset, which no game file says how it applies, the range unknown with why.
  */
 function SpawnInnerRadius({ bounds, offset }: { bounds: Bounds; offset: number | null }) {
-  if (offset === null) {
-    return (
-      <EditRow label="Inner radius">
-        <RadiusText bounds={bounds} />
-      </EditRow>
-    );
-  }
+  const value = <StateValue value={innerRadiusValue(bounds, offset)} />;
   return (
     <EditRow label="Inner radius">
-      <Hinted label="Inner radius" hint={innerOffsetHint(offset)}>
-        <Unknown>{radiusText(bounds)}</Unknown>
-      </Hinted>
+      {offset === null ? (
+        value
+      ) : (
+        <Hinted label="Inner radius" hint={innerOffsetHint(offset)}>
+          {value}
+        </Hinted>
+      )}
     </EditRow>
   );
 }
@@ -181,7 +165,7 @@ export function BeltSection({ details }: { details: SystemDetails }) {
               {radii?.[index] === undefined ? (
                 rounded(belt.radius)
               ) : (
-                <RadiusText bounds={radii[index]} />
+                <StateValue value={radiusValue(radii[index])} />
               )}
             </EditRow>
           ),

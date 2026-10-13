@@ -7,6 +7,7 @@ import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
 import type { PlanetPage } from "../generated/PlanetPage";
+import type { SystemDetails } from "../generated/SystemDetails";
 import { keyedReads, type KeyedReads } from "./reads";
 
 /** One entity, whichever level of it is being read. */
@@ -29,7 +30,12 @@ export function planetPageKey(id: number): string {
   return `page/${addrKey({ kind: "planet", id })}`;
 }
 
-const READ_PREFIX = /^(source|page)\//;
+/** A save body read alone, where its system's details don't list it. */
+export function unlistedKey(id: number): string {
+  return `unlisted/${addrKey({ kind: "planet", id })}`;
+}
+
+const READ_PREFIX = /^(source|page|unlisted)\//;
 
 /** The entity a key belongs to: the read it names, without its kind of read or its path. */
 function ownerOf(key: string): string {
@@ -51,6 +57,10 @@ export interface EntityState {
   pages: Map<number, PlanetPage>;
   /** The pages an edit made stale, read again on their next request. */
   stalePages: Set<number>;
+  /** Save bodies and their moons read alone by planet id, `null` where the save holds none. */
+  unlisted: Map<number, SystemDetails | null>;
+  /** The bodies read alone that an edit made stale, kept until their fresh read lands, as pages are. */
+  staleUnlisted: Set<number>;
   /** Reads asked for and not yet answered, by the key of what was asked for. */
   pending: Set<string>;
   /** What a refused read said, by the same key; a refused read is not asked for again. */
@@ -62,6 +72,8 @@ export interface EntityState {
   requestSource(addr: EntityAddr): void;
   requestSchema(kind: EntityKind): void;
   requestPlanetPage(id: number): void;
+  /** Reads save body `id` alone, in the system it names, else `system`. */
+  requestUnlisted(id: number, system: number): void;
   /**
    * What an applied edit, undo or redo leaves behind: every entity it rewrote is stale, and so
    * is the page of every planet listing a rewritten moon. A touched or removed system also
@@ -125,11 +137,22 @@ const pageReads = entityReads(
   },
 );
 
+const unlistedReads = entityReads(
+  ({ id, system }: { id: number; system: number }) => ipc.getUnlistedBody(id, system),
+  ({ id }) => unlistedKey(id),
+  ({ id }, alone) => {
+    const staleUnlisted = new Set(useEntityStore.getState().staleUnlisted);
+    staleUnlisted.delete(id);
+    return { unlisted: new Map(useEntityStore.getState().unlisted).set(id, alone), staleUnlisted };
+  },
+);
+
 const ALL_READS: Omit<KeyedReads<never, string>, "read">[] = [
   viewReads,
   sourceReads,
   schemaReads,
   pageReads,
+  unlistedReads,
 ];
 
 function pendingNow(): Set<string> {
@@ -142,6 +165,8 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   schemas: new Map(),
   pages: new Map(),
   stalePages: new Set(),
+  unlisted: new Map(),
+  staleUnlisted: new Set(),
   pending: new Set(),
   errors: new Map(),
   version: 0,
@@ -164,6 +189,11 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     begin(pageReads, id, planetPageKey(id), cached);
   },
 
+  requestUnlisted(id, system) {
+    const cached = get().unlisted.has(id) && !get().staleUnlisted.has(id);
+    begin(unlistedReads, { id, system }, unlistedKey(id), cached);
+  },
+
   noteEdit(result) {
     const systems = new Set([
       ...result.touched_entities.filter((addr) => addr.kind === "system").map((addr) => addr.id),
@@ -177,8 +207,14 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     const hosts = [...get().pages.values()]
       .filter((page) => page.moons.some((moon) => planets.has(moon.id)))
       .map((page): EntityAddr => ({ kind: "planet", id: page.id }));
-    get().invalidate([...result.touched_entities, ...hosts, ...wormholes]);
-    if (systems.size > 0) dropPendingPages();
+    const aloneHosts = [...get().unlisted]
+      .filter(([, read]) => read?.planets.some((p) => planets.has(p.id)) === true)
+      .map(([id]): EntityAddr => ({ kind: "planet", id }));
+    get().invalidate([...result.touched_entities, ...hosts, ...aloneHosts, ...wormholes]);
+    if (systems.size > 0) {
+      staleAloneIn(systems);
+      dropPendingPages();
+    }
   },
 
   invalidate(addrs) {
@@ -189,10 +225,20 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     const sources = new Map([...get().sources].filter(([key]) => !stale(key)));
     const stalePages = new Set(get().stalePages);
     for (const id of get().pages.keys()) if (stale(planetPageKey(id))) stalePages.add(id);
+    const staleUnlisted = new Set(get().staleUnlisted);
+    for (const id of get().unlisted.keys()) if (stale(unlistedKey(id))) staleUnlisted.add(id);
     const errors = new Map([...get().errors].filter(([key]) => !stale(key)));
     // A read already out would land on the pre-edit bytes: it is dropped, not cached.
     for (const reads of ALL_READS) reads.drop([...reads.pending()].filter(stale));
-    set({ views, sources, stalePages, errors, pending: pendingNow(), version: get().version + 1 });
+    set({
+      views,
+      sources,
+      stalePages,
+      staleUnlisted,
+      errors,
+      pending: pendingNow(),
+      version: get().version + 1,
+    });
   },
 
   clear() {
@@ -203,6 +249,8 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       schemas: new Map(),
       pages: new Map(),
       stalePages: new Set(),
+      unlisted: new Map(),
+      staleUnlisted: new Set(),
       pending: new Set(),
       errors: new Map(),
       version: get().version + 1,
@@ -224,11 +272,25 @@ function wormholeReads(state: EntityState): EntityAddr[] {
   return [...ids].map((id): EntityAddr => ({ kind: "wormhole", id }));
 }
 
-/** A page read already out does not say which system it is in, so any edit to a system drops it. */
+/** Marks stale each body read alone in one of `systems`, whose star class its read resolves through. */
+function staleAloneIn(systems: ReadonlySet<number>): void {
+  const { unlisted, staleUnlisted, version } = useEntityStore.getState();
+  const ids = [...unlisted].filter(([, read]) => read !== null && systems.has(read.id));
+  if (ids.length === 0) return;
+  const marked = new Set(staleUnlisted);
+  for (const [id] of ids) marked.add(id);
+  useEntityStore.setState({ staleUnlisted: marked, version: version + 1 });
+}
+
+/**
+ * A page or lone body read already out does not say which system it is in, so any edit to a
+ * system drops it.
+ */
 function dropPendingPages(): void {
-  const pages = pageReads.pending();
-  if (pages.size === 0) return;
-  pageReads.drop(pages);
+  const pages = [...pageReads.pending(), ...unlistedReads.pending()];
+  if (pages.length === 0) return;
+  pageReads.drop(pageReads.pending());
+  unlistedReads.drop(unlistedReads.pending());
   const { version } = useEntityStore.getState();
   useEntityStore.setState({ pending: pendingNow(), version: version + 1 });
 }

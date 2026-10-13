@@ -301,7 +301,7 @@ describe("the dialog", () => {
     expect(confirmExport).toHaveBeenLastCalledWith("paint_a_galaxy");
 
     expect(renderToStaticMarkup(<ExportForm report={FULL} profile="plain" />)).toContain(
-      '<button type="submit">Export</button>',
+      '<button type="submit" class="primary">Export</button>',
     );
     buttonIn(<ExportForm report={FULL} profile="plain" />, "Cancel")!.props.onClick();
     expect(confirmExport).toHaveBeenLastCalledWith(null);

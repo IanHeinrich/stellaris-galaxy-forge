@@ -168,8 +168,12 @@ export function badgeLabel(
     case "horizon_signal":
     case "cutholoid":
       return kindLabel(kind);
-    default:
+    case "marauder":
+    case "fallen_empire":
+    case "unique":
       return classifierLabel(special, systemName) ?? kindLabel(kind);
+    default:
+      return kind satisfies never;
   }
 }
 
@@ -191,7 +195,14 @@ export function badgeIconKey(kind: SpecialKind, special: SpecialSystem | undefin
     case "holy_world":
     case "fallen_empire":
       return countryIcon ?? kindIcon(kind);
-    default:
+    case "marauder":
+    case "landmark":
+    case "unique":
+    case "contingency":
+    case "horizon_signal":
+    case "cutholoid":
       return kindIcon(kind);
+    default:
+      return kind satisfies never;
   }
 }

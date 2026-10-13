@@ -15,8 +15,8 @@ import {
 } from "../../../store/fixture";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { heldAnomaly, savePickerTarget } from "../../../store/planetEditAdapter";
 import { armStarClasses as armClasses } from "../../../store/storeFixture";
+import { pickerTarget as sharedPickerTarget } from "../../../test/pickerTarget";
 import { details, land, planet, SYSTEM } from "../inspectorFixture";
 import { PlanetView } from "./PlanetView";
 
@@ -77,8 +77,7 @@ export function summaryOf(page: PlanetPage): PlanetSummary {
 }
 
 /** Save body `page` in system `SYSTEM`, as its page hands it to the pickers. */
-export const pickerTarget = (page: PlanetPage) =>
-  savePickerTarget(SYSTEM, summaryOf(page), page, heldAnomaly(page));
+export const pickerTarget = (page: PlanetPage) => sharedPickerTarget(page, summaryOf(page), SYSTEM);
 
 /**
  * Answers the read of `page` as the save does, once it has landed in the store, with the body in
@@ -101,6 +100,29 @@ export async function answerPage(page: PlanetPage): Promise<void> {
   useEntityStore.getState().requestPlanetPage(page.id);
   await vi.advanceTimersByTimeAsync(0);
   expect(useEntityStore.getState().pages.get(page.id)).toBe(page);
+}
+
+/**
+ * Answers the read of `page` alone, as the core reads a save body its system's details don't
+ * list: with its moons, in the system the page is open in. Its callers run fake timers.
+ */
+export async function answerUnlisted(page: PlanetPage): Promise<void> {
+  const moons = page.moons.map((moon) =>
+    planet(moon.id, moon.name_key, {
+      name: moon.name,
+      class: moon.class,
+      size: moon.size,
+      moon: true,
+      role: "moon",
+      parent: page.id,
+    }),
+  );
+  vi.mocked(ipc.getUnlistedBody).mockResolvedValueOnce(
+    details({ planets: [summaryOf(page), ...moons] }),
+  );
+  useEntityStore.getState().requestUnlisted(page.id, SYSTEM);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(useEntityStore.getState().unlisted.get(page.id)?.planets).toHaveLength(moons.length + 1);
 }
 
 /** The planet's page on `tab`, drilled onto from its system. */

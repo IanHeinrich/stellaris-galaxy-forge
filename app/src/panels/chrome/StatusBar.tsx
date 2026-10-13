@@ -3,7 +3,7 @@ import type { SystemDetails } from "../../generated/SystemDetails";
 import { shownBodyName } from "../../lib/details/labels";
 import type { GivenName } from "../../lib/details/spawnNames";
 import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitIntent";
-import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
+import type { SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
 import { copyCountLabel, cutCountLabel, PASTE_HINT, selectedHint } from "../../lib/planetMove";
@@ -13,9 +13,9 @@ import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { diskChangeShown } from "../../store/fileSessionStore.refresh";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
-import { useDetailsStore, useSystemRoll } from "../../store/detailsStore";
+import { useDetailsStore } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
-import { moonScaleOf, useGameDataStore } from "../../store/gameDataStore";
+import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -23,7 +23,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { useSystemGeometry } from "../../store/systemGeometry";
 import { HelpLink } from "../HelpLink";
-import { useGivenNames } from "../inspector/entity/useBodyName";
+import { useGivenNames } from "../useBodyName";
 import { useClipboard, type Clipboard } from "../useCut";
 import { GameDataPanel } from "./GameDataPanel";
 
@@ -231,12 +231,8 @@ function SceneHint({ system }: { system: number }) {
   const top = useInspectorStore((s) => s.stack[s.stack.length - 1]);
   const names = useGameDataStore((s) => s.names);
   const given = useGivenNames(details);
-  const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const moonScale = useGameDataStore(moonScaleOf);
-  const drawn = useSceneStore((s) => s.roll);
-  const roll = useSystemRoll(system, drawn);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
-  const { editing } = useSystemGeometry(system);
+  const { layout, editing } = useSystemGeometry(system);
   const clipboard = useClipboard();
   const selected = useSceneStore((s) =>
     s.bodySelection !== null && s.bodySelection.system === system ? s.bodySelection.ids.length : 0,
@@ -247,10 +243,8 @@ function SceneHint({ system }: { system: number }) {
   if (selected > 1) {
     return <span className="muted">{selectedHint(selected, shortcutLabel("clearSelection"))}</span>;
   }
-  const layout = details && systemLayout(details, roll, planetClasses, moonScale);
-  const id = layout ? inspectedBody(layout, system, top?.ref ?? null) : null;
-  const body =
-    details && layout && id !== null ? bodyReadout(details, layout, id, given, names) : null;
+  const id = details ? inspectedBody(layout, system, top?.ref ?? null) : null;
+  const body = details && id !== null ? bodyReadout(details, layout, id, given, names) : null;
   if (body === null) return <span className="muted">{LEAVE_HINT}</span>;
   const movable = id !== null && editing.bodies.get(id)?.move === true;
   return <span className="muted">{movable ? `${body} · ${DRAG_HINTS.movable}` : body}</span>;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -13,6 +13,7 @@ import { summaryLine } from "../lib/prepareCopy";
 import { stubPrefs } from "../test/prefs";
 import { mockedIpc } from "../test/ipc";
 import { until } from "../test/wait";
+import { PREPARE_SETTLE_MS } from "./bindStores";
 import { deferred, editor, openFixtureScenario } from "./editorFixture";
 import { editResult, historyEntry, OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -80,6 +81,15 @@ beforeEach(async () => {
   mockedIpc.preparePreview.mockClear();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Lets the settle time after an edit run out, so what it would ask for is asked. */
+async function settled(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(PREPARE_SETTLE_MS);
+}
+
 describe("the Prepare choices", () => {
   it("name their preset, show Custom once they match none, and remember the preset picked", () => {
     expect(presetOf(prepare().choices, "plain")).toBe("faithful");
@@ -120,8 +130,9 @@ describe("the Prepare choices", () => {
   it("are read again only once the Galaxy page is in view", async () => {
     useLayoutStore.getState().setTab("issues");
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    vi.useFakeTimers();
     await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
-    await new Promise((r) => setTimeout(r, 400));
+    await settled();
     expect(mockedIpc.preparePreview).not.toHaveBeenCalled();
 
     useLayoutStore.getState().setTab("inspector");
@@ -135,8 +146,9 @@ describe("the Prepare choices", () => {
     useGameDataStore.setState({ status: "ready" });
     await prepare().refresh();
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    vi.useFakeTimers();
     await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
-    await new Promise((r) => setTimeout(r, 400));
+    await settled();
     expect(mockedIpc.preparePreview).not.toHaveBeenCalled();
     expect(prepare().preview).toBeNull();
 

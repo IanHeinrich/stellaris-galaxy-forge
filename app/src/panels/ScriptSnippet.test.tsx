@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("zustand", () => import("../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../test/drawn"));
 
 import { mockedIpc } from "../test/ipc";
 import { drawnBy, drawnButton } from "../test/drawn";

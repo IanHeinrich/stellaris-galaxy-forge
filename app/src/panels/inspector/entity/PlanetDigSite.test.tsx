@@ -5,7 +5,6 @@ vi.mock("../../../api/events");
 // The star icons and deposit art come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bindStores } from "../../../store/bindStores";
 import { editResult } from "../../../store/fixture";
@@ -134,7 +133,7 @@ describe("a planet's archaeological site", () => {
     expect(html).toContain("1 stage · event only");
     expect(html).not.toContain("Never Forget");
     expect(html).toMatch(
-      /<div id="(ds-row-[^"]+-details)" class="dp-card" style="[^"]*"><span class="dp-card-name">Repowered Complex<\/span><ul class="dp-card-effects"><li>1 stage · event only<\/li><\/ul><span class="dp-card-text">A complex that has come back to life.<\/span><\/div>/,
+      /<div id="(ds-row-[^"]+-details)" class="dp-card pop-surface" style="[^"]*"><span class="dp-card-name">Repowered Complex<\/span><ul class="dp-card-effects"><li>1 stage · event only<\/li><\/ul><span class="dp-card-text">A complex that has come back to life.<\/span><\/div>/,
     );
     expect(html).toMatch(
       /id="ds-row-[^"]+-0" class="dp-row active" aria-describedby="ds-row-[^"]+-details"/,

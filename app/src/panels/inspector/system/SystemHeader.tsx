@@ -1,15 +1,6 @@
-import type { ReactNode } from "react";
-import type { SpawnStar } from "../../../generated/SpawnStar";
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemNode } from "../../../generated/SystemNode";
-import {
-  countWords,
-  isRanged,
-  PLANETS_FROM_SCRIPT,
-  RANDOM_STAR,
-  UNKNOWN_STAR,
-  type PlanetCounts,
-} from "../../../lib/details/spawnFacts";
+import { planetCountValue, starValue } from "../../../lib/details/scenarioValues";
 import { capabilityFor } from "../../../lib/entities";
 import { nodeName } from "../../../lib/names";
 import { kindLabel } from "../../../lib/special";
@@ -26,7 +17,7 @@ import { EditBlock, EditRow, TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, SourceChip } from "../../parts";
 import { DrillLink, Swatch } from "../parts";
-import { Rolled, Unknown } from "../states";
+import { StateValue } from "../states";
 import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
@@ -128,21 +119,6 @@ function OwnerName({ id, label }: { id: number; label: string | null }) {
   );
 }
 
-/** The head's star: its class, or what an initializer that rolls it or names none says. */
-function StarText({ star, label }: { star: SpawnStar | undefined; label: string }): ReactNode {
-  if (star?.state === "rolled") return <Rolled>{RANDOM_STAR}</Rolled>;
-  if (star?.state === "unknown") return <Unknown>{UNKNOWN_STAR}</Unknown>;
-  return label;
-}
-
-/** The head's planet count, planets alone: a range the game rolls, or a script's. */
-function PlanetCount({ counts }: { counts: PlanetCounts }): ReactNode {
-  const planets = counts.planets;
-  if (planets === null) return <Unknown>{PLANETS_FROM_SCRIPT}</Unknown>;
-  const words = countWords(planets, "planet");
-  return isRanged(planets) ? <Rolled>{words}</Rolled> : words;
-}
-
 export function Header({ detail }: { detail: SystemDetail }) {
   const { system } = detail;
   const select = useEditorStore((s) => s.select);
@@ -185,13 +161,13 @@ export function Header({ detail }: { detail: SystemDetail }) {
       <div className="ins-sub muted">
         {starLabel !== "" && (
           <>
-            <StarText star={details?.spawn?.star} label={starLabel} />
+            <StateValue value={starValue(details?.spawn?.star, starLabel)} />
             {" · "}
           </>
         )}
         {counts !== undefined && (
           <>
-            <PlanetCount counts={counts} />
+            <StateValue value={planetCountValue(counts)} />
             {" · "}
           </>
         )}

@@ -31,7 +31,7 @@ import { useWatchlistStore } from "./watchlistStore";
 /** How long after the last edit the watchlist runs its searches again. */
 const WATCHLIST_SETTLE_MS = 400;
 /** How long after the last edit the Prepare preview is read again. */
-const PREPARE_SETTLE_MS = 300;
+export const PREPARE_SETTLE_MS = 300;
 
 let bound = false;
 

@@ -171,7 +171,7 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
 
   const body = (
     <>
-      <div className="open-dialog-head">
+      <div className="dialog-head">
         <h1>Open</h1>
         {modal && (
           <button
@@ -261,14 +261,14 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
 
   if (modal) {
     return (
-      <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
+      <Dialog className="dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
         {frame}
       </Dialog>
     );
   }
   return (
     <div className="launch">
-      <div className="open-dialog open-screen">{frame}</div>
+      <div className="dialog open-screen">{frame}</div>
     </div>
   );
 }

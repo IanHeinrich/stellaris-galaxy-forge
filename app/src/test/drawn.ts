@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 
 type Runtime = typeof import("react/jsx-dev-runtime");
 const actual = await vi.importActual<Runtime>("react/jsx-dev-runtime");
@@ -11,7 +11,8 @@ const drawn: { type: unknown; props: DrawnProps }[] = [];
 
 /**
  * Stands in for React's JSX runtime in a component test, keeping every element a render draws so
- * the test can press the real control: `vi.mock("react/jsx-dev-runtime", () => import(...))`.
+ * the test can press the real control. `test/setup.ts` mocks the runtime with this module for every
+ * test file, and every test starts with nothing drawn.
  */
 export const Fragment = actual.Fragment;
 export const jsxDEV: Runtime["jsxDEV"] = (type, props, ...rest) => {
@@ -19,9 +20,16 @@ export const jsxDEV: Runtime["jsxDEV"] = (type, props, ...rest) => {
   return actual.jsxDEV(type, props, ...rest);
 };
 
+/** Forgets every element drawn so far. */
+export function forgetDrawn(): void {
+  drawn.length = 0;
+}
+
+afterEach(forgetDrawn);
+
 /** Renders with what earlier renders drew forgotten, so a press reaches only what this one drew. */
 export function drawnBy(render: () => string): string {
-  drawn.length = 0;
+  forgetDrawn();
   return render();
 }
 

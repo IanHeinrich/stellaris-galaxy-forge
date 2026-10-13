@@ -20,8 +20,14 @@ export function scalarText(text: string, form: ScalarForm): ValueText {
       return { text: "—", title: "no reference" };
     case "empty":
       return { text: "—", title: "written empty" };
-    default:
+    case "int":
+    case "decimal":
+    case "date":
+    case "quoted":
+    case "ident":
       return { text };
+    default:
+      return form satisfies never;
   }
 }
 

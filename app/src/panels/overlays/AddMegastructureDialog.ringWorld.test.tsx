@@ -119,7 +119,7 @@ describe("the Add megastructure dialog on a ring world", () => {
       "Clearing deletes 3 planets, 1 moon and 1 belt, and the colony on Lachium I.",
     );
     expect(page.indexOf("Clearing deletes")).toBeLessThan(page.indexOf(">Add Ring World</button>"));
-    expect(page).not.toContain('type="submit" disabled=""');
+    expect(page).not.toContain('type="submit" class="primary" disabled=""');
   });
 
   it("names the megastructure on a planet clearing deletes", () => {
@@ -143,7 +143,7 @@ describe("the Add megastructure dialog on a ring world", () => {
     );
     expect(page).toMatch(/<input type="radio" disabled="" name="ring-planets"\/>/);
     expect(page).not.toContain("Clearing deletes");
-    expect(page).toContain('type="submit" disabled=""');
+    expect(page).toContain('type="submit" class="primary" disabled=""');
   });
 
   it("greys out the Ring with the reason the shell refuses its ring world", () => {
@@ -249,7 +249,7 @@ describe("the Add megastructure dialog on a ring world", () => {
       expect(picksArea(titanic)).toContain("ring-world-quadrants");
       expect(titanic).toContain(SET_ALL);
       expect(sizeFirst(titanic)).toBe(true);
-      expect(titanic).not.toContain('type="submit" disabled=""');
+      expect(titanic).not.toContain('type="submit" class="primary" disabled=""');
     });
   });
 });

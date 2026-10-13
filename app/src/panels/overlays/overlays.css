@@ -94,10 +94,6 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .context-menu-header {
@@ -137,7 +133,7 @@
 
 .context-submenu-caret {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--fg-muted);
 }
 
@@ -221,7 +217,7 @@
 
 .pick-dlc {
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   line-height: 14px;
   color: var(--fg-muted);
   border: 1px solid var(--border);
@@ -248,27 +244,10 @@
   margin-top: 5px;
 }
 
-.update-dialog {
+.notice-dialog.update-dialog {
   width: min(520px, 100%);
   max-height: min(70vh, 640px);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
   overflow-y: auto;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: var(--shadow-dialog);
-}
-
-.update-dialog h1 {
-  font-size: 15px;
-  margin: 0;
-}
-
-.update-dialog p {
-  margin: 0;
 }
 
 .update-notes {
@@ -315,14 +294,6 @@
   font-size: var(--text-control);
 }
 
-.update-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .fe-zone-fit-slider {
   display: flex;
   flex: 1;
@@ -343,18 +314,11 @@
 }
 
 /* A fixed height, so the dialog keeps its size as the selection and the filter change the tiles. */
-.open-dialog.megastructure-add-dialog {
+.dialog.megastructure-add-dialog {
   width: min(1040px, 100%);
   height: min(86vh, 800px);
   max-height: min(86vh, 800px);
   container-type: inline-size;
-}
-
-.megastructure-add-dialog > form {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
 }
 
 .megastructure-add-body {
@@ -450,7 +414,7 @@
 
 .megastructure-add-category,
 .megastructure-add-summary {
-  font-size: 11px;
+  font-size: var(--text-hint);
   overflow-wrap: anywhere;
 }
 
@@ -460,18 +424,10 @@
   white-space: nowrap;
 }
 
-.megastructure-add-list > [role="option"]:hover {
-  background: var(--bg-panel);
-}
-
-.megastructure-add-list > [role="option"][aria-selected="true"] {
-  background: var(--accent-bg);
-}
-
 .megastructure-add-section {
   padding: 6px 10px 2px;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-hint);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -542,7 +498,7 @@
 }
 
 .ring-world-quadrants th {
-  font-size: 11.5px;
+  font-size: var(--text-note);
   font-weight: normal;
 }
 
@@ -551,9 +507,8 @@
   text-align: left;
 }
 
-.ring-world-size,
-.ring-world-set-all,
-.ring-world-planets {
+.radio-choice,
+.ring-world-set-all {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -562,11 +517,10 @@
 
 .ring-world-set-all button {
   padding: 1px 8px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
-.ring-world-size label,
-.ring-world-planets label {
+.radio-choice label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -574,7 +528,7 @@
 
 .megastructure-add-row-label {
   margin: 0 0 2px 2px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .megastructure-add-row {
@@ -594,19 +548,6 @@
   gap: 4px;
   min-width: 0;
   padding: 4px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.megastructure-add-tile:hover {
-  background: var(--bg-panel);
-  border-color: var(--border);
-}
-
-.megastructure-add-tile[aria-selected="true"] {
-  background: var(--accent-bg);
-  border-color: var(--accent);
 }
 
 .megastructure-add-refused {
@@ -615,7 +556,7 @@
 
 .megastructure-add-mark,
 .megastructure-add-count {
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .megastructure-add-refusal {
@@ -646,7 +587,7 @@
   display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
-  font-size: 11.5px;
+  font-size: var(--text-note);
   line-height: 1.25;
   text-align: center;
   -webkit-box-orient: vertical;
@@ -722,7 +663,8 @@
   white-space: pre-line;
 }
 
-.save-issues-dialog {
+/* A short dialog: a title, a few lines and a row of buttons. */
+.notice-dialog {
   width: min(420px, 100%);
   display: flex;
   flex-direction: column;
@@ -734,16 +676,16 @@
   box-shadow: var(--shadow-dialog);
 }
 
-.save-issues-dialog h1 {
+.notice-dialog h1 {
   font-size: 15px;
   margin: 0;
 }
 
-.save-issues-dialog p {
+.notice-dialog p {
   margin: 0;
 }
 
-.save-issues-actions {
+.notice-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

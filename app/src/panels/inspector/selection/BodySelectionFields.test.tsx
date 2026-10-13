@@ -5,7 +5,6 @@ vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { Op } from "../../../generated/Op";
 import type { PlanetPage } from "../../../generated/PlanetPage";

@@ -11,6 +11,7 @@ import {
   SIZE_LABEL,
 } from "../../lib/ringWorldAdd";
 import { useMegastructureAddStore } from "../../store/megastructureAdd";
+import { RadioChoice } from "./RadioChoice";
 
 /**
  * The picks of a ring world: its size, among `sizes` when there is more than one, and under it an
@@ -44,20 +45,16 @@ export function RingWorldPicks({
   return (
     <div className="ring-world-picks">
       {sizes.length > 1 && (
-        <div role="radiogroup" aria-label={SIZE_LABEL} className="ring-world-size">
-          <span className="muted">{SIZE_LABEL}</span>
-          {sizes.map((option) => (
-            <label key={option.ring}>
-              <input
-                type="radio"
-                name="ring-size"
-                checked={option.ring === size.ring}
-                onChange={() => setRingSize(option.ring, option.stages)}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </div>
+        <RadioChoice
+          label={SIZE_LABEL}
+          name="ring-size"
+          options={sizes.map((option) => ({
+            key: option.ring,
+            label: option.label,
+            checked: option.ring === size.ring,
+            onPick: () => setRingSize(option.ring, option.stages),
+          }))}
+        />
       )}
       {size.refused !== null ? (
         <div className="ring-world-picks-area ring-world-picks-refused">
@@ -106,29 +103,26 @@ export function RingWorldPicks({
                   </button>
                 ))}
               </div>
-              <div role="radiogroup" aria-label={PLANETS_LABEL} className="ring-world-planets">
-                <span className="muted">{PLANETS_LABEL}</span>
-                <label>
-                  <input
-                    type="radio"
-                    name="ring-planets"
-                    checked={!clearing}
-                    onChange={() => setRingClear(false)}
-                  />
-                  <span>{LEAVE_PLANETS}</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="ring-planets"
-                    checked={clearing}
-                    disabled={clearBlocked !== null}
-                    onChange={() => setRingClear(true)}
-                  />
-                  <span>{CLEAR_PLANETS}</span>
-                </label>
-                {clearBlocked !== null && <span className="muted">{clearBlocked}</span>}
-              </div>
+              <RadioChoice
+                label={PLANETS_LABEL}
+                name="ring-planets"
+                options={[
+                  {
+                    key: "leave",
+                    label: LEAVE_PLANETS,
+                    checked: !clearing,
+                    onPick: () => setRingClear(false),
+                  },
+                  {
+                    key: "clear",
+                    label: CLEAR_PLANETS,
+                    checked: clearing,
+                    disabled: clearBlocked !== null,
+                    onPick: () => setRingClear(true),
+                  },
+                ]}
+                after={clearBlocked !== null && <span className="muted">{clearBlocked}</span>}
+              />
             </>
           )}
         </div>

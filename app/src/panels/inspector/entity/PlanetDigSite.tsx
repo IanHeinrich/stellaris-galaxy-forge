@@ -1,69 +1,14 @@
-import { useMemo } from "react";
-import type { DigSiteChoice } from "../../../generated/DigSiteChoice";
 import type { PlanetPageDigSite } from "../../../generated/PlanetPageDigSite";
-import {
-  DIG_SITE_CHIPS,
-  digSiteLine,
-  digSitePickRows,
-  digSiteSections,
-  type DigSiteChip,
-  type DigSitePickRow,
-} from "../../../lib/details/digSitePicker";
-import { ARCHAEOLOGY_ICON_KEYS } from "../../../lib/details/icons";
+import { digSiteLine } from "../../../lib/details/digSitePicker";
 import { siteLabel } from "../../../lib/details/labels";
-import { useDigSitePickerStore } from "../../../store/digSitePickerStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useNamed } from "../../useNamed";
-import { Icon } from "../../parts";
 import { Section } from "../parts";
+import { DIG_SITE_PICKER } from "./DigSitePicker";
 import { PickedRow } from "./PickedRow";
-import type { PickerItem } from "./PickerMenu";
-import { PlanetPicker, type PickerKind } from "./PlanetPicker";
+import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
-
-function SiteArt() {
-  return <Icon keys={ARCHAEOLOGY_ICON_KEYS} glyph="⚱" />;
-}
-
-/** A site type's row: its name, how many stages and how it is found, and one Add button. */
-function digSiteItem(row: DigSitePickRow): PickerItem {
-  return {
-    key: row.key,
-    label: row.label,
-    effects: row.effects,
-    description: row.choice.description,
-    artClass: "pl-mod-icon",
-    art: <SiteArt />,
-    buttons: [{ text: "Add", label: `Add ${row.label}`, title: `Add ${row.label}` }],
-  };
-}
-
-/** The archaeological site picker, with the chips for how a site is found and one row per site type. */
-const DIG_SITE_PICKER: PickerKind<DigSitePickRow, DigSiteChip, DigSiteChoice> = {
-  store: useDigSitePickerStore,
-  words: {
-    name: "Add an archaeological site",
-    searchName: "Search archaeological sites",
-    placeholder: "Search name",
-    chipsName: "How an archaeological site is found",
-    reading: "Reading the archaeological sites…",
-    noneMatch: "No archaeological site matches",
-    opener: {
-      label: "+ Add archaeological site…",
-      title: "Add an archaeological site. A planet holds one.",
-      needsGameData: "Adding an archaeological site needs the game data",
-    },
-  },
-  chips: DIG_SITE_CHIPS,
-  idPrefix: (target) => `ds-row-${target.key}`,
-  useIsOpen: (target) => useDigSitePickerStore((s) => s.target?.key === target.key),
-  open: (target) => useDigSitePickerStore.getState().open(target),
-  useRows: (choices) =>
-    useMemo(() => (choices === null ? null : digSitePickRows(choices.list)), [choices]),
-  sections: digSiteSections,
-  item: digSiteItem,
-  onAdd: (row) => void useDigSitePickerStore.getState().add(row),
-};
+import { SiteArt } from "./SiteArt";
 
 /**
  * The site's row: its name, its stage and clues, the game's description of its type, and where

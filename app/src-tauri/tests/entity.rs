@@ -2,6 +2,7 @@
 //! through the mock runtime on the real sample saves.
 use serde_json::json;
 use sgf_core::entity::PlanetPage;
+use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{ErrorKind, SearchHit, SearchKind, SearchResult};
 
 use crate::common;
@@ -87,6 +88,28 @@ fn a_planet_page_reads_a_save_body_and_is_not_found_elsewhere() {
         )),
         ErrorKind::NotFound
     );
+}
+
+/// A save body its system's details don't list reads alone, with its moons, in the system it
+/// names; a scenario has none.
+#[test]
+fn an_unlisted_body_reads_with_its_moons() {
+    let w = opened(SAMPLE);
+    let alone: Option<SystemDetails> =
+        invoke(&w, "get_unlisted_body", json!({ "id": 744, "system": 0 })).expect("Nekkar VIII");
+    let alone = alone.expect("the save holds it");
+    let ids: Vec<u32> = alone.planets.iter().map(|p| p.id).collect();
+    assert_eq!(ids.len(), 3);
+    assert_eq!(ids[0], 744);
+    assert!(
+        alone.planets[1..]
+            .iter()
+            .all(|p| p.moon && p.parent == Some(744))
+    );
+    open(&w, SCENARIO);
+    let none: Option<SystemDetails> =
+        invoke(&w, "get_unlisted_body", json!({ "id": 0, "system": 0 })).expect("a scenario");
+    assert!(none.is_none());
 }
 
 fn search(

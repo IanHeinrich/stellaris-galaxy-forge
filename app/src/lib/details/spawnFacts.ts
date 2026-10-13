@@ -220,6 +220,9 @@ export const RING_ROLLED = "Rolled";
 
 /** What a value the class a body gets decides says beside its die, and its card. */
 export const CLASS_SUITED = "Suits its class";
+
+/** What a row's card says of a value the block states and the initializer's effect changes. */
+export const CHANGED_BY_EFFECT = "The initializer changes it when a new game starts.";
 export function classSuitedHint(noun: string): string {
   return `The game rolls these to suit the class the ${noun} gets.`;
 }
@@ -430,6 +433,16 @@ export function poolPicks(pool: Extract<SpawnPool, { state: "rolled" }>): PoolPi
     key: entry.key,
     chance: entry.chance,
   }));
+}
+
+/** A pool's picks, or none where the install can't tell them. */
+export function picksOf(pool: SpawnPool | undefined): PoolPick[] {
+  return pool?.state === "rolled" ? poolPicks(pool) : [];
+}
+
+/** Whether a pool holds nothing the roll can give, so a body has no row for it. */
+export function emptyPool(pool: SpawnPool | undefined): boolean {
+  return pool?.state === "rolled" && pool.entries.length === 0;
 }
 
 /** The keys a pool can give, for their names to be read. */

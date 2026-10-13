@@ -11,6 +11,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useBarMode } from "../../store/sceneStore";
 import { useToolStore } from "../../store/toolStore";
 import "./chrome.css";
+import "../panels.css";
 
 /** Whether the galaxy map is shown and can lean. */
 function useTiltShown(): boolean {
@@ -43,7 +44,7 @@ export function TiltControl() {
   const settle = () => setTilt(settledTilt(useToolStore.getState().tilt));
   return (
     <div className="tilt-control">
-      <label className="tilt-slider" title="Double-click to lay the map flat">
+      <label className="tilt-slider pop-surface" title="Double-click to lay the map flat">
         Tilt
         <span className="tilt-track" style={TRACK_MARKS}>
           <span className="tilt-band" aria-hidden="true" />

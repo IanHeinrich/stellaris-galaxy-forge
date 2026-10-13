@@ -11,7 +11,7 @@ import {
   useInitializerBrowserStore,
 } from "../../../store/initializerBrowserStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
-import { createSystemFrom, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { createSystemFrom, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
 import { focusNebulaRadius } from "../../nebula";
 import { AddSystemItems } from "./AddSystemItems";
 import { MenuFrame, type Frame } from "./MenuFrame";

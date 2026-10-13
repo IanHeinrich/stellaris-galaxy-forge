@@ -13,6 +13,7 @@ import type { Op } from "../generated/Op";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
+import type { SystemDetails } from "../generated/SystemDetails";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { SearchResult } from "../generated/SearchResult";
 import type { SystemDetail } from "../generated/SystemDetail";
@@ -43,6 +44,14 @@ export function getEntitySource(addr: EntityAddr): Promise<EntitySource> {
 /** A save body's own Overview. Rejects with `not_found` on a scenario or for an absent planet. */
 export function getPlanetPage(id: number): Promise<PlanetPage> {
   return invoke<PlanetPage>("get_planet_page", { id });
+}
+
+/**
+ * Save body `id` and its moons as the details of a system that lists only them, for a body its
+ * system's details don't list; `null` on a scenario or for an absent planet.
+ */
+export function getUnlistedBody(id: number, system: number): Promise<SystemDetails | null> {
+  return invoke<SystemDetails | null>("get_unlisted_body", { id, system });
 }
 
 /** Where the save planets may move together, and which of them cannot move. */

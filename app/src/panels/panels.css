@@ -44,7 +44,7 @@
 }
 
 .icon-picker-caret {
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--fg-soft);
 }
 
@@ -69,10 +69,6 @@
   list-style: none;
   font-size: var(--text-control);
   color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 /* Without room below the field, the list opens above it. */
@@ -109,7 +105,7 @@
 
 .icon-picker-group {
   padding: 6px 6px 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--fg-muted);
@@ -125,12 +121,6 @@
   gap: 6px;
   min-height: 34px;
   padding: 0 6px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.icon-picker-option.active {
-  background: var(--bg-panel);
 }
 
 .icon-picker-option[aria-selected="true"] .icon-picker-label {
@@ -181,7 +171,7 @@
 
 .edit-field-icon {
   flex: none;
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--accent);
 }
 
@@ -274,7 +264,7 @@
 
 .edit-block-title {
   margin-bottom: 4px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-muted);
@@ -345,21 +335,21 @@
   align-items: center;
   gap: 6px;
   margin-top: 12px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
 }
 
 .edit-key-sample {
   min-height: 16px;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   padding: 1px 6px;
   border-radius: 3px;
   color: var(--fg);
@@ -481,22 +471,6 @@
   justify-content: center;
   aspect-ratio: 1;
   padding: 3px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.tile-panel-tile.active {
-  background: var(--bg-panel);
-  border-color: var(--border);
-}
-
-.tile-panel-grid:focus-visible .tile-panel-tile.active {
-  border-color: var(--fg-muted);
-}
-
-.tile-panel-tile[aria-selected="true"] {
-  border-color: var(--accent);
 }
 
 .tile-panel-thumb {
@@ -527,10 +501,6 @@
   list-style: none;
   font-size: var(--text-control);
   color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .combo-option {
@@ -665,7 +635,7 @@ button.link.help-link {
   overflow-x: auto;
   color: var(--script-text);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-small);
   line-height: 1.5;
   text-transform: none;
   white-space: pre;
@@ -832,4 +802,35 @@ button.link.snippet-more .tri {
 
 .gt-icon {
   vertical-align: -2px;
+}
+
+/* A popover's surface: menus, pickers' lists and the Inspector's hover card. */
+.pop-surface {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-pop);
+}
+
+/* An option of a listbox or a tile of a grid: raised while the arrows or the pointer are on it,
+   ringed while its list has the keyboard, and in the accent while it is the one chosen. */
+.listbox-option {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.listbox-option.active,
+.listbox-option:hover {
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+[role="listbox"]:focus-visible .listbox-option.active {
+  border-color: var(--fg-muted);
+}
+
+.listbox-option[aria-selected="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent);
 }

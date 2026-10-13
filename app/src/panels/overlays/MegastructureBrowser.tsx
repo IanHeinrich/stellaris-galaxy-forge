@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import {
   formatAmount,
@@ -18,55 +18,12 @@ import {
   megastructureThumbKeys,
   type MegastructurePreview,
 } from "../../lib/megastructurePreview";
-import { groupedGridStep } from "../gridKeys";
+import { columnsOf, groupedGridStep, listStep } from "../gridKeys";
+import { headerRows } from "../iconPickerRows";
 import { ENTER } from "../keys";
 import { GameText } from "../GameText";
-import { FilterField } from "../parts";
-import { useTextureUrl } from "../useTextureUrl";
-
-const NO_KEYS: readonly string[] = [];
-
-/** Whether `ref`'s element has come into view; at once where the browser cannot tell. */
-function useSeen(ref: RefObject<HTMLElement | null>, watching: boolean): boolean {
-  const [seen, setSeen] = useState(() => !watching || typeof IntersectionObserver === "undefined");
-  useEffect(() => {
-    const element = ref.current;
-    if (seen || element === null) return;
-    const watch = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setSeen(true);
-    });
-    watch.observe(element);
-    return () => watch.disconnect();
-  }, [ref, seen]);
-  return seen;
-}
-
-/** A type's picture; a `lazy` one asks for its model only once it scrolls into view. */
-function Thumb({
-  keys,
-  className,
-  lazy = false,
-}: {
-  keys: readonly string[];
-  className: string;
-  lazy?: boolean;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const seen = useSeen(ref, lazy);
-  const url = useTextureUrl(seen ? keys : NO_KEYS);
-  return (
-    <span className={className} ref={ref}>
-      {url !== undefined && <img src={url} alt="" />}
-    </span>
-  );
-}
-
-/** How many tiles a row of `grid` holds, as its layout resolved them. */
-function columnsOf(grid: HTMLElement): number {
-  const row = grid.querySelector<HTMLElement>(".megastructure-add-row");
-  if (row === null) return 1;
-  return getComputedStyle(row).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
-}
+import { FilterField, Icon } from "../parts";
+import "../panels.css";
 
 /**
  * The megastructure list: a filter over every megastructure and stage name, and the
@@ -103,8 +60,8 @@ export function MegastructureList({
     if (e.key === ENTER) {
       if (active >= 0) onConfirm();
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      const step = e.key === "ArrowDown" ? 1 : -1;
-      const to = Math.min(entries.length - 1, Math.max(0, active + step));
+      const to = listStep(e.key, active, entries.length);
+      if (to === null) return;
       onSelect(entries[to]);
     } else return;
     e.preventDefault();
@@ -127,21 +84,21 @@ export function MegastructureList({
             No megastructure matches.
           </li>
         )}
-        {entries.flatMap((entry, i) => {
-          const heading =
-            i === 0 || entryHeading(entries[i - 1]) !== entryHeading(entry) ? (
-              <li
-                key={`section-${entry.key}`}
-                className="megastructure-add-section"
-                role="presentation"
-              >
-                {entryHeading(entry)}
-              </li>
-            ) : null;
+        {headerRows(entries, entryHeading).flatMap(({ item: entry, header }, i) => {
+          const heading = header ? (
+            <li
+              key={`section-${entry.key}`}
+              className="megastructure-add-section"
+              role="presentation"
+            >
+              {entryHeading(entry)}
+            </li>
+          ) : null;
           const option = (
             <li
               key={entry.key}
               id={optionId(i)}
+              className="listbox-option"
               role="option"
               aria-selected={entry.key === current?.key}
               onClick={() => onSelect(entry)}
@@ -150,7 +107,7 @@ export function MegastructureList({
               {entry.portrait === null ? (
                 <span className="megastructure-add-portrait" />
               ) : (
-                <Thumb className="megastructure-add-portrait" keys={[entry.portrait]} lazy />
+                <Icon className="megastructure-add-portrait" keys={[entry.portrait]} lazy />
               )}
               <span className="megastructure-add-entry">
                 <span className="megastructure-add-name">{entry.label}</span>
@@ -204,7 +161,9 @@ function Tile({
       id={id}
       role="option"
       className={
-        refused ? "megastructure-add-tile megastructure-add-refused" : "megastructure-add-tile"
+        refused
+          ? "megastructure-add-tile listbox-option megastructure-add-refused"
+          : "megastructure-add-tile listbox-option"
       }
       aria-selected={selected}
       aria-disabled={refused || undefined}
@@ -212,11 +171,7 @@ function Tile({
       onClick={() => onSelect(stage.key)}
       onDoubleClick={refused ? undefined : onConfirm}
     >
-      <Thumb
-        className="megastructure-add-thumb"
-        keys={megastructureThumbKeys(type, culture)}
-        lazy
-      />
+      <Icon className="megastructure-add-thumb" keys={megastructureThumbKeys(type, culture)} lazy />
       {numbered && (
         <span className="megastructure-add-count muted">
           {stage.index} of {stage.count}
@@ -265,7 +220,8 @@ export function MegastructureStages({
       if (active >= 0 && stages[active].refused === null) onConfirm();
     } else {
       const rows = entry.chains.map((chain) => ({ items: chain.stages }));
-      const to = grid.current && groupedGridStep(rows, current, e.key, columnsOf(grid.current));
+      const row = grid.current?.querySelector<HTMLElement>(".megastructure-add-row");
+      const to = groupedGridStep(rows, current, e.key, row ? columnsOf(row) : 1);
       if (to === null) return;
       onSelect(to);
     }
@@ -312,11 +268,10 @@ export function MegastructureStages({
 }
 
 function Produced({ row }: { row: ResourceRow }) {
-  const url = useTextureUrl([row.sprite]);
   const amount = formatAmount(row.amount);
   return (
     <li>
-      {url ? <img src={url} alt="" /> : <i>{resourceAbbrev(row.resource)}</i>}
+      <Icon keys={[row.sprite]} glyph={resourceAbbrev(row.resource)} />
       {row.amount > 0 ? `+${amount}` : amount} {resourceLabel(row.resource)}
     </li>
   );
@@ -356,9 +311,9 @@ export function MegastructurePreviewPane({
   return (
     <aside className="megastructure-add-preview" aria-label="Selected megastructure">
       {type?.portrait ? (
-        <Thumb className="megastructure-add-banner" keys={[type.portrait]} />
+        <Icon className="megastructure-add-banner" keys={[type.portrait]} />
       ) : (
-        <Thumb className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
+        <Icon className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
       )}
       <h2>{preview.label}</h2>
       {preview.stage !== null && <div className="muted">{preview.stage}</div>}

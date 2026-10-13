@@ -8,7 +8,7 @@ import { MapCanvas } from "./map/MapCanvas";
 import { ContextMenu } from "./panels/overlays/ContextMenu";
 import { LoadingOverlay } from "./panels/overlays/LoadingOverlay";
 import { InitializerBrowser } from "./panels/initializers/Browser";
-import { browseInitializers } from "./panels/initializers/entry";
+import { browseInitializers } from "./panels/initializerEntry";
 import { DiskChangeNotice } from "./panels/chrome/DiskChangeNotice";
 import { Dock } from "./panels/chrome/Dock";
 import { EditMenu } from "./panels/chrome/EditMenu";
@@ -52,7 +52,6 @@ import {
   toggleLayerKey,
   type CommandEffects,
 } from "./store/commands";
-import { useEditorStore } from "./store/editorStore";
 import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
@@ -128,11 +127,6 @@ function App() {
   const rail = barShows(barMode, "rail");
   const tools = barShows(barMode, "tools");
   const openDialog = useLayoutStore((s) => s.openDialog);
-  const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
-  const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
-  const updateDialog = useUpdateStore((s) => s.dialog);
-  const saveIssuesPrompt = useFileSessionStore((s) => s.saveIssuesPrompt);
-  const changedOnDiskPrompt = useFileSessionStore((s) => s.changedOnDiskPrompt);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -230,14 +224,14 @@ function App() {
           <MapTooltip />
           {status !== "ready" && <Launch />}
           {status === "ready" && openDialog && <OpenSave modal />}
-          {scenarioDialog && <NewScenarioDialog />}
-          {feZoneFitPrompt && <FeZoneFitDialog />}
+          <NewScenarioDialog />
+          <FeZoneFitDialog />
           <AddMegastructureDialog />
-          {saveIssuesPrompt && <SaveIssuesDialog />}
-          {changedOnDiskPrompt && <ChangedOnDiskDialog />}
+          <SaveIssuesDialog />
+          <ChangedOnDiskDialog />
           <OpenModeDialog />
           <OpenScenarioDialog />
-          {updateDialog && <UpdateDialog />}
+          <UpdateDialog />
           <ExportDialog />
           <InitializerBrowser />
           <EditorChooser />

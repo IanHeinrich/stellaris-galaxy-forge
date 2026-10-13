@@ -14,6 +14,7 @@ import { useOutsidePress } from "../useOutsidePress";
 import "./chrome.css";
 import type { Pressed } from "./layerState";
 import { EyeRow } from "./Menu";
+import "../panels.css";
 
 /** What the legend flyout and the chevron that opens it are called. */
 export const LEGEND_LABEL = "Initializer keys legend";
@@ -136,7 +137,7 @@ export function InitializerLegend({
   const flat = needle === "" ? named : named.filter(matches);
   const grouped = needle === "" && groups.length > 0;
   return (
-    <div className="menu-flyout" role="dialog" aria-label={LEGEND_LABEL} ref={self}>
+    <div className="menu-flyout pop-surface" role="dialog" aria-label={LEGEND_LABEL} ref={self}>
       {counts.length > INITIALIZER_SEARCH_MIN && (
         <FilterField
           label={`Filter ${counts.length} initializers`}

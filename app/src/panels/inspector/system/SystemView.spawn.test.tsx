@@ -8,14 +8,12 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bindStores } from "../../../store/bindStores";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
-import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
-import { open, overview, resetStores, sections, SYSTEM } from "../inspectorFixture";
+import { open, overview, patchSystem, resetStores, sections, SYSTEM } from "../inspectorFixture";
 import { DEFAULT_SPAWN_WEIGHT } from "../../spawnPoint";
 import { drawnBy, drawnButton, drawnCheckbox } from "../../../test/drawn";
 import { shown } from "../../../test/elements";
@@ -259,20 +257,15 @@ describe("a scenario system Paint a Galaxy seats", () => {
   it("marks a reserved letter, Sol or the weight as in use only when another system already holds it", async () => {
     withScript({ reserved: "c" });
     await open("scenario");
-    const systems = new Map(useGalaxyStore.getState().systems);
-    systems.set(2, {
-      ...systems.get(2)!,
+    patchSystem(2, {
       spawn_script: { paint_a_galaxy: { kind: { reserved: "c" }, random_value: 1, player: false } },
     });
-    systems.set(3, {
-      ...systems.get(3)!,
+    patchSystem(3, {
       spawn_script: { paint_a_galaxy: { kind: "sol", random_value: 1, player: false } },
     });
-    systems.set(4, {
-      ...systems.get(4)!,
+    patchSystem(4, {
       spawn_script: { paint_a_galaxy: { kind: "preferred", random_value: 1, player: true } },
     });
-    useGalaxyStore.setState({ systems });
 
     const html = overview();
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C · in use</option>');
@@ -285,14 +278,11 @@ describe("a scenario system Paint a Galaxy seats", () => {
   it("offers a Greek reserved seat by its name, and marks it in use", async () => {
     withScript({ reserved: "alpha" });
     await open("scenario");
-    const systems = new Map(useGalaxyStore.getState().systems);
-    systems.set(2, {
-      ...systems.get(2)!,
+    patchSystem(2, {
       spawn_script: {
         paint_a_galaxy: { kind: { reserved: "omega" }, random_value: 1, player: false },
       },
     });
-    useGalaxyStore.setState({ systems });
 
     const html = overview();
     expect(html).toContain(

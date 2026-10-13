@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { BrowserGroup } from "../../lib/initializer/initializerBrowser";
+import { listStep } from "../gridKeys";
 
 const ALL = { id: null, label: "All" };
 
@@ -39,16 +40,7 @@ export function GroupTree({
       role="listbox"
       aria-label="Initializer groups"
       onKeyDown={(e) => {
-        const move =
-          e.key === "ArrowDown"
-            ? at + 1
-            : e.key === "ArrowUp"
-              ? at - 1
-              : e.key === "Home"
-                ? 0
-                : e.key === "End"
-                  ? rows.length - 1
-                  : null;
+        const move = listStep(e.key, at, rows.length);
         if (move === null) return;
         e.preventDefault();
         e.stopPropagation();

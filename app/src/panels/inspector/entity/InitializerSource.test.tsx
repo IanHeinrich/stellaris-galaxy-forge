@@ -5,7 +5,6 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { InitializerDefinition } from "../../../generated/InitializerDefinition";
 import { bindStores } from "../../../store/bindStores";
@@ -17,7 +16,16 @@ import { initializerView } from "../../../test/builders";
 import { drawnBy, drawnButton } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { bodySpawn } from "../../../test/spawn";
-import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import {
+  details,
+  land,
+  open,
+  overview,
+  patchSystem,
+  planet,
+  resetStores,
+  SYSTEM,
+} from "../inspectorFixture";
 import { useInitializerDefinitions } from "../../../store/initializerDefinitionStore";
 import { answerPage, render } from "./bodyPageFixture";
 import { name, planetPage } from "../../../store/fixture";
@@ -154,19 +162,12 @@ describe("a system's Source tab", () => {
     await open("scenario");
     landDefinition();
     useInspectorStore.setState({ tab: "source" });
-    const system = useGalaxyStore.getState().systems.get(SYSTEM)!;
-    useGalaxyStore.setState({
-      systems: new Map(useGalaxyStore.getState().systems).set(SYSTEM, {
-        ...system,
-        initializer: "",
-      }),
-    });
+    const { initializer } = useGalaxyStore.getState().systems.get(SYSTEM)!;
+    patchSystem(SYSTEM, { initializer: "" });
     expect(overview()).not.toContain("ins-init-source");
     expect(overview()).not.toContain("initializer");
 
-    useGalaxyStore.setState({
-      systems: new Map(useGalaxyStore.getState().systems).set(SYSTEM, system),
-    });
+    patchSystem(SYSTEM, { initializer });
     useGameDataStore.setState({ status: "idle" });
     expect(overview()).not.toContain("ins-init-source");
   });
@@ -177,7 +178,7 @@ describe("a body's Source tab", () => {
     await open("scenario");
     landDefinition();
     const second = planet(101, "", {
-      spawn: bodySpawn({ at: { file: FILE.replace(/\//g, "\\"), line: 127 } }),
+      spawn: bodySpawn({ at: { file: FILE.replace(/\//g, "\\"), line: 127, last: 130 } }),
     });
     await land(details({ planets: [second] }));
 
@@ -197,27 +198,6 @@ describe("a body's Source tab", () => {
     const html = drawnBy(() => render(101, "source"));
     expect(html).toContain('<span class="mono ins-init-name">basic_init_01</span>');
     expect(markedLines(html)).toEqual([7]);
-  });
-
-  it("counts a block's braces from its key when a brace closes the one before it on its line", async () => {
-    await open("scenario");
-    landDefinition({
-      ...DEFINITION,
-      text: [
-        "basic_init_01 = {",
-        "\tplanet = { class = pc_gas_giant",
-        "\t} planet = {",
-        "\t\tclass = pc_barren",
-        "\t}",
-        "\tplanet = { class = pc_frozen }",
-        "}",
-      ].join("\n"),
-      inline_scripts: [],
-    });
-    const second = planet(101, "", { spawn: bodySpawn({ at: { file: FILE, line: 122 } }) });
-    await land(details({ planets: [second] }));
-
-    expect(markedLines(drawnBy(() => render(101, "source")))).toEqual([3, 4, 5]);
   });
 
   it("shows a save body's own text with its system's initializer below, unmarked", async () => {

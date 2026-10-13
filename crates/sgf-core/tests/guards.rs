@@ -179,17 +179,8 @@ fn every_op_is_named_with_a_verb_from_the_engineering_rules() {
 const TEST_FILE_LINES: usize = 700;
 
 /// Today's test files over the ceiling, each with the batch that splits it.
-const LONG_TEST_FILES: &[(&str, &str)] = &[
-    (
-        "app/src/panels/inspector/entity/BodyPage.pools.test.tsx",
-        "5f",
-    ),
-    (
-        "app/src/panels/overlays/ContextMenu.systemView.test.tsx",
-        "5a",
-    ),
-    ("app/src/test/builders.ts", "stays: the shared builders"),
-];
+const LONG_TEST_FILES: &[(&str, &str)] =
+    &[("app/src/test/builders.ts", "stays: the shared builders")];
 
 fn is_test_file(file: &str) -> bool {
     let name = file.rsplit('/').next().unwrap_or(file);

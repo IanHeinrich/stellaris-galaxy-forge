@@ -1,4 +1,5 @@
 /** The rows of a pool list in rendered markup, for the tests that read what a roll can give. */
+import { expect } from "vitest";
 
 /** A segment of a row's bar, as it renders. */
 export interface ShownSegment {
@@ -24,7 +25,7 @@ export interface ShownPoolRow {
 }
 
 const ROW =
-  /<div class="pl-pool-row"([^>]*)><span class="pl-pool-icon">(.*?)<\/span><span class="pl-pool-name">(.*?)<\/span><span class="pl-pool-cell">(.*?)<\/span><span class="muted pl-pool-chance">([^<]*)<\/span>/g;
+  /<(?:div|button type="button") class="pl-pool-row"([^>]*)><span class="pl-pool-icon">(.*?)<\/span><span class="pl-pool-name">(.*?)<\/span><span class="pl-pool-cell">(.*?)<\/span><span class="muted pl-pool-chance">([^<]*)<\/span>/g;
 
 const SEGMENT =
   /class="pl-pool-seg" style="flex-grow:([^;]*);background:([^;"]*)(?:;color:([^"]*))?">([^<]*)<\/span>/g;
@@ -64,4 +65,18 @@ const CHIP =
 /** Every dashed chip in `html`, in order. */
 export function poolChips(html: string): ShownChip[] {
   return [...html.matchAll(CHIP)].map(([, title, icon, amounts]) => ({ title, icon, amounts }));
+}
+
+/** The class rows of a Class row's picker, after its Any. */
+export function classRowsOf(html: string) {
+  const [any, ...classes] = poolRows(html);
+  expect(any.name).toBe("Any");
+  return classes;
+}
+
+/** The rows of the Deposits section, without the Class row's or the Modifiers section's. */
+export function depositRowsOf(html: string) {
+  const start = html.indexOf('class="ins-sec-title">Deposits');
+  const end = html.indexOf('class="ins-sec-title">Modifiers');
+  return poolRows(html.slice(start, end === -1 ? undefined : end));
 }

@@ -18,7 +18,7 @@ import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
 import { discRadius } from "./discs";
-import { isStarBody } from "./starBody";
+import { isStar } from "./starBody";
 
 /** Width of an asteroid belt's band, centred on the belt's radius. */
 const BELT_BAND_WIDTH = 20;
@@ -211,16 +211,6 @@ function screenRotation(dx: number, dy: number): number {
 
 const NO_STAR_CLASSES: ReadonlyMap<string, StarClassView> = new Map();
 
-/** Whether a body is drawn as a star: one the core gives a star class, else one its class makes a star. */
-export function isStar(
-  planet: PlanetSummary,
-  planetClasses: ReadonlyMap<string, PlanetClassView>,
-): boolean {
-  return (
-    planet.star_class !== undefined || isStarBody(planet.class, planetClasses, NO_STAR_CLASSES)
-  );
-}
-
 function mid(b: Bounds): number {
   return (b.min + b.max) / 2;
 }
@@ -277,7 +267,7 @@ function layOut(
       else missing = true;
     }
     const centre = parent?.point ?? { x: 0, y: 0 };
-    const star = isStar(planet, planetClasses);
+    const star = isStar(planet, { planetClasses, starClasses: NO_STAR_CLASSES });
     const layout = planet.layout;
     const rolled = rolls.get(planet.id);
 

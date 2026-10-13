@@ -5,7 +5,6 @@ vi.mock("../../../api/events");
 // The star icons and deposit art come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
-vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bindStores } from "../../../store/bindStores";
 import { name, planetPage } from "../../../store/fixture";
