@@ -192,11 +192,6 @@ const LONG_TEST_FILES: &[(&str, &str)] = &[
         "app/src/panels/inspector/entity/BodyPage.pools.test.tsx",
         "5f",
     ),
-    ("app/src/lib/megastructurePicks.test.ts", "3e"),
-    (
-        "app/src/panels/overlays/AddMegastructureDialog.test.tsx",
-        "3e",
-    ),
     (
         "app/src/panels/overlays/ContextMenu.systemView.test.tsx",
         "5a",

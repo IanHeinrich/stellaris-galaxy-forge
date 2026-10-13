@@ -8,6 +8,7 @@ export * from "./addHabitat";
 export * from "./addMegastructure";
 export * from "./addRingWorld";
 export * from "./megastructure";
+export * from "./megastructureFits";
 export * from "./addSystem";
 export * from "./entity";
 export * from "./errors";

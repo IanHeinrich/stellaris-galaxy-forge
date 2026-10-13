@@ -1,36 +1,25 @@
 import { describe, expect, it } from "vitest";
+import type { MegastructureFit } from "../generated/MegastructureFit";
 import type { MegastructureView } from "../generated/MegastructureView";
-import type { MegastructureSummary } from "../generated/MegastructureSummary";
+import { megastructureFits, megastructureSwap, megastructureTypeView } from "../test/builders";
 import {
-  megastructureSummary,
-  megastructureSwap,
-  megastructureTypeView,
-  planetSummary,
-} from "../test/builders";
-import {
-  BODY_HAS_MEGASTRUCTURE,
-  CHANGES_BODY,
-  FIXED_CLASS,
   RING_STAGE,
   RING_WORLD_LABEL,
   RING_WORLD_SUMMARY,
-  ringLayoutRefusal,
-  ringOverlap,
-  ringWorldSizes,
   UNNAMED_TYPES,
-  WHOLE_STRUCTURE,
   addLabel,
-  defaultStage,
   entryHeading,
+  refusalSentence,
+  stageLine,
+} from "./megastructureCopy";
+import {
+  defaultStage,
   entryStages,
   findStage,
   matchingEntries,
   megastructureEntries,
+  ringWorldSizes,
   selectedStage,
-  megastructurePlace,
-  megastructureRefusal,
-  RELAY_RADIUS_FACTOR,
-  stageLine,
   type MegastructureEntry,
   type MegastructureSpot,
 } from "./megastructurePicks";
@@ -248,8 +237,44 @@ const NAMES = new Map([
   ["giga_battleship_restored", "Battleship"],
 ]);
 
-const entries = (spot: MegastructureSpot, refusalOf?: (t: MegastructureView) => string | null) =>
-  megastructureEntries(TYPES, NAMES, spot, refusalOf);
+/**
+ * The types the shell offers in space in this fixture. It offers the rest on a body, but the L-Gate
+ * nowhere and the Strip Mine, which changes its planet, not on a star. It refuses the Alderson Disk,
+ * whose structure the editor does not write.
+ */
+const IN_SPACE = new Set([
+  "gateway_0",
+  "gateway_final",
+  "gateway_derelict",
+  "blokkat_dummy_mega",
+  "hyper_relay",
+  "shroud_seal",
+  "giga_battleship_ruined",
+  "giga_battleship_restored",
+]);
+
+const WHOLE = "it is built with more planets or sections, which the editor does not write";
+
+/** What the shell offers at `spot`, each type as itself, refused as it is unless `over` says. */
+function fitsAt(
+  spot: MegastructureSpot,
+  over: Readonly<Record<string, Partial<MegastructureFit>>> = {},
+  types: ReadonlyMap<string, MegastructureView> = TYPES,
+) {
+  const offered = [...types.keys()].filter((key) =>
+    spot.kind === "space"
+      ? IN_SPACE.has(key)
+      : !IN_SPACE.has(key) &&
+        key !== "lgate_base" &&
+        !(spot.star && key === "automated_stripmine_1"),
+  );
+  return megastructureFits(offered, { alderson_disk_1: { refusal: WHOLE }, ...over });
+}
+
+const entries = (
+  spot: MegastructureSpot,
+  over: Readonly<Record<string, Partial<MegastructureFit>>> = {},
+) => megastructureEntries(TYPES, NAMES, fitsAt(spot, over));
 const planet: MegastructureSpot = { kind: "body", body: 12, star: false };
 const star: MegastructureSpot = { kind: "body", body: 1, star: true };
 const space: MegastructureSpot = { kind: "space", x: 30, y: 40 };
@@ -335,10 +360,14 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     ]);
   });
 
-  it("lists the stage a completion swaps by star class without the swapped chain, and not a chain a later upgrade_from names", () => {
-    const listed = entries(star);
+  it("lists the stage a completion swaps by star class without the swapped chain, writing the type the shell says, and not a chain a later upgrade_from names", () => {
+    const listed = entries(star, { star_lifter_0: { variant: "star_lifter_0_o_star" } });
     const lifter = named(listed, "Star Lifter", GIGA);
     expect(shape(lifter)?.rows).toEqual([["build", null, ["star_lifter_0", "star_lifter_5"]]]);
+    expect(lifter?.chains[0].stages.map((s) => s.variant)).toEqual([
+      "star_lifter_0_o_star",
+      "star_lifter_5",
+    ]);
     expect(lifter?.summary).toBe("2 stages · by star class");
     expect(matchingEntries(listed, "star_lifter_5_o")).toEqual([]);
     expect(shape(named(listed, "Dyson Swarm", GIGA))?.rows).toEqual([
@@ -346,39 +375,24 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     ]);
   });
 
-  it("greys out a type whose planet change it can't follow or builds a whole structure, with the reason", () => {
-    const stage = (spot: MegastructureSpot, key: string) =>
-      entries(spot)
+  it("greys out a stage the shell refuses with its reason as a sentence, and leaves out one it does not offer", () => {
+    const stage = (key: string, fits = fitsAt(star)) =>
+      megastructureEntries(TYPES, NAMES, fits)
         .flatMap(entryStages)
         .find((s) => s.key === key);
-    expect(stage(planet, "automated_stripmine_1")?.refused).toBeNull();
-    const unsure = megastructureTypeView("lunar_disco_ball_2", {
-      placement: { place: "unsupported", why: { kind: "changes_body" } },
-    });
-    const fixed = megastructureTypeView("planetary_computer_2", {
-      placement: {
-        place: "unsupported",
-        why: { kind: "fixed_class", class: "pc_giga_planetary_computer" },
-      },
-    });
-    const refusals = megastructureEntries(
-      new Map([unsure, fixed].map((t) => [t.key, t])),
-      NAMES,
-      planet,
-    )
-      .flatMap(entryStages)
-      .map((s) => [s.key, s.refused]);
-    expect(refusals).toEqual(
-      expect.arrayContaining([
-        ["lunar_disco_ball_2", CHANGES_BODY],
-        ["planetary_computer_2", FIXED_CLASS],
-      ]),
+    expect(stage("alderson_disk_1")?.refused).toBe(
+      "It is built with more planets or sections, which the editor does not write.",
     );
-    expect(stage(star, "alderson_disk_1")?.refused).toBe(WHOLE_STRUCTURE);
-    expect(stage(planet, "alderson_disk_1")).toBeUndefined();
+    expect(refusalSentence("planet 3 already has megastructure 1.")).toBe(
+      "Planet 3 already has megastructure 1.",
+    );
+    expect(stage("dyson_sphere_5")?.refused).toBeNull();
+    const without = new Map(fitsAt(star));
+    without.delete("alderson_disk_1");
+    expect(stage("alderson_disk_1", without)).toBeUndefined();
   });
 
-  it("lists a ring world on a star as its site and a Ring tile, opens it on the ring, hides it on a planet and in space, and never opens the dialog on it", () => {
+  it("lists a ring world as its site and a Ring tile, opens it on the ring, and never opens the dialog on it", () => {
     const listed = entries(star);
     const ring = named(listed, RING_WORLD_LABEL);
     expect(shape(ring)?.rows).toEqual([
@@ -396,16 +410,6 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(addLabel(ring!.chains[0].stages[0], ring!.chains[0])).toBe("Add Ring World Site");
     expect(addLabel(ring!.chains[0].stages[1], ring!.chains[0])).toBe("Add Ring World");
     expect(stageLine(ring!.chains[0].stages[1], ring!.chains[0])).toBeNull();
-    expect(
-      entries(planet)
-        .flatMap(entryStages)
-        .map((s) => s.key),
-    ).not.toContain("ring_world_1");
-    expect(
-      entries(space)
-        .flatMap(entryStages)
-        .map((s) => s.key),
-    ).not.toContain("ring_world_1");
     expect(defaultStage(listed, star, null)).toBe("dyson_sphere_5");
     expect(
       defaultStage(
@@ -416,39 +420,16 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     ).toBe("ring_world_2_intermediate");
   });
 
-  it("greys out the Ring tile with the reason the game data lays out no ring, or the save refuses one", () => {
-    const types = new Map(TYPES);
-    for (const key of [
-      "ring_world_2_intermediate",
-      "ring_world_2",
-      "ring_world_ruined",
-      "ring_world_restored",
-    ]) {
-      types.set(key, { ...types.get(key)!, ring_world_refused: "it lays out no ring" });
-    }
-    const ringTile = (
-      list: ReadonlyMap<string, MegastructureView>,
-      refusalOf?: (t: MegastructureView) => string | null,
-    ) =>
-      megastructureEntries(list, NAMES, star, refusalOf)
+  it("greys out the Ring tile with the reason the shell refuses its ring world type", () => {
+    const ringTile = (over: Readonly<Record<string, Partial<MegastructureFit>>>) =>
+      entries(star, over)
         .flatMap(entryStages)
         .find((s) => s.ring === true);
-    expect(ringTile(types)?.refused).toBe(ringLayoutRefusal("it lays out no ring"));
-    expect(ringLayoutRefusal("it lays out no ring")).toBe(
-      "Galaxy Forge can't build this ring world from the game data: it lays out no ring.",
-    );
-
-    const planets = [planetSummary({ id: 1, role: "primary", class: "pc_g_star" })];
-    const refusal =
-      (rows: MegastructureSummary[], bodies = planets) =>
-      (t: MegastructureView) =>
-        megastructureRefusal(t, star, rows, TYPES, bodies);
-    expect(ringTile(TYPES, refusal([]))?.refused).toBeNull();
-    const nexus = megastructureSummary({ kind: "think_tank_3", planet: 12 });
-    expect(ringTile(TYPES, refusal([nexus]))?.refused).toBeNull();
-    const twin = [...planets, planetSummary({ id: 2, role: "star", class: "pc_k_star" })];
-    expect(ringTile(TYPES, refusal([], twin))?.refused).toBe(
-      "The system has 2 stars, and a ring world stands round one.",
+    expect(ringTile({})?.refused).toBeNull();
+    const twin =
+      "a ring_world cannot be added there: Sol has 2 stars, and a ring world stands round one";
+    expect(ringTile({ ring_world_2_intermediate: { refusal: twin } })?.refused).toBe(
+      "A ring_world cannot be added there: Sol has 2 stars, and a ring world stands round one.",
     );
   });
 
@@ -504,19 +485,13 @@ describe("the megastructures the Add megastructure dialog lists", () => {
       ["ringworld_behemoth_0", "Behemoth Ringworld Site"],
       ["ringworld_behemoth_1", "Behemoth Ringworld Frame"],
     ]);
-    const starAlone = [planetSummary({ id: 1, role: "primary", class: "pc_g_star" })];
     const ringEntries = (
-      planets = starAlone,
-      rows: MegastructureSummary[] = [],
+      over: Readonly<Record<string, Partial<MegastructureFit>>> = {},
       ringSize: string | null = null,
     ) =>
-      megastructureEntries(
-        RINGS,
-        RING_NAMES,
-        star,
-        (t) => megastructureRefusal(t, star, rows, RINGS, planets, RING_NAMES),
-        { ringSize },
-      ).filter((entry) => entry.label === RING_WORLD_LABEL);
+      megastructureEntries(RINGS, RING_NAMES, fitsAt(star, over, RINGS), ringSize).filter(
+        (entry) => entry.label === RING_WORLD_LABEL,
+      );
 
     it("lists every ring world chain as one Ring World in the base game's section, with the vanilla ring's picture, and a size for each", () => {
       const [ring, ...others] = ringEntries();
@@ -546,7 +521,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     });
 
     it("adds the picked size's site and ring from the Site and Ring tiles, which keep the first size's keys", () => {
-      const [ring] = ringEntries(starAlone, [], "ringworld_titanic_1");
+      const [ring] = ringEntries({}, "ringworld_titanic_1");
       const row = ring.chains[0];
       expect(row.stages.map((s) => [s.key, s.variant, s.label, s.short])).toEqual([
         ["ring_world_1", "ringworld_titanic_0", "Titanic Ringworld Site", "Site"],
@@ -557,36 +532,13 @@ describe("the megastructures the Add megastructure dialog lists", () => {
       expect(ring.portrait).toBe("GFX_ring_world");
     });
 
-    it("refuses a size whose ring would overlap a ring world there, naming it and its orbit, and leaves room for another size and a site on the star", () => {
-      const segment = planetSummary({ id: 5, class: "pc_ringworld_habitable", orbit: 45.20385 });
-      const ruined = megastructureSummary({ kind: "ring_world_titanic_ruined", at: [90.4077, 0] });
-      const site = megastructureSummary({ kind: "ringworld_behemoth_0", planet: 1, at: [0, 0] });
-      const refusals = (planets: typeof starAlone, rows: MegastructureSummary[]) =>
-        ringEntries(planets, rows)[0].sizes.map((s) => s.refused);
-
-      expect(refusals([...starAlone, segment], [site])).toEqual([
-        "This ring would overlap the Ring World at orbit 45.",
-        null,
-        null,
-      ]);
-      expect(refusals(starAlone, [ruined])).toEqual([
-        null,
-        "This ring would overlap the Titanic Ringworld at orbit 90.",
-        null,
-      ]);
-      const [titanic] = ringEntries(starAlone, [ruined], "ringworld_titanic_1");
-      expect(titanic.chains[0].stages[1].refused).toBe(
-        "This ring would overlap the Titanic Ringworld at orbit 90.",
-      );
-      const odd = planetSummary({ id: 6, class: "pc_ringworld_tech_damaged", orbit: 132 });
-      expect(refusals([...starAlone, odd], [])).toEqual([
-        null,
-        null,
-        "This ring would overlap the Behemoth Ringworld at orbit 132.",
-      ]);
-      expect(ringOverlap("ring world", 100.4)).toBe(
-        "This ring would overlap the ring world at orbit 100.",
-      );
+    it("greys out the size whose ring world type the shell refuses, on its size and its Ring tile", () => {
+      const overlap = { refusal: "a ring_world cannot be added there: it would overlap" };
+      const refused = "A ring_world cannot be added there: it would overlap.";
+      const over = { ringworld_titanic_1: overlap };
+      expect(ringEntries(over)[0].sizes.map((s) => s.refused)).toEqual([null, refused, null]);
+      const [titanic] = ringEntries(over, "ringworld_titanic_1");
+      expect(titanic.chains[0].stages[1].refused).toBe(refused);
     });
   });
 
@@ -606,30 +558,6 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(defaultStage(giga, star, null)).toBe("dyson_swarm_3");
   });
 
-  it("offers star-only types on a star alone, any body's on a planet or star, free types in space alone, and never one that stands for a bypass", () => {
-    expect(entries(planet).map((e) => e.label)).toEqual([
-      "Mega Art Installation",
-      "Science Nexus",
-      "Automated Strip Mine",
-    ]);
-    const offered = [planet, star, space].flatMap((spot) =>
-      entries(spot).flatMap((e) => entryStages(e).map((s) => s.key)),
-    );
-    expect(offered).not.toContain("lgate_base");
-  });
-
-  it("offers a type the game never builds on a star on a planet, not on a star", () => {
-    const furnace = megastructureTypeView("orbital_arc_furnace_4", {
-      placement: onAny,
-      planet_only: true,
-    });
-    const types = new Map([[furnace.key, furnace]]);
-    const keys = (spot: MegastructureSpot) =>
-      megastructureEntries(types, NAMES, spot).flatMap((e) => entryStages(e).map((s) => s.key));
-    expect(keys(planet)).toEqual(["orbital_arc_furnace_4"]);
-    expect(keys(star)).toEqual([]);
-  });
-
   it("keeps a base game gateway in the base game's section though a mod's file won, offers a wreck without its repair, and leaves out what the game data hides", () => {
     expect(entries(space).map(shape)).toEqual([
       { label: "Gateway", section: null, rows: [["build", null, ["gateway_0", "gateway_final"]]] },
@@ -637,25 +565,13 @@ describe("the megastructures the Add megastructure dialog lists", () => {
       {
         label: "Wrecked Battleship",
         section: GIGA,
-        rows: [["ruins", null, ["giga_battleship_ruined"]]],
+        rows: [["build", null, ["giga_battleship_ruined"]]],
       },
     ]);
   });
 
   it("leaves out a row of script-only types no localisation names", () => {
     expect(matchingEntries(entries(space), "blokkat_dummy").flatMap(entryStages)).toEqual([]);
-  });
-
-  it("lists a megastructure whatever global flags the save has", () => {
-    const lifter = (globalFlags: ReadonlySet<string>) =>
-      named(
-        megastructureEntries(TYPES, NAMES, star, undefined, { globalFlags }),
-        "Star Lifter",
-        GIGA,
-      );
-    expect(lifter(new Set(["lifters_disabled"]))).toBeDefined();
-    expect(lifter(new Set(["giga_dyson_scaling"]))).toBeDefined();
-    expect(lifter(new Set())).toBeDefined();
   });
 
   it("states a stage's place in its build chain and names it on the Add button", () => {
@@ -696,23 +612,22 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(defaultStage(entries(star), star, "hyper_relay")).toBe("dyson_sphere_5");
     expect(defaultStage(entries(planet), planet, null)).toBe("think_tank_3");
     expect(defaultStage(entries(space), space, null)).toBe("hyper_relay");
-    const noRelay = new Map([...TYPES].filter(([key]) => key !== "hyper_relay"));
-    const list = megastructureEntries(noRelay, NAMES, space);
-    expect(defaultStage(list, space, null)).toBe("gateway_final");
+    const noRelay = new Map(fitsAt(space));
+    noRelay.delete("hyper_relay");
+    expect(defaultStage(megastructureEntries(TYPES, NAMES, noRelay), space, null)).toBe(
+      "gateway_final",
+    );
     expect(defaultStage([], space, null)).toBeNull();
   });
 });
 
 describe("the stage the dialog has selected", () => {
-  const relayed = (type: MegastructureView) =>
-    type.bypass_type === "relay_bypass" ? "The system already has a hyper relay." : null;
-
   it("opens past a stage the save would refuse here, to the first one it takes", () => {
-    const list = entries(space, relayed);
+    const list = entries(space, { hyper_relay: { refusal: "Sol already has a relay_bypass" } });
     expect(defaultStage(list, space, null)).toBe("gateway_final");
     expect(defaultStage(list, space, "hyper_relay")).toBe("gateway_final");
-    const refusedAll = entries(space, () => "No.");
-    expect(defaultStage(refusedAll, space, null)).toBe("gateway_final");
+    const all = Object.fromEntries([...IN_SPACE].map((key) => [key, { refusal: "no" }]));
+    expect(defaultStage(entries(space, all), space, null)).toBe("gateway_final");
   });
 
   it("selects only a stage the filter shows", () => {
@@ -727,49 +642,5 @@ describe("the stage the dialog has selected", () => {
     expect(selectedStage(list, list, "dyson_sphere_0", star, null)?.stage.key).toBe(
       "dyson_sphere_0",
     );
-  });
-});
-
-describe("why the save would refuse a megastructure that fits the spot", () => {
-  it("greys out a second relay or gateway in a system and a body that has one already", () => {
-    const relay = megastructureSummary({ kind: "hyper_relay", planet: null });
-    const refusal = (spot: MegastructureSpot, kind: string, rows = [relay]) =>
-      megastructureRefusal(TYPES.get(kind)!, spot, rows, TYPES);
-    expect(refusal(space, "hyper_relay")).toBe("The system already has a hyper relay.");
-    expect(refusal(space, "gateway_final")).toBeNull();
-    expect(refusal(space, "shroud_seal")).toBeNull();
-    const nexus = megastructureSummary({ kind: "think_tank_3", planet: 12 });
-    expect(refusal(planet, "think_tank_0", [nexus])).toBe(BODY_HAS_MEGASTRUCTURE);
-    const listed = entries(space, (type) => refusal(space, type.key));
-    expect(entryStages(listed[1])).toEqual([
-      {
-        key: "hyper_relay",
-        label: "Hyper Relay",
-        short: "Finished",
-        index: 1,
-        count: 1,
-        refused: "The system already has a hyper relay.",
-        variant: "hyper_relay",
-      },
-    ]);
-  });
-});
-
-describe("where a new megastructure stands", () => {
-  it("ties a body's row to the body, stands a relay just outside the inner radius in the direction pressed, and a shroud seal where pressed", () => {
-    expect(megastructurePlace(planet, TYPES.get("think_tank_0"), 150)).toEqual({
-      place: "body",
-      body: 12,
-    });
-    const relay = megastructurePlace(space, TYPES.get("hyper_relay"), 150);
-    expect(relay.place).toBe("free");
-    if (relay.place !== "free") return;
-    expect(Math.hypot(relay.x, relay.y)).toBeCloseTo(RELAY_RADIUS_FACTOR * 150);
-    expect(Math.atan2(relay.y, relay.x)).toBeCloseTo(Math.atan2(40, 30));
-    expect(megastructurePlace(space, TYPES.get("shroud_seal"), 150)).toEqual({
-      place: "free",
-      x: 30,
-      y: 40,
-    });
   });
 });

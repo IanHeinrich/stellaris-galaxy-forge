@@ -1,21 +1,22 @@
 /**
- * The Add megastructure dialog: where in the system view it was opened, the picks of a whole ring
- * world and what clearing its system takes, and the add itself, which opens the new row's page
- * once the edit lands.
+ * The Add megastructure dialog: where in the system view it was opened, what goes there, the
+ * picks of a whole ring world and what clearing its system takes, and the add itself, which opens
+ * the new row's page once the edit lands.
  */
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import type { AddSpot } from "../generated/AddSpot";
 import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
 import { megastructureLabel } from "../lib/details/labels";
+import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA } from "../lib/megastructureCopy";
 import {
-  leftOutNotice,
-  MEGASTRUCTURES_NEED_GAME_DATA,
-  megastructurePlace,
+  fitsByKind,
+  placeOf,
+  type MegastructureFits,
   type MegastructureSpot,
 } from "../lib/megastructurePicks";
 import { ALL_FINISHED } from "../lib/ringWorldAdd";
-import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -30,6 +31,15 @@ export interface MegastructureAddPrompt {
 
 interface MegastructureAddState {
   prompt: MegastructureAddPrompt | null;
+  /** What goes at the prompt's spot, by type, as the shell answered; null until read. */
+  fits: MegastructureFits | null;
+  /**
+   * The generation of the prompt's system, as `useOpCheckStore` counts its edits, that `fits`
+   * were asked at or are being asked at; null before the dialog asks.
+   */
+  fitsAt: number | null;
+  /** Why what goes at the spot couldn't be read. */
+  fitsError: string | null;
   /** The stage added last, which the dialog opens on next where it goes. */
   last: string | null;
   /** The stage each quadrant of a whole ring world is added at, A to D; all finished on opening. */
@@ -63,14 +73,19 @@ interface MegastructureAddState {
   setRingSize(ring: string, offered: readonly RingStage[]): void;
   setRingClear(clear: boolean): void;
   setKeepPlanet(keep: boolean): void;
+  /**
+   * Asks the shell what goes at the dialog's spot, its system at `generation`, unless that has
+   * been asked already. An answer for another opening or an older generation is dropped.
+   */
+  loadFits(generation: number): Promise<void>;
   /** Reads what clearing the dialog's system takes, once per opening. */
   loadClearing(): Promise<void>;
   /**
    * Closes the dialog and adds a finished megastructure of type `kind` at its spot in one edit;
    * it goes to the system's owner. `stage` is the stage the player picked, which the dialog opens
-   * on next; it differs from `kind` when the game swaps the stage for another type at the spot. A
-   * type built outside the gravity well stands just outside the system's inner radius, in the
-   * direction pressed. The new row's page opens, and the status bar says how many effects of its
+   * on next; it differs from `kind` when the game swaps the stage for another type at the spot.
+   * The row stands where the spot's fits place `kind`, and nothing is added before they are
+   * read. The new row's page opens, and the status bar says how many effects of its
    * construction were left out, when any were. The planet changes class or size as the type's
    * build changes it, unless the dialog keeps it. A type whose finished stage is a habitat adds
    * the habitat round the body as a planet instead, and selects it with its page open.
@@ -85,7 +100,20 @@ interface MegastructureAddState {
   addRing(kind: string, stage?: string): Promise<boolean>;
 }
 
-const CLOSED = { prompt: null, clearingFor: null, clearing: null, clearingError: null } as const;
+const CLOSED = {
+  prompt: null,
+  fits: null,
+  fitsAt: null,
+  fitsError: null,
+  clearingFor: null,
+  clearing: null,
+  clearingError: null,
+} as const;
+
+/** The spot as the shell takes it. */
+function addSpot(spot: MegastructureSpot): AddSpot {
+  return spot.kind === "body" ? { kind: "body", body: spot.body } : spot;
+}
 
 export const useMegastructureAddStore = create<MegastructureAddState>((set, get) => ({
   ...CLOSED,
@@ -136,6 +164,19 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     set({ keepPlanet: keep });
   },
 
+  async loadFits(generation) {
+    const { prompt, fitsAt } = get();
+    if (prompt === null || fitsAt === generation) return;
+    set({ fitsAt: generation, fitsError: null });
+    const current = () => get().prompt === prompt && get().fitsAt === generation;
+    try {
+      const fits = fitsByKind(await ipc.getMegastructureFits(prompt.system, addSpot(prompt.spot)));
+      if (current()) set({ fits });
+    } catch (e) {
+      if (current()) set({ fitsError: ipc.errorMessage(e) });
+    }
+  },
+
   async loadClearing() {
     const { prompt, clearingFor } = get();
     if (prompt === null || clearingFor === prompt.system) return;
@@ -161,7 +202,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   },
 
   async add(kind, stage = kind) {
-    const { prompt, keepPlanet } = get();
+    const { prompt, keepPlanet, fits } = get();
     if (prompt === null) return false;
     set(CLOSED);
     const { system, spot } = prompt;
@@ -173,8 +214,8 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
       useSceneStore.getState().showBody(system, planet);
       return true;
     }
-    const inner = useDetailsStore.getState().details.get(system)?.inner_radius ?? 0;
-    const at = megastructurePlace(spot, data.megastructureTypes.get(kind), inner);
+    const at = fits === null ? null : placeOf(fits, kind);
+    if (at === null) return false;
     const added = await useEditorStore.getState().addMegastructure(system, kind, at, keepPlanet);
     if (added === null) return false;
     set({ last: stage });

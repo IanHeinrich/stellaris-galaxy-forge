@@ -55,6 +55,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::add_habitat,
             commands::add_ring_world,
             commands::get_ring_world_clearing,
+            commands::get_megastructure_fits,
             commands::add_nebula,
             commands::get_add_system_picks,
             commands::set_fe_links,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countryNode,
+  megastructureFits,
   megastructureSummary,
   megastructureSwap,
   megastructureTypeView,
@@ -23,6 +24,7 @@ const TYPES = new Map(
     megastructureTypeView("mega_shipyard_0"),
     megastructureTypeView("mega_shipyard_1", { upgrade_from: ["mega_shipyard_0"] }),
     megastructureTypeView("mega_shipyard_restored", {
+      variant_of: "mega_shipyard_0",
       upgrade_from: ["mega_shipyard_1"],
       produces: [
         ["alloys", 20],
@@ -33,9 +35,8 @@ const TYPES = new Map(
   ].map((t) => [t.key, t]),
 );
 
-const planet = { kind: "body", body: 12, star: false } as const;
 const shipyard = (names: ReadonlyMap<string, string>) => {
-  const [entry] = megastructureEntries(TYPES, names, planet);
+  const [entry] = megastructureEntries(TYPES, names, megastructureFits(TYPES.keys()));
   return entry;
 };
 
@@ -188,12 +189,10 @@ describe("the preview of the selected type", () => {
       ["dyson_swarm_3", "Dyson Swarm"],
       ["dyson_swarm_3_b_star", "Blue Dyson Swarm"],
     ]);
-    const [entry] = megastructureEntries(types, names, {
-      kind: "body",
-      body: 1,
-      star: true,
-      class: "pc_b_star",
+    const fits = megastructureFits(["dyson_swarm_0", "dyson_swarm_3"], {
+      dyson_swarm_3: { variant: "dyson_swarm_3_b_star" },
     });
+    const [entry] = megastructureEntries(types, names, fits);
     expect(entry.label).toBe("Dyson Swarm");
     const chain = entry.chains[0];
     const stage = chain.stages[1];

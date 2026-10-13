@@ -2,14 +2,15 @@
  * How a save's megastructure moves in the system view: to a point of its own, onto another body
  * of its system, or not at all, and why a body will not take it. The core refuses the rest.
  */
+import { MEGASTRUCTURE_BYPASS_KINDS } from "../../generated/constants";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
 import { isRingRow } from "./ringWorldRemoval";
 
-/** The bypass kinds a moved row may stand for; another has not been tried in game. */
-const MOVED_BYPASSES: ReadonlySet<string> = new Set(["gateway", "relay_bypass"]);
+/** The bypass kinds a moved row may stand for, as the core moves them. */
+const MOVED_BYPASSES: ReadonlySet<string> = new Set(MEGASTRUCTURE_BYPASS_KINDS);
 
 /** How one row moves. */
 export type MegastructureMove =
@@ -79,7 +80,7 @@ export function megastructureMove(
   home: HomeBody = { star: false, hidden: false },
 ): MegastructureMove {
   if (isRingRow(row.kind)) return fixed("ringWorld");
-  const bypass = type?.bypass_type ?? (row.kind.startsWith("lgate") ? "lgate" : null);
+  const bypass = type?.bypass_type ?? null;
   if (bypass !== null && !MOVED_BYPASSES.has(bypass)) return fixed("bypass");
   const placement = type?.placement;
   if (placement?.place === "unsupported") {

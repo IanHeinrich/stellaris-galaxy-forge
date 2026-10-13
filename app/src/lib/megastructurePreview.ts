@@ -12,10 +12,9 @@ import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
 import { producedRows, type ResourceRow } from "./details/resources";
 import { megastructureLook, modelKey } from "./details/structures";
 import { plainGameText } from "./gameText";
+import { addLabel, stageLine } from "./megastructureCopy";
 import {
-  addLabel,
   cleanName,
-  stageLine,
   type MegastructureChain,
   type MegastructureEntry,
   type MegastructureStage,

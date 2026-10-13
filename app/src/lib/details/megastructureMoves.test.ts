@@ -106,7 +106,6 @@ describe("how a megastructure moves", () => {
   it("keeps the L-Gate, a ring world section, a starbase's structure and one at the centre", () => {
     const fixed = (why: string) => ({ place: "fixed", why });
     const lgate = megastructureSummary({ kind: "lgate_base", at: [21, 21] });
-    expect(megastructureMove(lgate, undefined)).toEqual(fixed(MEGASTRUCTURE_FIXED.bypass));
     const lgateType = megastructureTypeView("lgate_base", { bypass_type: "lgate" });
     expect(megastructureMove(lgate, lgateType)).toEqual(fixed(MEGASTRUCTURE_FIXED.bypass));
     const ring = megastructureSummary({ kind: "ring_world_ruined", at: [45, 0] });

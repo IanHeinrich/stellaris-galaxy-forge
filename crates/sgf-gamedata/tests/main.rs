@@ -43,6 +43,7 @@ mod megastructure_layouts_added;
 mod megastructure_layouts_giga;
 mod megastructure_layouts_join;
 mod megastructure_offers;
+mod megastructure_swaps;
 mod megastructure_views;
 mod megastructures;
 mod mod_names;
