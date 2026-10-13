@@ -13,7 +13,7 @@ use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex, PoisonError};
 
 use image::RgbaImage;
 use serde::{Deserialize, Serialize};
@@ -130,6 +130,47 @@ struct Drawn {
     empire_mask: bool,
 }
 
+/// The most model bakes running at once across every request: a full-size bake holds a few
+/// hundred MB.
+const MOST_BAKES: usize = 4;
+
+static BAKING: Bakes = Bakes {
+    running: Mutex::new(0),
+    freed: Condvar::new(),
+};
+
+/// A count of the bakes running, which [`Bakes::take`] waits on.
+struct Bakes {
+    running: Mutex<usize>,
+    freed: Condvar,
+}
+
+impl Bakes {
+    /// A slot to bake in, once fewer than [`MOST_BAKES`] are running; dropping it frees it.
+    fn take(&'static self) -> BakeSlot {
+        let running = self.running.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut running = self
+            .freed
+            .wait_while(running, |running| *running >= MOST_BAKES)
+            .unwrap_or_else(PoisonError::into_inner);
+        *running += 1;
+        BakeSlot(self)
+    }
+}
+
+struct BakeSlot(&'static Bakes);
+
+impl Drop for BakeSlot {
+    fn drop(&mut self) {
+        *self
+            .0
+            .running
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) -= 1;
+        self.0.freed.notify_one();
+    }
+}
+
 impl Hash for ModelJob {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for layer in &self.layout.layers {
@@ -138,7 +179,6 @@ impl Hash for ModelJob {
         self.parts.hash(state);
         self.textures.hash(state);
         self.yaw.hash(state);
-        self.px.hash(state);
     }
 }
 
@@ -416,6 +456,7 @@ impl ModelJob {
 
     /// The baked sprite as a PNG that holds its placement.
     pub(super) fn encode(&self) -> Result<Vec<u8>, TextureError> {
+        let _slot = BAKING.take();
         let (image, placement) = self.bake()?;
         Ok(with_placement(encode_png(&image)?, &placement))
     }

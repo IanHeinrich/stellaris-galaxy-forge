@@ -217,8 +217,8 @@ These stay where they are:
 - Ring world sections.
 - Deep Space Citadels and the Nomads' waystations, which come with a
   starbase.
-- Megastructures that are part of a larger structure, such as an
-  Alderson Disk.
+- Megastructures that are part of a larger structure, such as the
+  sections of an Alderson Disk.
 - A megastructure whose building created its planet, such as a
   Cosmogenesis World.
 - A megastructure at the system's centre that isn't attached to a

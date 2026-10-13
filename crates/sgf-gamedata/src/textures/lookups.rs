@@ -57,19 +57,15 @@ pub(crate) struct Lookups<'a> {
     pub worlds: WorldsLookup<'a>,
 }
 
-/// The most keys of one batch baked at once.
-const BAKERS: usize = 4;
-
 impl GameData {
     /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
         self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
     }
 
-    /// Each of `keys` as [`Self::texture`] makes it, in order, the keys shared among a few cores.
-    /// A full-size model bake holds a few hundred MB, so a batch runs at most [`BAKERS`] at once.
+    /// Each of `keys` as [`Self::texture`] makes it, in order, the keys shared among the cores.
     pub fn textures(&self, textures: &Textures, keys: &[String]) -> Vec<TextureView> {
-        crate::report::on_cores(keys, BAKERS, |key| self.texture(textures, key))
+        crate::report::on_every_core(keys, |key| self.texture(textures, key))
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {

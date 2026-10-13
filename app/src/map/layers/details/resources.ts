@@ -77,8 +77,8 @@ export interface CellWidth {
 }
 
 /**
- * Where the cells of a row stand, centred across x = 0 by their widths. Neighbours keep the
- * game's stride unless their texts would come within `RESOURCE_TEXT_GAP_PX` of each other, so a
+ * Where the cells of a row stand, centred across x = 0 on the first and last cells. Neighbours
+ * keep the game's stride unless their texts would come within `RESOURCE_TEXT_GAP_PX` of each other, so a
  * row of short amounts stays dense and a row of long ones spreads out.
  */
 export function resourceCentres(cells: readonly CellWidth[]): { xs: number[]; half: number } {
@@ -89,10 +89,10 @@ export function resourceCentres(cells: readonly CellWidth[]): { xs: number[]; ha
     const apart = (cells[i - 1].text + cells[i].text) / 2 + RESOURCE_TEXT_GAP_PX;
     xs.push(xs[i - 1] + Math.max(stride, apart));
   }
-  const left = -cells[0].wide / 2;
-  const right = xs[xs.length - 1] + cells[cells.length - 1].wide / 2;
-  const middle = (left + right) / 2;
-  return { xs: xs.map((x) => x - middle), half: (right - left) / 2 };
+  const middle = xs[xs.length - 1] / 2;
+  const centred = xs.map((x) => x - middle);
+  const half = Math.max(...centred.map((x, i) => Math.abs(x) + cells[i].wide / 2));
+  return { xs: centred, half };
 }
 
 /**
