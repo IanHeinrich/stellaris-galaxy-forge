@@ -23,9 +23,10 @@ pub async fn add_ring_world<R: Runtime>(
     stages: Vec<RingStage>,
     clear: bool,
 ) -> Result<Added, SgfError> {
-    let gd = game_data(&app, "add a ring world")?;
+    let gd = game_data(&app, "add a ring world");
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.add_megastructures, NO_RING_WORLDS)?;
+        let gd = gd?;
         let planned = generate::ring_world_op(&gd, session, system, &kind, &stages, clear)?;
         let result = session.apply(planned.op)?;
         Ok(Added::of(session, result))

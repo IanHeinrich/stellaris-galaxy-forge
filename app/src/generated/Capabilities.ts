@@ -159,6 +159,6 @@ scripts: boolean,
  */
 text_file: boolean, 
 /**
- * The document can be exported as a scenario script, and its models listed for baking.
+ * The document can be exported as a scenario script.
  */
 export: boolean, };

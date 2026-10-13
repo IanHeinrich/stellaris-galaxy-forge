@@ -23,9 +23,10 @@ pub async fn add_megastructure<R: Runtime>(
     place: MegastructurePlace,
     keep_planet: bool,
 ) -> Result<AddedMegastructure, SgfError> {
-    let gd = game_data(&app, "add a megastructure")?;
+    let gd = game_data(&app, "add a megastructure");
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.add_megastructures, NO_MEGASTRUCTURES)?;
+        let gd = gd?;
         let planned = generate::megastructure_op(&gd, session, system, &kind, place, keep_planet)?;
         let result = session.apply(planned.op)?;
         Ok(AddedMegastructure {

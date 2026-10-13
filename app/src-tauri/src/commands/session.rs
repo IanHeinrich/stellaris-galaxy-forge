@@ -290,7 +290,7 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
 pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUse>, SgfError> {
     with_session(app, |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if !Capabilities::of(session.doc()).export {
+        if !Capabilities::of(session.doc()).details {
             return Ok(Vec::new());
         }
         Ok(session.details().map_err(SessionError::from)?.models())
