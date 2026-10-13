@@ -188,7 +188,7 @@ fn what_an_add_refuses() {
         [
             (
                 add(LACHIUM, finished_ring()),
-                "a ring world cannot be added there: planet 2445 of Lachium #203 is a segment of the ring world at orbit 45.01",
+                "a ring world cannot be added there: Ring Section #2445 of Lachium #203 is a segment of the ring world at orbit 45.01",
             ),
             (
                 add(TUZHIK, finished_ring()),
@@ -228,7 +228,7 @@ fn what_an_add_refuses() {
         &mut session,
         [(
             chors_ring(None),
-            "a ring world cannot be added there: planet 16777273 of Chors Compass #23 is a segment of the ring world at orbit 45.21",
+            "a ring world cannot be added there: Ring Section #16777273 of Chors Compass #23 is a segment of the ring world at orbit 45.21",
         )],
     );
 }
@@ -469,7 +469,7 @@ fn a_titanic_ring_beside_a_ring_the_file_holds() {
                 owner: None,
                 ring: titanic_ring(),
             },
-            "a ring world cannot be added there: planet 16777273 of Lachium #203 is a segment of the ring world at orbit 90.43",
+            "a ring world cannot be added there: Ring Section #16777273 of Lachium #203 is a segment of the ring world at orbit 90.43",
         )],
     );
     session.undo().expect("undo").expect("an op to undo");

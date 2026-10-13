@@ -35,9 +35,9 @@ export function recordingCanvas(): Surface {
 }
 
 /**
- * Stands a window in that keeps its key and blur listeners, and returns the way to press a key or
- * blur on it: the spy it gives back says whether the press was kept from the app. Undo it with
- * `unstubAllGlobals`.
+ * Stands a window in that keeps its key and blur listeners, and a document with no dialog open,
+ * and returns the way to press a key or blur on it: the spy it gives back says whether the press
+ * was kept from the app. Undo it with `unstubAllGlobals`.
  */
 export function stubWindowKeys(): (
   type: "keydown" | "keyup" | "blur",
@@ -50,9 +50,15 @@ export function stubWindowKeys(): (
     removeEventListener: (type: string) => void listeners.delete(type),
   });
   vi.stubGlobal("HTMLElement", class {});
+  stubModalDialog(false);
   return (type, name) => {
     const stop = vi.fn();
     listeners.get(type)?.({ key: name, target: null, stopImmediatePropagation: stop } as never);
     return () => stop.mock.calls.length > 0;
   };
+}
+
+/** Stands a document in whose page has a modal dialog open, or none. */
+export function stubModalDialog(open: boolean): void {
+  vi.stubGlobal("document", { querySelector: () => (open ? {} : null) });
 }

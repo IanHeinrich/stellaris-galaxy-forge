@@ -83,9 +83,7 @@ export function Submenu({
     return () => document.removeEventListener("pointermove", onMove);
   }, [open, aim]);
 
-  const classes = ["menu-item", "context-submenu-item", hint && "hinted", className]
-    .filter(Boolean)
-    .join(" ");
+  const classes = ["context-submenu-item", hint && "hinted", className].filter(Boolean).join(" ");
   return (
     <div
       ref={entry}

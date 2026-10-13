@@ -32,13 +32,21 @@ function OpenAsDialog({
     >
       <DialogFrame
         title={heading}
+        onSubmit={
+          onSave
+            ? undefined
+            : (e) => {
+                e.preventDefault();
+                onScenario();
+              }
+        }
         actions={
           <>
             <button type="button" onClick={onCancel}>
               Cancel
             </button>
             {!onSave && (
-              <button type="button" className="primary" onClick={onScenario}>
+              <button type="submit" className="primary">
                 Continue
               </button>
             )}

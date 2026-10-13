@@ -177,7 +177,7 @@ fn what_a_rename_refuses() {
             .apply(rename(star, "Nova Terra"))
             .expect_err("a star");
         assert!(
-            matches!(error, OpError::StarRefused { body, edit: StarEdit::Rename } if body == star),
+            matches!(error, OpError::StarRefused { body, edit: StarEdit::Rename, .. } if body == star),
             "{error}"
         );
     }
@@ -187,7 +187,10 @@ fn what_a_rename_refuses() {
     let error = session
         .apply(rename(140, "Nova Terra"))
         .expect_err("unchanged");
-    assert_eq!(error.to_string(), "planet 140 is already named Nova Terra");
+    assert_eq!(
+        error.to_string(),
+        "Nova Terra #140 is already named Nova Terra"
+    );
 
     let mut scenario = GRAMMAR.open();
     let error = scenario

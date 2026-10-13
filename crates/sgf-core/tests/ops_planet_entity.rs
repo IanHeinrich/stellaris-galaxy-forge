@@ -154,12 +154,12 @@ fn a_model_is_refused_for_a_star_an_unknown_planet_or_no_change() {
         (set(99_999, Some(PARADISE)), "planet 99999 does not exist"),
         (
             set(584, Some(PARADISE)),
-            "planet 584 is a star, which takes no planet model",
+            "Xu Nur #584 is a star, which takes no planet model",
         ),
-        (set(585, None), "planet 585 has no model of its own"),
+        (set(585, None), "Xu Nur I #585 has no model of its own"),
         (
             set(3318, Some("previously_terraformed_planet_entity")),
-            "planet 3318 already has the model previously_terraformed_planet_entity",
+            "Eliathion I #3318 already has the model previously_terraformed_planet_entity",
         ),
         (set(585, Some("")), "a planet model may not be empty"),
     ];

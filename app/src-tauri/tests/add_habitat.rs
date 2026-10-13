@@ -84,5 +84,9 @@ fn a_type_that_is_no_habitat_and_a_moon_are_refused() {
         ruin.message
     );
     let moon = invoke::<Added>(&w, "add_habitat", complex(3)).expect_err("moon 3");
-    assert!(moon.message.contains("orbits planet 2"), "{}", moon.message);
+    assert!(
+        moon.message.contains("orbits Alari planet #2"),
+        "{}",
+        moon.message
+    );
 }

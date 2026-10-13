@@ -10,7 +10,7 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::literal_name_value;
 use crate::format::save::write::add_system::PARENT_VAR;
-use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
+use crate::format::save::write::planet_entry::{PlanetEntry, named_entity, named_planet};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{check_name, check_name_value};
@@ -46,7 +46,7 @@ pub(crate) fn plan_rename(
     let written = new.at(&edit.indent(value.start));
     if written == old_text {
         return Err(OpError::unchanged(
-            format!("planet {id}"),
+            named_entity(&node, src, id),
             format!("is already named {}", name.shown()),
         ));
     }

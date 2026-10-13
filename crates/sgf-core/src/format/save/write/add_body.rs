@@ -21,7 +21,7 @@ use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
 use crate::format::save::write::planet_entry::{
-    body_is_star, list_moon, named_planet, unlist_moon,
+    body_is_star, list_moon, named_entity, named_planet, unlist_moon,
 };
 use crate::format::save::write::planet_modifier;
 use crate::format::save::write::remove_system::return_asteroid_names_of;
@@ -533,9 +533,15 @@ fn moon_parent(s: &Session, stored: &[Stored], system: u32, parent: u32) -> Resu
         return Err(OpError::MoonsNotAllowed("an asteroid"));
     }
     let reason = if star {
-        format!("planet {parent} is a star: a moon needs a planet to orbit")
+        format!(
+            "{} is a star: a moon needs a planet to orbit",
+            named_entity(&node, src, parent)
+        )
     } else if host.moon {
-        format!("planet {parent} is a moon, and a moon cannot have moons")
+        format!(
+            "{} is a moon, and a moon cannot have moons",
+            named_entity(&node, src, parent)
+        )
     } else {
         return Ok(host.body);
     };

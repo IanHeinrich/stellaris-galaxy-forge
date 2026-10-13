@@ -112,7 +112,7 @@ export function BodyMenu({
             system: target.system,
             id: target.id,
             name,
-            moon,
+            body: star ? "star" : moon ? "moon" : "planet",
             class: planet.class,
           }}
         />

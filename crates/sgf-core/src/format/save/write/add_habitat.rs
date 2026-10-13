@@ -17,7 +17,9 @@ use crate::format::save::write::megastructure_links::{
     self, HAS_ORBITAL, Holders, MEGASTRUCTURES, NewRow, Tied, unlink, write_rows,
 };
 use crate::format::save::write::place;
-use crate::format::save::write::planet_entry::{body_is_star, list_moon};
+use crate::format::save::write::planet_entry::{
+    body_is_star, list_moon, named_entity, named_planet,
+};
 use crate::format::save::write::shared::{culture_of, placement, tie, write_slot};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
@@ -59,19 +61,28 @@ pub(crate) fn plan_add(
         .iter()
         .find(|b| b.body.id == body)
         .ok_or(OpError::NotABody { body, system })?;
-    let refuse = megastructure_links::refuse(HABITAT);
     if let Some(parent) = host.body.parent
         && !body_is_star(s, &stored, parent)?
     {
         return Err(megastructure_links::refused(
             HABITAT,
-            MegastructureRefusal::HabitatRoundSatellite { body, parent },
+            MegastructureRefusal::HabitatRoundSatellite {
+                body,
+                planet: named_entity(&node, src, body),
+                parent,
+                orbits: named_planet(s, parent)?,
+            },
         ));
     }
     if let Some(flag) = habitat_flag(&node, src) {
-        return Err(refuse(format!(
-            "planet {body} has a habitat already ({flag})"
-        )));
+        return Err(megastructure_links::refused(
+            HABITAT,
+            MegastructureRefusal::HabitatPresent {
+                body,
+                planet: named_entity(&node, src, body),
+                flag,
+            },
+        ));
     }
     let orbital = match &habitat.orbital {
         Some(orbital) if !holds_megastructure(s, &node, src, body)? => Some(orbital),

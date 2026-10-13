@@ -175,9 +175,15 @@ button.chip.jump:hover {
 }
 
 .ins-sec-row .ins-sec {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
   width: auto;
   margin: 0;
+}
+
+/* An aside is cut short before the action leaves the header's line. */
+.ins-sec-row:has(.ins-sec-aside) {
+  flex-wrap: nowrap;
 }
 
 .ins-sec-row > :last-child {
@@ -263,10 +269,16 @@ button.chip.jump:hover {
   height: 22px;
 }
 
+/* Its inputs shrink below their default width, so a narrow dock doesn't scroll sideways. */
 .ins-header-row.add {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   margin-top: 4px;
   padding-top: 6px;
   border-top: 1px solid var(--ins-rule);
+}
+
+.ins-header-row.add input {
+  min-width: 0;
 }
 
 .ins-header-row.repeated {
@@ -562,17 +574,24 @@ button.link.ins-drill:hover {
 }
 
 /* The Initializer section: its name and button, its kind and file, one grid of rows, then groups. */
+/* The name keeps its width, and what follows it moves under it where both don't fit. */
 .ins-init-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 2px 8px;
   margin: 6px 0;
 }
 
 .ins-init-name {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ins-init-file {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 

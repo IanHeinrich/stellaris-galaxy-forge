@@ -197,7 +197,7 @@ function Browsing() {
           </button>
           <button
             type="button"
-            className="ib-assign"
+            className="ib-assign primary"
             disabled={highlighted === null}
             onClick={() => void assign()}
           >

@@ -376,10 +376,15 @@ fn worded(
         }
         MegastructureRefusal::HoldsMegastructure { .. } => BODY_HAS_MEGASTRUCTURE.to_owned(),
         MegastructureRefusal::HabitatRoundSatellite { .. } => HABITAT_ROUND_SATELLITE.to_owned(),
-        MegastructureRefusal::NoStar { .. } => RING_WORLD_NO_STAR.to_owned(),
-        MegastructureRefusal::ManyStars { count, .. } => {
-            format!("The system has {count} stars, and a ring world stands round one.")
+        MegastructureRefusal::HabitatPresent { planet, .. } => {
+            format!("{planet} already has a habitat.")
         }
+        MegastructureRefusal::NoStar { .. } => RING_WORLD_NO_STAR.to_owned(),
+        MegastructureRefusal::ManyStars { count, .. } => match count {
+            2 => "Can't place a ring world in a binary system.".to_owned(),
+            3 => "Can't place a ring world in a trinary system.".to_owned(),
+            _ => format!("Can't place a ring world in a system with {count} stars."),
+        },
         MegastructureRefusal::RingOverlap { orbit, .. } => format!(
             "This ring would overlap the ring world at orbit {}.",
             orbit.round()

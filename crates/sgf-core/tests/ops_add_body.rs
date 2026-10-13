@@ -236,11 +236,11 @@ fn adds_and_removals_are_refused() {
         ),
         (
             add(408, moon("pc_barren", 5, 134), 20.0, 0.0),
-            "planet 134 is a star: a moon needs a planet to orbit",
+            "Meissa #134 is a star: a moon needs a planet to orbit",
         ),
         (
             add(169, moon("pc_barren", 5, 3), 10.0, 0.0),
-            "planet 3 is a moon, and a moon cannot have moons",
+            "planet #3 is a moon, and a moon cannot have moons",
         ),
         (
             add(408, moon("pc_barren", 5, 2), 10.0, 0.0),

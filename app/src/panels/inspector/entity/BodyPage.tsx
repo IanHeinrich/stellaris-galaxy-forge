@@ -219,7 +219,7 @@ function DeleteSection({ read, offers }: PlanetSectionProps) {
         system: read.details.id,
         id: read.summary.id,
         name: bodyName(read.summary, names),
-        moon: read.summary.moon,
+        body: read.summary.moon ? "moon" : "planet",
         class: read.summary.class,
       }}
     />

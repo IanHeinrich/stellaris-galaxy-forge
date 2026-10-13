@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   NEVER_WARN,
   NEVER_WARN_WHY,
@@ -31,7 +31,8 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
   const notForPaint = prompt.kind === "not_for_paint";
 
   const cancel = () => answer(null);
-  const proceed = () => {
+  const proceed = (e: FormEvent) => {
+    e.preventDefault();
     if (notForPaint && neverWarn) setWarnNotForPaint(false);
     answer(notForPaint ? standingProfile() : "plain");
   };
@@ -39,6 +40,7 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
     <Dialog className="dialog" label="Open scenario" onClose={cancel} onDismiss={cancel}>
       <DialogFrame
         title={<>Open {fileName(prompt.path)}</>}
+        onSubmit={proceed}
         note={notForPaint && <p className="hint never-warn-why">{NEVER_WARN_WHY}</p>}
         actions={
           <>
@@ -55,7 +57,7 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
             <button type="button" onClick={cancel}>
               Cancel
             </button>
-            <button type="button" className="primary" onClick={proceed}>
+            <button type="submit" className="primary">
               Continue
             </button>
           </>

@@ -17,7 +17,7 @@ use crate::format::save::write::id_list::{Emptied, append, list_planets, unlist,
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{
-    and_its_moons, body_is_star, named_planet_as, set_flag, set_moon_of, unlist_moon,
+    and_its_moons, body_is_star, named_planet_as, set_flag, set_moon_of, star_refused, unlist_moon,
 };
 use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{planet_entity, planet_system};
@@ -451,11 +451,9 @@ fn check_movable(
     moons: &[u32],
 ) -> Result<bool, OpError> {
     let (node, src) = planet_entity(&s.doc, body.id)?;
+    let refused = || star_refused(&node, src, body.id, StarEdit::Move);
     if body_is_star(s, stored, body.id)? {
-        return Err(OpError::StarRefused {
-            body: body.id,
-            edit: StarEdit::Move,
-        });
+        return Err(refused());
     }
     let moon = match body.parent.map(|p| (p, planet_entity(&s.doc, p))) {
         None => false,
@@ -468,10 +466,7 @@ fn check_movable(
         let (node, src) = planet_entity(&s.doc, id)?;
         let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
         if flags & MOON_FLAG == 0 {
-            return Err(OpError::StarRefused {
-                body: body.id,
-                edit: StarEdit::Move,
-            });
+            return Err(refused());
         }
     }
     Ok(moon)

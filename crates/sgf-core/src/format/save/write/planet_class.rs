@@ -7,7 +7,7 @@
 use crate::NULL_ID;
 use crate::emit::quoted;
 use crate::format::save::write::planet_entity::write_entity_name;
-use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
+use crate::format::save::write::planet_entry::{PlanetEntry, named_entity, named_planet};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{ClassChange, Op, OpError, Plan, PlanetClassRule, PlanetLook, Planned, StarEdit};
@@ -34,7 +34,7 @@ pub(crate) fn plan_set(
     }
     if to.class == class {
         return Err(OpError::unchanged(
-            format!("planet {id}"),
+            named_entity(&node, src, id),
             format!("is already {class}"),
         ));
     }

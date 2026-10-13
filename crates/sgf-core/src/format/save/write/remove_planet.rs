@@ -29,7 +29,7 @@ use crate::format::save::write::megastructure_links::Holders;
 use crate::format::save::write::planet_entry::{
     PlanetEntry, and_its_moons, named_planet, named_planet_as,
 };
-use crate::format::save::write::planet_entry::{is_star, role};
+use crate::format::save::write::planet_entry::{is_star, role, star_refused};
 use crate::format::save::write::restore::{Saved, country_edit, tombstoned};
 use crate::format::save::write::teardown::{Stationed, Teardown, fleet_records, some_id};
 use crate::format::save::write::{add_body, anomaly};
@@ -150,10 +150,7 @@ impl Deletion {
             let refuse = |reason: String| OpError::PlanetKept { body: id, reason };
             let primary = frame.first().is_some_and(|primary| primary.id == id);
             if is_star(role(&node, src, primary, s.star_classes())) {
-                return Err(OpError::StarRefused {
-                    body: id,
-                    edit: StarEdit::Delete,
-                });
+                return Err(star_refused(&node, src, id, StarEdit::Delete));
             }
             if read::scalar_u32(&node, keys::COLONY, src).is_some() {
                 teardowns.push(Teardown::read(s, id, system, &node, src)?);

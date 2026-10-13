@@ -59,7 +59,7 @@ pub(crate) fn plan_move(
     let moved = find(&after, body);
     if stored.iter().any(|b| b.body.id == body && b.holds(moved)) {
         return Err(OpError::unchanged(
-            format!("planet {body}"),
+            named_planet(s, body)?,
             "already stands there",
         ));
     }

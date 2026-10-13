@@ -8,6 +8,7 @@ const MIDDLE_BUTTONS = 4;
 /** `PointerEvent.button` values. */
 const LEFT = 0;
 const MIDDLE = 1;
+const RIGHT = 2;
 
 /** What the bridge reads of an input: the pointer on the screen. */
 interface ScreenInput {
@@ -101,9 +102,11 @@ export class PointerBridge<I extends ScreenInput> {
       this.release(this.pick("cancel", e));
     });
     on("pointerleave", () => this.hooks.left());
-    // Windows starts autoscroll, and Linux pastes, on a middle press the page lets through.
+    // Windows starts autoscroll, and Linux pastes, on a middle press the page lets through. A
+    // right press opens the context menu on pointerdown, and its mousedown would then move focus
+    // from the menu to the page.
     on("mousedown", (e) => {
-      if (e.button === MIDDLE) e.preventDefault();
+      if (e.button === MIDDLE || e.button === RIGHT) e.preventDefault();
     });
   }
 

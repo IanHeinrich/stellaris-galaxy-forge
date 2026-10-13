@@ -129,7 +129,7 @@ fn a_class_change_is_refused_for_stars_fixed_classes_and_colonies() {
         ),
         (
             set(584, "pc_g_star", "pc_barren"),
-            "planet 584 is a star; its star type is changed on the star's page",
+            "Xu Nur #584 is a star; its star type is changed on the star's page",
         ),
         (
             set(585, "pc_barren", "pc_g_star"),
@@ -157,7 +157,7 @@ fn a_class_change_is_refused_for_stars_fixed_classes_and_colonies() {
         ),
         (
             set(585, "pc_barren", "pc_barren"),
-            "planet 585 is already pc_barren",
+            "Xu Nur I #585 is already pc_barren",
         ),
         (set(585, "pc_barren", ""), "a planet class may not be empty"),
     ];

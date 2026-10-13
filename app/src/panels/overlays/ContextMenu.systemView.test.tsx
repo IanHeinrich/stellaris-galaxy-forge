@@ -116,6 +116,25 @@ describe("the system view's menus", () => {
     expect(menu()).toContain(">Open system view</button>");
   });
 
+  it("names a star's Delete as no kind of planet, greyed out with the core's reason", async () => {
+    const refusal = "Kuma #157 is a star: only a planet or moon can be deleted";
+    vi.mocked(ipc.checkOp).mockResolvedValue(refusal);
+    const kuma = planetSummary({
+      id: 157,
+      class: "pc_g_star",
+      name: name("Kuma"),
+      name_key: "Kuma",
+    });
+    inSystem(systemDetails({ id: 0, planets: [kuma] }));
+    const body = { kind: "body", system: 0, id: 157 } as const;
+    useMapChromeStore.getState().openContextMenu({ target: body, x: 0, y: 0 });
+    menu();
+    await flush();
+    const html = menu();
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete<span/);
+    expect(html).toContain(`<span class="muted">${refusal}</span>`);
+  });
+
   it("deletes a save body after asking", async () => {
     const moon = planetSummary({ id: 13, name: name("Luna"), name_key: "Luna", moon: true });
     inSystem(systemDetails({ id: 0, planets: [moon] }));

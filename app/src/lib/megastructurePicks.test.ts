@@ -426,9 +426,9 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         .flatMap(entryStages)
         .find((s) => s.ring === true);
     expect(ringTile({})?.refused).toBeNull();
-    const twin = "The system has 2 stars, and a ring world stands round one.";
+    const twin = "Can't place a ring world in a binary system.";
     expect(ringTile({ ring_world_2_intermediate: { refusal: twin } })?.refused).toBe(
-      "The system has 2 stars, and a ring world stands round one.",
+      "Can't place a ring world in a binary system.",
     );
   });
 

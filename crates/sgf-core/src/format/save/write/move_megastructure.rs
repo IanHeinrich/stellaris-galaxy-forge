@@ -16,7 +16,7 @@ use crate::format::save::write::megastructure_links::{
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entity::write_entity_name;
-use crate::format::save::write::planet_entry::{body_is_star, named_planet};
+use crate::format::save::write::planet_entry::{body_is_star, named_entity, named_planet};
 use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
@@ -92,7 +92,8 @@ pub(crate) fn plan_move(
             return Err(refused(
                 id,
                 format!(
-                    "it stands on or around planet {from}, so it stays tied to a planet or star"
+                    "it stands on or around {}, so it stays tied to a planet or star",
+                    named_planet(s, from)?
                 ),
             ));
         }
@@ -172,7 +173,10 @@ fn to_body(
     if megastructure_links::made(&old, old_src) {
         return Err(refused(
             id,
-            format!("it made planet {from}, which stays where it is"),
+            format!(
+                "it made {}, which stays where it is",
+                named_entity(&old, old_src, from)
+            ),
         ));
     }
     if body == from {
@@ -181,7 +185,10 @@ fn to_body(
     if let Some(held) = Holders::read(doc, body, &target, src)?.row_besides(&[id]) {
         return Err(refused(
             id,
-            format!("planet {body} already has megastructure {held}"),
+            format!(
+                "{} already has megastructure {held}",
+                named_entity(&target, src, body)
+            ),
         ));
     }
     let target_flags = flags_of(&target, src);
@@ -200,7 +207,10 @@ fn to_body(
     if furnace && body_is_star(s, &frame(s, system)?, body)? {
         return Err(refused(
             id,
-            format!("an Arc Furnace hides the planet it stands at, and planet {body} is a star"),
+            format!(
+                "an Arc Furnace hides the planet it stands at, and {} is a star",
+                named_entity(&target, src, body)
+            ),
         ));
     }
 
@@ -254,7 +264,7 @@ fn beside(
         .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
     if same_point(from, at) {
         let state = if same_point(at, home) {
-            format!("already stands at planet {body}")
+            format!("already stands at {}", named_planet(s, body)?)
         } else {
             "already stands there".to_owned()
         };

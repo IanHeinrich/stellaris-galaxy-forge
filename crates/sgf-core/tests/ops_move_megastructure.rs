@@ -298,7 +298,7 @@ fn a_row_tied_to_a_planet_stands_at_a_point_of_its_own_and_back() {
         &mut session,
         [(
             to_body(ADDED_MEGASTRUCTURE, 6),
-            "megastructure 16 already stands at planet 6",
+            "megastructure 16 already stands at planet #6",
         )],
     );
 }
@@ -404,12 +404,12 @@ fn what_is_refused() {
             ),
             (
                 to_point(4, 30.0, 30.0),
-                "megastructure 4 cannot be moved: it stands on or around planet 936, so it stays tied to a planet or star",
+                "megastructure 4 cannot be moved: it stands on or around Sargas II #936, so it stays tied to a planet or star",
             ),
             (to_body(4, 517), "planet 517 is not a body of system 38"),
             (
                 to_body(4, 936),
-                "megastructure 4 already stands at planet 936",
+                "megastructure 4 already stands at Sargas II #936",
             ),
             (
                 to_point(6, 301.69487, 84.54792),
@@ -438,7 +438,7 @@ fn a_planet_that_has_a_megastructure_is_refused() {
         &mut session,
         [(
             to_body(16, 516),
-            "megastructure 16 cannot be moved: planet 516 already has megastructure 17",
+            "megastructure 16 cannot be moved: Vinh II #516 already has megastructure 17",
         )],
     );
 }
@@ -470,7 +470,7 @@ fn an_arc_furnace_is_refused_a_star() {
         &mut furnace(|_| {}),
         [(
             to_body(16, 511),
-            "megastructure 16 cannot be moved: an Arc Furnace hides the planet it stands at, and planet 511 is a star",
+            "megastructure 16 cannot be moved: an Arc Furnace hides the planet it stands at, and Vinh #511 is a star",
         )],
     );
 }
@@ -500,11 +500,11 @@ fn a_structure_on_the_body_it_made_is_refused() {
         [
             (
                 to_body(16, 516),
-                "megastructure 16 cannot be moved: it made planet 517, which stays where it is",
+                "megastructure 16 cannot be moved: it made Vinh III #517, which stays where it is",
             ),
             (
                 beside(16, 517, 10.0, 10.0),
-                "megastructure 16 cannot be moved: it made planet 517, which stays where it is",
+                "megastructure 16 cannot be moved: it made Vinh III #517, which stays where it is",
             ),
         ],
     );

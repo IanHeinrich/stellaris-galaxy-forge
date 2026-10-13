@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
@@ -6,7 +6,7 @@ vi.mock("../api/events");
 
 import { SAVE_Y_SIGN } from "../lib/geometry/geometry";
 import { mockedIpc } from "../test/ipc";
-import { nudgeHasTarget, nudgeSelected, run, type CommandEffects } from "./commands";
+import { nudgeHasTarget, nudgeSelected, pressKey, run, type CommandEffects } from "./commands";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
@@ -35,6 +35,46 @@ const stored = new Map<string, string>();
 beforeEach(() => {
   resetStores();
   stubPrefs(stored);
+});
+
+describe("a key press the window hears", () => {
+  const BODY = {};
+  const press = (key: string) => ({
+    key,
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false,
+    target: BODY as EventTarget,
+  });
+  const page = (modal: boolean) => {
+    vi.stubGlobal("HTMLElement", class {});
+    vi.stubGlobal("Element", class {});
+    vi.stubGlobal("document", {
+      body: BODY,
+      activeElement: BODY,
+      querySelector: () => (modal ? {} : null),
+    });
+  };
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("toggles the dock on Tab from the map", () => {
+    page(false);
+    useLayoutStore.setState({ collapsed: false });
+    expect(pressKey(press("Tab"), effects)).toBe(true);
+    expect(useLayoutStore.getState().collapsed).toBe(true);
+  });
+
+  it("runs no shortcut while a modal dialog is open", () => {
+    page(true);
+    useLayoutStore.setState({ collapsed: false });
+    const focusSearch = vi.fn();
+    const held = { ...effects, focusSearch };
+    expect(pressKey(press("Tab"), held)).toBe(false);
+    expect(pressKey(press("/"), held)).toBe(false);
+    expect(useLayoutStore.getState().collapsed).toBe(false);
+    expect(focusSearch).not.toHaveBeenCalled();
+  });
 });
 
 describe("clearSelection", () => {

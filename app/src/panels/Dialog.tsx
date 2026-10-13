@@ -1,5 +1,5 @@
 import { useEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import { ESCAPE } from "./keys";
+import { ENTER, ESCAPE } from "./keys";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -8,11 +8,22 @@ function focusable(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
 }
 
+/** Submits the form under `root` by its first submit button, unless that button is disabled. */
+function submitForm(root: HTMLElement): void {
+  const form = root.querySelector("form");
+  const button = form?.querySelector<HTMLButtonElement>('button[type="submit"]') ?? null;
+  if (form === null || button?.disabled === true) return;
+  form.requestSubmit(button);
+}
+
 /**
  * A modal dialog: takes focus itself on open unless a control inside asked for it, so a choice
  * is never outlined before the keyboard reaches it; traps Tab inside it, restores focus to
- * whatever had it on close, and treats Escape as a close request. With `onDismiss` it sits on a
- * scrim that answers a press on the backdrop.
+ * whatever had it on close, and treats Escape as a close request. Enter while it holds focus
+ * itself submits its form, as Enter in a field would, but not a held key's repeats, which began
+ * before it opened. A dialog that opens without the player asking, such as Update, has no form,
+ * so a key meant for the screen under it takes no action. With `onDismiss` it sits on a scrim
+ * that answers a press on the backdrop.
  */
 export function Dialog({
   className,
@@ -43,6 +54,10 @@ export function Dialog({
     if (e.key === ESCAPE) {
       e.stopPropagation();
       onClose();
+      return;
+    }
+    if (e.key === ENTER && !e.repeat && e.target === ref.current) {
+      submitForm(ref.current);
       return;
     }
     if (e.key !== "Tab" || !ref.current) return;

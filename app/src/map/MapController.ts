@@ -1,5 +1,5 @@
 import type { Application } from "pixi.js";
-import { isEditableTarget } from "../lib/keys";
+import { isEditableTarget, isMenuTarget, modalDialogOpen } from "../lib/keys";
 import { nudgeHasTarget } from "../store/commands";
 import { useEditorStore } from "../store/editorStore";
 import { useSceneStore, type SceneState } from "../store/sceneStore";
@@ -148,8 +148,8 @@ export class MapController {
   private bindKeyboard(): void {
     const down = (e: KeyboardEvent) => {
       this.fast = e.shiftKey;
-      if (!(e.code in PAN_KEYS) || isEditableTarget(e.target)) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!(e.code in PAN_KEYS) || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isEditableTarget(e.target) || isMenuTarget(e.target) || modalDialogOpen()) return;
       // Shift+Arrow nudges whatever it would move, which App's own listener does.
       if (e.shiftKey && ARROW_KEYS.has(e.code) && nudgeHasTarget()) {
         this.heldKeys.delete(e.code);

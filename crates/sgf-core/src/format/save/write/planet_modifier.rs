@@ -8,7 +8,7 @@ use crate::cst::Node;
 use crate::emit::quoted;
 use crate::format::save::read_spec::bodies;
 use crate::format::save::write::place::{self, insert_key};
-use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet, star_refused};
 use crate::format::save::write::timed_modifiers::{self, End, ItemEdit};
 use crate::keys;
 use crate::ops::rules::modifiers::{check_days, check_modifier};
@@ -37,10 +37,7 @@ fn planet<'a>(
         check_text("a planet feature", feature, Form::Bare)?;
     }
     if bodies(&s.doc, system)?.first() == Some(&id) {
-        return Err(OpError::StarRefused {
-            body: id,
-            edit: StarEdit::Modifier,
-        });
+        return Err(star_refused(&node, src, id, StarEdit::Modifier));
     }
     Ok((node, src, system))
 }

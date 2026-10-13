@@ -391,7 +391,7 @@
 .dp > .dp-list {
   flex: 1 1 0;
   min-height: 96px;
-  overflow-y: auto;
+  overflow: hidden auto;
   overscroll-behavior: contain;
 }
 

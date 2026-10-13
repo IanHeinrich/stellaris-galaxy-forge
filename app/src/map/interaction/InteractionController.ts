@@ -1,6 +1,6 @@
 import type { BrushTool } from "../../lib/brush/brushTools";
 import type { Pt } from "../../lib/geometry/pt";
-import { isEditableTarget } from "../../lib/keys";
+import { isEditableTarget, modalDialogOpen } from "../../lib/keys";
 import type { Tool } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -436,7 +436,7 @@ export class InteractionController {
   private bindKeyboard(): void {
     const down = (e: KeyboardEvent) => {
       if (e.key === "Alt") this.altChanged(true);
-      if (e.key !== "Escape" || isEditableTarget(e.target)) return;
+      if (e.key !== "Escape" || isEditableTarget(e.target) || modalDialogOpen()) return;
       if (this.model.busy()) e.stopImmediatePropagation();
       this.dropDrag();
       this.canvas.style.cursor = this.model.cursor();

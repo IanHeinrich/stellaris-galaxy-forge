@@ -2,7 +2,8 @@ import { useEffect, useRef, type RefObject } from "react";
 
 /**
  * Calls `close` when a press lands outside every element `inside` gives, and returns the call
- * that stops listening. The map's canvas takes no focus, so no blur follows a press on it.
+ * that stops listening. A press is watched rather than focus because a right press on the map's
+ * canvas leaves focus where it was.
  */
 function listen(inside: () => ReadonlyArray<Element | null | undefined>, close: () => void) {
   const onPointerDown = (e: PointerEvent) => {

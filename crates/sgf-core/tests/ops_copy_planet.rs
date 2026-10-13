@@ -273,7 +273,7 @@ fn stars_megastructures_and_empty_pastes_are_refused() {
     let refusals = [
         (
             86,
-            "planet 86 is a star: only a planet or moon can be copied",
+            "Trenacca #86 is a star: only a planet or moon can be copied",
         ),
         (
             936,
@@ -515,6 +515,6 @@ fn a_star_its_system_does_not_list_is_refused() {
         .expect_err("a star");
     assert_eq!(
         error.to_string(),
-        "planet 327 is a star: only a planet or moon can be copied"
+        "Proxima Centauri #327 is a star: only a planet or moon can be copied"
     );
 }

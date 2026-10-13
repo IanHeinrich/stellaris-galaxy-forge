@@ -19,7 +19,7 @@ use crate::format::save::write::megastructure_links::{
     self, MEGASTRUCTURES, NewRow, Tied, unlink_all, write_rows,
 };
 use crate::format::save::write::place::{self};
-use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::planet_entry::{body_is_star, named_entity};
 use crate::format::save::write::shared::write_slot;
 use crate::format::save::write::teardown::some_id;
 use crate::format::save::write::variables;
@@ -585,7 +585,8 @@ fn check_room(
         let distance = body.body.at.0.hypot(body.body.at.1);
         if is_segment(&read::text(&node, keys::PLANET_CLASS, src)) && overlaps(distance) {
             let planet = body.body.id;
-            return Err(overlap(RingPart::Segment { planet }, distance));
+            let name = named_entity(&node, src, planet);
+            return Err(overlap(RingPart::Segment { planet, name }, distance));
         }
     }
     for row in rows(&s.doc, MEGASTRUCTURES)? {

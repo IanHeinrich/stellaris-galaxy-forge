@@ -140,6 +140,11 @@ export function Action({
   );
 }
 
+/** The room of an action a row leaves out, so the actions after it line up with other rows'. */
+export function NoAction() {
+  return <span className="browser-no-action" aria-hidden="true" />;
+}
+
 /** The empire's emblem once game data has drawn it, its map colour until then. */
 export function Emblem({ flagKey, color }: { flagKey: string | null; color: string }) {
   const url = useTextureUrl(flagKey === null ? [] : [flagKey]);

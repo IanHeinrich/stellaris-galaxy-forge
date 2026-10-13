@@ -122,7 +122,7 @@ describe("a system's Source tab", () => {
 
     const html = drawnBy(overview);
     expect(html).toContain(
-      `<div class="ins-init-head"><span class="mono ins-init-name">basic_init_01</span><span class="muted" title="${FILE}">basic_init.txt</span></div>`,
+      `<div class="ins-init-head"><span class="mono ins-init-name">basic_init_01</span><span class="muted ins-init-file" title="${FILE}">basic_init.txt</span></div>`,
     );
     expect(html).toContain('<span class="snippet-where">line 120</span>');
     expect(html).toContain('<span class="snippet-key">inline_script</span>');

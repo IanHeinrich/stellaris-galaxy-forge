@@ -413,3 +413,35 @@ fn giga_types_show_the_category_their_tooltip_opens_with() {
         );
     }
 }
+
+/// Gigastructural Engineering names a modifier through a variable at the top of the file.
+#[test]
+fn a_modifier_named_through_a_variable_reads_as_the_modifier() {
+    let (_dir, gd) = common::hand_written(&[
+        ("common/scripted_variables/00_fx.txt", ""),
+        (
+            "common/megastructures/fx.txt",
+            "@fx_mod = fx_glow
+fx_ring = {
+	on_build_complete = {
+		fromfrom.planet = {
+			add_modifier = { modifier = @fx_mod }
+		}
+	}
+}
+",
+        ),
+        (
+            "localisation/english/fx_l_english.yml",
+            "l_english:\n fx_glow:0 \"Afterglow\"\n",
+        ),
+    ]);
+
+    let views = gd.megastructure_views();
+    let lines: Vec<_> = view(&views, "fx_ring")
+        .construction_summary
+        .iter()
+        .map(|line| (line.key.as_str(), line.name.as_str()))
+        .collect();
+    assert_eq!(lines, [("fx_glow", "Afterglow")]);
+}
