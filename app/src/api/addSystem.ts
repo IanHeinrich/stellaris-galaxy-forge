@@ -8,9 +8,8 @@ import type { EditResult } from "../generated/EditResult";
 import type { StarClassPick } from "../generated/StarClassPick";
 
 /**
- * Roll a system at (x, y) from `seed`, around `starClass` when given, and add it to the open save
- * as one edit. Rejects with `SgfError` (kind `op`) without game data, on a scenario, or when the
- * core refuses the spot.
+ * Calls `add_random_system`: roll a system at (x, y) from `seed`, around `starClass` when given.
+ * The command's doc says what it refuses.
  */
 export function addRandomSystem(
   seed: number,
@@ -22,9 +21,8 @@ export function addRandomSystem(
 }
 
 /**
- * Build a system of the special layout `layout` at (x, y) from `seed` and add it to the open save
- * as one edit. It takes the layout's fixed name unless the save already has it. A capped layout
- * the galaxy already holds is placed all the same.
+ * Calls `add_special_system`: build a system of the special layout `layout` at (x, y) from
+ * `seed`. The command's doc says how it is named and what it refuses.
  */
 export function addSpecialSystem(
   seed: number,
@@ -36,9 +34,8 @@ export function addSpecialSystem(
 }
 
 /**
- * Roll the added save system `system` again from `seed`, keeping its name, position and lanes, as
- * one edit. With `keepSpecial`, a system of a Special menu layout is built from that layout again;
- * otherwise it is rolled around `starClass` when given.
+ * Calls `reroll_system`: roll the added save system `system` again from `seed`, around
+ * `starClass` when given, or from its own special layout with `keepSpecial`.
  */
 export function rerollSystem(
   system: number,
@@ -49,26 +46,17 @@ export function rerollSystem(
   return invoke<EditResult>("reroll_system", { system, seed, starClass, keepSpecial });
 }
 
-/**
- * What the Add system menu offers for the open save, each pick with what it can produce. Rejects
- * without game data or on a scenario.
- */
+/** Calls `get_add_system_picks`: what the Add system menu offers for the open save. */
 export function getAddSystemPicks(): Promise<AddSystemPicks> {
   return invoke<AddSystemPicks>("get_add_system_picks");
 }
 
-/**
- * Delete the systems among `ids` added to the open save this session as one edit, leaving the
- * file's own. Rejects with `SgfError` (kind `op`) on a scenario or when none of them was added.
- */
+/** Calls `remove_added_systems`: delete the systems among `ids` added this session. */
 export function removeAddedSystems(ids: number[]): Promise<EditResult> {
   return invoke<EditResult>("remove_added_systems", { ids });
 }
 
-/**
- * The star classes a rolled system can have, each with its localised name, in the order the
- * install's layouts name them; empty without game data.
- */
+/** Calls `get_generator_star_classes`: the star classes a rolled system can have. */
 export function getGeneratorStarClasses(): Promise<StarClassPick[]> {
   return invoke<StarClassPick[]>("get_generator_star_classes");
 }

@@ -5,19 +5,17 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Duration;
 
 use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_mini::{DebounceEventResult, DebouncedEventKind, Debouncer, new_debouncer};
 use sgf_core::session::DiskChange;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
+use super::DEBOUNCE;
 use crate::commands::DOCUMENT_CHANGED_EVENT;
+use crate::paths::Case;
 use crate::state::{AppState, relock};
 use crate::views::{DocumentChange, DocumentChanged};
-
-/// How long the file must sit still before a change is checked.
-const DEBOUNCE: Duration = Duration::from_millis(300);
 
 #[derive(Default)]
 pub struct DocumentWatchState(Mutex<Option<Watched>>);
@@ -91,13 +89,8 @@ fn watch<R: Runtime>(app: &AppHandle<R>, path: &Path) -> Option<Watched> {
 /// Whether `path` names the watched file: by name alone, since only its folder is watched,
 /// and case-blind where the file system is.
 fn names_file(path: &Path, name: &OsStr) -> bool {
-    path.file_name().is_some_and(|own| {
-        if cfg!(any(windows, target_os = "macos")) {
-            own.eq_ignore_ascii_case(name)
-        } else {
-            own == name
-        }
-    })
+    path.file_name()
+        .is_some_and(|own| Case::HERE.same_name(own, name))
 }
 
 #[cfg(test)]
@@ -116,7 +109,7 @@ mod tests {
         assert!(!names_file(Path::new("C:/mods/x/my_scenario.txt~"), name));
         assert_eq!(
             names_file(Path::new("C:/mods/x/My_Scenario.TXT"), name),
-            cfg!(any(windows, target_os = "macos"))
+            Case::HERE == Case::Blind
         );
     }
 }

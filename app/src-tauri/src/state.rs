@@ -18,9 +18,12 @@ pub struct AppState(pub Mutex<Option<Session>>);
 pub struct GameDataState {
     data: Mutex<Option<Arc<GameData>>>,
     generation: AtomicU64,
-    owners: Mutex<Option<Cached<ScenarioOwners>>>,
-    bypasses: Mutex<Option<Cached<ScenarioBypasses>>>,
-    special_labels: Mutex<Option<Cached<SpecialLabels>>>,
+    /// Each scenario system's owner, kept until the game data or the scenario changes.
+    pub owners: Cached<ScenarioOwners>,
+    /// The bypasses the scripts place, on the same terms as the owners.
+    pub bypasses: Cached<ScenarioBypasses>,
+    /// The search labels, kept until the game data or a system's initializer or flags change.
+    pub special_labels: Cached<SpecialLabels>,
 }
 
 /// Each special system's kinds, by the labels search matches them on.
@@ -28,27 +31,42 @@ pub type SpecialLabels = HashMap<u32, Vec<&'static str>>;
 
 /// A whole-document pass last computed, with what it was computed from: the game-data
 /// generation and a digest of the document's systems.
-struct Cached<T> {
+pub struct Cached<T>(Mutex<Option<Entry<T>>>);
+
+struct Entry<T> {
     generation: u64,
     digest: u64,
     value: Arc<T>,
 }
 
-impl<T> Cached<T> {
-    fn get(slot: &Mutex<Option<Self>>, generation: u64, digest: u64) -> Option<Arc<T>> {
-        let slot = relock(slot);
-        let cached = slot.as_ref()?;
-        (cached.generation == generation && cached.digest == digest)
-            .then(|| Arc::clone(&cached.value))
+impl<T> Default for Cached<T> {
+    fn default() -> Self {
+        Self(Mutex::new(None))
     }
+}
 
-    fn put(slot: &Mutex<Option<Self>>, generation: u64, digest: u64, value: Arc<T>) {
-        let mut slot = relock(slot);
-        *slot = Some(Self {
+impl<T> Cached<T> {
+    /// The pass as last computed from this `generation` and `digest`, else `compute`d and kept.
+    /// The lock is not held while `compute` runs.
+    pub fn get_or_compute(
+        &self,
+        generation: u64,
+        digest: u64,
+        compute: impl FnOnce() -> T,
+    ) -> Arc<T> {
+        if let Some(cached) = relock(&self.0)
+            .as_ref()
+            .filter(|cached| cached.generation == generation && cached.digest == digest)
+        {
+            return Arc::clone(&cached.value);
+        }
+        let value = Arc::new(compute());
+        *relock(&self.0) = Some(Entry {
             generation,
             digest,
-            value,
+            value: Arc::clone(&value),
         });
+        value
     }
 }
 
@@ -85,35 +103,6 @@ impl GameDataState {
         }
         *slot = Some(data);
         Some(self.bump())
-    }
-
-    /// The cached territories, when they were computed from this generation of the
-    /// game data and this scenario.
-    pub fn owners(&self, generation: u64, digest: u64) -> Option<Arc<ScenarioOwners>> {
-        Cached::get(&self.owners, generation, digest)
-    }
-
-    pub fn store_owners(&self, generation: u64, digest: u64, owners: Arc<ScenarioOwners>) {
-        Cached::put(&self.owners, generation, digest, owners);
-    }
-
-    /// The cached bypasses, on the same terms as the territories.
-    pub fn bypasses(&self, generation: u64, digest: u64) -> Option<Arc<ScenarioBypasses>> {
-        Cached::get(&self.bypasses, generation, digest)
-    }
-
-    pub fn store_bypasses(&self, generation: u64, digest: u64, bypasses: Arc<ScenarioBypasses>) {
-        Cached::put(&self.bypasses, generation, digest, bypasses);
-    }
-
-    /// The cached search labels, when they were classified from this generation of the
-    /// game data and this digest of the document's systems.
-    pub fn special_labels(&self, generation: u64, digest: u64) -> Option<Arc<SpecialLabels>> {
-        Cached::get(&self.special_labels, generation, digest)
-    }
-
-    pub fn store_special_labels(&self, generation: u64, digest: u64, labels: Arc<SpecialLabels>) {
-        Cached::put(&self.special_labels, generation, digest, labels);
     }
 
     fn lock(&self) -> MutexGuard<'_, Option<Arc<GameData>>> {

@@ -13,7 +13,7 @@ use sgf_gamedata::special::{self, SpecialSystems};
 use sgf_gamedata::views::SystemRoll;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{game_data, with_scenario, with_session};
+use super::{game_data, opened, with_open, with_scenario, with_session};
 use crate::state::GameDataState;
 
 #[tauri::command]
@@ -21,8 +21,7 @@ pub async fn get_special_systems<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<SpecialSystems, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
-    with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app, move |session| {
         Ok(special::classify_session(session, gd.as_deref()))
     })
     .await
@@ -48,8 +47,7 @@ pub async fn get_scenario_owners<R: Runtime>(
 pub async fn get_scenario_bypasses<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Option<ScenarioBypasses>, SgfError> {
-    with_session(app.clone(), move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    with_open(app.clone(), move |session| {
         if !Capabilities::of(session.doc()).scripts {
             return Ok(None);
         }
@@ -111,7 +109,7 @@ fn details_for(
     gd_state: &GameDataState,
     ids: &[u32],
 ) -> Result<Vec<SystemDetails>, SgfError> {
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    let session = opened(&guard)?;
     let capabilities = Capabilities::of(session.doc());
     if capabilities.scripts {
         let Some((generation, gd)) = gd_state.snapshot() else {
@@ -163,7 +161,7 @@ pub async fn get_class_rolls<R: Runtime>(
 ) -> Result<ClassRolls, SgfError> {
     let gd = game_data(&app, "show what a body rolls")?;
     with_session(app, move |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        let session = opened(&guard)?;
         if !Capabilities::of(session.doc()).rolled_layout {
             return Err(SgfError::new(
                 ErrorKind::Op,
@@ -208,7 +206,7 @@ fn roll_for(
     roll: u32,
     within: f64,
 ) -> Result<SystemRoll, SgfError> {
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    let session = opened(&guard)?;
     let none = SystemRoll::none(id, roll);
     if !Capabilities::of(session.doc()).rolled_layout {
         return Ok(none);
@@ -233,17 +231,11 @@ pub(super) fn scenario_owners(
     gd: &GameData,
     cache: Cache<'_>,
 ) -> Arc<ScenarioOwners> {
-    ScenarioSystem::of_session(session, |systems, digest| {
-        if let Some((state, generation)) = cache
-            && let Some(cached) = state.owners(generation, digest)
-        {
-            return cached;
-        }
-        let owners = Arc::new(gd.scenario_owners(systems));
-        if let Some((state, generation)) = cache {
-            state.store_owners(generation, digest, Arc::clone(&owners));
-        }
-        owners
+    ScenarioSystem::of_session(session, |systems, digest| match cache {
+        Some((state, generation)) => state
+            .owners
+            .get_or_compute(generation, digest, || gd.scenario_owners(systems)),
+        None => Arc::new(gd.scenario_owners(systems)),
     })
 }
 
@@ -256,17 +248,14 @@ pub(super) fn placed_bypasses(
     cache: Cache<'_>,
 ) -> ScenarioBypasses {
     let mut bypasses = match gd {
-        Some(gd) => ScenarioSystem::of_session(session, |systems, digest| {
-            if let Some((state, generation)) = cache
-                && let Some(cached) = state.bypasses(generation, digest)
-            {
-                return (*cached).clone();
+        Some(gd) => ScenarioSystem::of_session(session, |systems, digest| match cache {
+            Some((state, generation)) => {
+                (*state
+                    .bypasses
+                    .get_or_compute(generation, digest, || gd.scenario_bypasses(systems)))
+                .clone()
             }
-            let bypasses = gd.scenario_bypasses(systems);
-            if let Some((state, generation)) = cache {
-                state.store_bypasses(generation, digest, Arc::new(bypasses.clone()));
-            }
-            bypasses
+            None => gd.scenario_bypasses(systems),
         }),
         None => ScenarioBypasses::default(),
     };

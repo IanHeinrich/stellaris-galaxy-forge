@@ -8,10 +8,9 @@ import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
 
 /**
- * Add the ring world of megastructure type `kind`, any stage of its chain, round the star of
- * system `system`, each quadrant at its stage in `stages`, as one edit; with `clear`, every body
- * that is not a star and every belt go first. Answers with the edit and the ids of the planets and
- * rows it wrote; see the command for the owner it takes and what it refuses.
+ * Calls `add_ring_world`: add the ring world of megastructure type `kind` round the star of
+ * system `system`, each quadrant at its stage in `stages`, clearing the system first with `clear`.
+ * The command's doc says what it decides and refuses.
  */
 export function addRingWorld(
   system: number,
@@ -22,7 +21,7 @@ export function addRingWorld(
   return invoke<Added>("add_ring_world", { system, kind, stages, clear });
 }
 
-/** What clearing system `system` for a ring world takes: its bodies, colonies and belts. */
+/** Calls `get_ring_world_clearing`: what clearing system `system` for a ring world takes. */
 export function getRingWorldClearing(system: number): Promise<RingWorldClearing> {
   return invoke<RingWorldClearing>("get_ring_world_clearing", { system });
 }

@@ -11,7 +11,7 @@ pub mod document;
 mod guard;
 
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
@@ -28,10 +28,12 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::timeout_at;
 
 use crate::commands::{GAME_DATA_CHANGED_EVENT, refit_open_session};
+use crate::paths::Case;
 use crate::state::{GameDataState, relock};
 use guard::{Action, Guard};
 
-/// How long a path must sit still before the debouncer reports it.
+/// How long a path must sit still before the debouncer reports it, for the game data and for
+/// the open document.
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// The live watcher; dropping it stops the OS watches and ends the task.
@@ -101,7 +103,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, gd: &GameData) {
         );
         return;
     };
-    let (to_watch, missing) = roots_of(&gd.layout.layers);
+    let (to_watch, missing) = roots_of(&gd.layout.layers, Case::HERE);
     let mut roots = 0;
     let mut refused: Vec<String> = missing
         .iter()
@@ -341,8 +343,9 @@ fn announce<R: Runtime>(app: &AppHandle<R>, registries: Vec<String>, hot: Option
 }
 
 /// Every layer root that is there, without duplicates and without one another root
-/// already covers, and beside them the roots that are no folder at all.
-fn roots_of(layers: &[Layer]) -> (Vec<PathBuf>, Vec<PathBuf>) {
+/// already covers, and beside them the roots that are no folder at all. Two roots are the same
+/// folder by `case`.
+fn roots_of(layers: &[Layer], case: Case) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let mut roots: Vec<PathBuf> = Vec::new();
     let mut missing: Vec<PathBuf> = Vec::new();
     for layer in layers {
@@ -350,27 +353,13 @@ fn roots_of(layers: &[Layer]) -> (Vec<PathBuf>, Vec<PathBuf>) {
             missing.push(layer.root.clone());
             continue;
         }
-        if roots.iter().any(|r| covers(r, &layer.root)) {
+        if roots.iter().any(|r| case.covers(r, &layer.root)) {
             continue;
         }
-        roots.retain(|r| !covers(&layer.root, r));
+        roots.retain(|r| !case.covers(&layer.root, r));
         roots.push(layer.root.clone());
     }
     (roots, missing)
-}
-
-/// Whether `outer` is `inner` or one of its ancestors, compared case-blind
-/// because Windows echoes a path in the case the caller used.
-fn covers(outer: &Path, inner: &Path) -> bool {
-    let (outer, inner) = (key(outer), key(inner));
-    inner == outer || inner.starts_with(&format!("{outer}/"))
-}
-
-fn key(path: &Path) -> String {
-    path.to_string_lossy()
-        .replace('\\', "/")
-        .trim_end_matches('/')
-        .to_lowercase()
 }
 
 fn lock(state: &WatchState) -> MutexGuard<'_, Status> {
@@ -404,6 +393,8 @@ impl DebounceEventHandler for Sink {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     fn layer(root: &Path) -> Layer {
@@ -423,10 +414,30 @@ mod tests {
         std::fs::create_dir(&live).expect("the mod folder");
         let gone = dir.path().join("gone");
 
-        let (roots, missing) = roots_of(&[layer(&gone), layer(&live)]);
+        let (roots, missing) = roots_of(&[layer(&gone), layer(&live)], Case::HERE);
 
         assert_eq!(roots, [live]);
         assert_eq!(missing, [gone]);
+    }
+
+    /// Two roots whose paths differ only by letter case are two folders where the file
+    /// system tells them apart, and both are watched. The rule is passed in so this holds on
+    /// every OS.
+    #[test]
+    fn roots_that_differ_by_case_are_both_kept_where_case_matters() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let upper = dir.path().join("Foo");
+        let lower = dir.path().join("foo");
+        std::fs::create_dir_all(&upper).expect("the mod folder");
+        std::fs::create_dir_all(&lower).expect("the other mod folder");
+        let layers = [layer(&upper), layer(&lower)];
+
+        let (roots, missing) = roots_of(&layers, Case::Sensitive);
+        assert_eq!(roots, [upper.clone(), lower]);
+        assert!(missing.is_empty());
+
+        let (roots, _) = roots_of(&layers, Case::Blind);
+        assert_eq!(roots, [upper]);
     }
 
     /// A reread that succeeds takes back its own reason and leaves the roots the
