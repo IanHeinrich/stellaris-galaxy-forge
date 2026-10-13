@@ -1,22 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { PREPARE_ROW_CHOICES } from "../generated/constants";
 import type { PrepareRow } from "../generated/PrepareRow";
+import type { PrepareChoice } from "../generated/PrepareChoice";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import { offeredChoices } from "../store/prepareStore";
 
 import {
   choiceLabel,
-  choiceText,
   cutOffLine,
   lineText,
   PREPARE_COPY,
   PRESET_ANSWERS,
   rowDisabledReason,
   type Answers,
+  type RowCopy,
 } from "./prepareCopy";
 
 const PROFILES: ScenarioProfile[] = ["plain", "paint_a_galaxy"];
 const ROWS = Object.keys(PREPARE_ROW_CHOICES) as PrepareRow[];
+
+/** What `copy`'s row says when it takes `choice`, with `n` systems in the row. */
+function choiceText(copy: RowCopy, choice: PrepareChoice, n: number | null): string | undefined {
+  const answers = copy.answers[choice];
+  return answers === undefined ? undefined : lineText(answers.text, n);
+}
 
 /** Every line a row's choices say, with the row's count at 3. */
 function lines(profile: ScenarioProfile, row: PrepareRow): string[] {

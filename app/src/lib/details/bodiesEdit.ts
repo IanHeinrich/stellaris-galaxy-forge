@@ -12,7 +12,7 @@ import type { PlanetPage } from "../../generated/PlanetPage";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { Names } from "../names";
-import { counted } from "../text";
+import { counted, listed } from "../text";
 import { addWarnings, removalTarget, removalWarnings } from "./depositWarnings";
 import { holdsModifier } from "./modifierPicker";
 import { CLASS_FIXED, classFieldReason, classRule, COLONY_CLASS_FIXED } from "./planetClass";
@@ -126,12 +126,6 @@ export function takers(bodies: readonly SelectedBody[], field: BodyField): Selec
   return bodies.filter((b) => b.skips[field] === undefined);
 }
 
-/** "a", "a and b", "a, b and c". */
-function listed(parts: readonly string[]): string {
-  if (parts.length <= 1) return parts.join("");
-  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}
-
 /** What a field leaves out, by kind and count: "the star", "2 stars", "1 asteroid". */
 function skippedKinds(bodies: readonly SelectedBody[], field: BodyField): string[] {
   const counts = new Map<SkipKind, number>();
@@ -160,7 +154,7 @@ export function skipLine(bodies: readonly SelectedBody[], field: BodyField): Ski
       return skip === undefined ? [] : [`${b.name} ${skip.why}`];
     })
     .join("\n");
-  return { text: `Skips ${listed(kinds)}.`, title };
+  return { text: `Skips ${listed(kinds, "and")}.`, title };
 }
 
 /** "3 planets", or "3 bodies" when a star is among them. */
@@ -200,9 +194,14 @@ function plan(
   for (const { bodies, why } of passed) {
     if (bodies.length === 0) continue;
     const [one, many] = why;
-    parts.push(`${listed(bodies.map((b) => b.name))}, ${bodies.length === 1 ? one : many}`);
+    parts.push(
+      `${listed(
+        bodies.map((b) => b.name),
+        "and",
+      )}, ${bodies.length === 1 ? one : many}`,
+    );
   }
-  const skips = parts.length === 0 ? "" : ` Skipped ${listed(parts)}.`;
+  const skips = parts.length === 0 ? "" : ` Skipped ${listed(parts, "and")}.`;
   if (ops.length === 0) return { op: null, note: `Nothing changed.${skips}` };
   return {
     op: { type: "Batch", description: `${done} in ${where}`, ops: [...ops] },

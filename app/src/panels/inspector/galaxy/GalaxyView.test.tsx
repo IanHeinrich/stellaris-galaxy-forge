@@ -335,7 +335,7 @@ describe("the Prepare section", () => {
     await open("scenario");
     await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
     let html = drawnBy(galaxy);
-    expect(html).toContain("Load the game data to sort this scenario&#x27;s systems into rows.");
+    expect(html).toContain("Load game data to sort this scenario&#x27;s systems into rows.");
     expect(html).toContain(PRESET_ANSWERS.faithful.replace("'", "&#x27;"));
     const preset = html.slice(
       html.indexOf('class="prep-preset"'),

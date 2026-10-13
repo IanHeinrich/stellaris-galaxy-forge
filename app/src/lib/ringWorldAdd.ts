@@ -4,18 +4,23 @@
  */
 import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
-import { counted } from "./text";
+import { counted, listed } from "./text";
 
 /** The quadrants, in the order the game spawns them. */
 export const QUADRANTS = ["A", "B", "C", "D"] as const;
 
-/** The stages a quadrant is offered at, as the grid's columns name them. */
-export const RING_STAGES: readonly { stage: RingStage; label: string }[] = [
-  { stage: "finished", label: "Finished" },
-  { stage: "frame", label: "Frame" },
-  { stage: "ruined", label: "Ruined" },
-  { stage: "damaged", label: "Damaged" },
-];
+const STAGE_LABELS: Record<RingStage, string> = {
+  finished: "Finished",
+  frame: "Frame",
+  ruined: "Ruined",
+  damaged: "Damaged",
+  restored: "Restored",
+};
+
+/** The stages a quadrant is offered at, as the grid's columns name them; a restored ring is not. */
+export const RING_STAGES: readonly { stage: RingStage; label: string }[] = (
+  ["finished", "frame", "ruined", "damaged"] as const
+).map((stage) => ({ stage, label: STAGE_LABELS[stage] }));
 
 /** The stages of the grid a ring is offered at: those not in `refused`. */
 export function offeredStages(refused: readonly RingStage[]): RingStage[] {
@@ -37,12 +42,6 @@ export const CLEAR_PLANETS = "Clear system";
 export const RING_WRITTEN = "Finished sections are added with no colony.";
 export const NOTHING_TO_CLEAR = "The system has no planets or belts to clear.";
 
-/** `A`, `A and B`, `A, B and C`. */
-export function listed(items: readonly string[]): string {
-  if (items.length < 2) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
-
 /**
  * The warning before Add when the system is cleared: "Clearing deletes 6 planets, 2 moons and
  * 1 belt, and the colony on Lachium I." Each body is named by `nameOf`.
@@ -63,13 +62,13 @@ export function clearingWarning(
   const also = [
     colonies.length === 0
       ? null
-      : `the ${colonies.length === 1 ? "colony" : "colonies"} on ${listed(colonies)}`,
+      : `the ${colonies.length === 1 ? "colony" : "colonies"} on ${listed(colonies, "and")}`,
     structures.length === 0
       ? null
-      : `the ${structures.length === 1 ? "megastructure" : "megastructures"} on ${listed(structures)}`,
+      : `the ${structures.length === 1 ? "megastructure" : "megastructures"} on ${listed(structures, "and")}`,
   ].filter((part) => part !== null);
   const alsoText = also.length === 0 ? "" : `, and ${also.join(" and ")}`;
-  return `Clearing deletes ${listed(parts)}${alsoText}.`;
+  return `Clearing deletes ${listed(parts, "and")}${alsoText}.`;
 }
 
 /**
@@ -81,7 +80,7 @@ export function clearRefusal(
   nameOf: (body: number) => string,
 ): string | null {
   if (clearing.starbase_bodies.length === 0) return null;
-  const bodies = listed(clearing.starbase_bodies.map(nameOf));
+  const bodies = listed(clearing.starbase_bodies.map(nameOf), "and");
   return `Galaxy Forge can't clear this system: a starbase orbits ${bodies}, which clearing would delete.`;
 }
 

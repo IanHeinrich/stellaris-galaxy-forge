@@ -19,9 +19,9 @@ import { openWith } from "../../../test/session";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { SwatchField, TextField, ToggleField } from "../../EditField";
 import { TilePicker } from "../../TilePicker";
+import { FLAG_NEEDS_GAME_DATA } from "../../../lib/flags";
 import {
   CountryView,
-  FLAG_NEEDS_GAME_DATA,
   FLAG_UNREADABLE,
   INDEPENDENT_MAP_COLOUR,
   MAP_COLORS_NEED_4_5,

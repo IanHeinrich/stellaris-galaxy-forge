@@ -1,10 +1,12 @@
+import { needsGameData } from "../../lib/text";
 import { canEdit } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInitializerBrowserStore } from "../../store/initializerBrowserStore";
 
 /** What an entry point says while the initializers cannot be read. */
-export const INITIALIZERS_NEED_GAME_DATA =
-  "Load game data to choose from the initializers the install and its mods define.";
+export const INITIALIZERS_NEED_GAME_DATA = needsGameData(
+  "choose from the initializers the install and its mods define",
+);
 
 /** Whether the browser is worth offering: a document that sets initializers, with game data read. */
 export function canBrowseInitializers(): boolean {

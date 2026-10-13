@@ -14,7 +14,7 @@ import {
   resourceAbbrev,
   resourceLabel,
 } from "../../../../lib/details/resources";
-import { toCss } from "../../../../lib/visual/ownerColors";
+import { toCss } from "../../../../lib/visual/color";
 import { useTextureUrl } from "../../../useTextureUrl";
 import { Icon } from "../../../parts";
 

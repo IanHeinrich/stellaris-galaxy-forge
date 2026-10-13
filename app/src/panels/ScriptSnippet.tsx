@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import * as ipc from "../api/ipc";
-import { layoutLines, lineText, scriptLines, type ScriptLine } from "../lib/scriptText";
-import { useFileSessionStore } from "../store/fileSessionStore";
+import { layoutLines, scriptLineText, scriptLines, type ScriptLine } from "../lib/scriptText";
+import { reportFailure } from "../store/fileSessionStore";
 import type { OpenTarget } from "../store/scriptEditorStore";
 import { OpenButton } from "./OpenButton";
 import { Twisty } from "./Twisty";
@@ -36,12 +35,11 @@ export interface LineLink {
 function SourceBar({ source, text }: { source: SnippetSource; text: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () =>
-    void navigator.clipboard.writeText(text).then(
-      () => {
+    reportFailure(
+      navigator.clipboard.writeText(text).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
-      },
-      (e: unknown) => useFileSessionStore.getState().setError(ipc.errorMessage(e)),
+      }),
     );
   return (
     <div className="snippet-bar">
@@ -143,7 +141,7 @@ export function ScriptSnippet({
     <>
       <div className="snippet">
         {source !== undefined && (
-          <SourceBar source={source} text={lines.map(lineText).join("\n")} />
+          <SourceBar source={source} text={lines.map(scriptLineText).join("\n")} />
         )}
         <pre className={layout ? "snippet-text wrap" : "snippet-text"}>
           {shown.map((line, i) => (

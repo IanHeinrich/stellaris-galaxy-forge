@@ -1,5 +1,6 @@
 import type { CountryNode } from "../../generated/CountryNode";
-import { ownerColor, toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
+import { ownerColor } from "../../lib/visual/ownerColors";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useOwnership } from "../../store/ownership";

@@ -1,10 +1,11 @@
 import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { PlanetSummary } from "../generated/PlanetSummary";
+import { needsGameData } from "./text";
 
 export const ADD_PLANET_LABEL = "Add planet here";
 export const ADD_MOON_LABEL = "Add moon";
 export const RANDOM_BODY_LABEL = "Random";
-export const BODIES_NEED_GAME_DATA = "Load game data to add a planet or moon.";
+export const BODIES_NEED_GAME_DATA = needsGameData("add a planet or moon");
 
 /** `10–25`, the sizes a random body of the class is drawn from. */
 export function sizeRange(pick: BodyClassPick): string {

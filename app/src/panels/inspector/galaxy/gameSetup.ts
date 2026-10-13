@@ -1,6 +1,7 @@
 import type { GalaxyShapeView } from "../../../generated/GalaxyShapeView";
 import type { HeaderField } from "../../../generated/HeaderField";
 import type { Op } from "../../../generated/Op";
+import { needsGameData } from "../../../lib/text";
 import { setHeaderField } from "./header";
 
 /** Why a cell the grid cannot read as a number is text, shown on hover. */
@@ -16,7 +17,7 @@ export const SHAPES_LABEL = "Supported shapes";
 export const SHAPES_TITLE =
   "The shapes the header names. The new-game screen lists a static map as a galaxy size and then offers no shape, so this changes nothing there. Elliptical is the safe choice, and the Paint a Galaxy mod asks for a vanilla shape.";
 export const NO_SHAPES_HINT = "No shapes ticked. The Paint a Galaxy mod asks for at least one.";
-export const LOAD_SHAPES_HINT = "Load game data to see every shape.";
+export const LOAD_SHAPES_HINT = needsGameData("see every shape");
 export const UNKNOWN_SHAPE_SUFFIX = " (not in loaded game data)";
 export const SCRIPTS_LINE_PREFIX = "Also from scripts: ";
 export const SCRIPTS_LINE_TITLE =

@@ -6,6 +6,7 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { NameTemplate } from "../../generated/NameTemplate";
 import type { SpawnName } from "../../generated/SpawnName";
 import { displayNameIn, nodeNameIn, templateName } from "../names";
+import { listed } from "../text";
 
 /** A body's name as the game will give it. */
 export interface GivenName {
@@ -183,15 +184,9 @@ export function nameSpan(first: GivenName, last: GivenName): string {
   return `${low} to ${highs.slice(shared).join(" ")}`;
 }
 
-/** `Kanthe II, Kanthe III or Kanthe IV`: every name a rolled numeral can give. */
-function eitherName(all: readonly string[]): string {
-  if (all.length <= 1) return all[0] ?? "";
-  return `${all.slice(0, -1).join(", ")} or ${all[all.length - 1]}`;
-}
-
 /** What the Name row says under a name whose numeral is rolled. */
 export function rolledNameWhy(given: GivenName, noun: string): string {
-  return `The game numbers ${noun}s in order, so this one is ${eitherName(given.all)}, depending on how many before it are placed.`;
+  return `The game numbers ${noun}s in order, so this one is ${listed(given.all, "or")}, depending on how many before it are placed.`;
 }
 
 /** What the Name row says of a body named after a system that has no name yet. */

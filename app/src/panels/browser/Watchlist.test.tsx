@@ -6,7 +6,7 @@ vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { WATCH_COLOURS } from "../../lib/watchlist";
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import { OPEN_RESULT } from "../../store/fixture";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useWatchlistStore } from "../../store/watchlistStore";

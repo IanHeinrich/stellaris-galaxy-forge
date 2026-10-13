@@ -4,7 +4,7 @@ import { boundsText } from "../../../lib/details/labels";
 import type { BodyPlacement, Ring } from "../../../lib/details/orbits";
 import type { Camera } from "../../Camera";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { drawnDisc, ringGroups } from "../geometry";
+import { drawnDisc, onBodyModels, ringGroups } from "../geometry";
 import { overlaps, plateScaleAt, ringReach, type LabelBox } from "./labelSlots";
 import { standTag, TagCache, tagBox } from "./plate";
 import type { SystemLayer } from "./SystemLayer";
@@ -56,8 +56,8 @@ function rank(a: Labelled, b: Labelled): number {
  * Each drawn ring's radius on a small plate, all at one screen angle, while the Orbit radii
  * layer is on. Rings the orbits layer draws as one take one label, reading every radius on them;
  * a moon's takes one only once it is large enough on screen. A label that would cover a body's
- * disc or its selection ring, or one already placed, slides round its ring to the nearest clear
- * spot, and is left out when none is near.
+ * disc, or its model once that lands, or its selection ring, or one already placed, slides round
+ * its ring to the nearest clear spot, and is left out when none is near.
  */
 export class RadiiLayer implements SystemLayer {
   readonly container = new Container();
@@ -66,13 +66,18 @@ export class RadiiLayer implements SystemLayer {
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
   /** The bodies with a readout, in layout order. */
   private ringed: BodyPlacement[] = [];
-  /** Every body, whose disc a label keeps off. */
-  private placements: BodyPlacement[] = [];
   private moons = new Set<number>();
   /** Each shown ring's plate, by the ring's first body. */
   private readonly tags = new TagCache<number>(this.container);
   private cam: Camera | null = null;
   private drawnRev = -1;
+  private readonly unsubModels = onBodyModels(
+    () => this.bodies,
+    () => {
+      this.drawnRev = -1;
+      this.place();
+    },
+  );
 
   rebuild(ctx: SystemContext): void {
     if (ctx.bodies === this.bodies && ctx.sceneLayers.orbitRadii === this.shown) return;
@@ -85,7 +90,6 @@ export class RadiiLayer implements SystemLayer {
       ? ctx.layout.bodies.filter((b) => drawn.has(b.id))
       : [];
     this.moons = new Set(ctx.bodies.flatMap((b) => (b.moon ? [b.placement.id] : [])));
-    this.placements = ctx.bodies.map((b) => b.placement);
     this.drawnRev = -1;
     this.place();
   }
@@ -110,9 +114,9 @@ export class RadiiLayer implements SystemLayer {
     this.tags.hideAll();
     const k = plateScaleAt(cam, this.fitRadius);
     const placed: LabelBox[] = [];
-    const discs: Disc[] = this.placements.map(({ x, y, disc }) => {
+    const discs: Disc[] = this.bodies.map(({ placement: { x, y, disc }, look }) => {
       const at = cam.worldToScreen(x, y);
-      return { x: at.x, y: at.y, r: ringReach(drawnDisc(disc, cam.scale) * cam.scale) };
+      return { x: at.x, y: at.y, r: ringReach(drawnDisc(disc, cam.scale, look) * cam.scale) };
     });
     const clear = (box: LabelBox) =>
       !placed.some((other) => overlaps(box, other)) && !discs.some((disc) => covers(box, disc));
@@ -132,6 +136,7 @@ export class RadiiLayer implements SystemLayer {
   }
 
   destroy(): void {
+    this.unsubModels();
     this.container.destroy({ children: true });
   }
 }

@@ -3,7 +3,7 @@ import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
-import { counted } from "../text";
+import { counted, needsGameData } from "../text";
 import { eachStarKeys, isStarBody, starGroup } from "./starBody";
 
 type Body = Pick<PlanetSummary, "id" | "class">;
@@ -16,7 +16,7 @@ export interface StarClassRow {
 
 export const INTERNAL = "Internal";
 
-export const STARS_NEED_GAME_DATA = "Load game data to change the star class and type";
+export const STARS_NEED_GAME_DATA = needsGameData("change the star class and type");
 
 /** Every key some class points to as its `crisis_star_class`: the crisis variant of that class. */
 export function crisisVariantKeys(starClasses: Iterable<StarClassView>): Set<string> {

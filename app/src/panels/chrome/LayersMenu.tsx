@@ -13,7 +13,7 @@ import {
   type Source,
 } from "../../lib/visual/layerGroups";
 import { NO_PRECURSOR } from "../../lib/precursors";
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import { NO_PRECURSOR_COLOR, precursorColor } from "../../lib/visual/precursorColors";
 import { KIND_STYLE } from "../../lib/visual/specialStyle";
 import { useGalaxyStore } from "../../store/galaxyStore";

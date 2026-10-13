@@ -17,6 +17,7 @@ let loads = 0;
 
 beforeEach(() => {
   resetStores();
+  useNameFormatsStore.setState({ ...useNameFormatsStore.getInitialState() });
   useGameDataStore.setState({ status: "ready", version: ++loads });
 });
 
@@ -32,6 +33,21 @@ describe("name formats", () => {
 
     await until(() => expect(useNameFormatsStore.getState().formats.get(KEY)).toBe("$NAME$ A"));
     expect(mockedIpc.getRawNames).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes nothing while asking, though the game data changed since the last answer", async () => {
+    mockedIpc.getRawNames.mockResolvedValue({ [KEY]: "$NAME$ A" });
+    useNameFormatsStore.getState().request([KEY]);
+    await until(() => expect(useNameFormatsStore.getState().formats.get(KEY)).toBe("$NAME$ A"));
+
+    useGameDataStore.setState({ version: ++loads });
+    const before = useNameFormatsStore.getState();
+    useNameFormatsStore.getState().request([KEY]);
+    expect(useNameFormatsStore.getState()).toBe(before);
+
+    await until(() => expect(useNameFormatsStore.getState().loaded).toBe(`ready/${loads}`));
+    expect(mockedIpc.getRawNames).toHaveBeenCalledTimes(2);
+    expect(useNameFormatsStore.getState().formats.get(KEY)).toBe("$NAME$ A");
   });
 
   it("asks once for a key asked twice before its read lands", async () => {

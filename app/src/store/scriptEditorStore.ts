@@ -46,19 +46,19 @@ export interface ScriptEditorState {
   forget(): void;
 }
 
+const PICK_CHECKS: { [K in EditorPick["kind"]]: (pick: Record<string, unknown>) => boolean } = {
+  found: (pick) => typeof pick.id === "string",
+  system_default: () => true,
+  other: (pick) => typeof pick.args === "string",
+};
+
 function isEditorPick(value: unknown): value is EditorPick {
   if (typeof value !== "object" || value === null) return false;
   const pick = value as Record<string, unknown>;
-  switch (pick.kind) {
-    case "found":
-      return typeof pick.id === "string";
-    case "system_default":
-      return true;
-    case "other":
-      return typeof pick.args === "string";
-    default:
-      return false;
-  }
+  const check = Object.prototype.hasOwnProperty.call(PICK_CHECKS, String(pick.kind))
+    ? PICK_CHECKS[pick.kind as EditorPick["kind"]]
+    : undefined;
+  return check !== undefined && check(pick);
 }
 
 function isEditorChoice(value: unknown): value is EditorChoice | null {

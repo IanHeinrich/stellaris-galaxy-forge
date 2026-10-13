@@ -10,25 +10,6 @@ export type GameTextSpan =
   | { kind: "colour"; colour: string; children: GameTextSpan[] }
   | { kind: "break" };
 
-/** The colour letters the app styles; any other letter still groups its text, uncoloured. */
-export const GAME_TEXT_COLOURS = [
-  "Y",
-  "G",
-  "R",
-  "H",
-  "B",
-  "C",
-  "L",
-  "E",
-  "P",
-  "M",
-  "S",
-  "V",
-  "W",
-  "T",
-  "g",
-] as const;
-
 const ICON = /^£([^£\s|]+)(?:\|[^£\s]*)?£/;
 const COLOUR_OPEN = /^§([A-Za-z])/;
 

@@ -2,12 +2,7 @@ import { BitmapText, Container, Graphics, Mesh, Sprite, TextStyle, Texture } fro
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { mixColor } from "../../../lib/visual/color";
 import { MAP_FONT } from "../../../lib/visual/style";
-import {
-  getModelPlacement,
-  getTexture,
-  onTextures,
-  requestTextures,
-} from "../../../lib/visual/textures";
+import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
 import {
@@ -16,7 +11,7 @@ import {
   type SceneBody,
   type SystemContext,
 } from "../context";
-import { bodyTier, drawnDisc } from "../geometry";
+import { bodyTier, drawnDisc, dressModelSprite, landedModel, UPRIGHT } from "../geometry";
 import { drawHalo } from "./halo";
 import { RING_TILT, ringStrip, sizeRing, type RingParts } from "./ring";
 import { flareParts, STAR_ART, type FlareShape } from "./starLight";
@@ -397,15 +392,15 @@ export class BodiesLayer implements SystemLayer {
     if (!model || key === null) return false;
     const texture = getTexture(key);
     if (texture === undefined) requestTextures([key]);
-    const placement = getModelPlacement(key);
-    const shown = Boolean(texture && placement);
+    const landed = landedModel(key, 1);
+    const shown = landed !== null;
     const waiting = texture === undefined && body.look.waitsForModel;
     model.visible = shown;
     // Each of these is sized to the disc, which now reaches as far as the model.
     for (const part of [drawn.glow, drawn.shade, drawn.rim]) {
       if (part) part.visible = !shown && !waiting;
     }
-    if (!waiting && (!texture || !placement)) return false;
+    if (!waiting && !landed) return false;
     if (drawn.ring) {
       const { back, front, backStrip, frontStrip } = drawn.ring;
       for (const half of [back, front, backStrip, frontStrip]) half.visible = false;
@@ -413,13 +408,7 @@ export class BodiesLayer implements SystemLayer {
     for (const part of [drawn.disc, drawn.art, drawn.lit, drawn.glaze]) {
       if (part) part.visible = false;
     }
-    if (!texture || !placement) return true;
-    model.texture = texture;
-    model.anchor.set(placement.anchor_x, placement.anchor_y);
-    model.scale.set(
-      placement.width / Math.max(texture.width, 1),
-      placement.height / Math.max(texture.height, 1),
-    );
+    if (landed) dressModelSprite(model, landed, UPRIGHT);
     return true;
   }
 

@@ -1,6 +1,9 @@
+import type { Sprite, Texture } from "pixi.js";
 import type { Bounds } from "../../generated/Bounds";
 import { WORMHOLE_RADIUS } from "../../lib/details/discs";
 import type { BodyPlacement, Ring } from "../../lib/details/orbits";
+import { modelSize } from "../../lib/details/structures";
+import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import type { Pt } from "../../lib/geometry/pt";
 import { getModelPlacement, getTexture, onTextures } from "../../lib/visual/textures";
 import { markerScale } from "../layers/MapLayer";
@@ -83,10 +86,63 @@ export function bodyTier(body: SceneBody): number {
   return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
 
+/** A landed model sprite at some multiple of its placement's size, in save units. */
+export interface LandedModel {
+  readonly texture: Texture;
+  readonly width: number;
+  readonly height: number;
+  /** Where the model's origin falls in the sprite, as a share of its size from the top left. */
+  readonly anchor: { readonly x: number; readonly y: number };
+  /** The sprite's middle, right of and below the model's origin as the sprite stands upright. */
+  readonly centre: { readonly x: number; readonly y: number };
+  /** How far below the model's origin the sprite reaches, upright. */
+  readonly below: number;
+  /** Half the sprite's longer side. */
+  readonly radius: number;
+}
+
+/** The model sprite `key` drawn `scale` times its placement's size; null until it lands. */
+export function landedModel(key: string | null, scale: number): LandedModel | null {
+  if (key === null) return null;
+  const texture = getTexture(key);
+  const placement = getModelPlacement(key);
+  if (!texture || !placement) return null;
+  const { width, height } = modelSize(placement, scale);
+  const { anchor_x: ax, anchor_y: ay } = placement;
+  return {
+    texture,
+    width,
+    height,
+    anchor: { x: ax, y: ay },
+    centre: { x: (0.5 - ax) * width, y: (0.5 - ay) * height },
+    below: (1 - ay) * height,
+    radius: Math.max(width, height) / 2,
+  };
+}
+
+/** No turn of the axes: for a sprite in a holder the scene's axis flip already applies to. */
+export const UPRIGHT = { x: 1, y: 1 } as const;
+/** The save's axis signs: for a sprite outside the flip. */
+export const SAVE_AXES = { x: SAVE_X_SIGN, y: SAVE_Y_SIGN } as const;
+
+/** Shows `model` on `sprite`, anchored at the model's origin, its axes turned by `axes`. */
+export function dressModelSprite(
+  sprite: Sprite,
+  model: LandedModel,
+  axes: { readonly x: number; readonly y: number },
+): void {
+  const { texture, width, height, anchor } = model;
+  sprite.texture = texture;
+  sprite.anchor.set(anchor.x, anchor.y);
+  sprite.scale.set(
+    (axes.x * width) / Math.max(texture.width, 1),
+    (axes.y * height) / Math.max(texture.height, 1),
+  );
+}
+
 /** Half the longer side of the landed model sprite `key`, in save units; null until it lands. */
 export function modelRadius(key: string): number | null {
-  const placement = getTexture(key) ? getModelPlacement(key) : undefined;
-  return placement ? Math.max(placement.width, placement.height) / 2 : null;
+  return landedModel(key, 1)?.radius ?? null;
 }
 
 /**
@@ -119,6 +175,12 @@ export function drawnDisc(
   const r = Math.max(disc, floor);
   return look?.flat ? Math.min(r, FLAT_BODY_MAX_PX / 2 / scale) : r;
 }
+
+/** The look of a body drawn as a bare disc, with no model and no flat art: a rolled planet's. */
+export const DISC_ONLY: Pick<BodyLook, "flat" | "model"> = Object.freeze({
+  flat: false,
+  model: null,
+});
 
 /** A wormhole's drawn vortex radius in world units at `scale`: its own, or the screen-pixel floor. */
 export function drawnWormhole(scale: number): number {

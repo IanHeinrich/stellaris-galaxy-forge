@@ -5,9 +5,10 @@ import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";
 import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
 import type { SystemContext } from "./context";
-import type { StructureKind } from "./context";
-import { HandleDrag, MegastructureDrag, WormholeDrag } from "./drags";
+import type { StructureKind } from "./structures";
+import { HandleDrag, WormholeDrag } from "./drags";
 import type { SceneTarget } from "./picking";
+import { isStructure, STRUCTURE_KINDS } from "./structureKinds";
 
 /** One pointer event in the system scene, with the body, wormhole, handle or arrow under it. */
 export interface SystemInput {
@@ -86,7 +87,8 @@ function pointerOf(input: SystemInput): DragPointer {
 /** The menu a right-click opens: a body's, a belt's, a megastructure's, or the space's. */
 function menuTarget(system: number, { target, wx, wy }: SystemInput): ContextTarget {
   if (target?.kind === "body") return { kind: "body", system, id: target.id };
-  if (target?.kind === "megastructure") return { kind: "megastructure", system, id: target.id };
+  const menu = isStructure(target) ? STRUCTURE_KINDS[target.kind].menu(system, target.id) : null;
+  if (menu) return menu;
   if (target?.kind === "handle" && target.ref.kind === "belt") {
     return { kind: "belt", system, index: target.ref.index };
   }
@@ -103,9 +105,9 @@ function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | nul
     case "handle":
       return HandleDrag.start(frame, target.ref, from);
     case "megastructure":
-      return MegastructureDrag.start(frame, target.id, from);
-    case "exit":
     case "starbase":
+      return STRUCTURE_KINDS[target.kind].drag(frame, target.id, from);
+    case "exit":
       return null;
   }
 }
@@ -217,9 +219,7 @@ export class SystemGestureModel {
     if (system === null || target === null) return;
     if (target.kind === "body") intent.openBody(system, target.id);
     else if (target.kind === "wormhole") intent.openWormhole(system, target.id);
-    else if (target.kind === "megastructure" || target.kind === "starbase") {
-      intent.openStructure(system, target.kind, target.id);
-    }
+    else if (isStructure(target)) intent.openStructure(system, target.kind, target.id);
   }
 
   /** A pointer up comes once the last button is released, so it ends whatever gesture is going. */

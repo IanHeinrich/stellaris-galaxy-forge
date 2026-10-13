@@ -11,6 +11,7 @@ import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { RowChoice } from "../generated/RowChoice";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { Outcome } from "../lib/prepareCopy";
+import { newSeed } from "../lib/random";
 import { useEditorStore } from "./editorStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -285,10 +286,6 @@ let mapAsked = false;
 /** `preview` without its map, which stands for the document only until an edit. */
 function unmapped(preview: PreparePreview): PreparePreview {
   return { ...preview, map: undefined };
-}
-
-function newSeed(): number {
-  return Math.floor(Math.random() * 2 ** 32);
 }
 
 function initial() {

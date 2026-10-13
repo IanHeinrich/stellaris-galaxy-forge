@@ -297,4 +297,12 @@ describe("the bodies of a system", () => {
     expect(rolled.bodies).not.toBe(shown.bodies);
     expect(rolled.exits).toBe(shown.exits);
   });
+
+  it("renames a body when the names the game gives it land after the scene drew", () => {
+    const planets = [scenarioSun, body(2, "pc_barren", { orbit: fixed(60) })];
+    const shown = scenario(planets, rollOf(planets));
+    const given = new Map([[2, { text: "Kel II", all: ["Kel II"], rolled: false }]]);
+    const named = systemContext({ ...shown, givenNames: given });
+    expect(named.bodyById.get(2)?.name).toBe("Kel II");
+  });
 });
