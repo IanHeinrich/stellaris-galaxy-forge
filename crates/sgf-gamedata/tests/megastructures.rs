@@ -682,3 +682,28 @@ fn gigas_types_read_through_their_inline_scripts() {
         );
     }
 }
+
+/// A stage that puts its one planet in a body's orbit and always removes its row stands in
+/// the planet's place, as Cosmogenesis World does. One that removes its row only on a
+/// condition leaves the planet beside it, a structure of several parts.
+#[test]
+fn a_planet_stands_in_its_row_only_when_the_row_always_goes() {
+    let spawn =
+        "spawn_planet = { class = pc_mod_world location = fromfrom.planet orbit_location = yes }";
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        &format!(
+            "mod_world = {{ on_build_complete = {{ {spawn} remove_megastructure = fromfrom }} }}
+mod_maybe_world = {{ on_build_complete = {{ {spawn} if = {{ limit = {{ always = yes }} remove_megastructure = fromfrom }} }} }}
+"
+        ),
+    )]);
+    let placement = |key: &str| gd.megastructures.get(key).expect(key).placement.clone();
+    assert_eq!(placement("mod_world"), Placement::Body { star_only: false });
+    assert_eq!(
+        placement("mod_maybe_world"),
+        Placement::Unsupported {
+            why: Unsupported::WholeStructure { star_only: false }
+        }
+    );
+}

@@ -20,7 +20,7 @@ use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
 use crate::install::walk::{self, CONDITIONAL, Scan, Script, Statement};
 use crate::registries::megastructure_families::Resolved;
-use crate::registries::megastructure_offers::{Build, Offer};
+use crate::registries::megastructure_offers::{Build, Offer, always_removes_row};
 use crate::registries::megastructure_swaps::{self, Swap, removes_row};
 use crate::registries::registry::Registry;
 use crate::registries::scripted_triggers::ScriptedTriggers;
@@ -290,6 +290,9 @@ pub struct Completes {
     pub replaced_by: Vec<String>,
     /// It removes its own row with `remove_megastructure = fromfrom`, anywhere in it.
     pub removes_row: bool,
+    /// It removes its own row with `remove_megastructure = fromfrom` outside any `if`,
+    /// `else_if`, `else` or `switch`.
+    pub always_removes_row: bool,
     /// The class of each `spawn_planet`, anywhere in it, in file order.
     pub planet_classes: Vec<String>,
     /// It has one `spawn_planet`, which puts its planet in the orbit of a body with
@@ -327,6 +330,7 @@ impl Completes {
                 .filter_map(|row| spawned_type(row, src))
                 .collect(),
             replaced_by,
+            always_removes_row: always_removes_row(&Script::of_def(def), block),
             removes_row: removals
                 .iter()
                 .any(|removal| removal.scalar_str(src) == Some("fromfrom")),
@@ -344,7 +348,7 @@ impl Completes {
     /// own row away and puts its one planet in the orbit of a body, as the base game's
     /// Cosmogenesis World does, is that planet alone.
     pub(crate) fn builds_whole(&self) -> bool {
-        let becomes_planet = self.removes_row && self.planet_in_body_orbit;
+        let becomes_planet = self.always_removes_row && self.planet_in_body_orbit;
         self.spawns_rows > 1 || (self.spawns_planet && !becomes_planet)
     }
 }
@@ -353,7 +357,8 @@ impl Completes {
 /// `location` is not the structure's own row and it writes `orbit_location = yes`.
 fn in_body_orbit(planet: &Node, src: &[u8]) -> bool {
     let field = |key: &str| planet.find(key, src).and_then(|node| node.scalar_str(src));
-    field("orbit_location") == Some("yes") && field("location").is_some_and(|at| at != ROW)
+    field("orbit_location") == Some("yes")
+        && field("location").is_some_and(|at| !at.eq_ignore_ascii_case(ROW))
 }
 
 /// The scope a megastructure's own effects name its row by.

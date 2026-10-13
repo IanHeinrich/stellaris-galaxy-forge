@@ -20,10 +20,14 @@ use crate::GameData;
 use crate::condition::{Condition, Subject};
 use crate::install::script::{Def, find_deep, whole};
 use crate::install::walk::{self, Branch, Flow, Script, Statement, Visitor};
+use crate::registries::megastructure_families::variant_stem;
 use crate::registries::megastructures::{MegastructureDef, is_ruin};
 
 /// The scripted effect the game ruins a megastructure row with, run in the row's scope.
 const RUIN_EFFECT: &str = "set_ruined_megastructure";
+/// The suffix of the game's own ruins, which stand before a derelict or destroyed variant of
+/// the same working type.
+const RUINED: &str = "_ruined";
 /// Effects that change nothing an added structure writes.
 const SILENT: [&str; 6] = [
     "limit",
@@ -410,25 +414,59 @@ impl<'g> State<'g> {
     /// stands where a row of its working type stands, as the registry links the two. Its
     /// working type is the first stage of the row's chain (`ring_world_titanic_ruined` at a
     /// `ringworld_t_3x_segment` frame point), else the stage that spawns that first stage
-    /// (`ring_world_ruined` at a `ring_world_2` frame point). The ruin has no name and no
-    /// culture of its own.
+    /// (`ring_world_ruined` at a `ring_world_2` frame point), else the ruin whose stem, its
+    /// variant suffix taken off, is the row's key or begins it before a `_`, the longest stem
+    /// first. Of a working type's ruins, the `_ruined` one stands before a derelict or
+    /// destroyed one. The ruin has no name and no culture of its own.
     fn ruin(&mut self, row: usize) -> bool {
         let kind = self.rows[row].laid.kind.clone();
         let types = &self.gd.megastructures;
         let first = types.first_stage(&kind).map(|stage| stage.key.as_str());
-        let ruin_of = |working: &dyn Fn(&str) -> bool| {
-            types
-                .iter()
-                .filter(|def| def.upgrade_from.is_empty() && is_ruin(&def.key))
-                .find(|def| def.variant_of.as_deref().is_some_and(working))
+        let ruins: Vec<&MegastructureDef> = types
+            .iter()
+            .filter(|def| def.upgrade_from.is_empty() && is_ruin(&def.key))
+            .collect();
+        let pick = |found: Vec<&MegastructureDef>| {
+            found
+                .into_iter()
+                .min_by_key(|def| !def.key.ends_with(RUINED))
                 .map(|def| def.key.clone())
+        };
+        let ruin_of = |working: &dyn Fn(&str) -> bool| {
+            pick(
+                ruins
+                    .iter()
+                    .copied()
+                    .filter(|def| def.variant_of.as_deref().is_some_and(working))
+                    .collect(),
+            )
         };
         let spawns_first = |working: &str| {
             types.get(working).is_some_and(|def| {
                 first.is_some_and(|f| def.completes.spawned.iter().any(|s| s == f))
             })
         };
-        let ruin = ruin_of(&|working| Some(working) == first).or_else(|| ruin_of(&spawns_first));
+        let by_stem = || {
+            let stemmed: Vec<(usize, &MegastructureDef)> = ruins
+                .iter()
+                .filter_map(|def| {
+                    let stem = variant_stem(&def.key)?;
+                    let rest = kind.strip_prefix(stem)?;
+                    (rest.is_empty() || rest.starts_with('_')).then_some((stem.len(), *def))
+                })
+                .collect();
+            let longest = stemmed.iter().map(|(len, _)| *len).max()?;
+            pick(
+                stemmed
+                    .into_iter()
+                    .filter(|(len, _)| *len == longest)
+                    .map(|(_, def)| def)
+                    .collect(),
+            )
+        };
+        let ruin = ruin_of(&|working| Some(working) == first)
+            .or_else(|| ruin_of(&spawns_first))
+            .or_else(by_stem);
         let Some(ruin) = ruin else {
             self.note(format!("{kind}: no ruined type stands in its place"));
             return false;

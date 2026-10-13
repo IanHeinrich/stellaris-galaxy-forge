@@ -11,8 +11,8 @@ use crate::registries::scripted_triggers::ScriptedTriggers;
 
 /// A new body as the first draw of its features judges it. Whether its deposits, and the
 /// modifiers the game hands a new body such as a terraforming candidate's, are in place
-/// before its features are drawn is the engine's to say, so a condition on either stays
-/// unsettled. It holds no planet feature yet.
+/// before its features are drawn is the engine's to say, so `has_deposit` and
+/// `has_modifier` stay unsettled. It holds no planet feature yet.
 struct FirstDraw<'a>(NewBody<'a>);
 
 impl Subject for FirstDraw<'_> {

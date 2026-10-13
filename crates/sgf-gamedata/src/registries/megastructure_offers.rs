@@ -22,7 +22,8 @@ use crate::scripts::ScriptIndex;
 /// The first stages of the families the dialog leaves out for now, with every stage after
 /// them and their ruins: crisis-path, origin and story structures, structures that become
 /// warships, the action stages of finished structures, and the Orbital Elysium, whose
-/// in-game check is pending.
+/// completion puts one planet in the orbit of its body and removes the row, a shape that
+/// has not been checked in game.
 pub const NOT_OFFERED_YET: [&str; 41] = [
     "crisis_sphere_0",
     "galactic_crucible_0",
@@ -217,7 +218,7 @@ fn leaves(script: &Script<'_>, block: &Node, scripts: &ScriptIndex) -> Option<Hi
 }
 
 /// `remove_megastructure = fromfrom` below `block` outside a conditional block.
-fn always_removes_row(script: &Script<'_>, block: &Node) -> bool {
+pub(crate) fn always_removes_row(script: &Script<'_>, block: &Node) -> bool {
     let mut removes = false;
     walk::scan(script, block, None, &mut |statement| {
         if statement.key == "remove_megastructure" {

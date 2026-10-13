@@ -70,7 +70,8 @@ pub struct PlaysetReport {
     /// Megastructure types whose model does not load, with the reason.
     pub models_failing: Vec<Row>,
     /// The shaders megastructure models are drawn with that no table of the model baker names,
-    /// so they are drawn opaque; each on the first type that uses it.
+    /// so they are drawn opaque by default; each on the first type that uses it, a base game
+    /// type where one does, whose mod the row names.
     pub untabled_shaders: Vec<Row>,
     /// Megastructure types the editor does not add, with why; no ring world, which has a list
     /// of its own.
@@ -228,7 +229,7 @@ impl PlaysetReport {
                 &self.models_failing,
             ),
             (
-                "shaders megastructure models use that no table names",
+                "shaders megastructure models use, drawn opaque by default as no table names them",
                 &self.untabled_shaders,
             ),
             (
@@ -277,7 +278,8 @@ impl PlaysetReport {
 
 /// What reading each megastructure type's model bare, as the app draws a row no empire owns,
 /// finds: each type whose model does not load, with the reason, and each shader its drawn
-/// meshes use that no table names, on the first type that uses it, with how many do. The
+/// meshes use that no table names, on the first type that uses it, a base game type where one
+/// does, with how many do. The
 /// meshes are read, nothing is baked, and a model several types share is read once.
 fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
     let entities: Vec<&str> = gd
@@ -308,7 +310,11 @@ fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
             Err(error) => failing.push(mega_row(def, Some(error.clone()))),
             Ok(untabled) => {
                 for shader in untabled {
-                    shaders.entry(shader).or_insert((def, 0)).1 += 1;
+                    let (first, count) = shaders.entry(shader).or_insert((def, 0));
+                    if first.source.is_some() && def.source.is_none() {
+                        *first = def;
+                    }
+                    *count += 1;
                 }
             }
         }
@@ -316,7 +322,11 @@ fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
     let untabled = shaders
         .into_iter()
         .map(|(shader, (first, count))| {
-            let detail = format!("drawn opaque; {}, first {}", plural(count), first.key);
+            let detail = format!(
+                "drawn opaque by default; {}, the mod named is that of {}",
+                plural(count),
+                first.key
+            );
             row(shader, first.source.clone(), Some(detail))
         })
         .collect();

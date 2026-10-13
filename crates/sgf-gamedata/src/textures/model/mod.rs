@@ -647,7 +647,7 @@ impl GameData {
             .iter()
             .flat_map(|part| &part.looks)
             .map(|look| look.shader.clone())
-            .filter(|shader| !tabled(shader))
+            .filter(|shader| !shader.is_empty() && !tabled(shader))
             .collect())
     }
 
