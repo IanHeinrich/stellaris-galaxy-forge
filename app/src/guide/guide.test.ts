@@ -1,20 +1,19 @@
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GUIDE_PLACES, guideSlug, issueAnchor } from "../lib/guideLinks";
 import { ISSUE_CODES, issueTitle } from "../lib/issueCopy";
 import { shortcutLabelsByAction } from "../lib/keys";
 import { LAYER_GROUPS, LAYER_LABELS } from "../lib/visual/layerIds";
+import { readTree } from "../test/files";
 
-const PAGES = import.meta.glob<string>(["../../../guide/**/*.md", "!**/node_modules/**"], {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
-
-const PREFIX = "../../../guide/";
+const PAGES = readTree(
+  resolve(import.meta.dirname, "../../../guide"),
+  (path) => path.endsWith(".md") && !/(^|\/)node_modules\//.test(path),
+);
 
 /** The guide page at `path`, as `guide/<path>.md` holds it, or undefined when there is none. */
 function page(path: string): string | undefined {
-  return PAGES[`${PREFIX}${path}.md`];
+  return PAGES[`${path}.md`];
 }
 
 function file(path: string): string {

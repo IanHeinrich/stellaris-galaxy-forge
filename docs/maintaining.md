@@ -73,7 +73,9 @@ Each of these is skipped when its variable is unset.
   libraries.
 - Vitest keeps its transformed modules in `app/node_modules/.vitest-cache`
   between runs, and the `Lint` job restores the cache the last run on
-  `main` saved.
+  `main` saved. Tests read file lists at run time through `test/files`, not
+  `import.meta.glob`, because a glob expanded into a cached module goes
+  stale when a file it matched moves.
 - A change that touches only documentation (the list is in
   `scripts/docs-only.sh`) skips the build, and `ci-docs.yml` reports the
   required checks as passed for it. For any other change it reports

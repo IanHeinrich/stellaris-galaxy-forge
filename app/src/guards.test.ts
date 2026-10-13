@@ -1,14 +1,13 @@
 import { expect, it } from "vitest";
+import { readTree } from "./test/files";
 
-const SOURCES = import.meta.glob<string>(
-  [
-    "./**/*.{ts,tsx}",
-    "!./generated/**",
-    "!./test/**",
-    "!./**/__mocks__/**",
-    "!./**/*.test.{ts,tsx}",
-  ],
-  { query: "?raw", import: "default", eager: true },
+const SOURCES = readTree(
+  import.meta.dirname,
+  (path) =>
+    /\.tsx?$/.test(path) &&
+    !/^(generated|test)\//.test(path) &&
+    !/(^|\/)__mocks__\//.test(path) &&
+    !/\.test\.tsx?$/.test(path),
 );
 
 /** Shared test builders that are not test files by name. */
@@ -53,8 +52,7 @@ function kindChecks(source: string): [number, string][] {
 it("asks the document's capabilities, not its kind, outside the kind table", () => {
   const found = new Set<string>();
   const unlisted: string[] = [];
-  for (const [path, source] of Object.entries(SOURCES)) {
-    const file = path.slice(2);
+  for (const [file, source] of Object.entries(SOURCES)) {
     if (TEST_SUPPORT.test(file) || KIND_SEAM.includes(file)) continue;
     for (const [number, line] of kindChecks(source)) {
       found.add(file);
