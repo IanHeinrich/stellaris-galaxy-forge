@@ -2,6 +2,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
+use sgf_core::ops::MegastructurePlace;
 use sgf_core::prepare::PrepareOptions;
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
@@ -151,6 +152,34 @@ fn run(cli: Cli) -> commands::Run {
             seed,
             &install.options(),
         ),
+        Some(Command::AddMegastructure {
+            sav,
+            system,
+            kind,
+            body,
+            at,
+            keep_planet,
+            install,
+            out,
+        }) => {
+            let place = match (body, at) {
+                (Some(body), None) => MegastructurePlace::Body { body },
+                (Some(body), Some((x, y))) => MegastructurePlace::Beside { body, x, y },
+                (None, at) => {
+                    let (x, y) = at.unwrap_or_default();
+                    MegastructurePlace::Free { x, y }
+                }
+            };
+            commands::add_megastructure::run(
+                &sav,
+                out.path.as_deref(),
+                system,
+                &kind,
+                place,
+                keep_planet,
+                &install.options(),
+            )
+        }
         Some(Command::CopyPlanet {
             sav,
             bodies,

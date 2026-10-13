@@ -150,7 +150,7 @@ function keepView({ setState }: SessionApi, result: OpenResult): void {
   useIssuesStore.getState().load(result.issues);
   useGalaxyStore.getState().load(result.galaxy, { keepView: true });
   useEditorStore.setState({ selection, selectedLane, selectedNebula });
-  void useGameDataStore.getState().onSaveOpened();
+  void useGameDataStore.getState().onDocumentOpened();
   const opened = issuesDocument();
   void ipc
     .warmDetails()

@@ -113,7 +113,7 @@ describe("adding a system under symmetry", () => {
   });
 
   it("gives each Paint a Galaxy copy a seat of its own id", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await useFileSessionStore.getState().openScenario(SCENARIO_RESULT.path, "paint_a_galaxy");
     useGalaxyStore.getState().applyDelta({ systems: PLACED });
     sym(MIRROR_X);

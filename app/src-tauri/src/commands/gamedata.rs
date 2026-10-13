@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
-use sgf_core::views::{DocumentKind, ErrorKind, ProgressPhase, SgfError};
+use sgf_core::views::{Capabilities, ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::choices::AskedBody;
 use sgf_gamedata::deposit_choices::DepositChoice;
@@ -256,19 +256,20 @@ fn picked_program_file<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     })
 }
 
-/// `path`, when it is a file the app opens for the user: the open scenario's own, or a script
-/// text file of the loaded game data. A save is never one, since its gamestate is zipped, and
-/// nor is a program or a shortcut under the game's folders, which the system would run.
+/// `path`, when it is a file the app opens for the user: the open document's own when it is a
+/// text file, or a script text file of the loaded game data. A save is never one, since its
+/// gamestate is zipped, and nor is a program or a shortcut under the game's folders, which the
+/// system would run.
 async fn openable<R: Runtime>(app: &AppHandle<R>, path: String) -> Result<PathBuf, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app.clone(), move |session| {
-        let scenario = session
+        let own_file = session
             .as_ref()
-            .filter(|session| session.kind() == DocumentKind::Scenario)
+            .filter(|session| Capabilities::of(session.doc()).text_file)
             .and_then(|session| session.path().map(Path::to_path_buf));
         drop(session);
         let file = PathBuf::from(&path);
-        if scenario.is_some_and(|open| same_file(&open, &file)) {
+        if own_file.is_some_and(|open| same_file(&open, &file)) {
             return Ok(file);
         }
         if !editors::is_script_text(&file) {

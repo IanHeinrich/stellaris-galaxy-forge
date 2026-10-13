@@ -22,8 +22,8 @@ export function documentKind(path: string): Promise<DocumentKind> {
 }
 
 /** Open a save or a scenario script as the session; emits `sgf://progress` while it loads. */
-export function openSave(path: string): Promise<OpenResult> {
-  return invoke<OpenResult>("open_save", { path });
+export function openDocument(path: string): Promise<OpenResult> {
+  return invoke<OpenResult>("open_document", { path });
 }
 
 /** Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is untouched. */
@@ -99,8 +99,8 @@ export function checkDocumentOnDisk(): Promise<DocumentChanged | null> {
   return invoke<DocumentChanged | null>("check_document_on_disk");
 }
 
-export function closeSave(): Promise<void> {
-  return invoke<void>("close_save");
+export function closeDocument(): Promise<void> {
+  return invoke<void>("close_document");
 }
 
 /**

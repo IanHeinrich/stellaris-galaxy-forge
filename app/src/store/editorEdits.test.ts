@@ -37,7 +37,7 @@ const EMPIRE: CountryNode = {
 
 /** The fixture save opened again with one empire, `EMPIRE`. */
 async function openWithEmpire(): Promise<void> {
-  mockedIpc.openSave.mockResolvedValueOnce({
+  mockedIpc.openDocument.mockResolvedValueOnce({
     ...OPEN_RESULT,
     galaxy: { ...OPEN_RESULT.galaxy, countries: [EMPIRE] },
   });

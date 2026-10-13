@@ -22,11 +22,11 @@ describe("scenario documents", () => {
   };
 
   it("opening a scenario file takes its kind, title and capabilities, and has no save header", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
 
     const state = session();
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(SCENARIO_PATH);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(SCENARIO_PATH);
     expect(state.pendingOpen).toBeNull();
     expect(state.status).toBe("ready");
     expect(state.kind).toBe("scenario");
@@ -41,24 +41,24 @@ describe("scenario documents", () => {
     mockedIpc.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
     await session().requestOpen(OPEN_RESULT.path, { listings: null });
     expect(session().pendingOpen).toBe(OPEN_RESULT.path);
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
     expect(mockedIpc.openAsScenario).not.toHaveBeenCalled();
 
     await session().chooseOpenMode("scenario");
     expect(mockedIpc.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path, "plain");
-    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openDocument).not.toHaveBeenCalled();
     expect(session().kind).toBe("scenario");
     expect(session().path).toBeNull();
 
     await session().requestOpen(OPEN_RESULT.path, { listings: null });
     await session().chooseOpenMode("save");
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(OPEN_RESULT.path);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(OPEN_RESULT.path);
     expect(session().kind).toBe("save");
 
     await session().requestOpen(OPEN_RESULT.path, { listings: null });
     await session().chooseOpenMode(null);
     expect(session().pendingOpen).toBeNull();
-    expect(mockedIpc.openSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.openDocument).toHaveBeenCalledTimes(1);
     expect(mockedIpc.openAsScenario).toHaveBeenCalledTimes(1);
   });
 
@@ -106,7 +106,7 @@ describe("scenario documents", () => {
   });
 
   it("a painted file turns the layer on without a profile; a plain open turns it off again", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
+    mockedIpc.openDocument.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(session().painted).toBe(true);
     expect(session().paintChosen).toBe(false);
@@ -116,31 +116,31 @@ describe("scenario documents", () => {
     expect(session().painted).toBe(false);
     expect(getPaintLayer()).toBe(false);
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(getPaintLayer()).toBe(false);
   });
 
   it("a scenario opened for Paint a Galaxy is on the layer though its bytes say nothing of the mod", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openScenario(SCENARIO_PATH, "paint_a_galaxy");
-    expect(mockedIpc.openSave).toHaveBeenCalledWith(SCENARIO_PATH);
+    expect(mockedIpc.openDocument).toHaveBeenCalledWith(SCENARIO_PATH);
     expect(session().painted).toBe(false);
     expect(session().paintChosen).toBe(true);
     expect(getPaintLayer()).toBe(true);
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openScenario(SCENARIO_PATH);
     expect(session().paintChosen).toBe(false);
   });
 
   it("reloading keeps what was said of the file at open, since the bytes cannot say it", async () => {
-    mockedIpc.openSave.mockResolvedValue(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValue(SCENARIO_RESULT);
     await session().openScenario(SCENARIO_PATH, "paint_a_galaxy");
     expect(getPaintLayer()).toBe(true);
 
     await session().reload();
-    expect(mockedIpc.openSave).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.openDocument).toHaveBeenCalledTimes(2);
     expect(session().paintChosen).toBe(true);
     expect(getPaintLayer()).toBe(true);
 
@@ -148,20 +148,23 @@ describe("scenario documents", () => {
     await session().reload();
     expect(session().paintChosen).toBe(false);
     expect(getPaintLayer()).toBe(false);
-    mockedIpc.openSave.mockResolvedValue(OPEN_RESULT);
+    mockedIpc.openDocument.mockResolvedValue(OPEN_RESULT);
   });
 
   it("a plain scenario inside the mod's scenarios folder is on the layer; the same file elsewhere is not", async () => {
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
-    mockedIpc.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: `${PAINT_DIR}/mine.txt` });
+    mockedIpc.openDocument.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      path: `${PAINT_DIR}/mine.txt`,
+    });
     await session().requestOpen(`${PAINT_DIR}/mine.txt`, { listings: null });
     expect(getPaintLayer()).toBe(true);
 
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(getPaintLayer()).toBe(false);
 
-    mockedIpc.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: `${PAINT_DIR}/mine.sav` });
+    mockedIpc.openDocument.mockResolvedValueOnce({ ...OPEN_RESULT, path: `${PAINT_DIR}/mine.sav` });
     await session().openSave(`${PAINT_DIR}/mine.sav`);
     expect(getPaintLayer()).toBe(false);
   });
@@ -185,7 +188,7 @@ describe("scenario documents", () => {
       expect.objectContaining({ defaultPath: "my_galaxy.txt" }),
     );
 
-    mockedIpc.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
+    mockedIpc.openDocument.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     mockedIpc.saveDialog.mockResolvedValueOnce(null);
     await session().saveAs();
@@ -195,7 +198,7 @@ describe("scenario documents", () => {
   });
 
   it("saving into the mod offers its folder under the file's own name, and does nothing without one", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     await session().saveIntoPaintMod();
     expect(mockedIpc.saveDialog).not.toHaveBeenCalled();
@@ -226,7 +229,7 @@ describe("scenario documents", () => {
   });
 
   it("says what to do next once a file lands in the mod's folder, named by the header's size", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(ELYSIUM);
+    mockedIpc.openDocument.mockResolvedValueOnce(ELYSIUM);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
 
@@ -241,7 +244,7 @@ describe("scenario documents", () => {
   });
 
   it("says nothing next when the header names no size, or the file lands outside the mod's folder", async () => {
-    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openDocument.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
 
@@ -250,7 +253,7 @@ describe("scenario documents", () => {
     await session().saveIntoPaintMod();
     expect(session().notice).toBeNull();
 
-    mockedIpc.openSave.mockResolvedValueOnce(ELYSIUM);
+    mockedIpc.openDocument.mockResolvedValueOnce(ELYSIUM);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
     mockedIpc.saveDialog.mockResolvedValueOnce("C:/mods/mine/map/setup_scenarios/elsewhere.txt");
     mockedIpc.saveAs.mockResolvedValueOnce(

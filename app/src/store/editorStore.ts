@@ -235,15 +235,14 @@ export interface EditorState {
   addHabitat(system: number, body: number, kind: string): Promise<number | null>;
   /**
    * Adds the ring world of type `kind`'s chain whole round the star of system `system` in one
-   * edit, each quadrant at its stage in `stages`, owned by `owner`; with `clear`, every body that
-   * is not a star and every belt go first. Answers the new planets and rows, or null when the
-   * core refused the add.
+   * edit, each quadrant at its stage in `stages`, owned by the system's owner; with `clear`, every
+   * body that is not a star and every belt go first. Answers the new planets and rows, or null
+   * when the core refused the add.
    */
   addRingWorld(
     system: number,
     kind: string,
     stages: readonly RingStage[],
-    owner: number | null,
     clear: boolean,
   ): Promise<{ planets: number[]; megastructures: number[] } | null>;
   /**

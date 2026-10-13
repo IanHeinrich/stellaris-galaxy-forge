@@ -3,14 +3,14 @@
  * Command and argument names match `app/src-tauri/src/commands/add_body.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
-import type { AddedBody } from "../generated/AddedBody";
+import type { Added } from "../generated/Added";
 import type { BodyClassPick } from "../generated/BodyClassPick";
 
 /**
  * Roll a body from `seed` and add it to system `system` of the open save as one edit, `radius`
  * from what it orbits at `angle` degrees: a moon of `parent`, or a planet for null. It is of
  * `planetClass` and `size` when given, else drawn as the game draws them, with the deposits it
- * rolls. Answers with the edit and the new body's id; refused without game data.
+ * rolls. Answers with the edit and the new body's id; see the command for its refusals.
  */
 export function addBody(
   system: number,
@@ -20,8 +20,8 @@ export function addBody(
   radius: number,
   angle: number,
   seed: number,
-): Promise<AddedBody> {
-  return invoke<AddedBody>("add_body", {
+): Promise<Added> {
+  return invoke<Added>("add_body", {
     system,
     parent,
     class: planetClass,

@@ -427,6 +427,7 @@ impl Format for Save {
             dig_sites: whole_entries,
             add_megastructures: whole_entries,
             edit_bodies: true,
+            export: true,
             ..Capabilities::default()
         }
     }

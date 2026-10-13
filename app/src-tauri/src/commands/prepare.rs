@@ -13,11 +13,11 @@ use sgf_gamedata::special;
 use tauri::{AppHandle, Runtime};
 
 use super::scenario::{placed_bypasses, scenario_owners};
-use super::{game_data, is_save, require, with_session};
+use super::{game_data, require, with_session};
 use crate::views::{NewZone, PreparePreview, PreparedEdit, PreparedMap};
 
 const PREPARE: &str = "prepare a scenario for a new game";
-const ONLY_A_SCENARIO: &str = "only a scenario is prepared for a new game";
+const NOT_PREPARED: &str = "this document is not prepared for a new game";
 
 /// What `choices` under `options` would do to the open scenario: each row's systems, sorted by
 /// the loaded game data, how many systems the one edit would change, the systems keeping the
@@ -33,7 +33,7 @@ pub async fn prepare_preview<R: Runtime>(
 ) -> Result<PreparePreview, SgfError> {
     let gd = game_data(&app, PREPARE)?;
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), is_scenario, ONLY_A_SCENARIO)?;
+        let session = require(guard.as_ref(), |c| c.prepare, NOT_PREPARED)?;
         let Preview {
             profile,
             rows,
@@ -77,7 +77,7 @@ pub async fn prepare_apply<R: Runtime>(
 ) -> Result<Option<PreparedEdit>, SgfError> {
     let gd = game_data(&app, PREPARE)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_scenario, ONLY_A_SCENARIO)?;
+        let session = require(guard.as_mut(), |c| c.prepare, NOT_PREPARED)?;
         let preview = previewed(session, &gd, &choices, &options.unwrap_or_default())?;
         let Some(op) = preview.op else {
             return Ok(None);
@@ -122,8 +122,4 @@ fn projected(session: &Session, gd: &GameData, op: Op) -> Result<PreparedMap, Sg
         owners,
         bypasses: placed_bypasses(&copy, Some(gd), None),
     })
-}
-
-fn is_scenario(capabilities: Capabilities) -> bool {
-    !is_save(capabilities)
 }

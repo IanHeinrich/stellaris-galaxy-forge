@@ -8,11 +8,9 @@ import type { MegastructurePlace } from "../generated/MegastructurePlace";
 
 /**
  * Add a finished megastructure of type `kind` to system `system` of the open save as one edit,
- * at `place`, owned by the system's owner as the game makes it. The core writes the bypass, the
- * ruin flag and what its construction adds as the type's definition asks. A type whose build
- * changes its planet's class or size changes the planet too, in the same edit, unless
- * `keepPlanet`. Answers with the edit, the new row's id and the construction effects left out;
- * refused without game data and for a type the editor does not add.
+ * at `place`, changing its planet as its build does unless `keepPlanet`. Answers with the edit,
+ * the new row's id and the construction effects left out; see the command for what it decides
+ * and refuses.
  */
 export function addMegastructure(
   system: number,

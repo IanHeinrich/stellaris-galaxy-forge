@@ -158,8 +158,8 @@ function armGameDataCommands(): void {
     },
   ]);
   mockedIpc.getBypasses.mockResolvedValue([
-    { key: "gateway", icon_frame: 25 },
-    { key: "relay_bypass", icon_frame: null },
+    { key: "gateway", icon_frame: 25, always_active: false },
+    { key: "relay_bypass", icon_frame: null, always_active: true },
   ]);
   mockedIpc.getStarbaseLevels.mockResolvedValue([
     {

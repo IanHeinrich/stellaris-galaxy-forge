@@ -17,7 +17,6 @@ import { megastructureSummary, megastructureTypeView, systemDetails } from "../t
 import { openFixtureSave, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { editResult } from "./fixture";
-import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useMegastructureAddStore } from "./megastructureAdd";
@@ -45,7 +44,8 @@ beforeEach(async () => {
   });
   mockedIpc.addMegastructure.mockResolvedValue({
     edit: editResult({ details_stale: [SYSTEM] }),
-    megastructure: 16,
+    planets: [],
+    megastructures: [16],
     unsure: [],
     unwritten: [],
   });
@@ -119,7 +119,8 @@ describe("adding a megastructure from the system view", () => {
   it("says in the status bar how many effects of its construction were left out", async () => {
     mockedIpc.addMegastructure.mockResolvedValue({
       edit: editResult({ details_stale: [SYSTEM] }),
-      megastructure: 16,
+      planets: [],
+      megastructures: [16],
       unsure: ["focus.535: change_variable with a value that is not a number", "a.1: event b.2"],
       unwritten: ["removes modifier old_mod from planet 3"],
     });
@@ -165,7 +166,8 @@ describe("adding a habitat from the system view", () => {
     });
     mockedIpc.addHabitat.mockResolvedValue({
       edit: editResult({ details_stale: [SYSTEM] }),
-      planet: 16777273,
+      planets: [16777273],
+      megastructures: [],
     });
   });
 
@@ -207,7 +209,8 @@ describe("adding on a body that has a megastructure", () => {
     useGameDataStore.setState({ megastructureTypes: types });
     mockedIpc.addHabitat.mockResolvedValue({
       edit: editResult({ details_stale: [SYSTEM] }),
-      planet: 16777273,
+      planets: [16777273],
+      megastructures: [],
     });
     const rows = [megastructureSummary({ kind: "orbital_ring_ruined", planet: 12 })];
     const spot = { kind: "body", body: 12, star: false } as const;
@@ -241,10 +244,7 @@ describe("adding a whole ring world from the system view", () => {
     mockedIpc.getRingWorldClearing.mockResolvedValue(clearing);
   });
 
-  it("sends the picked stages, the system's owner and the clear flag in one add, and closes the dialog", async () => {
-    const systems = new Map(useGalaxyStore.getState().systems);
-    systems.set(SYSTEM, { ...systems.get(SYSTEM)!, owner: 3 });
-    useGalaxyStore.setState({ systems });
+  it("sends the picked stages and the clear flag in one add, and closes the dialog", async () => {
     adds().open(SYSTEM, star);
     adds().setRingStages("ruined");
     adds().setRingStage(0, "finished");
@@ -253,7 +253,7 @@ describe("adding a whole ring world from the system view", () => {
 
     expect(await adds().addRing("ring_world_2_intermediate")).toBe(true);
     expect(mockedIpc.addRingWorld.mock.calls).toEqual([
-      [SYSTEM, "ring_world_2_intermediate", ["finished", "ruined", "ruined", "damaged"], 3, true],
+      [SYSTEM, "ring_world_2_intermediate", ["finished", "ruined", "ruined", "damaged"], true],
     ]);
     expect(mockedIpc.addMegastructure).not.toHaveBeenCalled();
     expect(adds().prompt).toBeNull();
@@ -270,7 +270,7 @@ describe("adding a whole ring world from the system view", () => {
 
     expect(await adds().addRing("ringworld_titanic_1", "ring_world_2_intermediate")).toBe(true);
     expect(mockedIpc.addRingWorld.mock.calls).toEqual([
-      [SYSTEM, "ringworld_titanic_1", ["finished", "frame", "finished", "finished"], null, false],
+      [SYSTEM, "ringworld_titanic_1", ["finished", "frame", "finished", "finished"], false],
     ]);
     expect(adds().last).toBe("ring_world_2_intermediate");
   });
@@ -289,7 +289,6 @@ describe("adding a whole ring world from the system view", () => {
     await adds().addRing("ring_world_2_intermediate");
     expect(mockedIpc.addRingWorld.mock.calls[0].slice(2)).toEqual([
       ["finished", "finished", "finished", "finished"],
-      null,
       false,
     ]);
   });

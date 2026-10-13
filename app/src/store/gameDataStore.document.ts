@@ -23,7 +23,7 @@ export const NO_DOCUMENT = {
 
 type DocumentActions = Pick<
   GameDataState,
-  "refreshSpecial" | "refreshScenarioOwners" | "onSaveOpened" | "onSaveClosed"
+  "refreshSpecial" | "refreshScenarioOwners" | "onDocumentOpened" | "onDocumentClosed"
 >;
 
 /** The open document's classification: its special systems, and a scenario's scripted owners. */
@@ -78,7 +78,7 @@ export function documentActions(
       }
     },
 
-    async onSaveOpened() {
+    async onDocumentOpened() {
       useDetailsStore.getState().clear();
       useScriptsStore.getState().clear();
       void get().refreshSpecial();
@@ -90,7 +90,7 @@ export function documentActions(
       await owners.catch(() => undefined);
     },
 
-    onSaveClosed() {
+    onDocumentClosed() {
       useDetailsStore.getState().clear();
       useScriptsStore.getState().clear();
       set({ ...NO_DOCUMENT });

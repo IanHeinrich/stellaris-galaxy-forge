@@ -70,14 +70,14 @@ export function resetStores(): void {
  */
 export function armSession(): void {
   mockedIpc.onProgress.mockResolvedValue(() => undefined);
-  mockedIpc.openSave.mockResolvedValue(OPEN_RESULT);
+  mockedIpc.openDocument.mockResolvedValue(OPEN_RESULT);
   mockedIpc.getSystem.mockImplementation(async (id) => {
     const system = useGalaxyStore.getState().systems.get(id);
     if (!system) throw { kind: "not_found", message: `no system ${id}` };
     if (!SYSTEMS.some((s) => s.id === id)) return { system, neighbours: [], nebula: null };
     return { ...detailOf(id), system };
   });
-  mockedIpc.closeSave.mockResolvedValue();
+  mockedIpc.closeDocument.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.confirm.mockResolvedValue(true);
   mockedIpc.checkOp.mockResolvedValue(null);
