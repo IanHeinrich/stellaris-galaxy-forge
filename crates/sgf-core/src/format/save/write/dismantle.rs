@@ -4,7 +4,6 @@
 //! them in.
 
 use crate::cst::Node;
-use crate::emit::coord;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
 use crate::format::save::galaxy::bodies::planet_ids;
@@ -12,6 +11,7 @@ use crate::format::save::write::id_list::{Emptied, unlist};
 use crate::format::save::write::place;
 use crate::format::save::write::restore::{Saved, country_edit, live, tombstoned};
 use crate::format::save::write::timed_modifiers::{ItemEdit, set_items};
+use crate::format::save::write::variables;
 use crate::format::save::{entity, entity_at, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
@@ -19,8 +19,7 @@ use crate::ops::{MegastructureDismantle, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
-use crate::span::Span;
-use crate::{plural, plural_of};
+use crate::{and_list, plural, plural_of};
 
 /// Refuse a modifier, deposit type or variable that is not an identifier.
 pub(crate) fn check(dismantle: &MegastructureDismantle) -> Result<(), OpError> {
@@ -57,10 +56,9 @@ impl TakenBack {
         if self.variables > 0 {
             parts.push(plural_of(self.variables, "counter", "counters"));
         }
-        match parts.split_last() {
-            None => String::new(),
-            Some((last, [])) => format!(", and took back {last}"),
-            Some((last, rest)) => format!(", and took back {} and {last}", rest.join(", ")),
+        match parts.is_empty() {
+            true => String::new(),
+            false => format!(", and took back {}", and_list(&parts)),
         }
     }
 }
@@ -128,10 +126,10 @@ pub(crate) fn take_back(
 
     if let Some(owner) = owner
         && let Some(country) = live(doc, SavedTable::Country, owner)?
-        && !lowered(&country.node, country.src, dismantle).is_empty()
+        && !variables::dismantled(&country.node, country.src, &dismantle.variables).is_empty()
     {
         let edit = country_edit(plan, doc, saved, owner)?;
-        let changes = lowered(edit.entity()?, &edit.buf, dismantle);
+        let changes = variables::dismantled(edit.entity()?, &edit.buf, &dismantle.variables);
         taken.variables += changes.len();
         for (span, value) in changes {
             edit.replace_span(span, value);
@@ -142,18 +140,12 @@ pub(crate) fn take_back(
 
 /// How many items of the entity's `timed_modifier` name one of `modifiers`.
 fn modifier_items(node: &Node, src: &[u8], modifiers: &[String]) -> usize {
-    node.find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-        .map_or(0, |items| {
-            items
-                .children()
-                .iter()
-                .filter(|item| {
-                    read::scalar(item, keys::MODIFIER, src)
-                        .is_some_and(|m| modifiers.iter().any(|listed| listed == m))
-                })
-                .count()
+    read::timed_items(node, src)
+        .filter(|item| {
+            read::scalar(item, keys::MODIFIER, src)
+                .is_some_and(|m| modifiers.iter().any(|listed| listed == m))
         })
+        .count()
 }
 
 /// The deposits planet `node` lists whose type is one of `kinds`, with their entries. A
@@ -182,23 +174,4 @@ fn deposits_of(
         }
     }
     Ok(found)
-}
-
-/// Each of the country's `variables` that `dismantle` lowers and that stays at 0 or above,
-/// with its new value.
-fn lowered(country: &Node, src: &[u8], dismantle: &MegastructureDismantle) -> Vec<(Span, String)> {
-    let Some(variables) = country.find(keys::VARIABLES, src) else {
-        return Vec::new();
-    };
-    dismantle
-        .variables
-        .iter()
-        .filter_map(|drop| {
-            let value = variables.find(&drop.variable, src)?;
-            let span = value.scalar_span()?;
-            let held: f64 = value.scalar_str(src)?.parse().ok()?;
-            let left = held - f64::from(drop.by);
-            (left >= 0.0).then(|| (span, coord(left)))
-        })
-        .collect()
 }

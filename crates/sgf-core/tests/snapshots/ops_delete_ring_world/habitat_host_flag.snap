@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #6268
-inverse: RestoreEntities "Restored planet #6268"
+Deleted planet paradisiacal habitat science #6268
+inverse: RestoreEntities "Restored planet paradisiacal habitat science #6268"
   System 596 (949 bytes)
   Planet 6267 (694 bytes)
   Planet 6268 (702 bytes)

@@ -9,29 +9,27 @@
 
 use std::collections::BTreeMap;
 
-use crate::cst::Node;
-use crate::emit::coord;
 use crate::emit::system::{DepositEntry, deposit_entry};
-use crate::emit::{Lines, inline};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::write::add_system::write_slot;
 use crate::format::save::write::id_list::{Emptied, append_in, statement, unlist_in};
+use crate::format::save::write::megastructure_links;
 use crate::format::save::write::place::{self, Place, insert_key};
-use crate::format::save::write::restore::live;
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::write::timed_modifiers::{End, ItemEdit, set_items};
-use crate::format::save::{entity_in, planet_entity, planet_statement, planet_system};
+use crate::format::save::write::variables;
+use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
+use crate::ops::rules::modifiers::{check_timed, listed_once};
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{
     ConstructionDeposit, ConstructionModifier, Edit, Emitted, MegastructureConstruction,
-    ModifierHost, Op, OpError, Plan, SavedTable, VariableRaise,
+    ModifierHost, OpError, Plan,
 };
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
-use crate::span::Span;
 
 /// Refuse a construction the add cannot write as given.
 pub(crate) fn check(
@@ -41,31 +39,21 @@ pub(crate) fn check(
     owner: Option<u32>,
     construction: &MegastructureConstruction,
 ) -> Result<(), OpError> {
-    let refuse = |reason: String| OpError::MegastructureRefused {
-        kind: kind.to_owned(),
-        reason,
-    };
-    for (i, item) in construction.modifiers.iter().enumerate() {
-        check_text("a modifier", &item.modifier, Form::Bare)?;
-        if item.days == 0 || item.days < -1 {
-            return Err(refuse(format!(
-                "modifier {} would last {} days",
-                item.modifier, item.days
-            )));
-        }
-        if construction.modifiers[..i]
-            .iter()
-            .any(|earlier| earlier.on == item.on && earlier.modifier == item.modifier)
-        {
-            return Err(refuse(format!(
-                "modifier {} is listed twice",
-                item.modifier
-            )));
-        }
+    let refuse = megastructure_links::refuse(kind);
+    for item in &construction.modifiers {
+        check_timed(&item.timed)?;
         if let ModifierHost::Body { body } = item.on {
             in_system(s, system, body)?;
         }
     }
+    let hosted: Vec<(ModifierHost, &str)> = construction
+        .modifiers
+        .iter()
+        .map(|item| (item.on, item.timed.modifier.as_str()))
+        .collect();
+    listed_once("a modifier listed once", &hosted, |(_, modifier)| {
+        (*modifier).to_owned()
+    })?;
     for deposit in &construction.deposits {
         check_text("a deposit type", &deposit.kind, Form::Bare)?;
         if !deleted(s, deposit.body)? {
@@ -150,18 +138,9 @@ fn host_edit<'p>(
 
 /// The modifiers the entity `edit` holds has in its `timed_modifier`.
 fn held_modifiers(edit: &Edit) -> Result<Vec<String>, OpError> {
-    Ok(edit
-        .entity()?
-        .find(keys::TIMED_MODIFIER, &edit.buf)
-        .and_then(|block| block.find(keys::ITEMS, &edit.buf))
-        .map(|items| {
-            items
-                .children()
-                .iter()
-                .map(|item| read::text(item, keys::MODIFIER, &edit.buf))
-                .collect()
-        })
-        .unwrap_or_default())
+    Ok(read::timed_items(edit.entity()?, &edit.buf)
+        .map(|item| read::text(item, keys::MODIFIER, &edit.buf))
+        .collect())
 }
 
 /// Write `construction`'s modifiers on the system and its bodies; a body's go before
@@ -177,24 +156,27 @@ pub(crate) fn write_modifiers(
     for (host, items) in by_host(construction) {
         let edit = host_edit(plan, s, system, host)?;
         let held = held_modifiers(edit)?;
-        if let Some(item) = items.iter().find(|item| held.contains(&item.modifier)) {
+        if let Some(item) = items
+            .iter()
+            .find(|item| held.contains(&item.timed.modifier))
+        {
             let on = match host {
                 ModifierHost::System => "the system".to_owned(),
                 ModifierHost::Body { body } => format!("planet {body}"),
             };
-            return Err(OpError::MegastructureRefused {
-                kind: kind.to_owned(),
-                reason: format!("{on} already has modifier {}", item.modifier),
-            });
+            return Err(megastructure_links::refuse(kind)(format!(
+                "{on} already has modifier {}",
+                item.timed.modifier
+            )));
         }
         let adding: Vec<(&str, ItemEdit)> = items
             .iter()
             .map(|item| {
                 let add = ItemEdit::Add {
                     at: End::Last,
-                    days: item.days,
+                    days: item.timed.written_days(),
                 };
-                (item.modifier.as_str(), add)
+                (item.timed.modifier.as_str(), add)
             })
             .collect();
         set_items(edit, timed_place(host), &adding)?;
@@ -235,7 +217,7 @@ pub(crate) fn write_rest(
     if let Some(owner) = owner
         && !construction.variables.is_empty()
     {
-        raise(plan.edit_country(&s.doc, owner)?, &construction.variables)?;
+        variables::raise(plan.edit_country(&s.doc, owner)?, &construction.variables)?;
     }
     Ok(())
 }
@@ -248,62 +230,6 @@ fn list(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
             statement(indent, keys::DEPOSITS, ids)
         }),
     }
-}
-
-/// Raise each of `raises` in the country's `variables`: a held one to its sum, a new one
-/// written before the first name after it.
-fn raise(edit: &mut Edit, raises: &[VariableRaise]) -> Result<(), OpError> {
-    let Some(block) = edit.entity()?.find(keys::VARIABLES, &edit.buf).cloned() else {
-        let mut sorted: Vec<&VariableRaise> = raises.iter().collect();
-        sorted.sort_by(|a, b| a.variable.cmp(&b.variable));
-        let write = |indent: &[u8]| {
-            let mut w = Lines::new(indent);
-            w.open(0, keys::VARIABLES);
-            for raise in &sorted {
-                w.pair(1, &raise.variable, &raise.by.to_string());
-            }
-            w.close(0);
-            inline(indent, &w.into_bytes())
-        };
-        return insert_key(edit, &[], &place::country::VARIABLES, write);
-    };
-    let lines: Vec<(String, Node)> = block
-        .children()
-        .iter()
-        .filter_map(|line| Some((line.key_str(&edit.buf)?.to_owned(), line.clone())))
-        .collect();
-    let mut new: Vec<&VariableRaise> = Vec::new();
-    for raise in raises {
-        match lines.iter().find(|(name, _)| *name == raise.variable) {
-            Some((_, line)) => {
-                let span = line.scalar_span().ok_or_else(|| {
-                    edit.parse_error(line.span().start, "a variable is no number")
-                })?;
-                let held: f64 = edit
-                    .text(span)
-                    .parse()
-                    .map_err(|_| edit.parse_error(span.start, "a variable is no number"))?;
-                edit.replace_span(span, coord(held + f64::from(raise.by)));
-            }
-            None => new.push(raise),
-        }
-    }
-    new.sort_by(|a, b| a.variable.cmp(&b.variable));
-    for raise in new {
-        let text = format!("{}={}", raise.variable, raise.by);
-        match lines.iter().find(|(name, _)| *name > raise.variable) {
-            Some((_, after)) => edit.bytes().insert_before(after.span(), &text),
-            None => match lines.last() {
-                Some((_, last)) => edit.bytes().insert_after(last.span().end, &text),
-                None => {
-                    let (at, indent) = edit.before_close(&block);
-                    let line = [&indent[..], text.as_bytes(), edit.eol(at)].concat();
-                    edit.insert(at, line);
-                }
-            },
-        }
-    }
-    Ok(())
 }
 
 /// Take back what `construction` wrote in `system` and on `owner`, as much of it as is still
@@ -326,11 +252,11 @@ pub(crate) fn take_back(
         let held = held_modifiers(edit)?;
         let going: Vec<&ConstructionModifier> = items
             .into_iter()
-            .filter(|item| held.contains(&item.modifier))
+            .filter(|item| held.contains(&item.timed.modifier))
             .collect();
         let removing: Vec<(&str, ItemEdit)> = going
             .iter()
-            .map(|item| (item.modifier.as_str(), ItemEdit::Remove))
+            .map(|item| (item.timed.modifier.as_str(), ItemEdit::Remove))
             .collect();
         set_items(edit, timed_place(host), &removing)?;
         kept.modifiers.extend(going.into_iter().cloned());
@@ -372,7 +298,7 @@ pub(crate) fn take_back(
     if let Some(owner) = owner
         && !construction.variables.is_empty()
     {
-        kept.variables = lower(plan, s, owner, &construction.variables)?;
+        kept.variables = variables::take_back(plan, s, owner, &construction.variables)?;
     }
     Ok(kept)
 }
@@ -437,93 +363,12 @@ fn held_by(s: &Session, body: u32) -> Result<Vec<u32>, OpError> {
     Ok(held)
 }
 
-/// Lower each of `raises` on country `owner` as far as it was raised, a line going at 0 and
-/// the block with its last line when the file held neither; return what was lowered.
-fn lower(
-    plan: &mut Plan,
+/// The construction the add that wrote row `megastructure` this session gave it, and how
+/// many of its effects it left out, as the document keeps them beside the row.
+pub(crate) fn of_session(
     s: &Session,
-    owner: u32,
-    raises: &[VariableRaise],
-) -> Result<Vec<VariableRaise>, OpError> {
-    let Some(country) = live(&s.doc, SavedTable::Country, owner)? else {
-        return Ok(Vec::new());
-    };
-    let loaded: Option<(Node, &[u8])> = match country.anchor {
-        Anchor::Original(span) => {
-            let src = span.slice(s.doc.original());
-            entity_in(src).ok().flatten().map(|node| (node, src))
-        }
-        Anchor::Inserted { .. } => None,
-    };
-    let loaded_block = loaded
-        .as_ref()
-        .and_then(|(node, src)| Some((node.find(keys::VARIABLES, src)?.clone(), *src)));
-    let had_block = loaded_block.is_some();
-    let had = |name: &str| {
-        loaded_block
-            .as_ref()
-            .is_some_and(|(block, src)| block.find(name, src).is_some())
-    };
-
-    let edit = plan.edit_country(&s.doc, owner)?;
-    let Some(block) = edit.entity()?.find(keys::VARIABLES, &edit.buf).cloned() else {
-        return Ok(Vec::new());
-    };
-    let mut lowered = Vec::new();
-    let mut changes: Vec<(Span, Option<String>)> = Vec::new();
-    for raise in raises {
-        let Some(line) = block.find(&raise.variable, &edit.buf) else {
-            continue;
-        };
-        let Some(span) = line.scalar_span() else {
-            continue;
-        };
-        let Ok(held) = edit.text(span).parse::<f64>() else {
-            continue;
-        };
-        let left = held - f64::from(raise.by);
-        if left < 0.0 {
-            continue;
-        }
-        let change = if left == 0.0 && !had(&raise.variable) {
-            (line.span(), None)
-        } else {
-            (span, Some(coord(left)))
-        };
-        changes.push(change);
-        lowered.push(raise.clone());
-    }
-    let gone = changes.iter().filter(|(_, value)| value.is_none()).count();
-    if gone == block.children().len() && !had_block {
-        edit.bytes().remove_statement(block.span());
-        return Ok(lowered);
-    }
-    for (span, value) in changes {
-        match value {
-            Some(value) => edit.replace_span(span, value),
-            None => edit.bytes().remove_statement(span),
-        }
-    }
-    Ok(lowered)
-}
-
-/// The construction the add that wrote row `megastructure` this session gave it: what the
-/// latest undoable edit, or earlier member of the batch being applied, naming the row's
-/// removal as its inverse carries.
-pub(crate) fn of_session(s: &Session, megastructure: u32) -> Option<MegastructureConstruction> {
-    fn find(op: &Op, megastructure: u32) -> Option<Option<&MegastructureConstruction>> {
-        match op {
-            Op::RemoveMegastructure {
-                megastructure: id,
-                construction,
-            } if *id == megastructure => Some(construction.as_ref()),
-            Op::Batch { ops, .. } => ops.iter().rev().find_map(|op| find(op, megastructure)),
-            _ => None,
-        }
-    }
-    s.applied_inverses()
-        .rev()
-        .find_map(|inverse| find(inverse, megastructure))
-        .flatten()
-        .cloned()
+    megastructure: u32,
+) -> Option<(Option<MegastructureConstruction>, u32)> {
+    let written = s.doc.added().written(megastructure)?;
+    Some((written.construction.clone(), written.left_out))
 }

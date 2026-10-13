@@ -13,7 +13,7 @@ use crate::format;
 use crate::format::save::entity;
 use crate::format::save::write::id_list::{Emptied, append_in, unlist_in};
 use crate::format::save::write::place::{self, insert_key};
-use crate::format::save::write::planet_entry::PlanetEntry;
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
@@ -60,7 +60,10 @@ pub(crate) fn plan_add(
         countries => format!(", found by {}", country_names(countries)),
     };
     Ok(Planned {
-        description: format!("Added anomaly {category} to planet #{id}{found}"),
+        description: format!(
+            "Added anomaly {category} to {}{found}",
+            named_planet(s, id)?
+        ),
         inverse: Op::RemoveAnomaly { body: id },
     })
 }
@@ -86,7 +89,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     }
 
     Ok(Planned {
-        description: format!("Removed anomaly {category} from planet #{id}"),
+        description: format!("Removed anomaly {category} from {}", named_planet(s, id)?),
         inverse: Op::AddAnomaly {
             body: id,
             category,

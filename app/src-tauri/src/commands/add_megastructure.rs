@@ -2,7 +2,10 @@
 //! open save, placed as its type says.
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::ops::{MegastructureConstruction, MegastructurePlace, NewBypass, Op};
+use sgf_core::ops::{
+    MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
+    NewMegastructurePlace, Op,
+};
 use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, SgfError};
 use sgf_gamedata::GameData;
@@ -58,7 +61,9 @@ pub async fn add_megastructure<R: Runtime>(
             .systems
             .get(&system)
             .and_then(|node| node.owner);
-        let site = session.construction_site(system)?;
+        let site = session
+            .save("reading a construction site")?
+            .construction_site(system)?;
         let built = match change {
             Some(_) => def
                 .construction
@@ -143,12 +148,14 @@ fn with_planet_change(
     }
     ops.push(add);
     let class_name = class.map(|class| gd.loc.name_or_readable(class));
-    let description = session.megastructure_planet_change_description(
-        &gd.loc.name_or_readable(kind),
-        body,
-        class_name.as_deref(),
-        size,
-    )?;
+    let description = session
+        .save("adding a megastructure")?
+        .megastructure_planet_change_description(
+            &gd.loc.name_or_readable(kind),
+            body,
+            class_name.as_deref(),
+            size,
+        )?;
     Ok(Op::Batch { description, ops })
 }
 
@@ -187,19 +194,40 @@ fn add_op(
         kind: kind.clone(),
         active: kind == "relay_bypass" || def.activates_gateway,
     });
+    let mut body_flags = Vec::new();
+    if def.sets_has_megastructure {
+        body_flags.push("has_megastructure".to_owned());
+    }
+    if def.ruined_orbital_ring {
+        body_flags.push("ruined_orbital_ring_planet".to_owned());
+    }
+    let star_only = matches!(def.placement, Placement::Body { star_only: true });
+    let at = match place {
+        MegastructurePlace::Body { body } => NewMegastructurePlace::Body {
+            body,
+            body_flags,
+            star_only,
+        },
+        MegastructurePlace::Beside { body, x, y } => NewMegastructurePlace::Beside {
+            body,
+            x,
+            y,
+            body_flags,
+            star_only,
+        },
+        MegastructurePlace::Free { x, y } => NewMegastructurePlace::Free { x, y },
+    };
     Op::AddMegastructure {
         system,
-        kind: def.key.clone(),
-        name: None,
-        at: place,
-        owner,
-        bypass,
-        ruined_orbital_ring: def.ruined_orbital_ring,
-        megastructure_flag: def.sets_has_megastructure,
-        orbital_flag: false,
-        star_only: matches!(def.placement, Placement::Body { star_only: true }),
-        construction: (!construction.is_empty()).then_some(construction),
-        left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
+        spec: NewMegastructure {
+            kind: def.key.clone(),
+            name: None,
+            at,
+            owner,
+            bypass,
+            construction: (!construction.is_empty()).then_some(construction),
+            left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
+        },
     }
 }
 

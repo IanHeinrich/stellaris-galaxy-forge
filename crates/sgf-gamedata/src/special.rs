@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
-use sgf_core::export::policy::is_generic_initializer;
+use sgf_core::export::policy::{Flagged, is_generic_initializer};
 use sgf_core::format::save::details::DetailsProjection;
 use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph, SystemNode, display_name};
 use sgf_core::projections::name::NameTemplate;
@@ -30,6 +30,36 @@ pub enum SpecialKind {
     Contingency,
     HorizonSignal,
     Cutholoid,
+}
+
+/// The `usage` of the initializers an empire starts on: the game's random starts, the
+/// prescripted empires' and the origins'.
+const HOME_START_USAGES: [&str; 3] = ["empire_init", "custom_empire", "origin"];
+/// The `usage` of a fallen empire's initializer.
+const FALLEN_EMPIRE_USAGE: &str = "fallen_empire_init";
+
+/// What a system is by its initializer's `usage` and star flags and by its own star flags,
+/// before the countries the initializer spawns. Prepare's rows and the special-system list
+/// both read it. The system's own flags count as much as the initializer's, though a
+/// scenario's systems carry none today.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InitializerCategory {
+    /// An empire starts on it: by `usage`, or by the home flag a prescripted empire's start
+    /// carries under the ordinary usage.
+    pub home_start: bool,
+    pub fallen_empire: bool,
+    pub flagged: Flagged,
+}
+
+pub fn category(init: Option<&Initializer>, system_flags: &[String]) -> InitializerCategory {
+    let init_flags = init.into_iter().flat_map(|init| &init.flags);
+    let flagged = Flagged::read(init_flags.chain(system_flags).map(String::as_str));
+    let usage = init.and_then(|init| init.usage.as_deref());
+    InitializerCategory {
+        home_start: flagged.home || usage.is_some_and(|usage| HOME_START_USAGES.contains(&usage)),
+        fallen_empire: usage == Some(FALLEN_EMPIRE_USAGE),
+        flagged,
+    }
 }
 
 /// Precedence: a system's primary kind is the first of these it matches. A holy world comes
@@ -299,9 +329,7 @@ fn enrich<'a>(node: &SystemNode, gd: Option<&'a GameData>) -> Enrichment<'a> {
             .iter()
             .filter_map(country_type)
             .any(|t| t.is_enclave),
-        fallen_empire: chain
-            .iter()
-            .any(|i| i.usage.as_deref() == Some("fallen_empire_init"))
+        fallen_empire: chain.iter().any(|i| category(Some(i), &[]).fallen_empire)
             || countries
                 .iter()
                 .filter_map(country_type)
@@ -416,12 +444,14 @@ const HOLY_SYSTEM_PREFIX: &str = "holy_system_";
 
 fn matches(node: &SystemNode, extra: &Enrichment<'_>, kind: SpecialKind) -> bool {
     let has = |flag: &str| node.flags.iter().any(|f| f == flag);
+    // The save's flags alone: they are ground truth, and game data only adds to them.
+    let flagged = category(None, &node.flags).flagged;
     match kind {
-        SpecialKind::Leviathan => has("guardian") || extra.leviathan,
-        SpecialKind::Enclave => has("enclave") || extra.enclave,
-        SpecialKind::Marauder => has("marauder_system"),
+        SpecialKind::Leviathan => flagged.guardian || extra.leviathan,
+        SpecialKind::Enclave => flagged.enclave || extra.enclave,
+        SpecialKind::Marauder => flagged.marauder,
         SpecialKind::FallenEmpire => node.initializer.starts_with("fallen_") || extra.fallen_empire,
-        SpecialKind::Landmark => has("galactic_landmark_system"),
+        SpecialKind::Landmark => flagged.landmark,
         SpecialKind::HolyWorld => node.flags.iter().any(|f| f.starts_with(HOLY_SYSTEM_PREFIX)),
         SpecialKind::Contingency => has("AI_hub"),
         SpecialKind::HorizonSignal => has("horizonsignal_spawn"),

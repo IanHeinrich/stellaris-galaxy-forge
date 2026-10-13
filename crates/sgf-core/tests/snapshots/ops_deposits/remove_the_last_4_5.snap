@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed d_minerals_6 (#16777696) from planet #1129
+Removed d_minerals_6 (#16777696) from Grekil IV #1129
 touched: [59]
 inverse: AddDeposit { body: 1129, kind: "d_minerals_6" }
 … and 3 other issues

@@ -1,7 +1,8 @@
 //! The examples of the ops on stars, bodies, empires, belts and wormholes, and the batch.
 use sgf_core::ops::{
-    ClassChange, EmpireFlag, MapColorPair, MegastructurePlace, NebulaFootprint, NewBypass, NewName,
-    Op, Parent, PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemHeight,
+    ClassChange, EmpireFlag, MapColorPair, MegastructurePlace, NebulaFootprint, NewBypass,
+    NewMegastructure, NewName, Op, Parent, PlanetClassRule, SavedEntity, SavedTable, StarBody,
+    SystemHeight,
 };
 use sgf_core::projections::galaxy::LGateOutcome;
 
@@ -210,24 +211,20 @@ pub(super) fn examples() -> Vec<Example> {
         Example::save(Op::RemoveDigSite { site: 0 }),
         Example::save_4_5(Op::AddMegastructure {
             system: 1,
-            kind: "gateway_final".to_owned(),
-            name: None,
-            at: MegastructurePlace::Free { x: 0.0, y: -260.0 },
-            owner: None,
-            bypass: Some(NewBypass {
-                kind: "gateway".to_owned(),
-                active: true,
-            }),
-            ruined_orbital_ring: false,
-            megastructure_flag: false,
-            orbital_flag: false,
-            star_only: false,
-            construction: None,
-            left_out: 0,
+            spec: NewMegastructure {
+                kind: "gateway_final".to_owned(),
+                at: MegastructurePlace::Free { x: 0.0, y: -260.0 }.into(),
+                bypass: Some(NewBypass {
+                    kind: "gateway".to_owned(),
+                    active: true,
+                }),
+                ..NewMegastructure::default()
+            },
         }),
         Example::added_megastructure(Op::RemoveMegastructure {
             megastructure: ADDED_MEGASTRUCTURE,
             construction: None,
+            left_out: 0,
         }),
         Example::save_4_5(Op::MoveMegastructure {
             megastructure: 4,

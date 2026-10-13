@@ -1,9 +1,9 @@
 //! Moving a save's natural wormhole about its system's star, on the 4.x samples: the diff,
 //! byte-exact undo, what the details read back, and what is refused.
 
-use sgf_core::format::save::details::WormholeSummary;
 use sgf_core::ops::Op;
 use sgf_core::session::Session;
+use sgf_core::views::details::WormholeSummary;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};

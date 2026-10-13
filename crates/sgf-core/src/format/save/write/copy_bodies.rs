@@ -5,23 +5,23 @@
 
 use crate::cst::Node;
 use crate::format::save::read_spec::belts;
-use crate::format::save::write::add_body::{placement, spec_of};
-use crate::format::save::write::bodies::{Stored, frame};
+use crate::format::save::write::add_body::{moon_spec_of, spec_of};
+use crate::format::save::write::bodies::frame;
+use crate::format::save::write::megastructure_links;
 use crate::format::save::write::move_planet::normalised_set;
-use crate::format::save::write::planet_entry::{is_star, role};
+use crate::format::save::write::planet_entry::body_is_star;
 use crate::format::save::write::remove_planet::{check_planet, check_segment_stays};
-use crate::format::save::{check_version, planet_entity, planet_system};
-use crate::keys;
+use crate::format::save::write::shared::placement;
+use crate::format::save::{planet_entity, planet_system};
 use crate::ops::rules::named;
 use crate::ops::{NewBody, NewMoon, Op, OpError, StarEdit};
 use crate::projections::geometry::system_reach;
 use crate::session::Session;
-use crate::views::{DocumentKind, OrbitPlacement};
+use crate::views::OrbitPlacement;
 
 /// The bodies of `bodies` as specs, each planet with its moons: see
 /// [`Session::copy_bodies`].
 pub(crate) fn copy(s: &Session, bodies: &[u32]) -> Result<Vec<NewBody>, OpError> {
-    supported(s, "copying planets")?;
     let bodies = normalised_set(s, bodies);
     if bodies.is_empty() {
         return Err(OpError::NoEntries);
@@ -33,7 +33,7 @@ fn copy_one(s: &Session, body: u32) -> Result<NewBody, OpError> {
     let (node, src) = planet_entity(&s.doc, body)?;
     let system = planet_system(&node, src, body)?;
     let stored = frame(s, system)?;
-    if star(s, &stored, body)? {
+    if body_is_star(s, &stored, body)? {
         return Err(OpError::StarRefused {
             body,
             edit: StarEdit::Copy,
@@ -49,7 +49,7 @@ fn copy_one(s: &Session, body: u32) -> Result<NewBody, OpError> {
         let (node, src) = planet_entity(&s.doc, id)?;
         copyable(s, id, &node, src)?;
         spec.moons.push(NewMoon {
-            spec: spec_of(&s.doc, &node, src, None),
+            spec: moon_spec_of(&s.doc, &node, src),
             at: placement(&stored, &moon.body, Some(body)),
         });
     }
@@ -63,7 +63,6 @@ pub(crate) fn paste_op(
     copies: &[NewBody],
     at: Option<OrbitPlacement>,
 ) -> Result<Op, OpError> {
-    supported(s, "AddBody")?;
     if copies.is_empty() {
         return Err(OpError::NoEntries);
     }
@@ -117,31 +116,13 @@ fn outer_reach(s: &Session, system: u32) -> Result<f64, OpError> {
     Ok(system_reach(&bodies, &belt_radii))
 }
 
-/// Refuse `op` on a document other than a save, and on a save before Stellaris 4.0.
-fn supported(s: &Session, op: &'static str) -> Result<(), OpError> {
-    match s.kind() {
-        DocumentKind::Save => check_version(&s.doc),
-        kind => Err(OpError::Unsupported { op, kind }),
-    }
-}
-
-/// Whether body `id` is a star: the system's primary or a body of a star's class.
-fn star(s: &Session, stored: &[Stored], id: u32) -> Result<bool, OpError> {
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let primary = stored.first().is_some_and(|b| b.body.id == id);
-    Ok(is_star(role(&node, src, primary, s.star_classes())))
-}
-
 /// Refuse a body a copy leaves out: a ring world segment, a megastructure on or around it,
 /// and a habitat, whose flags name the megastructure it is.
 fn copyable(s: &Session, body: u32, node: &Node, src: &[u8]) -> Result<(), OpError> {
     check_segment_stays(node, src, body)?;
     check_planet(s, body, node, src, |_| OpError::MegastructurePlanet(body))?;
-    let built = node
-        .find(keys::FLAGS, src)
-        .and_then(|flags| flags.find(keys::MEGASTRUCTURE, src));
-    match built {
-        Some(_) => Err(OpError::MegastructurePlanet(body)),
-        None => Ok(()),
+    match megastructure_links::made(node, src) {
+        true => Err(OpError::MegastructurePlanet(body)),
+        false => Ok(()),
     }
 }

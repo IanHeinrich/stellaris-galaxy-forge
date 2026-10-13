@@ -3,11 +3,11 @@
 
 use crate::common;
 
-use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
-    ModifierHost, VariableDrop, VariableRaise,
+    ModifierHost, TimedModifier, VariableStep,
 };
+use sgf_core::views::details::{ConstructionSite, SiteBody};
 use sgf_gamedata::registries::megastructures::{Linked, Placement};
 
 /// What each vanilla type's dismantle takes back, followed through the scripted effects it
@@ -27,7 +27,7 @@ fn the_install_says_what_a_dismantle_takes_back() {
             .clone()
     };
     let lowers = |variable: &str| {
-        vec![VariableDrop {
+        vec![VariableStep {
             variable: variable.to_owned(),
             by: 1,
         }]
@@ -90,7 +90,7 @@ fn a_dismantle_follows_the_parameters_it_passes() {
         MegastructureDismantle {
             modifiers: vec!["mod_furnace_2_mod".to_owned()],
             deposits: vec!["d_mod_furnace_2".to_owned()],
-            variables: vec![VariableDrop {
+            variables: vec![VariableStep {
                 variable: "mod_furnaces".to_owned(),
                 by: 2,
             }],
@@ -154,8 +154,10 @@ fn the_installs_construction_is_replayed_on_a_system() {
             .into_iter()
             .map(|body| ConstructionModifier {
                 on: ModifierHost::Body { body },
-                modifier: format!("orbital_arc_furnace_{stage}_mod"),
-                days: -1,
+                timed: TimedModifier {
+                    modifier: format!("orbital_arc_furnace_{stage}_mod"),
+                    days: None,
+                },
             })
             .collect(),
         deposits: [6141, 6146]
@@ -165,7 +167,7 @@ fn the_installs_construction_is_replayed_on_a_system() {
                 kind: format!("d_arc_furnace_{stage}"),
             })
             .collect(),
-        variables: vec![VariableRaise {
+        variables: vec![VariableStep {
             variable: "arc_furnace_counter".to_owned(),
             by: 1,
         }],
@@ -177,11 +179,13 @@ fn the_installs_construction_is_replayed_on_a_system() {
         MegastructureConstruction {
             modifiers: vec![ConstructionModifier {
                 on: ModifierHost::Body { body: 6138 },
-                modifier: "dyson_swarm_3_mod".to_owned(),
-                days: -1,
+                timed: TimedModifier {
+                    modifier: "dyson_swarm_3_mod".to_owned(),
+                    days: None,
+                },
             }],
             deposits: Vec::new(),
-            variables: vec![VariableRaise {
+            variables: vec![VariableStep {
                 variable: "dyson_swarm_counter".to_owned(),
                 by: 1,
             }],
@@ -192,8 +196,10 @@ fn the_installs_construction_is_replayed_on_a_system() {
         MegastructureConstruction {
             modifiers: vec![ConstructionModifier {
                 on: ModifierHost::System,
-                modifier: "shroud_seal_modifier".to_owned(),
-                days: -1,
+                timed: TimedModifier {
+                    modifier: "shroud_seal_modifier".to_owned(),
+                    days: None,
+                },
             }],
             ..MegastructureConstruction::default()
         }
@@ -295,8 +301,10 @@ country_event = {
         MegastructureConstruction {
             modifiers: vec![ConstructionModifier {
                 on: ModifierHost::Body { body: 11 },
-                modifier: "mod_forge_3_mod".to_owned(),
-                days: 360,
+                timed: TimedModifier {
+                    modifier: "mod_forge_3_mod".to_owned(),
+                    days: Some(360),
+                },
             }],
             deposits: vec![
                 ConstructionDeposit {
@@ -312,7 +320,7 @@ country_event = {
                     kind: "d_mod_owned".to_owned(),
                 },
             ],
-            variables: vec![VariableRaise {
+            variables: vec![VariableStep {
                 variable: "mod_forges".to_owned(),
                 by: 2,
             }],
@@ -339,6 +347,7 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
 		fromfrom.planet = {
 			remove_modifier = mod_old
 			remove_deposit = d_old
+			add_modifier = { modifier = mod_odd days = -2 }
 		}
 		fire_on_action = { on_action = on_mod_drain }
 		from = { fire_on_action = { on_action = on_mod_drain } }
@@ -370,6 +379,7 @@ fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
         assert_eq!(
             built.unwritten,
             [
+                "adds modifier mod_odd to planet 11 for -2 days, which Galaxy Forge does not write",
                 "removes modifier mod_old from planet 11",
                 "removes deposit d_old from planet 11"
             ]
@@ -415,5 +425,147 @@ fn a_ruin_a_scripted_effect_spawns_takes_its_working_types_placement() {
     assert_eq!(
         ruin.family.clone().map(|f| (f.working, f.linked)),
         Some(("mod_beacon_1".to_owned(), Linked::Files))
+    );
+}
+
+/// A scripted effect's `[[PARAM] … ]` block runs only when its call passes the parameter,
+/// and its `[[!PARAM] … ]` block only when the call does not, in a construction and in a
+/// dismantle alike, its closing bracket on a line of its own or at the end of a value.
+#[test]
+fn a_parameter_block_runs_only_on_the_arm_its_call_takes() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_furnace = {
+	on_build_complete = {
+		fromfrom.planet = { mod_mark = { HOT = yes } }
+	}
+	on_dismantle_complete = {
+		every_system_planet = { mod_unmark = { HOT = yes } }
+	}
+}
+",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_mark = {
+	[[HOT]
+	add_deposit = d_mod_hot
+	]
+	[[!HOT]
+	add_deposit = d_mod_cold
+	]
+	[[HOT] add_deposit = d_mod_glued]
+	[[!HOT] add_deposit = d_mod_wrong]
+}
+mod_unmark = {
+	[[HOT]
+	remove_deposit = d_mod_hot
+	]
+	[[!HOT]
+	remove_deposit = d_mod_cold
+	]
+}
+",
+        ),
+    ]);
+    let furnace = gd.megastructures.get("mod_furnace").expect("mod_furnace");
+    let site = ConstructionSite {
+        system: 1,
+        bodies: vec![body(11, "pc_molten", &[])],
+        ..ConstructionSite::default()
+    };
+    let built = furnace.construction.replay(&gd, &site, Some(11), true);
+    assert_eq!(
+        built.construction.deposits,
+        [
+            ConstructionDeposit {
+                body: 11,
+                kind: "d_mod_hot".to_owned(),
+            },
+            ConstructionDeposit {
+                body: 11,
+                kind: "d_mod_glued".to_owned(),
+            }
+        ]
+    );
+    assert_eq!(furnace.dismantle.deposits, ["d_mod_hot"]);
+}
+
+/// A parameter written `$NAME|default$` takes the value its call passes, and its default
+/// when the call passes none, in a construction and in a dismantle alike.
+#[test]
+fn a_parameter_left_out_takes_its_default() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_forge = {
+	on_build_complete = {
+		fromfrom.planet = { mod_mark = { LEVEL = 3 } }
+		from = { mod_count = yes }
+	}
+	on_dismantle_complete = {
+		every_system_planet = { mod_unmark = yes }
+		from = { mod_uncount = yes }
+	}
+}
+",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_mark = {
+	add_modifier = { modifier = mod_forge_$LEVEL|1$_mod days = 360 }
+	add_deposit = d_mod_$KIND|plain$
+}
+mod_unmark = {
+	remove_modifier = mod_forge_$LEVEL|1$_mod
+}
+mod_count = {
+	change_variable = { which = mod_forges value = $COUNT|2$ }
+}
+mod_uncount = {
+	subtract_variable = { which = mod_forges value = $COUNT|2$ }
+}
+",
+        ),
+    ]);
+    let forge = gd.megastructures.get("mod_forge").expect("mod_forge");
+    let site = ConstructionSite {
+        system: 1,
+        bodies: vec![body(11, "pc_molten", &[])],
+        ..ConstructionSite::default()
+    };
+    let built = forge.construction.replay(&gd, &site, Some(11), true);
+    assert_eq!(
+        built.construction,
+        MegastructureConstruction {
+            modifiers: vec![ConstructionModifier {
+                on: ModifierHost::Body { body: 11 },
+                timed: TimedModifier {
+                    modifier: "mod_forge_3_mod".to_owned(),
+                    days: Some(360),
+                },
+            }],
+            deposits: vec![ConstructionDeposit {
+                body: 11,
+                kind: "d_mod_plain".to_owned(),
+            }],
+            variables: vec![VariableStep {
+                variable: "mod_forges".to_owned(),
+                by: 2,
+            }],
+        }
+    );
+    assert!(built.unsure.is_empty(), "{:?}", built.unsure);
+    assert_eq!(
+        forge.dismantle,
+        MegastructureDismantle {
+            modifiers: vec!["mod_forge_1_mod".to_owned()],
+            deposits: Vec::new(),
+            variables: vec![VariableStep {
+                variable: "mod_forges".to_owned(),
+                by: 2,
+            }],
+        }
     );
 }

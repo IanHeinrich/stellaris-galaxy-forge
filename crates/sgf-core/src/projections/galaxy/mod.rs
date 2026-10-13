@@ -240,20 +240,26 @@ impl Galaxy {
         self.waylines = waylines;
     }
 
+    /// Each system's neighbours over hyperlanes, both ways round; a system with none maps to
+    /// an empty list.
+    pub fn lane_adjacency(&self) -> HashMap<u32, Vec<u32>> {
+        let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::with_capacity(self.systems.len());
+        for system in self.systems.values() {
+            adjacent.entry(system.id).or_default();
+            for lane in &system.lanes {
+                if self.systems.contains_key(&lane.to) {
+                    adjacent.entry(system.id).or_default().push(lane.to);
+                    adjacent.entry(lane.to).or_default().push(system.id);
+                }
+            }
+        }
+        adjacent
+    }
+
     /// `from` and every system within `jumps` hyperlanes of it. A wormhole, a gateway or an
     /// L-Gate is not a jump.
     pub fn within_jumps(&self, from: &BTreeSet<u32>, jumps: usize) -> BTreeSet<u32> {
-        let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::new();
-        for system in self.systems.values() {
-            for lane in system
-                .lanes
-                .iter()
-                .filter(|l| self.systems.contains_key(&l.to))
-            {
-                adjacent.entry(system.id).or_default().push(lane.to);
-                adjacent.entry(lane.to).or_default().push(system.id);
-            }
-        }
+        let adjacent = self.lane_adjacency();
         let mut reached = from.clone();
         let mut frontier: Vec<u32> = from.iter().copied().collect();
         for _ in 0..jumps {
@@ -271,22 +277,23 @@ impl Galaxy {
     }
 
     /// Connected components over lanes and wormholes (undirected); each sorted by id,
-    /// largest first.
+    /// largest first, and the one holding the lowest id first among equals.
     pub fn components(&self) -> Vec<Vec<u32>> {
-        let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::with_capacity(self.systems.len());
-        for system in self.systems.values() {
-            adjacent.entry(system.id).or_default();
-            for lane in &system.lanes {
-                if self.systems.contains_key(&lane.to) {
-                    adjacent.entry(system.id).or_default().push(lane.to);
-                    adjacent.entry(lane.to).or_default().push(system.id);
-                }
-            }
-        }
+        self.components_over(true)
+    }
+
+    /// [`Self::components`] over hyperlanes alone.
+    pub fn lane_components(&self) -> Vec<Vec<u32>> {
+        self.components_over(false)
+    }
+
+    fn components_over(&self, wormholes: bool) -> Vec<Vec<u32>> {
+        let mut adjacent = self.lane_adjacency();
         // A wormhole names both its ends and works from the start; a gateway or an L-Gate
         // reaches anywhere only once it is open, so neither is an edge here.
         for link in &self.bypasses {
             if let BypassLink::Wormhole { a, b } = *link
+                && wormholes
                 && self.systems.contains_key(&a)
                 && self.systems.contains_key(&b)
             {

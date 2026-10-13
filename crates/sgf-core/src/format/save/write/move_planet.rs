@@ -11,15 +11,16 @@ use crate::emit::coord;
 use crate::emit::system::MOON_FLAG;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
-use crate::format::save::write::bodies::{frame_bodies, grow};
+use crate::format::save::write::bodies::{Stored, frame, frame_bodies, grow};
 use crate::format::save::write::fleets::{move_fleet, stationed};
 use crate::format::save::write::id_list::{Emptied, append, list_planets, unlist, unlist_planets};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place;
-use crate::format::save::write::planet_entry::{self, role};
-use crate::format::save::write::planet_entry::{and_its_moons, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::write::planet_entry::{
+    and_its_moons, body_is_star, named_planet_as, set_flag, set_moon_of, unlist_moon,
+};
 use crate::format::save::write::remove_planet::check_segment_stays;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::named;
@@ -30,8 +31,8 @@ use crate::projections::geometry::{
 use crate::projections::read;
 use crate::session::Session;
 use crate::views::{
-    DocumentKind, OrbitPlacement, PlanetMoveCheck, PlanetMoveTarget, PlanetMoveTargets,
-    PlanetMoveWarning, PlanetMoveWarningKind, PlanetRefusal,
+    OrbitPlacement, PlanetMoveCheck, PlanetMoveTarget, PlanetMoveTargets, PlanetMoveWarning,
+    PlanetMoveWarningKind, PlanetRefusal,
 };
 
 /// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
@@ -164,7 +165,8 @@ pub(crate) fn plan_move(
         ("planet", "")
     };
     let description = format!(
-        "Moved {label} #{planet}{carrying}{stationed} from {} to {}{becomes}, at orbit {}",
+        "Moved {}{carrying}{stationed} from {} to {}{becomes}, at orbit {}",
+        named_planet_as(&s.doc, label, planet)?,
         named(&s.graph, from),
         named(&s.graph, to),
         coord(orbit)
@@ -191,9 +193,7 @@ pub(crate) fn targets(s: &Session, planets: &[u32]) -> PlanetMoveTargets {
     let mut sources = Vec::new();
     let mut claims = Vec::new();
     for &planet in &planets {
-        let checked = supported(s)
-            .and_then(|()| origin(s, planet))
-            .and_then(|from| Ok((from, leaving(s, planet, from)?)));
+        let checked = origin(s, planet).and_then(|from| Ok((from, leaving(s, planet, from)?)));
         match checked {
             Ok((from, leaving)) => {
                 sources.push(from);
@@ -359,18 +359,6 @@ fn parents(s: &Session, planet: u32) -> Vec<u32> {
     chain
 }
 
-/// Refuse what the save format refuses the op for: a document other than a save, or a save
-/// it cannot write whole entries into.
-fn supported(s: &Session) -> Result<(), OpError> {
-    match s.kind() {
-        DocumentKind::Save => check_version(&s.doc),
-        kind => Err(OpError::Unsupported {
-            op: "MoveBodyToSystem",
-            kind,
-        }),
-    }
-}
-
 /// The system planet `planet` stands in.
 fn origin(s: &Session, planet: u32) -> Result<u32, OpError> {
     let (node, src) = planet_entity(&s.doc, planet)?;
@@ -394,7 +382,8 @@ struct Leaving {
 
 /// Check that `planet` may leave system `from`, wherever it goes.
 fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
-    let source = frame_bodies(s, from)?;
+    let stored = frame(s, from)?;
+    let source: Vec<Body> = stored.iter().map(|b| b.body).collect();
     let body = *source
         .iter()
         .find(|b| b.id == planet)
@@ -403,7 +392,7 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
             system: from,
         })?;
     let moons = descendants(&source, planet);
-    let moon = check_movable(s, &source, &body, &moons)?;
+    let moon = check_movable(s, &stored, &body, &moons)?;
     let moved: Vec<u32> = std::iter::once(planet)
         .chain(moons.iter().copied())
         .collect();
@@ -455,9 +444,14 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
 /// Refuse a star: the system's primary, a body of a star's class, or a body others orbit
 /// without the moon bit. Returns whether the body is a moon: it orbits a planet, or holds
 /// the moon bit and orbits a body the save has lost.
-fn check_movable(s: &Session, frame: &[Body], body: &Body, moons: &[u32]) -> Result<bool, OpError> {
+fn check_movable(
+    s: &Session,
+    stored: &[Stored],
+    body: &Body,
+    moons: &[u32],
+) -> Result<bool, OpError> {
     let (node, src) = planet_entity(&s.doc, body.id)?;
-    if is_star(s, frame, body.id, &node, src) {
+    if body_is_star(s, stored, body.id)? {
         return Err(OpError::StarRefused {
             body: body.id,
             edit: StarEdit::Move,
@@ -465,7 +459,7 @@ fn check_movable(s: &Session, frame: &[Body], body: &Body, moons: &[u32]) -> Res
     }
     let moon = match body.parent.map(|p| (p, planet_entity(&s.doc, p))) {
         None => false,
-        Some((parent, Ok((node, src)))) => !is_star(s, frame, parent, &node, src),
+        Some((parent, Ok(_))) => !body_is_star(s, stored, parent)?,
         Some((_, Err(_))) => {
             read::scalar_u32(&node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0)
         }
@@ -497,11 +491,4 @@ fn check_controller(node: &Node, src: &[u8], planet: u32) -> Result<(), OpError>
         }),
         _ => Ok(()),
     }
-}
-
-/// Whether body `id` of `frame`, whose entity is `node`, is a star: the system's primary
-/// or a body of a star's class.
-fn is_star(s: &Session, frame: &[Body], id: u32, node: &Node, src: &[u8]) -> bool {
-    let primary = frame.first().is_some_and(|b| b.id == id);
-    planet_entry::is_star(role(node, src, primary, s.star_classes()))
 }

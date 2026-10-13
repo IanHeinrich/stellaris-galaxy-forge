@@ -10,10 +10,13 @@ use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::fleets::{move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::write::planet_entry::{
+    body_is_star, list_moon, named_planet, named_planet_as, set_flag, set_moon_of, unlist_moon,
+};
 use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
+use crate::number;
 use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Parent, ParseAt, Plan, Planned};
@@ -29,8 +32,6 @@ pub(crate) struct Stored {
     /// It holds the moon bit of `binary_flags`: a planet orbiting a star names it as
     /// `moon_of` without the bit.
     pub(crate) moon: bool,
-    /// Its planet class.
-    class: String,
     orbit: String,
     x: String,
     y: String,
@@ -66,10 +67,11 @@ pub(crate) fn plan_move(
     let (from, inverse) = where_it_was(&before, &old);
     let label = label_of(&stored, body);
     let description = format!(
-        "Moved {label} #{body} from {from} to orbit {} at {}°{}",
+        "Moved {} from {from} to orbit {} at {}°{}",
+        named_planet_as(&s.doc, label, body)?,
         number(radius),
         number(normalised(angle)),
-        carrying(&before, body, label),
+        carrying(s, &before, body, label)?,
     );
     let inverse = Op::MoveBody {
         system,
@@ -93,7 +95,13 @@ pub(crate) fn plan_parent(
     let stored = frame_of(s, system, body, radius, angle)?;
     let parent = parent.body();
     let primary = listed(&s.doc, system)?.first().copied();
-    let star = parent.is_some_and(|p| Some(p) != primary && is_star(s, &stored, p));
+    // A body orbiting the primary is a planet, so the primary is no star parent here.
+    let star = match parent {
+        Some(p) if Some(p) != primary => {
+            stored.iter().any(|b| b.body.id == p) && body_is_star(s, &stored, p)?
+        }
+        _ => false,
+    };
     let before: Vec<Body> = stored.iter().map(|b| b.body).collect();
     let is_moon = |id| stored.iter().any(|b| b.body.id == id && b.moon);
     check_parent(&before, system, body, parent, star, is_moon)?;
@@ -113,15 +121,16 @@ pub(crate) fn plan_parent(
 
     let kind = kind_of(&stored, body);
     let becomes = match parent {
-        Some(parent) if star => format!("a planet of star #{parent}"),
-        Some(parent) => format!("a moon of planet #{parent}"),
+        Some(parent) if star => format!("a planet of {}", named_planet_as(&s.doc, "star", parent)?),
+        Some(parent) => format!("a moon of {}", named_planet(s, parent)?),
         None if kind == "moon" => "a planet".to_owned(),
         None => "a planet of the system's centre".to_owned(),
     };
     let label = label_of(&stored, body);
     let description = format!(
-        "Made {label} #{body} {becomes}{}",
-        carrying(&before, body, label)
+        "Made {} {becomes}{}",
+        named_planet_as(&s.doc, label, body)?,
+        carrying(s, &before, body, label)?
     );
     let (_, (radius, angle)) = where_it_was(&before, &old);
     // A moon of a missing planet, or a planet of the star at the centre, gets that body back
@@ -192,18 +201,10 @@ fn stored(node: &Node, src: &[u8], id: u32) -> Result<Stored, OpError> {
             orbit,
         },
         moon: read::scalar_u32(node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0),
-        class: read::text(node, keys::PLANET_CLASS, src),
         orbit: read::text(node, keys::ORBIT, src),
         x: axis(keys::X),
         y: axis(keys::Y),
     })
-}
-
-/// Whether body `id` is of a star's class, as the session's install says, without the moon bit.
-fn is_star(s: &Session, stored: &[Stored], id: u32) -> bool {
-    stored
-        .iter()
-        .any(|b| b.body.id == id && !b.moon && s.star_classes().is_star_body(&b.class))
 }
 
 /// "moon" for a body holding the moon bit, else "planet".
@@ -317,23 +318,28 @@ fn where_it_was(bodies: &[Body], body: &Body) -> (String, (f64, f64)) {
     (text, (radius, angle))
 }
 
-/// ", with its moon #586", or for a star ", with #328 and #329", naming every body under
-/// `id` labelled `label`, or nothing when there is none.
-fn carrying(bodies: &[Body], id: u32, label: &str) -> String {
-    let under: Vec<String> = descendants(bodies, id)
-        .into_iter()
-        .map(|m| format!("#{m}"))
-        .collect();
+/// ", with its moon Lachium I a #586", or for a star ", with Lachium I #328 and Lachium II
+/// #329", naming every body under `id` labelled `label` by name and id, or by id alone when
+/// it has no name to show; nothing when there is none.
+fn carrying(s: &Session, bodies: &[Body], id: u32, label: &str) -> Result<String, OpError> {
+    let mut under = Vec::new();
+    for m in descendants(bodies, id) {
+        let (node, src) = planet_entity(&s.doc, m)?;
+        under.push(match read::name(&node, src).shown() {
+            shown if shown.is_empty() => format!("#{m}"),
+            shown => format!("{shown} #{m}"),
+        });
+    }
     let with = match (label, under.len()) {
         ("star", _) => ", with",
         (_, 1) => ", with its moon",
         _ => ", with its moons",
     };
-    match under.as_slice() {
+    Ok(match under.as_slice() {
         [] => String::new(),
         [one] => format!("{with} {one}"),
         [rest @ .., last] => format!("{with} {} and {last}", rest.join(", ")),
-    }
+    })
 }
 
 /// Grow the system's `inner_radius` when something the op puts `reach` from the centre lies
@@ -429,11 +435,4 @@ fn grow_by(
         },
         description,
     })
-}
-
-/// A radius or an angle as a description names it: up to two decimals.
-pub(crate) fn number(v: f64) -> String {
-    let text = format!("{v:.2}");
-    let text = text.trim_end_matches('0').trim_end_matches('.');
-    if text == "-0" { "0" } else { text }.to_owned()
 }

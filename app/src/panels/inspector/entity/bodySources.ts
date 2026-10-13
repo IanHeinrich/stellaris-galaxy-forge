@@ -195,6 +195,7 @@ function pageBody(
     parent,
     layout: null,
     ring: null,
+    drawn: false,
   };
 }
 

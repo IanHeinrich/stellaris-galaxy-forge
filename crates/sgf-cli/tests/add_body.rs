@@ -31,8 +31,8 @@ fn add_body_rolls_a_body_from_a_seed_and_writes_it() {
     }
     ok(&moon);
     let text = stdout(&moon);
-    assert!(text.contains("Added moon #"), "{text}");
-    assert!(text.contains("of planet #138 in Meissa #408"), "{text}");
+    assert!(text.contains("Added moon Meissa IV a #"), "{text}");
+    assert!(text.contains("of Meissa IV #138 in Meissa #408"), "{text}");
     assert!(text.contains("(pc_desert, size 8)"), "{text}");
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }

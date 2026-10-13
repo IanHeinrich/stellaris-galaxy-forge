@@ -169,4 +169,10 @@ base_game: boolean,
  * For a ruined, restored, destroyed or derelict variant, the working type it belongs
  * to, as the files or their keys link them.
  */
-variant_of: string | null, };
+variant_of: string | null, 
+/**
+ * A stage, row or variant of a ring world's chain, its site included: a chain one of
+ * whose stages spawns rows round the system that a stage built over them turns into
+ * ring world segments.
+ */
+ring_world: boolean, };

@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #528 and its moon, with a colony
+Deleted planet Boibos I #528 and its moon, with a colony
 details stale: [177]
-inverse: Restored planet #528 and its moon
+inverse: Restored planet Boibos I #528 and its moon
 
   System: 177
   Planet: 528 529

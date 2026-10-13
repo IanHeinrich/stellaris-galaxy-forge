@@ -14,8 +14,8 @@ use image::RgbaImage;
 use tempfile::TempDir;
 
 use sgf_core::document::Document;
-use sgf_core::format::save::details::Bounds;
 use sgf_core::session::Session;
+use sgf_core::views::details::Bounds;
 use sgf_gamedata::install::discovery::find_install;
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 

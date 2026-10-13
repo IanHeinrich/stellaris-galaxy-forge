@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved planet #936 from orbit 125.07 at 67.64° to orbit 140 at 45°
+Moved planet Sargas II #936 from orbit 125.07 at 67.64° to orbit 140 at 45°
 inverse: MoveBody { system: 38, body: 936, radius: 125.07155813, angle: 67.638303952 }
 
 --- gamestate

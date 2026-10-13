@@ -49,11 +49,11 @@ pub mod textures;
 pub mod views;
 pub(crate) mod weight;
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
-use install::script::{ParsedDir, Variables};
+use install::script::{Def, ParsedDir, Variables};
 use install::{discovery, mods, script};
 use layouts::Eligibility;
 use registries::galaxy_sizes::GalaxySizes;
@@ -177,6 +177,16 @@ pub struct GameData {
     flat_art: Arc<OnceLock<BTreeSet<String>>>,
     /// The planet classes drawn broken apart, worked out once for this layout.
     shattered: Arc<OnceLock<BTreeSet<String>>>,
+    /// What the `gfx/worldgfx` files say each star lighting class draws with, read the first
+    /// time a star disc asks.
+    worlds: Arc<OnceLock<textures::Worlds>>,
+    /// `common/planet_classes` as read, before [`GameData::derive`] marks them.
+    read_classes: Arc<PlanetClasses>,
+    /// `common/megastructures` as parsed, which [`GameData::derive`] reads the types from.
+    megastructure_defs: Arc<BTreeMap<String, Def>>,
+    /// The megastructure types the game's own files define, those a mod's file replaced
+    /// included.
+    vanilla_megastructures: Arc<BTreeSet<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -367,16 +377,9 @@ impl GameData {
             &mut diagnostics,
         );
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
-        let megastructure_defs =
-            script::parse_dir(&layout, MegastructureDef::DIR, &vars, &mut diagnostics);
-        let megastructures = megastructure_offers::offered(
-            megastructures::placed(
-                megastructures::load(&megastructure_defs, &scripts, &scripted_triggers, &layout),
-                &scripts,
-                &planet_classes,
-            ),
-            &scripted_triggers,
-        );
+        let megastructure_dir = ParsedDir::load(&layout, MegastructureDef::DIR, &mut diagnostics);
+        let vanilla_megastructures = megastructure_dir.vanilla_keys(&layout);
+        let megastructure_defs = megastructure_dir.into_defs(&vars, &mut diagnostics);
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
@@ -388,15 +391,13 @@ impl GameData {
         let border = GraphicsDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
         let system_radii = registries::defines::system_radii(&define_files);
-        let models = textures::Assets::read(&layout);
-        let planet_classes = planet_classes.marked(scripts.class_uses(), &planet_lists, |e| {
-            textures::planet_disc::draws_nothing(&models, e)
-        });
+        let models = textures::Assets::read(&layout, &mut diagnostics);
+        let planet_classes = Arc::new(planet_classes);
 
         progress(Phase::Localisation);
         let loc = Localisation::load(&layout, language, &mut diagnostics);
 
-        GameData {
+        let mut gd = GameData {
             layout,
             version,
             mods,
@@ -421,13 +422,13 @@ impl GameData {
             dig_site_types: Arc::new(dig_site_types),
             asteroid_belts: Arc::new(asteroid_belts),
             bypasses: Arc::new(bypasses),
-            planet_classes: Arc::new(planet_classes),
+            planet_classes: Arc::clone(&planet_classes),
             planet_lists: Arc::new(planet_lists),
             terraform_links: Arc::new(terraform_links),
             starbase_levels: Arc::new(starbase_levels),
             ship_sizes: Arc::new(ship_sizes),
             section_templates: Arc::new(section_templates),
-            megastructures: Arc::new(megastructures),
+            megastructures: Arc::default(),
             graphical_cultures: Arc::new(graphical_cultures),
             galaxy_shapes: Arc::new(galaxy_shapes),
             galaxy_sizes: Arc::new(galaxy_sizes),
@@ -443,7 +444,36 @@ impl GameData {
             models: Arc::new(models),
             flat_art: Arc::default(),
             shattered: Arc::default(),
-        }
+            worlds: Arc::default(),
+            read_classes: planet_classes,
+            megastructure_defs: Arc::new(megastructure_defs),
+            vanilla_megastructures: Arc::new(vanilla_megastructures),
+        };
+        gd.derive();
+        gd
+    }
+
+    /// Works out the registries read from other registries rather than from a folder of their
+    /// own: the planet classes marked by what the scripts and models say of them, and the
+    /// megastructures, whose construction, placement and offers follow the scripts.
+    pub(crate) fn derive(&mut self) {
+        let types = megastructures::load(
+            &self.megastructure_defs,
+            &self.vanilla_megastructures,
+            &self.scripts,
+            &self.scripted_triggers,
+            &self.layout,
+        );
+        let placed = megastructures::placed(types, &self.scripts, &self.read_classes);
+        let megastructures = megastructure_offers::offered(placed, &self.scripted_triggers);
+        let models = &self.models;
+        let planet_classes =
+            self.read_classes
+                .marked(self.scripts.class_uses(), &self.planet_lists, |entity| {
+                    textures::planet_disc::draws_nothing(models, entity)
+                });
+        self.megastructures = Arc::new(megastructures);
+        self.planet_classes = Arc::new(planet_classes);
     }
 }
 

@@ -8,8 +8,8 @@ use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
 use crate::format::save::added::{row, rows};
 use crate::format::save::galaxy::bypasses::NATURAL;
-use crate::format::save::write::bodies::number;
 use crate::keys;
+use crate::number;
 use crate::projections::geometry::{normalised, written_angle};
 use crate::projections::read;
 

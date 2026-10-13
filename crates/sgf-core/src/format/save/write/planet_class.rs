@@ -7,7 +7,7 @@
 use crate::NULL_ID;
 use crate::emit::quoted;
 use crate::format::save::write::planet_entity::write_entity_name;
-use crate::format::save::write::planet_entry::PlanetEntry;
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{ClassChange, Op, OpError, Plan, PlanetClassRule, PlanetLook, Planned, StarEdit};
@@ -92,7 +92,11 @@ pub(crate) fn plan_set(
         write_entity_name(edit, wanted.entity_name.as_deref())?;
     }
     Ok(Planned {
-        description: format!("Set the class of planet #{id} from {class} to {}", to.class),
+        description: format!(
+            "Set the class of {} from {class} to {}",
+            named_planet(s, id)?,
+            to.class
+        ),
         inverse: Op::SetBodyClass {
             body: id,
             from: to.clone(),

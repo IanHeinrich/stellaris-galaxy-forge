@@ -3,10 +3,10 @@
 //! them, and what a star parent refuses.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::format::save::details::BodyRole;
 use sgf_core::ops::Parent;
 use sgf_core::ops::{Op, Subject};
 use sgf_core::projections::galaxy::StarClasses;
+use sgf_core::views::details::BodyRole;
 
 use crate::common;
 use crate::ops_bodies::{
@@ -43,7 +43,7 @@ fn a_planet_made_a_moon_of_a_higher_id() {
     );
     assert_eq!(
         result.entry.description,
-        "Made planet #588 a moon of planet #589"
+        "Made planet Xu Nur III #588 a moon of Xu Nur IV #589"
     );
     let Op::SetBodyParent {
         body: 588,
@@ -87,7 +87,10 @@ fn a_moon_detached_from_its_planet() {
         "detached_moon",
         set_parent(1, 590, None, 100.0, 200.0),
     );
-    assert_eq!(result.entry.description, "Made moon #590 a planet");
+    assert_eq!(
+        result.entry.description,
+        "Made moon Xu Nur IV a #590 a planet"
+    );
     assert!(
         matches!(
             result.inverse,
@@ -128,7 +131,7 @@ fn a_moon_of_a_missing_planet_is_made_a_planet() {
         "orphan_made_a_planet",
         set_parent(40, 58, None, 120.0, 10.0),
     );
-    assert_eq!(result.entry.description, "Made moon #58 a planet");
+    assert_eq!(result.entry.description, "Made moon Mantle #58 a planet");
     let freed = common::entity_text(&session, EntityKind::Planet, 58);
     assert!(freed.contains("\t\t\tbinary_flags=65\n"), "{freed}");
 }
@@ -149,8 +152,9 @@ fn a_moon_of_a_stars_planet_moves_with_the_star() {
     );
     assert_eq!(
         result.entry.description,
-        "Moved star #1205 from orbit 220.02 at 128.38° to orbit 220.02 at 100°, with #1206, \
-         #1207, #1208, #1209 and #1210"
+        "Moved star Carmenekke #1205 from orbit 220.02 at 128.38° to orbit 220.02 at 100°, \
+         with Carmenekke I #1206, Carmenekke I a #1207, Carmenekke II #1208, Carmenekke II a \
+         #1209 and Carmenekke III #1210"
     );
     for (i, id) in moons.into_iter().enumerate() {
         assert_near(
@@ -178,8 +182,14 @@ fn a_companion_star_moved_takes_its_planets_with_it() {
         move_body(278, 327, 260.0, 100.0),
     );
     assert!(
-        result.entry.description.starts_with("Moved star #327 ")
-            && result.entry.description.contains(", with #328 and #329;"),
+        result
+            .entry
+            .description
+            .starts_with("Moved star Proxima Centauri #327 ")
+            && result
+                .entry
+                .description
+                .contains(", with Proxima Centauri b #328 and Proxima Centauri c #329;"),
         "{}",
         result.entry.description
     );
@@ -225,8 +235,8 @@ fn a_planet_with_its_moon_made_a_planet_of_a_companion_star() {
     );
     assert_eq!(
         result.entry.description,
-        "Made planet #330 a planet of star #327, with its moon #331; set the inner radius of \
-         Alpha Centauri #278 from 330 to 360.02"
+        "Made planet Alpha Centauri I #330 a planet of star Proxima Centauri #327, with its moon \
+         Alpha Centauri I a #331; set the inner radius of Alpha Centauri #278 from 330 to 360.02"
     );
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);
@@ -282,7 +292,7 @@ fn a_companion_stars_planet_made_a_planet_of_the_centre() {
     );
     assert_eq!(
         result.entry.description,
-        "Made planet #328 a planet of the system's centre"
+        "Made planet Proxima Centauri b #328 a planet of the system's centre"
     );
     assert!(
         matches!(

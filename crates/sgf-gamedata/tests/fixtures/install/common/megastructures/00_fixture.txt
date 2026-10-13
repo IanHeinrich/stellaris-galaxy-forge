@@ -36,3 +36,8 @@ fixture_relay = {
 	build_outside_gravity_well = yes
 	bypass_type = relay_bypass
 }
+
+fixture_relay_ruined = {
+	entity = "fixture_relay_ruined_entity"
+	build_outside_gravity_well = yes
+}

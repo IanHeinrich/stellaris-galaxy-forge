@@ -7,7 +7,7 @@
 use crate::emit::quoted;
 use crate::emit::system::ENTITY_NAME_FLAG;
 use crate::format::save::write::place::{self, insert_key};
-use crate::format::save::write::planet_entry::{PlanetEntry, set_flag};
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet, set_flag};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned, StarEdit};
@@ -33,14 +33,15 @@ pub(crate) fn plan_set(
         return Err(OpError::unchanged(format!("planet {id}"), state));
     }
 
+    let named = named_planet(s, id)?;
     let edit = plan.edit_planet(&s.doc, id, system)?;
     write_entity_name(edit, entity)?;
     let description = match entity {
-        Some(entity) => format!("Gave planet #{id} the model {entity}"),
+        Some(entity) => format!("Gave {named} the model {entity}"),
         None => {
             set_flag(edit, ENTITY_NAME_FLAG, false)?;
             let old = held.as_deref().unwrap_or_default();
-            format!("Took the model {old} off planet #{id}")
+            format!("Took the model {old} off {named}")
         }
     };
     Ok(Planned {

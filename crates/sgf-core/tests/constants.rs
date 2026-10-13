@@ -5,10 +5,10 @@ use std::path::PathBuf;
 
 use sgf_core::NULL_ID;
 use sgf_core::emit::DEFAULT_SYSTEM_HEIGHT;
-use sgf_core::export::ScenarioProfile;
 use sgf_core::export::policy::LCLUSTER_PREFIX;
-use sgf_core::format::save::WHOLE_ENTRIES_FROM_MAJOR;
 use sgf_core::format::save::ring_world::{RING_SLACK, ROW_TYPE_PREFIXES, SEGMENT_CLASS_PREFIXES};
+use sgf_core::format::save::{BYPASS_KINDS, WHOLE_ENTRIES_FROM_MAJOR};
+use sgf_core::format::scenario::ScenarioProfile;
 use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
@@ -99,6 +99,12 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How near a radius a ring world's segment or row stands for a new ring there to overlap it.",
         "RING_WORLD_SLACK",
         RING_SLACK.to_string(),
+    );
+    let bypass_kinds: Vec<String> = BYPASS_KINDS.iter().map(|k| format!("{k:?}")).collect();
+    constant(
+        "The bypass types a megastructure the editor adds, moves or deletes may stand for.",
+        "MEGASTRUCTURE_BYPASS_KINDS",
+        format!("[{}] as const", bypass_kinds.join(", ")),
     );
     constant(
         "The first major version whose saves take an added system.",
@@ -198,6 +204,12 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
             format!("{:?}", choice.as_str())
         );
     }
+    for preset in PreparePreset::ALL {
+        assert_eq!(
+            serde_json::to_string(&preset).unwrap(),
+            format!("{:?}", preset.as_str())
+        );
+    }
     let row_choices: Vec<String> = PrepareRow::ALL
         .iter()
         .map(|row| {
@@ -214,7 +226,7 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "PREPARE_ROW_CHOICES: Record<PrepareRow, readonly PrepareChoice[]>",
         format!("{{\n{}\n}}", row_choices.join("\n")),
     );
-    let profiles: Vec<String> = [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy]
+    let profiles: Vec<String> = ScenarioProfile::ALL
         .into_iter()
         .map(|profile| {
             let presets: Vec<String> = PreparePreset::ALL
@@ -225,7 +237,7 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
                         .iter()
                         .map(|c| format!("{}: {:?}", c.row.as_str(), c.choice.as_str()))
                         .collect();
-                    format!("    {}: {{ {} }},", serde_name(preset), choices.join(", "))
+                    format!("    {}: {{ {} }},", preset.as_str(), choices.join(", "))
                 })
                 .collect();
             format!(
@@ -240,7 +252,7 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "PREPARE_PRESETS: Record<ScenarioProfile, Record<PreparePreset, Record<PrepareRow, PrepareChoice>>>",
         format!("{{\n{}\n}}", profiles.join("\n")),
     );
-    let seat_starts: Vec<String> = [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy]
+    let seat_starts: Vec<String> = ScenarioProfile::ALL
         .into_iter()
         .map(|profile| format!("{}: {:?}", serde_name(&profile), profile.seat_start()))
         .collect();

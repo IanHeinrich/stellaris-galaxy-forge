@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use sgf_core::prepare::{PrepareChoice, PrepareRow, RowChoice};
+use sgf_core::prepare::{PrepareChoice, PreparePreset, PrepareRow, RowChoice};
 use sgf_gamedata::LoadOptions;
 
 #[derive(Parser)]
@@ -292,8 +292,8 @@ pub enum Command {
     #[command(verbatim_doc_comment)]
     Prepare {
         scenario: PathBuf,
-        #[arg(long, value_enum)]
-        preset: Preset,
+        #[arg(long, value_parser = preset)]
+        preset: PreparePreset,
         /// One row's choice, as `<row>=<choice>`; repeatable.
         #[arg(long = "row", value_parser = row_choice, value_name = "ROW=CHOICE")]
         rows: Vec<RowChoice>,
@@ -357,12 +357,14 @@ pub enum Profile {
     PaintAGalaxy,
 }
 
-/// The preset `sgf prepare` starts from.
-#[derive(Clone, Copy, ValueEnum)]
-pub enum Preset {
-    Faithful,
-    Fresh,
-    Shell,
+/// `fresh`, the `--preset` of `sgf prepare`: a name the guide documents, or the preset's own.
+fn preset(text: &str) -> Result<PreparePreset, String> {
+    match text {
+        "fresh" => Ok(PreparePreset::FreshStart),
+        "shell" => Ok(PreparePreset::BareShell),
+        _ => PreparePreset::parse(text)
+            .ok_or_else(|| format!("{text} is none of faithful, fresh, shell")),
+    }
 }
 
 /// `system_names=game_names`, one `--row` of `sgf prepare`.

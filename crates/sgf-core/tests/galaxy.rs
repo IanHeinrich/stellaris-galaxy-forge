@@ -47,12 +47,15 @@ fn projection_matches_the_measured_facts() {
     assert_eq!(bridges.len(), 125);
 
     // Of the two lane-less systems 789 rides the wormhole to 788, so only 790 stands
-    // apart.
+    // apart; over lanes alone both do.
     let components = g.components();
     assert_eq!(components.len(), 2);
     assert_eq!(g.baseline_components, 2);
     assert_eq!(components[0].len(), 790);
     assert_eq!(&components[1..], [vec![790]]);
+    let by_lanes = g.lane_components();
+    assert_eq!(by_lanes[0].len(), 789, "the wormhole leaves 789 out");
+    assert_eq!(&by_lanes[1..], [vec![789], vec![790]]);
     assert!(g.systems[&789].lanes.is_empty());
     assert!(g.systems[&790].lanes.is_empty());
     assert!(

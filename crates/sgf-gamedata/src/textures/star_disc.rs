@@ -10,14 +10,14 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 
 use image::RgbaImage;
-use sgf_core::cst::{self, Node};
+use sgf_core::cst::Node;
 
 use super::sphere::{self, Plane, Wrap};
 use crate::install::layers::Layout;
-use crate::install::script::last_scalar;
+use crate::install::script::{self, last_scalar};
 use crate::registries::colors;
 
-const WORLDGFX: &str = "gfx/worldgfx";
+pub(crate) const WORLDGFX: &str = "gfx/worldgfx";
 /// The settings the game falls back on, whose maps a lighting class without its own settings
 /// is drawn with.
 const FALLBACK_WORLD: &str = "default";
@@ -64,7 +64,7 @@ const FALLBACK_SHARES: [f64; 3] = [1.6, 0.5, 1.2];
 /// A lighting class's graphics settings: the three colours of its surface and the maps it
 /// draws them through, each relative to a layer root.
 #[derive(Debug, Clone)]
-pub(super) struct World {
+pub(crate) struct World {
     lava: Option<Lava>,
     noise: String,
     lava_map: String,
@@ -120,7 +120,7 @@ impl StarAtmosphere {
 }
 
 /// Lighting class (`world`) → its settings.
-pub(super) type Worlds = BTreeMap<String, World>;
+pub(crate) type Worlds = BTreeMap<String, World>;
 
 /// Every `gfx_settings` block in the install's `gfx/worldgfx` files, by its `world`.
 pub(super) fn worlds(layout: &Layout) -> Worlds {
@@ -129,7 +129,7 @@ pub(super) fn worlds(layout: &Layout) -> Worlds {
         let Ok(src) = fs::read(&path) else {
             continue;
         };
-        let Ok(root) = cst::parse_script(&src, 0) else {
+        let Ok((root, src)) = script::parse_closing_at_end(src.into()) else {
             continue;
         };
         for settings in root

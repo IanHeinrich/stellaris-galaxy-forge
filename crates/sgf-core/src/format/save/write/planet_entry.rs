@@ -3,13 +3,16 @@
 
 use crate::Span;
 use crate::cst::Node;
+use crate::document::Document;
 use crate::emit::system::ANY_FLAG;
 use crate::entity::facts::planet::{self, BodyRole};
 use crate::format::save::read_spec::bodies;
+use crate::format::save::write::bodies::Stored;
 use crate::format::save::write::id_list::{Emptied, items, statement, unlist};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
+use crate::ops::rules::{named_as, named_body};
 use crate::ops::{Edit, OpError, StarEdit};
 use crate::projections::galaxy::StarClasses;
 use crate::projections::read;
@@ -42,6 +45,24 @@ impl<'s> PlanetEntry<'s> {
     }
 }
 
+/// What a description calls body `id`: [`named_body`] over the name the save holds, or
+/// [`named_as`] "star" for a star, whose name is often its system's.
+pub(crate) fn named_planet(s: &Session, id: u32) -> Result<String, OpError> {
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
+    let primary = bodies(&s.doc, system)?.first() == Some(&id);
+    let name = read::name(&node, src);
+    Ok(match is_star(role(&node, src, primary, s.star_classes())) {
+        true => named_as("star", &name, id),
+        false => named_body(&name, id),
+    })
+}
+
+/// [`named_planet`] for a body of kind `kind` ("moon Lachium I a #2448").
+pub(crate) fn named_planet_as(doc: &Document, kind: &str, id: u32) -> Result<String, OpError> {
+    let (node, src) = planet_entity(doc, id)?;
+    Ok(named_as(kind, &read::name(&node, src), id))
+}
+
 /// What the body whose entity is `node` is in its system, `primary` saying whether the
 /// system lists it first.
 pub(crate) fn role(node: &Node, src: &[u8], primary: bool, stars: &StarClasses) -> BodyRole {
@@ -51,6 +72,14 @@ pub(crate) fn role(node: &Node, src: &[u8], primary: bool, stars: &StarClasses) 
 /// Whether `role` is a star's: the system's primary or another star.
 pub(crate) fn is_star(role: BodyRole) -> bool {
     matches!(role, BodyRole::Primary | BodyRole::Star)
+}
+
+/// Whether body `id` of the system whose bodies are `stored` is a star: the system's primary,
+/// the first of `stored`, or another star.
+pub(crate) fn body_is_star(s: &Session, stored: &[Stored], id: u32) -> Result<bool, OpError> {
+    let primary = stored.first().is_some_and(|b| b.body.id == id);
+    let (node, src) = planet_entity(&s.doc, id)?;
+    Ok(is_star(role(&node, src, primary, s.star_classes())))
 }
 
 /// Write `moon_of`, before `moons` or `planet_orbitals` when the body has none, or take it

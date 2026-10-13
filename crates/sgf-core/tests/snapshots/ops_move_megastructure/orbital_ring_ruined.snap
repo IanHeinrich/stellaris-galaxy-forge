@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved megastructure #4 (orbital_ring_ruined) in Sargas #38 from planet #936 to planet #933
-inverse: RestoreEntities "Undid: Moved megastructure #4 (orbital_ring_ruined) in Sargas #38 from planet #936 to planet #933"
+Moved megastructure #4 (orbital_ring_ruined) in Sargas #38 from Sargas II #936 to Sargas I #933
+inverse: RestoreEntities "Undid: Moved megastructure #4 (orbital_ring_ruined) in Sargas #38 from Sargas II #936 to Sargas I #933"
   Planet 933 (578 bytes)
   Planet 936 (884 bytes)
   Megastructure 4 (216 bytes)

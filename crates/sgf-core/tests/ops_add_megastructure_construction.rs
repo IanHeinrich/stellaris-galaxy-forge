@@ -5,11 +5,11 @@
 use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
-    ModifierHost, Op, VariableDrop, VariableRaise,
+    ModifierHost, NewMegastructure, Op, TimedModifier, VariableStep,
 };
 
 use crate::common;
-use crate::ops_add_megastructure::{Row, body_row, free_row, remove};
+use crate::ops_add_megastructure::{add, at_point, flagging, on, remove};
 use common::diff::{round_trip, snapshot_step};
 use common::edit::{ALARI, open_4_5_edited};
 use common::{assert_refusals, current, entity_text, open_4_5};
@@ -20,13 +20,15 @@ const FURNACE_PLANETS: [u32; 13] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 fn modifier(on: ModifierHost, modifier: &str) -> ConstructionModifier {
     ConstructionModifier {
         on,
-        modifier: modifier.to_owned(),
-        days: -1,
+        timed: TimedModifier {
+            modifier: modifier.to_owned(),
+            days: None,
+        },
     }
 }
 
-fn raise(variable: &str, by: u32) -> VariableRaise {
-    VariableRaise {
+fn raise(variable: &str, by: u32) -> VariableStep {
+    VariableStep {
         variable: variable.to_owned(),
         by,
     }
@@ -51,65 +53,33 @@ fn furnace_construction() -> MegastructureConstruction {
 
 /// A finished Arc Furnace round Alari's molten planet 1, owned by country 0.
 fn furnace() -> Op {
-    with_construction(
-        Row {
+    add(
+        ALARI,
+        NewMegastructure {
             owner: Some(0),
-            flag: true,
-            ..body_row(ALARI, "orbital_arc_furnace_4", 1)
+            construction: Some(furnace_construction()),
+            ..flagging("orbital_arc_furnace_4", 1, &["has_megastructure"])
         },
-        furnace_construction(),
     )
 }
 
 /// A finished Dyson Swarm round Alari's star, owned by country 16, which has no `variables`.
 fn swarm() -> Op {
-    with_construction(
-        Row {
+    add(
+        ALARI,
+        NewMegastructure {
             owner: Some(16),
-            flag: true,
-            ..body_row(ALARI, "dyson_swarm_3", 0)
-        },
-        MegastructureConstruction {
-            modifiers: vec![modifier(
-                ModifierHost::Body { body: 0 },
-                "dyson_swarm_3_mod",
-            )],
-            deposits: Vec::new(),
-            variables: vec![raise("dyson_swarm_counter", 1)],
+            construction: Some(MegastructureConstruction {
+                modifiers: vec![modifier(
+                    ModifierHost::Body { body: 0 },
+                    "dyson_swarm_3_mod",
+                )],
+                deposits: Vec::new(),
+                variables: vec![raise("dyson_swarm_counter", 1)],
+            }),
+            ..flagging("dyson_swarm_3", 0, &["has_megastructure"])
         },
     )
-}
-
-fn with_construction(row: Row<'_>, construction: MegastructureConstruction) -> Op {
-    match row.op() {
-        Op::AddMegastructure {
-            system,
-            kind,
-            name,
-            at,
-            owner,
-            bypass,
-            ruined_orbital_ring,
-            megastructure_flag,
-            orbital_flag,
-            star_only,
-            ..
-        } => Op::AddMegastructure {
-            system,
-            kind,
-            name,
-            at,
-            owner,
-            bypass,
-            ruined_orbital_ring,
-            megastructure_flag,
-            orbital_flag,
-            star_only,
-            construction: Some(construction),
-            left_out: 0,
-        },
-        other => other,
-    }
 }
 
 /// Country 0's `variables` starts with `astral_threads_scripted_rewards_mult`, so the
@@ -123,6 +93,7 @@ fn an_arc_furnace_writes_its_mining_bonus_deposits_and_counter() {
         Op::RemoveMegastructure {
             megastructure: 16,
             construction: Some(furnace_construction()),
+            left_out: 0,
         }
     );
     let country = entity_text(&session, EntityKind::Country, 0);
@@ -170,7 +141,7 @@ fn a_dyson_swarm_writes_its_star_modifier_and_counter() {
             dismantle: Some(MegastructureDismantle {
                 modifiers: vec!["dyson_swarm_3_mod".to_owned()],
                 deposits: Vec::new(),
-                variables: vec![VariableDrop {
+                variables: vec![VariableStep {
                     variable: "dyson_swarm_counter".to_owned(),
                     by: 1,
                 }],
@@ -185,16 +156,17 @@ fn a_dyson_swarm_writes_its_star_modifier_and_counter() {
 /// back to 0 rather than out.
 #[test]
 fn a_system_modifier_and_a_held_counter_are_taken_back_exactly() {
-    let seal = with_construction(
-        Row {
+    let seal = add(
+        ALARI,
+        NewMegastructure {
             owner: Some(0),
             bypass: None,
-            ..free_row(ALARI, "shroud_seal", "", false)
-        },
-        MegastructureConstruction {
-            modifiers: vec![modifier(ModifierHost::System, "shroud_seal_modifier")],
-            deposits: Vec::new(),
-            variables: vec![raise("conquest_subjects", 2)],
+            construction: Some(MegastructureConstruction {
+                modifiers: vec![modifier(ModifierHost::System, "shroud_seal_modifier")],
+                deposits: Vec::new(),
+                variables: vec![raise("conquest_subjects", 2)],
+            }),
+            ..at_point("shroud_seal", "", false)
         },
     );
     round_trip(open_4_5(), seal.clone());
@@ -211,33 +183,42 @@ fn a_system_modifier_and_a_held_counter_are_taken_back_exactly() {
     assert_eq!(current(&session), session.doc().original());
 }
 
-/// Planet 2 has `prosp_uni_mod` already, and Xu Nur's star 584 stands in another system.
+/// Planet 2 has `prosp_uni_mod` already, Xu Nur's star 584 stands in another system, and a
+/// modifier on one host is listed once.
 #[test]
 fn a_construction_the_add_cannot_write_is_refused() {
     let built = |construction: MegastructureConstruction| {
-        with_construction(
-            Row {
+        add(
+            ALARI,
+            NewMegastructure {
                 owner: Some(0),
-                ..body_row(ALARI, "orbital_arc_furnace_4", 1)
+                construction: Some(construction),
+                ..on("orbital_arc_furnace_4", 1)
             },
-            construction,
         )
     };
     let modifiers = |on, name: &str, days| MegastructureConstruction {
         modifiers: vec![ConstructionModifier {
             on,
-            modifier: name.to_owned(),
-            days,
+            timed: TimedModifier {
+                modifier: name.to_owned(),
+                days,
+            },
         }],
         ..MegastructureConstruction::default()
     };
-    let unowned = with_construction(
-        body_row(ALARI, "dyson_swarm_3", 0),
-        MegastructureConstruction {
-            variables: vec![raise("dyson_swarm_counter", 1)],
-            ..MegastructureConstruction::default()
+    let unowned = add(
+        ALARI,
+        NewMegastructure {
+            construction: Some(MegastructureConstruction {
+                variables: vec![raise("dyson_swarm_counter", 1)],
+                ..MegastructureConstruction::default()
+            }),
+            ..on("dyson_swarm_3", 0)
         },
     );
+    let mut twice = modifiers(ModifierHost::System, "shroud_seal_modifier", Some(30));
+    twice.modifiers.push(twice.modifiers[0].clone());
     let mut session = open_4_5();
     assert_refusals(
         &mut session,
@@ -246,25 +227,33 @@ fn a_construction_the_add_cannot_write_is_refused() {
                 built(modifiers(
                     ModifierHost::Body { body: 2 },
                     "prosp_uni_mod",
-                    -1,
+                    None,
                 )),
                 "a orbital_arc_furnace_4 cannot be added there: planet 2 already has modifier prosp_uni_mod",
             ),
             (
-                built(modifiers(ModifierHost::System, "shroud_seal_modifier", 0)),
-                "a orbital_arc_furnace_4 cannot be added there: modifier shroud_seal_modifier would last 0 days",
+                built(modifiers(
+                    ModifierHost::System,
+                    "shroud_seal_modifier",
+                    Some(0),
+                )),
+                "a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever",
             ),
             (
                 built(modifiers(
                     ModifierHost::Body { body: 584 },
                     "dyson_swarm_3_mod",
-                    -1,
+                    None,
                 )),
                 "planet 584 is not a body of system 169",
             ),
             (
                 unowned,
                 "a dyson_swarm_3 cannot be added there: variable dyson_swarm_counter needs an owner to count it",
+            ),
+            (
+                built(twice),
+                "\"shroud_seal_modifier\" cannot be written as a modifier listed once",
             ),
         ],
     );
@@ -283,7 +272,10 @@ fn a_furnace_removed_after_a_body_takes_back_the_deleted_bodys_deposit() {
         .expect("planet 12");
     let removed = session.apply(remove(16)).expect("the removal");
     let Op::AddMegastructure {
-        construction: Some(taken),
+        spec: NewMegastructure {
+            construction: Some(taken),
+            ..
+        },
         ..
     } = &removed.inverse
     else {
@@ -332,7 +324,7 @@ fn a_removal_stops_on_a_planet_it_cannot_read() {
         *gamestate = gamestate.replacen(from, "x=-165.3322\n\t\t\t\ty=-59.0354\n", 1);
     });
     session
-        .apply(body_row(ALARI, "think_tank_3", 6).op())
+        .apply(add(ALARI, on("think_tank_3", 6)))
         .expect("the nexus");
     let refused = session
         .apply_inverse(Op::RemoveMegastructure {
@@ -344,6 +336,7 @@ fn a_removal_stops_on_a_planet_it_cannot_read() {
                 )],
                 ..MegastructureConstruction::default()
             }),
+            left_out: 0,
         })
         .expect_err("planet 12 cannot be read");
     assert!(refused.to_string().contains("origin"), "{refused}");
@@ -372,6 +365,31 @@ fn a_furnace_added_and_deleted_in_one_batch_leaves_nothing() {
     assert_eq!(current(&session), session.doc().original());
     session.redo().expect("redo the batch");
     assert_eq!(current(&session), after);
+}
+
+/// What the furnace's add wrote stays with its row through a removal, its undo, the add's
+/// undo and redo, and the removal's own inverse: each removal reads back the same
+/// construction.
+#[test]
+fn every_removal_reads_back_what_the_add_wrote() {
+    let mut session = open_4_5();
+    session.apply(furnace()).expect("the furnace");
+    let removed = session.apply(remove(16)).expect("the removal");
+    assert_eq!(removed.inverse, furnace());
+    session.undo().expect("undo the removal");
+    let again = session.apply(remove(16)).expect("removed again");
+    assert_eq!(again.inverse, furnace());
+    session.undo().expect("undo the second removal");
+    session.undo().expect("undo the add");
+    session.redo().expect("redo the add");
+    let redone = session.apply(remove(16)).expect("removed after a redo");
+    assert_eq!(redone.inverse, furnace());
+    session
+        .apply_inverse(redone.inverse)
+        .expect("the removal's inverse adds it back");
+    let last = session.apply(remove(16)).expect("removed once more");
+    assert_eq!(last.inverse, furnace());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// The furnace's add undone and redone through the history still knows what it wrote, so

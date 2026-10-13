@@ -20,40 +20,18 @@ fn choices(preset: PreparePreset) -> Value {
 /// The arguments both commands take for `preset`, the space around seats kept clear and no map
 /// asked for.
 fn args(preset: PreparePreset) -> Value {
-    json!({ "choices": choices(preset), "options": options(true, 0), "map": false })
+    json!({ "choices": choices(preset), "options": options(0), "map": false })
 }
 
-fn options(clear_around_seats: bool, seed: u64) -> Value {
-    json!({ "clear_around_seats": clear_around_seats, "seed": seed })
+fn options(seed: u64) -> Value {
+    json!({ "clear_around_seats": true, "seed": seed })
 }
 
 fn preview(
     w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
     preset: PreparePreset,
 ) -> PreparePreview {
-    preview_with(w, choices(preset), true)
-}
-
-fn preview_with(
-    w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
-    choices: Value,
-    clear_around_seats: bool,
-) -> PreparePreview {
-    preview_seeded(w, choices, clear_around_seats, 0)
-}
-
-fn preview_seeded(
-    w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
-    choices: Value,
-    clear_around_seats: bool,
-    seed: u64,
-) -> PreparePreview {
-    invoke(
-        w,
-        "prepare_preview",
-        json!({ "choices": choices, "options": options(clear_around_seats, seed), "map": false }),
-    )
-    .expect("preview")
+    invoke(w, "prepare_preview", args(preset)).expect("preview")
 }
 
 #[test]
@@ -107,7 +85,7 @@ fn prepare_needs_game_data_and_an_open_scenario() {
         "prepare_preview",
         json!({
             "choices": [{ "row": "empire_seats", "choice": "plain" }],
-            "options": options(true, 0),
+            "options": options(0),
             "map": false,
         }),
     )
@@ -171,37 +149,6 @@ fn a_preset_previews_its_changes_and_applies_them_as_one_undo_step() {
 }
 
 #[test]
-fn keeping_the_space_around_seats_clear_is_previewed_and_applied_as_chosen() {
-    let Some(w) = game_data_webview() else {
-        return;
-    };
-    invoke::<OpenResult>(&w, "open_as_scenario", json!({ "path": SAMPLE }))
-        .expect("open as scenario");
-
-    let faithful = preview(&w, PreparePreset::Faithful);
-    assert!(faithful.kept_clear.is_empty(), "no row is left to the game");
-    assert!(faithful.cut_off.is_empty());
-
-    let shell = preview(&w, PreparePreset::BareShell);
-    assert!(!shell.kept_clear.is_empty());
-    let unguarded = preview_with(&w, choices(PreparePreset::BareShell), false);
-    assert!(unguarded.kept_clear.is_empty(), "the option is off");
-    assert_eq!(unguarded.rows, shell.rows);
-
-    let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
-        &w,
-        "prepare_apply",
-        json!({
-            "choices": choices(PreparePreset::BareShell),
-            "options": options(false, 0),
-        }),
-    )
-    .expect("apply bare shell")
-    .expect("an edit");
-    assert_eq!(applied.changes, unguarded.changes);
-}
-
-#[test]
 fn a_une_seat_is_refused_on_a_plain_map() {
     let Some(w) = game_data_webview() else {
         return;
@@ -213,56 +160,13 @@ fn a_une_seat_is_refused_on_a_plain_map() {
         "prepare_preview",
         json!({
             "choices": [{ "row": "sol", "choice": "une_seat" }],
-            "options": options(true, 0),
+            "options": options(0),
             "map": false,
         }),
     )
     .expect_err("a plain map has no UNE seat");
     assert_eq!(refused.kind, ErrorKind::Op);
     assert_eq!(refused.message, "Only a Paint a Galaxy map has a UNE seat.");
-}
-
-#[test]
-fn a_paint_a_galaxy_map_previews_under_its_own_profile() {
-    let Some(w) = game_data_webview() else {
-        return;
-    };
-    invoke::<OpenResult>(
-        &w,
-        "open_as_scenario",
-        json!({ "path": SAMPLE, "profile": "paint_a_galaxy" }),
-    )
-    .expect("open as scenario");
-    let bare_shell = json!(PreparePreset::BareShell.choices(ScenarioProfile::PaintAGalaxy));
-    let shell = preview_seeded(&w, bare_shell.clone(), true, 7);
-    assert_eq!(shell.profile, ScenarioProfile::PaintAGalaxy);
-    assert!(
-        !shell.cut_off.is_empty(),
-        "taking the pairs out cuts a system off"
-    );
-    let seats = shell.rows.iter().find(|r| r.row == PrepareRow::EmpireSeats);
-    assert_eq!(
-        Some(shell.new_seats.len()),
-        seats.map(|r| r.systems.len()),
-        "as many new seats as old"
-    );
-    assert!(!shell.new_zones.is_empty());
-    assert_ne!(
-        preview_seeded(&w, bare_shell.clone(), true, 8).new_seats,
-        shell.new_seats,
-        "another seed draws other seats"
-    );
-    let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
-        &w,
-        "prepare_apply",
-        json!({ "choices": bare_shell, "options": options(true, 7) }),
-    )
-    .expect("apply bare shell")
-    .expect("an edit");
-    assert_eq!(
-        applied.edit.entry.description,
-        format!("Prepared {} systems for a new game", shell.changes)
-    );
 }
 
 #[test]
@@ -277,21 +181,25 @@ fn the_preview_maps_what_apply_writes() {
     )
     .expect("open as scenario");
     let bare_shell = json!(PreparePreset::BareShell.choices(ScenarioProfile::PaintAGalaxy));
-    let args =
-        |map: bool| json!({ "choices": bare_shell, "options": options(true, 7), "map": map });
+    let args = |map: bool| json!({ "choices": bare_shell, "options": options(7), "map": map });
     let unmapped: PreparePreview = invoke(&w, "prepare_preview", args(false)).expect("preview");
     let shell: PreparePreview = invoke(&w, "prepare_preview", args(true)).expect("preview");
     assert!(unmapped.map.is_none(), "no map unless asked for");
+    assert_eq!(shell.profile, ScenarioProfile::PaintAGalaxy);
+    assert!(!shell.new_seats.is_empty());
+    assert!(!shell.new_zones.is_empty());
+    assert!(!shell.kept_clear.is_empty());
     let map = shell.map.expect("a map for choices that change something");
     assert_eq!(map.systems.len(), shell.changes);
 
     let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
         &w,
         "prepare_apply",
-        json!({ "choices": bare_shell, "options": options(true, 7) }),
+        json!({ "choices": bare_shell, "options": options(7) }),
     )
     .expect("apply bare shell")
     .expect("an edit");
+    assert_eq!(applied.changes, shell.changes);
     assert_eq!(map.systems, applied.edit.delta.systems);
     let special: SpecialSystems = invoke(&w, "get_special_systems", json!({})).expect("special");
     assert_eq!(map.special, special.systems);

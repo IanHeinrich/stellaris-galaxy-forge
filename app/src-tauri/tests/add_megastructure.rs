@@ -2,8 +2,8 @@
 use serde_json::json;
 use sgf_app_lib::views::AddedMegastructure;
 use sgf_core::entity::{EntityAddr, EntityKind};
-use sgf_core::format::save::details::SystemDetails;
 use sgf_core::projections::galaxy::BypassLink;
+use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{EditResult, ErrorKind};
 
 use crate::common;

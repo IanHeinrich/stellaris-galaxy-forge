@@ -15,9 +15,10 @@ use crate::emit::system::{DepositEntry, PLANET_HOLDER, deposit_entry};
 use crate::entity::facts::planet::{self, PlanetFacts};
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
-use crate::format::save::write::add_system::write_slot;
 use crate::format::save::write::id_list::{Emptied, append_in, statement, unlist_in};
 use crate::format::save::write::place::{self, insert_key};
+use crate::format::save::write::planet_entry::named_planet;
+use crate::format::save::write::shared::write_slot;
 use crate::format::save::{entity_at, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
@@ -46,7 +47,7 @@ pub(crate) fn plan_add(
     write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, text)?;
     list(plan.edit_planet(&s.doc, planet, system)?, id)?;
     Ok(Planned {
-        description: format!("Added {kind} (#{id}) to planet #{planet}"),
+        description: format!("Added {kind} (#{id}) to {}", named_planet(s, planet)?),
         inverse: Op::RemoveDeposit { deposit: id },
     })
 }
@@ -64,7 +65,11 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, deposit: u32) -> Result<
     free_entry(plan, &s.doc, deposit, held.anchor)?;
     unlist(plan.edit_planet(&s.doc, planet, system)?, deposit)?;
     Ok(Planned {
-        description: format!("Removed {} (#{deposit}) from planet #{planet}", held.kind),
+        description: format!(
+            "Removed {} (#{deposit}) from {}",
+            held.kind,
+            named_planet(s, planet)?
+        ),
         inverse: Op::AddDeposit {
             body: planet,
             kind: held.kind,

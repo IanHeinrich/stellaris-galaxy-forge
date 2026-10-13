@@ -43,15 +43,15 @@ fn waiting(category: &str, found_by: &[u32]) -> Option<PlanetPageAnomaly> {
 #[test]
 fn a_planet_no_one_has_surveyed_takes_the_key_alone() {
     // 4.5: Olbers' barren 585; 4.4: 749, which only country 17 has surveyed.
-    for (mut session, planet, name) in [
-        (open_4_5(), 585, "unsurveyed_4_5"),
-        (open(), 749, "unsurveyed_4_4"),
+    for (mut session, planet, name, named) in [
+        (open_4_5(), 585, "unsurveyed_4_5", "Xu Nur I #585"),
+        (open(), 749, "unsurveyed_4_4", "Grugmora I #749"),
     ] {
         assert_eq!(anomaly(&session, planet), None);
         let result = snapshot_step(&mut session, name, add(planet, ASTEROID));
         assert_eq!(
             result.entry.description,
-            format!("Added anomaly {ASTEROID} to planet #{planet}")
+            format!("Added anomaly {ASTEROID} to {named}")
         );
         assert_eq!(result.inverse, remove(planet));
         assert_eq!(anomaly(&session, planet), waiting(ASTEROID, &[]));
@@ -64,13 +64,14 @@ fn a_planet_the_player_has_surveyed_is_listed_for_the_player() {
     // Planet 3 of the 4.5 home system, surveyed at the start, is in the player's
     // `surveyed_deposit_holders` but names no `surveyed_by`; the player's `events` is empty.
     // Planet 1 of the 4.4 home system is the same.
-    for (mut session, planet, name) in
-        [(open_4_5(), 3, "surveyed_4_5"), (open(), 1, "surveyed_4_4")]
-    {
+    for (mut session, planet, name, named) in [
+        (open_4_5(), 3, "surveyed_4_5", "planet #3"),
+        (open(), 1, "surveyed_4_4", "Mercury #1"),
+    ] {
         let result = snapshot_step(&mut session, name, add(planet, ASTEROID));
         assert_eq!(
             result.entry.description,
-            format!("Added anomaly {ASTEROID} to planet #{planet}, found by empire 0")
+            format!("Added anomaly {ASTEROID} to {named}, found by empire 0")
         );
         assert_eq!(anomaly(&session, planet), waiting(ASTEROID, &[PLAYER]));
 
@@ -95,7 +96,7 @@ fn a_removal_takes_the_key_and_the_planet_from_every_finder() {
     let result = snapshot_step(&mut session, "remove_4_5", remove(185));
     assert_eq!(
         result.entry.description,
-        "Removed anomaly AIANOM_RESEARCHDEPO_CAT from planet #185"
+        "Removed anomaly AIANOM_RESEARCHDEPO_CAT from Epsilon Cygni V a #185"
     );
     assert_eq!(
         result.inverse,
@@ -175,7 +176,7 @@ fn a_country_named_twice_lists_the_planet_once() {
         .expect("add");
     assert_eq!(
         result.entry.description,
-        format!("Added anomaly {ASTEROID} to planet #749, found by empires 0 and 17")
+        format!("Added anomaly {ASTEROID} to Grugmora I #749, found by empires 0 and 17")
     );
     assert_eq!(anomaly(&session, 749), waiting(ASTEROID, &[PLAYER, 17]));
     let removed = session.apply(remove(749)).expect("remove");

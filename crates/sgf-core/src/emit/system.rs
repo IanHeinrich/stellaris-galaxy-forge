@@ -3,7 +3,7 @@
 //! deposit's `deposit` entry. `indent` is the entry's own indentation, copied from the
 //! table it joins; every entry ends with the newline that separates it from what follows.
 
-use super::{DEFAULT_SYSTEM_HEIGHT, Lines, coord, hyperlane_block, lane_entry, quoted};
+use super::{DEFAULT_SYSTEM_HEIGHT, Lines, NULL_DATE, coord, hyperlane_block, lane_entry, quoted};
 use crate::keys;
 use crate::projections::name::NameTemplate;
 
@@ -24,8 +24,6 @@ pub(crate) const RING_FLAG: u32 = 256;
 pub(crate) const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
 pub(crate) const PLANET_HOLDER: &str = "0";
-/// `last_bombardment` as a body that was never bombarded holds it, tabs included.
-const NEVER_BOMBARDED: &str = "\t\t\t\"0.01.01\"";
 
 /// A `galactic_object` entry.
 #[derive(Debug, Clone, PartialEq)]
@@ -100,22 +98,15 @@ pub struct HabitatEntry<'a> {
 }
 
 pub fn habitat_entry(indent: &[u8], h: &HabitatEntry<'_>) -> Vec<u8> {
-    made_entry(
+    entry(
         indent,
-        &Made {
-            id: h.id,
-            class: h.class,
-            size: h.size,
-            name: h.name,
-            at: (h.x, h.y),
-            system: h.system,
-            orbit: h.orbit,
-            moon_of: Some(h.host),
+        &Entry {
             binary_flags: FIXED_NAME_FLAG | ANY_FLAG,
+            moon_of: Some(h.host),
             flags: h.flags,
             flag_date: h.flag_date,
             entity_name: h.entity_name,
-            modifiers: &[],
+            ..Entry::new(h.id, h.class, h.size, h.name, (h.x, h.y), h.system, h.orbit)
         },
     )
 }
@@ -149,74 +140,117 @@ pub fn segment_entry(indent: &[u8], s: &SegmentEntry<'_>) -> Vec<u8> {
     } else {
         0
     };
-    made_entry(
+    entry(
         indent,
-        &Made {
-            id: s.id,
-            class: s.class,
-            size: s.size,
-            name: s.name,
-            at: (s.x, s.y),
-            system: s.system,
-            orbit: s.orbit,
-            moon_of: None,
+        &Entry {
             binary_flags: FIXED_NAME_FLAG | ANY_FLAG | icon,
+            modifiers: s.modifiers,
             flags: s.flags,
             flag_date: s.flag_date,
             entity_name: s.entity_name,
-            modifiers: s.modifiers,
+            ..Entry::new(s.id, s.class, s.size, s.name, (s.x, s.y), s.system, s.orbit)
         },
     )
 }
 
-/// A planet a megastructure makes, in the keys and order the game writes one it spawns.
-struct Made<'a> {
+/// One `planets.planet` entry, in the keys and order the game writes; an empty list, a
+/// `None` and 0 binary flags write no line.
+struct Entry<'a> {
     id: u32,
     class: &'a str,
     size: u32,
     name: &'a NameTemplate,
+    /// Relative to the system's centre.
     at: (f64, f64),
     system: u32,
     orbit: f64,
-    moon_of: Option<u32>,
+    carrier_flags: u32,
     binary_flags: u32,
+    moon_of: Option<u32>,
+    moons: &'a [u32],
+    modifiers: &'a [(&'a str, i32)],
+    features: &'a [&'a str],
+    /// Planet flags, each dated `flag_date`.
     flags: &'a [String],
     flag_date: &'a str,
+    entity: u32,
     entity_name: Option<&'a str>,
-    modifiers: &'a [(&'a str, i32)],
+    deposits: &'a [u32],
 }
 
-fn made_entry(indent: &[u8], m: &Made<'_>) -> Vec<u8> {
+impl<'a> Entry<'a> {
+    /// A body with nothing but its place, class, size and name.
+    fn new(
+        id: u32,
+        class: &'a str,
+        size: u32,
+        name: &'a NameTemplate,
+        at: (f64, f64),
+        system: u32,
+        orbit: f64,
+    ) -> Self {
+        Self {
+            id,
+            class,
+            size,
+            name,
+            at,
+            system,
+            orbit,
+            carrier_flags: BODY_CARRIER_FLAGS,
+            binary_flags: 0,
+            moon_of: None,
+            moons: &[],
+            modifiers: &[],
+            features: &[],
+            flags: &[],
+            flag_date: "",
+            entity: 0,
+            entity_name: None,
+            deposits: &[],
+        }
+    }
+}
+
+fn entry(indent: &[u8], e: &Entry<'_>) -> Vec<u8> {
     let mut w = Lines::new(indent);
-    w.open(0, &m.id.to_string());
-    w.pair(1, keys::PLANET_CLASS, &quoted(m.class));
-    w.pair(1, keys::PLANET_SIZE, &m.size.to_string());
-    w.pair(
-        1,
-        keys::CARRIER_BINARY_FLAGS,
-        &BODY_CARRIER_FLAGS.to_string(),
-    );
+    w.open(0, &e.id.to_string());
+    w.pair(1, keys::PLANET_CLASS, &quoted(e.class));
+    w.pair(1, keys::PLANET_SIZE, &e.size.to_string());
+    w.pair(1, keys::CARRIER_BINARY_FLAGS, &e.carrier_flags.to_string());
     w.line(1, &format!("{}=", keys::NAME));
-    w.name(1, m.name);
-    w.pair(1, keys::BINARY_FLAGS, &m.binary_flags.to_string());
-    w.coordinate(1, m.at, m.system);
-    w.pair(1, keys::ORBIT, &coord(m.orbit));
-    w.pair(1, keys::LAST_BOMBARDMENT, NEVER_BOMBARDED);
-    if let Some(host) = m.moon_of {
-        w.pair(1, keys::MOON_OF, &host.to_string());
+    w.name(1, e.name);
+    if e.binary_flags != 0 {
+        w.pair(1, keys::BINARY_FLAGS, &e.binary_flags.to_string());
+    }
+    w.coordinate(1, e.at, e.system, None);
+    w.pair(1, keys::ORBIT, &coord(e.orbit));
+    // The game writes the date after three tabs.
+    w.pair(1, keys::LAST_BOMBARDMENT, &format!("\t\t\t{NULL_DATE}"));
+    if let Some(parent) = e.moon_of {
+        w.pair(1, keys::MOON_OF, &parent.to_string());
+    }
+    if !e.moons.is_empty() {
+        w.list(1, keys::MOONS, e.moons);
     }
     w.open(1, keys::PLANET_ORBITALS);
     w.close(1);
     w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
-    if !m.modifiers.is_empty() {
-        w.timed_modifiers(1, m.modifiers);
+    if !e.modifiers.is_empty() {
+        w.timed_modifiers(1, e.modifiers);
     }
-    if !m.flags.is_empty() {
-        w.flags(1, m.flags, m.flag_date);
+    for feature in e.features {
+        w.pair(1, keys::PLANET_MODIFIER, &quoted(feature));
     }
-    w.pair(1, keys::ENTITY, "0");
-    if let Some(name) = m.entity_name {
+    if !e.flags.is_empty() {
+        w.flags(1, e.flags, e.flag_date);
+    }
+    w.pair(1, keys::ENTITY, &e.entity.to_string());
+    if let Some(name) = e.entity_name {
         w.pair(1, keys::ENTITY_NAME, &quoted(name));
+    }
+    if !e.deposits.is_empty() {
+        w.list(1, keys::DEPOSITS, e.deposits);
     }
     w.close(0);
     w.into_bytes()
@@ -233,12 +267,7 @@ pub struct DepositEntry<'a> {
 pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
     let mut w = Lines::new(indent);
     w.open(0, &s.id.to_string());
-    w.open(1, keys::COORDINATE);
-    w.pair(2, keys::X, &coord(s.x));
-    w.pair(2, keys::Y, &coord(s.y));
-    w.pair(2, keys::ORIGIN, &crate::NULL_ID.to_string());
-    w.pair(2, keys::VISUAL_HEIGHT, &coord(DEFAULT_SYSTEM_HEIGHT));
-    w.close(1);
+    w.coordinate(1, (s.x, s.y), crate::NULL_ID, Some(DEFAULT_SYSTEM_HEIGHT));
     w.open(1, keys::NAME);
     w.pair(2, keys::KEY, &quoted(s.name));
     w.close(1);
@@ -306,53 +335,26 @@ pub fn flags_block(indent: &[u8], flags: &[String], date: &str) -> Vec<u8> {
 }
 
 pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
-    let carrier = if p.star {
+    let carrier_flags = if p.star {
         STAR_CARRIER_FLAGS
     } else {
         BODY_CARRIER_FLAGS
     };
-    let mut w = Lines::new(indent);
-    w.open(0, &p.id.to_string());
-    w.pair(1, keys::PLANET_CLASS, &quoted(p.class));
-    w.pair(1, keys::PLANET_SIZE, &p.size.to_string());
-    w.pair(1, keys::CARRIER_BINARY_FLAGS, &carrier.to_string());
-    w.line(1, &format!("{}=", keys::NAME));
-    w.name(1, p.name);
-    let flags = binary_flags(p);
-    if flags != 0 {
-        w.pair(1, keys::BINARY_FLAGS, &flags.to_string());
-    }
-    w.open(1, keys::COORDINATE);
-    w.pair(2, keys::X, &coord(p.x));
-    w.pair(2, keys::Y, &coord(p.y));
-    w.pair(2, keys::ORIGIN, &p.system.to_string());
-    w.close(1);
-    w.pair(1, keys::ORBIT, &coord(p.orbit));
-    w.pair(1, keys::LAST_BOMBARDMENT, NEVER_BOMBARDED);
-    if let Some(parent) = p.moon_of {
-        w.pair(1, keys::MOON_OF, &parent.to_string());
-    }
-    if !p.moons.is_empty() {
-        w.list(1, keys::MOONS, p.moons);
-    }
-    w.open(1, keys::PLANET_ORBITALS);
-    w.close(1);
-    w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
-    if !p.modifiers.is_empty() {
-        w.timed_modifiers(1, p.modifiers);
-    }
-    for feature in p.features {
-        w.pair(1, keys::PLANET_MODIFIER, &quoted(feature));
-    }
-    w.pair(1, keys::ENTITY, &p.entity.to_string());
-    if let Some(name) = p.entity_name {
-        w.pair(1, keys::ENTITY_NAME, &quoted(name));
-    }
-    if !p.deposits.is_empty() {
-        w.list(1, keys::DEPOSITS, p.deposits);
-    }
-    w.close(0);
-    w.into_bytes()
+    entry(
+        indent,
+        &Entry {
+            carrier_flags,
+            binary_flags: binary_flags(p),
+            moon_of: p.moon_of,
+            moons: p.moons,
+            modifiers: p.modifiers,
+            features: p.features,
+            entity: p.entity,
+            entity_name: p.entity_name,
+            deposits: p.deposits,
+            ..Entry::new(p.id, p.class, p.size, p.name, (p.x, p.y), p.system, p.orbit)
+        },
+    )
 }
 
 fn binary_flags(p: &PlanetEntry<'_>) -> u32 {
@@ -413,10 +415,10 @@ pub fn ambient_entry(indent: &[u8], a: &AmbientEntry<'_>) -> Vec<u8> {
         w.close(2);
     };
     w.open(0, &a.id.to_string());
-    w.coordinate(1, a.star, a.system);
+    w.coordinate(1, a.star, a.system, None);
     w.pair(1, keys::DATA, &quoted(a.kind));
     w.open(1, keys::PROPERTIES);
-    w.coordinate(2, a.at, a.system);
+    w.coordinate(2, a.at, a.system, None);
     null(&mut w, keys::ATTACH);
     w.open(2, keys::OFFSET);
     w.line(3, "0 0 0 ");
@@ -456,7 +458,7 @@ const NATURAL_WORMHOLE_OWNER: &str = "7";
 pub fn natural_wormhole_entry(indent: &[u8], end: &WormholeEnd) -> Vec<u8> {
     let mut w = Lines::new(indent);
     w.open(0, &end.id.to_string());
-    w.coordinate(1, end.at, end.system);
+    w.coordinate(1, end.at, end.system, None);
     w.pair(1, keys::BYPASS, &end.bypass.to_string());
     w.close(0);
     w.into_bytes()
@@ -544,12 +546,21 @@ impl Lines {
         self.close(depth);
     }
 
-    /// `coordinate={ x y origin }` at `depth`.
-    fn coordinate(&mut self, depth: usize, (x, y): (f64, f64), origin: u32) {
+    /// `coordinate={ x y origin }` at `depth`, with a `visual_height` when given one.
+    pub(crate) fn coordinate(
+        &mut self,
+        depth: usize,
+        (x, y): (f64, f64),
+        origin: u32,
+        height: Option<f64>,
+    ) {
         self.open(depth, keys::COORDINATE);
         self.pair(depth + 1, keys::X, &coord(x));
         self.pair(depth + 1, keys::Y, &coord(y));
         self.pair(depth + 1, keys::ORIGIN, &origin.to_string());
+        if let Some(height) = height {
+            self.pair(depth + 1, keys::VISUAL_HEIGHT, &coord(height));
+        }
         self.close(depth);
     }
 

@@ -5,36 +5,41 @@
 //! when it loads. A restored complex's habitat also has the orbital `spawn_orbital_effect`
 //! leaves, a `megastructures` row at the host's coordinates tied to the host.
 
-use crate::NULL_ID;
 use crate::cst::Node;
-use crate::emit::megastructure::{MegastructureRow, megastructure_row};
 use crate::emit::system::{HabitatEntry, habitat_entry};
-use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
-use crate::format::save::added::{row, rows};
+use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
-use crate::format::save::write::add_body::placement;
-use crate::format::save::write::add_megastructure::{culture_of, tie, today};
-use crate::format::save::write::add_system::write_slot;
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
-use crate::format::save::write::id_list::{append, list_planets};
+use crate::format::save::write::flags::{add_flags, drop_flags, today};
+use crate::format::save::write::id_list::list_planets;
 use crate::format::save::write::megastructure_links::{
-    self, HAS_ORBITAL, MEGASTRUCTURES, Tied, add_flags, drop_flags, unlink,
+    self, HAS_ORBITAL, Holders, MEGASTRUCTURES, NewRow, Tied, unlink, write_rows,
 };
 use crate::format::save::write::place;
-use crate::format::save::write::planet_entry::{is_star, list_moon, role};
-use crate::format::save::write::remove_planet::{HABITAT, HAS_HABITAT, is_habitat};
+use crate::format::save::write::planet_entry::{body_is_star, list_moon};
+use crate::format::save::write::shared::{culture_of, placement, tie, write_slot};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
+use crate::ops::rules::modifiers::check_flags;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
-    Emitted, HabitatOrbital, NewHabitat, Op, OpError, ParseAt, Plan, Planned, Subject,
+    Emitted, HabitatOrbital, NewHabitat, NewPlanet, Op, OpError, ParseAt, Plan, Planned, Subject,
 };
 use crate::projections::geometry::{Body, normalised, point, reach};
 use crate::projections::name::{NameTemplate, format};
 use crate::projections::read;
 use crate::session::Session;
+
+/// The planet flag a habitat has, and what its host's flag for it starts with.
+pub(crate) const HABITAT: &str = "habitat";
+
+/// The system flag the game sets when a habitat is built there.
+pub(crate) const HAS_HABITAT: &str = "has_habitat";
+
+/// The class of a habitat.
+const PC_HABITAT: &str = "pc_habitat";
 
 /// The types `spawn_orbital_effect` spawns, one of which a restored complex leaves.
 const ORBITAL_TYPES: [&str; 2] = ["habitat_major_orbital", "habitat_minor_orbital"];
@@ -53,12 +58,9 @@ pub(crate) fn plan_add(
         .iter()
         .find(|b| b.body.id == body)
         .ok_or(OpError::NotABody { body, system })?;
-    let refuse = |reason: String| OpError::MegastructureRefused {
-        kind: HABITAT.to_owned(),
-        reason,
-    };
+    let refuse = megastructure_links::refuse(HABITAT);
     if let Some(parent) = host.body.parent
-        && !is_star_of(s, &stored, parent)?
+        && !body_is_star(s, &stored, parent)?
     {
         return Err(refuse(format!(
             "planet {body} orbits planet {parent}, and Galaxy Forge puts nothing round a body that orbits a planet"
@@ -74,26 +76,31 @@ pub(crate) fn plan_add(
         _ => None,
     };
 
-    let angle = normalised(habitat.at.angle);
-    let at = point(host.body.at, habitat.at.radius, angle);
-    let name = system_named(s, system, &habitat.name, habitat.system_name.as_deref())?;
+    let angle = normalised(habitat.planet.at.angle);
+    let at = point(host.body.at, habitat.planet.at.radius, angle);
+    let name = system_named(
+        s,
+        system,
+        &habitat.planet.name,
+        habitat.system_name.as_deref(),
+    )?;
     let date = today(&s.doc)?;
     let mut planets = SlotTable::planets(&s.doc)?;
     let slot = planets.take();
     let id = slot.id();
     let entry = HabitatEntry {
         id,
-        class: &habitat.class,
-        size: habitat.size,
+        class: &habitat.planet.class,
+        size: habitat.planet.size,
         name: &name,
         x: at.0,
         y: at.1,
         system,
-        orbit: habitat.at.radius,
+        orbit: habitat.planet.at.radius,
         host: body,
-        flags: &habitat.flags,
+        flags: &habitat.planet.flags,
         flag_date: &date,
-        entity_name: habitat.model.as_deref(),
+        entity_name: habitat.planet.model.as_deref(),
     };
     let emitted = Emitted::Planet { id, system };
     write_slot(plan, &s.doc, slot, &mut planets, emitted, |indent| {
@@ -108,6 +115,8 @@ pub(crate) fn plan_add(
         }
         None => None,
     };
+    plan.created().planets.push(id);
+    plan.created().megastructures.extend(orbital);
     let host_edit = plan.edit_planet(&s.doc, body, system)?;
     list_moon(host_edit, id)?;
     let host_flag = format!("{HABITAT}{id}");
@@ -120,11 +129,7 @@ pub(crate) fn plan_add(
         None => add_flags(host_edit, &host_flags, &place::planet::FLAGS)?,
     }
     let system_edit = plan.edit(&s.doc, system)?;
-    let flagged = system_edit
-        .entity()?
-        .find(keys::FLAGS, &system_edit.buf)
-        .is_some_and(|flags| flags.find(HAS_HABITAT, &system_edit.buf).is_some());
-    if !flagged {
+    if !read::has_flag(system_edit.entity()?, &system_edit.buf, HAS_HABITAT) {
         add_flags(system_edit, &[(HAS_HABITAT, date)], &place::system::FLAGS)?;
     }
 
@@ -132,11 +137,11 @@ pub(crate) fn plan_add(
         id,
         parent: Some(body),
         at,
-        orbit: habitat.at.radius,
+        orbit: habitat.planet.at.radius,
     };
     let mut after: Vec<Body> = stored.iter().map(|b| b.body).collect();
     after.push(added);
-    let kind = if is_star_of(s, &stored, body)? {
+    let kind = if body_is_star(s, &stored, body)? {
         "star"
     } else {
         "planet"
@@ -145,7 +150,8 @@ pub(crate) fn plan_add(
         .map(|orbital| format!(", with orbital #{orbital}"))
         .unwrap_or_default();
     let description = format!(
-        "Added habitat #{id} round {} in {}{with}",
+        "Added {} round {} in {}{with}",
+        named_as("habitat", &name, id),
         named_as(kind, &read::name(&node, src), body),
         named(&s.graph, system)
     );
@@ -161,27 +167,19 @@ pub(crate) fn plan_add(
 
 /// Refuse a habitat whose values cannot be written.
 fn check(habitat: &NewHabitat) -> Result<(), OpError> {
-    check_text("a planet class", &habitat.class, Form::Bare)?;
-    if habitat.size == 0 {
+    check_text("a planet class", &habitat.planet.class, Form::Bare)?;
+    if habitat.planet.size == 0 {
         return Err(OpError::ZeroPlanetSize);
     }
-    check_placement(habitat.at.radius, habitat.at.angle)?;
-    check_text("a name key", &habitat.name, Form::Bare)?;
+    check_placement(habitat.planet.at.radius, habitat.planet.at.angle)?;
+    check_text("a name key", &habitat.planet.name, Form::Bare)?;
     if let Some(variable) = &habitat.system_name {
         check_text("a name variable", variable, Form::Bare)?;
     }
-    if let Some(model) = &habitat.model {
+    if let Some(model) = &habitat.planet.model {
         check_text("a model", model, Form::Bare)?;
     }
-    for (i, flag) in habitat.flags.iter().enumerate() {
-        check_text("a planet flag", flag, Form::Bare)?;
-        if habitat.flags[..i].contains(flag) {
-            return Err(OpError::InvalidText {
-                what: "a planet flag listed once",
-                text: flag.clone(),
-            });
-        }
-    }
+    check_flags("a planet flag", &habitat.planet.flags)?;
     if let Some(orbital) = &habitat.orbital {
         check_text("a megastructure type", &orbital.kind, Form::Bare)?;
         if let Some(name) = &orbital.name {
@@ -217,16 +215,12 @@ fn system_named(
 /// `megastructure` key names, the flag `has_megastructure` or `has_orbital` one leaves, or a
 /// live row whose `planet` it is.
 fn holds_megastructure(s: &Session, node: &Node, src: &[u8], body: u32) -> Result<bool, OpError> {
-    if read::scalar_u32(node, keys::MEGASTRUCTURE, src).is_some_and(|id| id != NULL_ID)
-        || [keys::HAS_MEGASTRUCTURE, HAS_ORBITAL]
-            .into_iter()
-            .any(|flag| has_flag(node, src, flag))
-    {
-        return Ok(true);
-    }
-    Ok(rows(&s.doc, MEGASTRUCTURES)?
-        .iter()
-        .any(|row| megastructure::read(&row.node, row.src).planet == Some(body)))
+    let held = Holders::read(&s.doc, body, node, src)?;
+    let flagged = |flag| held.flags.contains(&flag);
+    Ok(held.key.is_some()
+        || flagged(keys::HAS_MEGASTRUCTURE)
+        || flagged(HAS_ORBITAL)
+        || !held.rows.is_empty())
 }
 
 /// Write `orbital` as a finished row at `at`, the coordinates of body `body` of `system`,
@@ -240,10 +234,6 @@ fn add_orbital(
     at: (f64, f64),
     orbital: &HabitatOrbital,
 ) -> Result<u32, OpError> {
-    let culture = match orbital.owner {
-        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
-        None => None,
-    };
     let name = match &orbital.name {
         Some(key) => Some(system_named(
             s,
@@ -253,51 +243,30 @@ fn add_orbital(
         )?),
         None => None,
     };
-    let mut table = SlotTable::megastructures(&s.doc)?;
-    let slot = table.append();
-    let id = slot.id();
-    let row = MegastructureRow {
-        id,
+    let culture = match orbital.owner {
+        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
+        None => None,
+    };
+    let row = NewRow {
         name: name.as_ref(),
         kind: &orbital.kind,
         at,
-        system,
         owner: orbital.owner.map(|owner| (owner, culture.as_deref())),
-        planet: body,
+        planet: Some(body),
         bypass: None,
     };
-    write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
-        megastructure_row(indent, &row)
-    })?;
-    append(
-        plan.edit(&s.doc, system)?,
-        &place::system::MEGASTRUCTURES,
-        &[id],
-    )?;
-    if let Some(owner) = orbital.owner {
-        append(
-            plan.edit_country(&s.doc, owner)?,
-            &place::country::OWNED_MEGASTRUCTURES,
-            &[id],
-        )?;
-    }
-    Ok(id)
+    let ids = write_rows(plan, s, system, &[row])?;
+    Ok(ids[0])
 }
 
-/// Whether body `id` of the system, whose bodies are `stored`, is a star.
-fn is_star_of(s: &Session, stored: &[Stored], id: u32) -> Result<bool, OpError> {
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let primary = stored.first().is_some_and(|first| first.body.id == id);
-    Ok(is_star(role(&node, src, primary, s.star_classes())))
+/// Whether planet `node` is a habitat: by its class, or the flag the game sets on one.
+pub(crate) fn is_habitat(node: &Node, src: &[u8]) -> bool {
+    read::text(node, keys::PLANET_CLASS, src) == PC_HABITAT || read::has_flag(node, src, HABITAT)
 }
 
 /// The body's first `habitat<id>` flag, which names a habitat round it.
 fn habitat_flag(node: &Node, src: &[u8]) -> Option<String> {
-    let flags = node.find(keys::FLAGS, src)?;
-    flags
-        .children()
-        .iter()
-        .filter_map(|flag| flag.key_str(src))
+    read::flags(node, src)
         .find(|flag| {
             flag.strip_prefix(HABITAT)
                 .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
@@ -313,16 +282,7 @@ pub(crate) fn hosted(s: &Session, habitat: u32, host: u32) -> Result<bool, OpErr
         Err(OpError::UnknownPlanet(_)) => return Ok(false),
         Err(error) => return Err(error),
     };
-    let flag = format!("{HABITAT}{habitat}");
-    Ok(node
-        .find(keys::FLAGS, src)
-        .is_some_and(|flags| flags.find(&flag, src).is_some()))
-}
-
-/// Whether planet `node` has the planet flag `flag`.
-fn has_flag(node: &Node, src: &[u8], flag: &str) -> bool {
-    node.find(keys::FLAGS, src)
-        .is_some_and(|flags| flags.find(flag, src).is_some())
+    Ok(read::has_flag(&node, src, &format!("{HABITAT}{habitat}")))
 }
 
 /// The orbital added with a habitat round `host`: the row the host names in `megastructure`,
@@ -334,7 +294,7 @@ pub(crate) fn orbital_of(s: &Session, host: u32) -> Result<Option<Tied>, OpError
     let Some(id) = read::scalar_u32(&node, keys::MEGASTRUCTURE, src) else {
         return Ok(None);
     };
-    if !has_flag(&node, src, HAS_ORBITAL)
+    if !read::has_flag(&node, src, HAS_ORBITAL)
         || s.doc.added().get(EntityKind::Megastructure, id).is_none()
     {
         return Ok(None);
@@ -396,8 +356,10 @@ pub(crate) fn untie(
 
 /// The orbital row `orbital`, as [`Op::AddHabitat`] would write it back.
 pub(crate) fn orbital_back(s: &Session, orbital: &Tied) -> Result<HabitatOrbital, OpError> {
-    let found = row(&s.doc, MEGASTRUCTURES, orbital.id)?
-        .ok_or(OpError::MegastructureNotAdded(orbital.id))?;
+    let found = row(&s.doc, MEGASTRUCTURES, orbital.id)?.ok_or(OpError::NotAdded {
+        kind: EntityKind::Megastructure,
+        id: orbital.id,
+    })?;
     let name = found
         .node
         .find(keys::NAME, found.src)
@@ -425,22 +387,15 @@ pub(crate) fn read_back(
 ) -> NewHabitat {
     let name = read::name(node, src);
     NewHabitat {
-        class: read::text(node, keys::PLANET_CLASS, src),
-        size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
-        at: placement(stored, own, Some(host)),
         system_name: name.variables.first().map(|variable| variable.name.clone()),
-        name: name.key,
-        model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
-        flags: node
-            .find(keys::FLAGS, src)
-            .map(|flags| {
-                flags
-                    .children()
-                    .iter()
-                    .filter_map(|flag| flag.key_str(src).map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default(),
+        planet: NewPlanet {
+            class: read::text(node, keys::PLANET_CLASS, src),
+            size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
+            at: placement(stored, own, Some(host)),
+            name: name.key,
+            model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+            flags: read::flags(node, src).map(str::to_owned).collect(),
+        },
         orbital,
     }
 }

@@ -1,7 +1,7 @@
 //! A save planet's size: `planet_size` in its `planets.planet` entity, star bodies
 //! included. The size is written as given; the game is the judge of what a class allows.
 
-use crate::format::save::write::planet_entry::PlanetEntry;
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
 use crate::keys;
 use crate::ops::{Op, OpError, ParseAt, Plan, Planned};
 use crate::projections::read;
@@ -32,7 +32,10 @@ pub(crate) fn plan_set(
     }
     edit.set_scalar(&[keys::PLANET_SIZE], size.to_string())?;
     Ok(Planned {
-        description: format!("Set the size of planet #{id} from {old} to {size}"),
+        description: format!(
+            "Set the size of {} from {old} to {size}",
+            named_planet(s, id)?
+        ),
         inverse: Op::SetBodySize {
             body: id,
             size: old,

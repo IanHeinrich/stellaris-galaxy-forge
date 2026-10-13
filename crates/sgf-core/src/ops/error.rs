@@ -3,6 +3,7 @@
 use std::fmt;
 
 use crate::document;
+use crate::entity::views::EntityKind;
 use crate::format::save::write::planet_modifier::MAX_MODIFIER_COPIES;
 use crate::ops::SavedTable;
 use crate::overlay::OverlayError;
@@ -125,7 +126,7 @@ pub enum OpError {
     ModifierPresent(u32, String),
     #[error("planet {0} does not have {1}")]
     ModifierAbsent(u32, String),
-    #[error("a modifier cannot last 0 days: -1 keeps it for ever")]
+    #[error("a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever")]
     ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
@@ -168,9 +169,9 @@ pub enum OpError {
         capped: bool,
     },
     #[error(
-        "system {0} was in the save when it was opened: only a system added since then can be removed, rolled again or renamed"
+        "{kind} {id} was in the save when it was opened: only a {kind} added since then can be removed or changed"
     )]
-    SystemNotAdded(u32),
+    NotAdded { kind: EntityKind, id: u32 },
     #[error("deposit {0} does not exist")]
     UnknownDeposit(u32),
     #[error("deposit {0} is not held by a planet")]
@@ -201,10 +202,6 @@ pub enum OpError {
     HasNaturalWormhole { system: u32, kind: String },
     #[error("a {kind} cannot be added there: {reason}")]
     MegastructureRefused { kind: String, reason: String },
-    #[error(
-        "megastructure {0} was in the save when it was opened: only one added since then can be taken out again"
-    )]
-    MegastructureNotAdded(u32),
     #[error("systems {0} and {1} are not the two ends of a wormhole")]
     NotAWormholePair(u32, u32),
     #[error(
@@ -252,10 +249,6 @@ pub enum OpError {
         class: String,
         models: u32,
     },
-    #[error(
-        "planet {0} was in the save when it was opened: only a body added since then can be taken out again"
-    )]
-    BodyNotAdded(u32),
     #[error("planet {0} has moons: take them out first")]
     BodyHasMoons(u32),
     #[error("planet {body} is owned by country {owner} but controlled by country {controller}")]
@@ -377,7 +370,7 @@ impl OpError {
             | Self::FixedNameNotAllowed { .. }
             | Self::RingNotAllowed { .. }
             | Self::CappedMismatch { .. }
-            | Self::SystemNotAdded { .. }
+            | Self::NotAdded { .. }
             | Self::DepositNotOnPlanet { .. }
             | Self::DigSitePresent { .. }
             | Self::DigSiteNotOnPlanet { .. }
@@ -388,7 +381,6 @@ impl OpError {
             | Self::NotAWormhole { .. }
             | Self::HasNaturalWormhole { .. }
             | Self::MegastructureRefused { .. }
-            | Self::MegastructureNotAdded { .. }
             | Self::NotAWormholePair { .. }
             | Self::WormholeEndMissing { .. }
             | Self::HoldsWormhole { .. }
@@ -405,7 +397,6 @@ impl OpError {
             | Self::RingSegment { .. }
             | Self::MegastructureClass { .. }
             | Self::PlanetModelIndex { .. }
-            | Self::BodyNotAdded { .. }
             | Self::BodyHasMoons { .. }
             | Self::PlanetOccupied { .. }
             | Self::NoColony { .. }

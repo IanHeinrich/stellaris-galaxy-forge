@@ -14,7 +14,7 @@ use crate::Diagnostic;
 use crate::initializers::Initializers;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::scenarios::SCENARIO_DIR;
-use crate::install::script::{self, Def, Variables, line_of};
+use crate::install::script::{self, Def, FileLines, LineStarts, Variables, line_of};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
 use crate::scripts::scan::{self, Dir, Scan};
@@ -497,8 +497,9 @@ impl ScriptIndex {
         };
         let mut blocks = Vec::new();
         created_countries(&root, bytes, &mut blocks);
+        let lines = LineStarts::of(bytes);
         for (block, next) in blocks {
-            let location = script_ref(&self.layout, file, line_of(bytes, block.span().start));
+            let location = script_ref(&self.layout, file, lines.line_of(block.span().start));
             let Some(mut country) = read_country(block, bytes, location) else {
                 continue;
             };
@@ -524,6 +525,7 @@ impl ScriptIndex {
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         let defs = script::parse_dir(layout, PRESCRIPTED_DIR, globals, diagnostics);
+        let mut lines = FileLines::default();
         for def in in_file_order(&layout.files_in(PRESCRIPTED_DIR), &defs) {
             let src = &def.src;
             let Some(initializer) = def.scalar("initializer") else {
@@ -533,7 +535,7 @@ impl ScriptIndex {
                 continue;
             };
             let flag = def.node.find("empire_flag", src);
-            let location = script_ref(&self.layout, &def.file, line_of(src, def.node.span().start));
+            let location = script_ref(&self.layout, &def.file, lines.line_of(def));
             self.prescripted.insert(
                 initializer.to_owned(),
                 Prescripted {
@@ -554,6 +556,7 @@ impl ScriptIndex {
         diagnostics: &mut Vec<Diagnostic>,
     ) {
         let defs = script::parse_dir(layout, FALLEN_EMPIRES_DIR, globals, diagnostics);
+        let mut lines = FileLines::default();
         for def in in_file_order(&layout.files_in(FALLEN_EMPIRES_DIR), &defs) {
             let src = &def.src;
             let Some(initializer) = def.scalar("initializer") else {
@@ -563,7 +566,7 @@ impl ScriptIndex {
             created_countries(&def.node, src, &mut blocks);
             let country = blocks.first().map(|(block, _)| *block);
             let flag = country.and_then(|c| c.find("flag", src));
-            let location = script_ref(&self.layout, &def.file, line_of(src, def.node.span().start));
+            let location = script_ref(&self.layout, &def.file, lines.line_of(def));
             self.fallen_empires.insert(
                 initializer.to_owned(),
                 FallenEmpire {

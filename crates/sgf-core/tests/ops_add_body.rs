@@ -3,7 +3,7 @@
 //! refused.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::ops::{BodyName, NewBody, Op, OpError};
+use sgf_core::ops::{BodyName, BodyNaming, GivenName, NewBody, NewModifier, Op, OpError};
 use sgf_core::session::OpResult;
 use sgf_core::views::OrbitPlacement;
 
@@ -17,7 +17,6 @@ fn body(class: &str, size: u32) -> NewBody {
         class: class.to_owned(),
         size,
         moon_of: None,
-        name: None,
         ..NewBody::default()
     }
 }
@@ -37,16 +36,9 @@ fn add(system: u32, spec: NewBody, radius: f64, angle: f64) -> Op {
     }
 }
 
-/// The planet an add wrote, as its inverse names it.
+/// The planet an add wrote.
 fn added(result: &OpResult) -> u32 {
-    let removal = match &result.inverse {
-        Op::Batch { ops, .. } => &ops[0],
-        inverse => inverse,
-    };
-    match removal {
-        Op::RemoveBody { body: planet } => *planet,
-        other => panic!("a removal, not {other:?}"),
-    }
+    result.created.planets[0]
 }
 
 /// The literal keys of a name's `NUMERAL` variables, outermost last.
@@ -78,7 +70,7 @@ fn a_planet_added_to_an_owned_system() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Added planet #{id} to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, \
+            "Added planet Alari system I #{id} to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, \
              with 2 deposits; set the inner radius of Alari system #169 from 215 to 270"
         )
     );
@@ -99,7 +91,7 @@ fn a_planet_added_to_an_unowned_system_takes_the_next_numeral() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Added planet #{id} to Meissa #408 (pc_barren, size 10) at orbit 45 at 300°, \
+            "Added planet Meissa V #{id} to Meissa #408 (pc_barren, size 10) at orbit 45 at 300°, \
              with 1 deposit"
         )
     );
@@ -125,7 +117,7 @@ fn moons_added_to_a_planet_are_lettered_in_turn() {
     assert_eq!(
         first.entry.description,
         format!(
-            "Added moon #{a} of planet #138 in Meissa #408 (pc_barren, size 6) at orbit 15 at 90°"
+            "Added moon Meissa IV a #{a} of Meissa IV #138 in Meissa #408 (pc_barren, size 6) at orbit 15 at 90°"
         )
     );
     assert_eq!(first.inverse, Op::RemoveBody { body: a });
@@ -190,7 +182,10 @@ fn a_planet_and_a_moon_added_on_the_4_4_sample() {
 fn a_typed_name_and_a_ring_are_written_as_given() {
     let mut session = open_4_5();
     let spec = NewBody {
-        name: Some(BodyName::Typed("New Hope".to_owned())),
+        naming: BodyNaming::Named(GivenName {
+            name: BodyName::Typed("New Hope".to_owned()),
+            fixed: false,
+        }),
         ring: true,
         ..body("pc_gas_giant", 20)
     };
@@ -228,6 +223,11 @@ fn the_inverse_puts_the_bytes_back() {
 
 #[test]
 fn adds_and_removals_are_refused() {
+    let mined = NewModifier {
+        modifier: "harvested_resources_mining".to_owned(),
+        days: vec![360],
+        feature: None,
+    };
     let mut session = open_4_5();
     let refusals = [
         (
@@ -275,8 +275,20 @@ fn adds_and_removals_are_refused() {
             "radius 0 is invalid: a body's orbit must be greater than zero",
         ),
         (
+            add(
+                408,
+                NewBody {
+                    modifiers: vec![mined.clone(), mined],
+                    ..body("pc_desert", 10)
+                },
+                50.0,
+                0.0,
+            ),
+            "\"harvested_resources_mining\" cannot be written as a modifier listed once",
+        ),
+        (
             Op::RemoveBody { body: 138 },
-            "planet 138 was in the save when it was opened: only a body added since then can be taken out again",
+            "planet 138 was in the save when it was opened: only a planet added since then can be removed or changed",
         ),
     ];
     common::assert_refusals(&mut session, refusals);

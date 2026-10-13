@@ -1,8 +1,8 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::ops::{
-    LanePair, MegastructurePlace, NewBody, NewHabitat, NewRingWorld, Op, RingModifier,
-    RingQuadrant, RingRow, RingSegment, RingVariable, SystemMove,
+    LanePair, NewBody, NewHabitat, NewMegastructure, NewMegastructurePlace, NewPlanet,
+    NewRingWorld, Op, RingQuadrant, RingRow, RingSegment, RingVariable, SystemMove, TimedModifier,
 };
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -182,17 +182,16 @@ pub const ADDED_MEGASTRUCTURE: u32 = 16;
 pub fn sol_nexus() -> Op {
     Op::AddMegastructure {
         system: 169,
-        kind: "think_tank_3".to_owned(),
-        name: None,
-        at: MegastructurePlace::Body { body: 6 },
-        owner: Some(0),
-        bypass: None,
-        ruined_orbital_ring: false,
-        megastructure_flag: true,
-        orbital_flag: false,
-        star_only: false,
-        construction: None,
-        left_out: 0,
+        spec: NewMegastructure {
+            kind: "think_tank_3".to_owned(),
+            at: NewMegastructurePlace::Body {
+                body: 6,
+                body_flags: vec!["has_megastructure".to_owned()],
+                star_only: false,
+            },
+            owner: Some(0),
+            ..NewMegastructure::default()
+        },
     }
 }
 
@@ -202,18 +201,20 @@ pub fn sol_habitat() -> Op {
     Op::AddHabitat {
         body: 4,
         habitat: NewHabitat {
-            class: "pc_habitat".to_owned(),
-            size: 6,
-            at: OrbitPlacement {
-                radius: 9.899,
-                angle: 315.0,
+            planet: NewPlanet {
+                class: "pc_habitat".to_owned(),
+                size: 6,
+                at: OrbitPlacement {
+                    radius: 9.899,
+                    angle: 315.0,
+                },
+                name: "HABITAT_PLANET_NAME".to_owned(),
+                model: Some("mammalian_01_habitat_phase_03_entity".to_owned()),
+                flags: ["megastructure", "habitat", "habitat_level_1"]
+                    .map(str::to_owned)
+                    .to_vec(),
             },
-            name: "HABITAT_PLANET_NAME".to_owned(),
             system_name: Some("prev.solar_system.GetName".to_owned()),
-            model: Some("mammalian_01_habitat_phase_03_entity".to_owned()),
-            flags: ["megastructure", "habitat", "habitat_level_1"]
-                .map(str::to_owned)
-                .to_vec(),
             orbital: None,
         },
     }
@@ -235,15 +236,17 @@ fn segment(
     flags: &[&str],
 ) -> RingSegment {
     RingSegment {
-        class: class.to_owned(),
-        size: 10,
-        at: OrbitPlacement {
-            radius: 45.0,
-            angle: (angle + 360.0) % 360.0,
+        planet: NewPlanet {
+            class: class.to_owned(),
+            size: 10,
+            at: OrbitPlacement {
+                radius: 45.0,
+                angle: (angle + 360.0) % 360.0,
+            },
+            name: name.to_owned(),
+            model: model.map(|stem| format!("mammalian_01_{stem}")),
+            flags: flags.iter().map(|f| (*f).to_owned()).collect(),
         },
-        name: name.to_owned(),
-        model: model.map(|stem| format!("mammalian_01_{stem}")),
-        flags: flags.iter().map(|f| (*f).to_owned()).collect(),
         megastructure_icon: class == "pc_ringworld_habitable",
         modifiers: Vec::new(),
     }
@@ -347,15 +350,17 @@ pub const TITANIC_RADIUS: f64 = 90.0;
 /// `habitable`, is of size 20 and has the housing modifier with no end.
 fn titanic_quadrant(at: f64, habitable: &str) -> RingQuadrant {
     let part = |class: &str, angle: f64, name: &str, model: &str, flags: &[&str]| RingSegment {
-        class: class.to_owned(),
-        size: 10,
-        at: OrbitPlacement {
-            radius: TITANIC_RADIUS,
-            angle: (angle + 360.0) % 360.0,
+        planet: NewPlanet {
+            class: class.to_owned(),
+            size: 10,
+            at: OrbitPlacement {
+                radius: TITANIC_RADIUS,
+                angle: (angle + 360.0) % 360.0,
+            },
+            name: name.to_owned(),
+            model: Some(format!("mammalian_01_titanic_{model}_sector_entity")),
+            flags: flags.iter().map(|f| (*f).to_owned()).collect(),
         },
-        name: name.to_owned(),
-        model: Some(format!("mammalian_01_titanic_{model}_sector_entity")),
-        flags: flags.iter().map(|f| (*f).to_owned()).collect(),
         megastructure_icon: false,
         modifiers: Vec::new(),
     };
@@ -371,11 +376,11 @@ fn titanic_quadrant(at: f64, habitable: &str) -> RingQuadrant {
             "giga_ringworld_tit",
         ],
     );
-    habitable.size = 20;
+    habitable.planet.size = 20;
     habitable.megastructure_icon = true;
-    habitable.modifiers = vec![RingModifier {
+    habitable.modifiers = vec![TimedModifier {
         modifier: "giga_titanic_housing".to_owned(),
-        days: -1,
+        days: None,
     }];
     RingQuadrant::Finished {
         segments: vec![
@@ -498,7 +503,6 @@ pub fn meissa_v() -> Op {
             class: "pc_barren".to_owned(),
             size: 10,
             moon_of: None,
-            name: None,
             deposits: vec!["d_minerals_2".to_owned()],
             ..NewBody::default()
         },

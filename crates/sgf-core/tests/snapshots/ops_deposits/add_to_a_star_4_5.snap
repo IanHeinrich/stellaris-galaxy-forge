@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added d_energy_2 (#16777216) to planet #0
+Added d_energy_2 (#16777216) to star Alari system #0
 touched: [169]
 inverse: RemoveDeposit { deposit: 16777216 }
 … and 3 other issues

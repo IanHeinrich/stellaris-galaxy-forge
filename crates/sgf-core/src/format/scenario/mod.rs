@@ -13,6 +13,7 @@ pub mod index;
 pub mod listings;
 pub mod marauder;
 pub mod paint;
+pub mod profile;
 pub(crate) mod provenance;
 pub(crate) mod spawn;
 pub mod summary;
@@ -22,6 +23,7 @@ pub use fe_link::FeLinkFlags;
 pub use fe_zone::{FeDirection, FeKind, FeZone};
 pub use marauder::MarauderRole;
 pub use paint::is_painted;
+pub use profile::ScenarioProfile;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -29,13 +31,13 @@ use std::path::{Path, PathBuf};
 use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
-use crate::format::Format;
 use crate::format::scenario::index::{
     Changes, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
 };
+use crate::format::{self, Format};
 use crate::keys::scenario as keys;
 use crate::lexer::{self, Mode};
-use crate::ops::{Op, OpError, Plan, Planned, Subject};
+use crate::ops::{DetailsReach, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{
     Galaxy, GalaxyGraph, Lane, Nebula, ProjectionError, SpawnModifier, SystemNode, lane_length,
@@ -43,8 +45,8 @@ use crate::projections::galaxy::{
 use crate::projections::name::{NameTemplate, looks_like_key};
 use crate::projections::read;
 use crate::session::Session;
-use crate::validate::{Issue, IssueCode};
-use crate::views::{Capabilities, DocumentKind};
+use crate::validate::{self, Issue, IssueCode};
+use crate::views::{Capabilities, DocumentKind, SaveMeta};
 
 /// The game's ordinary systems the plain profile gives a seat, with the odds the game rolls
 /// each at. `basic_init_04` is left out because its last body can be an ice asteroid.
@@ -86,21 +88,7 @@ fn seat_odds() -> u32 {
     SEAT_INITIALIZERS.iter().map(|(_, odds)| odds).sum()
 }
 
-/// SplitMix64's increment.
-pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
-
-/// SplitMix64's mix.
-pub(crate) fn mix(z: u64) -> u64 {
-    let z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    let z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
-}
-
-/// A number in `[0, 1)` from `seed` and `system`, by SplitMix64's mix.
-pub(crate) fn unit(seed: u64, system: u32) -> f64 {
-    let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
-    (z >> 11) as f64 / (1u64 << 53) as f64
-}
+pub(crate) use crate::rng::unit;
 
 /// The statements of a system's `effect` block that make the game treat it as an empire's
 /// home, written whole by the plain profile on a seat it gives one of
@@ -232,20 +220,39 @@ impl Format for Scenario {
         index(doc).header.name.clone()
     }
 
-    fn issues(&self, doc: &Document) -> Vec<Issue> {
-        if !index(doc).header.has_coordinate_transform {
-            return Vec::new();
+    fn meta(&self, _doc: &Document) -> Result<Option<SaveMeta>, archive::Error> {
+        Ok(None)
+    }
+
+    fn painted(&self, doc: &Document) -> bool {
+        paint::is_painted(doc.original())
+    }
+
+    fn issues(&self, doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
+        let mut issues = validate::scenario_rules(graph);
+        if index(doc).header.has_coordinate_transform {
+            issues.push(Issue::new(
+                IssueCode::CoordinateTransform,
+                "the scenario has a coordinate_transform; positions are shown untransformed"
+                    .to_owned(),
+                Vec::new(),
+            ));
         }
-        vec![Issue::new(
-            IssueCode::CoordinateTransform,
-            "the scenario has a coordinate_transform; positions are shown untransformed".to_owned(),
-            Vec::new(),
-        )]
+        issues
     }
 
     /// A scenario's systems carry none of the keys the curated rows read.
     fn curates_entities(&self) -> bool {
         false
+    }
+
+    /// A scenario system has no bodies of its own, and an op that only writes a save's
+    /// bodies writes a statement's own text here.
+    fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32> {
+        match reach {
+            DetailsReach::SaveBodies => Vec::new(),
+            _ => format::stale_systems(subjects, false),
+        }
     }
 
     fn capabilities(&self, _doc: &Document) -> Capabilities {
@@ -261,6 +268,7 @@ impl Format for Scenario {
             header: true,
             scripted_owners: true,
             scripts: true,
+            prepare: true,
             ..Capabilities::default()
         }
     }

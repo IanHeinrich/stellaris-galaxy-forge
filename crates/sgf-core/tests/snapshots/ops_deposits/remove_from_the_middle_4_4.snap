@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed d_boggy_fens (#367) from planet #230
+Removed d_boggy_fens (#367) from Edor Vang III #230
 touched: [694]
 inverse: AddDeposit { body: 230, kind: "d_boggy_fens" }
 … and 3 other issues

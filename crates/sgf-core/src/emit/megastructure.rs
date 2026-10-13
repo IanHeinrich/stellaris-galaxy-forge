@@ -1,14 +1,12 @@
 //! A `megastructures` row and the `bypasses` row it stands for, as the game writes a finished
 //! structure. The game fills in a bypass's lock fields on load.
 
-use crate::emit::{Lines, coord, quoted};
+use crate::emit::{Lines, NULL_DATE, quoted};
 use crate::keys;
 use crate::projections::name::NameTemplate;
 
 /// `owner.type` of a bypass whose owner is a `megastructures` row.
 const MEGASTRUCTURE_OWNER: &str = "6";
-/// The date a row that is not being dismantled holds.
-const NOT_DISMANTLED: &str = "\"0.01.01\"";
 
 /// A new `megastructures` row.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,11 +33,7 @@ pub fn megastructure_row(indent: &[u8], row: &MegastructureRow<'_>) -> Vec<u8> {
         w.name(1, name);
     }
     w.pair(1, keys::TYPE, &quoted(row.kind));
-    w.open(1, keys::COORDINATE);
-    w.pair(2, keys::X, &coord(row.at.0));
-    w.pair(2, keys::Y, &coord(row.at.1));
-    w.pair(2, keys::ORIGIN, &row.system.to_string());
-    w.close(1);
+    w.coordinate(1, row.at, row.system, None);
     if let Some((owner, culture)) = row.owner {
         w.pair(1, keys::OWNER, &owner.to_string());
         if let Some(culture) = culture {
@@ -54,7 +48,7 @@ pub fn megastructure_row(indent: &[u8], row: &MegastructureRow<'_>) -> Vec<u8> {
     w.close(1);
     w.pair(1, keys::BUILD_QUEUE, &crate::NULL_ID.to_string());
     w.pair(1, keys::DISMANTLE_PROGRESS, "0");
-    w.pair(1, keys::DISMANTLE_FINISH_DATE, NOT_DISMANTLED);
+    w.pair(1, keys::DISMANTLE_FINISH_DATE, NULL_DATE);
     w.close(0);
     w.into_bytes()
 }

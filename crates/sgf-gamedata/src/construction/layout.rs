@@ -15,15 +15,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::cst::Node;
 
-use super::{EVENT_KEYS, HOOKS, MAX_DEPTH};
+use super::{EVENT_KEYS, HOOKS};
 use crate::GameData;
-use crate::condition::Condition;
-use crate::install::script::{Def, find_deep, whole, written};
-use crate::registries::megastructures::MegastructureDef;
+use crate::condition::{Condition, Subject};
+use crate::install::script::{Def, find_deep, whole};
+use crate::install::walk::{self, Branch, Flow, Script, Statement, Visitor};
+use crate::registries::megastructure_families::variant_stem;
+use crate::registries::megastructures::{MegastructureDef, is_ruin};
 
 /// The scripted effect the game ruins a megastructure row with, run in the row's scope.
 const RUIN_EFFECT: &str = "set_ruined_megastructure";
-/// The suffix of a ruined type's key.
+/// The suffix of the game's own ruins, which stand before a derelict or destroyed variant of
+/// the same working type.
 const RUINED: &str = "_ruined";
 /// Effects that change nothing an added structure writes.
 const SILENT: [&str; 6] = [
@@ -238,7 +241,8 @@ pub enum IdOf {
 /// What finishing type `key` leaves in its system when the sections are taken to `plan`'s
 /// stages; `None` when the install has no such type.
 pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
-    let chain = chain(gd, key)?;
+    let chain = gd.megastructures.chain(key);
+    let first = chain.first()?;
     let mut state = State {
         gd,
         on_star: plan.on_star,
@@ -247,7 +251,7 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
         variables: BTreeMap::new(),
         rows: vec![Row {
             laid: LaidRow {
-                kind: chain[0].key.clone(),
+                kind: first.key.clone(),
                 at: Orbit::new(Around::Host, 0.0, 0.0),
                 name: None,
                 system_name: None,
@@ -290,19 +294,6 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
         next += 1;
     }
     Some(state.finish())
-}
-
-/// The chain of `key` from the registry, the type's own stage last, each once.
-fn chain<'g>(gd: &'g GameData, key: &str) -> Option<Vec<&'g MegastructureDef>> {
-    let mut stages = vec![gd.megastructures.get(key)?];
-    while let Some(below) = stages.last().and_then(|stage| stage.upgrade_from.first()) {
-        match gd.megastructures.get(below) {
-            Some(def) if !stages.iter().any(|seen| seen.key == def.key) => stages.push(def),
-            _ => break,
-        }
-    }
-    stages.reverse();
-    Some(stages)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -360,9 +351,11 @@ impl<'g> State<'g> {
             return;
         };
         self.begin(&script.0);
+        let text = Script::of_def(&script.0);
+        let at = At::new(stage.key.clone(), Scope::System, row);
         for hook in HOOKS {
             if let Some(block) = script.0.node.find(hook, &script.0.src) {
-                Walk::new(&script.0, stage.key.clone(), Scope::System, row).block(self, block);
+                walk::block(self, &text, &at, block);
             }
         }
     }
@@ -417,35 +410,63 @@ impl<'g> State<'g> {
     /// Put the row's ruin in its place, `false` when its type has none.
     ///
     /// The game spawns ruins from system initializers, never from a construction, so nothing
-    /// in the files says where a ruin stands. The rule here: a `_ruined` type with no
-    /// `upgrade_from` stands where a row of its working type stands. Its working type is the
-    /// first stage of the row's chain when the registry joins the ruin to that stage
-    /// (`ring_world_titanic_ruined` at a `ringworld_t_3x_segment` frame point), else one whose
-    /// key is the ruin's with `_ruined` taken off, or that followed by `_` and more
-    /// (`ring_world_ruined` at a `ring_world_2` frame point). The ruin has no name and no
-    /// culture of its own.
+    /// in the files says where a ruin stands. The rule here: a ruin no stage is built from
+    /// stands where a row of its working type stands, as the registry links the two. Its
+    /// working type is the first stage of the row's chain (`ring_world_titanic_ruined` at a
+    /// `ringworld_t_3x_segment` frame point), else the stage that spawns that first stage
+    /// (`ring_world_ruined` at a `ring_world_2` frame point), else the ruin whose stem, its
+    /// variant suffix taken off, is the row's key or begins it before a `_`, the longest stem
+    /// first. Of a working type's ruins, the `_ruined` one stands before a derelict or
+    /// destroyed one. The ruin has no name and no culture of its own.
     fn ruin(&mut self, row: usize) -> bool {
         let kind = self.rows[row].laid.kind.clone();
-        let ruins = || {
-            self.gd
-                .megastructures
-                .iter()
-                .filter(|def| def.upgrade_from.is_empty() && def.key.ends_with(RUINED))
+        let types = &self.gd.megastructures;
+        let first = types.first_stage(&kind).map(|stage| stage.key.as_str());
+        let ruins: Vec<&MegastructureDef> = types
+            .iter()
+            .filter(|def| def.upgrade_from.is_empty() && is_ruin(&def.key))
+            .collect();
+        let pick = |found: Vec<&MegastructureDef>| {
+            found
+                .into_iter()
+                .min_by_key(|def| !def.key.ends_with(RUINED))
+                .map(|def| def.key.clone())
         };
-        let first = chain(self.gd, &kind).and_then(|stages| stages.first().map(|s| s.key.clone()));
-        let joined = ruins()
-            .find(|def| def.variant_of.is_some() && def.variant_of == first)
-            .map(|def| def.key.clone());
-        let ruin = joined.or_else(|| {
-            ruins()
+        let ruin_of = |working: &dyn Fn(&str) -> bool| {
+            pick(
+                ruins
+                    .iter()
+                    .copied()
+                    .filter(|def| def.variant_of.as_deref().is_some_and(working))
+                    .collect(),
+            )
+        };
+        let spawns_first = |working: &str| {
+            types.get(working).is_some_and(|def| {
+                first.is_some_and(|f| def.completes.spawned.iter().any(|s| s == f))
+            })
+        };
+        let by_stem = || {
+            let stemmed: Vec<(usize, &MegastructureDef)> = ruins
+                .iter()
                 .filter_map(|def| {
-                    let stem = def.key.strip_suffix(RUINED)?;
+                    let stem = variant_stem(&def.key)?;
                     let rest = kind.strip_prefix(stem)?;
-                    (rest.is_empty() || rest.starts_with('_')).then_some((stem.len(), &def.key))
+                    (rest.is_empty() || rest.starts_with('_')).then_some((stem.len(), *def))
                 })
-                .max_by_key(|(stem, _)| *stem)
-                .map(|(_, key)| key.clone())
-        });
+                .collect();
+            let longest = stemmed.iter().map(|(len, _)| *len).max()?;
+            pick(
+                stemmed
+                    .into_iter()
+                    .filter(|(len, _)| *len == longest)
+                    .map(|(_, def)| def)
+                    .collect(),
+            )
+        };
+        let ruin = ruin_of(&|working| Some(working) == first)
+            .or_else(|| ruin_of(&spawns_first))
+            .or_else(by_stem);
         let Some(ruin) = ruin else {
             self.note(format!("{kind}: no ruined type stands in its place"));
             return false;
@@ -465,7 +486,8 @@ impl<'g> State<'g> {
             return;
         };
         self.begin(effect);
-        Walk::new(effect, RUIN_EFFECT.to_owned(), Scope::Row(row), row).block(self, &effect.node);
+        let at = At::new(RUIN_EFFECT.to_owned(), Scope::Row(row), row);
+        walk::block(self, &Script::of_def(effect), &at, &effect.node);
         if self.rows[row].standing {
             let kind = self.rows[row].laid.kind.clone();
             self.note(format!("{RUIN_EFFECT}: leaves a {kind} row as it is"));
@@ -553,133 +575,164 @@ impl<'g> State<'g> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Flow {
-    Go,
-    /// `break = yes`: the rest of the hook does not run.
-    Break,
-}
-
+/// Where the run walk stands.
 #[derive(Clone)]
-struct Walk<'d> {
-    def: &'d Def,
-    params: Vec<(String, String)>,
+struct At {
     /// The scopes entered, `this` last and `prev` before it.
     stack: Vec<Scope>,
     /// `root`, `from` and `fromfrom`.
     frame: [Scope; 3],
-    depth: usize,
     /// The stage or effect the walk is in, for what it lists as unfollowed.
     origin: String,
     /// The planet whose `init_effect` the walk is in.
     spawning: Option<usize>,
 }
 
-impl<'d> Walk<'d> {
-    /// A walk of `def` standing in `this`, with row `row` as the structure built.
-    fn new(def: &'d Def, origin: String, this: Scope, row: usize) -> Self {
+impl At {
+    /// A walk standing in `this`, with row `row` as the structure built.
+    fn new(origin: String, this: Scope, row: usize) -> Self {
         Self {
-            def,
-            params: Vec::new(),
             stack: vec![this],
             frame: [Scope::System, Scope::Owner, Scope::Row(row)],
-            depth: 0,
             origin,
             spawning: None,
         }
     }
+}
 
-    fn this(&self) -> Scope {
-        *self.stack.last().expect("a walk stands in a scope")
-    }
+impl Visitor for State<'_> {
+    type At = At;
+    /// An earlier branch of the chain ran, or could not be judged.
+    type Chain = bool;
 
-    fn within(&self, scope: Scope) -> Self {
-        let mut walk = self.clone();
-        walk.stack.push(scope);
-        walk
-    }
-
-    fn src(&self) -> &'d [u8] {
-        &self.def.src
-    }
-
-    fn block(&self, st: &mut State<'d>, node: &Node) -> Flow {
-        let src = self.src();
-        let mut taken = false;
-        for child in self.active(node) {
-            let Some(key) = child.key_str(src) else {
-                continue;
-            };
-            let key = self.substitute(key);
-            let value = child.scalar_str(src).map(|v| self.substitute(v));
-            let flow = match key.as_str() {
-                _ if SILENT.contains(&key.as_str()) => Flow::Go,
-                "if" => {
-                    taken = false;
-                    self.branch(st, child, &mut taken)
-                }
-                "else_if" => self.branch(st, child, &mut taken),
-                "else" if taken => Flow::Go,
-                "else" => {
-                    taken = true;
-                    self.block(st, child)
-                }
-                "hidden_effect" | "AND" => self.block(st, child),
-                "break" if value.as_deref() == Some("yes") => Flow::Break,
-                "save_event_target_as" | "save_global_event_target_as" => {
-                    self.save_target(st, &key, value);
-                    Flow::Go
-                }
-                "switch" if self.this() == Scope::Owner => {
-                    self.culture_switch(st, child);
-                    Flow::Go
-                }
-                _ if self.this() == Scope::Owner => {
-                    match self.scope_of(st, &key) {
-                        Some(scope) if scope != Scope::Owner && child.scalar_span().is_none() => {
-                            self.enter(st, scope, child);
-                        }
-                        _ => {}
-                    }
-                    Flow::Go
-                }
-                _ if self.this() == Scope::Nothing => Flow::Go,
-                "spawn_megastructure" => {
-                    self.spawn_row(st, child);
-                    Flow::Go
-                }
-                "spawn_planet" => {
-                    self.spawn_planet(st, child);
-                    Flow::Go
-                }
-                "every_system_planet" => {
-                    self.every_planet(st, child);
-                    Flow::Go
-                }
-                "random_system_planet" if self.picks_ruin_body(st, child) => {
-                    self.within(Scope::Host).block(st, child);
-                    Flow::Go
-                }
-                _ => {
-                    self.effect(st, &key, value, child);
-                    Flow::Go
-                }
-            };
-            if flow == Flow::Break {
-                return Flow::Break;
+    fn branch(
+        &mut self,
+        script: &Script<'_>,
+        at: &At,
+        branch: Branch,
+        node: &Node,
+        taken: &mut bool,
+    ) -> Flow {
+        let walk = Walk { script, at };
+        match branch {
+            Branch::If | Branch::ElseIf => walk.branch(self, node, taken),
+            Branch::Else if *taken => Flow::Go,
+            Branch::Else => {
+                *taken = true;
+                walk.block(self, node)
             }
         }
-        Flow::Go
+    }
+
+    fn statement(&mut self, script: &Script<'_>, at: &At, statement: Statement<'_>) -> Flow {
+        let Statement { key, value, node } = statement;
+        Walk { script, at }.statement(self, key, value.map(str::to_owned), node)
+    }
+}
+
+/// The run walk where it stands in its script.
+#[derive(Clone, Copy)]
+struct Walk<'w, 's> {
+    script: &'w Script<'s>,
+    at: &'w At,
+}
+
+impl<'w, 's> Walk<'w, 's> {
+    fn this(&self) -> Scope {
+        *self.at.stack.last().expect("a walk stands in a scope")
+    }
+
+    /// Where the walk stands inside a block that moves to `scope`.
+    fn within(&self, scope: Scope) -> At {
+        let mut at = self.at.clone();
+        at.stack.push(scope);
+        at
+    }
+
+    /// The walk standing at `at`, in the same script.
+    fn on<'v>(&self, at: &'v At) -> Walk<'v, 's>
+    where
+        'w: 'v,
+    {
+        Walk {
+            script: self.script,
+            at,
+        }
+    }
+
+    fn src(&self) -> &'s [u8] {
+        self.script.src()
+    }
+
+    fn put(&self, text: &str) -> String {
+        self.script.put(text).into_owned()
+    }
+
+    fn block(&self, st: &mut State<'_>, node: &Node) -> Flow {
+        walk::block(st, self.script, self.at, node)
+    }
+
+    fn statement(
+        &self,
+        st: &mut State<'_>,
+        key: &str,
+        value: Option<String>,
+        child: &Node,
+    ) -> Flow {
+        match key {
+            _ if SILENT.contains(&key) => Flow::Go,
+            "hidden_effect" | "AND" => self.block(st, child),
+            "break" if value.as_deref() == Some("yes") => Flow::Break,
+            "save_event_target_as" | "save_global_event_target_as" => {
+                self.save_target(st, key, value);
+                Flow::Go
+            }
+            "switch" if self.this() == Scope::Owner => {
+                self.culture_switch(st, child);
+                Flow::Go
+            }
+            _ if self.this() == Scope::Owner => {
+                match self.scope_of(st, key) {
+                    Some(scope) if scope != Scope::Owner && child.scalar_span().is_none() => {
+                        self.enter(st, scope, child);
+                    }
+                    _ => {}
+                }
+                Flow::Go
+            }
+            _ if self.this() == Scope::Nothing => Flow::Go,
+            "spawn_megastructure" => {
+                self.spawn_row(st, child);
+                Flow::Go
+            }
+            "spawn_planet" => {
+                self.spawn_planet(st, child);
+                Flow::Go
+            }
+            "every_system_planet" => {
+                self.every_planet(st, child);
+                Flow::Go
+            }
+            "random_system_planet" if self.picks_ruin_body(st, child) => {
+                let at = self.within(Scope::Host);
+                self.on(&at).block(st, child);
+                Flow::Go
+            }
+            _ => {
+                self.effect(st, key, value, child);
+                Flow::Go
+            }
+        }
     }
 
     /// An `if` or `else_if`, run when no earlier branch of its chain was and its `limit`
     /// holds. A limit the walk cannot judge runs neither it nor the rest of the chain.
-    fn branch(&self, st: &mut State<'d>, node: &Node, taken: &mut bool) -> Flow {
+    fn branch(&self, st: &mut State<'_>, node: &Node, taken: &mut bool) -> Flow {
         if *taken {
             return Flow::Go;
         }
         let holds = match node.find("limit", self.src()) {
-            Some(limit) => self.all(st, limit),
+            Some(limit) => self.holds(st, limit),
             None => Some(true),
         };
         match holds {
@@ -698,17 +751,17 @@ impl<'d> Walk<'d> {
 
     /// `switch = { trigger = graphical_culture … }` in the owner's scope: the branch of the
     /// owner's culture, else `default`.
-    fn culture_switch(&self, st: &mut State<'d>, node: &Node) {
+    fn culture_switch(&self, st: &mut State<'_>, node: &Node) {
         let src = self.src();
         if self.field(node, "trigger").as_deref() != Some("graphical_culture") {
             return self.note(st, "a switch on the owner");
         }
-        let branches = self.active(node);
+        let branches = self.script.children(node);
         let pick = |name: &str| {
             branches
                 .iter()
-                .find(|branch| branch.key_str(src) == Some(name))
-                .copied()
+                .find(|branch| branch.node.key_str(src) == Some(name))
+                .map(|branch| branch.node)
         };
         let branch = st
             .culture
@@ -720,36 +773,7 @@ impl<'d> Walk<'d> {
         }
     }
 
-    /// The children of `node` a `[[PARAM] ... ]` block of the effect leaves in: those of a
-    /// block whose parameter is passed, and of a `[[!PARAM] ... ]` block whose is not.
-    fn active<'n>(&self, node: &'n Node) -> Vec<&'n Node> {
-        let src = self.src();
-        let mut open: Vec<bool> = Vec::new();
-        let mut kept = Vec::new();
-        for child in node.children() {
-            if child.key.is_none() {
-                let text = child.scalar_str(src).unwrap_or_default();
-                if let Some(header) = text.strip_prefix("[[").and_then(|t| t.strip_suffix(']')) {
-                    let (negated, name) = match header.strip_prefix('!') {
-                        Some(name) => (true, name),
-                        None => (false, header),
-                    };
-                    let given = self.params.iter().any(|(param, _)| param == name);
-                    open.push(given != negated);
-                    continue;
-                }
-                if text == "]" && open.pop().is_some() {
-                    continue;
-                }
-            }
-            if open.iter().all(|&on| on) {
-                kept.push(child);
-            }
-        }
-        kept
-    }
-
-    fn unjudged(&self, st: &mut State<'d>, node: &Node) {
+    fn unjudged(&self, st: &mut State<'_>, node: &Node) {
         let src = self.src();
         let keys: Vec<&str> = node
             .find("limit", src)
@@ -764,7 +788,7 @@ impl<'d> Walk<'d> {
         self.note(st, &format!("a branch behind {}", keys.join(", ")));
     }
 
-    fn effect(&self, st: &mut State<'d>, key: &str, value: Option<String>, node: &Node) {
+    fn effect(&self, st: &mut State<'_>, key: &str, value: Option<String>, node: &Node) {
         let this = self.this();
         match key {
             "remove_megastructure" => match value.as_deref().and_then(|v| self.scope_of(st, v)) {
@@ -832,16 +856,17 @@ impl<'d> Walk<'d> {
                     }
                     return;
                 }
-                match st.gd.scripts.effect(key) {
-                    Some(effect) if self.depth < MAX_DEPTH => {
+                let gd = st.gd;
+                let called = gd
+                    .scripts
+                    .effect(key)
+                    .and_then(|effect| Some((effect, self.script.call(effect, node)?)));
+                match called {
+                    Some((effect, inner)) => {
                         st.learn_flags(effect);
-                        let mut inner = self.clone();
-                        inner.params = self.arguments(node);
-                        inner.def = effect;
-                        inner.depth += 1;
-                        inner.block(st, &effect.node);
+                        walk::block(st, &inner, self.at, &effect.node);
                     }
-                    _ => self.note(st, &format!("{key} on {}", self.scope_name())),
+                    None => self.note(st, &format!("{key} on {}", self.scope_name())),
                 }
             }
         }
@@ -850,17 +875,18 @@ impl<'d> Walk<'d> {
     /// Run a block that moves to `scope`, when its own `limit` holds. Of an owner's block only
     /// the event targets it saves, its branches, a `switch` on its culture and the blocks
     /// that move on to another scope are followed.
-    fn enter(&self, st: &mut State<'d>, scope: Scope, node: &Node) {
+    fn enter(&self, st: &mut State<'_>, scope: Scope, node: &Node) {
+        let at = self.within(scope);
+        let walk = self.on(&at);
         if scope == Scope::Owner {
-            self.within(scope).block(st, node);
+            walk.block(st, node);
             return;
         }
         if scope == Scope::Nothing {
             return;
         }
-        let walk = self.within(scope);
         if let Some(limit) = node.find("limit", self.src()) {
-            match walk.all(st, limit) {
+            match walk.holds(st, limit) {
                 Some(true) => {}
                 Some(false) => return,
                 None => return walk.unjudged(st, node),
@@ -869,7 +895,7 @@ impl<'d> Walk<'d> {
         walk.block(st, node);
     }
 
-    fn spawn_row(&self, st: &mut State<'d>, node: &Node) {
+    fn spawn_row(&self, st: &mut State<'_>, node: &Node) {
         self.unread(st, "spawn_megastructure", node, &ROW_KEYS);
         let Some(kind) = self.field(node, "type") else {
             return self.note(st, "spawn_megastructure with no type");
@@ -924,14 +950,15 @@ impl<'d> Walk<'d> {
         });
         st.sections.push((row, at));
         if let Some(init) = node.find("init_effect", self.src()) {
-            self.within(Scope::Row(row)).block(st, init);
+            let at = self.within(Scope::Row(row));
+            self.on(&at).block(st, init);
         }
     }
 
     /// Whether a spawned row takes the structure's culture, and a culture of its own: what its
     /// `graphical_culture` names, a scope or a culture written out, such as the
     /// `mammalian_01` Gigastructural Engineering spawns its larger rings' frames in.
-    fn row_culture(&self, st: &mut State<'d>, node: &Node, spawn: &str) -> (bool, Option<String>) {
+    fn row_culture(&self, st: &mut State<'_>, node: &Node, spawn: &str) -> (bool, Option<String>) {
         let Some(written) = self.written(node, "graphical_culture") else {
             return (false, None);
         };
@@ -947,7 +974,7 @@ impl<'d> Walk<'d> {
     }
 
     /// `add_modifier` on a spawned planet: its modifier and its days, `-1` when it gives none.
-    fn modifier(&self, st: &mut State<'d>, value: Option<String>, node: &Node) {
+    fn modifier(&self, st: &mut State<'_>, value: Option<String>, node: &Node) {
         let Scope::Planet(planet) = self.this() else {
             return;
         };
@@ -971,7 +998,7 @@ impl<'d> Walk<'d> {
         }
     }
 
-    fn spawn_planet(&self, st: &mut State<'d>, node: &Node) {
+    fn spawn_planet(&self, st: &mut State<'_>, node: &Node) {
         self.unread(st, "spawn_planet", node, &PLANET_KEYS);
         let Some(class) = self.field(node, "class") else {
             return self.note(st, "spawn_planet with no class");
@@ -1056,19 +1083,21 @@ impl<'d> Walk<'d> {
             unfollowed: Vec::new(),
         });
         if let Some(init) = node.find("init_effect", self.src()) {
-            let mut walk = self.within(Scope::Planet(planet));
-            walk.spawning = Some(planet);
-            walk.block(st, init);
+            let mut at = self.within(Scope::Planet(planet));
+            at.spawning = Some(planet);
+            self.on(&at).block(st, init);
         }
     }
 
     /// `every_system_planet`: kept only when it removes every planet that is not a star.
-    fn every_planet(&self, st: &mut State<'d>, node: &Node) {
+    fn every_planet(&self, st: &mut State<'_>, node: &Node) {
         let src = self.src();
         let removes = node.children().iter().any(|child| {
             child.key_str(src) == Some("remove_planet") && child.scalar_str(src) == Some("yes")
         });
-        let limit = node.find("limit", src).map(|l| Condition::compile(l, src));
+        let limit = node
+            .find("limit", src)
+            .map(|l| Condition::in_walk(l, self.script));
         match limit {
             Some(Condition::All(items)) if removes && items == [Condition::Star(false)] => {
                 st.cleared = true;
@@ -1090,7 +1119,7 @@ impl<'d> Walk<'d> {
         }
     }
 
-    fn planet_flag(&self, st: &mut State<'d>, key: &str, value: Option<String>) {
+    fn planet_flag(&self, st: &mut State<'_>, key: &str, value: Option<String>) {
         let Some(value) = value else {
             return self.note(st, &format!("{key} with no plain value"));
         };
@@ -1120,7 +1149,7 @@ impl<'d> Walk<'d> {
 
     /// Whether `culture`, the value of `node`, names a graphical culture: one the install
     /// defines, or any text written between quotes.
-    fn is_culture(&self, st: &State<'d>, culture: &str, node: &Node) -> bool {
+    fn is_culture(&self, st: &State<'_>, culture: &str, node: &Node) -> bool {
         let quoted = node
             .scalar_span()
             .is_some_and(|span| self.src().get(span.start) == Some(&b'"'));
@@ -1129,7 +1158,7 @@ impl<'d> Walk<'d> {
 
     /// `set_variable` or `change_variable` on the system: the value is followed while every
     /// change to it is a number and the walk set it first.
-    fn variable(&self, st: &mut State<'d>, key: &str, node: &Node) {
+    fn variable(&self, st: &mut State<'_>, key: &str, node: &Node) {
         let Some(which) = self.field(node, "which") else {
             return self.note(st, &format!("{key} with no which"));
         };
@@ -1148,35 +1177,10 @@ impl<'d> Walk<'d> {
         st.variables.insert(which, now);
     }
 
-    /// `check_variable = { which = ... value >= ... }` on the system, for a variable the walk
-    /// follows.
-    fn check_variable(&self, st: &State<'d>, node: &Node) -> Option<bool> {
-        let src = self.src();
-        let which = self.field(node, "which")?;
-        let held = (*st.variables.get(&which)?)?;
-        let value = node.find("value", src)?;
-        let wanted = self
-            .def
-            .number_of(&self.substitute(value.scalar_str(src)?))?;
-        let (key, scalar) = (value.key?, value.scalar_span()?);
-        let op = std::str::from_utf8(&src[key.end..scalar.start])
-            .ok()?
-            .trim();
-        Some(match op {
-            "=" => held == wanted,
-            ">" => held > wanted,
-            ">=" => held >= wanted,
-            "<" => held < wanted,
-            "<=" => held <= wanted,
-            "!=" => held != wanted,
-            _ => return None,
-        })
-    }
-
-    fn name(&self, st: &mut State<'d>, node: &Node) {
+    fn name(&self, st: &mut State<'_>, node: &Node) {
         let name = match node.scalar_str(self.src()) {
             Some(key) => Some(LaidName {
-                key: self.substitute(key),
+                key: self.put(key),
                 variables: Vec::new(),
             }),
             None => self.field(node, "key").map(|key| LaidName {
@@ -1211,7 +1215,7 @@ impl<'d> Walk<'d> {
 
     /// Whether name variable `variable`, such as `prevprev.GetName`, is the name of the
     /// system.
-    fn names_system(&self, st: &State<'d>, variable: &str) -> bool {
+    fn names_system(&self, st: &State<'_>, variable: &str) -> bool {
         variable
             .strip_suffix(".GetName")
             .and_then(|scope| self.scope_of(st, scope))
@@ -1221,23 +1225,23 @@ impl<'d> Walk<'d> {
     /// Whether `random_system_planet` block `node` picks the body the structure stands at:
     /// a stage that restores a ruin picks the ruin's body by the one planet flag its limit
     /// tests, which the ruin's spawn set there. Mods test it as a carrier flag.
-    fn picks_ruin_body(&self, st: &State<'d>, node: &Node) -> bool {
+    fn picks_ruin_body(&self, st: &State<'_>, node: &Node) -> bool {
         let src = self.src();
         let restores = st
             .gd
             .megastructures
-            .get(&self.origin)
-            .is_some_and(|def| def.upgrade_from.iter().any(|from| from.ends_with(RUINED)));
+            .get(&self.at.origin)
+            .is_some_and(|def| def.upgrade_from.iter().any(|from| is_ruin(from)));
         let flagged = node.find("limit", src).is_some_and(|limit| {
             matches!(
                 limit.children(),
                 [test] if matches!(test.key_str(src), Some("has_planet_flag" | "has_carrier_flag"))
             )
         });
-        restores && flagged && self.this() == Scope::System && self.frame[2] == Scope::Row(0)
+        restores && flagged && self.this() == Scope::System && self.at.frame[2] == Scope::Row(0)
     }
 
-    fn model(&self, st: &mut State<'d>, node: &Node) {
+    fn model(&self, st: &mut State<'_>, node: &Node) {
         let Some(entity) = self.field(node, "entity") else {
             return self.note(st, "set_planet_entity with no entity");
         };
@@ -1252,69 +1256,28 @@ impl<'d> Walk<'d> {
         }
     }
 
-    /// Every child of `node` but the conditions holds, in three-valued logic.
-    fn all(&self, st: &State<'d>, node: &Node) -> Option<bool> {
-        settle(node.children().iter().map(|c| self.test(st, c)), false)
-    }
-
-    fn any(&self, st: &State<'d>, node: &Node) -> Option<bool> {
-        settle(node.children().iter().map(|c| self.test(st, c)), true)
-    }
-
-    /// One condition, judged where the walk stands; `None` when the walk cannot tell.
-    fn test(&self, st: &State<'d>, node: &Node) -> Option<bool> {
-        let key = self.substitute(node.key_str(self.src())?);
-        let value = node.scalar_str(self.src()).map(|v| self.substitute(v));
-        let yes = || match value.as_deref() {
-            Some("yes") => Some(true),
-            Some("no") => Some(false),
-            _ => None,
-        };
-        match key.as_str() {
-            "AND" => self.all(st, node),
-            "OR" => self.any(st, node),
-            "NOT" | "NOR" => self.any(st, node).map(|holds| !holds),
-            "NAND" => self.all(st, node).map(|holds| !holds),
-            "always" => yes(),
-            "is_star" => match self.this() {
-                Scope::Host => Some(st.on_star == yes()?),
-                Scope::Planet(_) => Some(!yes()?),
-                _ => None,
-            },
-            "has_star_flag" => {
-                let flag = value?;
-                if st.held_flags.contains(&flag) {
-                    return Some(true);
-                }
-                st.written_flags
-                    .contains(&flag)
-                    .then(|| st.system_flags.contains(&flag))
-            }
-            "is_megastructure_type" => match self.this() {
-                Scope::Row(row) => Some(st.rows[row].laid.kind == value?),
-                _ => None,
-            },
-            "graphical_culture" if self.this() == Scope::Owner => {
-                Some(st.culture.as_deref()? == value?)
-            }
-            "check_variable" if self.this() == Scope::System => self.check_variable(st, node),
-            _ => match self.scope_of(st, &key) {
-                Some(scope) if value.is_none() => self.within(scope).all(st, node),
-                _ => None,
-            },
-        }
+    /// Whether the conditions of block `node` hold where the walk stands; `None` when the
+    /// walk cannot tell.
+    fn holds(&self, st: &State<'_>, node: &Node) -> Option<bool> {
+        Condition::in_walk(node, self.script).evaluate(&Judge { st, walk: *self })
     }
 
     /// The scope a key such as `fromfrom.planet`, `prev` or `event_target:name` leads to;
     /// `None` when it is no scope this walk knows.
-    fn scope_of(&self, st: &State<'d>, key: &str) -> Option<Scope> {
+    fn scope_of(&self, st: &State<'_>, key: &str) -> Option<Scope> {
         let mut links = key.split('.').map(str::to_ascii_lowercase);
         let first = links.next()?;
-        let back = |n: usize| self.stack.len().checked_sub(n + 1).map(|at| self.stack[at]);
+        let back = |n: usize| {
+            self.at
+                .stack
+                .len()
+                .checked_sub(n + 1)
+                .map(|at| self.at.stack[at])
+        };
         let mut scope = match first.as_str() {
-            "root" => self.frame[0],
-            "from" => self.frame[1],
-            "fromfrom" => self.frame[2],
+            "root" => self.at.frame[0],
+            "from" => self.at.frame[1],
+            "fromfrom" => self.at.frame[2],
             "this" => self.this(),
             "prev" => back(1)?,
             "prevprev" => back(2)?,
@@ -1326,8 +1289,8 @@ impl<'d> Walk<'d> {
         let mut framed = matches!(first.as_str(), "root" | "prev" | "prevprev");
         for link in links {
             scope = match (link.as_str(), scope) {
-                ("from", _) if framed => self.frame[1],
-                ("fromfrom", _) if framed => self.frame[2],
+                ("from", _) if framed => self.at.frame[1],
+                ("fromfrom", _) if framed => self.at.frame[2],
                 ("planet", Scope::Row(row)) if st.rows[row].laid.on_host => Scope::Host,
                 ("planet", Scope::Row(_)) => Scope::Nothing,
                 ("owner", Scope::Row(row)) if st.rows[row].laid.owned => Scope::Owner,
@@ -1352,7 +1315,7 @@ impl<'d> Walk<'d> {
     }
 
     /// List each key of a spawn block the walk does not read.
-    fn unread(&self, st: &mut State<'d>, spawn: &str, node: &Node, read: &[&str]) {
+    fn unread(&self, st: &mut State<'_>, spawn: &str, node: &Node, read: &[&str]) {
         for child in node.children() {
             if let Some(key) = child.key_str(self.src())
                 && !read.contains(&key)
@@ -1363,17 +1326,16 @@ impl<'d> Walk<'d> {
     }
 
     fn field(&self, node: &Node, name: &str) -> Option<String> {
-        let value = node.find(name, self.src())?.scalar_str(self.src())?;
-        Some(self.substitute(value))
+        self.script.field(node, name)
     }
 
     /// What `name` is written as in `node`, a block shown as [`BLOCK`]; `None` when absent.
     fn written(&self, node: &Node, name: &str) -> Option<String> {
         node.find(name, self.src())?;
         Some(
-            self.def
-                .written_in(node, name)
-                .map_or_else(|| BLOCK.to_owned(), |v| self.substitute(&v)),
+            self.script
+                .written(node, name)
+                .unwrap_or_else(|| BLOCK.to_owned()),
         )
     }
 
@@ -1390,7 +1352,7 @@ impl<'d> Walk<'d> {
             let Some(written) = self.written(node, name) else {
                 continue;
             };
-            match self.def.number_of(&written) {
+            match self.script.number_of(&written) {
                 Some(n) => *slot = Some(n),
                 None => return Err(format!("{name} = {written}")),
             }
@@ -1400,7 +1362,7 @@ impl<'d> Walk<'d> {
 
     /// The scope `name` of `node` names, noting one that is written but leads nowhere the
     /// walk knows.
-    fn resolved(&self, st: &mut State<'d>, node: &Node, name: &str, what: &str) -> Option<Scope> {
+    fn resolved(&self, st: &mut State<'_>, node: &Node, name: &str, what: &str) -> Option<Scope> {
         let written = self.written(node, name)?;
         let scope = self.scope_of(st, &written);
         if scope.is_none() {
@@ -1409,7 +1371,7 @@ impl<'d> Walk<'d> {
         scope
     }
 
-    fn save_target(&self, st: &mut State<'d>, key: &str, name: Option<String>) {
+    fn save_target(&self, st: &mut State<'_>, key: &str, name: Option<String>) {
         match name {
             Some(name) => {
                 let global = key == "save_global_event_target_as";
@@ -1420,9 +1382,9 @@ impl<'d> Walk<'d> {
         }
     }
 
-    fn note(&self, st: &mut State<'d>, what: &str) {
-        let line = format!("{}: {what}", self.origin);
-        if let Some(planet) = self.spawning {
+    fn note(&self, st: &mut State<'_>, what: &str) {
+        let line = format!("{}: {what}", self.at.origin);
+        if let Some(planet) = self.at.spawning {
             let listed = &mut st.planets[planet].unfollowed;
             if !listed.contains(&line) {
                 listed.push(line.clone());
@@ -1430,40 +1392,6 @@ impl<'d> Walk<'d> {
         }
         st.note(line);
     }
-
-    fn arguments(&self, call: &Node) -> Vec<(String, String)> {
-        let src = self.src();
-        let args = call.children();
-        (0..args.len())
-            .filter_map(|at| {
-                let name = args[at].key_str(src)?;
-                let value = written(args, at, src)?;
-                Some((name.to_owned(), self.substitute(&value)))
-            })
-            .collect()
-    }
-
-    fn substitute(&self, text: &str) -> String {
-        let mut out = text.to_owned();
-        for (name, value) in &self.params {
-            out = out.replace(&format!("${name}$"), value);
-        }
-        out
-    }
-}
-
-/// Kleene logic over `items`: `deciding` (`false` for all, `true` for any) settles it
-/// outright; otherwise an unknown item leaves it unknown.
-fn settle(items: impl Iterator<Item = Option<bool>>, deciding: bool) -> Option<bool> {
-    let mut unknown = false;
-    for item in items {
-        match item {
-            Some(holds) if holds == deciding => return Some(deciding),
-            Some(_) => {}
-            None => unknown = true,
-        }
-    }
-    (!unknown).then_some(!deciding)
 }
 
 /// The names a `variable_string` fills in: what stands between each `[` and its `]`.
@@ -1472,4 +1400,51 @@ fn bracketed(text: &str) -> Vec<String> {
         .skip(1)
         .filter_map(|part| part.split_once(']').map(|(name, _)| name.to_owned()))
         .collect()
+}
+
+/// What the run walk has done so far, as a condition where it stands judges it.
+struct Judge<'a, 'g, 'w, 's> {
+    st: &'a State<'g>,
+    walk: Walk<'w, 's>,
+}
+
+impl Subject for Judge<'_, '_, '_, '_> {
+    fn leaf(&self, leaf: &Condition) -> Option<bool> {
+        let st = self.st;
+        let this = self.walk.this();
+        match leaf {
+            Condition::Star(want) => match this {
+                Scope::Host => Some(st.on_star == *want),
+                Scope::Planet(_) => Some(!want),
+                _ => None,
+            },
+            Condition::StarFlag(flag) => {
+                if st.held_flags.contains(flag) {
+                    return Some(true);
+                }
+                st.written_flags
+                    .contains(flag)
+                    .then(|| st.system_flags.contains(flag))
+            }
+            Condition::MegastructureType(kind) => match this {
+                Scope::Row(row) => Some(st.rows[row].laid.kind == *kind),
+                _ => None,
+            },
+            Condition::GraphicalCulture(culture) if this == Scope::Owner => {
+                Some(st.culture.as_deref()? == culture)
+            }
+            Condition::CheckVariable { which, cmp, value } if this == Scope::System => {
+                let held = (*st.variables.get(which)?)?;
+                Some(cmp.holds(held, *value))
+            }
+            Condition::Scoped(key, inner) => {
+                let at = self.walk.within(self.walk.scope_of(st, key)?);
+                inner.evaluate(&Judge {
+                    st,
+                    walk: self.walk.on(&at),
+                })
+            }
+            _ => None,
+        }
+    }
 }

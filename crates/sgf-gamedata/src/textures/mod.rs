@@ -12,7 +12,7 @@ use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::prelude::*;
@@ -35,10 +35,12 @@ mod sphere;
 mod star_disc;
 
 pub use key::TextureKey;
-pub use lookups::{Lookups, StarBody};
-pub(crate) use model::Assets;
+pub(crate) use lookups::Lookups;
+pub use lookups::StarBody;
+pub(crate) use model::{Assets, MODELS_DIR};
 pub use model::{ModelBounds, ModelPlacement};
 pub use star_disc::StarAtmosphere;
+pub(crate) use star_disc::{WORLDGFX, Worlds};
 
 /// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
 /// disc, a composed flag, a cropped frame) is baked afresh rather than served stale from a
@@ -143,26 +145,6 @@ impl TextureView {
 #[derive(Debug)]
 pub struct Textures {
     cache_dir: PathBuf,
-    /// The graphics settings of the last layout a `star_disc:` key was asked of, read once.
-    worlds: Memo<star_disc::Worlds>,
-    /// The models of the last layout a `model:` key was asked of, read once.
-    models: Memo<model::Assets>,
-}
-
-type Memo<T> = Mutex<Option<(Layout, Arc<T>)>>;
-
-/// What `slot` holds for `layout`, read by `read` the first time and again only when the
-/// layout changes.
-fn memo<T>(slot: &Memo<T>, layout: &Layout, read: impl FnOnce(&Layout) -> T) -> Arc<T> {
-    let mut held = slot.lock().unwrap_or_else(PoisonError::into_inner);
-    match &*held {
-        Some((read_from, value)) if read_from == layout => Arc::clone(value),
-        _ => {
-            let value = Arc::new(read(layout));
-            *held = Some((layout.clone(), Arc::clone(&value)));
-            value
-        }
-    }
 }
 
 impl Textures {
@@ -175,39 +157,16 @@ impl Textures {
                 .join("textures")
         });
         prune(&cache_dir);
-        Self {
-            cache_dir,
-            worlds: Mutex::default(),
-            models: Mutex::default(),
-        }
-    }
-
-    fn worlds(&self, layout: &Layout) -> Arc<star_disc::Worlds> {
-        memo(&self.worlds, layout, star_disc::worlds)
-    }
-
-    fn models(&self, layout: &Layout) -> Arc<model::Assets> {
-        memo(&self.models, layout, model::Assets::read)
+        Self { cache_dir }
     }
 
     pub fn cache_dir(&self) -> &Path {
         &self.cache_dir
     }
 
-    pub fn load(&self, layout: &Layout, lookups: &Lookups<'_>, key: &str) -> TextureView {
-        self.load_with(layout, lookups, None, key)
-    }
-
-    /// [`Self::load`], a `model:` key reading `models` when given, else this cache's own
-    /// index of `layout`.
-    pub(crate) fn load_with(
-        &self,
-        layout: &Layout,
-        lookups: &Lookups<'_>,
-        models: Option<&Arc<Assets>>,
-        key: &str,
-    ) -> TextureView {
-        match self.png_with(layout, lookups, models, key) {
+    /// `key` as a view: the PNG [`Self::png`] gives, or why there is none.
+    pub(crate) fn load(&self, layout: &Layout, lookups: &Lookups<'_>, key: &str) -> TextureView {
+        match self.png(layout, lookups, key) {
             Ok(png) => {
                 let (width, height) = png_size(&png);
                 TextureView {
@@ -225,26 +184,14 @@ impl Textures {
 
     /// The PNG for `key`: from the cache when its inputs are unchanged,
     /// else decoded, cached and returned.
-    pub fn png(
+    pub(crate) fn png(
         &self,
         layout: &Layout,
         lookups: &Lookups<'_>,
-        key: &str,
-    ) -> Result<Vec<u8>, TextureError> {
-        self.png_with(layout, lookups, None, key)
-    }
-
-    /// [`Self::png`], a `model:` key reading `models` when given, else this cache's own index
-    /// of `layout`.
-    pub(crate) fn png_with(
-        &self,
-        layout: &Layout,
-        lookups: &Lookups<'_>,
-        models: Option<&Arc<Assets>>,
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let job = Job::plan(&key, layout, lookups, self, models)?;
+        let job = Job::plan(&key, layout, lookups)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             renew(&cache_file);
@@ -257,7 +204,7 @@ impl Textures {
 }
 
 /// A texture file with its identity for the cache.
-#[derive(Debug, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Input {
     path: PathBuf,
     len: u64,
@@ -359,21 +306,19 @@ impl Job {
         key: &TextureKey,
         layout: &Layout,
         lookups: &Lookups<'_>,
-        textures: &Textures,
-        models: Option<&Arc<Assets>>,
     ) -> Result<Self, TextureError> {
         let Lookups {
             sprites, colour, ..
         } = *lookups;
         match key {
-            TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
+            TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups),
             TextureKey::Model {
                 culture,
                 entity,
                 yaw,
             } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
-                models.map_or_else(|| textures.models(layout), Arc::clone),
+                Arc::clone(lookups.models),
                 &(lookups.cultures)(culture),
                 entity,
                 *yaw,
@@ -445,17 +390,18 @@ impl Job {
         class: &str,
         layout: &Layout,
         lookups: &Lookups<'_>,
-        textures: &Textures,
     ) -> Result<Self, TextureError> {
         let no_disc = || TextureError::NoDisc(class.to_owned());
         let body = (lookups.star_body)(class).ok_or_else(no_disc)?;
         if let Some(rel) = &body.surface {
             return Ok(Self::StarSurface(Input::resolve(layout, rel)?));
         }
-        let worlds = textures.worlds(layout);
-        let (world, lava) =
-            star_disc::world_for(&worlds, body.lighting.as_deref(), body.atmosphere)
-                .ok_or_else(no_disc)?;
+        let (world, lava) = star_disc::world_for(
+            (lookups.worlds)(),
+            body.lighting.as_deref(),
+            body.atmosphere,
+        )
+        .ok_or_else(no_disc)?;
         let [noise, lava_map, stone_map] = world.maps();
         Ok(Self::StarLava {
             noise: Input::resolve(layout, noise)?,

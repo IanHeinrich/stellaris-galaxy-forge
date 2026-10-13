@@ -12,7 +12,7 @@ use sgf_core::prepare::{
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
-use sgf_gamedata::prepare::{classify, plain_draw};
+use sgf_gamedata::prepare::{classify, plain_draw, preview};
 
 use crate::common;
 use crate::common::prepare::{
@@ -143,6 +143,21 @@ fn bare_shell_gives_plain_systems_within_two_jumps_of_a_seat_unless_told_not_to(
             }
         }
     }
+}
+
+#[test]
+fn the_preview_keeps_the_space_around_seats_clear_only_when_told_to() {
+    let gd = common::sample_install();
+    let session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    let choices = PreparePreset::BareShell.choices(ScenarioProfile::Plain);
+    let options = |clear_around_seats| PrepareOptions {
+        clear_around_seats,
+        seed: 0,
+    };
+    let guarded = preview(&session, gd, &choices, &options(true)).expect("preview");
+    assert!(!guarded.kept_clear.is_empty());
+    let unguarded = preview(&session, gd, &choices, &options(false)).expect("preview");
+    assert!(unguarded.kept_clear.is_empty(), "the option is off");
 }
 
 #[test]

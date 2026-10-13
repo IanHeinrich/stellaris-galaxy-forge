@@ -95,7 +95,10 @@ pub(crate) fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
     if s.doc.added().get(EntityKind::System, id).is_some() {
         Ok(())
     } else if s.graph.systems.contains_key(&id) {
-        Err(OpError::SystemNotAdded(id))
+        Err(OpError::NotAdded {
+            kind: EntityKind::System,
+            id,
+        })
     } else {
         Err(OpError::UnknownSystem(id))
     }

@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed colony #6 from planet #77, with 3 pop groups and 5 armies
+Removed colony #6 from Hissma planet #77, with 3 pop groups and 5 armies
 details stale: [564]
-inverse: Restored colony #6 on planet #77
+inverse: Restored colony #6 on Hissma planet #77
 
   System: 564
   Planet: 77

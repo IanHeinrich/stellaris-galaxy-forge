@@ -4,7 +4,9 @@
 //! The index is scanned once, from the bytes as loaded, so an entity an op wrote is found
 //! here instead: an inserted statement, or a tombstone (`<id>=none`) rewritten as a new
 //! entity in its slot. Like a scenario's id map, it is read again from the bytes each slot
-//! holds after every edit, undo and redo, never kept as a running tally.
+//! holds after every edit, undo and redo, never kept as a running tally. The one thing the
+//! bytes cannot say, the construction an added megastructure row was written with, is kept
+//! beside its slot.
 
 use std::collections::BTreeMap;
 
@@ -14,6 +16,7 @@ use crate::entity::address;
 use crate::entity::views::EntityKind;
 use crate::format::save::{entity_at, entity_in};
 use crate::keys;
+use crate::ops::{MegastructureConstruction, Op};
 use crate::overlay::{Anchor, Overlay};
 use crate::projections::galaxy::ProjectionError;
 use crate::scan::{self, Index};
@@ -88,10 +91,22 @@ impl From<EntityKind> for Table {
     }
 }
 
+/// What the add that wrote a megastructure row gave it: its construction, and how many of
+/// the construction's effects it left out.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Written {
+    pub construction: Option<MegastructureConstruction>,
+    pub left_out: u32,
+}
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Added {
     by_slot: BTreeMap<Anchor, (Table, u32)>,
     by_id: BTreeMap<(Table, u32), Anchor>,
+    /// Keyed by the slot the row was written into. An entry outlives its row, since an undo
+    /// or redo puts the same row back in the same slot, and no later row takes that slot: a
+    /// megastructure is only ever appended, and an inserted slot is never reused.
+    written: BTreeMap<Anchor, Written>,
 }
 
 impl Added {
@@ -99,6 +114,36 @@ impl Added {
         Self {
             by_slot: BTreeMap::new(),
             by_id: BTreeMap::new(),
+            written: BTreeMap::new(),
+        }
+    }
+
+    /// What the add that wrote megastructure row `id` gave it; `None` for a row no add of
+    /// this session wrote.
+    pub fn written(&self, id: u32) -> Option<&Written> {
+        let slot = self.get(EntityKind::Megastructure, id)?;
+        self.written.get(&slot)
+    }
+
+    /// Keep what each megastructure row an op just added was written with, as `inverse`,
+    /// the op's inverse, names it in the [`Op::RemoveMegastructure`] that takes it out.
+    pub fn keep_written(&mut self, inverse: &Op) {
+        match inverse {
+            Op::Batch { ops, .. } => ops.iter().for_each(|op| self.keep_written(op)),
+            Op::RemoveMegastructure {
+                megastructure,
+                construction,
+                left_out,
+            } => {
+                if let Some(slot) = self.get(EntityKind::Megastructure, *megastructure) {
+                    let written = Written {
+                        construction: construction.clone(),
+                        left_out: *left_out,
+                    };
+                    self.written.insert(slot, written);
+                }
+            }
+            _ => {}
         }
     }
 

@@ -53,6 +53,28 @@ pub(crate) fn ids(node: &Node, key: &str, src: &[u8]) -> Vec<u32> {
         .collect()
 }
 
+/// Whether the entity `node` has the flag `flag` in its `flags` block.
+pub(crate) fn has_flag(node: &Node, src: &[u8], flag: &str) -> bool {
+    node.find(keys::FLAGS, src)
+        .is_some_and(|flags| flags.find(flag, src).is_some())
+}
+
+/// The flags the entity `node`'s `flags` block sets, in file order.
+pub(crate) fn flags<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a str> {
+    node.find(keys::FLAGS, src)
+        .into_iter()
+        .flat_map(|flags| flags.children())
+        .filter_map(|flag| flag.key_str(src))
+}
+
+/// The items of the entity `node`'s `timed_modifier.items`, in file order.
+pub(crate) fn timed_items<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a Node> {
+    node.find(keys::TIMED_MODIFIER, src)
+        .and_then(|block| block.find(keys::ITEMS, src))
+        .into_iter()
+        .flat_map(|items| items.children())
+}
+
 /// The `name=` block as a template, empty when the entity has none.
 pub(crate) fn name(node: &Node, src: &[u8]) -> NameTemplate {
     node.find(keys::NAME, src)
@@ -264,17 +286,7 @@ pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
                 .collect()
         })
         .unwrap_or_default();
-    let flags = node
-        .find(keys::FLAGS, src)
-        .map(|flags| {
-            flags
-                .children()
-                .iter()
-                .filter_map(|c| c.key_str(src))
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default();
+    let flags = flags(node, src).map(str::to_owned).collect();
     RawCountry {
         id,
         name: node

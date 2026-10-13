@@ -13,7 +13,7 @@ pub(crate) const FIRST_CONTACT: &str = "First Contact Story Pack";
 /// The star flag that makes `game_start.50` give an A-class star `rare_nebula_1`.
 pub(crate) const OCEAN_PARADISE: &str = "ocean_paradise_nebula";
 /// The star flag of an empire's home system, which the game never makes turbulent.
-pub(crate) const HOME_SYSTEM: &str = "empire_home_system";
+pub(crate) use crate::export::policy::HOME_FLAG as HOME_SYSTEM;
 pub(crate) const TURBULENT_KINDS: [&str; 2] = ["turbulent_nebula_1", "turbulent_nebula_2"];
 /// The star classes `game_start.50` gives `rare_nebula_1` when flagged Ocean Paradise.
 pub(crate) const CLASS_A: [&str; 4] = ["sc_a", "sc_binary_1", "sc_binary_9", "sc_binary_10"];

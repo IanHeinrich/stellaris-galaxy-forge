@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #6268
+Deleted planet paradisiacal habitat science #6268
 details stale: [596]
-inverse: Restored planet #6268
+inverse: Restored planet paradisiacal habitat science #6268
 
   System: 596
   Planet: 6267 6268

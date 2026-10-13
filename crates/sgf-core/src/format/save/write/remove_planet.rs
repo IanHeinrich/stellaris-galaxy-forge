@@ -19,13 +19,16 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::MOON_FLAG;
 use crate::entity::views::EntityKind;
-use crate::format::save::added::rows;
 use crate::format::save::dig_sites::{self, DigSite};
 use crate::format::save::ring_world;
+use crate::format::save::write::add_habitat::{HABITAT, HAS_HABITAT, is_habitat};
 use crate::format::save::write::bodies::frame_bodies;
+use crate::format::save::write::flags::drop_flags;
 use crate::format::save::write::id_list::{Emptied, unlist, unlist_planets};
-use crate::format::save::write::megastructure_links::{MEGASTRUCTURES, drop_flags};
-use crate::format::save::write::planet_entry::{PlanetEntry, and_its_moons};
+use crate::format::save::write::megastructure_links::Holders;
+use crate::format::save::write::planet_entry::{
+    PlanetEntry, and_its_moons, named_planet, named_planet_as,
+};
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::write::restore::{Saved, country_edit, tombstoned};
 use crate::format::save::write::teardown::{Stationed, Teardown, fleet_records, some_id};
@@ -55,16 +58,14 @@ pub(crate) fn plan_remove_colony(
     check_planet(s, planet, &node, src, refuse)?;
     let mut saved = Saved::default();
     teardown.write(plan, s, &mut saved, true)?;
+    let named = named_planet(s, planet)?;
     let description = format!(
-        "Removed colony #{} from planet #{planet}{}",
+        "Removed colony #{} from {named}{}",
         teardown.colony,
         teardown.what()
     );
     Ok(Planned {
-        inverse: saved.inverse(format!(
-            "Restored colony #{} on planet #{planet}",
-            teardown.colony
-        )),
+        inverse: saved.inverse(format!("Restored colony #{} on {named}", teardown.colony)),
         description,
     })
 }
@@ -85,6 +86,7 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     deletion.write(plan, s, &mut saved, &[])?;
 
     let label = if moon { "moon" } else { "planet" };
+    let named = named_planet_as(&s.doc, label, planet)?;
     let carrying = and_its_moons(moons.len());
     let colonies = match deletion.teardowns.len() {
         0 => String::new(),
@@ -93,9 +95,9 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         n => format!(", with {n} colonies"),
     };
     let dug = dug(deletion.sites.len());
-    let restored = format!("Restored {label} #{planet}{carrying}");
+    let restored = format!("Restored {named}{carrying}");
     Ok(Planned {
-        description: format!("Deleted {label} #{planet}{carrying}{colonies}{dug}"),
+        description: format!("Deleted {named}{carrying}{colonies}{dug}"),
         inverse: deletion.inverse(saved, restored),
     })
 }
@@ -163,7 +165,7 @@ impl Deletion {
             if segments == Segments::Refused {
                 check_segment(&node, src, SEGMENT_GOES_WHOLE, refuse)?;
             }
-            check_megastructures(&s.doc, id, going, refuse)?;
+            check_megastructures(&s.doc, id, &node, src, going, refuse)?;
             let controller = some_id(&node, keys::CONTROLLER, src);
             if let Some(fleet) = some_id(&node, keys::SHIPCLASS_ORBITAL_STATION, src) {
                 stations.push(Stationed {
@@ -341,23 +343,6 @@ impl Deletion {
     }
 }
 
-/// The planet flag a habitat has, and what its host's flag for it starts with.
-pub(crate) const HABITAT: &str = "habitat";
-
-/// The system flag the game sets when a habitat is built there.
-pub(crate) const HAS_HABITAT: &str = "has_habitat";
-
-/// The class of a habitat.
-const PC_HABITAT: &str = "pc_habitat";
-
-/// Whether planet `node` is a habitat: by its class, or the flag the game sets on one.
-pub(crate) fn is_habitat(node: &Node, src: &[u8]) -> bool {
-    read::text(node, keys::PLANET_CLASS, src) == PC_HABITAT
-        || node
-            .find(keys::FLAGS, src)
-            .is_some_and(|flags| flags.find(HABITAT, src).is_some())
-}
-
 /// A body added since the file was opened goes as [`Op::RemoveBody`] takes it, its
 /// slots given back, once its dig site and its place in the finders' anomaly lists have
 /// gone. The inverse adds the body back, then its site and anomaly.
@@ -376,16 +361,17 @@ fn plan_delete_added(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planne
     let removed = add_body::plan_remove(plan, s, planet)?;
 
     let label = if moon { "moon" } else { "planet" };
+    let named = named_planet_as(&s.doc, label, planet)?;
     let dug = dug(sites.len());
     let found = category.map(|category| Op::AddAnomaly {
         body: planet,
         category,
         found_by: Some(finders),
     });
-    let restored = format!("Restored {label} #{planet}");
+    let restored = format!("Restored {named}");
     let inverse = then(removed.inverse, restored, site_adds(sites).chain(found));
     Ok(Planned {
-        description: format!("Deleted {label} #{planet}{dug}"),
+        description: format!("Deleted {named}{dug}"),
         inverse,
     })
 }
@@ -453,7 +439,7 @@ pub(crate) fn check_planet(
     refuse: impl Fn(String) -> OpError,
 ) -> Result<(), OpError> {
     check_segment(node, src, SEGMENT_KEEPS_COLONY, &refuse)?;
-    check_megastructures(&s.doc, planet, &[], refuse)
+    check_megastructures(&s.doc, planet, node, src, &[], refuse)
 }
 
 /// Refuse a ring world segment, for `reason`.
@@ -481,14 +467,15 @@ pub(crate) fn check_segment_stays(node: &Node, src: &[u8], body: u32) -> Result<
 fn check_megastructures(
     doc: &Document,
     planet: u32,
+    node: &Node,
+    src: &[u8],
     going: &[u32],
     refuse: impl Fn(String) -> OpError,
 ) -> Result<(), OpError> {
-    let named = rows(doc, MEGASTRUCTURES)?.iter().any(|row| {
-        !going.contains(&row.id)
-            && read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(planet)
-    });
-    if named {
+    if Holders::read(doc, planet, node, src)?
+        .row_besides(going)
+        .is_some()
+    {
         return Err(refuse(
             "a megastructure stands on or around it: delete the megastructure first".to_owned(),
         ));

@@ -1,7 +1,7 @@
 //! Adding a habitat round a body of the 4.5 sample and deleting it again: the diff, the
 //! flags the host and the system take and give back, and what is refused.
 
-use sgf_core::ops::{HabitatOrbital, NewHabitat, Op};
+use sgf_core::ops::{HabitatOrbital, NewHabitat, NewMegastructurePlace, NewPlanet, Op};
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
@@ -21,9 +21,12 @@ fn habitat_at(radius: f64) -> NewHabitat {
         unreachable!("sol_habitat adds a habitat");
     };
     NewHabitat {
-        at: OrbitPlacement {
-            radius,
-            angle: 315.0,
+        planet: NewPlanet {
+            at: OrbitPlacement {
+                radius,
+                angle: 315.0,
+            },
+            ..habitat.planet
         },
         ..habitat
     }
@@ -53,14 +56,7 @@ fn restored(body: u32) -> Op {
 }
 
 fn added_id(result: &sgf_core::session::OpResult) -> u32 {
-    match &result.inverse {
-        Op::RemoveBody { body } => *body,
-        Op::Batch { ops, .. } => match ops.first() {
-            Some(Op::RemoveBody { body }) => *body,
-            other => panic!("{other:?}"),
-        },
-        other => panic!("{other:?}"),
-    }
+    result.created.planets[0]
 }
 
 #[test]
@@ -70,25 +66,14 @@ fn what_an_add_refuses() {
         .apply(sol_habitat())
         .expect("a habitat round planet 4");
     let id = added_id(&first);
-    let no_size = NewHabitat {
-        size: 0,
-        ..habitat_at(9.899)
-    };
-    let twice = NewHabitat {
-        flags: ["habitat", "habitat"].map(str::to_owned).to_vec(),
-        ..habitat_at(9.899)
-    };
-    let nan = NewHabitat {
-        at: OrbitPlacement {
-            radius: 9.899,
-            angle: f64::NAN,
-        },
-        ..habitat_at(9.899)
-    };
-    let model = NewHabitat {
-        model: Some("two words".to_owned()),
-        ..habitat_at(9.899)
-    };
+    let mut no_size = habitat_at(9.899);
+    no_size.planet.size = 0;
+    let mut twice = habitat_at(9.899);
+    twice.planet.flags = ["habitat", "habitat"].map(str::to_owned).to_vec();
+    let mut nan = habitat_at(9.899);
+    nan.planet.at.angle = f64::NAN;
+    let mut model = habitat_at(9.899);
+    model.planet.model = Some("two words".to_owned());
     assert_refusals(
         &mut session,
         [
@@ -115,7 +100,7 @@ fn what_an_add_refuses() {
             (add(5, no_size), "a planet size may not be zero"),
             (
                 add(5, twice),
-                "\"habitat\" cannot be written as a planet flag listed once",
+                "\"habitat\" cannot be written as a flag listed once",
             ),
             (add(5, nan), "value is not a finite number"),
             (add(5, model), "\"two words\" cannot be written as a model"),
@@ -254,7 +239,17 @@ fn a_restored_habitat_has_its_orbital() {
     for key in [format!("habitat{id}="), "has_orbital=".to_owned()] {
         assert!(host.contains(&key), "{key}: {host}");
     }
-    assert!(host.contains("megastructure="), "{host}");
+    let [orbital] = result.created.megastructures[..] else {
+        panic!("one orbital: {:?}", result.created);
+    };
+    assert_eq!(result.created.planets, [id]);
+    assert!(
+        host.contains(&format!(
+            "megastructure={orbital}
+"
+        )),
+        "{host}"
+    );
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(current(&session), session.doc().original());
 }
@@ -315,6 +310,7 @@ fn a_restored_habitats_orbital_removed_on_its_own() {
     let orbital = Op::RemoveMegastructure {
         megastructure: ADDED_MEGASTRUCTURE,
         construction: None,
+        left_out: 0,
     };
     let removed = session.apply(orbital.clone()).expect("the orbital");
     let host = planet_text(&session, 4);
@@ -323,15 +319,14 @@ fn a_restored_habitats_orbital_removed_on_its_own() {
         "{host}"
     );
     assert!(host.contains("habitat16777273="), "{host}");
-    let Op::AddMegastructure {
-        kind, orbital_flag, ..
-    } = &removed.inverse
-    else {
+    let Op::AddMegastructure { spec, .. } = &removed.inverse else {
         panic!("{:?}", removed.inverse);
     };
-    assert_eq!(
-        (kind.as_str(), *orbital_flag),
-        ("habitat_major_orbital", true)
+    assert_eq!(spec.kind, "habitat_major_orbital");
+    assert!(
+        matches!(&spec.at, NewMegastructurePlace::Body { body_flags, .. } if body_flags == &["has_orbital"]),
+        "{:?}",
+        spec.at
     );
     let after_orbital = current(&session);
 

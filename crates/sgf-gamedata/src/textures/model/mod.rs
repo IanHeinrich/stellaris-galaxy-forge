@@ -8,7 +8,7 @@
 //! is left clear, so the editor's own planet shows through. Which faces are drawn and how a
 //! mesh blends follow its shader's name, as [`drawn_as`] reads it.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -22,7 +22,7 @@ use ts_rs::TS;
 use super::{Input, TextureError, encode_png};
 use crate::GameData;
 use crate::install::layers::Layout;
-use assets::{Placed, ROOT, Step};
+use assets::{Materials, Placed, ROOT, Step};
 use mesh::MeshFile;
 use space::{Affine, Vec3};
 
@@ -31,7 +31,7 @@ mod mesh;
 mod raster;
 mod space;
 
-pub(crate) use assets::Assets;
+pub(crate) use assets::{Assets, MODELS_DIR};
 
 /// Shaders whose meshes are not drawn: collision volumes, glows added over the model, effects
 /// drawn by scrolling their texture, such as the Hyper Relay's portal, and planet atmospheres.
@@ -91,9 +91,6 @@ const PLANET_OFF_CENTRE: f32 = 0.15;
 /// sprite's longer side, within these.
 const MIN_TEXTURE_WIDTH: u32 = 512;
 const MAX_TEXTURE_WIDTH: u32 = 2048;
-/// Part of a model's cache name, raised when only how models are baked changes, so a sprite
-/// baked at another size is not served from the disk cache.
-const MODEL_BAKE: u32 = 1;
 
 /// Where a model sprite goes: its size in save units, and where the model's origin falls in
 /// it, as a share of its width and height from the top left.
@@ -119,8 +116,8 @@ impl ModelBounds {
     }
 }
 
-/// A model resolved from its `.asset` and `.gfx` definitions, with no `.mesh` file read: what
-/// its cache name covers.
+/// A model resolved from its `.asset` and `.gfx` definitions and its `.mesh` files: what its
+/// cache name covers.
 pub(super) struct ModelJob {
     entity: String,
     /// The turn about model Y, in whole degrees.
@@ -128,6 +125,8 @@ pub(super) struct ModelJob {
     layout: Layout,
     assets: Arc<Assets>,
     parts: Vec<Part>,
+    /// Every texture the drawn meshes are drawn with, those their own materials name included.
+    textures: Vec<Input>,
 }
 
 /// A mesh file the model draws: where it is placed, the file, and the textures its
@@ -153,8 +152,12 @@ struct Look {
     diffuse: Option<PathBuf>,
     normal: Option<PathBuf>,
     specular: Option<PathBuf>,
+    /// The maps the mesh's own material names, which settings may have replaced.
+    material: [Option<PathBuf>; 3],
     /// Drawn with a texture from [`PLANET_TEXTURES`].
     planet_textured: bool,
+    /// The shader it is drawn with.
+    shader: String,
     drawn: Drawn,
 }
 
@@ -174,8 +177,8 @@ impl Hash for ModelJob {
             layer.root.hash(state);
         }
         self.parts.hash(state);
+        self.textures.hash(state);
         self.yaw.hash(state);
-        MODEL_BAKE.hash(state);
     }
 }
 
@@ -202,7 +205,7 @@ impl ModelJob {
         if placed.is_empty() {
             return Err(TextureError::EmptyModel(entity.to_owned()));
         }
-        let parts = placed
+        let parts: Vec<Part> = placed
             .into_iter()
             .map(|placed| {
                 let mesh_dir = folder(&placed.file);
@@ -223,13 +226,42 @@ impl ModelJob {
                 }
             })
             .collect();
-        Ok(Self {
+        let mut job = Self {
             entity: entity.to_owned(),
             yaw,
             layout: layout.clone(),
             assets,
             parts,
-        })
+            textures: Vec::new(),
+        };
+        job.textures = job.drawn_textures();
+        Ok(job)
+    }
+
+    /// Every texture [`Self::looks`] finds for the parts whose mesh file reads.
+    fn drawn_textures(&self) -> Vec<Input> {
+        self.parts
+            .iter()
+            .filter_map(|part| {
+                let file = &part.placed.file;
+                let read = || read_mesh(&self.layout, file);
+                Some((part, self.assets.materials(part.input.as_ref()?, read)?))
+            })
+            .flat_map(|(part, materials)| self.looks(&part.placed, &materials))
+            .flat_map(|look| {
+                let [diffuse, normal, specular] = look.material;
+                [
+                    look.diffuse,
+                    look.normal,
+                    look.specular,
+                    diffuse,
+                    normal,
+                    specular,
+                ]
+            })
+            .flatten()
+            .filter_map(|path| Input::at(path).ok())
+            .collect()
     }
 
     /// Each part whose mesh file reads and that draws something, placed. Each `.mesh` file is
@@ -272,7 +304,7 @@ impl ModelJob {
                 };
                 transform = transform.then_before(at);
             }
-            let looks = self.looks(&part.placed, &own);
+            let looks = self.looks(&part.placed, &Materials::of(&own));
             if !looks.is_empty() {
                 loaded.push(Loaded {
                     transform,
@@ -288,27 +320,26 @@ impl ModelJob {
     }
 
     /// The meshes of `mesh` that are drawn, with the maps its settings or its material name.
-    fn looks(&self, placed: &Placed, mesh: &MeshFile) -> Vec<Look> {
+    fn looks(&self, placed: &Placed, materials: &Materials) -> Vec<Look> {
         let mesh_dir = folder(&placed.file);
         let texture = |name: Option<String>| {
             self.assets
                 .texture(&self.layout, &name?, mesh_dir, &placed.asset_dir)
         };
         let mut looks = Vec::new();
-        for (s, shape) in mesh.shapes.iter().enumerate() {
-            for (m, mesh) in shape.meshes.iter().enumerate() {
-                let settings = placed.settings.iter().find(|ms| ms.matches(&shape.name, m));
+        for (s, (shape, meshes)) in materials.0.iter().enumerate() {
+            for (m, (material, has_triangles)) in meshes.iter().enumerate() {
+                let settings = placed.settings.iter().find(|ms| ms.matches(shape, m));
                 let pick = |set: Option<&Option<String>>, own: &str| -> Option<String> {
                     set.cloned()
                         .flatten()
                         .or_else(|| (!own.is_empty()).then(|| own.to_owned()))
                 };
-                let material = &mesh.material;
                 let shader = pick(settings.map(|ms| &ms.shader), &material.shader);
                 let Some(drawn) = drawn_as(shader.as_deref().unwrap_or_default()) else {
                     continue;
                 };
-                if mesh.triangles.is_empty() {
+                if !has_triangles {
                     continue;
                 }
                 let diffuse = texture(pick(settings.map(|ms| &ms.diffuse), &material.diffuse));
@@ -327,7 +358,9 @@ impl ModelJob {
                     diffuse,
                     normal,
                     specular,
+                    material: own,
                     planet_textured,
+                    shader: shader.clone().unwrap_or_default(),
                     drawn,
                 });
             }
@@ -433,6 +466,7 @@ impl ModelJob {
             layout: Layout::default(),
             assets: Arc::default(),
             parts: Vec::new(),
+            textures: Vec::new(),
         }
     }
 }
@@ -458,6 +492,20 @@ fn drawn_as(shader: &str) -> Option<Drawn> {
         double_sided: named(&DOUBLE_SIDED_SHADERS),
         empire_mask: !named(&UNMASKED_SHADERS),
     })
+}
+
+/// Whether one of the tables [`drawn_as`] reads names `shader`.
+fn tabled(shader: &str) -> bool {
+    [
+        &ALPHA_BLENDED_SHADERS[..],
+        &ADDED_SHADERS,
+        &ALPHA_TESTED_SHADERS,
+        &UNMASKED_SHADERS,
+        &DOUBLE_SIDED_SHADERS,
+    ]
+    .iter()
+    .flat_map(|table| table.iter())
+    .any(|k| k.eq_ignore_ascii_case(shader))
 }
 
 fn folder(file: &str) -> &str {
@@ -587,6 +635,23 @@ impl GameData {
     /// The extent of the model a `model:` texture key names, in save units; it reads the
     /// model's `.mesh` files but bakes nothing.
     pub fn model_bounds(&self, key: &str) -> Result<ModelBounds, TextureError> {
+        self.model_job(key)?.bounds()
+    }
+
+    /// The shaders the drawn meshes of the model a `model:` texture key names are drawn with
+    /// that no table of [`drawn_as`] names, so they are drawn opaque. It reads the model's
+    /// `.mesh` files but bakes nothing.
+    pub(crate) fn untabled_shaders(&self, key: &str) -> Result<BTreeSet<String>, TextureError> {
+        let loaded = self.model_job(key)?.load()?;
+        Ok(loaded
+            .iter()
+            .flat_map(|part| &part.looks)
+            .map(|look| look.shader.clone())
+            .filter(|shader| !shader.is_empty() && !tabled(shader))
+            .collect())
+    }
+
+    fn model_job(&self, key: &str) -> Result<ModelJob, TextureError> {
         let super::TextureKey::Model {
             culture,
             entity,
@@ -601,7 +666,6 @@ impl GameData {
             &self.graphical_cultures.chain(&culture),
             &entity,
             yaw,
-        )?
-        .bounds()
+        )
     }
 }

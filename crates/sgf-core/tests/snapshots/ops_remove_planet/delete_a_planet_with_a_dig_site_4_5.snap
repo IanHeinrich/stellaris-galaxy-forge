@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #703, and a dig site
+Deleted planet Spjuuht #703, and a dig site
 details stale: [12]
-inverse: Restored planet #703
+inverse: Restored planet Spjuuht #703
 
   System: 12
   Planet: 703

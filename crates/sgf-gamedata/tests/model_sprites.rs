@@ -617,3 +617,51 @@ fn a_ring_world_quadrant_turns_its_side_pieces_to_face_its_star() {
     // so the quadrant bows towards the star.
     assert!(close(size[0], 13.8, 0.03), "{size:?}");
 }
+
+#[test]
+fn a_changed_texture_the_mesh_material_names_bakes_the_model_again() {
+    let (dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let key = "model:mammalian_01:hollow_entity";
+    let (before, _) = sprite(&gd, &textures, key);
+    let tint = |image: &RgbaImage, more: usize, less: usize| {
+        image
+            .pixels()
+            .any(|p| u16::from(p.0[more]) > u16::from(p.0[less]) + 100)
+    };
+    assert!(tint(&before, 2, 1), "a blue shell");
+
+    let shell = dir.path().join("install/gfx/models/test/blue.dds");
+    std::fs::write(&shell, solid([0, 255, 0, 255])).expect("a green shell");
+    std::fs::File::options()
+        .write(true)
+        .open(&shell)
+        .and_then(|file| {
+            file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(60))
+        })
+        .expect("a later stamp");
+
+    let (after, _) = sprite(&gd, &textures, key);
+    assert!(
+        tint(&after, 1, 2),
+        "the shell is baked again from its new texture"
+    );
+    assert_eq!(std::fs::read_dir(textures.cache_dir()).unwrap().count(), 2);
+}
+
+#[test]
+fn a_model_file_that_does_not_parse_is_reported() {
+    let (_dir, gd) = common::hand_written(&[
+        ("gfx/models/test/broken.asset", "entity = {\n}\n}\n"),
+        ("gfx/models/test/fine.gfx", "objectTypes = {\n}\n"),
+        ("common/planet_classes/00_none.txt", ""),
+    ]);
+    let reported: Vec<String> = gd
+        .diagnostics
+        .iter()
+        .filter(|d| d.kind() == "parse_error")
+        .map(ToString::to_string)
+        .collect();
+    assert_eq!(reported.len(), 1, "{reported:?}");
+    assert!(reported[0].contains("broken.asset"), "{reported:?}");
+}

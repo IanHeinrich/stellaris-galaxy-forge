@@ -3,7 +3,8 @@
 
 use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{
-    MegastructurePlace, NewRingWorld, Op, RingModifier, RingQuadrant, RingVariable,
+    NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, RingQuadrant, RingVariable,
+    TimedModifier,
 };
 use sgf_core::session::Session;
 use sgf_core::views::ClearedMegastructure;
@@ -42,6 +43,8 @@ fn a_finished_ring_in_a_cleared_system() {
     let owner = owner(&session, HABRAQ);
     assert!(owner.is_some(), "Habraq is owned");
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(HABRAQ, owner, finished_ring(), true)
         .expect("the batch");
     let Op::Batch { ops, description } = &op else {
@@ -75,6 +78,8 @@ fn a_mixed_ring_with_the_planets_left_in_place() {
     let owner = owner(&session, CHORS_COMPASS);
     let before = common::planet_ids(&session, CHORS_COMPASS);
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(CHORS_COMPASS, owner, mixed_ring(), false)
         .expect("the op");
     assert_eq!(op, chors_ring(owner), "no batch without clearing");
@@ -119,11 +124,17 @@ fn removing_an_added_ring_world_leaves_the_save_as_it_was() {
 #[test]
 fn the_clearing_names_the_colonies_it_takes() {
     let mut session = open_4_5();
-    let clearing = session.ring_world_clearing(VINH).expect("the clearing");
+    let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
+        .ring_world_clearing(VINH)
+        .expect("the clearing");
     assert_eq!(clearing.colonies, [517]);
     assert_eq!(clearing.bodies.len(), 12);
     assert_eq!(clearing.moons, 2);
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(VINH, None, finished_ring(), true)
         .expect("the batch");
     let result = session.apply(op).expect("the add");
@@ -154,7 +165,7 @@ fn what_an_add_refuses() {
     };
     let mut sizeless = finished_ring();
     if let RingQuadrant::Finished { segments } = &mut sizeless.quadrants[0] {
-        segments[0].size = 0;
+        segments[0].planet.size = 0;
     }
     let no_planets = NewRingWorld {
         quadrants: vec![RingQuadrant::Finished {
@@ -228,9 +239,15 @@ fn what_an_add_refuses() {
 #[test]
 fn clearing_a_planet_a_starbase_orbits_is_refused() {
     let mut session = open_4_5();
-    let clearing = session.ring_world_clearing(PLESSIS).expect("the clearing");
+    let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
+        .ring_world_clearing(PLESSIS)
+        .expect("the clearing");
     assert_eq!(clearing.starbase_bodies, [484]);
     let refused = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(PLESSIS, None, finished_ring(), true)
         .expect_err("a starbase's planet");
     assert_eq!(
@@ -238,6 +255,8 @@ fn clearing_a_planet_a_starbase_orbits_is_refused() {
         "a ring world cannot be added there: a starbase orbits planet 484, which clearing Plessis #298 would delete; add the ring with the planets left in place"
     );
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(PLESSIS, None, finished_ring(), false)
         .expect("left in place");
     session.apply(op).expect("the ring");
@@ -251,23 +270,23 @@ fn a_ring_round_a_star_a_dyson_sphere_wraps() {
     let mut session = open_4_5();
     let sphere = Op::AddMegastructure {
         system: STAR_SYSTEM,
-        kind: "dyson_sphere_5".to_owned(),
-        name: None,
-        at: MegastructurePlace::Body { body: STAR },
-        owner: None,
-        bypass: None,
-        ruined_orbital_ring: false,
-        megastructure_flag: true,
-        orbital_flag: false,
-        star_only: true,
-        construction: None,
-        left_out: 0,
+        spec: NewMegastructure {
+            kind: "dyson_sphere_5".to_owned(),
+            at: NewMegastructurePlace::Body {
+                body: STAR,
+                body_flags: vec!["has_megastructure".to_owned()],
+                star_only: true,
+            },
+            ..NewMegastructure::default()
+        },
     };
     session.apply(sphere).expect("the sphere");
     let with_sphere = current(&session);
     let row = entity_text(&session, EntityKind::Megastructure, 16);
     assert!(planet_text(&session, STAR).contains("megastructure=16"));
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(STAR_SYSTEM, None, finished_ring(), false)
         .expect("the op");
     session.apply(op).expect("the ring beside the sphere");
@@ -287,12 +306,18 @@ fn clearing_a_planet_a_megastructure_stands_on() {
     let mut session = open_4_5();
     session.apply(sol_nexus()).expect("the nexus");
     let with_nexus = current(&session);
-    let clearing = session.ring_world_clearing(ALARI).expect("the clearing");
+    let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
+        .ring_world_clearing(ALARI)
+        .expect("the clearing");
     assert_eq!(
         clearing.megastructures,
         [ClearedMegastructure { id: 16, body: 6 }]
     );
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(ALARI, Some(0), finished_ring(), true)
         .expect("the batch");
     let Op::Batch { ops, description } = &op else {
@@ -418,6 +443,8 @@ galactic_object=
 fn a_titanic_ring_beside_a_ring_the_file_holds() {
     let mut session = open_4_5();
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(LACHIUM, None, titanic_ring(), false)
         .expect("the op");
     let result = snapshot_step(&mut session, "titanic_ring_beside_lachiums", op);
@@ -464,6 +491,8 @@ fn clearing_for_a_second_ring_keeps_the_first() {
         .collect();
     assert_eq!(segments.len(), 6, "{segments:?}");
     let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
         .ring_world_clearing(CHORS_COMPASS)
         .expect("the clearing");
     assert_eq!(clearing.bodies.len(), 4, "{:?}", clearing.bodies);
@@ -472,6 +501,8 @@ fn clearing_for_a_second_ring_keeps_the_first() {
         "{clearing:?}"
     );
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(CHORS_COMPASS, None, titanic_ring(), true)
         .expect("the batch");
     let result = session.apply(op).expect("the cleared titanic ring");
@@ -486,17 +517,17 @@ fn clearing_for_a_second_ring_keeps_the_first() {
     assert_eq!(current(&session), with_ring);
 }
 
-/// A segment's timed modifier is checked as an added modifier is: a day count of 0, one under
-/// -1 and a modifier listed twice are refused.
+/// A segment's timed modifier is checked as an added modifier is: a day count of 0, one past
+/// what a save holds and a modifier listed twice are refused.
 #[test]
 fn what_a_segments_modifiers_refuse() {
     let mut session = open_4_5();
-    let with = |days: &[i32]| {
+    let with = |days: &[Option<u32>]| {
         let mut ring = titanic_ring();
         if let RingQuadrant::Finished { segments } = &mut ring.quadrants[0] {
             segments[2].modifiers = days
                 .iter()
-                .map(|&days| RingModifier {
+                .map(|&days| TimedModifier {
                     modifier: "giga_titanic_housing".to_owned(),
                     days,
                 })
@@ -512,15 +543,15 @@ fn what_a_segments_modifiers_refuse() {
         &mut session,
         [
             (
-                with(&[0]),
-                "a ring world cannot be added there: modifier giga_titanic_housing would last 0 days",
+                with(&[Some(0)]),
+                "a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever",
             ),
             (
-                with(&[-2]),
-                "a ring world cannot be added there: modifier giga_titanic_housing would last -2 days",
+                with(&[Some(u32::MAX)]),
+                "a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever",
             ),
             (
-                with(&[-1, 360]),
+                with(&[None, Some(360)]),
                 "\"giga_titanic_housing\" cannot be written as a modifier listed once",
             ),
         ],

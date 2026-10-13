@@ -9,7 +9,7 @@ use crate::emit::{coord, hyperlane_block, lane_entry};
 use crate::format::save::write::bulk;
 use crate::keys;
 use crate::ops::rules::lanes as rules;
-use crate::ops::rules::{named, named_all};
+use crate::ops::rules::named;
 use crate::ops::{Edit, LaneLength, Op, OpError, Plan, Planned};
 use crate::plural;
 use crate::projections::galaxy::bypass_between;
@@ -56,19 +56,7 @@ pub(crate) fn plan_add_many(
         insert_entries(plan.edit(&s.doc, other)?, &[(from, length, bridge)])?;
     }
     insert_entries(plan.edit(&s.doc, from)?, &entries)?;
-    let ids: Vec<u32> = to.iter().map(|&(id, _)| id).collect();
-    Ok(Planned {
-        description: format!(
-            "Added {} from {} to {}",
-            plural(to.len(), "lane"),
-            named(&s.graph, from),
-            named_all(&s.graph, &ids)
-        ),
-        inverse: Op::RemoveLanes {
-            from,
-            to: to.iter().map(|&(id, _)| id).collect(),
-        },
-    })
+    Ok(rules::added_lanes(&s.graph, from, to))
 }
 
 pub(crate) fn plan_remove(
@@ -110,10 +98,8 @@ pub(crate) fn plan_remove_many(
     }
     Ok(Planned {
         description: format!(
-            "Removed {} from {} to {} ({removed} entries){}",
-            plural(to.len(), "lane"),
-            named(&s.graph, from),
-            named_all(&s.graph, to),
+            "Removed {} ({removed} entries){}",
+            rules::lanes_from(&s.graph, from, to),
             wayline_note(&s.graph, &pairs)
         ),
         inverse: Op::AddLanes {

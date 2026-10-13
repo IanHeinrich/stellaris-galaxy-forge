@@ -5,42 +5,26 @@
 
 use crate::GameData;
 use crate::condition::{Condition, Subject};
-use crate::deposit_roll::{Kind, RollBody};
-use crate::registries::planet_classes::PlanetClassDef;
+use crate::deposit_roll::{NewBody, RollBody};
 use crate::registries::planet_modifiers::PlanetModifierDef;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 
-/// A new body as the first draw of its features judges it.
-struct NewBody<'a> {
-    body: &'a RollBody<'a>,
-    class_def: Option<&'a PlanetClassDef>,
-    triggers: &'a ScriptedTriggers,
-}
+/// A new body as the first draw of its features judges it. Whether its deposits, and the
+/// modifiers the game hands a new body such as a terraforming candidate's, are in place
+/// before its features are drawn is the engine's to say, so `has_deposit` and
+/// `has_modifier` stay unsettled. It holds no planet feature yet.
+struct FirstDraw<'a>(NewBody<'a>);
 
-impl Subject for NewBody<'_> {
+impl Subject for FirstDraw<'_> {
     fn leaf(&self, leaf: &Condition) -> Option<bool> {
-        let class = self.class_def;
-        let body = self.body;
         match leaf {
-            Condition::HostDlc(_) => Some(true),
-            Condition::StarFlag(_) | Condition::Exists(_) => Some(false),
-            Condition::PlanetClass(key) => Some(body.class == key),
-            Condition::Climate(climate) => Some(class?.climate.as_deref() == Some(climate)),
-            Condition::Star(want) | Condition::PrimaryStar(want) => {
-                Some((body.kind == Kind::Star) == *want)
-            }
-            Condition::Moon(want) => Some((body.kind == Kind::Moon) == *want),
-            Condition::Asteroid(want) => Some(class?.asteroid == *want),
-            Condition::Colonizable(want) => Some(class?.colonizable == *want),
-            Condition::Size(cmp, n) => Some(cmp.holds(f64::from(body.size), *n)),
-            Condition::Modifiers(cmp, n) => Some(cmp.holds(0.0, *n)),
-            Condition::Unknown(key) if key == "has_planet_modifier" => Some(false),
-            _ => None,
+            Condition::HasDeposit(_) | Condition::HasModifier(_) => None,
+            _ => self.0.leaf(leaf),
         }
     }
 
     fn triggers(&self) -> Option<&ScriptedTriggers> {
-        Some(self.triggers)
+        self.0.triggers()
     }
 }
 
@@ -52,11 +36,7 @@ pub(crate) fn first_draw<'a>(
     gd: &'a GameData,
     body: &RollBody<'_>,
 ) -> Vec<(&'a PlanetModifierDef, Option<f64>)> {
-    let subject = NewBody {
-        body,
-        class_def: gd.planet_classes.get(body.class),
-        triggers: &gd.scripted_triggers,
-    };
+    let subject = FirstDraw(NewBody::new(gd, body, &[]));
     let possible = |pm: &PlanetModifierDef| {
         pm.potential
             .as_ref()

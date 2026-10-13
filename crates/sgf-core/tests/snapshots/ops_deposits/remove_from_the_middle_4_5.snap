@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed d_prosperous_mesa (#257) from planet #135
+Removed d_prosperous_mesa (#257) from Meissa I #135
 touched: [408]
 inverse: AddDeposit { body: 135, kind: "d_prosperous_mesa" }
 … and 3 other issues

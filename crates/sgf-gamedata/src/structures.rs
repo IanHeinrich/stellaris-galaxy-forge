@@ -1,17 +1,20 @@
 //! The megastructures and starbase a scenario system's initializer places, in the shape a
 //! save's rows have: the body each is tied to, where it stands and who owns it.
 
-use sgf_core::format::save::details::{
-    Bounds, MegastructureSummary, PlanetSummary, SpawnPlace, StarbaseSummary, StructureSpawn,
-};
+use sgf_core::emit;
+use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
+use sgf_core::views::details::{
+    Bounds, MegastructureSummary, PlanetSummary, SpawnPlace, StarbaseSummary, StructureSpawn,
+};
 
 use crate::GameData;
 use crate::details::{MEGASTRUCTURE_BASE, STARBASE_BASE, bounds, index};
 use crate::initializers::{self, Body, BodyClass, InitStarbase, Initializer};
 use crate::install::script::Def;
 use crate::layouts::{StarSource, star_source};
+use crate::registries::megastructures::{MegastructureTypes, RELAY_BYPASS};
 use crate::scripts::ScenarioOwners;
 use crate::structure_spawns::{
     self, CREATE_STARBASE, EffectCall, InitMegastructure, SPAWN_MEGASTRUCTURE, Written,
@@ -20,9 +23,6 @@ use crate::structure_spawns::{
 
 /// The angle a written `orbit_angle` turns on from, as a body's first angle does.
 const ORBIT_START: f64 = 180.0;
-
-/// How far out, as a share of its system's inner radius, the game puts a relay.
-const RELAY_RADIUS_FACTOR: f64 = 1.05;
 
 /// Where a gateway placed at random typically stands, as a share of its system's inner radius:
 /// the middle of the 1.18 to 1.30 the sample saves show.
@@ -70,6 +70,7 @@ struct Context<'a> {
     points: &'a [(f64, f64)],
     inner_radius: f64,
     owners: Option<&'a ScenarioOwners>,
+    megastructures: &'a MegastructureTypes,
     /// How many structures placed at random have been given a spot.
     random: u32,
 }
@@ -105,6 +106,7 @@ impl GameData {
                 |b| (b.min + b.max) / 2.0,
             ),
             owners,
+            megastructures: &self.megastructures,
             random: 0,
         };
         let called: Vec<Called> = init
@@ -351,13 +353,27 @@ impl Context<'_> {
     /// A typical spot for a structure the game places at random: a relay on its ring, anything
     /// else outside the planets as the game's gateways are.
     fn random_spot(&mut self, kind: &str) -> (f64, f64) {
-        let factor = match kind.starts_with("hyper_relay") {
+        let factor = match self.relay(kind) {
             true => RELAY_RADIUS_FACTOR,
             false => GATEWAY_RADIUS_FACTOR,
         };
         let angle = RANDOM_ANGLE + RANDOM_STEP * f64::from(self.random);
         self.random += 1;
         rounded(point((0.0, 0.0), self.inner_radius * factor, angle))
+    }
+
+    /// Whether type `kind` stands for a relay: its `bypass_type` says so, or, for a variant
+    /// that names none, as a ruined relay does, its working type's.
+    fn relay(&self, kind: &str) -> bool {
+        let types = self.megastructures;
+        let Some(def) = types.get(kind) else {
+            return false;
+        };
+        let bypass = def.bypass_type.as_deref().or_else(|| {
+            let working = types.get(def.variant_of.as_deref()?)?;
+            working.bypass_type.as_deref()
+        });
+        bypass == Some(RELAY_BYPASS)
     }
 
     /// The territory an owner `written` as such names, and the owner as written when it names
@@ -430,6 +446,5 @@ fn starbase_point(size: f64) -> (f64, f64) {
 
 /// `at` to the 5 decimals the game writes, with no negative zero.
 fn rounded((x, y): (f64, f64)) -> (f64, f64) {
-    let round = |n: f64| (n * 1e5).round() / 1e5 + 0.0;
-    (round(x), round(y))
+    (emit::rounded(x) + 0.0, emit::rounded(y) + 0.0)
 }

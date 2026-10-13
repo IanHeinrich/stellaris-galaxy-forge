@@ -122,12 +122,12 @@ fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
         assert!(!kinds.is_empty(), "{name}: some kind takes it");
         assert_eq!(
             example.save.is_some(),
-            kinds.contains(&DocumentKind::Save),
+            kinds.contains(DocumentKind::Save),
             "{name}: a save example where the row names a save"
         );
         assert_eq!(
             example.scenario.is_some(),
-            kinds.contains(&DocumentKind::Scenario),
+            kinds.contains(DocumentKind::Scenario),
             "{name}: a scenario example where the row names a scenario"
         );
         if example.save.is_none() {
@@ -383,6 +383,15 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             ..four
         }
     );
+}
+
+/// Prepare is offered on a scenario, and the multi-edit of several bodies on a save.
+#[test]
+fn prepare_is_a_scenarios_and_editing_bodies_together_a_saves() {
+    let save = Capabilities::of(common::open().doc());
+    assert!(save.edit_bodies && !save.prepare);
+    let scenario = Capabilities::of(common::examples::scenario().doc());
+    assert!(scenario.prepare && !scenario.edit_bodies);
 }
 
 /// Planet 588 moved onto 587 in the 4.5 sample overlaps it; adding a planet to Meissa then

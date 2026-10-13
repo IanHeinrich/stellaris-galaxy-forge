@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added megastructure #16 (think_tank_3) in Alari system #169
-inverse: RemoveMegastructure { megastructure: 16, construction: None }
+inverse: RemoveMegastructure { megastructure: 16, construction: None, left_out: 0 }
 
 --- gamestate
 +++ gamestate

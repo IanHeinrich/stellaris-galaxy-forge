@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed colony #11 from planet #318, with 3 pop groups and 13 armies
+Removed colony #11 from Sky Temple #318, with 3 pop groups and 13 armies
 details stale: [400]
-inverse: Restored colony #11 on planet #318
+inverse: Restored colony #11 on Sky Temple #318
 
   System: 400
   Planet: 318

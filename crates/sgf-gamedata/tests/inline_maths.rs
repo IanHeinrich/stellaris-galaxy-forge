@@ -5,8 +5,8 @@
 
 use crate::common;
 
-use sgf_core::format::save::details::UsageOdds;
-use sgf_core::ops::VariableDrop;
+use sgf_core::ops::VariableStep;
+use sgf_core::views::details::UsageOdds;
 use sgf_gamedata::body_effects::BodyEffect;
 use sgf_gamedata::condition::{Comparison, Condition};
 use sgf_gamedata::construction::Effect;
@@ -393,7 +393,7 @@ country_event = {
     );
     assert_eq!(
         calc.dismantle.variables,
-        [VariableDrop {
+        [VariableStep {
             variable: "mod_calc_a".to_owned(),
             by: 4,
         }]
@@ -424,7 +424,7 @@ fn a_statement_with_spaced_inline_maths_is_kept_as_written() {
         ),
     ]);
     let init = gd.initializers.get("fx_kept").expect("fx_kept");
-    let texts = |raw: &[sgf_core::format::save::details::RawStatement]| -> Vec<String> {
+    let texts = |raw: &[sgf_core::views::details::RawStatement]| -> Vec<String> {
         raw.iter().map(|r| r.text.clone()).collect()
     };
     assert_eq!(

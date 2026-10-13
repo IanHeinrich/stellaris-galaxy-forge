@@ -1,19 +1,19 @@
 //! `common/solar_system_initializers`: what a system was generated from.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::{self, Node};
-use sgf_core::format::save::details::{CountRange, InlineScriptUse, SourceLine};
 use sgf_core::span::Span;
+use sgf_core::views::details::{CountRange, InlineScriptUse, SourceLine};
 use ts_rs::TS;
 
 use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};
 use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
-use crate::install::script::{self, Def, ParsedDir, Range, Variables, line_of, whole};
+use crate::install::script::{self, Def, LineStarts, ParsedDir, Range, Variables, whole};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
@@ -421,36 +421,6 @@ fn places_by_script(node: &Node, src: &[u8]) -> bool {
         })
 }
 
-/// The top-level keys of the install's own initializer files: from the parse when the file
-/// won, else read here, since a mod replaced it by its filename.
-fn vanilla_keys(layout: &Layout, parsed: &ParsedDir) -> HashSet<String> {
-    let won: HashMap<&std::path::Path, (&Node, &[u8])> = parsed
-        .files()
-        .map(|(file, root, src)| (file, (root, src)))
-        .collect();
-    let mut keys = HashSet::new();
-    let mut add = |root: &Node, src: &[u8]| {
-        keys.extend(
-            root.children()
-                .iter()
-                .filter_map(|node| node.key_str(src))
-                .filter(|key| !key.starts_with('@'))
-                .map(str::to_owned),
-        );
-    };
-    for file in layout.vanilla_files_in(Initializer::DIR) {
-        match won.get(file.as_path()) {
-            Some(&(root, src)) => add(root, src),
-            None => {
-                if let Some((root, src)) = script::parse_file(&file, &mut Vec::new()) {
-                    add(&root, &src);
-                }
-            }
-        }
-    }
-    keys
-}
-
 /// The registry plus the reverse of every initializer's `spawns`, and the
 /// blocks they were read from, which [`crate::scripts`] walks again.
 #[derive(Debug, Default)]
@@ -461,7 +431,7 @@ pub struct Initializers {
     /// The directory's winning files, in the order the game reads them.
     files: Vec<PathBuf>,
     /// The keys the game's own files define, whichever file won them.
-    vanilla: HashSet<String>,
+    vanilla: BTreeSet<String>,
     /// Each definition that calls an inline script the install has, as the game reads it.
     spliced: HashMap<String, Spliced>,
 }
@@ -481,13 +451,17 @@ impl Initializers {
     ) -> Self {
         let files = layout.files_in(Initializer::DIR);
         let parsed = ParsedDir::load(layout, Initializer::DIR, diagnostics);
-        let vanilla = vanilla_keys(layout, &parsed);
+        let vanilla = parsed.vanilla_keys(layout);
         let defs = parsed.into_defs(globals, diagnostics);
         let mut spliced = HashMap::new();
+        let mut lines: HashMap<&Path, Arc<LineStarts>> = HashMap::new();
         let by_name: Registry<Initializer> = defs
             .iter()
             .map(|(key, def)| {
-                let (init, read) = read_with_scripts(key, def, layout);
+                let lines = lines
+                    .entry(&def.file)
+                    .or_insert_with(|| Arc::new(LineStarts::of(&def.src)));
+                let (init, read) = read_with_scripts(key, def, layout, Arc::clone(lines));
                 if let Some(read) = read {
                     spliced.insert(key.clone(), read);
                 }
@@ -841,6 +815,7 @@ pub(crate) struct InlineScript {
     pub file: PathBuf,
     pub src: Arc<[u8]>,
     pub root: Node,
+    lines: LineStarts,
     /// The keys its text writes at its top level, each once.
     keys: Vec<String>,
     /// Where its text lies in the spliced definition's text.
@@ -857,7 +832,7 @@ impl InlineScript {
             keys: self.keys.clone(),
             at: Some(source_line(
                 &self.file,
-                first.map_or(1, |node| line_of(&self.src, node.span().start)),
+                first.map_or(1, |node| self.lines.line_of(node.span().start)),
             )),
         }
     }
@@ -885,9 +860,9 @@ impl InlineScript {
 /// the definition's file, or an inline script's for text read in place of a call.
 pub(crate) struct Origin<'d> {
     file: &'d Path,
-    /// The file's bytes.
-    src: &'d [u8],
-    /// Where the definition's text begins in `src`.
+    /// Where the file's lines begin.
+    lines: Arc<LineStarts>,
+    /// Where the definition's text begins in its file.
     start: usize,
     /// The inline scripts read in place of their calls, in the order of the text.
     pub(crate) splices: &'d [InlineScript],
@@ -896,9 +871,14 @@ pub(crate) struct Origin<'d> {
 impl<'d> Origin<'d> {
     /// `def` as written, its spans pointing into its file.
     pub(crate) fn of(def: &'d Def) -> Self {
+        Self::in_file(def, Arc::new(LineStarts::of(&def.src)))
+    }
+
+    /// `def` as written, the lines of its file already found.
+    fn in_file(def: &'d Def, lines: Arc<LineStarts>) -> Self {
         Self {
             file: &def.file,
-            src: &def.src,
+            lines,
             start: 0,
             splices: &[],
         }
@@ -914,12 +894,12 @@ impl<'d> Origin<'d> {
             if offset < splice.span.end {
                 return source_line(
                     &splice.file,
-                    line_of(&splice.src, offset - splice.span.start),
+                    splice.lines.line_of(offset - splice.span.start),
                 );
             }
             in_file = splice.call.end + (offset - splice.span.end);
         }
-        source_line(self.file, line_of(self.src, in_file))
+        source_line(self.file, self.lines.line_of(in_file))
     }
 
     /// The script that `node` was read from, when one was.
@@ -939,9 +919,14 @@ pub(crate) fn source_line(file: &Path, line: u32) -> SourceLine {
 /// the call, as the game reads it, and the definition it was read from when that differs
 /// from `def`. A script the install does not have, or whose text does not parse once its
 /// parameters are put in, is left as the call.
-fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Option<Spliced>) {
-    let as_written = || {
-        let init = Initializer::read_spliced(name.to_owned(), def, &Origin::of(def));
+fn read_with_scripts(
+    name: &str,
+    def: &Def,
+    layout: &Layout,
+    lines: Arc<LineStarts>,
+) -> (Initializer, Option<Spliced>) {
+    let as_written = |lines| {
+        let init = Initializer::read_spliced(name.to_owned(), def, &Origin::in_file(def, lines));
         (init, None)
     };
     let src = &def.src;
@@ -963,14 +948,14 @@ fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Op
         from = call_span.end;
     }
     if scripts.is_empty() {
-        return as_written();
+        return as_written(lines);
     }
     text.extend_from_slice(&src[from..whole.end]);
     let parsed = cst::parse_script(&text, 0)
         .ok()
         .and_then(|root| root.children().first().cloned());
     let Some(node) = parsed else {
-        return as_written();
+        return as_written(lines);
     };
     let spliced = Def {
         node,
@@ -981,7 +966,7 @@ fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Op
     };
     let origin = Origin {
         file: &def.file,
-        src,
+        lines,
         start: whole.start,
         splices: &scripts,
     };
@@ -1009,6 +994,7 @@ fn inline_script(call: &Node, src: &[u8], layout: &Layout) -> Option<InlineScrip
     Some(InlineScript {
         script: read.script,
         file: read.file,
+        lines: LineStarts::of(&read.text),
         src: read.text.into(),
         root,
         keys,

@@ -1,4 +1,4 @@
-//! Star types: each star class a save's systems or their stars have, found by its letter, a
+//! Star types: each star class a galaxy's systems or their stars have, found by its letter, a
 //! colour word, its key or its localised name.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -7,7 +7,7 @@ use super::{NameResolver, Rank, rank};
 use crate::as_u32;
 use crate::projections::galaxy::{GalaxyGraph, StarClasses, SystemNode};
 use crate::projections::name::NameTemplate;
-use crate::views::{DocumentKind, SearchHit, SearchKind};
+use crate::views::{SearchHit, SearchKind};
 
 /// The colour words of the base game's classes, as the localisation describes their stars.
 const COLOURS: [(&str, &[&str]); 6] = [
@@ -32,17 +32,13 @@ pub(super) struct StarType {
 }
 
 /// Every star type matching `needle`, best first and then by key, with its place among the
-/// galaxy's star types. A scenario has none: a system there has a star class only when its
-/// initializer fixes one, so a count would leave out every star the game draws at random.
+/// galaxy's star types.
 pub(super) fn matching(
     g: &GalaxyGraph,
     stars: &StarClasses,
     needle: &str,
     resolve: NameResolver<'_>,
 ) -> Vec<(Rank, u32, StarType)> {
-    if g.kind != DocumentKind::Save {
-        return Vec::new();
-    }
     let mut ranked: Vec<(Rank, u32, StarType)> = star_types(g, stars, resolve)
         .into_iter()
         .enumerate()

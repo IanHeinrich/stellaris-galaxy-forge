@@ -11,14 +11,15 @@ pub mod scenario;
 
 use std::path::{Path, PathBuf};
 
+use crate::archive;
 use crate::cst::{CstError, Node};
 use crate::document::{self, Document};
-use crate::ops::{Op, OpError, Plan, Planned, Subject};
+use crate::ops::{DetailsReach, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::session::Session;
 use crate::validate::Issue;
-use crate::views::{Capabilities, DocumentKind};
+use crate::views::{Capabilities, DocumentKind, SaveMeta};
 
 pub(crate) trait Format: Sync {
     /// Project the galaxy the map draws from the document as loaded.
@@ -69,8 +70,16 @@ pub(crate) trait Format: Sync {
     /// What the document calls itself: the empire name, or the scenario's `name`.
     fn title(&self, doc: &Document) -> String;
 
-    /// Issues that come from the document rather than from the projection.
-    fn issues(&self, doc: &Document) -> Vec<Issue>;
+    /// The save header the document has; `None` for one without.
+    fn meta(&self, doc: &Document) -> Result<Option<SaveMeta>, archive::Error>;
+
+    /// Whether the document carries Paint a Galaxy's scripts or flags, or Forge's header for
+    /// that mod.
+    fn painted(&self, doc: &Document) -> bool;
+
+    /// Issues of this format's own rules, beyond those every galaxy is checked by: from the
+    /// document, and from `graph`, its galaxy.
+    fn issues(&self, doc: &Document, graph: &GalaxyGraph) -> Vec<Issue>;
 
     /// Whether the document holds the planets, stations and fleets the details
     /// projection is built from.
@@ -81,6 +90,19 @@ pub(crate) trait Format: Sync {
     /// Whether an entity of this format is described by the inspector's curated rows.
     fn curates_entities(&self) -> bool;
 
+    /// The systems whose details an op of reach `reach` leaves stale, `subjects` being what
+    /// it rewrote, ascending.
+    fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32>;
+
+    /// Whether the queries only a save answers read this document; the refusal names
+    /// `query`, what the caller asked for, and why not.
+    fn save_queries(&self, doc: &Document, query: &'static str) -> Result<(), OpError> {
+        Err(OpError::Unsupported {
+            op: query,
+            kind: doc.kind(),
+        })
+    }
+
     /// The layers, tabs and ops the app may offer for this document.
     fn capabilities(&self, doc: &Document) -> Capabilities;
 }
@@ -90,4 +112,20 @@ pub(crate) fn of(kind: DocumentKind) -> &'static dyn Format {
         DocumentKind::Save => &save::Save,
         DocumentKind::Scenario => &scenario::Scenario,
     }
+}
+
+/// The systems among `subjects` and those whose planets they name, ascending; with
+/// `bodies_only`, only the latter.
+pub(crate) fn stale_systems(subjects: &[Subject], bodies_only: bool) -> Vec<u32> {
+    let mut ids: Vec<u32> = subjects
+        .iter()
+        .filter_map(|s| match *s {
+            Subject::System(id) if !bodies_only => Some(id),
+            Subject::Planet { system: id, .. } => Some(id),
+            _ => None,
+        })
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
 }

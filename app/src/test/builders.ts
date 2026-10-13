@@ -224,6 +224,7 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     parent: null,
     layout: null,
     ring: null,
+    drawn: false,
     ...over,
   };
 }
@@ -435,6 +436,7 @@ export function megastructureTypeView(
     source: null,
     base_game: true,
     variant_of: null,
+    ring_world: false,
     ...over,
   };
 }

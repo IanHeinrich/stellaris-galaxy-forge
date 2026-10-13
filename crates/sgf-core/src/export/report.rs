@@ -284,7 +284,7 @@ pub(super) fn build(
             home_initializers.push(HomeInitializer {
                 system: id,
                 initializer: initializer.clone(),
-                replaced: profile == ScenarioProfile::Plain && is_random_empire_start(initializer),
+                replaced: !profile.fixes_homeworlds() && is_random_empire_start(initializer),
             });
         }
         if let Some(source) = sources(initializer) {

@@ -3,36 +3,31 @@
 //! the 4.4 sample into the 4.5 one, and what is refused.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::ops::{BodyName, NewBody, NewModifier, Op};
+use sgf_core::ops::{BodyName, BodyNaming, GivenName, NewBody, NewModifier, Op};
 use sgf_core::session::{OpResult, Session};
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
 use common::diff::snapshot_step;
-use common::{current, open, open_3_4, open_4_5};
+use common::edit::open_4_5_edited;
+use common::{current, open, open_4_5};
 
 /// Gas giant 10 of Alari (169) has moons 11, 12 and 13, a deposit and the extensive moon
 /// system feature with no timed item. Kazam (216) has 14 bodies and nobody's colony.
 const GIANT: u32 = 10;
 const KAZAM: u32 = 216;
 
-/// The planet a paste wrote, as its inverse names it last.
+/// The first planet a paste wrote.
 fn pasted(result: &OpResult) -> u32 {
-    let ops = match &result.inverse {
-        Op::Batch { ops, .. } => ops.as_slice(),
-        inverse => std::slice::from_ref(inverse),
-    };
-    ops.iter()
-        .rev()
-        .find_map(|op| match op {
-            Op::RemoveBody { body } => Some(*body),
-            _ => None,
-        })
-        .expect("the inverse removes the pasted planet")
+    result.created.planets[0]
 }
 
 fn copy(session: &Session, bodies: &[u32]) -> Vec<NewBody> {
-    session.copy_bodies(bodies).expect("a copy")
+    session
+        .save("copying planets")
+        .expect("a save")
+        .copy_bodies(bodies)
+        .expect("a copy")
 }
 
 /// `copy` with each moon's placement rounded, which reading back from the written point
@@ -78,13 +73,15 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
     assert_eq!(giant.class, "pc_gas_giant");
     assert_eq!(giant.moon_of, None);
     assert_eq!(
-        giant.name,
-        Some(BodyName::Fixed("HUM1_PLANET_UltraksPoint".to_owned()))
+        giant.naming,
+        BodyNaming::Named(GivenName {
+            name: BodyName::Fixed("HUM1_PLANET_UltraksPoint".to_owned()),
+            fixed: false,
+        })
     );
     assert_eq!(giant.entity_name.as_deref(), Some("gas_giant_05_entity"));
     assert_eq!(giant.deposits.len(), 1);
     assert_eq!(giant.moons.len(), 3);
-    assert!(!giant.fixed_name);
     assert_eq!(
         giant.modifiers,
         [
@@ -103,6 +100,8 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
 
     let mut session = open_4_5();
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
     let result = snapshot_step(&mut session, "paste_giant_into_216", op);
@@ -135,8 +134,14 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
 fn a_colonised_planet_is_copied_without_its_colony() {
     let mut session = open_4_5();
     let copies = copy(&session, &[402]);
-    assert_eq!(copies[0].name, None, "Linkirk I is numbered again");
+    assert_eq!(
+        copies[0].naming,
+        BodyNaming::Numbered,
+        "Linkirk I is numbered again"
+    );
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
     let result = session.apply(op).expect("the paste");
@@ -158,6 +163,8 @@ fn a_copy_goes_to_a_point_in_its_own_system() {
         angle: 45.0,
     };
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(140, &copies, Some(at))
         .expect("a paste");
     assert!(matches!(&op, Op::AddBody { at: placed, .. } if *placed == at));
@@ -172,6 +179,8 @@ fn a_moon_goes_with_its_planet_and_alone_becomes_a_planet() {
     assert_eq!(group.len(), 2, "moon 100 goes with planet 99");
     assert_eq!(group[0].moons.len(), 2);
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &group, None)
         .expect("a paste");
     let Op::Batch { ops, .. } = &op else {
@@ -184,8 +193,51 @@ fn a_moon_goes_with_its_planet_and_alone_becomes_a_planet() {
     assert_eq!(moon.moon_of, None);
     assert!(!moon.ring && moon.moons.is_empty());
     session
-        .apply(session.paste_bodies_op(KAZAM, &[moon], None).expect("op"))
+        .apply(
+            session
+                .save("pasting planets")
+                .expect("a save")
+                .paste_bodies_op(KAZAM, &[moon], None)
+                .expect("op"),
+        )
         .expect("the moon as a planet");
+}
+
+/// A paste reports each planet it wrote before that planet's moons, in the order it wrote
+/// them. An undo reports nothing created, and a redo reports the same bodies again.
+#[test]
+fn a_paste_reports_the_planets_and_moons_it_created() {
+    let mut session = open_4_5();
+    let group = copy(&session, &[99, 402]);
+    let op = session
+        .save("pasting planets")
+        .expect("a save")
+        .paste_bodies_op(KAZAM, &group, None)
+        .expect("a paste");
+    let result = session.apply(op).expect("the group");
+    let created = result.created.clone();
+    assert_eq!(created.planets.len(), 4, "{created:?}");
+    assert!(created.systems.is_empty() && created.megastructures.is_empty());
+    let moons_of = |planet: u32| {
+        let moon_of = format!(
+            "moon_of={planet}
+"
+        );
+        created
+            .planets
+            .iter()
+            .filter(|&&body| {
+                common::entity_text(&session, EntityKind::Planet, body).contains(&moon_of)
+            })
+            .count()
+    };
+    assert_eq!(moons_of(created.planets[0]), 2);
+    assert_eq!(moons_of(created.planets[3]), 0);
+
+    let undone = session.undo().expect("undo").expect("an undo");
+    assert_eq!(undone.created, Default::default());
+    let redone = session.redo().expect("redo").expect("a redo");
+    assert_eq!(redone.created, created);
 }
 
 /// Earth (3) and the Moon (4) of the 4.4 sample, pasted into the 4.5 sample.
@@ -193,13 +245,18 @@ fn a_moon_goes_with_its_planet_and_alone_becomes_a_planet() {
 fn a_copy_from_one_save_is_pasted_into_another() {
     let copies = copy(&open(), &[3]);
     assert_eq!(
-        copies[0].name,
-        Some(BodyName::Fixed("NAME_Earth".to_owned()))
+        copies[0].naming,
+        BodyNaming::Named(GivenName {
+            name: BodyName::Fixed("NAME_Earth".to_owned()),
+            fixed: true,
+        }),
+        "Earth holds the fixed-name bit"
     );
     assert_eq!(copies[0].moons.len(), 1);
-    assert!(copies[0].fixed_name, "Earth holds the fixed-name bit");
     let mut session = open_4_5();
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
     let result = session.apply(op).expect("the paste");
@@ -236,36 +293,26 @@ fn stars_megastructures_and_empty_pastes_are_refused() {
         ),
     ];
     for (body, message) in refusals {
-        let error = session.copy_bodies(&[body]).expect_err(message);
+        let error = session
+            .save("copying planets")
+            .expect("a save")
+            .copy_bodies(&[body])
+            .expect_err(message);
         assert_eq!(error.to_string(), message);
     }
     let copies = copy(&session, &[402]);
-    let error = session.paste_bodies_op(KAZAM, &[], None).expect_err("none");
+    let error = session
+        .save("pasting planets")
+        .expect("a save")
+        .paste_bodies_op(KAZAM, &[], None)
+        .expect_err("none");
     assert_eq!(error.to_string(), "no entries given");
     let error = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(99_999, &copies, None)
         .expect_err("no system");
     assert_eq!(error.to_string(), "system 99999 does not exist");
-    let error = common::examples::scenario()
-        .copy_bodies(&[1])
-        .expect_err("a scenario has no bodies");
-    assert_eq!(
-        error.to_string(),
-        "copying planets is not supported for a scenario document"
-    );
-}
-
-#[test]
-fn a_moon_spec_with_moons_of_its_own_is_refused() {
-    let mut session = open_4_5();
-    let mut copies = copy(&session, &[99]);
-    let inner = copies[0].moons[0].clone();
-    copies[0].moons[1].spec.moons.push(inner);
-    let op = session
-        .paste_bodies_op(KAZAM, &copies, None)
-        .expect("an op");
-    let error = session.apply(op).expect_err("a moon with moons");
-    assert_eq!(error.to_string(), "a moon cannot have moons");
 }
 
 /// Planet `id`'s `binary_flags`, 0 when it writes none.
@@ -287,9 +334,11 @@ fn flags(session: &Session, id: u32) -> u32 {
 #[test]
 fn an_asteroid_is_named_from_the_pool() {
     let copies = copy(&open_4_5(), &[1271]);
-    assert!(copies[0].asteroid, "{copies:?}");
+    assert_eq!(copies[0].naming, BodyNaming::Asteroid, "{copies:?}");
     let mut session = open_4_5();
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
     let result = session.apply(op).expect("the paste");
@@ -302,35 +351,9 @@ fn an_asteroid_is_named_from_the_pool() {
     assert_eq!(current(&session), session.doc().original());
 }
 
-#[test]
-fn a_save_before_stellaris_4_is_refused() {
-    let older = open_3_4();
-    let error = older.copy_bodies(&[3]).expect_err("a 3.4 copy");
-    assert!(
-        error.to_string().contains("Stellaris 4.0 or later"),
-        "{error}"
-    );
-    let copies = copy(&open_4_5(), &[402]);
-    let error = older
-        .paste_bodies_op(0, &copies, None)
-        .expect_err("a 3.4 paste");
-    assert!(
-        error.to_string().contains("Stellaris 4.0 or later"),
-        "{error}"
-    );
-}
-
-/// The ids of every body a paste wrote, as its inverse removes them.
+/// The ids of every body a paste wrote, ascending.
 fn all_pasted(result: &OpResult) -> Vec<u32> {
-    let mut ids = Vec::new();
-    let mut pending = vec![&result.inverse];
-    while let Some(op) = pending.pop() {
-        match op {
-            Op::Batch { ops, .. } => pending.extend(ops),
-            Op::RemoveBody { body } => ids.push(*body),
-            _ => {}
-        }
-    }
+    let mut ids = result.created.planets.clone();
     ids.sort_unstable();
     ids
 }
@@ -343,6 +366,8 @@ fn a_pasted_group_shows_in_the_live_details() {
     session.warm_details().expect("build details");
     let copies = copy(&session, &[10, 402, 1271]);
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
     let result = session.apply(op).expect("the paste");
@@ -393,6 +418,8 @@ fn a_pasted_group_lines_up_at_one_angle() {
     };
     for (given, angle) in [(None, 0.0), (Some(at), 135.0)] {
         let op = session
+            .save("pasting planets")
+            .expect("a save")
             .paste_bodies_op(KAZAM, &copies, given)
             .expect("a paste");
         let placed = placements(&op);
@@ -407,7 +434,87 @@ fn a_pasted_group_lines_up_at_one_angle() {
         }
     }
     let op = session
+        .save("pasting planets")
+        .expect("a save")
         .paste_bodies_op(KAZAM, &copies, Some(at))
         .expect("a paste");
     snapshot_step(&mut session, "paste_group_into_216_at_135", op);
+}
+
+/// Moon 100 of planet 99, given an asteroid's name from the save's pool, is copied as a moon
+/// lettered after its planet, since a moon takes no asteroid name.
+#[test]
+fn a_moon_with_an_asteroid_name_is_copied_lettered() {
+    let session = open_4_5_edited(|gamestate| {
+        let from = "				key=\"LITHOID1_PLANET_OterrArrek\"
+";
+        assert!(gamestate.contains(from));
+        let to = "				key=\"ASTEROID_NAME_FORMAT\"
+				variables=
+				{
+					{
+						key=\"prefix\"
+						value=
+						{
+							key=\"QI778-\"
+						}
+					}
+					{
+						key=\"suffix\"
+						value=
+						{
+							key=\"67\"
+						}
+					}
+				}
+";
+        *gamestate = gamestate.replacen(from, to, 1);
+    });
+    let copies = copy(&session, &[99]);
+    assert_eq!(copies[0].moons[0].spec.name, None, "{copies:?}");
+    let mut session = open_4_5();
+    let op = session
+        .save("pasting planets")
+        .expect("a save")
+        .paste_bodies_op(KAZAM, &copies, None)
+        .expect("a paste");
+    let before = common::planet_ids(&session, KAZAM);
+    session.apply(op).expect("the paste");
+    let moons: Vec<String> = common::planet_ids(&session, KAZAM)
+        .into_iter()
+        .filter(|id| !before.contains(id))
+        .map(|id| common::entity_text(&session, EntityKind::Planet, id))
+        .filter(|entry| entry.contains("moon_of="))
+        .collect();
+    assert_eq!(moons.len(), 2, "{moons:?}");
+    assert!(
+        moons[0].contains("key=\"SUBPLANET_NAME_FORMAT\"")
+            && !moons[0].contains("ASTEROID_NAME_FORMAT"),
+        "{}",
+        moons[0]
+    );
+}
+
+/// Alpha Centauri's companion star 327 (system 278 of the 4.4 sample) is still refused as a
+/// star when its system's planet list leaves it out.
+#[test]
+fn a_star_its_system_does_not_list_is_refused() {
+    let session = common::open_edited(|gamestate| {
+        let line = "\t\tplanet=327\n";
+        assert_eq!(
+            gamestate.matches(line).count(),
+            1,
+            "one planet line for 327"
+        );
+        *gamestate = gamestate.replacen(line, "", 1);
+    });
+    let error = session
+        .save("copying planets")
+        .expect("a save")
+        .copy_bodies(&[327])
+        .expect_err("a star");
+    assert_eq!(
+        error.to_string(),
+        "planet 327 is a star: only a planet or moon can be copied"
+    );
 }

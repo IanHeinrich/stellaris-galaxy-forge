@@ -1,13 +1,16 @@
 //! What the install and the enabled mods define that the editor cannot show properly, for
-//! `sgf gamedata --report`: the classes it has no name, disc, size or star body for, and what
-//! the load ran into.
+//! `sgf gamedata --report`: the classes it has no name, disc, size or star body for, the
+//! megastructures it cannot draw, add or follow, and what the load ran into.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::num::NonZero;
 use std::path::Path;
 
+use crate::construction::ring_world::{RingStage, quadrants, ring_world};
 use crate::install::layers::VANILLA;
+use crate::registries::megastructure_offers::NOT_OFFERED_YET;
+use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::textures::{TextureKey, Textures};
 use crate::{Diagnostic, GameData};
@@ -15,6 +18,8 @@ use crate::{Diagnostic, GameData};
 /// The seed a shattered class is baked with where no planet gives one, as the app's class
 /// picker bakes it.
 const SHATTERED_SEED: u32 = 1;
+/// The culture a model key names for a row no empire owns, as the app draws one.
+const NO_CULTURE: &str = "none";
 
 /// One thing the report lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,6 +67,22 @@ pub struct PlaysetReport {
     pub star_choices: Vec<Row>,
     /// The other star classes with more than one star body, with their planet classes.
     pub stars_with_bodies: Vec<Row>,
+    /// Megastructure types whose model does not load, with the reason.
+    pub models_failing: Vec<Row>,
+    /// The shaders megastructure models are drawn with that no table of the model baker names,
+    /// so they are drawn opaque by default; each on the first type that uses it, a base game
+    /// type where one does, whose mod the row names.
+    pub untabled_shaders: Vec<Row>,
+    /// Megastructure types the editor does not add, with why; no ring world, which has a list
+    /// of its own.
+    pub unsupported: Vec<Row>,
+    /// The first stages of the families the add dialog holds back that the playset defines.
+    pub held_back: Vec<Row>,
+    /// Each effect a megastructure's construction keeps that the walk cannot place, on the
+    /// first stage of its chain that meets it.
+    pub unfollowed: Vec<Row>,
+    /// Ring world sites whose chain lays out no ring the editor can add, with the reason.
+    pub rings_failing: Vec<Row>,
 }
 
 impl PlaysetReport {
@@ -146,6 +167,7 @@ impl PlaysetReport {
             }
         }
 
+        let (models_failing, untabled_shaders) = models(gd);
         Self {
             diagnostics,
             load_problems,
@@ -160,11 +182,17 @@ impl PlaysetReport {
             stars_without_body,
             star_choices,
             stars_with_bodies,
+            models_failing,
+            untabled_shaders,
+            unsupported: unsupported(gd),
+            held_back: held_back(gd),
+            unfollowed: unfollowed(gd),
+            rings_failing: rings_failing(gd),
         }
     }
 
     /// Every list of the report, in the order it prints.
-    pub fn sections(&self) -> [Section<'_>; 12] {
+    pub fn sections(&self) -> [Section<'_>; 18] {
         [
             ("load problems", &self.load_problems),
             ("look-only planet classes", &self.look_only),
@@ -196,6 +224,27 @@ impl PlaysetReport {
                 "star classes with more than one star body",
                 &self.stars_with_bodies,
             ),
+            (
+                "megastructure types whose model does not load",
+                &self.models_failing,
+            ),
+            (
+                "shaders megastructure models use, drawn opaque by default as no table names them",
+                &self.untabled_shaders,
+            ),
+            (
+                "megastructure types Galaxy Forge does not add, ring worlds aside",
+                &self.unsupported,
+            ),
+            ("megastructure families held back", &self.held_back),
+            (
+                "megastructure construction effects not followed",
+                &self.unfollowed,
+            ),
+            (
+                "ring world sites whose chain lays out no ring",
+                &self.rings_failing,
+            ),
         ]
         .map(|(title, rows)| Section { title, rows })
     }
@@ -225,6 +274,161 @@ impl PlaysetReport {
         }
         out
     }
+}
+
+/// What reading each megastructure type's model bare, as the app draws a row no empire owns,
+/// finds: each type whose model does not load, with the reason, and each shader its drawn
+/// meshes use that no table names, on the first type that uses it, a base game type where one
+/// does, with how many do. The
+/// meshes are read, nothing is baked, and a model several types share is read once.
+fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
+    let entities: Vec<&str> = gd
+        .megastructures
+        .iter()
+        .filter_map(|def| def.entity.as_deref())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let read = on_every_core(&entities, |entity| {
+        let key = TextureKey::Model {
+            culture: NO_CULTURE.to_owned(),
+            entity: (*entity).to_owned(),
+            yaw: 0,
+        };
+        gd.untabled_shaders(&key.to_string())
+            .map_err(|e| e.to_string())
+    });
+    let read: BTreeMap<&str, Result<BTreeSet<String>, String>> =
+        entities.into_iter().zip(read).collect();
+    let mut failing = Vec::new();
+    let mut shaders: BTreeMap<&str, (&MegastructureDef, usize)> = BTreeMap::new();
+    for def in gd.megastructures.iter() {
+        let Some(found) = def.entity.as_deref().and_then(|entity| read.get(entity)) else {
+            continue;
+        };
+        match found {
+            Err(error) => failing.push(mega_row(def, Some(error.clone()))),
+            Ok(untabled) => {
+                for shader in untabled {
+                    let (first, count) = shaders.entry(shader).or_insert((def, 0));
+                    if first.source.is_some() && def.source.is_none() {
+                        *first = def;
+                    }
+                    *count += 1;
+                }
+            }
+        }
+    }
+    let untabled = shaders
+        .into_iter()
+        .map(|(shader, (first, count))| {
+            let detail = format!(
+                "drawn opaque by default; {}, the mod named is that of {}",
+                plural(count),
+                first.key
+            );
+            row(shader, first.source.clone(), Some(detail))
+        })
+        .collect();
+    (failing, untabled)
+}
+
+/// `count` megastructure types, in words.
+fn plural(count: usize) -> String {
+    match count {
+        1 => "1 type".to_owned(),
+        _ => format!("{count} types"),
+    }
+}
+
+/// Each megastructure type the editor does not add, with why, but for the stages of a ring
+/// world, which the editor adds whole.
+fn unsupported(gd: &GameData) -> Vec<Row> {
+    gd.megastructures
+        .iter()
+        .filter_map(|def| match &def.placement {
+            Placement::Unsupported {
+                why: Unsupported::RingWorld,
+            } => None,
+            Placement::Unsupported { why } => Some(mega_row(def, Some(unsupported_why(why)))),
+            _ => None,
+        })
+        .collect()
+}
+
+fn unsupported_why(why: &Unsupported) -> String {
+    match why {
+        Unsupported::Bypass { bypass } => format!("stands for the bypass {bypass}"),
+        Unsupported::RingWorld => "a stage of a ring world".to_owned(),
+        Unsupported::BecomesStarbase => "building it makes a starbase".to_owned(),
+        Unsupported::ChangesBody => "changes its planet in a way that cannot be told".to_owned(),
+        Unsupported::FixedClass { class } => {
+            format!("makes its planet {class}, a class Galaxy Forge gives no planet")
+        }
+        Unsupported::WholeStructure { .. } => {
+            "part of a structure of several rows or planets".to_owned()
+        }
+    }
+}
+
+/// The first stages of the families the add dialog holds back that the playset defines.
+fn held_back(gd: &GameData) -> Vec<Row> {
+    NOT_OFFERED_YET
+        .iter()
+        .filter_map(|key| gd.megastructures.get(key))
+        .map(|def| mega_row(def, None))
+        .collect()
+}
+
+/// Each effect a construction keeps that its walk cannot place, once, on the first type in
+/// key order that meets it: every later stage of a chain meets its earlier stages' too, and
+/// many stages call the same scripted effects. Each line names the stage it runs in first.
+fn unfollowed(gd: &GameData) -> Vec<Row> {
+    let mut seen = BTreeSet::new();
+    let mut rows = Vec::new();
+    for def in gd.megastructures.iter() {
+        for line in &def.construction.unfollowed {
+            let effect = line
+                .what
+                .split_once(": ")
+                .map_or(&line.what[..], |(_, rest)| rest);
+            if seen.insert(effect) {
+                rows.push(mega_row(def, Some(line.what.clone())));
+            }
+        }
+    }
+    rows
+}
+
+/// Each ring world site whose chain lays out no ring of finished quadrants the editor can
+/// add, with the reason.
+fn rings_failing(gd: &GameData) -> Vec<Row> {
+    let sites = gd.megastructures.iter().filter(|def| {
+        def.ring_world
+            && !matches!(
+                def.placement,
+                Placement::Unsupported {
+                    why: Unsupported::RingWorld
+                }
+            )
+    });
+    sites
+        .filter_map(|def| {
+            let reason = match quadrants(gd, &def.key) {
+                None => "no stage of its chain spawns more than one row".to_owned(),
+                Some(count) => {
+                    let stages = vec![RingStage::Finished; count];
+                    ring_world(gd, &def.key, &stages, None, &[]).err()?
+                }
+            };
+            Some(mega_row(def, Some(reason)))
+        })
+        .collect()
+}
+
+/// A megastructure type's row.
+fn mega_row(def: &MegastructureDef, detail: Option<String>) -> Row {
+    row(&def.key, def.source.clone(), detail)
 }
 
 /// The texture key the app's `bodyLook` draws a body of `pc` from, or `None` for a class it

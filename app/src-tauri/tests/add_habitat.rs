@@ -34,7 +34,7 @@ fn a_habitat_is_added_round_a_planet_and_a_star_and_undone() {
     assert_eq!(added.planet, id);
     assert_eq!(
         added.edit.entry.description,
-        format!("Added habitat #{id} round planet #4 in Alari system #169")
+        format!("Added habitat Alari system #{id} round planet #4 in Alari system #169")
     );
     assert!(
         added

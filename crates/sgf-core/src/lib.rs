@@ -19,6 +19,7 @@ pub mod ops;
 pub mod overlay;
 pub mod prepare;
 pub mod projections;
+pub mod rng;
 pub mod scan;
 pub mod search;
 pub mod session;
@@ -53,4 +54,20 @@ pub(crate) fn plural_of(n: usize, noun: &str, nouns: &str) -> String {
     } else {
         format!("{n} {nouns}")
     }
+}
+
+/// `a, b and c`: `parts` as a description lists them, empty for none.
+pub(crate) fn and_list(parts: &[String]) -> String {
+    match parts.split_last() {
+        None => String::new(),
+        Some((last, [])) => last.clone(),
+        Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
+/// A radius or an angle as a description names it: up to two decimals.
+pub(crate) fn number(v: f64) -> String {
+    let text = format!("{v:.2}");
+    let text = text.trim_end_matches('0').trim_end_matches('.');
+    if text == "-0" { "0" } else { text }.to_owned()
 }
