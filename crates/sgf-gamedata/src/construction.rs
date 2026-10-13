@@ -26,7 +26,6 @@ pub mod ring_world;
 pub use replay::Built;
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
@@ -317,40 +316,14 @@ impl Scope {
     }
 }
 
-/// The chain of `key`, the type's own stage last, each once.
-fn chain<'d>(defs: &'d BTreeMap<String, Def>, key: &str) -> Vec<&'d Def> {
-    let mut stages = Vec::new();
-    let mut seen: Vec<String> = Vec::new();
-    let mut next = Some(key.to_owned());
-    while let Some(stage) = next.take() {
-        if seen.contains(&stage) {
-            break;
-        }
-        let Some(def) = defs.get(&stage) else {
-            break;
-        };
-        seen.push(stage);
-        stages.push(def);
-        next = first_upgrade(def);
-    }
-    stages.reverse();
-    stages
-}
-
-fn first_upgrade(def: &Def) -> Option<String> {
-    crate::install::script::list_items(&def.node, "upgrade_from", &def.src)
-        .into_iter()
-        .next()
-}
-
-/// What the build chain of type `key` keeps, as `scripts` resolve the effects and events
-/// it calls.
-pub(crate) fn read(defs: &BTreeMap<String, Def>, key: &str, scripts: &ScriptIndex) -> Construction {
+/// What the build chain `stages` keeps, the type's own stage last, as `scripts` resolve the
+/// effects and events it calls.
+pub(crate) fn read(stages: &[&Def], scripts: &ScriptIndex) -> Construction {
     let mut out = Construction {
-        script: defs.get(key).cloned().map(StageScript),
+        script: stages.last().map(|own| StageScript((*own).clone())),
         ..Construction::default()
     };
-    for stage in chain(defs, key) {
+    for stage in stages {
         for hook in HOOKS {
             for record in record(stage, hook, scripts, MAX_EVENTS) {
                 match record {

@@ -13,6 +13,7 @@ use ts_rs::TS;
 use super::lasting;
 use super::layout::{self, Around, LaidPlanet, LaidRow, Plan, SectionStage, SystemLayout};
 use crate::GameData;
+use crate::registries::megastructure_families::closure;
 use crate::registries::megastructures::{MegastructureDef, is_ruin};
 
 /// The name the game's initializers give a damaged segment, which
@@ -105,30 +106,35 @@ pub fn quadrants(gd: &GameData, key: &str) -> Option<usize> {
 }
 
 /// Every type joined to `key`, itself first: by `upgrade_from` either way, by a type its
-/// completion spawns either way, and by being a variant of one.
+/// completion spawns either way, and by being a variant of one. It reaches past the types
+/// the registry marks [`MegastructureDef::ring_world`], whose segments are the game's ring
+/// world classes: a mod's ring can be made of classes of its own.
 fn joined<'g>(gd: &'g GameData, key: &str) -> Vec<&'g MegastructureDef> {
-    let Some(first) = gd.megastructures.get(key) else {
+    let types = &gd.megastructures;
+    let Some(own) = types.get(key) else {
         return Vec::new();
     };
-    let mut found = vec![first];
-    let mut next = 0;
-    while let Some(def) = found.get(next).copied() {
-        next += 1;
-        let linked = gd.megastructures.iter().filter(|other| {
-            def.upgrade_from.contains(&other.key)
-                || other.upgrade_from.contains(&def.key)
-                || def.completes.spawned.contains(&other.key)
-                || other.completes.spawned.contains(&def.key)
-                || def.variant_of.as_ref() == Some(&other.key)
-                || other.variant_of.as_ref() == Some(&def.key)
-        });
-        for other in linked {
-            if !found.iter().any(|seen| seen.key == other.key) {
-                found.push(other);
-            }
-        }
-    }
-    found
+    let linked = |key: &str| -> Vec<&'g str> {
+        let Some(def) = types.get(key) else {
+            return Vec::new();
+        };
+        types
+            .iter()
+            .filter(|other| {
+                def.upgrade_from.contains(&other.key)
+                    || other.upgrade_from.contains(&def.key)
+                    || def.completes.spawned.contains(&other.key)
+                    || other.completes.spawned.contains(&def.key)
+                    || def.variant_of.as_ref() == Some(&other.key)
+                    || other.variant_of.as_ref() == Some(&def.key)
+            })
+            .map(|other| other.key.as_str())
+            .collect()
+    };
+    closure([own.key.as_str()], linked)
+        .into_iter()
+        .filter_map(|key| types.get(key))
+        .collect()
 }
 
 /// The ring `laid` is, or why it cannot be written: `None` when it is no ring of

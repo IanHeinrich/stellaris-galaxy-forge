@@ -567,3 +567,38 @@ fz_built = {
         )
     );
 }
+
+/// A ruin linked to its family only by its key stands at a row whose key its stem begins,
+/// although the first working type its stem names is neither the row's first stage nor the
+/// stage that spawns it.
+#[test]
+fn a_ruin_linked_by_its_stem_stands_at_a_row_its_stem_names() {
+    use RingStage::*;
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        "mod_halo_aa = { }
+mod_halo_frame = {
+	on_build_complete = {
+		spawn_megastructure = { type = mod_halo_section orbit_angle = 0 orbit_distance = 50 }
+		spawn_megastructure = { type = mod_halo_section orbit_angle = 180 orbit_distance = 50 }
+		remove_megastructure = fromfrom
+	}
+}
+mod_halo_section = { }
+mod_halo_ruined = { }
+",
+    )]);
+    let ruin = gd.megastructures.get("mod_halo_ruined").expect("the ruin");
+    assert_eq!(ruin.variant_of.as_deref(), Some("mod_halo_aa"));
+    let ring = added::ring_world(&gd, "mod_halo_frame", &[Frame, Ruined], None, &[])
+        .expect("a frame and a ruin");
+    let kinds: Vec<&str> = ring
+        .quadrants
+        .iter()
+        .map(|q| match q {
+            RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => row.kind.as_str(),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(kinds, ["mod_halo_section", "mod_halo_ruined"]);
+}

@@ -21,8 +21,8 @@ use crate::plural;
 use crate::projections::galaxy::{Galaxy, display_name};
 use crate::projections::name::{NameTemplate, looks_like_key};
 
-/// How far out, as a share of its system's `inner_radius`, a megastructure built outside the
-/// gravity well stands: where the game puts its relays and gateways.
+/// How far out, as a share of its system's `inner_radius`, the editor puts a megastructure it
+/// adds outside the gravity well: where the game puts a relay it builds.
 pub const RELAY_RADIUS_FACTOR: f64 = 1.05;
 
 /// The model the game swaps an Arc Furnace's planet to, which hides it inside the furnace.

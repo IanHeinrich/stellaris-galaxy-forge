@@ -10,6 +10,7 @@ use sgf_core::views::OrbitPlacement;
 
 use super::layout::{self, Around, IdOf, LaidFlag, LaidRow, Plan, Section, SystemLayout};
 use crate::GameData;
+use crate::registries::megastructures::{MegastructureDef, is_ruin};
 
 /// The flag the habitat's body takes, followed by the habitat's id.
 const HOST_FLAG: &str = "habitat";
@@ -19,8 +20,6 @@ const SYSTEM_FLAG: &str = "has_habitat";
 const SYSTEM_NAME: &str = "solar_system.GetName";
 /// The flag an orbital's own completion sets on its body.
 const ORBITAL_FLAG: &str = "has_orbital";
-/// The suffix of a restored type's key.
-const RESTORED: &str = "_restored";
 
 /// The habitat finishing type `key` leaves round a star when `on_star` and round any other
 /// body otherwise, its model drawn in `culture`; `None` when the type's finished stage is not
@@ -41,7 +40,7 @@ pub fn habitat(
     let laid = layout::lay_out(gd, key, &plan(on_star, culture))?;
     match of_layout(gd, &laid, on_star, culture) {
         Some(habitat) => Some(habitat),
-        None if key.ends_with(RESTORED) && laid.row.is_none() => {
+        None if restores_ruin(def) && laid.row.is_none() => {
             let restored = habitat(gd, def.variant_of.as_deref()?, on_star, culture)?;
             let orbital = match &laid.sections[..] {
                 [section] => orbital(gd, section, on_star),
@@ -153,4 +152,9 @@ fn orbital(gd: &GameData, section: &Section, on_star: bool) -> Option<HabitatOrb
         name: row.name.clone(),
         system_name: row.system_name.clone(),
     })
+}
+
+/// Whether `def` is built over a ruin, as a restored type is.
+fn restores_ruin(def: &MegastructureDef) -> bool {
+    def.upgrade_from.iter().any(|from| is_ruin(from))
 }
