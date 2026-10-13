@@ -317,3 +317,33 @@ fn gigas_larger_rings_are_added_whole() {
         );
     }
 }
+
+/// With Gigastructural Engineering enabled, the session takes the titanic ring's site, stages,
+/// frame sections and ruin as ring world rows, so none of them is deleted or moved on its own.
+/// A delete clears the titanic ring's own flags at 90 and the base game's ring's at 45.
+#[test]
+fn gigas_titanic_ring_is_a_ring_world_to_the_session() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    let types = added::ring_world_types(gd);
+    for kind in [
+        "ringworld_titanic_0",
+        "ringworld_titanic_1",
+        "ringworld_t_3x_segment",
+        "ringworld_titanic_2",
+        "ring_world_titanic_ruined",
+    ] {
+        assert!(types.is_ring_row(kind), "{kind}");
+    }
+    assert!(!types.is_ring_row("dyson_sphere_1"));
+    let rings = added::ring_flags(gd);
+    let at = |radius: f64| {
+        rings
+            .iter()
+            .find(|ring| (ring.radius - radius).abs() < 1.0)
+            .unwrap_or_else(|| panic!("a ring at {radius}: {rings:?}"))
+    };
+    assert!(at(90.0).flags.contains(&"giga_has_titanic_ring".to_owned()));
+    assert!(at(45.0).flags.contains(&"ring_world_built".to_owned()));
+}

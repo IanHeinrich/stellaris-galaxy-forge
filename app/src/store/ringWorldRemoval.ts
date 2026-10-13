@@ -20,7 +20,7 @@ import { useInspectorStore } from "./inspectorStore";
 /** What deleting the ring worlds of `system` takes, with the pages of the colonised segments. */
 async function lossOf(system: number): Promise<{ parts: RingWorldParts; colonies: RingColony[] }> {
   const [details] = await ipc.getSystemDetails([system]);
-  const parts = ringWorldParts(details);
+  const parts = ringWorldParts(details, useGameDataStore.getState().megastructureTypes);
   const pages = await Promise.all(parts.colonised.map((id) => ipc.getPlanetPage(id)));
   const names = useGameDataStore.getState().names;
   const colonies = pages.map((page) => ({ planet: bodyName(page, names), page }));

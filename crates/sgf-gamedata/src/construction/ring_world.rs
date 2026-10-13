@@ -1,11 +1,14 @@
 //! The ring world a megastructure type's completion lays out, read from its [`layout`]: a
 //! type whose completion spawns rows round the system's centre, each of which is taken to
 //! the stage the player picks for its quadrant. The editor adds it whole, with
-//! [`sgf_core::ops::Op::AddRingWorld`].
+//! [`sgf_core::ops::Op::AddRingWorld`]. Which types make up a ring world, and the flags each
+//! chain's ring leaves, are read here too, for the session and a ring world delete.
 
 use serde::{Deserialize, Serialize};
+use sgf_core::format::save::ring_world::RingWorldTypes;
 use sgf_core::ops::{
-    NewPlanet, NewRingWorld, RingQuadrant, RingRow, RingSegment, RingVariable, TimedModifier,
+    NewPlanet, NewRingWorld, RingFlags, RingQuadrant, RingRow, RingSegment, RingVariable,
+    TimedModifier,
 };
 use sgf_core::views::OrbitPlacement;
 use ts_rs::TS;
@@ -14,7 +17,7 @@ use super::lasting;
 use super::layout::{self, Around, LaidPlanet, LaidRow, Plan, SectionStage, SystemLayout};
 use crate::GameData;
 use crate::registries::megastructure_families::closure;
-use crate::registries::megastructures::{MegastructureDef, is_ruin};
+use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported, is_ruin};
 
 /// The name the game's initializers give a damaged segment, which
 /// `set_ruined_megastructure` spawns with none of its own.
@@ -103,6 +106,59 @@ pub fn quadrants(gd: &GameData, key: &str) -> Option<usize> {
         .map(|def| def.completes.spawns_rows)
         .filter(|&rows| rows > 1)
         .max()
+}
+
+/// The install's word on which megastructure types make up a ring world, for the session:
+/// every type it defines, with the registry's [`MegastructureDef::ring_world`].
+pub fn ring_world_types(gd: &GameData) -> RingWorldTypes {
+    RingWorldTypes::new(
+        gd.megastructures
+            .iter()
+            .map(|def| (def.key.clone(), def.ring_world)),
+    )
+}
+
+/// The radius and system flags of the ring each ring world chain of the install lays out
+/// with every quadrant finished, on a system holding no flags: what
+/// [`sgf_core::ops::Op::DeleteRingWorld`] clears. Chains whose rings stand at one radius
+/// have their flags together.
+pub fn ring_flags(gd: &GameData) -> Vec<RingFlags> {
+    let mut rings: Vec<RingFlags> = Vec::new();
+    for def in gd.megastructures.iter() {
+        let Placement::Unsupported {
+            why: Unsupported::RingWorld,
+        } = def.placement
+        else {
+            continue;
+        };
+        let count = quadrants(gd, &def.key).unwrap_or(4);
+        let Ok(ring) = ring_world(gd, &def.key, &vec![RingStage::Finished; count], None, &[])
+        else {
+            continue;
+        };
+        let Some(radius) = ring.quadrants.iter().find_map(|quadrant| match quadrant {
+            RingQuadrant::Finished { segments } => segments.first().map(|s| s.planet.at.radius),
+            _ => None,
+        }) else {
+            continue;
+        };
+        let entry = match rings.iter().position(|known| known.radius == radius) {
+            Some(at) => &mut rings[at],
+            None => {
+                rings.push(RingFlags {
+                    radius,
+                    flags: Vec::new(),
+                });
+                rings.last_mut().expect("just pushed")
+            }
+        };
+        for flag in ring.system_flags {
+            if !entry.flags.contains(&flag) {
+                entry.flags.push(flag);
+            }
+        }
+    }
+    rings
 }
 
 /// Every type joined to `key`, itself first: by `upgrade_from` either way, by a type its

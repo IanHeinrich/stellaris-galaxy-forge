@@ -3,8 +3,8 @@
 //! byte-exact undo and what is refused. Deleting a habitat takes its flags with it.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::format::save::ring_world::BASE_RING;
-use sgf_core::ops::{NewRingWorld, Op, RingFlags, RingQuadrant};
+use sgf_core::format::save::ring_world::{BASE_RING, RingWorldTypes};
+use sgf_core::ops::{MegastructurePlace, NewRingWorld, Op, RingFlags, RingQuadrant};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -303,6 +303,18 @@ fn a_ring_at_another_radius_takes_its_own_flags() {
         .apply(delete_ringed(65.0, flags_of(&ring, 65.0)))
         .expect("the ring at 65");
     assert_eq!(lachium_flags(&session), before);
+
+    let (mut unlisted, _) = added_beside_lachiums(ring.clone());
+    unlisted
+        .apply(delete_ringed(65.0, flags_of(&ring, 90.0)))
+        .expect("the ring at 65");
+    let flags = lachium_flags(&unlisted);
+    assert!(
+        !flags
+            .iter()
+            .any(|flag| flag.starts_with("ring_world_built=")),
+        "a ring at a radius no entry lists takes the base game's ring's flags: {flags:?}"
+    );
 }
 
 /// Segment 2446 of Lachium names no megastructure row of its own.
@@ -433,4 +445,64 @@ fn the_last_habitat_deleted_round_trips() {
     let result = session.apply(Op::DeleteBody { body: 6272 }).expect("last");
     session.apply_inverse(result.inverse).expect("restore");
     assert_eq!(current(&session), before);
+}
+
+/// The 4.5 sample with a row 16 of type `kind` in Lachium.
+fn lachium_with_row(kind: &str) -> Session {
+    open_4_5_edited(|text| {
+        megastructure_row(text, 16, kind, LACHIUM, "");
+        insert_after(
+            text,
+            &["\ngalactic_object=\n{\n", "\n\t203=\n\t{\n", "\t\t\t10 11 "],
+            "16 ",
+        );
+    })
+}
+
+/// A row is part of a ring world as the install says for a type it defines, and by its key
+/// for any other. A mod's frame section, named like no base game row, is refused on its own
+/// and goes with the ring, and a type the install keeps out of rings goes alone.
+#[test]
+fn the_installs_ring_world_types_decide_which_rows_are_rings() {
+    let types = RingWorldTypes::new([
+        ("my_ring_frame".to_owned(), true),
+        ("ring_world_monument".to_owned(), false),
+    ]);
+    let alone = Op::DeleteMegastructure {
+        megastructure: 16,
+        dismantle: None,
+    };
+    let mut framed = lachium_with_row("my_ring_frame");
+    framed.set_ring_world_types(types.clone());
+    assert_refusals(
+        &mut framed,
+        [
+            (
+                alone.clone(),
+                "megastructure 16 cannot be deleted: it is part of a ring world: delete the ring world",
+            ),
+            (
+                Op::MoveMegastructure {
+                    megastructure: 16,
+                    at: MegastructurePlace::Free { x: 5.0, y: 5.0 },
+                },
+                "megastructure 16 cannot be moved: it is part of a ring world, which stands where it is",
+            ),
+        ],
+    );
+    let result = framed.apply(delete(LACHIUM)).expect("the ring");
+    assert!(
+        result.entry.description.contains("and 3 sections"),
+        "{}",
+        result.entry.description
+    );
+
+    lachium_with_row("my_ring_frame")
+        .apply(alone.clone())
+        .expect("by its key, no ring row");
+    let mut monument = lachium_with_row("ring_world_monument");
+    monument.set_ring_world_types(types);
+    monument
+        .apply(alone)
+        .expect("the install keeps it out of rings");
 }

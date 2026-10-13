@@ -7,7 +7,7 @@
 use crate::entity::facts::megastructure;
 use crate::format::save::added::rows;
 use crate::format::save::galaxy::fleets::orbited_planet;
-use crate::format::save::ring_world::{BASE_RING, RING_SLACK, is_ring_row, is_segment, on_ring};
+use crate::format::save::ring_world::{BASE_RING, RING_SLACK, is_segment, on_ring};
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::flags::{drop_flags, flag_spans};
 use crate::format::save::write::fleets::present_fleets;
@@ -116,8 +116,8 @@ pub(crate) fn plan_delete(
 
 /// The system flags of each ring in `rings` that a segment among `bodies` or a row among
 /// `going` stands at, by its distance from the system's centre; a ring with nothing standing
-/// off the star stands at the base game's ring's radius. Without `rings`, the base game's
-/// ring's.
+/// off the star stands at the base game's ring's radius. The base game's ring's for a ring
+/// at a radius `rings` does not list, and for every ring without `rings`.
 fn rings_flags<'a>(
     s: &Session,
     rings: Option<&'a [RingFlags]>,
@@ -147,11 +147,18 @@ fn rings_flags<'a>(
     }
     let mut flags: Vec<&'a str> = Vec::new();
     for distance in distances {
-        let standing = rings
+        let standing: Vec<&str> = rings
             .iter()
-            .filter(|ring| (distance - ring.radius).abs() <= RING_SLACK);
-        for flag in standing.flat_map(|ring| &ring.flags) {
-            if !flags.contains(&flag.as_str()) {
+            .filter(|ring| (distance - ring.radius).abs() <= RING_SLACK)
+            .flat_map(|ring| ring.flags.iter().map(String::as_str))
+            .collect();
+        let ring_flags = if standing.is_empty() {
+            base_flags.to_vec()
+        } else {
+            standing
+        };
+        for flag in ring_flags {
+            if !flags.contains(&flag) {
                 flags.push(flag);
             }
         }
@@ -176,7 +183,10 @@ fn rings_left(
     }
     for row in rows(&s.doc, MEGASTRUCTURES)? {
         let facts = megastructure::read(&row.node, row.src);
-        if facts.origin == Some(system) && is_ring_row(&facts.kind) && !going.contains(&row.id) {
+        if facts.origin == Some(system)
+            && s.ring_world_types().is_ring_row(&facts.kind)
+            && !going.contains(&row.id)
+        {
             return Ok(true);
         }
     }
@@ -205,7 +215,7 @@ fn ring_rows(s: &Session, system: u32, radius: Option<f64>) -> Result<Vec<Tied>,
     for row in rows(&s.doc, MEGASTRUCTURES)? {
         let facts = megastructure::read(&row.node, row.src);
         let ringed = facts.at.map_or(radius.is_none(), |at| on_ring(at, radius));
-        if facts.origin == Some(system) && is_ring_row(&facts.kind) && ringed {
+        if facts.origin == Some(system) && s.ring_world_types().is_ring_row(&facts.kind) && ringed {
             found.extend(megastructure_links::read(&s.doc, row.id)?);
         }
     }

@@ -2,11 +2,9 @@
 //! takes back, and deleting a ring world whole, with the flags the install says each ring
 //! leaves.
 
-use sgf_core::ops::{Op, RingFlags, RingQuadrant};
+use sgf_core::ops::Op;
 use sgf_core::views::{EditResult, SgfError};
-use sgf_gamedata::GameData;
-use sgf_gamedata::construction::ring_world::{RingStage, quadrants, ring_world};
-use sgf_gamedata::registries::megastructures::{Placement, Unsupported};
+use sgf_gamedata::construction::ring_world::ring_flags;
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::with_session;
@@ -63,46 +61,4 @@ pub async fn delete_ring_world<R: Runtime>(
         Ok(session.edit_result(result))
     })
     .await
-}
-
-/// The radius and system flags of the ring each ring world chain of the install lays out
-/// with every quadrant finished, on a system holding no flags; the flags of chains whose
-/// rings stand at one radius together.
-fn ring_flags(gd: &GameData) -> Vec<RingFlags> {
-    let mut rings: Vec<RingFlags> = Vec::new();
-    for def in gd.megastructures.iter() {
-        let Placement::Unsupported {
-            why: Unsupported::RingWorld,
-        } = def.placement
-        else {
-            continue;
-        };
-        let count = quadrants(gd, &def.key).unwrap_or(4);
-        let Ok(ring) = ring_world(gd, &def.key, &vec![RingStage::Finished; count], None, &[])
-        else {
-            continue;
-        };
-        let Some(radius) = ring.quadrants.iter().find_map(|quadrant| match quadrant {
-            RingQuadrant::Finished { segments } => segments.first().map(|s| s.planet.at.radius),
-            _ => None,
-        }) else {
-            continue;
-        };
-        let entry = match rings.iter().position(|known| known.radius == radius) {
-            Some(at) => &mut rings[at],
-            None => {
-                rings.push(RingFlags {
-                    radius,
-                    flags: Vec::new(),
-                });
-                rings.last_mut().expect("just pushed")
-            }
-        };
-        for flag in ring.system_flags {
-            if !entry.flags.contains(&flag) {
-                entry.flags.push(flag);
-            }
-        }
-    }
-    rings
 }

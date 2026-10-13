@@ -3,6 +3,7 @@
  * belong to one, and the sentence the confirm asks.
  */
 import { RING_WORLD_ROW_PREFIXES, RING_WORLD_SEGMENT_PREFIXES } from "../../generated/constants";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
@@ -34,8 +35,13 @@ export function isRingSegmentClass(
   return view === undefined ? isRingSegment(planetClass) : view.ringworld === true;
 }
 
-/** Whether a megastructure of `kind` is part of a ring world. */
-export function isRingRow(kind: string): boolean {
+/**
+ * Whether a megastructure of `kind` is part of a ring world: as the install in `types` says for a
+ * type it defines, by its key otherwise. The core decides the same way.
+ */
+export function isRingRow(kind: string, types?: ReadonlyMap<string, MegastructureView>): boolean {
+  const type = types?.get(kind);
+  if (type !== undefined) return type.ring_world;
   return RING_WORLD_ROW_PREFIXES.some((prefix) => kind.startsWith(prefix));
 }
 
@@ -49,8 +55,11 @@ export interface RingWorldParts {
   rows: number[];
 }
 
-/** The parts of every ring world in `details`. */
-export function ringWorldParts(details: SystemDetails): RingWorldParts {
+/** The parts of every ring world in `details`, its rows as the install in `types` says. */
+export function ringWorldParts(
+  details: SystemDetails,
+  types: ReadonlyMap<string, MegastructureView>,
+): RingWorldParts {
   const going = new Set(details.planets.filter((p) => isRingSegment(p.class)).map((p) => p.id));
   let grew = true;
   while (grew) {
@@ -66,7 +75,7 @@ export function ringWorldParts(details: SystemDetails): RingWorldParts {
   return {
     planets: planets.map((p) => p.id),
     colonised: planets.filter((p) => p.colonised).map((p) => p.id),
-    rows: details.megastructures.filter((m) => isRingRow(m.kind)).map((m) => m.id),
+    rows: details.megastructures.filter((m) => isRingRow(m.kind, types)).map((m) => m.id),
   };
 }
 

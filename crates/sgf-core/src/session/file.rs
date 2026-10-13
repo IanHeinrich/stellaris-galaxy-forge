@@ -38,6 +38,7 @@ impl Session {
             saved_at,
             radii: SystemRadii::VANILLA,
             stars: Arc::default(),
+            ring_world_types: Arc::default(),
         })
     }
 

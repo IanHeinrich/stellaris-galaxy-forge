@@ -730,14 +730,15 @@ pub enum Op {
     /// A save system's ring world, whole: each segment, a body whose class starts with
     /// `pc_ringworld` (the damaged ones too) or `pc_shattered_ring`, goes as
     /// [`Op::DeleteBody`] takes a body, with its moons, its colony and the station working
-    /// it, and each `megastructures` row whose type starts with `ring_world` or `ringworld`
+    /// it, and each `megastructures` row the session's ring world types name, by the type's
+    /// key starting with `ring_world` or `ringworld` for a type the install does not define,
     /// goes as [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and
     /// rows standing within 5 of it from the system's centre go; without it, every ring of
     /// the system. The system loses the flags of each ring deleted: those of the entry of
     /// `rings` whose radius is within 5 of where the ring stands, a ring with nothing standing
-    /// off the star standing at 45, and none for a ring no entry lists. Without `rings`, it
-    /// loses the base game's ring's `ring_world_built` and `ring_section_1` to
-    /// `ring_section_3`, whatever ring is deleted. Its star loses the planet
+    /// off the star standing at 45. For a ring no entry lists, and for any ring without `rings`,
+    /// it loses the base game's ring's `ring_world_built` and `ring_section_1` to
+    /// `ring_section_3`. Its star loses the planet
     /// flag `has_megastructure` unless a ring world segment or row is left in the system or
     /// a row left names the star. A fleet of the system that orbits a deleted segment and does not go
     /// with it, such as a fallen empire's deep-space citadel, stays where it stands and

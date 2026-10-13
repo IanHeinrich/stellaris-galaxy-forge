@@ -1,7 +1,7 @@
 //! Deleting a save ring world through its command on the 4.5 sample, with the flags the
 //! install says its ring leaves.
 use serde_json::json;
-use sgf_app_lib::views::AddedRingWorld;
+use sgf_app_lib::views::Added;
 use sgf_core::views::EditResult;
 use tauri::WebviewWindow;
 use tauri::test::MockRuntime;
@@ -54,7 +54,7 @@ fn a_ring_added_and_deleted_leaves_the_flags_as_they_were() {
     let before = system_flags(&w, HABRAQ);
     let stages = ["finished"; 4];
     let ring = json!({ "system": HABRAQ, "kind": "ring_world_1", "stages": stages, "owner": 19, "clear": true });
-    let _: AddedRingWorld = invoke(&w, "add_ring_world", ring).expect("a finished ring");
+    let _: Added = invoke(&w, "add_ring_world", ring).expect("a finished ring");
     assert_ne!(system_flags(&w, HABRAQ), before, "the ring sets its flags");
     let _: EditResult =
         invoke(&w, "delete_ring_world", json!({ "system": HABRAQ })).expect("delete");

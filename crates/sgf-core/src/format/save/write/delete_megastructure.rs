@@ -9,7 +9,6 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
-use crate::format::save::ring_world;
 use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{
@@ -53,7 +52,7 @@ pub(crate) fn plan_delete(
         edit: MegastructureEdit::Delete,
         reason,
     };
-    if ring_world::is_ring_row(&tied.kind) {
+    if s.ring_world_types().is_ring_row(&tied.kind) {
         return Err(refuse(RING_ROW.to_owned()));
     }
     let system = tied
