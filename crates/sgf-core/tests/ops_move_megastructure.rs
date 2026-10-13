@@ -410,11 +410,11 @@ fn what_is_refused() {
             ),
             (
                 to_body(6, 1646),
-                "megastructure 6 cannot be moved: it sits in open space and can't go on a planet or star",
+                "megastructure 6 cannot be moved: it sits in empty space and can't go on a planet or star",
             ),
             (
                 to_point(4, 30.0, 30.0),
-                "megastructure 4 cannot be moved: it is built on Sargas II #936, so it has to stay on a planet or star",
+                "megastructure 4 cannot be moved: it is built at Sargas II #936, so it has to stay at a planet or star",
             ),
             (to_body(4, 517), "planet 517 is not a body of system 38"),
             (
@@ -428,7 +428,7 @@ fn what_is_refused() {
             (to_point(6, f64::NAN, 0.0), "value is not a finite number"),
             (
                 beside(6, 1646, 10.0, 10.0),
-                "megastructure 6 cannot be moved: it sits in open space and can't go on a planet or star",
+                "megastructure 6 cannot be moved: it sits in empty space and can't go on a planet or star",
             ),
             (
                 beside(4, 933, f64::NAN, 0.0),

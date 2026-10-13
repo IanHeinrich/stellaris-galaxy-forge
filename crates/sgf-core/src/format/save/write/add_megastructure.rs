@@ -17,7 +17,7 @@ use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
-use crate::format::save::write::bodies::frame;
+use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::construction;
 use crate::format::save::write::flags::{add_flags, day_one, drop_flags, today};
 use crate::format::save::write::id_list::append;
@@ -28,16 +28,18 @@ use crate::format::save::write::megastructure_links::{
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{body_is_star, named_entity};
 use crate::format::save::write::shared::{culture_of, tie};
+use crate::format::save::write::spawned_planet::{self, Spawned, add_round};
 use crate::format::save::{entity_in, planet_entity, planet_system, system_statement};
 use crate::keys;
 use crate::ops::rules::modifiers::listed_once;
-use crate::ops::rules::{Form, check_text, named};
+use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
     Emitted, MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
     NewMegastructure, NewMegastructurePlace, Op, OpError, ParseAt, Plan, Planned, SavedTable,
     Subject,
 };
 use crate::overlay::Anchor;
+use crate::projections::geometry::normalised;
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
 use crate::session::Session;
@@ -52,6 +54,9 @@ pub(crate) fn plan_add(
     check_text("a megastructure type", &new.kind, Form::Bare)?;
     if let Some(name) = &new.name {
         check_name(name)?;
+    }
+    if let Some(planet) = &new.planet {
+        spawned_planet::check(planet, Form::Quoted)?;
     }
     if !s.graph.systems.contains_key(&system) {
         return Err(OpError::UnknownSystem(system));
@@ -119,12 +124,22 @@ pub(crate) fn plan_add(
             (at, Some(body), body_flags.as_slice())
         }
     };
+    let stored: Vec<Stored> = match &new.planet {
+        Some(_) => frame(s, system)?,
+        None => Vec::new(),
+    };
+    let host = match (&new.planet, body) {
+        (None, _) => None,
+        (Some(_), None) => {
+            return Err(refuse(
+                "it spawns a planet round the body it stands at, and it stands at none".to_owned(),
+            ));
+        }
+        (Some(_), Some(body)) => Some(spawned_planet::host(s, &stored, system, body, &new.kind)?),
+    };
     if let Some(bypass) = &new.bypass {
         if !BYPASS_KINDS.contains(&bypass.kind.as_str()) {
-            return Err(refuse(format!(
-                "its {} link hasn't been tested in game",
-                bypass.kind
-            )));
+            return Err(refuse("adding it hasn't been tested in game".to_owned()));
         }
         if live.bypass_in(system, &bypass.kind).is_some() {
             return Err(megastructure_links::refused(
@@ -144,6 +159,17 @@ pub(crate) fn plan_add(
         None => None,
     };
 
+    // The planet goes first, so that the system lists it with its other bodies, before a
+    // `megastructures` block the row adds.
+    let spawned = match (&new.planet, host) {
+        (Some(planet), Some(host)) => {
+            let name = NameTemplate::plain(&planet.name);
+            let at = Spawned::round(host, planet, &name, normalised(planet.at.angle));
+            let (planet_id, reached) = add_round(plan, s, system, &stored, &at, &today(&s.doc)?)?;
+            Some((planet_id, name, reached))
+        }
+        _ => None,
+    };
     let bypass_id = match &new.bypass {
         Some(_) => Some(next_id(&s.doc, Table::Bypass)?),
         None => None,
@@ -195,6 +221,11 @@ pub(crate) fn plan_add(
             .map(counts)
             .filter(|c| !c.is_empty()),
     );
+    with.extend(
+        spawned
+            .as_ref()
+            .map(|(planet, name, _)| named_as("planet", name, *planet)),
+    );
     let mut with = match with.as_slice() {
         [] => String::new(),
         parts => format!(", with {}", and_list(parts)),
@@ -205,18 +236,27 @@ pub(crate) fn plan_add(
             plural(new.left_out as usize, "effect")
         ));
     }
-    Ok(Planned {
-        description: format!(
-            "Added megastructure #{id} ({}) in {}{with}",
-            new.kind,
-            named(&s.graph, system)
-        ),
-        inverse: Op::RemoveMegastructure {
-            megastructure: id,
-            construction: new.construction.clone(),
-            left_out: new.left_out,
-        },
-    })
+    let description = format!(
+        "Added megastructure #{id} ({}) in {}{with}",
+        new.kind,
+        named(&s.graph, system)
+    );
+    let remove = Op::RemoveMegastructure {
+        megastructure: id,
+        construction: new.construction.clone(),
+        left_out: new.left_out,
+    };
+    let Some((planet, _, reached)) = spawned else {
+        return Ok(Planned {
+            description,
+            inverse: remove,
+        });
+    };
+    let inverse = Op::Batch {
+        description: format!("Undo of \"{description}\""),
+        ops: vec![Op::RemoveBody { body: planet }, remove],
+    };
+    grow_past(plan, s, system, reached, description, inverse)
 }
 
 pub(crate) fn plan_remove(
@@ -320,6 +360,7 @@ pub(crate) fn plan_remove(
             owner: tied.owner,
             bypass,
             construction: (!taken.is_empty()).then(|| taken.clone()),
+            planet: None,
             left_out,
         },
     };
@@ -496,26 +537,34 @@ impl Live {
     }
 }
 
-/// What an edit that adds megastructure `shown` at planet `body` and gives the planet the
-/// class named `class` and the size `size` says: "Added the Yggdrasil Orchid at Gas Giant
-/// Beta #6 and made it a Food Giant", with "and size 6" after a class and "made it size 6"
-/// for a size alone.
+/// What an edit that adds megastructure `shown` at planet `body`, gives the planet the
+/// class named `class` and the size `size` and deletes `moons` of its moons says: "Added the
+/// Yggdrasil Orchid at Gas Giant Beta #6 and made it a Food Giant", with "and size 6" after a
+/// class, "made it size 6" for a size alone and ", removing its 3 moons" after either.
 pub(crate) fn planet_change_description(
     s: &Session,
     shown: &str,
     body: u32,
     class: Option<&str>,
     size: Option<u32>,
+    moons: usize,
 ) -> Result<String, OpError> {
     let (node, src) = planet_entity(&s.doc, body)?;
     let planet = named_entity(&node, src, body);
     let made = match (class, size) {
-        (Some(class), Some(size)) => format!("{} and size {size}", with_article(class)),
-        (Some(class), None) => with_article(class),
-        (None, Some(size)) => format!("size {size}"),
-        (None, None) => return Ok(format!("Added the {shown} at {planet}")),
+        (Some(class), Some(size)) => {
+            format!(" and made it {} and size {size}", with_article(class))
+        }
+        (Some(class), None) => format!(" and made it {}", with_article(class)),
+        (None, Some(size)) => format!(" and made it size {size}"),
+        (None, None) => String::new(),
     };
-    Ok(format!("Added the {shown} at {planet} and made it {made}"))
+    let removing = match moons {
+        0 => String::new(),
+        1 => ", removing its moon".to_owned(),
+        moons => format!(", removing its {moons} moons"),
+    };
+    Ok(format!("Added the {shown} at {planet}{made}{removing}"))
 }
 
 /// `noun` after "a", or "an" before a vowel.

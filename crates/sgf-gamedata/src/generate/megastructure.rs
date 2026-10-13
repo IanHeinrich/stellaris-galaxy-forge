@@ -204,9 +204,7 @@ pub struct MegastructureFit {
     /// The type Add writes: the one the game swaps a finished row of `kind` for at the spot,
     /// else `kind`.
     pub variant: String,
-    /// Where a row of `variant` stands: on the body, at the point pressed, or for a type built
-    /// outside the gravity well, just outside the system's inner radius in the pressed
-    /// direction.
+    /// Where a row of `variant` stands: on the body, or at the point pressed.
     pub place: MegastructurePlace,
     /// Why the save would refuse `variant` there, as the add would say it; `None` when it goes.
     pub refusal: Option<String>,
@@ -361,7 +359,7 @@ fn worded(
             )
         }
         MegastructureRefusal::HoldsMegastructure { .. } => BODY_HAS_MEGASTRUCTURE.to_owned(),
-        MegastructureRefusal::HabitatRoundSatellite { .. } => HABITAT_ROUND_SATELLITE.to_owned(),
+        MegastructureRefusal::RoundSatellite { .. } => HABITAT_ROUND_SATELLITE.to_owned(),
         MegastructureRefusal::NoStar { .. } => RING_WORLD_NO_STAR.to_owned(),
         MegastructureRefusal::ManyStars { count, .. } => match count {
             2 => "Can't place a ring world in a binary system.".to_owned(),
@@ -447,6 +445,7 @@ fn with_planet_change(
         body,
         class_name.as_deref(),
         size,
+        0,
     )?;
     Ok(Op::Batch { description, ops })
 }
@@ -523,6 +522,7 @@ fn add_op(
             owner,
             bypass,
             construction: (!construction.is_empty()).then_some(construction),
+            planet: None,
             left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
         },
     }

@@ -7,31 +7,26 @@
 //! several habitats, each new one placed as far round it from the others as it can be.
 
 use crate::cst::Node;
-use crate::emit::system::{HabitatEntry, habitat_entry};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
 use crate::format::save::write::flags::{add_flags, drop_flags, today};
-use crate::format::save::write::id_list::list_planets;
 use crate::format::save::write::megastructure_links::{
     self, HAS_ORBITAL, Holders, MEGASTRUCTURES, NewRow, Tied, unlink, write_rows,
 };
 use crate::format::save::write::place;
-use crate::format::save::write::planet_entry::{
-    body_is_star, list_moon, named_entity, named_planet,
-};
-use crate::format::save::write::shared::{culture_of, placement, tie, write_slot};
+use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::shared::{culture_of, placement, tie};
+use crate::format::save::write::spawned_planet::{self, Spawned, add_round};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
-use crate::ops::rules::bodies::check_placement;
-use crate::ops::rules::modifiers::check_flags;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
-    Emitted, HabitatOrbital, HabitatPlacement, MegastructureRefusal, NewHabitat, NewPlanet, Op,
-    OpError, ParseAt, Plan, Planned, Subject,
+    HabitatOrbital, HabitatPlacement, NewHabitat, NewPlanet, Op, OpError, ParseAt, Plan, Planned,
+    Subject,
 };
-use crate::projections::geometry::{Body, angle_about, normalised, point, reach};
+use crate::projections::geometry::{Body, angle_about, normalised};
 use crate::projections::name::{NameTemplate, format};
 use crate::projections::read;
 use crate::session::Session;
@@ -58,23 +53,7 @@ pub(crate) fn plan_add(
     let (node, src) = planet_entity(&s.doc, body)?;
     let system = planet_system(&node, src, body)?;
     let stored = frame(s, system)?;
-    let host = stored
-        .iter()
-        .find(|b| b.body.id == body)
-        .ok_or(OpError::NotABody { body, system })?;
-    if let Some(parent) = host.body.parent
-        && !body_is_star(s, &stored, parent)?
-    {
-        return Err(megastructure_links::refused(
-            HABITAT,
-            MegastructureRefusal::HabitatRoundSatellite {
-                body,
-                planet: named_entity(&node, src, body),
-                parent,
-                orbits: named_planet(s, parent)?,
-            },
-        ));
-    }
+    let host = spawned_planet::host(s, &stored, system, body, HABITAT)?;
     let orbital = match &habitat.orbital {
         Some(orbital) if !holds_megastructure(s, &node, src, body)? => Some(orbital),
         _ => None,
@@ -85,7 +64,6 @@ pub(crate) fn plan_add(
         HabitatPlacement::AwayFromHabitats => farthest(habitat_angles(s, &stored, host)?),
     };
     let angle = away.unwrap_or_else(|| normalised(habitat.planet.at.angle));
-    let at = point(host.body.at, habitat.planet.at.radius, angle);
     let name = system_named(
         s,
         system,
@@ -93,28 +71,8 @@ pub(crate) fn plan_add(
         habitat.system_name.as_deref(),
     )?;
     let date = today(&s.doc)?;
-    let mut planets = SlotTable::planets(&s.doc)?;
-    let slot = planets.take();
-    let id = slot.id();
-    let entry = HabitatEntry {
-        id,
-        class: &habitat.planet.class,
-        size: habitat.planet.size,
-        name: &name,
-        x: at.0,
-        y: at.1,
-        system,
-        orbit: habitat.planet.at.radius,
-        host: body,
-        flags: &habitat.planet.flags,
-        flag_date: &date,
-        entity_name: habitat.planet.model.as_deref(),
-    };
-    let emitted = Emitted::Planet { id, system };
-    write_slot(plan, &s.doc, slot, &mut planets, emitted, |indent| {
-        habitat_entry(indent, &entry)
-    })?;
-    list_planets(plan.edit(&s.doc, system)?, &[id])?;
+    let spawned = Spawned::round(host, &habitat.planet, &name, angle);
+    let (id, reached) = add_round(plan, s, system, &stored, &spawned, &date)?;
     let orbital = match orbital {
         Some(orbital) => {
             let at = read::coordinate(&node, src)
@@ -126,7 +84,6 @@ pub(crate) fn plan_add(
     plan.created().planets.push(id);
     plan.created().megastructures.extend(orbital);
     let host_edit = plan.edit_planet(&s.doc, body, system)?;
-    list_moon(host_edit, id)?;
     let host_flag = format!("{HABITAT}{id}");
     let mut host_flags = vec![(host_flag.as_str(), date.clone())];
     match orbital {
@@ -141,14 +98,6 @@ pub(crate) fn plan_add(
         add_flags(system_edit, &[(HAS_HABITAT, date)], &place::system::FLAGS)?;
     }
 
-    let added = Body {
-        id,
-        parent: Some(body),
-        at,
-        orbit: habitat.planet.at.radius,
-    };
-    let mut after: Vec<Body> = stored.iter().map(|b| b.body).collect();
-    after.push(added);
     let kind = if body_is_star(s, &stored, body)? {
         "star"
     } else {
@@ -167,7 +116,7 @@ pub(crate) fn plan_add(
         plan,
         s,
         system,
-        reach(&after, &added),
+        reached,
         description,
         Op::RemoveBody { body: id },
     )
@@ -175,19 +124,10 @@ pub(crate) fn plan_add(
 
 /// Refuse a habitat whose values cannot be written.
 fn check(habitat: &NewHabitat) -> Result<(), OpError> {
-    check_text("a planet class", &habitat.planet.class, Form::Bare)?;
-    if habitat.planet.size == 0 {
-        return Err(OpError::ZeroPlanetSize);
-    }
-    check_placement(habitat.planet.at.radius, habitat.planet.at.angle)?;
-    check_text("a name key", &habitat.planet.name, Form::Bare)?;
+    spawned_planet::check(&habitat.planet, Form::Bare)?;
     if let Some(variable) = &habitat.system_name {
         check_text("a name variable", variable, Form::Bare)?;
     }
-    if let Some(model) = &habitat.planet.model {
-        check_text("a model", model, Form::Bare)?;
-    }
-    check_flags("a planet flag", &habitat.planet.flags)?;
     if let Some(orbital) = &habitat.orbital {
         check_text("a megastructure type", &orbital.kind, Form::Bare)?;
         if let Some(name) = &orbital.name {
@@ -440,6 +380,7 @@ pub(crate) fn read_back(
             name: name.key,
             model: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
             flags: read::flags(node, src).map(str::to_owned).collect(),
+            modifiers: Vec::new(),
         },
         orbital,
         placed: HabitatPlacement::AtAngle,

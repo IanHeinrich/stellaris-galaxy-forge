@@ -64,9 +64,7 @@ pub(crate) fn plan_delete(
             Some(found) => {
                 let kind = read::text(&found.node, keys::TYPE, found.src);
                 if !DELETED_BYPASS_KINDS.contains(&kind.as_str()) {
-                    return Err(refuse(format!(
-                        "its {kind} link hasn't been tested in game"
-                    )));
+                    return Err(refuse("deleting it hasn't been tested in game".to_owned()));
                 }
                 Some(bypass)
             }

@@ -31,13 +31,14 @@ fn a_megastructure_that_changes_its_planet_is_added_with_the_change_in_one_edit(
         look: None,
     };
     let add = on_body(ALARI, "yggdrasil_orchid_3", 6);
-    let said = |class: Option<&str>, size: Option<u32>| {
+    let said_removing = |class: Option<&str>, size: Option<u32>, moons: usize| {
         open_4_5()
             .save("adding a megastructure")
             .expect("a save")
-            .megastructure_planet_change_description("Yggdrasil Orchid", 6, class, size)
+            .megastructure_planet_change_description("Yggdrasil Orchid", 6, class, size, moons)
             .expect("planet 6")
     };
+    let said = |class: Option<&str>, size: Option<u32>| said_removing(class, size, 0);
     let description = said(Some("Food Giant"), None);
     assert_eq!(
         description, "Added the Yggdrasil Orchid at planet #6 and made it a Food Giant",
@@ -54,6 +55,14 @@ fn a_megastructure_that_changes_its_planet_is_added_with_the_change_in_one_edit(
     assert_eq!(
         said(Some("Ocean World"), None),
         "Added the Yggdrasil Orchid at planet #6 and made it an Ocean World"
+    );
+    assert_eq!(
+        said_removing(Some("Ocean World"), None, 3),
+        "Added the Yggdrasil Orchid at planet #6 and made it an Ocean World, removing its 3 moons"
+    );
+    assert_eq!(
+        said_removing(None, None, 1),
+        "Added the Yggdrasil Orchid at planet #6, removing its moon"
     );
     let batch = |ops: Vec<Op>| Op::Batch {
         description: description.clone(),

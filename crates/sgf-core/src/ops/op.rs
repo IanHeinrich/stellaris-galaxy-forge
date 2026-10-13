@@ -915,7 +915,12 @@ pub enum Op {
     /// none, each deposit as [`Op::AddDeposit`] writes one, and each owner variable raised,
     /// written in its place among the owner's `variables` when the owner has none of it. A
     /// deposit on a body the file held and a deletion has left as `<id>=none` is written
-    /// naming it, with no planet to list it, as the deletion left it.
+    /// naming it, with no planet to list it, as the deletion left it. With `spec.planet`, the
+    /// planet its completion spawns is written round the body as [`Op::AddHabitat`] writes a
+    /// habitat, with no owner and no colony: `moon_of` the body without the moon bit, its
+    /// flags dated the save's date and each of its timed modifiers with its days, listed by
+    /// the system after its last `planet=` line and by the body in `moons`, and the inner
+    /// radius grows when it lies past it.
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
     /// is not a star for a `star_only` type, a body flag that is not one a megastructure
@@ -924,8 +929,13 @@ pub enum Op {
     /// not finite and a save before Stellaris 4.0 are refused, and so are a construction modifier the entity has already or that
     /// is listed twice, one that lasts no days, a construction body outside the system, a
     /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
-    /// is not an identifier. The inverse is [`Op::RemoveMegastructure`] with the
-    /// construction and `left_out`. Save documents only.
+    /// is not an identifier. With a planet, a point of its own with no body, a body that
+    /// orbits a planet, a size of 0, a placement that is not finite or not past 0, a modifier
+    /// of 0 days, of more than a save holds or listed twice, and a class, name, model, flag or
+    /// modifier that cannot be written are refused too. The inverse is
+    /// [`Op::RemoveMegastructure`] with the construction and `left_out`, after
+    /// [`Op::RemoveBody`] for the planet in a batch with the old inner radius when it grew.
+    /// Save documents only.
     AddMegastructure {
         system: u32,
         spec: NewMegastructure,

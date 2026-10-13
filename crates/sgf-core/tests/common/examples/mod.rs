@@ -196,6 +196,47 @@ pub fn sol_nexus() -> Op {
     }
 }
 
+/// An equatorial shipyard on planet 2 of the 4.5 sample's capital system, Alari (169), owned
+/// by country 0, with the ring planet its completion spawns round planet 2, as
+/// Gigastructural Engineering's last stage makes it.
+pub fn sol_shipyard() -> Op {
+    Op::AddMegastructure {
+        system: 169,
+        spec: NewMegastructure {
+            kind: "eq_shipyard_2".to_owned(),
+            at: NewMegastructurePlace::Body {
+                body: 2,
+                body_flags: Vec::new(),
+                star_only: false,
+            },
+            owner: Some(0),
+            planet: Some(NewPlanet {
+                class: "pc_equatorial_shipyard".to_owned(),
+                size: 12,
+                at: OrbitPlacement {
+                    radius: 0.00001,
+                    angle: 180.0,
+                },
+                name: "Processing Ring".to_owned(),
+                model: Some("mammalian_01_planetary_ring_game_01_entity".to_owned()),
+                flags: [
+                    "giga_equatorial_shipyard",
+                    "forbid_guillis_planet_modifiers",
+                    "megastructure",
+                    "colony_event",
+                ]
+                .map(str::to_owned)
+                .to_vec(),
+                modifiers: vec![TimedModifier {
+                    modifier: "ringyard_alloys".to_owned(),
+                    days: None,
+                }],
+            }),
+            ..NewMegastructure::default()
+        },
+    }
+}
+
 /// A habitat round barren planet 4 of the 4.5 sample's capital system, Alari (169), as the
 /// install's Habitat Central Complex makes one round a planet.
 pub fn sol_habitat() -> Op {
@@ -214,6 +255,7 @@ pub fn sol_habitat() -> Op {
                 flags: ["megastructure", "habitat", "habitat_level_1"]
                     .map(str::to_owned)
                     .to_vec(),
+                modifiers: Vec::new(),
             },
             system_name: Some("prev.solar_system.GetName".to_owned()),
             orbital: None,
@@ -248,9 +290,9 @@ fn segment(
             name: name.to_owned(),
             model: model.map(|stem| format!("mammalian_01_{stem}")),
             flags: flags.iter().map(|f| (*f).to_owned()).collect(),
+            modifiers: Vec::new(),
         },
         megastructure_icon: class == "pc_ringworld_habitable",
-        modifiers: Vec::new(),
     }
 }
 
@@ -362,9 +404,9 @@ fn titanic_quadrant(at: f64, habitable: &str) -> RingQuadrant {
             name: name.to_owned(),
             model: Some(format!("mammalian_01_titanic_{model}_sector_entity")),
             flags: flags.iter().map(|f| (*f).to_owned()).collect(),
+            modifiers: Vec::new(),
         },
         megastructure_icon: false,
-        modifiers: Vec::new(),
     };
     let mut habitable = part(
         "pc_ringworld_habitable",
@@ -380,7 +422,7 @@ fn titanic_quadrant(at: f64, habitable: &str) -> RingQuadrant {
     );
     habitable.planet.size = 20;
     habitable.megastructure_icon = true;
-    habitable.modifiers = vec![TimedModifier {
+    habitable.planet.modifiers = vec![TimedModifier {
         modifier: "giga_titanic_housing".to_owned(),
         days: None,
     }];

@@ -147,7 +147,7 @@ fn what_is_refused() {
         [
             (
                 delete(0),
-                "megastructure 0 cannot be deleted: its lgate link hasn't been tested in game",
+                "megastructure 0 cannot be deleted: deleting it hasn't been tested in game",
             ),
             (delete(14), "Megastructure 14 does not exist"),
             (delete(999), "Megastructure 999 does not exist"),

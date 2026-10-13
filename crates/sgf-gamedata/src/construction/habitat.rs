@@ -119,6 +119,7 @@ fn of_layout(
             name: name.key.clone(),
             model,
             flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
+            modifiers: Vec::new(),
         },
         system_name,
         orbital,

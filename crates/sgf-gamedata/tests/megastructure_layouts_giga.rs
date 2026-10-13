@@ -254,7 +254,8 @@ fn gigas_larger_rings_are_added_whole() {
                     s.planet.size,
                     s.planet.at.radius,
                     s.planet.model.clone(),
-                    s.modifiers
+                    s.planet
+                        .modifiers
                         .iter()
                         .map(|m| (m.modifier.clone(), m.days))
                         .collect::<Vec<_>>(),

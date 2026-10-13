@@ -57,7 +57,7 @@ pub(crate) fn plan_move(
         if !BYPASS_KINDS.contains(&kind.as_str()) {
             return Err(refused(
                 id,
-                format!("its {kind} link hasn't been tested in game"),
+                "moving it hasn't been tested in game".to_owned(),
             ));
         }
     }
@@ -86,14 +86,14 @@ pub(crate) fn plan_move(
         (None, MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. }) => {
             return Err(refused(
                 id,
-                "it sits in open space and can't go on a planet or star".to_owned(),
+                "it sits in empty space and can't go on a planet or star".to_owned(),
             ));
         }
         (Some(from), MegastructurePlace::Free { .. }) => {
             return Err(refused(
                 id,
                 format!(
-                    "it is built on {}, so it has to stay on a planet or star",
+                    "it is built at {}, so it has to stay at a planet or star",
                     named_planet(s, from)?
                 ),
             ));

@@ -96,16 +96,16 @@ fn what_an_add_refuses() {
         [
             (
                 add(3, habitat_at(9.899)),
-                "a habitat cannot be added there: planet #3 orbits Alari planet #2, and Galaxy Forge can't put a habitat round anything that orbits a planet",
+                "a habitat cannot be added there: planet #3 orbits Alari planet #2, and Galaxy Forge can't put a planet round anything that orbits a planet",
             ),
             (
                 add(6268, habitat_at(9.899)),
-                "a habitat cannot be added there: paradisiacal habitat science #6268 orbits Ithomes Gate I #6267, and Galaxy Forge can't put a habitat round anything that orbits a planet",
+                "a habitat cannot be added there: paradisiacal habitat science #6268 orbits Ithomes Gate I #6267, and Galaxy Forge can't put a planet round anything that orbits a planet",
             ),
             (
                 add(id, habitat_at(9.899)),
                 &format!(
-                    "a habitat cannot be added there: Alari system #{id} orbits planet #4, and Galaxy Forge can't put a habitat round anything that orbits a planet"
+                    "a habitat cannot be added there: Alari system #{id} orbits planet #4, and Galaxy Forge can't put a planet round anything that orbits a planet"
                 ),
             ),
             (add(5, no_size), "a planet size may not be zero"),

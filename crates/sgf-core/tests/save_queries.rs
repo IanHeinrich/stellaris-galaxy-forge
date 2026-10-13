@@ -26,7 +26,7 @@ const QUERIES: [(&str, &str, Query); 10] = [
         "megastructure_planet_change_description",
         "adding a megastructure",
         |q| {
-            q.megastructure_planet_change_description("Orchid", 1, None, None)
+            q.megastructure_planet_change_description("Orchid", 1, None, None, 0)
                 .map(drop)
         },
     ),

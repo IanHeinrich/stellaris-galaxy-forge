@@ -11,9 +11,7 @@ export type MegastructureFit = { kind: string,
  */
 variant: string, 
 /**
- * Where a row of `variant` stands: on the body, at the point pressed, or for a type built
- * outside the gravity well, just outside the system's inner radius in the pressed
- * direction.
+ * Where a row of `variant` stands: on the body, or at the point pressed.
  */
 place: MegastructurePlace, 
 /**

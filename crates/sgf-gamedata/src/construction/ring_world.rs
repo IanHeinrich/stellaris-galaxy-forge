@@ -391,15 +391,15 @@ fn segment(planet: &LaidPlanet, culture: Option<&str>) -> Result<RingSegment, St
             name,
             model,
             flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
+            modifiers: planet
+                .modifiers
+                .iter()
+                .map(|(modifier, days)| TimedModifier {
+                    modifier: modifier.clone(),
+                    days: lasting(*days),
+                })
+                .collect(),
         },
         megastructure_icon: planet.megastructure_icon,
-        modifiers: planet
-            .modifiers
-            .iter()
-            .map(|(modifier, days)| TimedModifier {
-                modifier: modifier.clone(),
-                days: lasting(*days),
-            })
-            .collect(),
     })
 }

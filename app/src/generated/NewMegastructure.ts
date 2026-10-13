@@ -3,6 +3,7 @@ import type { MegastructureConstruction } from "./MegastructureConstruction";
 import type { NameTemplate } from "./NameTemplate";
 import type { NewBypass } from "./NewBypass";
 import type { NewMegastructurePlace } from "./NewMegastructurePlace";
+import type { NewPlanet } from "./NewPlanet";
 
 /**
  * The row [`Op::AddMegastructure`] writes, finished.
@@ -17,6 +18,10 @@ kind: string,
  * of [`Op::RemoveMegastructure`] for a row that had one.
  */
 name?: NameTemplate, at: NewMegastructurePlace, owner?: number, bypass?: NewBypass, construction?: MegastructureConstruction, 
+/**
+ * The planet its completion spawns round the body it stands at.
+ */
+planet?: NewPlanet, 
 /**
  * How many effects of the type's construction the caller could not tell apply and
  * left out of `construction`; the description says so.

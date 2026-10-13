@@ -187,14 +187,11 @@ pub struct RingSegment {
     /// It shows the ring's megastructure icon: `trigger_megastructure_icon = yes`.
     #[serde(default)]
     pub megastructure_icon: bool,
-    /// Its timed modifiers, in the order they are added.
-    #[serde(default)]
-    pub modifiers: Vec<TimedModifier>,
 }
 
-/// A planet a build effect spawns finished, as [`Op::AddHabitat`] and [`Op::AddRingWorld`]
-/// write one: its class, size and place, its name key, and the model and planet flags the
-/// effect gives it.
+/// A planet a build effect spawns finished, as [`Op::AddHabitat`], [`Op::AddRingWorld`] and
+/// [`Op::AddMegastructure`] write one: its class, size and place, its name key, and the
+/// model, planet flags and timed modifiers the effect gives it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct NewPlanet {
@@ -210,6 +207,9 @@ pub struct NewPlanet {
     pub model: Option<String>,
     /// Its planet flags, in the order they are set: `megastructure`, `habitat`.
     pub flags: Vec<String>,
+    /// Its timed modifiers, in the order they are added.
+    #[serde(default)]
+    pub modifiers: Vec<TimedModifier>,
 }
 
 /// A timed modifier, as the game's `add_modifier` gives it.
@@ -452,6 +452,10 @@ pub struct NewMegastructure {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub construction: Option<MegastructureConstruction>,
+    /// The planet its completion spawns round the body it stands at.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub planet: Option<NewPlanet>,
     /// How many effects of the type's construction the caller could not tell apply and
     /// left out of `construction`; the description says so.
     #[serde(default, skip_serializing_if = "is_zero")]

@@ -9,11 +9,7 @@ export type RingSegment = {
 /**
  * It shows the ring's megastructure icon: `trigger_megastructure_icon = yes`.
  */
-megastructure_icon: boolean, 
-/**
- * Its timed modifiers, in the order they are added.
- */
-modifiers: Array<TimedModifier>, class: string, size: number, 
+megastructure_icon: boolean, class: string, size: number, 
 /**
  * Its distance from what it orbits, and its save angle about it.
  */
@@ -30,4 +26,8 @@ model: string | null,
 /**
  * Its planet flags, in the order they are set: `megastructure`, `habitat`.
  */
-flags: Array<string>, };
+flags: Array<string>, 
+/**
+ * Its timed modifiers, in the order they are added.
+ */
+modifiers: Array<TimedModifier>, };

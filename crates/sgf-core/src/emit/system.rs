@@ -75,11 +75,12 @@ pub struct PlanetEntry<'a> {
     pub deposits: &'a [u32],
 }
 
-/// A habitat's `planets.planet` entry, as the game's `spawn_habitat_effect` writes it: a
-/// name it fixes, a model set by `set_planet_entity`, which has no bit 2, and the body it
-/// orbits in `moon_of` without the moon bit.
+/// The `planets.planet` entry of a planet a build effect spawns, as the game's
+/// `spawn_planet` and `spawn_habitat_effect` write one: a name it fixes, a model set by
+/// `set_planet_entity`, which has no bit 2, the body it orbits in `moon_of` without the moon
+/// bit, and the megastructure icon bit on a ring world's section that shows it.
 #[derive(Debug, Clone, PartialEq)]
-pub struct HabitatEntry<'a> {
+pub struct SpawnedEntry<'a> {
     pub id: u32,
     pub class: &'a str,
     pub size: u32,
@@ -88,43 +89,10 @@ pub struct HabitatEntry<'a> {
     pub x: f64,
     pub y: f64,
     pub system: u32,
-    /// Its distance from the body it orbits.
+    /// Its distance from what it orbits.
     pub orbit: f64,
-    pub host: u32,
-    /// Planet flags, each dated `flag_date`.
-    pub flags: &'a [String],
-    pub flag_date: &'a str,
-    pub entity_name: Option<&'a str>,
-}
-
-pub fn habitat_entry(indent: &[u8], h: &HabitatEntry<'_>) -> Vec<u8> {
-    entry(
-        indent,
-        &Entry {
-            binary_flags: FIXED_NAME_FLAG | ANY_FLAG,
-            moon_of: Some(h.host),
-            flags: h.flags,
-            flag_date: h.flag_date,
-            entity_name: h.entity_name,
-            ..Entry::new(h.id, h.class, h.size, h.name, (h.x, h.y), h.system, h.orbit)
-        },
-    )
-}
-
-/// A ring world segment's `planets.planet` entry, as the game's `spawn_planet` writes one
-/// round the system's centre: a name it fixes, a model set by `set_planet_entity`, and the
-/// megastructure icon bit on the section that shows it.
-#[derive(Debug, Clone, PartialEq)]
-pub struct SegmentEntry<'a> {
-    pub id: u32,
-    pub class: &'a str,
-    pub size: u32,
-    pub name: &'a NameTemplate,
-    /// Relative to the system's centre.
-    pub x: f64,
-    pub y: f64,
-    pub system: u32,
-    pub orbit: f64,
+    /// The body it orbits; `None` round the system's centre.
+    pub moon_of: Option<u32>,
     /// Planet flags, each dated `flag_date`.
     pub flags: &'a [String],
     pub flag_date: &'a str,
@@ -134,7 +102,7 @@ pub struct SegmentEntry<'a> {
     pub modifiers: &'a [(&'a str, i32)],
 }
 
-pub fn segment_entry(indent: &[u8], s: &SegmentEntry<'_>) -> Vec<u8> {
+pub fn spawned_entry(indent: &[u8], s: &SpawnedEntry<'_>) -> Vec<u8> {
     let icon = if s.megastructure_icon {
         MEGASTRUCTURE_ICON_FLAG
     } else {
@@ -144,6 +112,7 @@ pub fn segment_entry(indent: &[u8], s: &SegmentEntry<'_>) -> Vec<u8> {
         indent,
         &Entry {
             binary_flags: FIXED_NAME_FLAG | ANY_FLAG | icon,
+            moon_of: s.moon_of,
             modifiers: s.modifiers,
             flags: s.flags,
             flag_date: s.flag_date,

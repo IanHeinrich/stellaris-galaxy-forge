@@ -346,7 +346,7 @@ fn what_an_add_and_a_removal_refuse() {
             ),
             (
                 free(1, "shroud_seal", "shroud_tunnel", true),
-                "a shroud_seal cannot be added there: its shroud_tunnel link hasn't been tested in game",
+                "a shroud_seal cannot be added there: adding it hasn't been tested in game",
             ),
             (
                 free(4, "lgate_base", "lgate", false),

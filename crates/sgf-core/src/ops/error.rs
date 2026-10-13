@@ -449,8 +449,8 @@ pub enum MegastructureRefusal {
         row: Option<u32>,
     },
     /// Planet `body`, named `planet`, orbits planet `parent`, named `orbits`, and no habitat
-    /// goes round a body that does.
-    HabitatRoundSatellite {
+    /// or other spawned planet goes round a body that does.
+    RoundSatellite {
         body: u32,
         planet: String,
         parent: u32,
@@ -500,9 +500,9 @@ impl fmt::Display for MegastructureRefusal {
                 f,
                 "{planet} has had a megastructure built on it, and the game still counts it"
             ),
-            Self::HabitatRoundSatellite { planet, orbits, .. } => write!(
+            Self::RoundSatellite { planet, orbits, .. } => write!(
                 f,
-                "{planet} orbits {orbits}, and Galaxy Forge can't put a habitat round anything that orbits a planet"
+                "{planet} orbits {orbits}, and Galaxy Forge can't put a planet round anything that orbits a planet"
             ),
             Self::NoStar { place } => write!(f, "{place} has no star for a ring world to go round"),
             Self::ManyStars { place, count } => write!(

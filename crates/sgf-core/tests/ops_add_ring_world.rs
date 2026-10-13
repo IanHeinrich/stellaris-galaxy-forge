@@ -525,7 +525,7 @@ fn what_a_segments_modifiers_refuse() {
     let with = |days: &[Option<u32>]| {
         let mut ring = titanic_ring();
         if let RingQuadrant::Finished { segments } = &mut ring.quadrants[0] {
-            segments[2].modifiers = days
+            segments[2].planet.modifiers = days
                 .iter()
                 .map(|&days| TimedModifier {
                     modifier: "giga_titanic_housing".to_owned(),
