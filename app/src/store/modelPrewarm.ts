@@ -1,6 +1,6 @@
 /**
  * Bakes the models a document's megastructures, starbases, habitats and ring world segments are drawn
- * from in the background once the save and the game data are both in, so a system view shows them
+ * from in the background once the document and the game data are both in, so a system view shows them
  * when it opens instead of seconds later. The keys are chosen as the system view chooses them.
  */
 import * as ipc from "../api/ipc";
@@ -55,12 +55,12 @@ function settled(keys: readonly string[], mine: number): Promise<void> {
 
 /**
  * The open document and the loaded game data, or null while either is missing, the document
- * holds no structures, or the game data's registries have not landed.
+ * has no details for `get_model_uses` to read, or the game data's registries have not landed.
  */
 function subject(): Subject | null {
   const session = useFileSessionStore.getState();
   const data = useGameDataStore.getState();
-  if (session.status !== "ready" || !documentCapabilities(session).structures) return null;
+  if (session.status !== "ready" || !documentCapabilities(session).details) return null;
   if (data.status !== "ready") return null;
   const { megastructureTypes, starbaseLevels, planetClasses } = data;
   if (planetClasses.size === 0) return null;

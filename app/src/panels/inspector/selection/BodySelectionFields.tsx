@@ -364,6 +364,9 @@ export function BodySelectionFields({
 }) {
   const listing = useSelectionListing(selection, read);
   const failed = useDetailsStore((s) => s.failed.get(selection.system));
+  // Held here: the fields below remount whenever the selection's size changes.
+  const [lock] = useState(() => ({ sending: false }));
+  const [note, setNote] = useState<Note | null>(null);
   if (listing === null || read === undefined) {
     return <Empty>{read === undefined && failed !== undefined ? failed : READING_BODIES}</Empty>;
   }
@@ -374,6 +377,9 @@ export function BodySelectionFields({
       read={read}
       listing={listing}
       answers={answers}
+      lock={lock}
+      note={note}
+      setNote={setNote}
     />
   );
   if (listing.listed.length === 0) return fields([]);
@@ -397,21 +403,26 @@ function SelectedFields({
   read,
   listing,
   answers,
+  lock,
+  note,
+  setNote,
 }: {
   kind: DocumentKind;
   selection: BodySelection;
   read: SystemDetails;
   listing: SelectionListing;
   answers: readonly BodyAnswer[];
+  /** Held while one of the edits is out, so a second click sends nothing. */
+  lock: { sending: boolean };
+  note: Note | null;
+  setNote(note: Note | null): void;
 }) {
   const answer = useSelectedBodies(listing, answers, read);
   const bodies = answer?.bodies ?? null;
   const stale = useStale(selection);
-  const [lock] = useState(() => ({ sending: false }));
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const names = useGameDataStore((s) => s.names);
   const depositViews = usePlanetDataStore((s) => s.depositTypes);
-  const [note, setNote] = useState<Note | null>(null);
   const key = `${kind}:${selection.system}:${selection.ids.join("-")}`;
 
   const adapters = useMemo(() => {
@@ -434,7 +445,7 @@ function SelectedFields({
       deposits: reporting("deposits"),
       modifiers: reporting("modifiers"),
     };
-  }, [kind, bodies, selection.system, lock, depositViews, names, key]);
+  }, [kind, bodies, selection.system, lock, depositViews, names, key, setNote]);
 
   const targets = useMemo(() => {
     if (bodies === null || adapters === null) return null;
