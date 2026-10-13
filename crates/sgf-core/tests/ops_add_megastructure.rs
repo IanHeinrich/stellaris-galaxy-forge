@@ -290,7 +290,7 @@ fn what_an_add_and_a_removal_refuse() {
             ),
             (
                 twice,
-                "\"has_megastructure\" cannot be written as a planet flag listed once",
+                "\"has_megastructure\" cannot be written as a flag listed once",
             ),
             (nan, "value is not a finite number"),
             (

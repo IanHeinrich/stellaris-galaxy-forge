@@ -8,7 +8,7 @@ use crate::emit::{Lines, quoted};
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{TableEnd, next_id};
 use crate::format::save::dig_sites::{self, PLANET_LOCATION};
-use crate::format::save::write::planet_entry::PlanetEntry;
+use crate::format::save::write::planet_entry::{PlanetEntry, named_planet};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, StarEdit, Subject};
@@ -39,7 +39,10 @@ pub(crate) fn plan_add(
     plan.emit(Emitted::Record, end.at(), end.shape(entry.into_bytes()));
     plan.stale(Subject::Planet { id: planet, system });
     Ok(Planned {
-        description: format!("Added dig site {kind} (#{id}) to planet #{planet}"),
+        description: format!(
+            "Added dig site {kind} (#{id}) to {}",
+            named_planet(&s.doc, planet)?
+        ),
         inverse: Op::RemoveDigSite { site: id },
     })
 }
@@ -61,8 +64,9 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, site: u32) -> Result<Pla
     };
     Ok(Planned {
         description: format!(
-            "Removed dig site {} (#{site}) from planet #{planet}{dig}",
-            found.kind
+            "Removed dig site {} (#{site}) from {}{dig}",
+            found.kind,
+            named_planet(&s.doc, planet).unwrap_or_else(|_| format!("planet #{planet}"))
         ),
         inverse: Op::AddDigSite {
             body: planet,

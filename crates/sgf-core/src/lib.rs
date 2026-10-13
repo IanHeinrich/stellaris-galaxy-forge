@@ -19,6 +19,7 @@ pub mod ops;
 pub mod overlay;
 pub mod prepare;
 pub mod projections;
+pub mod rng;
 pub mod scan;
 pub mod search;
 pub mod session;

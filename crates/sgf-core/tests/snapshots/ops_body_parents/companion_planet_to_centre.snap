@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Made planet #328 a planet of the system's centre
+Made planet Proxima Centauri b #328 a planet of the system's centre
 inverse: SetBodyParent { system: 278, body: 328, parent: Body(327), radius: 35.056412953, angle: 77.813191834 }
 
 --- gamestate

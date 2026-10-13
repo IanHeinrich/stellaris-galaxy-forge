@@ -150,7 +150,7 @@ fn the_ids_the_edits_take_and_their_inverses() {
     assert_eq!(removed.inverse, add(135, "d_prosperous_mesa"));
     assert_eq!(
         removed.entry.description,
-        "Removed d_prosperous_mesa (#257) from planet #135"
+        "Removed d_prosperous_mesa (#257) from Meissa I #135"
     );
     let text = text(&session);
     assert!(text.contains("\n\t257=none\n"));

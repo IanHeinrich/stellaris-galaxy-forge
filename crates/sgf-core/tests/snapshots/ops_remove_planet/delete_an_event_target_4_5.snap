@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #4913 and its moon
+Deleted planet Ruinous Core #4913 and its moon
 details stale: [448]
-inverse: Restored planet #4913 and its moon
+inverse: Restored planet Ruinous Core #4913 and its moon
 
   System: 448
   Planet: 4913 4914

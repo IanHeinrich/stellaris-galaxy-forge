@@ -22,6 +22,7 @@ use crate::format::save::write::shared::{culture_of, placement, tie, write_slot}
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
+use crate::ops::rules::modifiers::check_flags;
 use crate::ops::rules::{Form, check_text, named, named_as};
 use crate::ops::{
     Emitted, HabitatOrbital, NewHabitat, NewPlanet, Op, OpError, ParseAt, Plan, Planned, Subject,
@@ -147,7 +148,8 @@ pub(crate) fn plan_add(
         .map(|orbital| format!(", with orbital #{orbital}"))
         .unwrap_or_default();
     let description = format!(
-        "Added habitat #{id} round {} in {}{with}",
+        "Added {} round {} in {}{with}",
+        named_as("habitat", &name, id),
         named_as(kind, &read::name(&node, src), body),
         named(&s.graph, system)
     );
@@ -175,15 +177,7 @@ fn check(habitat: &NewHabitat) -> Result<(), OpError> {
     if let Some(model) = &habitat.planet.model {
         check_text("a model", model, Form::Bare)?;
     }
-    for (i, flag) in habitat.planet.flags.iter().enumerate() {
-        check_text("a planet flag", flag, Form::Bare)?;
-        if habitat.planet.flags[..i].contains(flag) {
-            return Err(OpError::InvalidText {
-                what: "a planet flag listed once",
-                text: flag.clone(),
-            });
-        }
-    }
+    check_flags("a planet flag", &habitat.planet.flags)?;
     if let Some(orbital) = &habitat.orbital {
         check_text("a megastructure type", &orbital.kind, Form::Bare)?;
         if let Some(name) = &orbital.name {

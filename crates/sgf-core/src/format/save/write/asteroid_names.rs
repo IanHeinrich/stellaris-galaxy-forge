@@ -11,6 +11,7 @@ use crate::keys;
 use crate::ops::OpError;
 use crate::overlay::Anchor;
 use crate::projections::name::{NameTemplate, NameVariable};
+use crate::rng::{GOLDEN, mix};
 use crate::scan;
 use crate::span::Span;
 
@@ -150,8 +151,5 @@ fn spread(system: &str, index: usize) -> u64 {
     let hash = system.bytes().fold(0xCBF2_9CE4_8422_2325_u64, |h, b| {
         (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01B3)
     });
-    let mut z = hash.wrapping_add((index as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15));
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
+    mix(hash.wrapping_add((index as u64 + 1).wrapping_mul(GOLDEN)))
 }

@@ -117,7 +117,7 @@ fn a_scripted_model_is_taken_off_and_the_flags_stay() {
     let result = session.apply(set(6268, None)).expect("take the model off");
     assert_eq!(
         result.entry.description,
-        "Took the model mammalian_01_habitat_phase_03_entity off planet #6268"
+        "Took the model mammalian_01_habitat_phase_03_entity off paradisiacal habitat science #6268"
     );
     assert_eq!(model(&session, 6268), None);
     assert_eq!(flags(&session, 6268).as_deref(), Some("65"));

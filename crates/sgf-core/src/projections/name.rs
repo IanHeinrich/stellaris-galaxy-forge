@@ -7,6 +7,7 @@ use ts_rs::TS;
 
 use crate::cst::Node;
 use crate::keys;
+use crate::projections::galaxy::display_name;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -35,6 +36,25 @@ pub fn looks_like_key(text: &str) -> bool {
 }
 
 impl NameTemplate {
+    /// The name as a description shows it: a literal as written, a key that reads as a name
+    /// shortened, else its variables' names in order. Empty when no word reads as a name.
+    pub fn shown(&self) -> String {
+        if self.literal {
+            return self.key.clone();
+        }
+        let own = display_name(&self.key);
+        if !own.is_empty() && !own.split(' ').any(looks_like_key) {
+            return own;
+        }
+        let parts: Vec<String> = self
+            .variables
+            .iter()
+            .map(|variable| variable.value.shown())
+            .filter(|shown| !shown.is_empty())
+            .collect();
+        parts.join(" ")
+    }
+
     /// `name` is the `name=` node: a `{ key=… literal=… variables={…} }` block or a scalar.
     pub fn parse(name: &Node, src: &[u8]) -> Self {
         let key = name
@@ -136,7 +156,7 @@ pub(crate) fn literal(text: &str) -> NameTemplate {
 }
 
 /// `a`, `b`, … `z`, `aa`, `ab`, …
-pub(crate) fn letter(index: usize) -> String {
+pub fn letter(index: usize) -> String {
     let this = char::from(b'a' + (index % 26) as u8);
     match index / 26 {
         0 => this.to_string(),

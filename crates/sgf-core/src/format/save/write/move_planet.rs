@@ -17,7 +17,7 @@ use crate::format::save::write::id_list::{Emptied, append, list_planets, unlist,
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{
-    and_its_moons, body_is_star, set_flag, set_moon_of, unlist_moon,
+    and_its_moons, body_is_star, named_planet_as, set_flag, set_moon_of, unlist_moon,
 };
 use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{check_version, planet_entity, planet_system};
@@ -165,7 +165,8 @@ pub(crate) fn plan_move(
         ("planet", "")
     };
     let description = format!(
-        "Moved {label} #{planet}{carrying}{stationed} from {} to {}{becomes}, at orbit {}",
+        "Moved {}{carrying}{stationed} from {} to {}{becomes}, at orbit {}",
+        named_planet_as(&s.doc, label, planet)?,
         named(&s.graph, from),
         named(&s.graph, to),
         coord(orbit)

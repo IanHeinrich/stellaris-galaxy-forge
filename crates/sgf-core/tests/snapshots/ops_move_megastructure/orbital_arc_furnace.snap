@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved megastructure #16 (orbital_arc_furnace_4) in Vinh #174 from planet #517 to planet #516
-inverse: RestoreEntities "Undid: Moved megastructure #16 (orbital_arc_furnace_4) in Vinh #174 from planet #517 to planet #516"
+Moved megastructure #16 (orbital_arc_furnace_4) in Vinh #174 from Vinh III #517 to Vinh II #516
+inverse: RestoreEntities "Undid: Moved megastructure #16 (orbital_arc_furnace_4) in Vinh #174 from Vinh III #517 to Vinh II #516"
   Planet 516 (551 bytes)
   Planet 517 (995 bytes)
   Megastructure 16 (207 bytes)

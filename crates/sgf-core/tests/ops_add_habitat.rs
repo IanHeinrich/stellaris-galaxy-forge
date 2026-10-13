@@ -107,7 +107,7 @@ fn what_an_add_refuses() {
             (add(5, no_size), "a planet size may not be zero"),
             (
                 add(5, twice),
-                "\"habitat\" cannot be written as a planet flag listed once",
+                "\"habitat\" cannot be written as a flag listed once",
             ),
             (add(5, nan), "value is not a finite number"),
             (add(5, model), "\"two words\" cannot be written as a model"),

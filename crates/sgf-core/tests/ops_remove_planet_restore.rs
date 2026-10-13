@@ -21,7 +21,7 @@ fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
     let result = session.apply(delete(703)).expect("delete");
     assert_eq!(
         result.entry.description,
-        "Deleted planet #703, and a dig site"
+        "Deleted planet Spjuuht #703, and a dig site"
     );
     let lost = |text: &str| text.matches("type=\"site_lost_moments\"").count();
     assert_eq!(lost(&text(&session)) + 1, lost(&text(&open_4_5())));
@@ -57,7 +57,7 @@ fn the_descriptions_name_what_goes() {
     let colonised = session.apply(delete(528)).expect("delete");
     assert_eq!(
         colonised.entry.description,
-        "Deleted planet #528 and its moon, with a colony"
+        "Deleted planet Boibos I #528 and its moon, with a colony"
     );
     let text = text(&session);
     for id in [99, 100, 101, 23, 528] {
@@ -173,7 +173,7 @@ fn an_added_body_is_deleted_as_its_removal_takes_it() {
         let result = round_trip_step(&mut session, "delete", delete(ADDED_BODY));
         assert_eq!(
             result.entry.description,
-            format!("Deleted planet #{ADDED_BODY}")
+            format!("Deleted planet Meissa V #{ADDED_BODY}")
         );
         assert_eq!(current(&session), before);
         session.apply(result.inverse).expect("the inverse");
@@ -197,10 +197,15 @@ fn a_planet_whose_class_changed_is_deleted() {
         look: None,
     };
     let cases = [
-        (vec![ocean(585)], 585, " and its moon"),
-        (vec![meissa_v(), ocean(ADDED_BODY)], ADDED_BODY, ""),
+        (vec![ocean(585)], 585, "Xu Nur I", " and its moon"),
+        (
+            vec![meissa_v(), ocean(ADDED_BODY)],
+            ADDED_BODY,
+            "Meissa V",
+            "",
+        ),
     ];
-    for (edits, planet, moons) in cases {
+    for (edits, planet, name, moons) in cases {
         let mut session = open_4_5();
         for op in edits {
             session.apply(op).expect("an edit before the deletion");
@@ -209,7 +214,7 @@ fn a_planet_whose_class_changed_is_deleted() {
         let result = round_trip_step(&mut session, "delete", delete(planet));
         assert_eq!(
             result.entry.description,
-            format!("Deleted planet #{planet}{moons}")
+            format!("Deleted planet {name} #{planet}{moons}")
         );
         assert!(get_planet_page(session.doc(), planet).is_err(), "{planet}");
         session.apply_inverse(result.inverse).expect("the inverse");

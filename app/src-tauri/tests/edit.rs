@@ -251,7 +251,10 @@ fn a_body_moved_onto_another_raises_an_overlap_and_undo_names_the_move() {
     )
     .expect("move 588 onto 587");
     assert!(
-        moved.entry.description.starts_with("Moved planet #588"),
+        moved
+            .entry
+            .description
+            .starts_with("Moved planet Xu Nur III #588"),
         "{}",
         moved.entry.description
     );
@@ -349,6 +352,6 @@ fn a_class_change_takes_its_rules_from_the_install() {
         invoke(&w, "apply_op", json!({ "op": honest })).expect("the install's rules allow it");
     assert_eq!(
         changed.entry.description,
-        "Set the class of planet #585 from pc_barren to pc_ocean"
+        "Set the class of Xu Nur I #585 from pc_barren to pc_ocean"
     );
 }

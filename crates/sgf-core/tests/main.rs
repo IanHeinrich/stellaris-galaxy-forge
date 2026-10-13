@@ -33,6 +33,7 @@ mod index;
 mod issues;
 mod line_endings;
 mod marauders;
+mod op_descriptions;
 mod op_kinds;
 mod ops_add_body;
 mod ops_add_habitat;

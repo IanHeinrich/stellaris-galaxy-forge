@@ -11,7 +11,7 @@ use crate::format::save::write::belts;
 use crate::format::save::write::fleets::{move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::planet_entry::{
-    body_is_star, list_moon, set_flag, set_moon_of, unlist_moon,
+    body_is_star, list_moon, named_planet, named_planet_as, set_flag, set_moon_of, unlist_moon,
 };
 use crate::format::save::write::remove_planet::check_segment_stays;
 use crate::format::save::{planet_entity, planet_system};
@@ -67,10 +67,11 @@ pub(crate) fn plan_move(
     let (from, inverse) = where_it_was(&before, &old);
     let label = label_of(&stored, body);
     let description = format!(
-        "Moved {label} #{body} from {from} to orbit {} at {}°{}",
+        "Moved {} from {from} to orbit {} at {}°{}",
+        named_planet_as(&s.doc, label, body)?,
         number(radius),
         number(normalised(angle)),
-        carrying(&before, body, label),
+        carrying(s, &before, body, label)?,
     );
     let inverse = Op::MoveBody {
         system,
@@ -118,15 +119,16 @@ pub(crate) fn plan_parent(
 
     let kind = kind_of(&stored, body);
     let becomes = match parent {
-        Some(parent) if star => format!("a planet of star #{parent}"),
-        Some(parent) => format!("a moon of planet #{parent}"),
+        Some(parent) if star => format!("a planet of {}", named_planet_as(&s.doc, "star", parent)?),
+        Some(parent) => format!("a moon of {}", named_planet(&s.doc, parent)?),
         None if kind == "moon" => "a planet".to_owned(),
         None => "a planet of the system's centre".to_owned(),
     };
     let label = label_of(&stored, body);
     let description = format!(
-        "Made {label} #{body} {becomes}{}",
-        carrying(&before, body, label)
+        "Made {} {becomes}{}",
+        named_planet_as(&s.doc, label, body)?,
+        carrying(s, &before, body, label)?
     );
     let (_, (radius, angle)) = where_it_was(&before, &old);
     // A moon of a missing planet, or a planet of the star at the centre, gets that body back
@@ -314,23 +316,28 @@ fn where_it_was(bodies: &[Body], body: &Body) -> (String, (f64, f64)) {
     (text, (radius, angle))
 }
 
-/// ", with its moon #586", or for a star ", with #328 and #329", naming every body under
-/// `id` labelled `label`, or nothing when there is none.
-fn carrying(bodies: &[Body], id: u32, label: &str) -> String {
-    let under: Vec<String> = descendants(bodies, id)
-        .into_iter()
-        .map(|m| format!("#{m}"))
-        .collect();
+/// ", with its moon Lachium I a #586", or for a star ", with Lachium I #328 and Lachium II
+/// #329", naming every body under `id` labelled `label` by name and id, or by id alone when
+/// it has no name to show; nothing when there is none.
+fn carrying(s: &Session, bodies: &[Body], id: u32, label: &str) -> Result<String, OpError> {
+    let mut under = Vec::new();
+    for m in descendants(bodies, id) {
+        let (node, src) = planet_entity(&s.doc, m)?;
+        under.push(match read::name(&node, src).shown() {
+            shown if shown.is_empty() => format!("#{m}"),
+            shown => format!("{shown} #{m}"),
+        });
+    }
     let with = match (label, under.len()) {
         ("star", _) => ", with",
         (_, 1) => ", with its moon",
         _ => ", with its moons",
     };
-    match under.as_slice() {
+    Ok(match under.as_slice() {
         [] => String::new(),
         [one] => format!("{with} {one}"),
         [rest @ .., last] => format!("{with} {} and {last}", rest.join(", ")),
-    }
+    })
 }
 
 /// Grow the system's `inner_radius` when something the op puts `reach` from the centre lies

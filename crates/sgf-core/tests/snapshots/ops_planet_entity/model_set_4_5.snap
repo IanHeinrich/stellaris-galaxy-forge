@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Gave planet #585 the model ocean_paradise_planet_01_entity
+Gave Xu Nur I #585 the model ocean_paradise_planet_01_entity
 inverse: SetBodyModel { body: 585, entity: None }
 
 --- gamestate

@@ -266,7 +266,7 @@ fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
 
 /// Where a statement that follows the ones every system opens with goes: after the
 /// `position`, or after the `name` when the file writes that second.
-fn last_of_id_name_position(edit: &Edit) -> Result<usize, OpError> {
+pub(super) fn last_of_id_name_position(edit: &Edit) -> Result<usize, OpError> {
     let position = edit.value(&[keys::POSITION])?.end;
     let name = edit
         .entity()?

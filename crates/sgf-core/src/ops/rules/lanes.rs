@@ -5,9 +5,10 @@
 use std::collections::BTreeSet;
 
 use crate::emit::coord;
-use crate::ops::rules::each_once;
-use crate::ops::{LanePair, OpError, projected_lane};
-use crate::projections::galaxy::{GalaxyGraph, lane_length};
+use crate::ops::rules::{each_once, named, named_all};
+use crate::ops::{LanePair, Op, OpError, Planned, projected_lane};
+use crate::plural;
+use crate::projections::galaxy::{Galaxy, GalaxyGraph, lane_length};
 
 /// Largest `length` an op will write; far beyond any galaxy, and well inside `u32`.
 const MAX_LENGTH: f64 = 1_000_000.0;
@@ -48,6 +49,27 @@ pub(crate) fn check_new_lane(graph: &GalaxyGraph, a: u32, b: u32) -> Result<u32,
         return Err(OpError::LaneExists(a, b));
     }
     Ok(lane_length(sa.position(), sb.position()) as u32)
+}
+
+/// "3 lanes from Ferragon #489 to Kel #2, …": the lanes an op runs from `from` to each of
+/// `to`.
+pub(crate) fn lanes_from(galaxy: &Galaxy, from: u32, to: &[u32]) -> String {
+    format!(
+        "{} from {} to {}",
+        plural(to.len(), "lane"),
+        named(galaxy, from),
+        named_all(galaxy, to)
+    )
+}
+
+/// What `AddLanes` from `from` to `to` says and the `RemoveLanes` that undoes it, whichever
+/// format writes the lanes.
+pub(crate) fn added_lanes(galaxy: &Galaxy, from: u32, to: &[(u32, bool)]) -> Planned {
+    let ids: Vec<u32> = to.iter().map(|&(id, _)| id).collect();
+    Planned {
+        description: format!("Added {}", lanes_from(galaxy, from, &ids)),
+        inverse: Op::RemoveLanes { from, to: ids },
+    }
 }
 
 /// What the graph says about removing `pairs`: each is a lane it lists, and none twice.

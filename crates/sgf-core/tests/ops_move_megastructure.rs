@@ -100,7 +100,7 @@ fn a_ruined_orbital_ring_moves_to_another_planet_with_its_flag() {
     let result = snapshot_step(&mut session, "orbital_ring_ruined", to_body(4, 933));
     assert_eq!(
         result.entry.description,
-        "Moved megastructure #4 (orbital_ring_ruined) in Sargas #38 from planet #936 to planet #933"
+        "Moved megastructure #4 (orbital_ring_ruined) in Sargas #38 from Sargas II #936 to Sargas I #933"
     );
     assert!(
         matches!(result.inverse, Op::RestoreEntities { .. }),

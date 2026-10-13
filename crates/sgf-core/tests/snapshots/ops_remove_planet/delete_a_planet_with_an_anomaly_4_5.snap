@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Deleted planet #1159 and its 2 moons
+Deleted planet Vermilion #1159 and its 2 moons
 details stale: [62]
-inverse: Restored planet #1159 and its 2 moons
+inverse: Restored planet Vermilion #1159 and its 2 moons
 
   System: 62
   Planet: 1159 1160 1161

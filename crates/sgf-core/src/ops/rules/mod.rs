@@ -9,6 +9,7 @@
 pub(crate) mod bodies;
 pub mod fe_zone;
 pub(crate) mod lanes;
+pub(crate) mod modifiers;
 pub(crate) mod nebula;
 pub(crate) mod systems;
 
@@ -139,7 +140,7 @@ pub(crate) fn labelled(key: &str, literal: bool, system: u32) -> String {
 /// ("Lachium I #2447"), or "planet #2447" when no word of it reads as a name. A format key
 /// such as `PLANET_NAME_FORMAT` shows its variables in order.
 pub(crate) fn named_body(name: &NameTemplate, body: u32) -> String {
-    let shown = shown_template(name);
+    let shown = name.shown();
     if shown.is_empty() {
         format!("planet #{body}")
     } else {
@@ -150,28 +151,10 @@ pub(crate) fn named_body(name: &NameTemplate, body: u32) -> String {
 /// [`named_body`] for a body of kind `kind` ("star Alari #0"), or the kind and id alone
 /// ("star #0") when no word of its name reads as a name.
 pub(crate) fn named_as(kind: &str, name: &NameTemplate, body: u32) -> String {
-    match shown_template(name) {
+    match name.shown() {
         shown if shown.is_empty() => format!("{kind} #{body}"),
         shown => format!("{kind} {shown} #{body}"),
     }
-}
-
-/// `name` as [`named_body`] shows it, without the id; empty when nothing reads as a name.
-fn shown_template(name: &NameTemplate) -> String {
-    if name.literal {
-        return name.key.clone();
-    }
-    let own = display_name(&name.key);
-    if !own.is_empty() && !own.split(' ').any(looks_like_key) {
-        return own;
-    }
-    let parts: Vec<String> = name
-        .variables
-        .iter()
-        .map(|variable| shown_template(&variable.value))
-        .filter(|shown| !shown.is_empty())
-        .collect();
-    parts.join(" ")
 }
 
 /// [`named`] for each of `ids`, joined by commas.

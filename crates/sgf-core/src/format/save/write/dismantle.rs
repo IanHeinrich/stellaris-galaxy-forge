@@ -4,7 +4,6 @@
 //! them in.
 
 use crate::cst::Node;
-use crate::emit::coord;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
 use crate::format::save::galaxy::bodies::planet_ids;
@@ -12,6 +11,7 @@ use crate::format::save::write::id_list::{Emptied, unlist};
 use crate::format::save::write::place;
 use crate::format::save::write::restore::{Saved, country_edit, live, tombstoned};
 use crate::format::save::write::timed_modifiers::{ItemEdit, set_items};
+use crate::format::save::write::variables;
 use crate::format::save::{entity, entity_at, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
@@ -19,7 +19,6 @@ use crate::ops::{MegastructureDismantle, OpError, Plan, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
-use crate::span::Span;
 use crate::{and_list, plural, plural_of};
 
 /// Refuse a modifier, deposit type or variable that is not an identifier.
@@ -127,10 +126,10 @@ pub(crate) fn take_back(
 
     if let Some(owner) = owner
         && let Some(country) = live(doc, SavedTable::Country, owner)?
-        && !lowered(&country.node, country.src, dismantle).is_empty()
+        && !variables::dismantled(&country.node, country.src, &dismantle.variables).is_empty()
     {
         let edit = country_edit(plan, doc, saved, owner)?;
-        let changes = lowered(edit.entity()?, &edit.buf, dismantle);
+        let changes = variables::dismantled(edit.entity()?, &edit.buf, &dismantle.variables);
         taken.variables += changes.len();
         for (span, value) in changes {
             edit.replace_span(span, value);
@@ -175,23 +174,4 @@ fn deposits_of(
         }
     }
     Ok(found)
-}
-
-/// Each of the country's `variables` that `dismantle` lowers and that stays at 0 or above,
-/// with its new value.
-fn lowered(country: &Node, src: &[u8], dismantle: &MegastructureDismantle) -> Vec<(Span, String)> {
-    let Some(variables) = country.find(keys::VARIABLES, src) else {
-        return Vec::new();
-    };
-    dismantle
-        .variables
-        .iter()
-        .filter_map(|drop| {
-            let value = variables.find(&drop.variable, src)?;
-            let span = value.scalar_span()?;
-            let held: f64 = value.scalar_str(src)?.parse().ok()?;
-            let left = held - f64::from(drop.by);
-            (left >= 0.0).then(|| (span, coord(left)))
-        })
-        .collect()
 }

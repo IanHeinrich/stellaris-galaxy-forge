@@ -183,7 +183,8 @@ fn a_system_modifier_and_a_held_counter_are_taken_back_exactly() {
     assert_eq!(current(&session), session.doc().original());
 }
 
-/// Planet 2 has `prosp_uni_mod` already, and Xu Nur's star 584 stands in another system.
+/// Planet 2 has `prosp_uni_mod` already, Xu Nur's star 584 stands in another system, and a
+/// modifier on one host is listed once.
 #[test]
 fn a_construction_the_add_cannot_write_is_refused() {
     let built = |construction: MegastructureConstruction| {
@@ -216,6 +217,8 @@ fn a_construction_the_add_cannot_write_is_refused() {
             ..on("dyson_swarm_3", 0)
         },
     );
+    let mut twice = modifiers(ModifierHost::System, "shroud_seal_modifier", Some(30));
+    twice.modifiers.push(twice.modifiers[0].clone());
     let mut session = open_4_5();
     assert_refusals(
         &mut session,
@@ -234,7 +237,7 @@ fn a_construction_the_add_cannot_write_is_refused() {
                     "shroud_seal_modifier",
                     Some(0),
                 )),
-                "a orbital_arc_furnace_4 cannot be added there: modifier shroud_seal_modifier would last 0 days",
+                "a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever",
             ),
             (
                 built(modifiers(
@@ -247,6 +250,10 @@ fn a_construction_the_add_cannot_write_is_refused() {
             (
                 unowned,
                 "a dyson_swarm_3 cannot be added there: variable dyson_swarm_counter needs an owner to count it",
+            ),
+            (
+                built(twice),
+                "\"shroud_seal_modifier\" cannot be written as a modifier listed once",
             ),
         ],
     );

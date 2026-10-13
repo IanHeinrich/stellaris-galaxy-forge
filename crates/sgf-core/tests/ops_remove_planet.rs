@@ -391,7 +391,7 @@ fn the_last_colonies_of_a_system_take_its_list() {
     let result = session.apply(delete(449)).expect("delete");
     assert_eq!(
         result.entry.description,
-        "Deleted planet #449 and its moon, with 2 colonies"
+        "Deleted planet The Core #449 and its moon, with 2 colonies"
     );
     let system = entity_text(&session, EntityKind::System, 409);
     assert!(!system.contains("colonies="), "{system}");

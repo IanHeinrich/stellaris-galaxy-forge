@@ -97,7 +97,7 @@ fn a_planet_moved_along_its_ring_takes_its_moon_with_it() {
     );
     assert_eq!(
         result.entry.description,
-        "Moved planet #585 from orbit 65.02 at 28.2° to orbit 65.02 at 100°, with its moon #586"
+        "Moved planet Xu Nur I #585 from orbit 65.02 at 28.2° to orbit 65.02 at 100°, with its moon Xu Nur I a #586"
     );
     let Op::MoveBody {
         system: 1,
@@ -128,8 +128,8 @@ fn a_planet_moved_past_the_inner_radius_grows_it() {
     );
     assert_eq!(
         result.entry.description,
-        "Moved planet #585 from orbit 65.02 at 28.2° to orbit 180 at 40°, with its moon #586; \
-         set the inner radius of Xu Nur #1 from 186.71 to 225"
+        "Moved planet Xu Nur I #585 from orbit 65.02 at 28.2° to orbit 180 at 40°, with its \
+         moon Xu Nur I a #586; set the inner radius of Xu Nur #1 from 186.71 to 225"
     );
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);

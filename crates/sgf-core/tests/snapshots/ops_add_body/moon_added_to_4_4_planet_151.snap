@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added moon #8404 of planet #151 in system #8 (pc_barren, size 7) at orbit 30 at 10°
+Added moon VI d #8404 of VI #151 in system #8 (pc_barren, size 7) at orbit 30 at 10°
 inverse: RemoveBody { body: 8404 }
 
 --- gamestate

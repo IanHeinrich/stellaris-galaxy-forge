@@ -512,11 +512,11 @@ fn what_a_segments_modifiers_refuse() {
         [
             (
                 with(&[Some(0)]),
-                "a ring world cannot be added there: modifier giga_titanic_housing would last 0 days",
+                "a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever",
             ),
             (
                 with(&[Some(u32::MAX)]),
-                "a ring world cannot be added there: modifier giga_titanic_housing would last 4294967295 days",
+                "a modifier cannot last 0 days, or longer than a save can hold: -1 keeps it for ever",
             ),
             (
                 with(&[None, Some(360)]),

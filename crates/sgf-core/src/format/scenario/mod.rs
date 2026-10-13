@@ -86,21 +86,7 @@ fn seat_odds() -> u32 {
     SEAT_INITIALIZERS.iter().map(|(_, odds)| odds).sum()
 }
 
-/// SplitMix64's increment.
-pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
-
-/// SplitMix64's mix.
-pub(crate) fn mix(z: u64) -> u64 {
-    let z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    let z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
-}
-
-/// A number in `[0, 1)` from `seed` and `system`, by SplitMix64's mix.
-pub(crate) fn unit(seed: u64, system: u32) -> f64 {
-    let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
-    (z >> 11) as f64 / (1u64 << 53) as f64
-}
+pub(crate) use crate::rng::{GOLDEN, mix, unit};
 
 /// The statements of a system's `effect` block that make the game treat it as an empire's
 /// home, written whole by the plain profile on a seat it gives one of

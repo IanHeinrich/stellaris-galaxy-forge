@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Took the ring off planet #589
+Took the ring off Xu Nur IV #589
 inverse: SetBodyRing { body: 589, ring: true }
 
 --- gamestate

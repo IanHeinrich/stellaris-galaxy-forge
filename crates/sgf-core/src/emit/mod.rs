@@ -24,6 +24,10 @@ pub fn coord(v: f64) -> String {
     if s == "-0" { "0" } else { s }.to_owned()
 }
 
+/// The date a save holds for one that never came: a body never bombarded, a row not being
+/// dismantled.
+pub(crate) const NULL_DATE: &str = "\"0.01.01\"";
+
 /// `text` between quotes, as the game writes a name or a key; nothing is escaped.
 pub fn quoted(text: &str) -> String {
     format!("\"{text}\"")
