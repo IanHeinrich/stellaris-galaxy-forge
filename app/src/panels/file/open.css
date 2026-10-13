@@ -368,7 +368,7 @@
 }
 
 .od-badge.differs {
-  background: rgba(255, 140, 102, 0.15);
+  background: rgba(var(--warn-rgb), 0.15);
   color: var(--warn);
 }
 
@@ -381,7 +381,7 @@
   margin: 10px 0 0;
   padding: 6px 8px;
   border-radius: 4px;
-  background: rgba(255, 140, 102, 0.1);
+  background: rgba(var(--warn-rgb), 0.1);
   color: var(--warn);
 }
 
@@ -499,9 +499,9 @@ button.open-primary:hover:not([aria-disabled="true"]) {
 
 .error-box {
   padding: 8px 10px;
-  border: 1px solid rgba(255, 140, 102, 0.4);
+  border: 1px solid rgba(var(--warn-rgb), 0.4);
   border-radius: 4px;
-  background: rgba(255, 140, 102, 0.1);
+  background: rgba(var(--warn-rgb), 0.1);
   color: var(--warn);
   white-space: pre-wrap;
 }

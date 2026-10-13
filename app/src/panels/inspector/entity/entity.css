@@ -187,13 +187,13 @@
 
 .pl-dep .l2 {
   margin-top: 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-soft);
 }
 
 .pl-dep .l3 {
   margin-top: 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
 }
 
@@ -385,7 +385,7 @@
 .dp-added {
   margin: 0 0 4px;
   font-size: var(--text-hint);
-  color: var(--ok, var(--accent));
+  color: var(--ins-ok);
 }
 
 .dp > .dp-list {
@@ -397,7 +397,7 @@
 
 .dp-group {
   padding: 6px 2px 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--fg-muted);
@@ -560,7 +560,7 @@
   align-items: center;
   gap: 6px;
   margin: 8px 0 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
 }
 
@@ -602,14 +602,14 @@
 .pl-mod .l2 {
   display: block;
   margin-top: 1px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-soft);
 }
 
 .pl-anomaly-desc {
   display: block;
   margin-top: 3px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   line-height: 1.4;
   color: var(--fg-muted);
   white-space: normal;
@@ -618,7 +618,7 @@
 .pl-mod .l3 {
   display: block;
   margin-top: 3px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   line-height: 1.35;
   color: var(--fg-muted);
   white-space: pre-line;
@@ -632,7 +632,7 @@
 .pl-dep .mono,
 .pl-mod .mono {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 
@@ -759,7 +759,7 @@
   min-width: 2px;
   overflow: hidden;
   border-radius: 2px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   font-weight: 600;
   line-height: 14px;
   text-align: center;

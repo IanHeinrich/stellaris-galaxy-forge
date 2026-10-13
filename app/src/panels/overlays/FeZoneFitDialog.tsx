@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { Dialog } from "../Dialog";
+import "../file/open.css";
 import "./overlays.css";
 
 /**

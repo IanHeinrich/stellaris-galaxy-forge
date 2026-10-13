@@ -56,6 +56,7 @@ import {
 } from "./MegastructureBrowser";
 import { PlanetChangePicks } from "./PlanetChangePicks";
 import { RingWorldPicks } from "./RingWorldPicks";
+import "../file/open.css";
 import "./overlays.css";
 
 const NO_KEYS: readonly string[] = [];

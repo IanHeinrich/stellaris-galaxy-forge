@@ -44,7 +44,7 @@
 }
 
 .icon-picker-caret {
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--fg-soft);
 }
 
@@ -109,7 +109,7 @@
 
 .icon-picker-group {
   padding: 6px 6px 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--fg-muted);
@@ -181,7 +181,7 @@
 
 .edit-field-icon {
   flex: none;
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--accent);
 }
 
@@ -274,7 +274,7 @@
 
 .edit-block-title {
   margin-bottom: 4px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-muted);
@@ -345,21 +345,21 @@
   align-items: center;
   gap: 6px;
   margin-top: 12px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
 }
 
 .edit-key-sample {
   min-height: 16px;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   padding: 1px 6px;
   border-radius: 3px;
   color: var(--fg);
@@ -665,7 +665,7 @@ button.link.help-link {
   overflow-x: auto;
   color: var(--script-text);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-small);
   line-height: 1.5;
   text-transform: none;
   white-space: pre;
