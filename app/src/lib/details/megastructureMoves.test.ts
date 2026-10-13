@@ -44,7 +44,7 @@ describe("how a megastructure moves", () => {
       floats: true,
     });
     const onStar = megastructureSummary({ kind: "dyson_sphere_5", planet: 1 });
-    expect(megastructureMove(onStar, sphere, { star: true, hidden: false })).toEqual({
+    expect(megastructureMove(onStar, sphere, { star: true })).toEqual({
       place: "body",
       on: 1,
       starOnly: true,
@@ -53,18 +53,20 @@ describe("how a megastructure moves", () => {
     });
   });
 
-  it("keeps a planet-only type off stars, but not a furnace, which hides its planet", () => {
+  it("keeps a planet-only type off stars, but not the finished Arc Furnace", () => {
     const tied = megastructureSummary({ kind: "think_tank_3", planet: 5 });
     const planetOnly = megastructureTypeView("think_tank_3", { planet_only: true });
     expect(megastructureMove(tied, planetOnly)).toMatchObject({ planetOnly: true });
     const furnaceRow = { ...tied, kind: "orbital_arc_furnace_4" };
     const furnace = megastructureTypeView("orbital_arc_furnace_4", {
       planet_only: true,
-      hides_planet_as_furnace: true,
+      may_stand_on_star: true,
     });
     expect(megastructureMove(furnaceRow, furnace)).toMatchObject({ planetOnly: false });
-    const hiding = { star: false, hidden: true };
-    expect(megastructureMove(tied, planetOnly, hiding)).toMatchObject({ planetOnly: false });
+    const stage = megastructureTypeView("orbital_arc_furnace_1", { planet_only: true });
+    expect(megastructureMove({ ...tied, kind: stage.key }, stage)).toMatchObject({
+      planetOnly: true,
+    });
     expect(megastructureMove(tied, undefined)).toMatchObject({ planetOnly: false, floats: false });
   });
 
@@ -74,14 +76,14 @@ describe("how a megastructure moves", () => {
     const ring = megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true });
     expect(megastructureMove({ ...tied, kind: ring.key }, ring)).toMatchObject({ floats: false });
     const onStar = megastructureSummary({ kind: "dyson_sphere_5", planet: 1 });
-    expect(megastructureMove(onStar, sphere, { star: true, hidden: false })).toMatchObject({
+    expect(megastructureMove(onStar, sphere, { star: true })).toMatchObject({
       floats: false,
     });
     const centre = megastructureTypeView("strategic_coordination_center_ruined", {
       entity_offset: [0, -20],
     });
     const beside = megastructureSummary({ kind: centre.key, planet: 1 });
-    expect(megastructureMove(beside, centre, { star: true, hidden: false })).toMatchObject({
+    expect(megastructureMove(beside, centre, { star: true })).toMatchObject({
       floats: true,
     });
   });

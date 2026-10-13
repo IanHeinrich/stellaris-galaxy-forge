@@ -189,11 +189,11 @@ Either kind moves to another planet, moon or star of the same system
 when you drop it on one. While you drag, the bodies it can move to are
 ringed.
 
-An Arc Furnace hides its new planet, and its old planet shows again. On
-a star it hides nothing: the star looks as before, with the furnace
-round it. The
-modifiers and deposits its construction added stay where they are, so an
-Arc Furnace's mining bonus stays on the planets of its system.
+An Arc Furnace hides its new planet, and its old planet shows again.
+A finished Arc Furnace can also go on a star, which it hides nothing of:
+the star looks as before, with the furnace round it. The modifiers and
+deposits its construction added stay where they are, so an Arc
+Furnace's mining bonus stays on the planets of its system.
 
 While you drag, a body that can't take the megastructure is ringed in
 red when the pointer is over it, and the status bar says why:
@@ -203,7 +203,8 @@ red when the pointer is over it, and the status bar says why:
   Sphere, and the body is a planet or a moon. In a system with one star,
   such a megastructure has nowhere to go.
 - The game never builds the megastructure on a star, as with a Science
-  Nexus, and the body is a star. An Arc Furnace can go on a star.
+  Nexus, and the body is a star. Only a finished Arc Furnace can go on
+  a star, not its earlier stages or its ruin.
 
 Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to move it back.
 

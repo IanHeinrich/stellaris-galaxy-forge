@@ -18,8 +18,8 @@ export type MegastructureMove =
   | { readonly place: "free" }
   /**
    * Dragged onto another body of the system: only a star for `starOnly`, a type built only
-   * around a star; never a star for `planetOnly`, a type the game never builds on one, unless
-   * it hides its planet as the Arc Furnace does, which the editor leaves off a star.
+   * around a star; never a star for `planetOnly`, a type the game never builds on one. The
+   * finished Arc Furnace is not `planetOnly`: it may stand on a star, which keeps its look.
    */
   | {
       readonly place: "body";
@@ -56,8 +56,6 @@ export const MEGASTRUCTURE_REFUSALS = {
 /** What a row's move reads of the body it is tied to. */
 export interface HomeBody {
   readonly star: boolean;
-  /** It is drawn as an Arc Furnace's hidden model, which marks the row as a furnace. */
-  readonly hidden: boolean;
 }
 
 /**
@@ -71,14 +69,11 @@ export function floatsFree(type: MegastructureView | undefined, onStar: boolean)
   return !(onStar && dx === 0 && dy === 0);
 }
 
-/**
- * How row `row` of `type` moves. A row on a body drawn as the furnace's hidden model goes onto a
- * star whatever the game data says.
- */
+/** How row `row` of `type` moves. */
 export function megastructureMove(
   row: MegastructureSummary,
   type: MegastructureView | undefined,
-  home: HomeBody = { star: false, hidden: false },
+  home: HomeBody = { star: false },
 ): MegastructureMove {
   const known = type === undefined ? undefined : new Map([[row.kind, type]]);
   if (isRingRow(row.kind, known)) return fixed("ringWorld");
@@ -92,7 +87,7 @@ export function megastructureMove(
   if (row.made_body === true) return fixed("made");
   if (row.planet !== null) {
     const starOnly = placement?.place === "body" && placement.star_only;
-    const planetOnly = type?.planet_only === true && !type.hides_planet_as_furnace && !home.hidden;
+    const planetOnly = type?.planet_only === true && !type.may_stand_on_star;
     const floats = floatsFree(type, home.star);
     return { place: "body", on: row.planet, starOnly, planetOnly, floats };
   }

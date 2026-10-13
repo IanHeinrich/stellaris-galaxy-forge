@@ -205,10 +205,22 @@ fn to_body(
         .filter(|(flag, _)| !target_flags.iter().any(|(held, _)| held == flag))
         .collect();
     let stored = frame(s, system)?;
+    let onto_star = body_is_star(s, &stored, body)?;
+    let hidden = read::scalar(&old, keys::ENTITY_NAME, old_src) == Some(FURNACE_ENTITY);
+    let flagged = read::has_flag(&old, old_src, FURNACE_FLAG);
+    if hidden && !flagged && onto_star {
+        return Err(refused(
+            id,
+            format!(
+                "it hides {} without the Arc Furnace's flag, and only an Arc Furnace goes on a star such as {}",
+                named_entity(&old, old_src, from),
+                named_entity(&target, src, body)
+            ),
+        ));
+    }
     // A furnace on a star leaves the star's model as it is, so only its flag marks it there.
-    let furnace = read::scalar(&old, keys::ENTITY_NAME, old_src) == Some(FURNACE_ENTITY)
-        || (read::has_flag(&old, old_src, FURNACE_FLAG) && body_is_star(s, &stored, from)?);
-    let hides = furnace && !body_is_star(s, &stored, body)?;
+    let furnace = hidden || (flagged && body_is_star(s, &stored, from)?);
+    let hides = furnace && !onto_star;
 
     let edit = plan.edit_record(doc, tied.anchor)?;
     edit.set_scalar(&[keys::PLANET], body.to_string())?;

@@ -974,12 +974,14 @@ pub enum Op {
     /// `entity_name="invisible_turret_entity"`. The new body gets the key, in place of one
     /// naming a row the table no longer holds, each of those flags with its date unless it has
     /// that flag already, and an Arc Furnace's model in place of any of its own, unless the
-    /// new body is a star, which keeps its model. A furnace on a star is known by its
-    /// `has_arc_furnace` flag there. Which types the game draws on their body whatever their
-    /// point is the caller's to know. A row with no system, a ring world's row, a bypass other
-    /// than a gateway, a relay or an L-Gate, a row at a point sent to a body or a row on a body
-    /// sent to a free point, a row on the body it made, which has the planet flag
-    /// `megastructure`, a body outside the system, a body another row names, a point that is not
+    /// new body is a star, which keeps its model. An Arc Furnace is a row whose planet has that
+    /// model and the flag `has_arc_furnace`, or on a star the flag alone. Which types the game
+    /// draws on their body whatever their point is, and which stage of a furnace may stand on
+    /// a star, are the caller's to know. A row with no system, a ring world's row, a bypass
+    /// other than a gateway, a relay or an L-Gate, a row at a point sent to a body or a row on a
+    /// body sent to a free point, a row on the body it made, which has the planet flag
+    /// `megastructure`, a row whose planet has the furnace's model without its flag sent to a
+    /// star, a body outside the system, a body another row names, a point that is not
     /// finite and the place it stands at already are refused. The inverse is the
     /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
     /// documents only.

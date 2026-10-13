@@ -515,6 +515,35 @@ fn an_arc_furnace_moves_onto_a_star_and_back_to_a_planet() {
     assert!(!star.contains("has_arc_furnace"), "{star}");
 }
 
+/// Planet 517 hidden under the furnace's model without the furnace's flag, as Giga's
+/// Macroengineering Test Site leaves its planet: the row is no Arc Furnace and stays off the
+/// star, and still takes the model to another planet.
+#[test]
+fn a_hidden_planet_without_the_furnace_flag_keeps_its_row_off_a_star() {
+    let unflagged = |text: &mut String| {
+        *text = text.replacen(
+            "				has_arc_furnace=62808000
+",
+            "",
+            1,
+        );
+    };
+    assert_refusals(
+        &mut furnace(unflagged),
+        [(
+            to_body(16, 511),
+            "megastructure 16 cannot be moved: it hides Vinh III #517 without the Arc Furnace's flag, and only an Arc Furnace goes on a star such as Vinh #511",
+        )],
+    );
+    let mut session = furnace(unflagged);
+    session.apply(to_body(16, 516)).expect("on to planet 516");
+    let planet = entity_text(&session, EntityKind::Planet, 516);
+    assert!(
+        planet.contains("entity_name=\"invisible_turret_entity\""),
+        "{planet}"
+    );
+}
+
 #[test]
 fn a_structure_on_the_body_it_made_is_refused() {
     let mut session = open_4_5_edited(|text| {

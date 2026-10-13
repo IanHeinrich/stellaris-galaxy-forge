@@ -74,10 +74,11 @@ pub struct MegastructureDef {
     /// Building this stage, or a stage it is built over, sets the planet flag
     /// `has_megastructure` on its body.
     pub sets_has_megastructure: bool,
-    /// Building this stage, or a stage it is built over, hides the planet it stands at as an
-    /// Arc Furnace does, under the model [`FURNACE_ENTITY`] with the flag [`FURNACE_FLAG`]:
-    /// a row of it may stand on a star, which keeps its own model.
-    pub hides_planet_as_furnace: bool,
+    /// A row of it may be moved onto a star, which keeps its own model: it is the finished
+    /// stage of its chain, which nothing is built over, and building it or a stage it is built
+    /// over hid its planet as an Arc Furnace does, under the model [`FURNACE_ENTITY`] with the
+    /// flag [`FURNACE_FLAG`]. On the base game, the finished Arc Furnace.
+    pub may_stand_on_star: bool,
     /// `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
     pub planet_possible_star: bool,
     /// The first stage of its build chain, or of its working type's for a variant, asks for a
@@ -153,7 +154,7 @@ impl MegastructureDef {
             spawns_starbase: read.spawns_starbase,
             activates_gateway: read.activates_gateway,
             sets_has_megastructure: resolved.sets_has_megastructure,
-            hides_planet_as_furnace: resolved.hides_planet_as_furnace,
+            may_stand_on_star: resolved.may_stand_on_star,
             planet_possible_star: read.planet_possible_star,
             planet_only: resolved.planet_only,
             script_only: read.script_only,

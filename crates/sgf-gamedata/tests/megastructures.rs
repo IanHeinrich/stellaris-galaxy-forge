@@ -345,83 +345,114 @@ fn the_installs_planet_types_are_kept_off_stars() {
     }
 }
 
-/// A type hides its planet as an Arc Furnace does when its build gives the planet the
-/// furnace's model and flag, at every stage built over it too. The model alone, as Giga's
-/// Macroengineering Test Site gives it, and any other model hide nothing.
+/// A row may stand on a star when it is the finished stage of its chain and its build, or a
+/// stage it is built over, hid its planet with the Arc Furnace's model and flag: the finished
+/// furnace, and a restoration that sets both. An earlier stage, a ruin, the model alone, as
+/// Giga's Macroengineering Test Site gives it, and any other model do not count.
 #[test]
-fn a_type_hides_its_planet_by_the_furnaces_model_and_flag() {
-    let (_dir, gd) = common::hand_written(&[(
-        "common/megastructures/fx.txt",
-        "fx_furnace_1 = {
-	on_build_complete = {
+fn a_finished_furnace_may_stand_on_a_star() {
+    let hide = "on_build_complete = {
 		fromfrom.planet = {
 			set_planet_flag = has_arc_furnace
 			set_planet_entity = { entity = invisible_turret_entity }
 		}
-	}
-}
-fx_furnace_2 = {
-	upgrade_from = { fx_furnace_1 }
-}
-fx_test_site = {
-	on_build_complete = {
-		fromfrom.planet = { set_planet_entity = { entity = invisible_turret_entity } }
-	}
-}
-fx_shredder = {
-	on_build_complete = {
-		fromfrom.planet = {
+	}";
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/fx.txt",
+        &format!(
+            "fx_furnace_1 = {{
+	{hide}
+}}
+fx_furnace_2 = {{
+	upgrade_from = {{ fx_furnace_1 }}
+}}
+fx_furnace_3 = {{
+	upgrade_from = {{ fx_furnace_2 }}
+}}
+fx_furnace_destroyed = {{
+}}
+fx_furnace_restored = {{
+	upgrade_from = {{ fx_furnace_destroyed }}
+	{hide}
+}}
+fx_test_site = {{
+	on_build_complete = {{
+		fromfrom.planet = {{ set_planet_entity = {{ entity = invisible_turret_entity }} }}
+	}}
+}}
+fx_shredder = {{
+	on_build_complete = {{
+		fromfrom.planet = {{
 			set_planet_flag = has_arc_furnace
-			set_planet_entity = { entity = fx_shredded_planet_entity }
-		}
-	}
-}
-",
+			set_planet_entity = {{ entity = fx_shredded_planet_entity }}
+		}}
+	}}
+}}
+"
+        ),
     )]);
-    let hides = |key: &str| {
-        gd.megastructures
-            .get(key)
-            .expect(key)
-            .hides_planet_as_furnace
-    };
-    assert!(hides("fx_furnace_1") && hides("fx_furnace_2"));
-    assert!(!hides("fx_test_site") && !hides("fx_shredder"));
+    let may = |key: &str| gd.megastructures.get(key).expect(key).may_stand_on_star;
+    assert!(may("fx_furnace_3") && may("fx_furnace_restored"));
+    for key in [
+        "fx_furnace_1",
+        "fx_furnace_2",
+        "fx_furnace_destroyed",
+        "fx_test_site",
+        "fx_shredder",
+    ] {
+        assert!(!may(key), "{key}");
+    }
 }
 
-/// The Arc Furnace hides its planet at every stage; the other types kept off stars do not.
+/// The install's finished Arc Furnace may stand on a star. Its earlier stages, its ruin, the
+/// restored furnace, whose build gives its planet the model but not the flag, and the other
+/// types kept off stars may not.
 #[test]
-fn the_installs_arc_furnace_hides_its_planet() {
+fn the_installs_finished_arc_furnace_may_stand_on_a_star() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let hides = |key: &str| {
+    let may = |key: &str| {
         gd.megastructures
             .get(key)
             .unwrap_or_else(|| panic!("{key}"))
-            .hides_planet_as_furnace
+            .may_stand_on_star
     };
-    for key in ["orbital_arc_furnace_1", "orbital_arc_furnace_4"] {
-        assert!(hides(key), "{key}");
-    }
+    assert!(may("orbital_arc_furnace_4"));
     for key in [
+        "orbital_arc_furnace_1",
+        "orbital_arc_furnace_2",
+        "orbital_arc_furnace_3",
+        "orbital_arc_furnace_destroyed",
+        "orbital_arc_furnace_restored",
         "think_tank_3",
         "strategic_coordination_center_3",
         "spy_orb_4",
         "dyson_sphere_5",
     ] {
-        assert!(!hides(key), "{key}");
+        assert!(!may(key), "{key}");
     }
 }
 
-/// Gigastructural Engineering's types that give their planet a model of their own, or the
-/// furnace's model without its flag, hide nothing as a furnace does, so they stay off stars. Runs with `SGF_PLAYSET=1` when the enabled mods include
-/// Giga.
+/// With Gigastructural Engineering only its finished Arc Furnace may stand on a star: its types that give their planet a model of their own, or the furnace's model without
+/// its flag, may not. Runs with `SGF_PLAYSET=1` when the enabled mods include Giga.
 #[test]
-fn gigas_planet_models_hide_nothing() {
+fn with_giga_only_the_finished_furnace_may_stand_on_a_star() {
     let Some(gd) = common::giga() else {
         return;
     };
+    let may = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .may_stand_on_star
+    };
+    assert!(may("orbital_arc_furnace_4"));
     for key in [
+        "orbital_arc_furnace_1",
+        "orbital_arc_furnace_3",
+        "orbital_arc_furnace_destroyed",
+        "orbital_arc_furnace_restored",
         "atmosphere_shredder_0",
         "atmosphere_shredder_1",
         "macro_test_site_0",
@@ -429,18 +460,8 @@ fn gigas_planet_models_hide_nothing() {
         "lunar_disco_ball_2",
         "orbital_artificial_eco_3",
     ] {
-        let def = gd
-            .megastructures
-            .get(key)
-            .unwrap_or_else(|| panic!("{key}"));
-        assert!(!def.hides_planet_as_furnace, "{key}");
+        assert!(!may(key), "{key}");
     }
-    assert!(
-        gd.megastructures
-            .get("orbital_arc_furnace_4")
-            .expect("the furnace")
-            .hides_planet_as_furnace
-    );
 }
 
 #[test]

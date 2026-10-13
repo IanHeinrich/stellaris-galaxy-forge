@@ -128,7 +128,7 @@ describe("a megastructure dragged in the system scene", () => {
     megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true }),
     megastructureTypeView("orbital_arc_furnace_4", {
       planet_only: true,
-      hides_planet_as_furnace: true,
+      may_stand_on_star: true,
     }),
     megastructureTypeView("atmosphere_shredder_0", { planet_only: true }),
   ];
