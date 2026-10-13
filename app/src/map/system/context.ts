@@ -38,7 +38,7 @@ import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
 import { drawnStarClass } from "../../lib/visual/starGlyphs";
 import type { EntityRef } from "../../store/inspectorStore";
-import type { DragMarks, HandleRef } from "./bodyDrag";
+import type { DragMarks, HandleRef } from "./drag";
 import { bodyLook, type BodyLook } from "./look";
 import { NO_SOURCES, type SystemSources } from "./sources";
 import { sceneStructures, STRUCTURE_KEYS, type SceneStructure } from "./structures";

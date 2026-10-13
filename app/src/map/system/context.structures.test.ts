@@ -218,6 +218,18 @@ describe("where a save's megastructure or starbase is drawn", () => {
     expect([mars.x, mars.y]).not.toEqual([0, 130]);
   });
 
+  it("keeps what a structure draws and its plate shows as the same objects while a drag moves it", () => {
+    const nexus = megastructureSummary({ id: 7, kind: NEXUS.key, planet: EARTH.id, at: [40, 40] });
+    const port = starbaseSummary({ id: 3, planet: EARTH.id });
+    const base = structuredSave([nexus], [port]);
+    const moved = movedTo(base, EARTH.id);
+    const [mega, station] = base.structures;
+    expect(moved.structures[0].x).not.toBe(mega.x);
+    expect(moved.structures[0].plate).toBe(mega.plate);
+    expect(moved.structures[1].art).toBe(station.art);
+    expect(moved.structures[1].plate).toBe(station.plate);
+  });
+
   it("draws a free row at its own point plus its type's offset, and a row whose body is missing the same way", () => {
     const relay = megastructureSummary({ id: 1, kind: RELAY.key, at: [-168, 0] });
     const art = megastructureSummary({ id: 3, kind: ART.key, at: [60, 60] });

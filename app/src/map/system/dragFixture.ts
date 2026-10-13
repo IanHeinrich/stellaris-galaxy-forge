@@ -4,7 +4,7 @@ import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import type { Pt } from "../../lib/geometry/pt";
 import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { sceneAt as at, sceneRecorder as recorder } from "../../test/mapIntent";
-import type { DragStep } from "./bodyDrag";
+import type { DragStep } from "./drag";
 import { systemContext, type SystemContext } from "./context";
 import { over } from "./fixture";
 import { NO_SOURCES } from "./sources";

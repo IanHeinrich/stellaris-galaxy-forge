@@ -6,8 +6,9 @@ import { megastructureEntry, starbaseEntry, type Entry } from "../../store/inspe
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";
-import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
+import { BodyDrag } from "./bodyDrag";
 import type { SystemContext } from "./context";
+import type { Drag, DragPointer, DragStep } from "./drag";
 import type { StructureKind } from "./structures";
 import { HandleDrag, MegastructureDrag, WormholeDrag } from "./drags";
 import type { SceneTarget } from "./picking";

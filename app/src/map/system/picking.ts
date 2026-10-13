@@ -2,7 +2,7 @@ import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import type { Pt } from "../../lib/geometry/pt";
 import type { Camera } from "../Camera";
 import { PICK_RADIUS_PX } from "../picking/zones";
-import { sameHandle, type HandleRef } from "./bodyDrag";
+import { sameHandle, type HandleRef } from "./drag";
 import type { Exit, SceneBody, SceneHandle, SceneWormhole, SystemContext } from "./context";
 import type { SceneStructure, StructureKind } from "./structures";
 import { drawnDisc, drawnWormhole, exitCentre, landedModel } from "./geometry";

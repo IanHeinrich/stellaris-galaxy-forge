@@ -167,13 +167,13 @@ export function onBodyModels(
 export function drawnDisc(
   disc: number,
   scale: number,
-  look?: Pick<BodyLook, "flat"> & Partial<Pick<BodyLook, "model">>,
+  look: Pick<BodyLook, "flat" | "model">,
 ): number {
   const floor = (BODY_FLOOR_PX * markerScale(scale)) / scale;
-  const model = look?.model ? modelRadius(look.model) : null;
+  const model = look.model ? modelRadius(look.model) : null;
   if (model !== null) return Math.max(model, floor);
   const r = Math.max(disc, floor);
-  return look?.flat ? Math.min(r, FLAT_BODY_MAX_PX / 2 / scale) : r;
+  return look.flat ? Math.min(r, FLAT_BODY_MAX_PX / 2 / scale) : r;
 }
 
 /** The look of a body drawn as a bare disc, with no model and no flat art: a rolled planet's. */

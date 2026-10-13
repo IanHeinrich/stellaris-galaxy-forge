@@ -23,7 +23,7 @@ import { getTexture, requestTextures } from "../../../lib/visual/textures";
 import { planetClassView, saveBody } from "../../../test/builders";
 import { textureFetch } from "../../../test/textures";
 import { until } from "../../../test/wait";
-import { drawnDisc, landedModel, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
+import { DISC_ONLY, drawnDisc, landedModel, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
 import { classedContext, decodeByKey, resetTextures } from "./bodiesFixture";
 import { RadiiLayer } from "./RadiiLayer";
 
@@ -125,7 +125,7 @@ describe("the system scene's radius labels", () => {
     const { ctx, cam, box } = labelOn([SUN, EARTH, blocker]);
     if (!box) throw new Error("the label is left out");
     const disc = ctx.layout.bodies.find((b) => b.id === blocker.id)?.disc ?? 0;
-    const r = drawnDisc(disc, cam.scale) * cam.scale;
+    const r = drawnDisc(disc, cam.scale, DISC_ONLY) * cam.scale;
     const at = cam.worldToScreen(spot.x, spot.y);
     const nearest = {
       x: Math.max(box.x, Math.min(at.x, box.x + box.w)),

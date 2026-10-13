@@ -15,7 +15,7 @@ import {
 } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { Camera } from "../Camera";
-import type { HandleRef } from "./bodyDrag";
+import type { HandleRef } from "./drag";
 import { systemContext, type SystemContext } from "./context";
 import type { SystemLayer } from "./layers/SystemLayer";
 import type { SceneTarget } from "./picking";

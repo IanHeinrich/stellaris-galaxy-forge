@@ -1,7 +1,7 @@
 import { Container, Graphics } from "pixi.js";
 import { HANDLE_COLOR } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
-import { sameHandle, type HandleRef } from "../bodyDrag";
+import { sameHandle, type HandleRef } from "../drag";
 import { EMPTY_SYSTEM_CONTEXT, type SceneHandle, type SystemContext } from "../context";
 import type { SystemLayer } from "./SystemLayer";
 

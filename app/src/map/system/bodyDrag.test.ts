@@ -25,7 +25,7 @@ import {
   without,
 } from "./dragFixture";
 import { over } from "./fixture";
-import { drawnDisc } from "./geometry";
+import { DISC_ONLY, drawnDisc } from "./geometry";
 import { NO_SOURCES } from "./sources";
 import { SystemGestureModel } from "./SystemGestureModel";
 
@@ -188,7 +188,7 @@ describe("a body dragged in the system scene", () => {
     const { model, intent } = start();
     grab(model, intent, LONE, around(120));
     const planet = intent.frame().layout.bodies.find((b) => b.id === PLANET)!;
-    const reach = Math.max(18, drawnDisc(planet.disc, 1) + 10, 25 + 8);
+    const reach = Math.max(18, drawnDisc(planet.disc, 1, DISC_ONLY) + 10, 25 + 8);
     const away = (px: number) => polar(planet.x, planet.y, px, 300);
     model.handle(on("move", away(reach + 0.5)), intent);
     expect(lastStep(intent)?.marks.host).toBeNull();

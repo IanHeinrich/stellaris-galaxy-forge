@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../../api/ipc");
 vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
+import type { PreparePreview } from "../../generated/PreparePreview";
+import type { PreparedMap } from "../../generated/PreparedMap";
 import { byId, countryNode, gameDataSummary, placedNode, systemDetails } from "../../test/builders";
 import { systemRoll } from "../../test/rolls";
 import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
@@ -13,6 +15,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { usePrepareStore } from "../../store/prepareStore";
 import { useSceneStore } from "../../store/sceneStore";
 import {
   documentSubject,
@@ -49,6 +52,7 @@ const READ_STORES: Readonly<Record<string, Settable>> = {
   scene: useSceneStore,
   session: useFileSessionStore,
   chrome: useMapChromeStore,
+  prepare: usePrepareStore,
 };
 
 /** Runs `change`, puts every store back, and says whether the sources and the follows moved. */
@@ -63,6 +67,25 @@ function afterChange(change: () => void): { changed: boolean; followed: boolean 
   for (const off of offs) off();
   for (const [store, state] of kept) store.setState(state, true);
   return { changed, followed };
+}
+
+/** The map Prepare's choices would leave, with `rewritten` among its systems. */
+function projection(...rewritten: ReturnType<typeof placedNode>[]): PreparedMap {
+  return {
+    systems: rewritten,
+    special: [],
+    bypasses: {
+      bypasses: [],
+      open_endpoints: 0,
+      random_wormhole_pairs: 0,
+      random_gateways: 0,
+      with_game_data: true,
+    },
+  };
+}
+
+function showing(map: PreparedMap): void {
+  usePrepareStore.setState({ outcomeShown: true, preview: { map } as PreparePreview });
 }
 
 /** Another value of `value`'s kind, or undefined for one a sweep leaves alone. */
@@ -97,6 +120,7 @@ describe("the store fields the scene reads", () => {
       capabilities: () => useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES }),
       sceneLayers: () => useMapChromeStore.setState({ sceneLayers: { ...NO_SOURCES.sceneLayers } }),
       lockedBodies: () => useSceneStore.setState({ lockedBodies: new Set([3]) }),
+      projection: () => showing(projection(placedNode(SYSTEM, 7, 7))),
     };
     const moved = Object.entries(changes).map(([field, change]) => [field, afterChange(change)]);
     expect(moved).toEqual(
@@ -115,5 +139,26 @@ describe("the store fields the scene reads", () => {
       }
     }
     expect(unfollowed).toEqual([]);
+  });
+});
+
+describe("the system while Prepare shows its outcome", () => {
+  it("is the projected system, and the document's again once the outcome is hidden", () => {
+    const own = placedNode(SYSTEM, 0, 0);
+    useGalaxyStore.setState({ systems: byId(own) });
+    useDetailsStore.setState({ details: new Map([[SYSTEM, systemDetails({ id: SYSTEM })]]) });
+    const read = () => readSystemSources(SYSTEM, documentSubject());
+    expect(read().node).toBe(own);
+    expect(read().details).not.toBeNull();
+
+    const rewritten = placedNode(SYSTEM, 7, 7);
+    showing(projection(rewritten));
+    expect(read().node).toBe(rewritten);
+    expect(read().systems.get(SYSTEM)).toBe(rewritten);
+    expect(read().details).toBeNull();
+
+    usePrepareStore.setState({ outcomeShown: false });
+    expect(read().node).toBe(own);
+    expect(read().details).not.toBeNull();
   });
 });

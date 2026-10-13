@@ -10,7 +10,7 @@ import { Camera } from "../Camera";
 import type { Tip } from "../layers/details/Hover";
 import type { Scene } from "../Scene";
 import { bindSystemScene, type SceneView } from "./bindings";
-import type { DragStep, HandleRef } from "./bodyDrag";
+import type { DragStep, HandleRef } from "./drag";
 import { fitScale, zoomLimits } from "./camera";
 import {
   EMPTY_SYSTEM_CONTEXT,
