@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import type { PlanetPage } from "../../../generated/PlanetPage";
+import { useMemo, useState, type ReactNode } from "react";
+import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { documentCapabilities } from "../../../lib/capabilities";
 import {
   addDepositWarnings,
   depositSpread,
-  heldModifiers,
   modifierSpread,
   removeDepositWarnings,
   ringSpread,
-  selectedBody,
   skipLine,
   spreadLine,
   takers,
@@ -17,22 +15,22 @@ import {
   type DepositSpread,
   type SelectedBody,
 } from "../../../lib/details/bodiesEdit";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodyClassName } from "../../../lib/details/labels";
 import type { PickerTarget } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
-import { BLOCKER_ICON, planetDataKeys } from "../../../lib/details/planetPage";
+import { BLOCKER_ICON } from "../../../lib/details/planetPage";
 import { counted } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { planetPageKey, useEntityStore } from "../../../store/entityStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { systemLabelOf } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { bodiesEdits, bodiesStale, type BodiesEditAdapter } from "../../../store/planetEditAdapter";
+import { bodiesEdits, type BodiesEditAdapter } from "../../../store/planetEditAdapter";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import type { BodySelection } from "../../../store/sceneStore";
 import { EditBlock, EditNote, EditRow, ToggleField } from "../../EditField";
 import { Icon } from "../../parts";
 import { Empty, Section } from "../parts";
+import { BODY_SOURCES, type BodyAnswer, type BodySource } from "../entity/bodySources";
 import { ConfirmLine } from "../entity/ConfirmLine";
 import { DEPOSIT_PICKERS } from "../entity/DepositPicker";
 import { MODIFIER_PICKER } from "../entity/ModifierPicker";
@@ -41,6 +39,13 @@ import { DepositRow } from "../entity/PlanetDeposits";
 import { ModifierRowView } from "../entity/PlanetModifiers";
 import { PlanetPicker } from "../entity/PlanetPicker";
 import { SizeField } from "../entity/StarBlock";
+import {
+  useSelectedBodies,
+  useSelectionListing,
+  useStale,
+  type ListedBody,
+  type SelectionListing,
+} from "./useSelectedBodies";
 
 export const READING_BODIES = "Reading the selected bodies…";
 
@@ -52,89 +57,6 @@ interface Note {
   selection: string;
   part: Part;
   text: string;
-}
-
-/** Each selected body's page, asked for while the page is up and again after each edit. */
-function usePages(ids: readonly number[]): ReadonlyMap<number, PlanetPage> {
-  const request = useEntityStore((s) => s.requestPlanetPage);
-  const version = useEntityStore((s) => s.version);
-  const pages = useEntityStore((s) => s.pages);
-  useEffect(() => {
-    for (const id of ids) request(id);
-  }, [ids, request, version]);
-  return pages;
-}
-
-/** Asks for the game data the rows show: every deposit and modifier any of `pages` names. */
-function usePlanetData(pages: readonly PlanetPage[]): void {
-  const generation = usePlanetDataStore((s) => s.generation);
-  useEffect(() => {
-    const keys = pages.map(planetDataKeys);
-    usePlanetDataStore.getState().request({
-      deposits: keys.flatMap((k) => k.deposits),
-      modifiers: keys.flatMap((k) => k.modifiers),
-      colonyTypes: [],
-      anomalies: [],
-      digSites: [],
-    });
-  }, [pages, generation]);
-}
-
-/** The selected bodies that read, and the names of those whose page or listing couldn't be read. */
-interface ReadBodies {
-  bodies: SelectedBody[];
-  unread: string[];
-}
-
-/**
- * The selected bodies with their pages; `null` while a page is still being read. A body whose page
- * read was refused, or that the system's details don't list, is named in `unread` instead.
- */
-function useSelectedBodies(
-  selection: BodySelection,
-  read: SystemDetails | undefined,
-): ReadBodies | null {
-  const pages = usePages(selection.ids);
-  const errors = useEntityStore((s) => s.errors);
-  const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const starClasses = useGameDataStore((s) => s.starClasses);
-  const names = useGameDataStore((s) => s.names);
-  const held = useMemo(
-    () => selection.ids.flatMap((id) => pages.get(id) ?? []),
-    [selection.ids, pages],
-  );
-  usePlanetData(held);
-  return useMemo(() => {
-    if (read === undefined) return null;
-    const megastructures = new Set(read.megastructures.flatMap((m) => m.planet ?? []));
-    const facts = { planetClasses, starClasses, megastructures };
-    const bodies: SelectedBody[] = [];
-    const unread: string[] = [];
-    for (const id of selection.ids) {
-      const summary = read.planets.find((p) => p.id === id);
-      const page = pages.get(id);
-      const name = summary === undefined ? `#${id}` : bodyName(summary, names);
-      if (summary !== undefined && page !== undefined) {
-        bodies.push(selectedBody(summary, page, name, facts));
-      } else if (summary === undefined || errors.has(planetPageKey(id))) {
-        unread.push(name);
-      } else {
-        return null;
-      }
-    }
-    return { bodies, unread };
-  }, [selection.ids, read, pages, errors, planetClasses, starClasses, names]);
-}
-
-/** Whether an edit has left any selected body's page or the system's details to be read again. */
-function useStale(selection: BodySelection): boolean {
-  const entityVersion = useEntityStore((s) => s.version);
-  const details = useDetailsStore((s) => s.stale);
-  return useMemo(
-    () => bodiesStale(selection.system, selection.ids),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- read again whenever either store moves
-    [selection, entityVersion, details],
-  );
 }
 
 /** What `field` leaves out, under the field. */
@@ -238,12 +160,10 @@ function SpreadDepositRow({
   confirming: boolean;
   setConfirming: (kind: string | null) => void;
 }) {
-  const views = usePlanetDataStore((s) => s.depositTypes);
-  const names = useGameDataStore((s) => s.names);
   const { group, holders } = spread;
   const lacking = bodies.length - holders.length;
   const name = group.view?.name ?? group.kind;
-  const warnings = removeDepositWarnings(bodies, group.kind, views, names);
+  const warnings = removeDepositWarnings(bodies, group.kind);
   const remove = () => {
     setConfirming(null);
     void edits.removeDeposit(group.kind);
@@ -304,10 +224,9 @@ function DepositsSection({
   note: string | null;
 }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
-  const names = useGameDataStore((s) => s.names);
   const [confirming, setConfirming] = useState<string | null>(null);
   const { features, blockers } = depositSpread(bodies, views);
-  const extra = (key: string) => addDepositWarnings(bodies, key, views, names);
+  const extra = (key: string) => addDepositWarnings(bodies, key);
   const row = (spread: DepositSpread) => (
     <SpreadDepositRow
       key={spread.group.kind}
@@ -349,9 +268,8 @@ function ModifiersSection({
   target: PickerTarget;
   note: string | null;
 }) {
-  const views = usePlanetDataStore((s) => s.modifiers);
   const planets = takers(bodies, "modifiers");
-  const rows = modifierSpread(bodies, views);
+  const rows = modifierSpread(bodies);
   const skipped = skipLine(bodies, "modifiers");
   return (
     <Section id="bodies.modifiers" title="Modifiers" count={rows.length}>
@@ -401,39 +319,111 @@ function ModifiersSection({
 }
 
 /**
+ * Reads `bodies` from `at` on through `source`, one body to a level so each level calls its
+ * source's hooks once, and hands every answer to `children`.
+ */
+function BodyReads({
+  source,
+  system,
+  bodies,
+  at,
+  answers,
+  children,
+}: {
+  source: BodySource;
+  system: number;
+  bodies: readonly ListedBody[];
+  at: number;
+  answers: readonly BodyAnswer[];
+  children: (answers: readonly BodyAnswer[]) => ReactNode;
+}) {
+  const { id, listed } = bodies[at];
+  const read = [...answers, source.useRead(system, id, listed)];
+  if (at + 1 === bodies.length) return children(read);
+  return (
+    <BodyReads source={source} system={system} bodies={bodies} at={at + 1} answers={read}>
+      {children}
+    </BodyReads>
+  );
+}
+
+/**
  * The planet page's fields for every selected body at once: Size, Class and Ring, then Deposits
- * and Modifiers. Each change is one edit over the bodies that take it, and a line under its part
- * says what it did and skipped until the next one or the selection changes.
+ * and Modifiers, each body read through the source of the document's kind. Each change is one
+ * edit over the bodies that take it, and a line under its part says what it did and skipped until
+ * the next one or the selection changes.
  */
 export function BodySelectionFields({
+  kind,
   selection,
   read,
 }: {
+  kind: DocumentKind;
   selection: BodySelection;
   read: SystemDetails | undefined;
 }) {
-  const answer = useSelectedBodies(selection, read);
-  const bodies = answer?.bodies ?? null;
+  const listing = useSelectionListing(selection, read);
   const failed = useDetailsStore((s) => s.failed.get(selection.system));
+  if (listing === null || read === undefined) {
+    return <Empty>{read === undefined && failed !== undefined ? failed : READING_BODIES}</Empty>;
+  }
+  const fields = (answers: readonly BodyAnswer[]) => (
+    <SelectedFields
+      kind={kind}
+      selection={selection}
+      read={read}
+      listing={listing}
+      answers={answers}
+    />
+  );
+  if (listing.listed.length === 0) return fields([]);
+  return (
+    <BodyReads
+      source={BODY_SOURCES[kind]}
+      system={selection.system}
+      bodies={listing.listed}
+      at={0}
+      answers={[]}
+    >
+      {fields}
+    </BodyReads>
+  );
+}
+
+/** The fields of `BodySelectionFields`, once its bodies' sources have answered `answers`. */
+function SelectedFields({
+  kind,
+  selection,
+  read,
+  listing,
+  answers,
+}: {
+  kind: DocumentKind;
+  selection: BodySelection;
+  read: SystemDetails;
+  listing: SelectionListing;
+  answers: readonly BodyAnswer[];
+}) {
+  const answer = useSelectedBodies(listing, answers, read);
+  const bodies = answer?.bodies ?? null;
   const stale = useStale(selection);
   const [lock] = useState(() => ({ sending: false }));
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const names = useGameDataStore((s) => s.names);
   const depositViews = usePlanetDataStore((s) => s.depositTypes);
-  const modifierViews = usePlanetDataStore((s) => s.modifiers);
   const [note, setNote] = useState<Note | null>(null);
-  const key = `save:${selection.system}:${selection.ids.join("-")}`;
+  const key = `${kind}:${selection.system}:${selection.ids.join("-")}`;
 
   const adapters = useMemo(() => {
     if (bodies === null) return null;
     const context = {
+      kind,
       bodies,
       system: selection.system,
       lock,
       where: systemLabelOf(selection.system),
-      depositName: (kind: string) => depositViews.get(kind)?.name ?? kind,
+      depositName: (deposit: string) => depositViews.get(deposit)?.name ?? deposit,
       className: (cls: string) => bodyClassName(cls, names),
-      modifierViews,
     };
     const reporting = (part: Part) =>
       bodiesEdits(context, (text) =>
@@ -444,7 +434,7 @@ export function BodySelectionFields({
       deposits: reporting("deposits"),
       modifiers: reporting("modifiers"),
     };
-  }, [bodies, selection.system, lock, depositViews, modifierViews, names, key]);
+  }, [kind, bodies, selection.system, lock, depositViews, names, key]);
 
   const targets = useMemo(() => {
     if (bodies === null || adapters === null) return null;
@@ -457,14 +447,14 @@ export function BodySelectionFields({
       deposits: [],
       modifiers: [],
       anomaly: null,
-      spread: takers(bodies, "modifiers").map(heldModifiers),
+      spread: takers(bodies, "modifiers").map((b) => b.held.modifiers),
       edits,
     });
     return { deposits: target(adapters.deposits), modifiers: target(adapters.modifiers) };
   }, [bodies, adapters, key]);
 
   if (answer === null || bodies === null || adapters === null || targets === null) {
-    return <Empty>{read === undefined && failed !== undefined ? failed : READING_BODIES}</Empty>;
+    return <Empty>{READING_BODIES}</Empty>;
   }
   const unread =
     answer.unread.length === 0 ? null : (

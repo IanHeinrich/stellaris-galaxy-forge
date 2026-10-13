@@ -28,19 +28,7 @@ const KIND_SEAM = [
 ];
 
 /** Today's kind checks, each with the batch that turns it into a capability read. */
-const KIND_OFFENDERS: Record<string, string> = {
-  "lib/paint.ts": "4c",
-  "panels/chrome/DiskChangeNotice.tsx": "4c",
-  "panels/chrome/FileMenu.tsx": "4c",
-  "panels/chrome/PaintNotice.tsx": "4c",
-  "panels/inspector/galaxy/GalaxyView.tsx": "4c",
-  "panels/inspector/selection/BodySelectionView.tsx": "4c",
-  "store/fileSessionStore.ts": "4c",
-  "store/fileSessionStore.refresh.ts": "4c",
-  "store/fileSessionStore.writes.ts": "4c",
-  "store/modelPrewarm.ts": "4c",
-  "store/prepareStore.ts": "4c",
-};
+const KIND_OFFENDERS: Record<string, string> = {};
 
 const KIND_COMPARISON = [
   /kind\s*[!=]==?\s*["'](save|scenario)["']/i,

@@ -1,23 +1,18 @@
 /**
- * How a body's page and menus edit it, whatever the document is: its fields, its removal, and its
- * deposits, modifiers, dig site and anomaly. `planetEditAdapterFor` is the one place a source is
- * chosen, and the save's ops are built here, as are those of `bodiesEdits`, which edits several
- * selected save bodies at once.
+ * How a body's page and menus edit it, whatever the document is. Each kind's row in
+ * `PLANET_EDITS` builds the op every field sends; `planetEditAdapterFor` applies a row to one body,
+ * and `bodiesEdits` maps the same row over several selected bodies at once. This module chooses
+ * the row; each kind's row lives in a module of its own.
  */
+import type { Bounds } from "../generated/Bounds";
+import type { DigSiteChoice } from "../generated/DigSiteChoice";
 import type { DocumentKind } from "../generated/DocumentKind";
-import type { ModifierView } from "../generated/ModifierView";
 import type { Op } from "../generated/Op";
+import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
-import type { PlanetPageDeposit } from "../generated/PlanetPageDeposit";
 import type { PlanetSummary } from "../generated/PlanetSummary";
-import type {
-  HeldAnomaly,
-  PickerTarget,
-  PlanetBody,
-  PlanetEditAdapter,
-  RowRefs,
-} from "../lib/details/picker";
-import type { ModifierRow } from "../lib/details/planetPage";
+import type { StarClassView } from "../generated/StarClassView";
+import { documentCapabilities } from "../lib/capabilities";
 import {
   planAddDeposit,
   planAddModifier,
@@ -29,22 +24,61 @@ import {
   planSize,
   pickOf,
   type BodiesPlan,
+  type ModifierPick,
   type SelectedBody,
 } from "../lib/details/bodiesEdit";
-import { classRule } from "../lib/details/planetClass";
-import { DEFAULT_MODEL } from "../lib/details/planetModel";
-import { PERMANENT } from "../lib/details/planetEdits";
-import { classForBodies } from "../lib/details/starBody";
+import type {
+  HeldAnomaly,
+  PickerTarget,
+  PlanetBody,
+  PlanetEditAdapter,
+  RowRefs,
+  StarSystem,
+} from "../lib/details/picker";
+import type { ModifierRow } from "../lib/details/planetPage";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { planetPageKey, useEntityStore } from "./entityStore";
-import { deletePlanet, removeColony } from "./planetRemoval";
+import { useFileSessionStore } from "./fileSessionStore";
+import { SAVE_BODY_OPS, type SaveRowRefs } from "./planetEditAdapter.save";
 
-/** What a save's rows give back to remove one: the deposit, the page's modifier row, the site's id. */
-export interface SaveRowRefs {
-  deposit: PlanetPageDeposit;
-  modifier: ModifierRow;
-  digSite: number;
+export type { SaveRowRefs };
+
+/**
+ * One kind's edits of a body: the op each field sends to body `body`, `null` where it writes
+ * nothing, with the rules the matching `PlanetEditAdapter` method states, and the removals,
+ * which ask the user first.
+ */
+export interface BodyOps<R extends RowRefs = RowRefs> {
+  ranges: boolean;
+  timedModifiers: boolean;
+  rename(body: number, text: string, current: string): Op | null;
+  setSize(body: number, size: Bounds, current: number | null): Op | null;
+  setClass(
+    body: number,
+    key: string,
+    current: string,
+    planetClasses: ReadonlyMap<string, PlanetClassView>,
+  ): Op | null;
+  setModel(body: number, key: string, current: string | null): Op | null;
+  setRing(body: number, ring: boolean): Op | null;
+  setStarType(
+    body: number,
+    planetClass: string,
+    system: StarSystem,
+    starClasses: ReadonlyMap<string, StarClassView>,
+  ): Op | null;
+  addDeposit(body: number, kind: string): Op | null;
+  removeDeposit(ref: R["deposit"]): Op | null;
+  /** Adds `pick` for `days`, or for ever when `null`. */
+  addModifier(body: number, pick: ModifierPick, days: number | null): Op | null;
+  removeModifier(body: number, ref: R["modifier"]): Op | null;
+  addAnomaly(body: number, category: string): Op | null;
+  removeAnomaly(body: number): Op | null;
+  addDigSite(body: number, choice: DigSiteChoice): Op | null;
+  removeDigSite(ref: R["digSite"]): Op | null;
+  remove(body: number, name: string, moon: boolean): Promise<boolean>;
+  removeColony(body: number, name: string): Promise<boolean>;
 }
 
 /**
@@ -54,106 +88,74 @@ export interface SaveRowRefs {
 type NoRowRefs = { [K in keyof RowRefs]: never };
 
 const NOTHING = Promise.resolve(false);
+const NO_OP = () => null;
 
-/** A save body's edits, made by the save's own ops on body `id`. A save takes no ranges. */
-function saveEdits({ id }: PlanetBody): PlanetEditAdapter<SaveRowRefs> {
-  const apply = (op: Op | null) => (op === null ? NOTHING : useEditorStore.getState().applyOp(op));
-  return {
-    ranges: false,
-    timedModifiers: true,
-    rename(text, current) {
-      const name = text.trim();
-      if (name === "" || name === current) return NOTHING;
-      return apply({ type: "RenameBody", body: id, name: { Literal: name } });
-    },
-    setSize({ min, max }, current) {
-      if (min !== max || !Number.isInteger(min) || min < 1 || min === current) return NOTHING;
-      return apply({ type: "SetBodySize", body: id, size: min });
-    },
-    setClass(key, current, planetClasses) {
-      const from = planetClasses.get(current);
-      const to = planetClasses.get(key);
-      if (from === undefined || to === undefined || key === current) return NOTHING;
-      return apply({ type: "SetBodyClass", body: id, from: classRule(from), to: classRule(to) });
-    },
-    setModel(key, current) {
-      const entity = key === DEFAULT_MODEL ? null : key;
-      if (entity === current) return NOTHING;
-      return apply({ type: "SetBodyModel", body: id, entity });
-    },
-    setRing: (ring) => apply({ type: "SetBodyRing", body: id, ring }),
-    setStarType(planetClass, system, starClasses) {
-      const next = system.bodies.map((b) => (b.id === id ? planetClass : b.class));
-      return apply({
-        type: "SetStarClass",
-        system: system.id,
-        class: classForBodies(next, system.star_class, starClasses) ?? system.star_class,
-        bodies: [{ body: id, class: planetClass }],
-      });
-    },
-    remove: (name, moon) => deletePlanet(id, name, moon),
-    removeColony: (name) => removeColony(id, name),
-    addDeposit: (kind) => apply({ type: "AddDeposit", body: id, kind }),
-    removeDeposit: (deposit) => apply({ type: "RemoveDeposit", deposit: deposit.id }),
-    addModifier: (choice, days) =>
-      apply({
-        type: "AddBodyModifier",
-        body: id,
-        modifier: choice.modifier,
-        days: [days ?? PERMANENT],
-        ...(choice.feature === null ? {} : { feature: choice.feature }),
-      }),
-    removeModifier: (row) =>
-      apply({
-        type: "RemoveBodyModifier",
-        body: id,
-        modifier: row.modifier,
-        ...(row.feature ? { feature: row.key } : {}),
-      }),
-    addAnomaly: (category) => apply({ type: "AddAnomaly", body: id, category }),
-    removeAnomaly: () => apply({ type: "RemoveAnomaly", body: id }),
-    addDigSite: (choice) =>
-      apply({ type: "AddDigSite", body: id, site_type: choice.key, difficulty: choice.difficulty }),
-    removeDigSite: (site) => apply({ type: "RemoveDigSite", site }),
-  };
-}
-
-/** A document whose bodies take no edits: every one writes nothing. */
-const NO_PLANET_EDITS: PlanetEditAdapter<NoRowRefs> = {
+/** A document whose bodies take no edits: no field builds an op. */
+const NO_BODY_OPS: BodyOps = {
   ranges: false,
   timedModifiers: false,
-  rename: () => NOTHING,
-  setSize: () => NOTHING,
-  setClass: () => NOTHING,
-  setModel: () => NOTHING,
-  setRing: () => NOTHING,
-  setStarType: () => NOTHING,
+  rename: NO_OP,
+  setSize: NO_OP,
+  setClass: NO_OP,
+  setModel: NO_OP,
+  setRing: NO_OP,
+  setStarType: NO_OP,
+  addDeposit: NO_OP,
+  removeDeposit: NO_OP,
+  addModifier: NO_OP,
+  removeModifier: NO_OP,
+  addAnomaly: NO_OP,
+  removeAnomaly: NO_OP,
+  addDigSite: NO_OP,
+  removeDigSite: NO_OP,
   remove: () => NOTHING,
   removeColony: () => NOTHING,
-  addDeposit: () => NOTHING,
-  removeDeposit: () => NOTHING,
-  addModifier: () => NOTHING,
-  removeModifier: () => NOTHING,
-  addAnomaly: () => NOTHING,
-  removeAnomaly: () => NOTHING,
-  addDigSite: () => NOTHING,
-  removeDigSite: () => NOTHING,
 };
 
 /** Each kind's edits for a body. A new kind fails to compile until its row is written. */
-const PLANET_EDITS: Readonly<
-  Record<DocumentKind, (body: PlanetBody) => PlanetEditAdapter<NoRowRefs>>
-> = {
-  save: saveEdits,
-  scenario: () => NO_PLANET_EDITS,
+const PLANET_EDITS: Readonly<Record<DocumentKind, BodyOps>> = {
+  save: SAVE_BODY_OPS,
+  scenario: NO_BODY_OPS,
 };
+
+function apply(op: Op | null): Promise<boolean> {
+  return op === null ? NOTHING : useEditorStore.getState().applyOp(op);
+}
+
+/** Body `id` edited by the ops of `ops`. */
+function editsOf<R extends RowRefs>(ops: BodyOps<R>, { id }: PlanetBody): PlanetEditAdapter<R> {
+  return {
+    ranges: ops.ranges,
+    timedModifiers: ops.timedModifiers,
+    rename: (text, current) => apply(ops.rename(id, text, current)),
+    setSize: (size, current) => apply(ops.setSize(id, size, current)),
+    setClass: (key, current, planetClasses) => apply(ops.setClass(id, key, current, planetClasses)),
+    setModel: (key, current) => apply(ops.setModel(id, key, current)),
+    setRing: (ring) => apply(ops.setRing(id, ring)),
+    setStarType: (planetClass, system, starClasses) =>
+      apply(ops.setStarType(id, planetClass, system, starClasses)),
+    remove: (name, moon) => ops.remove(id, name, moon),
+    removeColony: (name) => ops.removeColony(id, name),
+    addDeposit: (kind) => apply(ops.addDeposit(id, kind)),
+    removeDeposit: (ref) => apply(ops.removeDeposit(ref)),
+    addModifier: (choice, days) => apply(ops.addModifier(id, choice, days)),
+    removeModifier: (ref) => apply(ops.removeModifier(id, ref)),
+    addAnomaly: (category) => apply(ops.addAnomaly(id, category)),
+    removeAnomaly: () => apply(ops.removeAnomaly(id)),
+    addDigSite: (choice) => apply(ops.addDigSite(id, choice)),
+    removeDigSite: (ref) => apply(ops.removeDigSite(ref)),
+  };
+}
+
+/** A body that takes no edits: every one writes nothing. */
+const NO_EDITS: PlanetEditAdapter<NoRowRefs> = editsOf(NO_BODY_OPS, { system: null, id: -1 });
 
 /** The adapter that edits `body` in a document of `kind`; with no document, one that writes nothing. */
 export function planetEditAdapterFor(
   kind: DocumentKind | null,
   body: PlanetBody,
 ): PlanetEditAdapter<NoRowRefs> {
-  return kind === null ? NO_PLANET_EDITS : PLANET_EDITS[kind](body);
+  return kind === null ? NO_EDITS : editsOf(PLANET_EDITS[kind], body);
 }
 
 /** What a body holds that its pickers read. */
@@ -200,7 +202,8 @@ export function savePickerTarget(
     modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
     anomaly,
   };
-  return bodyPickerTarget("save", system, summary, held, saveEdits({ system, id: summary.id }));
+  const edits = editsOf(SAVE_BODY_OPS, { system, id: summary.id });
+  return bodyPickerTarget("save", system, summary, held, edits);
 }
 
 /**
@@ -222,7 +225,7 @@ export interface BodiesRowRefs {
   digSite: never;
 }
 
-/** Several save bodies' edits: the planet page's, and a row's deposit or modifier for each body without it. */
+/** Several bodies' edits: the planet page's, and a row's deposit or modifier for each body without it. */
 export interface BodiesEditAdapter extends PlanetEditAdapter<BodiesRowRefs> {
   /** Adds a deposit of type `kind` to each body that has none. */
   fillDeposit(kind: string): Promise<boolean>;
@@ -232,6 +235,8 @@ export interface BodiesEditAdapter extends PlanetEditAdapter<BodiesRowRefs> {
 
 /** What several bodies' edits read besides the bodies: where they are and the names their lines use. */
 export interface BodiesEditContext {
+  /** The kind of document the bodies were read from, whose row builds their ops. */
+  kind: DocumentKind;
   bodies: readonly SelectedBody[];
   system: number;
   /** The system as an undo line names it. */
@@ -240,22 +245,27 @@ export interface BodiesEditContext {
   lock: { sending: boolean };
   depositName(kind: string): string;
   className(key: string): string;
-  modifierViews: ReadonlyMap<string, ModifierView>;
+}
+
+/** Whether the open document takes edits of several bodies at once. */
+function editsBodies(): boolean {
+  return documentCapabilities(useFileSessionStore.getState()).edit_bodies;
 }
 
 /**
- * Save bodies `context.bodies` of one system edited at once: each edit is one `Batch` of the ops
- * their own pages send, over the bodies that take it, and `report` hears the line saying what it
- * did and skipped once it is applied.
+ * Bodies `context.bodies` of one system edited at once: each edit is one `Batch` of the ops their
+ * own pages send, over the bodies that take it, and `report` hears the line saying what it did
+ * and skipped once it is applied. Nothing is sent while the document takes no such edit.
  */
 export function bodiesEdits(
   context: BodiesEditContext,
   report: (note: string | null) => void,
 ): BodiesEditAdapter {
   const { bodies, where, lock } = context;
+  const ops = PLANET_EDITS[context.kind];
   const ids = bodies.map((b) => b.id);
   const send = async (planned: () => BodiesPlan): Promise<boolean> => {
-    if (lock.sending || bodiesStale(context.system, ids)) return false;
+    if (lock.sending || !editsBodies() || bodiesStale(context.system, ids)) return false;
     const { op, note } = planned();
     if (op === null) {
       report(note);
@@ -270,39 +280,53 @@ export function bodiesEdits(
       lock.sending = false;
     }
   };
+  const addModifier = (pick: ModifierPick, days: number | null, name: string) =>
+    send(() =>
+      planAddModifier(bodies, pick, name, where, (b) => ops.addModifier(b.id, pick, days)),
+    );
   return {
-    ...NO_PLANET_EDITS,
-    timedModifiers: true,
-    setSize: ({ min, max }) => (min === max ? send(() => planSize(bodies, min, where)) : NOTHING),
+    ...NO_EDITS,
+    timedModifiers: ops.timedModifiers,
+    setSize: (size) =>
+      size.min === size.max
+        ? send(() =>
+            planSize(bodies, size.min, where, (b) => ops.setSize(b.id, size, b.summary.size)),
+          )
+        : NOTHING,
     setClass: (key, _current, planetClasses) =>
-      send(() => planClass(bodies, key, context.className(key), planetClasses, where)),
-    setRing: (ring) => send(() => planRing(bodies, ring, where)),
-    addDeposit: (kind) =>
-      send(() => planAddDeposit(bodies, kind, context.depositName(kind), where)),
-    fillDeposit: (kind) =>
-      send(() => planFillDeposit(bodies, kind, context.depositName(kind), where)),
-    removeDeposit: (kind) =>
-      send(() => planRemoveDeposit(bodies, kind, context.depositName(kind), where)),
-    addModifier: (choice, days) =>
       send(() =>
-        planAddModifier(
-          bodies,
-          { modifier: choice.modifier, feature: choice.feature },
-          days,
-          choice.view.name || choice.view.key,
-          where,
+        planClass(bodies, key, context.className(key), planetClasses, where, (b) =>
+          ops.setClass(b.id, key, b.summary.class, planetClasses),
         ),
       ),
-    fillModifier: (row) =>
-      send(() => planAddModifier(bodies, pickOf(row), null, row.view?.name || row.key, where)),
+    setRing: (ring) => send(() => planRing(bodies, ring, where, (b) => ops.setRing(b.id, ring))),
+    addDeposit: (kind) =>
+      send(() =>
+        planAddDeposit(bodies, context.depositName(kind), where, (b) => ops.addDeposit(b.id, kind)),
+      ),
+    fillDeposit: (kind) =>
+      send(() =>
+        planFillDeposit(bodies, kind, context.depositName(kind), where, (b) =>
+          ops.addDeposit(b.id, kind),
+        ),
+      ),
+    removeDeposit: (kind) =>
+      send(() =>
+        planRemoveDeposit(bodies, kind, context.depositName(kind), where, (_b, ref) =>
+          ops.removeDeposit(ref),
+        ),
+      ),
+    addModifier: (choice, days) =>
+      addModifier(
+        { modifier: choice.modifier, feature: choice.feature },
+        days,
+        choice.view.name || choice.view.key,
+      ),
+    fillModifier: (row) => addModifier(pickOf(row), null, row.view?.name || row.key),
     removeModifier: (row) =>
       send(() =>
-        planRemoveModifier(
-          bodies,
-          row.key,
-          row.view?.name || row.key,
-          context.modifierViews,
-          where,
+        planRemoveModifier(bodies, row.key, row.view?.name || row.key, where, (b, ref) =>
+          ops.removeModifier(b.id, ref),
         ),
       ),
   };

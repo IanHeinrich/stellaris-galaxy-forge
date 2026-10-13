@@ -1,9 +1,10 @@
 /**
- * Bakes the models a save's megastructures, starbases, habitats and ring world segments are drawn
+ * Bakes the models a document's megastructures, starbases, habitats and ring world segments are drawn
  * from in the background once the save and the game data are both in, so a system view shows them
  * when it opens instead of seconds later. The keys are chosen as the system view chooses them.
  */
 import * as ipc from "../api/ipc";
+import { documentCapabilities } from "../lib/capabilities";
 import { modelKeysOf, type ModelSources } from "../lib/details/structures";
 import { getTexture, onTextures, requestTextures, textureLoading } from "../lib/visual/textures";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -17,7 +18,7 @@ export const PREWARM_GAP_MS = 100;
 /** The longest a batch is waited on, so a run never stalls on an answer that does not come. */
 export const PREWARM_BATCH_LIMIT_MS = 120_000;
 
-/** The open save and the game data whose registries its keys are chosen by. */
+/** The open document and the game data whose registries its keys are chosen by. */
 interface Subject {
   readonly path: string | null;
   readonly version: number;
@@ -53,13 +54,14 @@ function settled(keys: readonly string[], mine: number): Promise<void> {
 }
 
 /**
- * The open save and the loaded game data, or null while either is missing or the game data's
- * registries have not landed.
+ * The open document and the loaded game data, or null while either is missing, the document
+ * holds no structures, or the game data's registries have not landed.
  */
 function subject(): Subject | null {
   const session = useFileSessionStore.getState();
   const data = useGameDataStore.getState();
-  if (session.status !== "ready" || session.kind !== "save" || data.status !== "ready") return null;
+  if (session.status !== "ready" || !documentCapabilities(session).structures) return null;
+  if (data.status !== "ready") return null;
   const { megastructureTypes, starbaseLevels, planetClasses } = data;
   if (planetClasses.size === 0) return null;
   return {
@@ -102,7 +104,7 @@ function follow(): void {
   if (now !== null) void warm(run, now.sources);
 }
 
-/** Warms the models of each save opened, once per save and game data. */
+/** Warms the models of each document opened, once per document and game data. */
 export function followModelPrewarm(): void {
   useFileSessionStore.subscribe(follow);
   useGameDataStore.subscribe(follow);

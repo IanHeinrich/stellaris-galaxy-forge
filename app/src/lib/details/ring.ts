@@ -1,6 +1,7 @@
 /** Whether a save body's page offers its ring. */
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
+import { isRingSegment } from "./ringWorldRemoval";
 import { isStarBody } from "./starBody";
 
 /** What the Ring checkbox reads of a body. */
@@ -13,8 +14,9 @@ export interface RingBody {
 
 /**
  * Whether a body's page shows the Ring checkbox: any body but a star, an asteroid or a ring world
- * segment, read by its key alone while no game data is loaded. A moon shows it only while it has
- * a ring, to take it off: the game draws no ring round a moon.
+ * segment. While no game data is loaded, the core's segment classes are the only ones left out,
+ * since an asteroid is known by its class's flag alone. A moon shows it only while it has a ring,
+ * to take it off: the game draws no ring round a moon.
  */
 export function hasRingCheckbox(
   body: RingBody,
@@ -23,9 +25,7 @@ export function hasRingCheckbox(
 ): boolean {
   if (body.moon && !body.ring) return false;
   if (isStarBody(body.class, planetClasses, starClasses)) return false;
-  if (planetClasses.size === 0) {
-    return !body.class.includes("asteroid") && !body.class.includes("ringworld");
-  }
+  if (planetClasses.size === 0) return !isRingSegment(body.class);
   const view = planetClasses.get(body.class);
   return view?.asteroid !== true && view?.ringworld !== true;
 }

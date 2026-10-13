@@ -13,7 +13,8 @@ import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { Outcome } from "../lib/prepareCopy";
 import { newSeed } from "../lib/random";
 import { useEditorStore } from "./editorStore";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { documentCapabilities } from "../lib/capabilities";
+import { getPaintLayer, useFileSessionStore, type FileSessionState } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
@@ -197,15 +198,13 @@ function setupFor(fromSave: boolean, state: Pick<PrepareState, "applied" | "dism
  */
 export function setupScreen(): boolean {
   const session = useFileSessionStore.getState();
-  const fromSave = session.status === "ready" && session.kind === "scenario" && session.fromSave;
+  const fromSave = session.status === "ready" && session.fromSave;
   return setupFor(fromSave, usePrepareStore.getState());
 }
 
 /** `setupScreen`, for a component. */
 export function useSetupScreen(): boolean {
-  const fromSave = useFileSessionStore(
-    (s) => s.status === "ready" && s.kind === "scenario" && s.fromSave,
-  );
+  const fromSave = useFileSessionStore((s) => s.status === "ready" && s.fromSave);
   const pending = usePrepareStore((s) => setupFor(true, s));
   return fromSave && pending;
 }
@@ -213,8 +212,13 @@ export function useSetupScreen(): boolean {
 /** Whether the map marks each system's outcome: the section is in view, open or as the setup screen. */
 export function outcomeInView(): boolean {
   const session = useFileSessionStore.getState();
-  if (session.status !== "ready" || session.kind !== "scenario" || !galaxyShown()) return false;
+  if (!prepares(session) || !galaxyShown()) return false;
   return setupScreen() || !useInspectorStore.getState().collapsed(PREPARE_SECTION, true);
+}
+
+/** Whether `session` holds an open document that Prepare works on. */
+function prepares(session: Pick<FileSessionState, "status" | "capabilities">): boolean {
+  return session.status === "ready" && documentCapabilities(session).prepare;
 }
 
 /** The Galaxy page is in view: the inspector's tab, in an open dock, on the galaxy itself. */
@@ -268,14 +272,12 @@ function rowChoices(choices: PrepareChoices): RowChoice[] {
   return PREPARE_ROWS.map((row) => ({ row, choice: choices[row] }));
 }
 
-/** A preview can be read: a scenario is open and the game data that sorts its systems is loaded. */
+/**
+ * A preview can be read: a document Prepare works on is open and the game data that sorts its
+ * systems is loaded.
+ */
 function previewable(): boolean {
-  const session = useFileSessionStore.getState();
-  return (
-    session.status === "ready" &&
-    session.kind === "scenario" &&
-    useGameDataStore.getState().status === "ready"
-  );
+  return prepares(useFileSessionStore.getState()) && useGameDataStore.getState().status === "ready";
 }
 
 /** Moved on by every read and reset, so only the latest read lands. */

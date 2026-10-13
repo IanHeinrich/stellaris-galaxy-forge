@@ -8,6 +8,7 @@ import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemNode } from "../generated/SystemNode";
 import { RESERVED_SEAT_NAMES } from "../generated/constants";
+import { isPaintTarget } from "./documentKinds";
 import { isUnder, normalise } from "./paths";
 
 /** The facts of the open document the Paint a Galaxy layer is derived from. */
@@ -22,10 +23,10 @@ export interface PaintDocument {
 
 /**
  * Whether the open document is written for the Paint a Galaxy mod: a scenario that is painted,
- * was chosen as one, or lives in the mod's own scenarios folder. Never a save.
+ * was chosen as one, or lives in the mod's own scenarios folder, of a kind the mod can take.
  */
 export function paintLayer(doc: PaintDocument, paintMod: PaintModView | null): boolean {
-  if (doc.kind !== "scenario") return false;
+  if (!isPaintTarget(doc.kind)) return false;
   if (doc.painted || doc.paintChosen) return true;
   const dir = paintMod?.scenarios_dir ?? null;
   return doc.path !== null && dir !== null && isUnder(doc.path, dir);

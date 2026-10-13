@@ -1,23 +1,19 @@
 /**
- * Several save bodies of one system edited at once from the selection page: which bodies each
- * field leaves out and why, the deposit and modifier rows it lists with who has each, and the one
+ * Several bodies of one system edited at once from the selection page: which bodies each field
+ * leaves out and why, the deposit and modifier rows it lists with who has each, and the one
  * `Batch` each action sends, with the line that says what it did and what it skipped. Each body
- * is held to the rules its own page keeps, so a batch leaves out the bodies its ops would refuse.
+ * is held to the rules its own page keeps, so a batch leaves out the bodies its ops would refuse,
+ * and each op is the one its own page sends, built by the caller.
  */
 import type { DepositTypeView } from "../../generated/DepositTypeView";
-import type { ModifierView } from "../../generated/ModifierView";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
-import type { PlanetPage } from "../../generated/PlanetPage";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
-import type { Names } from "../names";
 import { counted, listed } from "../text";
-import { addWarnings, removalTarget, removalWarnings } from "./depositWarnings";
 import { holdsModifier } from "./modifierPicker";
-import { CLASS_FIXED, classFieldReason, classRule, COLONY_CLASS_FIXED } from "./planetClass";
-import { PERMANENT } from "./planetEdits";
-import { depositGroups, modifierRows, type DepositGroup, type ModifierRow } from "./planetPage";
+import { CLASS_FIXED, classFieldReason, COLONY_CLASS_FIXED } from "./planetClass";
+import { depositGroups, type DepositGroup, type ModifierRow } from "./planetPage";
 import { hasRingCheckbox } from "./ring";
 import { isStarBody } from "./starBody";
 
@@ -51,12 +47,43 @@ const SKIP_NOUNS: Record<SkipKind, readonly [string, string]> = {
   noSize: ["body with no size", "bodies with no size"],
 };
 
-/** One selected body: what its system's details and its own page say, and what it is left out of. */
-export interface SelectedBody {
+/** One deposit row of a body: its type, and what a removal takes off; `null` where none can go. */
+export interface SelectedDeposit {
+  kind: string;
+  /** What the body's source takes back to remove the deposit, and what the game takes with it. */
+  removal: { ref: unknown; warnings: readonly string[] } | null;
+}
+
+/** What a body's page lists, as its document's source reads it, each row with what it gives back. */
+export interface SelectedRows {
+  deposits: {
+    features: readonly SelectedDeposit[];
+    blockers: readonly SelectedDeposit[];
+    /** What the game takes away for an add of type `key`. */
+    addWarnings(key: string): readonly string[];
+  };
+  modifiers: readonly { row: ModifierRow; ref: unknown }[];
+}
+
+/** What a body holds that its pickers read. */
+export interface HeldKeys {
+  /** Its deposit types, one entry per deposit. */
+  deposits: readonly string[];
+  /** The modifiers and planet features it has. */
+  modifiers: readonly string[];
+}
+
+/** One body as its document's source reads it. */
+export interface BodyReadOf {
+  summary: PlanetSummary;
+  rows: SelectedRows;
+  held: HeldKeys;
+}
+
+/** One selected body: what its source reads of it, and what it is left out of. */
+export interface SelectedBody extends BodyReadOf {
   id: number;
   name: string;
-  summary: PlanetSummary;
-  page: PlanetPage;
   star: boolean;
   skips: Partial<Record<BodyField, Skip>>;
 }
@@ -95,20 +122,14 @@ function ringSkip(summary: PlanetSummary, star: boolean, facts: BodyFacts): Skip
   ) {
     return undefined;
   }
-  const asteroid =
-    facts.planetClasses.get(summary.class)?.asteroid === true || summary.class.includes("asteroid");
-  return asteroid
+  return facts.planetClasses.get(summary.class)?.asteroid === true
     ? { kind: "asteroid", why: "is an asteroid" }
     : { kind: "ringWorld", why: "is a ring world segment" };
 }
 
-/** Body `summary`, named `name`, with its page, as the selection page edits it. */
-export function selectedBody(
-  summary: PlanetSummary,
-  page: PlanetPage,
-  name: string,
-  facts: BodyFacts,
-): SelectedBody {
+/** Body `read`, named `name`, as the selection page edits it. */
+export function selectedBody(read: BodyReadOf, name: string, facts: BodyFacts): SelectedBody {
+  const { summary } = read;
   const star =
     summary.star_class !== undefined ||
     isStarBody(summary.class, facts.planetClasses, facts.starClasses);
@@ -118,7 +139,7 @@ export function selectedBody(
     ring: ringSkip(summary, star, facts),
     modifiers: star ? { kind: "star", why: "is a star" } : undefined,
   };
-  return { id: summary.id, name, summary, page, star, skips };
+  return { ...read, id: summary.id, name, star, skips };
 }
 
 /** The bodies that take `field`. */
@@ -179,6 +200,28 @@ export interface BodiesPlan {
 
 const NOTHING: BodiesPlan = { op: null, note: null };
 
+/** The op a body's own page sends for an edit, or `null` where it changes nothing. */
+export type BodyOp = (body: SelectedBody) => Op | null;
+
+/** The op a body's own page sends to remove the row that gave back `ref`. */
+export type RowOp = (body: SelectedBody, ref: unknown) => Op | null;
+
+/** The bodies of `bodies` that `opOf` builds an op for, and those ops in the same order. */
+function opsFor(
+  bodies: readonly SelectedBody[],
+  opOf: BodyOp,
+): { sent: SelectedBody[]; ops: Op[] } {
+  const sent: SelectedBody[] = [];
+  const ops: Op[] = [];
+  for (const body of bodies) {
+    const op = opOf(body);
+    if (op === null) continue;
+    sent.push(body);
+    ops.push(op);
+  }
+  return { sent, ops };
+}
+
 /**
  * The plan that sends `ops` as one edit described `${done} in ${where}`, and the note saying
  * `done` and who was skipped: those `field` leaves out and those `passed` says why it passed.
@@ -217,19 +260,20 @@ function split(
 }
 
 /** Size `size` on every body that takes one and has another; nothing for a size under 1 or a fraction. */
-export function planSize(bodies: readonly SelectedBody[], size: number, where: string): BodiesPlan {
+export function planSize(
+  bodies: readonly SelectedBody[],
+  size: number,
+  where: string,
+  opOf: BodyOp,
+): BodiesPlan {
   if (!Number.isInteger(size) || size < 1) return NOTHING;
   const [changed, same] = split(takers(bodies, "size"), (b) => b.summary.size !== size);
-  return plan(
-    changed.map((b): Op => ({ type: "SetBodySize", body: b.id, size })),
-    `Set the size of ${bodiesNoun(changed)} to ${size}`,
-    where,
-    {
-      all: bodies,
-      field: "size",
-      passed: [{ bodies: same, why: [`which is already ${size}`, `which are already ${size}`] }],
-    },
-  );
+  const { sent, ops } = opsFor(changed, opOf);
+  return plan(ops, `Set the size of ${bodiesNoun(sent)} to ${size}`, where, {
+    all: bodies,
+    field: "size",
+    passed: [{ bodies: same, why: [`which is already ${size}`, `which are already ${size}`] }],
+  });
 }
 
 /** Class `key`, named `label`, on every planet that may change class and has another. */
@@ -239,18 +283,13 @@ export function planClass(
   label: string,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   where: string,
+  opOf: BodyOp,
 ): BodiesPlan {
-  const to = planetClasses.get(key);
-  if (to === undefined) return NOTHING;
+  if (!planetClasses.has(key)) return NOTHING;
   const [differ, same] = split(takers(bodies, "class"), (b) => b.summary.class !== key);
   const [changed, unknown] = split(differ, (b) => planetClasses.has(b.summary.class));
-  const ops = changed.flatMap((b): Op[] => {
-    const from = planetClasses.get(b.summary.class);
-    return from === undefined
-      ? []
-      : [{ type: "SetBodyClass", body: b.id, from: classRule(from), to: classRule(to) }];
-  });
-  return plan(ops, `Changed ${bodiesNoun(changed)} to ${label}`, where, {
+  const { sent, ops } = opsFor(changed, opOf);
+  return plan(ops, `Changed ${bodiesNoun(sent)} to ${label}`, where, {
     all: bodies,
     field: "class",
     passed: [
@@ -274,15 +313,15 @@ export function planRing(
   bodies: readonly SelectedBody[],
   ring: boolean,
   where: string,
+  opOf: BodyOp,
 ): BodiesPlan {
   const changed = takers(bodies, "ring").filter((b) => (b.summary.ring === true) !== ring);
-  const noun = bodiesNoun(changed);
-  return plan(
-    changed.map((b): Op => ({ type: "SetBodyRing", body: b.id, ring })),
-    ring ? `Added a ring to ${noun}` : `Removed the ring from ${noun}`,
-    where,
-    { all: bodies, field: "ring" },
-  );
+  const { sent, ops } = opsFor(changed, opOf);
+  const noun = bodiesNoun(sent);
+  return plan(ops, ring ? `Added a ring to ${noun}` : `Removed the ring from ${noun}`, where, {
+    all: bodies,
+    field: "ring",
+  });
 }
 
 /** A deposit type found on any selected body, and the bodies that have one or more. */
@@ -292,7 +331,7 @@ export interface DepositSpread {
 }
 
 function holdsDeposit(body: SelectedBody, kind: string): boolean {
-  return body.page.deposits.some((d) => d.kind === kind);
+  return body.held.deposits.includes(kind);
 }
 
 /** Every deposit type on any of `bodies`, one row each in the planet page's order, and the blockers apart. */
@@ -300,7 +339,7 @@ export function depositSpread(
   bodies: readonly SelectedBody[],
   views: ReadonlyMap<string, DepositTypeView>,
 ): { features: DepositSpread[]; blockers: DepositSpread[] } {
-  const kinds = [...new Set(bodies.flatMap((b) => b.page.deposits.map((d) => d.kind)))];
+  const kinds = [...new Set(bodies.flatMap((b) => b.held.deposits))];
   const { features, blockers } = depositGroups(
     kinds.map((kind, id) => ({ id, kind, swap_type: null })),
     views,
@@ -318,90 +357,71 @@ export function spreadLine(holders: readonly SelectedBody[], of: number): string
   return holders.length === of ? on : `${on} · ${holders.map((b) => b.name).join(", ")}`;
 }
 
-/** A deposit of type `kind`, named `name`, on every body: a body that has one gets another. */
+/** A deposit, named `name`, on every body: a body that has one gets another. */
 export function planAddDeposit(
   bodies: readonly SelectedBody[],
-  kind: string,
   name: string,
   where: string,
+  opOf: BodyOp,
 ): BodiesPlan {
-  return plan(
-    bodies.map((b): Op => ({ type: "AddDeposit", body: b.id, kind })),
-    `Added ${name} to ${bodiesNoun(bodies)}`,
-    where,
-    { all: bodies },
-  );
+  const { sent, ops } = opsFor(bodies, opOf);
+  return plan(ops, `Added ${name} to ${bodiesNoun(sent)}`, where, { all: bodies });
 }
 
-/** A deposit of type `kind` on every body that has none. */
+/** A deposit of type `kind`, named `name`, on every body that has none. */
 export function planFillDeposit(
   bodies: readonly SelectedBody[],
   kind: string,
   name: string,
   where: string,
+  opOf: BodyOp,
 ): BodiesPlan {
   return planAddDeposit(
     bodies.filter((b) => !holdsDeposit(b, kind)),
-    kind,
     name,
     where,
+    opOf,
   );
 }
 
-/** The deposit of type `kind` a removal takes off `body`, as its own page's would. */
+/** What removing type `kind` from `body` takes off, as its own page's last row of it would. */
 function depositToRemove(body: SelectedBody, kind: string) {
-  const held = body.page.deposits.filter((d) => d.kind === kind);
-  const last = held[held.length - 1];
-  return last === undefined ? null : removalTarget(body.page, kind, last.swap_type);
+  const { features, blockers } = body.rows.deposits;
+  const rows = [...features, ...blockers].filter((d) => d.kind === kind && d.removal !== null);
+  return rows[rows.length - 1]?.removal ?? null;
 }
 
-/** One deposit of type `kind` off every body that has one. */
+/** One deposit of type `kind` off every body that has one, by what its row gives back. */
 export function planRemoveDeposit(
   bodies: readonly SelectedBody[],
   kind: string,
   name: string,
   where: string,
+  opOf: RowOp,
 ): BodiesPlan {
-  const removed = bodies.flatMap((b) => {
-    const deposit = depositToRemove(b, kind);
-    return deposit === null ? [] : [{ body: b, deposit }];
+  const { sent, ops } = opsFor(bodies, (b) => {
+    const removal = depositToRemove(b, kind);
+    return removal === null ? null : opOf(b, removal.ref);
   });
-  return plan(
-    removed.map(({ deposit }): Op => ({ type: "RemoveDeposit", deposit: deposit.id })),
-    `Removed ${name} from ${bodiesNoun(removed.map(({ body }) => body))}`,
-    where,
-    { all: bodies },
-  );
+  return plan(ops, `Removed ${name} from ${bodiesNoun(sent)}`, where, { all: bodies });
 }
 
 /**
  * What removing one deposit of type `kind` from every body that has one costs their colonies,
  * as each one's own page would warn: each warning after the body's name when several have one.
  */
-export function removeDepositWarnings(
-  bodies: readonly SelectedBody[],
-  kind: string,
-  views: ReadonlyMap<string, DepositTypeView>,
-  names: Names,
-): string[] {
+export function removeDepositWarnings(bodies: readonly SelectedBody[], kind: string): string[] {
   const holders = bodies.filter((b) => holdsDeposit(b, kind));
   return holders.flatMap((b) => {
-    const deposit = depositToRemove(b, kind);
-    if (deposit === null) return [];
-    const warnings = removalWarnings(b.page, deposit, views, names);
+    const warnings = depositToRemove(b, kind)?.warnings ?? [];
     return holders.length === 1 ? warnings : warnings.map((w) => `${b.name}: ${w}`);
   });
 }
 
 /** What adding a deposit of type `kind` to every body costs their colonies, named as `removeDepositWarnings` names them. */
-export function addDepositWarnings(
-  bodies: readonly SelectedBody[],
-  kind: string,
-  views: ReadonlyMap<string, DepositTypeView>,
-  names: Names,
-): string[] {
+export function addDepositWarnings(bodies: readonly SelectedBody[], kind: string): string[] {
   return bodies.flatMap((b) => {
-    const warnings = addWarnings(b.page, kind, views, names);
+    const warnings = b.rows.deposits.addWarnings(kind);
     return bodies.length === 1 ? warnings : warnings.map((w) => `${b.name}: ${w}`);
   });
 }
@@ -413,24 +433,16 @@ export interface ModifierSpread {
 }
 
 /** Every modifier and planet feature on any planet of `bodies` that takes modifiers, one row each. */
-export function modifierSpread(
-  bodies: readonly SelectedBody[],
-  views: ReadonlyMap<string, ModifierView>,
-): ModifierSpread[] {
+export function modifierSpread(bodies: readonly SelectedBody[]): ModifierSpread[] {
   const rows = new Map<string, ModifierSpread>();
   for (const body of takers(bodies, "modifiers")) {
-    for (const row of modifierRows(body.page, views)) {
+    for (const { row } of body.rows.modifiers) {
       const spread = rows.get(row.key);
       if (spread === undefined) rows.set(row.key, { row, holders: [body] });
       else if (!spread.holders.includes(body)) spread.holders.push(body);
     }
   }
   return [...rows.values()];
-}
-
-/** The modifiers and planet features `body` has, as its picker reads them. */
-export function heldModifiers(body: SelectedBody): string[] {
-  return [...body.page.planet_modifiers, ...body.page.timed_modifiers.map((t) => t.modifier)];
 }
 
 /** A modifier and the feature that applies it, as an add takes them. */
@@ -444,56 +456,36 @@ export function pickOf(row: ModifierRow): ModifierPick {
   return { modifier: row.modifier, feature: row.feature ? row.key : null };
 }
 
-/** `pick`, named `name`, for `days` or for ever, on every planet that takes modifiers and has not got it. */
+/** `pick`, named `name`, on every planet that takes modifiers and has not got it. */
 export function planAddModifier(
   bodies: readonly SelectedBody[],
   pick: ModifierPick,
-  days: number | null,
   name: string,
   where: string,
+  opOf: BodyOp,
 ): BodiesPlan {
   const [has, lacking] = split(takers(bodies, "modifiers"), (b) =>
-    holdsModifier(heldModifiers(b), pick.modifier, pick.feature),
+    holdsModifier(b.held.modifiers, pick.modifier, pick.feature),
   );
-  return plan(
-    lacking.map((b): Op => ({
-      type: "AddBodyModifier",
-      body: b.id,
-      modifier: pick.modifier,
-      days: [days ?? PERMANENT],
-      ...(pick.feature === null ? {} : { feature: pick.feature }),
-    })),
-    `Added ${name} to ${bodiesNoun(lacking)}`,
-    where,
-    {
-      all: bodies,
-      field: "modifiers",
-      passed: [{ bodies: has, why: ["which has it", "which have it"] }],
-    },
-  );
+  const { sent, ops } = opsFor(lacking, opOf);
+  return plan(ops, `Added ${name} to ${bodiesNoun(sent)}`, where, {
+    all: bodies,
+    field: "modifiers",
+    passed: [{ bodies: has, why: ["which has it", "which have it"] }],
+  });
 }
 
-/** The modifier or feature row `key`, named `name`, off every planet that has it, as each one's page removes it. */
+/** The modifier or feature row `key`, named `name`, off every planet that has it, by what its row gives back. */
 export function planRemoveModifier(
   bodies: readonly SelectedBody[],
   key: string,
   name: string,
-  views: ReadonlyMap<string, ModifierView>,
   where: string,
+  opOf: RowOp,
 ): BodiesPlan {
-  const removed = takers(bodies, "modifiers").flatMap((b) => {
-    const row = modifierRows(b.page, views).find((r) => r.key === key);
-    return row === undefined ? [] : [{ body: b, row }];
+  const { sent, ops } = opsFor(takers(bodies, "modifiers"), (b) => {
+    const held = b.rows.modifiers.find(({ row }) => row.key === key);
+    return held === undefined ? null : opOf(b, held.ref);
   });
-  return plan(
-    removed.map(({ body, row }): Op => ({
-      type: "RemoveBodyModifier",
-      body: body.id,
-      modifier: row.modifier,
-      ...(row.feature ? { feature: row.key } : {}),
-    })),
-    `Removed ${name} from ${bodiesNoun(removed.map(({ body }) => body))}`,
-    where,
-    { all: bodies },
-  );
+  return plan(ops, `Removed ${name} from ${bodiesNoun(sent)}`, where, { all: bodies });
 }

@@ -474,7 +474,7 @@ async function openDocument(
     }
     useGalaxyStore.getState().load(result.galaxy);
     followDiskChanges((changed) => void getState().noteDiskChange(changed));
-    if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
+    if (result.capabilities.scripted_owners && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
       try {
         await useGameDataStore.getState().onDocumentOpened();
@@ -545,12 +545,21 @@ async function askScenarioOpen(
   });
 }
 
+/** How a file of each kind is opened from its path: a save first asks how to open it. */
+const ROUTES: Record<
+  DocumentKind,
+  (path: string, listings: readonly ScenarioListing[] | null) => Promise<void>
+> = {
+  save: async (path) =>
+    useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false }),
+  scenario: async (path, listings) => {
+    await OPENERS.scenario(path, false, listings);
+  },
+};
+
 /** A scenario opens once any Paint a Galaxy question is answered; a save first asks how to open it. */
 async function routeOpen(path: string, listings: readonly ScenarioListing[] | null): Promise<void> {
-  const kind = await kindOf(path);
-  if (kind === "save")
-    useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false });
-  else await OPENERS[kind](path, false, listings);
+  await ROUTES[await kindOf(path)](path, listings);
 }
 
 /**
@@ -591,16 +600,21 @@ const OPENERS: Record<DocumentKind, Opener> = {
   },
 };
 
+/** Whether the open document's systems are rolled from their initializers, stars included. */
+function rollsStars(): boolean {
+  return documentCapabilities(useFileSessionStore.getState()).rolled_layout;
+}
+
 /**
- * Reads the open scenario's galaxy again, for when game data changes the star each of its
+ * Reads the open document's galaxy again, for when game data changes the star each of its rolled
  * systems is drawn as. A save's stars are its own, and a galaxy that can't be read keeps the
  * stars it has.
  */
 export async function redrawStars(): Promise<void> {
   const mine = opens;
-  if (useFileSessionStore.getState().kind !== "scenario") return;
+  if (!rollsStars()) return;
   const galaxy = await ipc.getGalaxy().catch(() => null);
-  if (galaxy !== null && mine === opens && useFileSessionStore.getState().kind === "scenario") {
+  if (galaxy !== null && mine === opens && rollsStars()) {
     useGalaxyStore.getState().applyDelta({ systems: galaxy.systems });
   }
 }

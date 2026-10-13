@@ -1,4 +1,5 @@
-import { DOCUMENT_KINDS } from "../../lib/documentKinds";
+import { documentCapabilities } from "../../lib/capabilities";
+import { DOCUMENT_KINDS, isPaintTarget } from "../../lib/documentKinds";
 import { shortcutLabel } from "../../lib/keys";
 import { recentTitle } from "../../lib/openRows";
 import { isUnder } from "../../lib/paths";
@@ -58,7 +59,8 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const reload = useFileSessionStore((s) => s.reload);
   const exportScenario = useFileSessionStore((s) => s.exportScenario);
   const pickAndOpen = useFileSessionStore((s) => s.pickAndOpen);
-  const kind = useFileSessionStore((s) => s.kind);
+  const paintTarget = useFileSessionStore((s) => isPaintTarget(s.kind));
+  const capabilities = useFileSessionStore(documentCapabilities);
   const path = useFileSessionStore((s) => s.path);
   const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
   const modKnown = usePaintModStore((s) => s.known);
@@ -103,14 +105,14 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
       />
       <MenuItem
         label="Save into the Paint a Galaxy mod…"
-        disabled={!open || kind !== "scenario" || paintDir === null || inPaintMod}
+        disabled={!open || !paintTarget || paintDir === null || inPaintMod}
         title={modMissing ? SUBSCRIBE_FIRST : undefined}
         dismiss={dismiss}
         onClick={saveIntoPaintMod}
       />
       <MenuItem
         label="Export as scenario…"
-        disabled={!open || kind !== "save"}
+        disabled={!open || !capabilities.export}
         dismiss={dismiss}
         onClick={exportScenario}
       />
@@ -121,7 +123,7 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
       />
       <MenuItem
         label={PREPARE_MENU_ITEM}
-        disabled={!open || kind !== "scenario"}
+        disabled={!open || !capabilities.prepare}
         dismiss={dismiss}
         onClick={() => void revealPrepare()}
       />

@@ -4,6 +4,7 @@ import * as ipc from "../api/ipc";
 import type { DocumentChange } from "../generated/DocumentChange";
 import type { DocumentChanged } from "../generated/DocumentChanged";
 import type { OpenResult } from "../generated/OpenResult";
+import { DOCUMENT_KINDS } from "../lib/documentKinds";
 import { fileName } from "../lib/paths";
 import { selectSystems, useEditorStore } from "./editorStore";
 import type { FileSessionState } from "./fileSessionStore";
@@ -75,7 +76,8 @@ export function refreshActions(session: SessionApi): RefreshActions {
         });
         return;
       }
-      if (kind === "save" || dirty || changed.dirty) {
+      const alwaysAsks = kind !== null && DOCUMENT_KINDS[kind].diskChange.alwaysAsks;
+      if (alwaysAsks || dirty || changed.dirty) {
         ask();
         return;
       }

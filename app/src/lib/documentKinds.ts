@@ -2,6 +2,7 @@ import type { Capabilities } from "../generated/Capabilities";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { SaveMeta } from "../generated/SaveMeta";
 import { documentCapabilities, SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "./capabilities";
+import { fileName } from "./paths";
 import { counted } from "./text";
 import { versionShort } from "./version";
 import type { GalaxyLayers } from "./visual/layerIds";
@@ -17,6 +18,14 @@ export type MapEdge = "galaxy_radius" | "scenario_square";
 
 /** Where the L-Cluster guide is drawn; `guides` holds the circles. */
 export type LClusterGuide = "marked_systems" | "fixed";
+
+/** What the app does when the open file changes on disk. */
+export interface DiskChange {
+  /** Whether it asks before reading the file again even without unsaved edits. */
+  alwaysAsks: boolean;
+  /** The banner's first sentence for the file at `path`. */
+  banner(path: string | null): string;
+}
 
 export interface FileFilter {
   name: string;
@@ -39,6 +48,11 @@ export interface DocumentKindInfo {
    * session's, which the core reports and which can differ from this (a pre-4.x save, say).
    */
   capabilities: Capabilities;
+  /** Whether a document of the kind can be written for the Paint a Galaxy mod. */
+  paintTarget: boolean;
+  diskChange: DiskChange;
+  /** What the Galaxy page says under its title for a document without a save's metadata. */
+  noMetaLine: string;
   /** A save's empire, date and version; a scenario's system count when one is given. */
   recentSubtitle(meta: SaveMeta | null, galaxySystems: number | undefined): string;
 }
@@ -103,6 +117,10 @@ const SAVE_LAYERS: GalaxyLayers = {
   highlights: true,
 };
 
+function changedOnDisk(path: string | null): string {
+  return `${fileName(path)} changed on disk.`;
+}
+
 export const DOCUMENT_KINDS: Readonly<Record<DocumentKind, DocumentKindInfo>> = {
   save: {
     label: "Save",
@@ -113,6 +131,13 @@ export const DOCUMENT_KINDS: Readonly<Record<DocumentKind, DocumentKindInfo>> = 
     mapEdge: "galaxy_radius",
     lCluster: "marked_systems",
     capabilities: SAVE_CAPABILITIES,
+    paintTarget: false,
+    // Stellaris writes over a save while it runs, so a save never reloads unasked.
+    diskChange: {
+      alwaysAsks: true,
+      banner: () => "This save changed on disk. Stellaris may have saved over it.",
+    },
+    noMetaLine: "no save metadata",
     recentSubtitle: (meta) =>
       meta === null
         ? ""
@@ -127,6 +152,9 @@ export const DOCUMENT_KINDS: Readonly<Record<DocumentKind, DocumentKindInfo>> = 
     mapEdge: "scenario_square",
     lCluster: "fixed",
     capabilities: SCENARIO_CAPABILITIES,
+    paintTarget: true,
+    diskChange: { alwaysAsks: false, banner: changedOnDisk },
+    noMetaLine: "static galaxy scenario",
     recentSubtitle: (_meta, galaxySystems) =>
       typeof galaxySystems === "number" ? counted(galaxySystems, "system") : "",
   },
@@ -136,6 +164,16 @@ export function kindCapabilities(kind: DocumentKind | null): Capabilities {
   return documentCapabilities({
     capabilities: kind === null ? null : DOCUMENT_KINDS[kind].capabilities,
   });
+}
+
+/** Whether a document of `kind` can be written for the Paint a Galaxy mod; never with none open. */
+export function isPaintTarget(kind: DocumentKind | null): boolean {
+  return kind !== null && DOCUMENT_KINDS[kind].paintTarget;
+}
+
+/** The banner's first sentence when the open file at `path`, of `kind`, changed on disk. */
+export function diskChangeLine(kind: DocumentKind | null, path: string | null): string {
+  return kind === null ? changedOnDisk(path) : DOCUMENT_KINDS[kind].diskChange.banner(path);
 }
 
 export function isDocumentKind(value: unknown): value is DocumentKind {
