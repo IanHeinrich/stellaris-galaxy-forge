@@ -6,6 +6,7 @@ import type { Pt } from "../../lib/geometry/pt";
 import { megastructureSummary, megastructureTypeView } from "../../test/builders";
 import { sceneRecorder as recorder } from "../../test/mapIntent";
 import { systemContext, type SystemContext } from "./context";
+import { withStructures } from "./contextFixture";
 import {
   BESIDE,
   lastStep,
@@ -117,21 +118,18 @@ describe("a megastructure dragged in the system scene", () => {
   /** The second moon of planet 2, which the furnace stands at. */
   const FURNACE_MOON = 4;
   const structure = (id: number) => ({ kind: "megastructure" as const, id });
-  const types = new Map(
-    [
-      megastructureTypeView("gateway_final", {
-        bypass_type: "gateway",
-        placement: { place: "free", outside_gravity_well: true },
-      }),
-      megastructureTypeView("think_tank_3"),
-      megastructureTypeView("dyson_sphere_5", { placement: { place: "body", star_only: true } }),
-      megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true }),
-      megastructureTypeView("orbital_arc_furnace_4", { planet_only: true }),
-    ].map((t) => [t.key, t]),
-  );
+  const types = [
+    megastructureTypeView("gateway_final", {
+      bypass_type: "gateway",
+      placement: { place: "free", outside_gravity_well: true },
+    }),
+    megastructureTypeView("think_tank_3"),
+    megastructureTypeView("dyson_sphere_5", { placement: { place: "body", star_only: true } }),
+    megastructureTypeView("orbital_ring_ruined", { scales_with_planet: true }),
+    megastructureTypeView("orbital_arc_furnace_4", { planet_only: true }),
+  ];
 
   function structureFrame(): SystemContext {
-    const frame = orbitFrame();
     const megastructures = [
       megastructureSummary({ id: GATEWAY, kind: "gateway_final", at: [0, 250] }),
       megastructureSummary({ id: NEXUS, kind: "think_tank_3", planet: LONE, at: null }),
@@ -144,11 +142,7 @@ describe("a megastructure dragged in the system scene", () => {
         at: null,
       }),
     ];
-    return systemContext({
-      ...frame,
-      megastructureTypes: types,
-      details: { ...frame.details!, megastructures },
-    });
+    return withStructures(orbitFrame(), megastructures, { types });
   }
 
   function press(id: number, from: Pt) {

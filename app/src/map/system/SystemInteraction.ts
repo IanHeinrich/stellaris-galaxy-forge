@@ -17,7 +17,7 @@ import { queuedTextures } from "../layers/details/cell";
 import type { Tip } from "../layers/details/Hover";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
-import { sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
+import { sameHandle, type DragStep, type HandleRef } from "./drag";
 import type { SystemContext } from "./context";
 import type { StructureKind } from "./structures";
 import { handleOwnerAt, pickTarget, sameTarget, type SceneTarget } from "./picking";
@@ -297,7 +297,10 @@ export class SystemInteraction {
     this.pointer.handle(this.remeasure({ ...last, shift, ctrl }));
   }
 
-  /** `input` at the same screen point under the camera as it stands now, kept as the last move. */
+  /**
+   * `input` at the same screen point under the camera as it stands now, kept as the last move. It
+   * keeps its target, since a drag in progress owns it.
+   */
   private remeasure(input: SystemInput): SystemInput {
     const w = this.cam.screenToWorld(input.sx, input.sy, this.at);
     this.lastMove = { ...input, wx: w.x, wy: w.y, scale: this.cam.scale };

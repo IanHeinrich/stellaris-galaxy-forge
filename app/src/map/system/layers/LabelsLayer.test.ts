@@ -453,6 +453,44 @@ describe("the system scene's labels layer", () => {
     layer.destroy();
   });
 
+  it("dresses the icons again for a change in the names, and not for a name lookup the sources made anew", async () => {
+    const textureFor = decodeAll();
+    const empire = countryNode({
+      id: 9,
+      colors: ["red", "black"],
+      flag_icon: { category: "human", file: "flag_human_9.dds" },
+      flag_background: { category: "backgrounds", file: "00_solid.dds" },
+    });
+    const colony = { ...EARTH, colonised: true, owner: empire.id };
+    const sources = {
+      ...context({ planets: [SUN, colony] }),
+      sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details: true },
+      countries: new Map([[empire.id, empire]]),
+    };
+    const layer = new LabelsLayer();
+    layer.rebuild(systemContext(sources));
+    const cam = viewport(layer, 2);
+    const flag = textureFor(empireFlagKey(empire) ?? "");
+    const earth = markSprites(layer, cam, EARTH.id);
+    await until(() => expect(earth.sprites().map((s) => s.texture)).toContain(flag));
+    const sprite = earth.sprites().find((s) => s.texture === flag)!;
+    const override = { bodies: new Map([[EARTH.id, { parent: SUN.id, radius: 90, angle: 90 }]]) };
+    const preview = { override, marks: null };
+
+    sprite.texture = Texture.EMPTY;
+    const remade = {
+      ...sources,
+      templateName: (...args: Parameters<typeof sources.templateName>) =>
+        sources.templateName(...args),
+    };
+    layer.rebuild(systemContext(remade, preview));
+    expect(sprite.texture).toBe(Texture.EMPTY);
+
+    layer.rebuild(systemContext({ ...remade, names: new Map(remade.names) }, preview));
+    expect(sprite.texture).toBe(flag);
+    layer.destroy();
+  });
+
   it("draws the resource row under the body, where the plate would be, while Labels is off", () => {
     const layer = new LabelsLayer();
     layer.rebuild(labelled({ labels: false, details: true }));

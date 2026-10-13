@@ -4,7 +4,7 @@ import { polar } from "../../lib/details/orbits";
 import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { sceneRecorder as recorder } from "../../test/mapIntent";
-import type { DragStep } from "./bodyDrag";
+import type { DragStep } from "./drag";
 import { systemContext, type SystemContext } from "./context";
 import {
   around,
@@ -18,7 +18,7 @@ import {
   PLANET,
   STAR,
 } from "./dragFixture";
-import { drawnDisc } from "./geometry";
+import { DISC_ONLY, drawnDisc } from "./geometry";
 import { NO_SOURCES } from "./sources";
 import { SystemGestureModel } from "./SystemGestureModel";
 
@@ -60,7 +60,7 @@ describe("a body dragged onto a companion star", () => {
   /** The least orbit about the companion: just past its drawn disc at one pixel a unit. */
   function starFloor(frame: SystemContext): number {
     const disc = frame.layout.bodies.find((b) => b.id === COMPANION)!.disc;
-    return Math.max(10, Math.ceil(drawnDisc(disc, 1) + 5));
+    return Math.max(10, Math.ceil(drawnDisc(disc, 1, DISC_ONLY) + 5));
   }
 
   it("makes a planet with moons orbit it at the pointer's distance, never inside the star's disc", () => {

@@ -151,18 +151,23 @@ function labelledAlike(a: SceneBody, b: SceneBody): boolean {
   );
 }
 
-/** What the labels' tooltips read from `ctx`. */
-function tipContext(ctx: SystemContext): FlagContext {
-  const { planetClasses, names, templateName, countryName } = ctx;
-  return { planetClasses, names, templateName, countryName, table: ctx.ownership.table };
+/** What the labels' tooltips read from `ctx`, with what `templateName` is made from. */
+interface TipContext extends FlagContext {
+  readonly gameDataReady: boolean;
 }
 
-/** Whether the tooltips read `ctx` as they read `was`. */
-function sameTipContext(was: FlagContext, ctx: SystemContext): boolean {
+function tipContext(ctx: SystemContext): TipContext {
+  const { planetClasses, names, templateName, countryName, gameDataReady } = ctx;
+  const table = ctx.ownership.table;
+  return { planetClasses, names, templateName, countryName, gameDataReady, table };
+}
+
+/** Whether the tooltips read `ctx` as they read `was`; `templateName` is made anew on each read. */
+function sameTipContext(was: TipContext, ctx: SystemContext): boolean {
   return (
     was.planetClasses === ctx.planetClasses &&
     was.names === ctx.names &&
-    was.templateName === ctx.templateName &&
+    was.gameDataReady === ctx.gameDataReady &&
     was.countryName === ctx.countryName &&
     was.table === ctx.ownership.table
   );
@@ -287,7 +292,7 @@ function makeLabel(
 export class LabelsLayer implements SystemLayer {
   readonly container = new Container();
   private bodies: readonly SceneBody[] = EMPTY_SYSTEM_CONTEXT.bodies;
-  private tips: FlagContext = tipContext(EMPTY_SYSTEM_CONTEXT);
+  private tips: TipContext = tipContext(EMPTY_SYSTEM_CONTEXT);
   private detailsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.details;
   private labelsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.labels;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;

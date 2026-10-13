@@ -6,10 +6,9 @@ vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import { BitmapText, type Container } from "pixi.js";
 import type { SystemDetails } from "../../generated/SystemDetails";
-import type { SystemNode } from "../../generated/SystemNode";
 import { DETAILS_MIN_SCALE } from "../../lib/details/layout";
 import { clearTextures } from "../../lib/visual/textures";
-import { planetSummary } from "../../test/builders";
+import { megastructureSummary, planetSummary, systemDetails } from "../../test/builders";
 import { resetTextureFetch, textureFetch } from "../../test/textures";
 import { DetailsLayer } from "./DetailsLayer";
 import { mapContext, stubTextMeasurement, mapNode, viewport } from "./fixture";
@@ -25,25 +24,7 @@ const IN_VIEW = 2;
 
 const CLOSE = DETAILS_MIN_SCALE;
 
-function details(s: SystemNode): SystemDetails {
-  return {
-    id: s.id,
-    resources: [],
-    planets: [],
-    starbase: null,
-    other_starbases: [],
-    fleets: { fleet_count: 0, military_count: 0, ship_count: 0, military_power: 0 },
-    fleets_present: [],
-    megastructures: [],
-    sites: [],
-    with_game_data: false,
-    belts: [],
-    inner_radius: null,
-    wormholes: [],
-  };
-}
-
-const DETAILS = new Map(NODES.map((s) => [s.id, details(s)]));
+const DETAILS = new Map(NODES.map((s) => [s.id, systemDetails({ id: s.id })]));
 
 afterEach(() => {
   resetTextureFetch();
@@ -118,10 +99,10 @@ describe("the details layer's rows", () => {
       anomaly: "AIANOM_RESEARCHDEPO_CAT",
     });
     const sol: SystemDetails = {
-      ...details(SOL),
+      ...systemDetails({ id: SOL.id }),
       planets: [natives],
       megastructures: [
-        { id: 50, kind: "dyson_sphere_2", owner: null, planet: 7, at: null, culture: null },
+        megastructureSummary({ id: 50, kind: "dyson_sphere_2", planet: 7, at: null }),
       ],
       sites: [{ id: 60, kind: "site_tiyanki_graveyard", planet: 7 }],
     };

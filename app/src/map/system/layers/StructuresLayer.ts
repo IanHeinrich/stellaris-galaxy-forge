@@ -37,16 +37,7 @@ function firstLanded(keys: readonly string[]): Texture | null {
 function sameLooks(a: readonly SceneStructure[], b: readonly SceneStructure[]): boolean {
   return (
     a.length === b.length &&
-    a.every(
-      (s, i) =>
-        s.kind === b[i].kind &&
-        s.id === b[i].id &&
-        s.modelKey === b[i].modelKey &&
-        s.chance.mayNotSpawn === b[i].chance.mayNotSpawn &&
-        s.chance.random === b[i].chance.random &&
-        s.iconKeys.length === b[i].iconKeys.length &&
-        s.iconKeys.every((key, k) => key === b[i].iconKeys[k]),
-    )
+    a.every((s, i) => s.kind === b[i].kind && s.id === b[i].id && s.art === b[i].art)
   );
 }
 
