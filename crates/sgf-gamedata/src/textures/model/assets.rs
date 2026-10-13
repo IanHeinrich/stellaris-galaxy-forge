@@ -4,16 +4,17 @@
 //! chain of attachments that places it, without reading any `.mesh` file.
 
 use std::collections::{BTreeMap, HashMap};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex, PoisonError};
 
-use sgf_core::cst::{self, Node};
-use walkdir::WalkDir;
+use sgf_core::cst::Node;
 
-use super::mesh::MeshFile;
+use super::mesh::{Material, MeshFile};
 use super::space::Affine;
+use crate::Diagnostic;
 use crate::install::layers::Layout;
-use crate::install::script::last_scalar;
+use crate::install::script::{last_scalar, parse_graphics_file};
+use crate::textures::Input;
 use crate::textures::planet_disc::{self, EntitySurface};
 
 /// The culture the game falls back to for a model with none of the culture asked for.
@@ -26,7 +27,7 @@ const DEPTH: usize = 6;
 /// places it.
 pub(super) const ROOT: &str = "root";
 /// Where models, their definitions and their textures are.
-const MODELS: &str = "gfx/models";
+pub(crate) const MODELS_DIR: &str = "gfx/models";
 
 #[derive(Debug, Default)]
 pub(crate) struct Assets {
@@ -34,6 +35,27 @@ pub(crate) struct Assets {
     meshes: HashMap<String, MeshDef>,
     /// Every `.dds` under `gfx/models` by its lowercased file name; a later layer's wins.
     textures: HashMap<String, PathBuf>,
+    /// What each `.mesh` file read so far draws with, by the file as it was read.
+    materials: Mutex<HashMap<Input, Arc<Materials>>>,
+}
+
+/// What a `.mesh` file draws with: each shape's name and, for each of its meshes, its
+/// material and whether it has any triangles.
+#[derive(Debug)]
+pub(super) struct Materials(pub(super) Vec<(String, Vec<(Material, bool)>)>);
+
+impl Materials {
+    pub(super) fn of(mesh: &MeshFile) -> Self {
+        let shapes = mesh.shapes.iter().map(|shape| {
+            let meshes = shape
+                .meshes
+                .iter()
+                .map(|m| (m.material.clone(), !m.triangles.is_empty()))
+                .collect();
+            (shape.name.clone(), meshes)
+        });
+        Self(shapes.collect())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -108,7 +130,9 @@ pub(super) struct Placed {
 }
 
 impl Assets {
-    pub(crate) fn read(layout: &Layout) -> Self {
+    /// What the model files of `layout` say; a file that cannot be read or parsed is reported
+    /// and adds nothing.
+    pub(crate) fn read(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
         let mut assets = Self::default();
         for (dir, path) in model_files(layout) {
             let ext = path
@@ -116,12 +140,12 @@ impl Assets {
                 .map(|e| e.to_string_lossy().to_ascii_lowercase());
             match ext.as_deref() {
                 Some("asset") => {
-                    if let Some((root, src)) = parse(&path) {
+                    if let Some((root, src)) = parse_graphics_file(&path, diagnostics) {
                         assets.read_asset(&dir, &root, &src);
                     }
                 }
                 Some("gfx") => {
-                    if let Some((root, src)) = parse(&path) {
+                    if let Some((root, src)) = parse_graphics_file(&path, diagnostics) {
                         assets.read_gfx(&root, &src);
                     }
                 }
@@ -317,6 +341,29 @@ impl Assets {
         })
     }
 
+    /// What the `.mesh` file `input` draws with, read by `read` only when that file has not
+    /// been read as it is now; `None` when it cannot be read.
+    pub(super) fn materials(
+        &self,
+        input: &Input,
+        read: impl FnOnce() -> Result<Arc<MeshFile>, String>,
+    ) -> Option<Arc<Materials>> {
+        let held = self
+            .materials
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(materials) = held.get(input) {
+            return Some(Arc::clone(materials));
+        }
+        drop(held);
+        let materials = Arc::new(Materials::of(&*read().ok()?));
+        self.materials
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(input.clone(), Arc::clone(&materials));
+        Some(materials)
+    }
+
     /// The texture file `name` names for a mesh in `mesh_dir` of an entity in `asset_dir`:
     /// the path as written, beside the mesh, beside the `.asset`, then any file of that name
     /// under `gfx/models`.
@@ -348,48 +395,10 @@ fn or_inherited<T: Clone>(own: &[T], source: &[T]) -> Vec<T> {
     if own.is_empty() { source } else { own }.to_vec()
 }
 
-/// The `.asset`, `.gfx` and `.dds` files under `gfx/models` in the layers of `layout`, one
-/// walk per layer, each with its folder relative to its layer root, in layer order then path
-/// order. A later layer's file of the same path replaces the earlier one.
+/// The `.asset`, `.gfx` and `.dds` files under `gfx/models` in the layers of `layout`, each
+/// with its folder relative to its layer root, as [`Layout::files_under`] finds them.
 fn model_files(layout: &Layout) -> Vec<(String, PathBuf)> {
-    const KINDS: [&str; 3] = ["asset", "gfx", "dds"];
-    let mut files: BTreeMap<String, (usize, String, PathBuf)> = BTreeMap::new();
-    for (index, layer) in layout.layers.iter().enumerate() {
-        let root = MODELS.split('/').fold(layer.root.clone(), |p, s| p.join(s));
-        for entry in WalkDir::new(&root)
-            .sort_by_file_name()
-            .into_iter()
-            .flatten()
-        {
-            let wanted = entry
-                .path()
-                .extension()
-                .is_some_and(|e| KINDS.iter().any(|k| e.eq_ignore_ascii_case(k)))
-                && (entry.file_type().is_file() || entry.path().is_file());
-            if !wanted {
-                continue;
-            }
-            let path = entry.into_path();
-            let Ok(rel) = path.strip_prefix(&layer.root) else {
-                continue;
-            };
-            let rel = rel.to_string_lossy().replace('\\', "/");
-            let dir = rel.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
-            files.insert(rel.to_ascii_lowercase(), (index, dir, path));
-        }
-    }
-    let mut ordered: Vec<(usize, String, PathBuf)> = files.into_values().collect();
-    ordered.sort();
-    ordered
-        .into_iter()
-        .map(|(_, dir, path)| (dir, path))
-        .collect()
-}
-
-fn parse(path: &Path) -> Option<(Node, Vec<u8>)> {
-    let src = fs::read(path).ok()?;
-    let root = cst::parse_script(&src, 0).ok()?;
-    Some((root, src))
+    layout.files_under(MODELS_DIR, &["asset", "gfx", "dds"])
 }
 
 /// Where `locator` sits in `mesh`'s bind pose: one of its locators, moved with its joint when

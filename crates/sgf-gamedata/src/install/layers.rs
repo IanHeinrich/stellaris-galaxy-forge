@@ -62,7 +62,9 @@ impl Layout {
 
     /// The `.txt` files of `rel_dir` in the game's own install, those a mod replaced included.
     pub(crate) fn vanilla_files_in(&self, rel_dir: &str) -> Vec<PathBuf> {
-        let dir = normalize(rel_dir)
+        let rel_dir = normalize(rel_dir);
+        record(|| format!("{rel_dir}/probe.txt"));
+        let dir = rel_dir
             .split('/')
             .fold(self.install.clone(), |p, part| p.join(part));
         txt_files(&dir)
@@ -107,12 +109,7 @@ impl Layout {
     /// names `rel_dir` discards everything before it.
     pub fn files_in(&self, rel_dir: &str) -> Vec<PathBuf> {
         let rel_dir = normalize(rel_dir);
-        #[cfg(test)]
-        WALKED.with_borrow_mut(|walked| {
-            if let Some(walked) = walked {
-                walked.insert(rel_dir.clone());
-            }
-        });
+        record(|| format!("{rel_dir}/probe.txt"));
         let mut winners: BTreeMap<String, PathBuf> = BTreeMap::new();
         for layer in &self.layers {
             if layer.replace_paths.contains(&rel_dir) {
@@ -130,7 +127,8 @@ impl Layout {
         winners.into_values().collect()
     }
 
-    /// `run`, with every directory [`Layout::files_in`] walked on this thread meanwhile.
+    /// `run`, with a path for each walk through this layout on this thread meanwhile: where a
+    /// file the walk reads could be.
     #[cfg(test)]
     pub(crate) fn record_walks<R>(run: impl FnOnce() -> R) -> (R, BTreeSet<String>) {
         WALKED.set(Some(BTreeSet::new()));
@@ -155,6 +153,7 @@ impl Layout {
     ) -> Vec<(PathBuf, Option<String>)> {
         let rel_dir = normalize(rel_dir);
         let ext = ext.to_ascii_lowercase();
+        record(|| format!("{rel_dir}/probe.{ext}"));
         let mut winners: BTreeMap<String, (PathBuf, Option<String>)> = BTreeMap::new();
         for layer in &self.layers {
             if replaces(&layer.replace_paths, &rel_dir) {
@@ -181,6 +180,7 @@ impl Layout {
     /// discards the subdirectories seen before it.
     pub(crate) fn subdirs_in(&self, rel_dir: &str) -> Vec<String> {
         let rel_dir = normalize(rel_dir);
+        record(|| format!("{rel_dir}/probe"));
         let mut names: BTreeMap<String, String> = BTreeMap::new();
         for layer in &self.layers {
             if replaces(&layer.replace_paths, &rel_dir) {
@@ -200,6 +200,70 @@ impl Layout {
             }
         }
         names.into_values().collect()
+    }
+
+    /// Every file below `rel_dir` (`gfx/models`), subfolders included, whose extension is one
+    /// of `exts` (matched case-insensitively), with its folder relative to its layer root. A
+    /// later layer's file of the same path, case aside, replaces the earlier one. In layer
+    /// order, then folder and path order. No `replace_path` is applied.
+    pub(crate) fn files_under(&self, rel_dir: &str, exts: &[&str]) -> Vec<(String, PathBuf)> {
+        let mut files: BTreeMap<String, (usize, String, PathBuf)> = BTreeMap::new();
+        for (index, rel, path) in self.walk_under(rel_dir, exts) {
+            let dir = rel.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
+            files.insert(rel.to_ascii_lowercase(), (index, dir, path));
+        }
+        let mut ordered: Vec<(usize, String, PathBuf)> = files.into_values().collect();
+        ordered.sort();
+        ordered
+            .into_iter()
+            .map(|(_, dir, path)| (dir, path))
+            .collect()
+    }
+
+    /// Every file below `rel_dir` (`interface`), subfolders included, whose extension is one
+    /// of `exts` (matched case-insensitively), from every layer, in layer order then the order
+    /// of a walk sorted by file name. No file replaces another, and no `replace_path` is applied.
+    pub(crate) fn every_file_under(&self, rel_dir: &str, exts: &[&str]) -> Vec<PathBuf> {
+        self.walk_under(rel_dir, exts)
+            .into_iter()
+            .map(|(_, _, path)| path)
+            .collect()
+    }
+
+    /// Each file [`Self::every_file_under`] finds, with its layer's place and its path below
+    /// the layer root.
+    fn walk_under(&self, rel_dir: &str, exts: &[&str]) -> Vec<(usize, String, PathBuf)> {
+        let rel_dir = normalize(rel_dir);
+        for ext in exts {
+            record(|| format!("{rel_dir}/probe.{ext}"));
+        }
+        let mut files = Vec::new();
+        for (index, layer) in self.layers.iter().enumerate() {
+            let root = rel_dir
+                .split('/')
+                .fold(layer.root.clone(), |p, part| p.join(part));
+            for entry in WalkDir::new(&root)
+                .sort_by_file_name()
+                .into_iter()
+                .flatten()
+            {
+                let wanted = entry
+                    .path()
+                    .extension()
+                    .is_some_and(|e| exts.iter().any(|k| e.eq_ignore_ascii_case(k)))
+                    && (entry.file_type().is_file() || entry.path().is_file());
+                if !wanted {
+                    continue;
+                }
+                let path = entry.into_path();
+                let Ok(rel) = path.strip_prefix(&layer.root) else {
+                    continue;
+                };
+                let rel = rel.to_string_lossy().replace('\\', "/");
+                files.push((index, rel, path));
+            }
+        }
+        files
     }
 
     /// The winning file called `name` directly under `rel_dir`
@@ -229,6 +293,7 @@ impl Layout {
     /// a `replace` folder first, those inside one second (applied last,
     /// winning over everything).
     pub fn localisation_files(&self, lang: &str) -> (Vec<PathBuf>, Vec<PathBuf>) {
+        record(|| "localisation/probe.yml".to_owned());
         let header = format!("l_{lang}:");
         let (mut normal, mut replace) = (Vec::new(), Vec::new());
         for layer in &self.layers {
@@ -244,6 +309,19 @@ impl Layout {
         (normal, replace)
     }
 }
+
+/// Notes `probe` for [`Layout::record_walks`].
+#[cfg(test)]
+fn record(probe: impl FnOnce() -> String) {
+    WALKED.with_borrow_mut(|walked| {
+        if let Some(walked) = walked {
+            walked.insert(probe());
+        }
+    });
+}
+
+#[cfg(not(test))]
+fn record(_: impl FnOnce() -> String) {}
 
 fn normalize(rel: &str) -> String {
     rel.replace('\\', "/").trim_matches('/').to_owned()

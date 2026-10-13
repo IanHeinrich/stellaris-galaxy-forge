@@ -2,8 +2,8 @@
 //! every layer, a repeated key settled by [`Keeps`].
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -432,7 +432,7 @@ impl Variables {
             let Some((root, src)) = parse_file(&file, diagnostics) else {
                 continue;
             };
-            for (name, value) in root.children().iter().filter_map(|n| variable(n, &src)) {
+            for (name, value) in variables(root.children(), &src) {
                 let (name, value) = (name.to_owned(), (file.clone(), value));
                 match keeps {
                     Keeps::First => {
@@ -573,21 +573,26 @@ impl ParsedDir {
 }
 
 fn file_vars(children: &[Node], src: &[u8]) -> BTreeMap<String, Variable> {
-    children
-        .iter()
-        .filter_map(|node| variable(node, src))
+    variables(children, src)
+        .into_iter()
         .map(|(name, var)| (name.to_owned(), var))
         .collect()
 }
 
-/// An `@name = value` scalar as its name, `@` stripped, and value.
-fn variable<'a>(node: &Node, src: &'a [u8]) -> Option<(&'a str, Variable)> {
-    let name = node.key_str(src)?.strip_prefix('@')?;
-    let var = Variable {
-        value: node.scalar_str(src)?.to_owned(),
-        line: line_of(src, node.span().start),
-    };
-    Some((name, var))
+/// Each `@name = value` scalar among `children` as its name, `@` stripped, and value. The
+/// file's lines are found only when it has one.
+fn variables<'a>(children: &[Node], src: &'a [u8]) -> Vec<(&'a str, Variable)> {
+    let mut lines = None;
+    children
+        .iter()
+        .filter_map(|node| {
+            let name = node.key_str(src)?.strip_prefix('@')?;
+            let value = node.scalar_str(src)?.to_owned();
+            let lines = lines.get_or_insert_with(|| LineStarts::of(src));
+            let line = lines.line_of(node.span().start);
+            Some((name, Variable { value, line }))
+        })
+        .collect()
 }
 
 /// The line, from 1, that byte `offset` of `src` is on.
@@ -597,10 +602,65 @@ pub(crate) fn line_of(src: &[u8], offset: usize) -> u32 {
     u32::try_from(lines + 1).unwrap_or(u32::MAX)
 }
 
+/// The lines of each definition's file, found once per file.
+#[derive(Debug, Default)]
+pub(crate) struct FileLines(HashMap<PathBuf, LineStarts>);
+
+impl FileLines {
+    /// The line, from 1, that `def` begins on.
+    pub(crate) fn line_of(&mut self, def: &Def) -> u32 {
+        self.0
+            .entry(def.file.clone())
+            .or_insert_with(|| LineStarts::of(&def.src))
+            .line_of(def.node.span().start)
+    }
+}
+
+/// Where each line of one source begins, so the line of a byte is found by binary search.
+#[derive(Debug, Clone)]
+pub(crate) struct LineStarts(Vec<usize>);
+
+impl LineStarts {
+    pub(crate) fn of(src: &[u8]) -> Self {
+        let breaks = src
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| **b == b'\n')
+            .map(|(at, _)| at + 1);
+        Self(std::iter::once(0).chain(breaks).collect())
+    }
+
+    /// The line, from 1, that byte `offset` is on.
+    pub(crate) fn line_of(&self, offset: usize) -> u32 {
+        let lines = self.0.partition_point(|&start| start <= offset);
+        u32::try_from(lines).unwrap_or(u32::MAX)
+    }
+}
+
 /// Parse one script file directly, for a caller whose layering is not the
 /// "last file of this name wins" rule [`parse_dir`] applies (a single
 /// well-known file, or a file whose top-level blocks repeat a key).
 pub fn parse_file(file: &Path, diagnostics: &mut Vec<Diagnostic>) -> Option<(Node, Arc<[u8]>)> {
+    read_and_parse(file, diagnostics, |bytes| {
+        cst::parse_script(&bytes, 0).map(|root| (root, bytes))
+    })
+}
+
+/// A `.gfx` or `.asset` file parsed as the game reads one: the end of the file closes every
+/// block still open, as vanilla's `gfx/models/effects/nomads.gfx` needs. Any other script file
+/// that ends inside a block is a parse error.
+pub(crate) fn parse_graphics_file(
+    file: &Path,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<(Node, Arc<[u8]>)> {
+    read_and_parse(file, diagnostics, parse_closing_at_end)
+}
+
+fn read_and_parse(
+    file: &Path,
+    diagnostics: &mut Vec<Diagnostic>,
+    parse: impl FnOnce(Arc<[u8]>) -> Result<(Node, Arc<[u8]>), cst::CstError>,
+) -> Option<(Node, Arc<[u8]>)> {
     let bytes: Arc<[u8]> = match fs::read(file) {
         Ok(bytes) => bytes.into(),
         Err(e) => {
@@ -611,8 +671,8 @@ pub fn parse_file(file: &Path, diagnostics: &mut Vec<Diagnostic>) -> Option<(Nod
             return None;
         }
     };
-    match cst::parse_script(&bytes, 0) {
-        Ok(root) => Some((root, bytes)),
+    match parse(bytes) {
+        Ok(parsed) => Some(parsed),
         Err(e) => {
             diagnostics.push(Diagnostic::ParseError {
                 file: file.to_path_buf(),
@@ -622,6 +682,27 @@ pub fn parse_file(file: &Path, diagnostics: &mut Vec<Diagnostic>) -> Option<(Nod
             None
         }
     }
+}
+
+/// How many blocks the end of a file may close.
+const CLOSED_AT_END: usize = 64;
+
+/// `bytes` parsed as [`parse_graphics_file`] reads a file. The returned bytes end with the `}`
+/// that close the blocks left open.
+pub(crate) fn parse_closing_at_end(
+    mut bytes: Arc<[u8]>,
+) -> Result<(Node, Arc<[u8]>), cst::CstError> {
+    for _ in 0..CLOSED_AT_END {
+        match cst::parse_script(&bytes, 0) {
+            Err(e) if e.ended_inside_a_block() => {
+                let mut closed = bytes.to_vec();
+                closed.extend_from_slice(b"\n}");
+                bytes = closed.into();
+            }
+            parsed => return parsed.map(|root| (root, bytes)),
+        }
+    }
+    cst::parse_script(&bytes, 0).map(|root| (root, bytes))
 }
 
 /// Every node named `key` at any depth below `node`, in file order.
@@ -653,4 +734,54 @@ pub fn last_scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str>
         .last()?
         .scalar_str(src)
         .filter(|s| !s.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `node`'s keys, values and children, without where they lie in the file.
+    fn shape(node: &Node, src: &[u8]) -> String {
+        let children: Vec<String> = node.children().iter().map(|c| shape(c, src)).collect();
+        format!(
+            "{:?}={:?}{{{}}}",
+            node.key_str(src),
+            node.scalar_str(src),
+            children.join(" ")
+        )
+    }
+
+    #[test]
+    fn the_end_of_a_graphics_file_closes_every_block_still_open() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let parsed = |name: &str, text: &str| {
+            let file = dir.path().join(name);
+            fs::write(&file, text).expect("a file");
+            let mut diagnostics = Vec::new();
+            let (root, src) = parse_graphics_file(&file, &mut diagnostics).expect("it parses");
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            shape(&root, &src)
+        };
+        let closed = parsed(
+            "closed.gfx",
+            "objectTypes = {\n\tpdxmesh = {\n\t\tname = \"a\"\n\t}\n}\n",
+        );
+        let one_open = parsed(
+            "one.gfx",
+            "objectTypes = {\n\tpdxmesh = {\n\t\tname = \"a\"\n\t}\n",
+        );
+        let two_open = parsed(
+            "two.gfx",
+            "objectTypes = {\n\tpdxmesh = {\n\t\tname = \"a\"\n",
+        );
+        assert_eq!(one_open, closed);
+        assert_eq!(two_open, closed);
+
+        let mut diagnostics = Vec::new();
+        assert!(parse_file(&dir.path().join("one.gfx"), &mut diagnostics).is_none());
+        assert!(
+            matches!(&diagnostics[..], [Diagnostic::ParseError { .. }]),
+            "{diagnostics:?}"
+        );
+    }
 }
