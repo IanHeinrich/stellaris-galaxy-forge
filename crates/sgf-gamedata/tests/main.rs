@@ -37,6 +37,7 @@ mod layering;
 mod localisation;
 mod look_only_classes;
 mod megastructure_construction;
+mod megastructure_inline_scripts;
 mod megastructure_layouts;
 mod megastructure_layouts_added;
 mod megastructure_layouts_giga;
