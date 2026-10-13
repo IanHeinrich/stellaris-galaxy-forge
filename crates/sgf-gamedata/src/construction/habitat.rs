@@ -5,10 +5,10 @@
 //! body, which the row's own completion flags `has_orbital`.
 //! The editor adds such a type as the planet, with [`sgf_core::ops::Op::AddHabitat`].
 
-use sgf_core::ops::{HabitatOrbital, HabitatPlacement, NewHabitat, NewPlanet};
-use sgf_core::views::OrbitPlacement;
+use sgf_core::ops::{HabitatOrbital, HabitatPlacement, NewHabitat};
 
 use super::layout::{self, Around, IdOf, LaidFlag, LaidRow, Plan, Section, SystemLayout};
+use super::spawned::new_planet;
 use crate::GameData;
 use crate::registries::megastructures::{MegastructureDef, is_ruin};
 
@@ -100,27 +100,8 @@ fn of_layout(
         [variable] if variable.ends_with(SYSTEM_NAME) => Some(variable.clone()),
         _ => return None,
     };
-    let model = planet
-        .model
-        .as_ref()
-        .and_then(|model| match (model.cultured, culture) {
-            (false, _) => Some(model.entity.clone()),
-            (true, Some(culture)) => Some(format!("{culture}_{}", model.entity)),
-            (true, None) => None,
-        });
     Some(NewHabitat {
-        planet: NewPlanet {
-            class: planet.class.clone(),
-            size: planet.size?,
-            at: OrbitPlacement {
-                radius: planet.at.distance,
-                angle: planet.at.save_angle(),
-            },
-            name: name.key.clone(),
-            model,
-            flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
-            modifiers: Vec::new(),
-        },
+        planet: new_planet(planet, name.key.clone(), planet.size?, culture),
         system_name,
         orbital,
         placed: HabitatPlacement::AwayFromHabitats,

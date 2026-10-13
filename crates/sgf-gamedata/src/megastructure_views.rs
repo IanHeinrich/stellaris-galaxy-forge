@@ -9,6 +9,7 @@ use ts_rs::TS;
 use crate::GameData;
 use crate::construction::habitat::habitat;
 use crate::construction::ring_world::{RingStage, quadrants, ring_world};
+use crate::construction::spawned::{AtHost, at_host};
 use crate::construction::{SummaryKind, SummaryLine, SummaryOn};
 use crate::planet_views::ModifierLineView;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
@@ -56,6 +57,13 @@ pub struct MegastructureView {
     /// the host holds no megastructure.
     #[serde(default)]
     pub habitat_orbital: bool,
+    /// Its finished stage spawns a planet round the body it stands on, which the editor adds
+    /// with the row.
+    #[serde(default)]
+    pub host_planet: bool,
+    /// Its build removes the moons of the body it stands on.
+    #[serde(default)]
+    pub removes_host_moons: bool,
     /// For a ring world past its site, why the editor cannot add its chain's ring whole with
     /// every quadrant finished; `None` when it can, and for any other type.
     #[serde(default)]
@@ -114,6 +122,10 @@ impl GameData {
             .map(|def| {
                 let finished = habitat(self, &def.key, true, None);
                 let ring = self.ring_facts(def);
+                let host = match def.placement {
+                    Placement::Body { .. } => at_host(self, &def.key, None),
+                    _ => AtHost::default(),
+                };
                 MegastructureView {
                     country_effects: modifier_lines(self, &def.country_modifier),
                     construction_summary: def
@@ -124,6 +136,8 @@ impl GameData {
                         .collect(),
                     habitat: finished.is_some(),
                     habitat_orbital: finished.is_some_and(|habitat| habitat.orbital.is_some()),
+                    host_planet: host.planet.is_some(),
+                    removes_host_moons: host.removes_moons,
                     ring_world_refused: ring.refused,
                     ring_world_radius: ring.radius,
                     ring_world_refused_stages: ring.refused_stages,

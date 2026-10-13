@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use serde_json::{Value, json};
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::views::ErrorKind;
-use sgf_gamedata::generate::MegastructureFit;
+use sgf_gamedata::generate::{HostMoonsFit, MegastructureFit};
 use tauri::WebviewWindow;
 use tauri::test::MockRuntime;
 
@@ -276,7 +276,8 @@ fn with_relay_and_ring() -> Option<WebviewWindow<MockRuntime>> {
     let (w, _) = with_game_data(SAMPLE_45)?;
     let relay = json!({
         "system": 0, "kind": "hyper_relay",
-        "place": { "place": "free", "x": 0.0, "y": -280.812 }, "keepPlanet": false
+        "place": { "place": "free", "x": 0.0, "y": -280.812 }, "keepPlanet": false,
+        "moons": "remove"
     });
     invoke::<Value>(&w, "add_megastructure", relay).expect("the relay");
     let ring = json!({
@@ -329,7 +330,45 @@ fn each_spot_offers_and_refuses_what_the_dialog_did() {
             keyed.is_empty(),
             "worded with a key in system {system}: {keyed:?}"
         );
+        let moons: Vec<_> = fits
+            .iter()
+            .filter(|fit| fit.host_moons != HostMoonsFit::Kept)
+            .map(|fit| (&fit.kind, &fit.host_moons))
+            .collect();
+        assert!(
+            moons.is_empty(),
+            "no base game type removes moons: {moons:?}"
+        );
     }
+}
+
+/// On the install of [`common::YARD`], the yard's stages on Alari's gas giant 6 can delete its
+/// three moons, and on molten planet 1, which has none, keep them.
+#[test]
+fn the_fits_say_whether_the_planets_moons_can_go() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let w = common::with_yard(dir.path());
+    let moons = |body: u32| -> Vec<(String, HostMoonsFit)> {
+        fits(&w, 169, Spot::Planet(body))
+            .into_iter()
+            .map(|fit| (fit.kind, fit.host_moons))
+            .collect()
+    };
+    let removable = HostMoonsFit::Removable { count: 3 };
+    assert_eq!(
+        moons(6),
+        [
+            ("fx_yard_0".to_owned(), removable.clone()),
+            ("fx_yard_1".to_owned(), removable),
+        ]
+    );
+    assert_eq!(
+        moons(1),
+        [
+            ("fx_yard_0".to_owned(), HostMoonsFit::Kept),
+            ("fx_yard_1".to_owned(), HostMoonsFit::Kept),
+        ]
+    );
 }
 
 /// A type is offered as itself, but for a stage the game swaps whatever the star: the Ring

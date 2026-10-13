@@ -6,12 +6,13 @@ use std::path::Path;
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
-use sgf_gamedata::generate;
+use sgf_gamedata::generate::{self, HostMoons};
 
 use super::{Run, game_data, mutate};
 
 /// Add a megastructure of type `kind` to system `system` at `place`, changing its planet as
-/// its build does unless `keep_planet`, and print each effect of its construction left out.
+/// its build does unless `keep_planet` and removing the planet's moons when its build does,
+/// and print each effect of its construction left out.
 pub fn run(
     sav: &Path,
     out: Option<&Path>,
@@ -23,7 +24,15 @@ pub fn run(
 ) -> Run {
     let gd = game_data(opts)?;
     let session = Session::open(sav)?;
-    let planned = generate::megastructure_op(&gd, &session, system, kind, place, keep_planet)?;
+    let planned = generate::megastructure_op(
+        &gd,
+        &session,
+        system,
+        kind,
+        place,
+        keep_planet,
+        HostMoons::Remove,
+    )?;
     let outcome = mutate::apply_all(session, out, vec![planned.op])?;
     for effect in &planned.unsure {
         println!("left out, unsure: {effect}");

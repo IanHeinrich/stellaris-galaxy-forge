@@ -4,7 +4,7 @@
 use crate::common;
 
 use sgf_core::ops::{MegastructurePlace, NewBypass, Op};
-use sgf_gamedata::generate::{AddSpot, megastructure_fits, megastructure_op};
+use sgf_gamedata::generate::{AddSpot, HostMoons, megastructure_fits, megastructure_op};
 use sgf_gamedata::registries::megastructures::{BuildType, Linked, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
@@ -594,8 +594,10 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
 }
 
 /// A stage that puts its one planet in a body's orbit and always removes its row stands in
-/// the planet's place, as Cosmogenesis World does. One that removes its row only on a
-/// condition leaves the planet beside it, a structure of several parts.
+/// the planet's place, as Cosmogenesis World does. One that never removes its row stands on
+/// the body with the planet round it, and so does the stage it is built over. One that
+/// removes its row only on a condition leaves the planet beside it, a structure of several
+/// parts, and so does one that spawns a second planet.
 #[test]
 fn a_planet_stands_in_its_row_only_when_the_row_always_goes() {
     let spawn =
@@ -605,17 +607,26 @@ fn a_planet_stands_in_its_row_only_when_the_row_always_goes() {
         &format!(
             "mod_world = {{ on_build_complete = {{ {spawn} remove_megastructure = fromfrom }} }}
 mod_maybe_world = {{ on_build_complete = {{ {spawn} if = {{ limit = {{ always = yes }} remove_megastructure = fromfrom }} }} }}
+mod_yard_0 = {{ }}
+mod_yard_1 = {{ upgrade_from = {{ mod_yard_0 }} on_build_complete = {{ {spawn} }} }}
+mod_twin_yard = {{ on_build_complete = {{ {spawn} {spawn} }} }}
 "
         ),
     )]);
     let placement = |key: &str| gd.megastructures.get(key).expect(key).placement.clone();
+    let whole = Placement::Unsupported {
+        why: Unsupported::WholeStructure { star_only: false },
+    };
     assert_eq!(placement("mod_world"), Placement::Body { star_only: false });
-    assert_eq!(
-        placement("mod_maybe_world"),
-        Placement::Unsupported {
-            why: Unsupported::WholeStructure { star_only: false }
-        }
-    );
+    assert_eq!(placement("mod_maybe_world"), whole);
+    for key in ["mod_yard_0", "mod_yard_1"] {
+        assert_eq!(
+            placement(key),
+            Placement::Body { star_only: false },
+            "{key}"
+        );
+    }
+    assert_eq!(placement("mod_twin_yard"), whole);
 }
 
 /// An L-Gate added in empty space of the 4.5 sample's Xu Nur (1) stands where it was clicked as a
@@ -638,8 +649,16 @@ fn an_lgate_goes_in_empty_space_with_a_closed_bypass() {
     let clicked = MegastructurePlace::Free { x: 0.0, y: -10.0 };
     assert_eq!(lgate.place, clicked);
     assert_eq!(gateway.place, clicked);
-    let planned =
-        megastructure_op(gd, &session, 1, "lgate_base", lgate.place, false).expect("the L-Gate");
+    let planned = megastructure_op(
+        gd,
+        &session,
+        1,
+        "lgate_base",
+        lgate.place,
+        false,
+        HostMoons::Keep,
+    )
+    .expect("the L-Gate");
     let Op::AddMegastructure { spec, .. } = planned.op else {
         panic!("{:?}", planned.op);
     };

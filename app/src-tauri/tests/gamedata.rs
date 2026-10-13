@@ -415,18 +415,13 @@ fn a_root_that_cannot_be_watched_is_named_in_the_summary() {
 #[test]
 fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    for (rel, text) in [
-        (
+    let install = common::hand_written(
+        dir.path(),
+        &[(
             "common/defines/00_defines.txt",
             "NGameplay = {\n\tSYSTEM_INNER_RADIUS_OFFSET = 50\n}\n",
-        ),
-        ("localisation/english/fx_l_english.yml", "l_english:\n"),
-    ] {
-        let file = install.join(rel);
-        std::fs::create_dir_all(file.parent().expect("a directory")).expect("the install tree");
-        std::fs::write(file, text).expect("an install file");
-    }
+        )],
+    );
     let far_belt = json!({ "op": {
         "type": "AddBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
     } });

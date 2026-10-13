@@ -1,10 +1,13 @@
-//! Gigastructural Engineering's ring worlds as the editor adds them, with `SGF_PLAYSET=1`:
-//! its own ring world chain and its titanic, behemoth and gargantuan rings.
+//! Gigastructural Engineering's ring worlds and Equatorial Shipyard as the editor adds them,
+//! with `SGF_PLAYSET=1`: its own ring world chain, its titanic, behemoth and gargantuan rings,
+//! and the shipyard's ring planet.
 
 use crate::common;
 
-use sgf_core::ops::RingQuadrant;
+use sgf_core::ops::{MegastructurePlace, NewPlanet, Op, RingQuadrant, TimedModifier, VariableStep};
+use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::construction::ring_world::{self as added, RingStage};
+use sgf_gamedata::generate::{HostMoons, megastructure_op};
 use sgf_gamedata::registries::megastructures::{Placement, Unsupported};
 
 /// With Gigastructural Engineering enabled, its own ring world chain is added as it built
@@ -386,4 +389,126 @@ fn gigas_rings_list_the_flags_the_add_writes_beside_the_base_ring() {
     );
     assert_eq!(base.sections, ["ring_"]);
     assert_eq!(titanic.sections, ["ring_"]);
+}
+
+/// With Gigastructural Engineering enabled, each stage of its Equatorial Shipyard goes on a
+/// planet, while its Birch World, Stellar Ring Habitat, Square World, Interstellar Habitat,
+/// Alderson Disk and star fix stay refused. The frame removes its planet's moons and the
+/// finished shipyard also spawns its ring. Added on Alari's gas giant 6 with the moons
+/// removed, the shipyard deletes moons 7, 8 and 9, writes the Processing Ring as a 4.5 save
+/// shows one, in country 0's culture, raises the shipyard counter the first stage raises, and
+/// lists the ring's colony, its AI colony start and its locale event as unwritten. Applied and
+/// undone, the bytes are as they were. Runs with `SGF_PLAYSET=1` when the enabled mods include
+/// Giga.
+#[test]
+fn gigas_equatorial_shipyard_is_added_with_its_ring() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    let mega = |key: &str| gd.megastructures.get(key).expect(key);
+    for key in ["eq_shipyard_0", "eq_shipyard_1", "eq_shipyard_2"] {
+        assert_eq!(
+            mega(key).placement,
+            Placement::Body { star_only: false },
+            "{key}"
+        );
+    }
+    for key in [
+        "birch_world_0",
+        "stellar_ring_habitat_3",
+        "stellar_ring_habitat_restored",
+        "r_square_world_ruined",
+        "interstellar_habitat_2",
+        "alderson_disk_0",
+        "blokkat_star_fix_0",
+    ] {
+        assert!(
+            matches!(mega(key).placement, Placement::Unsupported { .. }),
+            "{key}: {:?}",
+            mega(key).placement
+        );
+    }
+    let views = gd.megastructure_views();
+    let view = |key: &str| {
+        let view = views.iter().find(|v| v.def.key == key).expect(key);
+        (view.host_planet, view.removes_host_moons)
+    };
+    assert_eq!(view("eq_shipyard_0"), (false, false));
+    assert_eq!(view("eq_shipyard_1"), (false, true));
+    assert_eq!(view("eq_shipyard_2"), (true, true));
+
+    let place = MegastructurePlace::Body { body: 6 };
+    let session = common::open_4_5();
+    let planned = megastructure_op(
+        gd,
+        &session,
+        169,
+        "eq_shipyard_2",
+        place,
+        false,
+        HostMoons::Remove,
+    )
+    .expect("the shipyard");
+    assert_eq!(
+        planned.unwritten,
+        [
+            "eq_shipyard_2: a branch behind space_owner",
+            "eq_shipyard_2: a branch behind years_passed, root.from, solar_system",
+            "eq_shipyard_2: planet_event on a spawned planet",
+        ]
+    );
+    let Op::Batch { description, ops } = &planned.op else {
+        panic!("{:?}", planned.op);
+    };
+    assert_eq!(
+        description,
+        "Added the Equatorial Shipyard at planet #6, removing its 3 moons"
+    );
+    let [
+        Op::DeleteBody { body: 7 },
+        Op::DeleteBody { body: 8 },
+        Op::DeleteBody { body: 9 },
+        Op::AddMegastructure { spec, .. },
+    ] = &ops[..]
+    else {
+        panic!("{ops:?}");
+    };
+    assert_eq!(
+        spec.planet,
+        Some(NewPlanet {
+            class: "pc_equatorial_shipyard".to_owned(),
+            size: 12,
+            at: OrbitPlacement {
+                radius: 0.00001,
+                angle: 180.0,
+            },
+            name: "Processing Ring".to_owned(),
+            model: Some("mammalian_01_planetary_ring_game_01_entity".to_owned()),
+            flags: [
+                "forbid_guillis_planet_modifiers",
+                "megastructure",
+                "colony_event",
+                "giga_equatorial_shipyard",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
+            modifiers: vec![TimedModifier {
+                modifier: "ringyard_alloys".to_owned(),
+                days: None,
+            }],
+        })
+    );
+    let construction = spec.construction.as_ref().expect("the counter");
+    assert_eq!(
+        construction.variables,
+        [VariableStep {
+            variable: "giga_current_shipyard".to_owned(),
+            by: 1,
+        }]
+    );
+
+    let mut session = common::open_4_5();
+    session.apply(planned.op.clone()).expect("the shipyard");
+    session.undo().expect("undo").expect("an edit");
+    assert!(!session.doc().is_dirty());
 }

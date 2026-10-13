@@ -8,15 +8,12 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::format::save::ring_world::RingWorldTypes;
-use sgf_core::ops::{
-    NewPlanet, NewRingWorld, RingFlags, RingQuadrant, RingRow, RingSegment, RingVariable,
-    TimedModifier,
-};
+use sgf_core::ops::{NewRingWorld, RingFlags, RingQuadrant, RingRow, RingSegment, RingVariable};
 use sgf_core::views::OrbitPlacement;
 use ts_rs::TS;
 
-use super::lasting;
 use super::layout::{self, Around, LaidPlanet, LaidRow, Plan, SectionStage, SystemLayout};
+use super::spawned::new_planet;
 use crate::GameData;
 use crate::registries::megastructure_families::closure;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported, is_ruin};
@@ -370,36 +367,11 @@ fn segment(planet: &LaidPlanet, culture: Option<&str>) -> Result<RingSegment, St
         }
         None => DAMAGED_NAME.to_owned(),
     };
-    let model = planet
-        .model
-        .as_ref()
-        .and_then(|model| match (model.cultured, culture) {
-            (false, _) => Some(model.entity.clone()),
-            (true, Some(culture)) => Some(format!("{culture}_{}", model.entity)),
-            (true, None) => None,
-        });
+    let size = planet
+        .size
+        .ok_or_else(|| format!("the game rolls the size of its {class}"))?;
     Ok(RingSegment {
-        planet: NewPlanet {
-            class: class.clone(),
-            size: planet
-                .size
-                .ok_or_else(|| format!("the game rolls the size of its {class}"))?,
-            at: OrbitPlacement {
-                radius: planet.at.distance,
-                angle: planet.at.save_angle(),
-            },
-            name,
-            model,
-            flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
-            modifiers: planet
-                .modifiers
-                .iter()
-                .map(|(modifier, days)| TimedModifier {
-                    modifier: modifier.clone(),
-                    days: lasting(*days),
-                })
-                .collect(),
-        },
+        planet: new_planet(planet, name, size, culture),
         megastructure_icon: planet.megastructure_icon,
     })
 }

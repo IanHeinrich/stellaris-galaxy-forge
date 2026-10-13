@@ -35,6 +35,7 @@ function fitsFor(spot: AddSpot): MegastructureFit[] {
           ? RELAYED
           : { place: "free", x: spot.x, y: spot.y },
     refusal: null,
+    host_moons: { kind: "kept" },
   }));
 }
 
@@ -161,7 +162,11 @@ describe("adding a megastructure from the system view", () => {
   });
 
   it("adds the type the game makes of a stage at the star, and remembers the stage", async () => {
-    const variant = { place: { place: "body", body: 12 }, refusal: null } as const;
+    const variant = {
+      place: { place: "body", body: 12 },
+      refusal: null,
+      host_moons: { kind: "kept" },
+    } as const;
     mockedIpc.getMegastructureFits.mockResolvedValue([
       { kind: "think_tank_3", variant: "think_tank_3_variant", ...variant },
     ]);
