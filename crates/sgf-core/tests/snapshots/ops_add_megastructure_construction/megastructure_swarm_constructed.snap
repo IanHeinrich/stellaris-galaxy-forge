@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added megastructure #16 (dyson_swarm_3) in Alari system #169, with 1 modifier and 1 counter
-inverse: RemoveMegastructure { megastructure: 16, construction: Some(MegastructureConstruction { modifiers: [ConstructionModifier { on: Body { body: 0 }, modifier: "dyson_swarm_3_mod", days: -1 }], deposits: [], variables: [VariableRaise { variable: "dyson_swarm_counter", by: 1 }] }) }
+inverse: RemoveMegastructure { megastructure: 16, construction: Some(MegastructureConstruction { modifiers: [ConstructionModifier { on: Body { body: 0 }, timed: TimedModifier { modifier: "dyson_swarm_3_mod", days: None } }], deposits: [], variables: [VariableStep { variable: "dyson_swarm_counter", by: 1 }] }), left_out: 0 }
 
 --- gamestate
 +++ gamestate

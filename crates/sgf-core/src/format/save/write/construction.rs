@@ -26,7 +26,7 @@ use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{
     ConstructionDeposit, ConstructionModifier, Edit, Emitted, MegastructureConstruction,
-    ModifierHost, Op, OpError, Plan, SavedTable, VariableRaise,
+    ModifierHost, Op, OpError, Plan, SavedTable, VariableStep,
 };
 use crate::overlay::Anchor;
 use crate::projections::read;
@@ -46,20 +46,21 @@ pub(crate) fn check(
         reason,
     };
     for (i, item) in construction.modifiers.iter().enumerate() {
-        check_text("a modifier", &item.modifier, Form::Bare)?;
-        if item.days == 0 || item.days < -1 {
+        check_text("a modifier", &item.timed.modifier, Form::Bare)?;
+        if item.timed.lasts_wrongly() {
             return Err(refuse(format!(
                 "modifier {} would last {} days",
-                item.modifier, item.days
+                item.timed.modifier,
+                item.timed.days.unwrap_or_default()
             )));
         }
         if construction.modifiers[..i]
             .iter()
-            .any(|earlier| earlier.on == item.on && earlier.modifier == item.modifier)
+            .any(|earlier| earlier.on == item.on && earlier.timed.modifier == item.timed.modifier)
         {
             return Err(refuse(format!(
                 "modifier {} is listed twice",
-                item.modifier
+                item.timed.modifier
             )));
         }
         if let ModifierHost::Body { body } = item.on {
@@ -177,14 +178,17 @@ pub(crate) fn write_modifiers(
     for (host, items) in by_host(construction) {
         let edit = host_edit(plan, s, system, host)?;
         let held = held_modifiers(edit)?;
-        if let Some(item) = items.iter().find(|item| held.contains(&item.modifier)) {
+        if let Some(item) = items
+            .iter()
+            .find(|item| held.contains(&item.timed.modifier))
+        {
             let on = match host {
                 ModifierHost::System => "the system".to_owned(),
                 ModifierHost::Body { body } => format!("planet {body}"),
             };
             return Err(OpError::MegastructureRefused {
                 kind: kind.to_owned(),
-                reason: format!("{on} already has modifier {}", item.modifier),
+                reason: format!("{on} already has modifier {}", item.timed.modifier),
             });
         }
         let adding: Vec<(&str, ItemEdit)> = items
@@ -192,9 +196,9 @@ pub(crate) fn write_modifiers(
             .map(|item| {
                 let add = ItemEdit::Add {
                     at: End::Last,
-                    days: item.days,
+                    days: item.timed.written_days(),
                 };
-                (item.modifier.as_str(), add)
+                (item.timed.modifier.as_str(), add)
             })
             .collect();
         set_items(edit, timed_place(host), &adding)?;
@@ -252,9 +256,9 @@ fn list(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
 
 /// Raise each of `raises` in the country's `variables`: a held one to its sum, a new one
 /// written before the first name after it.
-fn raise(edit: &mut Edit, raises: &[VariableRaise]) -> Result<(), OpError> {
+fn raise(edit: &mut Edit, raises: &[VariableStep]) -> Result<(), OpError> {
     let Some(block) = edit.entity()?.find(keys::VARIABLES, &edit.buf).cloned() else {
-        let mut sorted: Vec<&VariableRaise> = raises.iter().collect();
+        let mut sorted: Vec<&VariableStep> = raises.iter().collect();
         sorted.sort_by(|a, b| a.variable.cmp(&b.variable));
         let write = |indent: &[u8]| {
             let mut w = Lines::new(indent);
@@ -272,7 +276,7 @@ fn raise(edit: &mut Edit, raises: &[VariableRaise]) -> Result<(), OpError> {
         .iter()
         .filter_map(|line| Some((line.key_str(&edit.buf)?.to_owned(), line.clone())))
         .collect();
-    let mut new: Vec<&VariableRaise> = Vec::new();
+    let mut new: Vec<&VariableStep> = Vec::new();
     for raise in raises {
         match lines.iter().find(|(name, _)| *name == raise.variable) {
             Some((_, line)) => {
@@ -326,11 +330,11 @@ pub(crate) fn take_back(
         let held = held_modifiers(edit)?;
         let going: Vec<&ConstructionModifier> = items
             .into_iter()
-            .filter(|item| held.contains(&item.modifier))
+            .filter(|item| held.contains(&item.timed.modifier))
             .collect();
         let removing: Vec<(&str, ItemEdit)> = going
             .iter()
-            .map(|item| (item.modifier.as_str(), ItemEdit::Remove))
+            .map(|item| (item.timed.modifier.as_str(), ItemEdit::Remove))
             .collect();
         set_items(edit, timed_place(host), &removing)?;
         kept.modifiers.extend(going.into_iter().cloned());
@@ -443,8 +447,8 @@ fn lower(
     plan: &mut Plan,
     s: &Session,
     owner: u32,
-    raises: &[VariableRaise],
-) -> Result<Vec<VariableRaise>, OpError> {
+    raises: &[VariableStep],
+) -> Result<Vec<VariableStep>, OpError> {
     let Some(country) = live(&s.doc, SavedTable::Country, owner)? else {
         return Ok(Vec::new());
     };
@@ -516,6 +520,7 @@ pub(crate) fn of_session(s: &Session, megastructure: u32) -> Option<Megastructur
             Op::RemoveMegastructure {
                 megastructure: id,
                 construction,
+                ..
             } if *id == megastructure => Some(construction.as_ref()),
             Op::Batch { ops, .. } => ops.iter().rev().find_map(|op| find(op, megastructure)),
             _ => None,

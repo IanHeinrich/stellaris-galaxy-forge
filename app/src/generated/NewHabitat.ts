@@ -7,32 +7,28 @@ import type { OrbitPlacement } from "./OrbitPlacement";
  */
 export type NewHabitat = { 
 /**
- * `pc_habitat`.
- */
-class: string, size: number, 
-/**
- * Its distance from the body it orbits, and its save angle about it.
- */
-at: OrbitPlacement, 
-/**
- * The localisation key of its name, `HABITAT_PLANET_NAME`.
- */
-name: string, 
-/**
  * The variable of the name that the system's name fills in,
  * `prev.solar_system.GetName`; `None` for a name with none.
  */
 system_name: string | null, 
 /**
- * The model drawn in place of the class's own, `mammalian_01_habitat_phase_03_entity`.
+ * The orbital a restored Habitat Central Complex leaves round the same body.
+ */
+orbital?: HabitatOrbital, class: string, size: number, 
+/**
+ * Its distance from what it orbits, and its save angle about it.
+ */
+at: OrbitPlacement, 
+/**
+ * The localisation key of its name.
+ */
+name: string, 
+/**
+ * The model drawn in place of the class's own,
+ * `mammalian_01_habitat_phase_03_entity`.
  */
 model: string | null, 
 /**
- * Its planet flags, in the order they are set: `megastructure`, `habitat`,
- * `habitat_level_1`.
+ * Its planet flags, in the order they are set: `megastructure`, `habitat`.
  */
-flags: Array<string>, 
-/**
- * The orbital a restored Habitat Central Complex leaves round the same body.
- */
-orbital?: HabitatOrbital, };
+flags: Array<string>, };

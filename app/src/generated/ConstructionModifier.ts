@@ -6,6 +6,6 @@ import type { ModifierHost } from "./ModifierHost";
  */
 export type ConstructionModifier = { on: ModifierHost, modifier: string, 
 /**
- * `-1` for one that never expires.
+ * How many days it lasts; `None` for no end.
  */
-days: number, };
+days: number | null, };

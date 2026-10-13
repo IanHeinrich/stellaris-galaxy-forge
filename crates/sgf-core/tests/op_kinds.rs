@@ -122,12 +122,12 @@ fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
         assert!(!kinds.is_empty(), "{name}: some kind takes it");
         assert_eq!(
             example.save.is_some(),
-            kinds.contains(&DocumentKind::Save),
+            kinds.contains(DocumentKind::Save),
             "{name}: a save example where the row names a save"
         );
         assert_eq!(
             example.scenario.is_some(),
-            kinds.contains(&DocumentKind::Scenario),
+            kinds.contains(DocumentKind::Scenario),
             "{name}: a scenario example where the row names a scenario"
         );
         if example.save.is_none() {

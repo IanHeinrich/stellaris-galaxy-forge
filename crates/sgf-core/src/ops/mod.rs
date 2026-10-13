@@ -11,6 +11,7 @@ mod edit;
 mod error;
 pub(crate) mod history;
 mod op;
+mod payload;
 mod plan;
 pub mod rules;
 
@@ -31,15 +32,8 @@ pub use crate::projections::geometry::{
 pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths};
 pub use error::{MegastructureEdit, OpError, ParseAt, StarEdit};
-pub use op::{
-    BodyName, ClassChange, ConstructionDeposit, ConstructionModifier, DetailsReach, EmpireFlag,
-    HabitatOrbital, LaneLength, LanePair, MapColorPair, MegastructureConstruction,
-    MegastructureDismantle, MegastructurePlace, ModifierHost, NebulaCloud, NebulaFootprint,
-    NewBody, NewBypass, NewHabitat, NewModifier, NewMoon, NewName, NewRingWorld, NewSystem, Op,
-    OpReach, PairPoints, Parent, PlanetClassRule, PlanetLook, RingModifier, RingQuadrant, RingRow,
-    RingSegment, RingVariable, RingWorldWritten, SavedEntity, SavedTable, StarBody, SystemHeight,
-    SystemMove, VariableDrop, VariableRaise,
-};
+pub use op::{DetailsReach, Kinds, Op, OpReach};
+pub use payload::*;
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 
 /// The record of one committed op: what changed, how to describe it, and the bytes

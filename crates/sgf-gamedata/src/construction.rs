@@ -29,7 +29,7 @@ use sgf_core::cst::Node;
 use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, ModifierHost,
-    VariableRaise,
+    TimedModifier, VariableStep,
 };
 use ts_rs::TS;
 
@@ -1053,7 +1053,7 @@ impl Construction {
         }
         for (variable, by) in variables {
             if by > 0.0 && by.fract() == 0.0 && by <= f64::from(u32::MAX) {
-                built.variables.push(VariableRaise {
+                built.variables.push(VariableStep {
                     variable,
                     by: by as u32,
                 });
@@ -1070,6 +1070,12 @@ impl Construction {
             unwritten,
         }
     }
+}
+
+/// The days of an `add_modifier` as a payload takes them: `None` for a negative count, which
+/// the game reads as no end.
+pub(crate) fn lasting(days: i32) -> Option<u32> {
+    u32::try_from(days).ok()
 }
 
 fn note(lines: &mut Vec<String>, line: String) {
@@ -1126,8 +1132,13 @@ fn added_modifiers(
     for modifier in after.iter().filter(|m| !before.contains(m)) {
         built.modifiers.push(ConstructionModifier {
             on: host,
-            modifier: modifier.clone(),
-            days: days.get(&(host, modifier.clone())).copied().unwrap_or(-1),
+            timed: TimedModifier {
+                modifier: modifier.clone(),
+                days: days
+                    .get(&(host, modifier.clone()))
+                    .copied()
+                    .and_then(lasting),
+            },
         });
     }
     for modifier in before.iter().filter(|m| !after.contains(m)) {

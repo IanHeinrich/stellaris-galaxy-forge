@@ -225,7 +225,7 @@ impl Edit {
 
     /// The line ending of the line holding `at`, to end text inserted beside it with.
     pub fn eol(&self, at: usize) -> &'static [u8] {
-        cst::eol_in(&self.buf, at).unwrap_or(self.document_eol)
+        eol(&self.buf, at, self.document_eol)
     }
 
     /// Refuse a block that is not in the game's multi-line shape: the open brace either
@@ -320,7 +320,7 @@ pub(crate) struct BufEdit<'b> {
 
 impl BufEdit<'_> {
     fn eol(&self, at: usize) -> &'static [u8] {
-        cst::eol_in(self.buf, at).unwrap_or(self.document_eol)
+        eol(self.buf, at, self.document_eol)
     }
 
     /// Write `text` in place of `span` of the bytes.
@@ -410,6 +410,11 @@ pub(crate) fn owns_line(src: &[u8], span: Span) -> bool {
             .iter()
             .take_while(|&&b| b != b'#')
             .all(|&b| is_blank(b) || b == b'\n')
+}
+
+/// The line ending of the line holding `at` in `src`, or `document_eol` when it has none.
+fn eol(src: &[u8], at: usize, document_eol: &'static [u8]) -> &'static [u8] {
+    cst::eol_in(src, at).unwrap_or(document_eol)
 }
 
 fn starts_line(src: &[u8], at: usize) -> bool {

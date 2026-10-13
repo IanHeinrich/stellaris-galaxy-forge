@@ -3,7 +3,7 @@
 //! the 4.4 sample into the 4.5 one, and what is refused.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::ops::{BodyName, NewBody, NewModifier, Op};
+use sgf_core::ops::{BodyName, BodyNaming, GivenName, NewBody, NewModifier, Op};
 use sgf_core::session::{OpResult, Session};
 use sgf_core::views::OrbitPlacement;
 
@@ -78,13 +78,15 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
     assert_eq!(giant.class, "pc_gas_giant");
     assert_eq!(giant.moon_of, None);
     assert_eq!(
-        giant.name,
-        Some(BodyName::Fixed("HUM1_PLANET_UltraksPoint".to_owned()))
+        giant.naming,
+        BodyNaming::Named(GivenName {
+            name: BodyName::Fixed("HUM1_PLANET_UltraksPoint".to_owned()),
+            fixed: false,
+        })
     );
     assert_eq!(giant.entity_name.as_deref(), Some("gas_giant_05_entity"));
     assert_eq!(giant.deposits.len(), 1);
     assert_eq!(giant.moons.len(), 3);
-    assert!(!giant.fixed_name);
     assert_eq!(
         giant.modifiers,
         [
@@ -135,7 +137,11 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
 fn a_colonised_planet_is_copied_without_its_colony() {
     let mut session = open_4_5();
     let copies = copy(&session, &[402]);
-    assert_eq!(copies[0].name, None, "Linkirk I is numbered again");
+    assert_eq!(
+        copies[0].naming,
+        BodyNaming::Numbered,
+        "Linkirk I is numbered again"
+    );
     let op = session
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -193,11 +199,14 @@ fn a_moon_goes_with_its_planet_and_alone_becomes_a_planet() {
 fn a_copy_from_one_save_is_pasted_into_another() {
     let copies = copy(&open(), &[3]);
     assert_eq!(
-        copies[0].name,
-        Some(BodyName::Fixed("NAME_Earth".to_owned()))
+        copies[0].naming,
+        BodyNaming::Named(GivenName {
+            name: BodyName::Fixed("NAME_Earth".to_owned()),
+            fixed: true,
+        }),
+        "Earth holds the fixed-name bit"
     );
     assert_eq!(copies[0].moons.len(), 1);
-    assert!(copies[0].fixed_name, "Earth holds the fixed-name bit");
     let mut session = open_4_5();
     let op = session
         .paste_bodies_op(KAZAM, &copies, None)
@@ -255,19 +264,6 @@ fn stars_megastructures_and_empty_pastes_are_refused() {
     );
 }
 
-#[test]
-fn a_moon_spec_with_moons_of_its_own_is_refused() {
-    let mut session = open_4_5();
-    let mut copies = copy(&session, &[99]);
-    let inner = copies[0].moons[0].clone();
-    copies[0].moons[1].spec.moons.push(inner);
-    let op = session
-        .paste_bodies_op(KAZAM, &copies, None)
-        .expect("an op");
-    let error = session.apply(op).expect_err("a moon with moons");
-    assert_eq!(error.to_string(), "a moon cannot have moons");
-}
-
 /// Planet `id`'s `binary_flags`, 0 when it writes none.
 fn flags(session: &Session, id: u32) -> u32 {
     const KEY: &str = "\n\t\t\tbinary_flags=";
@@ -287,7 +283,7 @@ fn flags(session: &Session, id: u32) -> u32 {
 #[test]
 fn an_asteroid_is_named_from_the_pool() {
     let copies = copy(&open_4_5(), &[1271]);
-    assert!(copies[0].asteroid, "{copies:?}");
+    assert_eq!(copies[0].naming, BodyNaming::Asteroid, "{copies:?}");
     let mut session = open_4_5();
     let op = session
         .paste_bodies_op(KAZAM, &copies, None)

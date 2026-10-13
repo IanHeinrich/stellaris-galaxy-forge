@@ -6,7 +6,7 @@ use crate::common;
 use sgf_core::format::save::site::{ConstructionSite, SiteBody};
 use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
-    ModifierHost, VariableDrop, VariableRaise,
+    ModifierHost, TimedModifier, VariableStep,
 };
 use sgf_gamedata::registries::megastructures::{Linked, Placement};
 
@@ -27,7 +27,7 @@ fn the_install_says_what_a_dismantle_takes_back() {
             .clone()
     };
     let lowers = |variable: &str| {
-        vec![VariableDrop {
+        vec![VariableStep {
             variable: variable.to_owned(),
             by: 1,
         }]
@@ -90,7 +90,7 @@ fn a_dismantle_follows_the_parameters_it_passes() {
         MegastructureDismantle {
             modifiers: vec!["mod_furnace_2_mod".to_owned()],
             deposits: vec!["d_mod_furnace_2".to_owned()],
-            variables: vec![VariableDrop {
+            variables: vec![VariableStep {
                 variable: "mod_furnaces".to_owned(),
                 by: 2,
             }],
@@ -154,8 +154,10 @@ fn the_installs_construction_is_replayed_on_a_system() {
             .into_iter()
             .map(|body| ConstructionModifier {
                 on: ModifierHost::Body { body },
-                modifier: format!("orbital_arc_furnace_{stage}_mod"),
-                days: -1,
+                timed: TimedModifier {
+                    modifier: format!("orbital_arc_furnace_{stage}_mod"),
+                    days: None,
+                },
             })
             .collect(),
         deposits: [6141, 6146]
@@ -165,7 +167,7 @@ fn the_installs_construction_is_replayed_on_a_system() {
                 kind: format!("d_arc_furnace_{stage}"),
             })
             .collect(),
-        variables: vec![VariableRaise {
+        variables: vec![VariableStep {
             variable: "arc_furnace_counter".to_owned(),
             by: 1,
         }],
@@ -177,11 +179,13 @@ fn the_installs_construction_is_replayed_on_a_system() {
         MegastructureConstruction {
             modifiers: vec![ConstructionModifier {
                 on: ModifierHost::Body { body: 6138 },
-                modifier: "dyson_swarm_3_mod".to_owned(),
-                days: -1,
+                timed: TimedModifier {
+                    modifier: "dyson_swarm_3_mod".to_owned(),
+                    days: None,
+                },
             }],
             deposits: Vec::new(),
-            variables: vec![VariableRaise {
+            variables: vec![VariableStep {
                 variable: "dyson_swarm_counter".to_owned(),
                 by: 1,
             }],
@@ -192,8 +196,10 @@ fn the_installs_construction_is_replayed_on_a_system() {
         MegastructureConstruction {
             modifiers: vec![ConstructionModifier {
                 on: ModifierHost::System,
-                modifier: "shroud_seal_modifier".to_owned(),
-                days: -1,
+                timed: TimedModifier {
+                    modifier: "shroud_seal_modifier".to_owned(),
+                    days: None,
+                },
             }],
             ..MegastructureConstruction::default()
         }
@@ -295,8 +301,10 @@ country_event = {
         MegastructureConstruction {
             modifiers: vec![ConstructionModifier {
                 on: ModifierHost::Body { body: 11 },
-                modifier: "mod_forge_3_mod".to_owned(),
-                days: 360,
+                timed: TimedModifier {
+                    modifier: "mod_forge_3_mod".to_owned(),
+                    days: Some(360),
+                },
             }],
             deposits: vec![
                 ConstructionDeposit {
@@ -312,7 +320,7 @@ country_event = {
                     kind: "d_mod_owned".to_owned(),
                 },
             ],
-            variables: vec![VariableRaise {
+            variables: vec![VariableStep {
                 variable: "mod_forges".to_owned(),
                 by: 2,
             }],

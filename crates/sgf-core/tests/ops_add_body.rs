@@ -3,7 +3,7 @@
 //! refused.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::ops::{BodyName, NewBody, Op, OpError};
+use sgf_core::ops::{BodyName, BodyNaming, GivenName, NewBody, Op, OpError};
 use sgf_core::session::OpResult;
 use sgf_core::views::OrbitPlacement;
 
@@ -17,7 +17,6 @@ fn body(class: &str, size: u32) -> NewBody {
         class: class.to_owned(),
         size,
         moon_of: None,
-        name: None,
         ..NewBody::default()
     }
 }
@@ -190,7 +189,10 @@ fn a_planet_and_a_moon_added_on_the_4_4_sample() {
 fn a_typed_name_and_a_ring_are_written_as_given() {
     let mut session = open_4_5();
     let spec = NewBody {
-        name: Some(BodyName::Typed("New Hope".to_owned())),
+        naming: BodyNaming::Named(GivenName {
+            name: BodyName::Typed("New Hope".to_owned()),
+            fixed: false,
+        }),
         ring: true,
         ..body("pc_gas_giant", 20)
     };
@@ -276,7 +278,7 @@ fn adds_and_removals_are_refused() {
         ),
         (
             Op::RemoveBody { body: 138 },
-            "planet 138 was in the save when it was opened: only a body added since then can be taken out again",
+            "planet 138 was in the save when it was opened: only one added since then can be changed this way",
         ),
     ];
     common::assert_refusals(&mut session, refusals);

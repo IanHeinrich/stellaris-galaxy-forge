@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added megastructure #17 (hyper_relay) in Wollaeus #148, with bypass #24
-inverse: RemoveMegastructure { megastructure: 17, construction: None }
+inverse: RemoveMegastructure { megastructure: 17, construction: None, left_out: 0 }
 
 --- gamestate
 +++ gamestate

@@ -3,7 +3,7 @@
 
 use sgf_core::entity::views::EntityKind;
 use sgf_core::format::save::details::{HeuristicResolver, MegastructureSummary};
-use sgf_core::ops::{MegastructurePlace, NewBypass, Op};
+use sgf_core::ops::{MegastructurePlace, NewBypass, NewMegastructure, NewMegastructurePlace, Op};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
 
@@ -13,86 +13,64 @@ use common::edit::ALARI;
 use common::examples::sol_nexus;
 use common::{assert_refusals, current, entity_text, open_4_5};
 
-/// One row: the bypass as kind and whether it is open.
-pub(crate) struct Row<'a> {
-    pub(crate) system: u32,
-    pub(crate) kind: &'a str,
-    pub(crate) at: MegastructurePlace,
-    pub(crate) owner: Option<u32>,
-    pub(crate) bypass: Option<(&'a str, bool)>,
-    pub(crate) ruin: bool,
-    pub(crate) flag: bool,
-    pub(crate) star_only: bool,
+pub(crate) fn add(system: u32, spec: NewMegastructure) -> Op {
+    Op::AddMegastructure { system, spec }
 }
 
-impl Row<'_> {
-    pub(crate) fn op(&self) -> Op {
-        Op::AddMegastructure {
-            system: self.system,
-            kind: self.kind.to_owned(),
-            name: None,
-            at: self.at,
-            owner: self.owner,
-            bypass: self.bypass.map(|(kind, active)| NewBypass {
-                kind: kind.to_owned(),
-                active,
-            }),
-            ruined_orbital_ring: self.ruin,
-            megastructure_flag: self.flag,
-            orbital_flag: false,
-            star_only: self.star_only,
-            construction: None,
-            left_out: 0,
-        }
+/// A row of type `kind` on body `body`, which leaves nothing on it.
+pub(crate) fn on(kind: &str, body: u32) -> NewMegastructure {
+    NewMegastructure {
+        kind: kind.to_owned(),
+        at: MegastructurePlace::Body { body }.into(),
+        ..NewMegastructure::default()
     }
 }
 
-pub(crate) fn body_row(system: u32, kind: &str, body: u32) -> Row<'_> {
-    Row {
-        system,
-        kind,
-        at: MegastructurePlace::Body { body },
-        owner: None,
-        bypass: None,
-        ruin: false,
-        flag: false,
-        star_only: false,
+/// A row of type `kind` on body `body`, which gives it the planet flags `flags`.
+pub(crate) fn flagging(kind: &str, body: u32, flags: &[&str]) -> NewMegastructure {
+    NewMegastructure {
+        at: NewMegastructurePlace::Body {
+            body,
+            body_flags: flags.iter().map(|&flag| flag.to_owned()).collect(),
+            star_only: false,
+        },
+        ..on(kind, body)
     }
 }
 
-pub(crate) fn free_row<'a>(system: u32, kind: &'a str, bypass: &'a str, active: bool) -> Row<'a> {
-    Row {
-        system,
-        kind,
-        at: MegastructurePlace::Free { x: 0.0, y: -260.0 },
-        owner: None,
-        bypass: Some((bypass, active)),
-        ruin: false,
-        flag: false,
-        star_only: false,
+/// A row of type `kind` at a point of its own, standing for an open or closed `bypass`.
+pub(crate) fn at_point(kind: &str, bypass: &str, active: bool) -> NewMegastructure {
+    NewMegastructure {
+        kind: kind.to_owned(),
+        at: MegastructurePlace::Free { x: 0.0, y: -260.0 }.into(),
+        bypass: Some(NewBypass {
+            kind: bypass.to_owned(),
+            active,
+        }),
+        ..NewMegastructure::default()
     }
 }
 
 pub(crate) fn on_body(system: u32, kind: &str, body: u32) -> Op {
-    body_row(system, kind, body).op()
+    add(system, on(kind, body))
 }
 
 fn ruin(system: u32, body: u32) -> Op {
-    Row {
-        ruin: true,
-        ..body_row(system, "orbital_ring_ruined", body)
-    }
-    .op()
+    add(
+        system,
+        flagging("orbital_ring_ruined", body, &["ruined_orbital_ring_planet"]),
+    )
 }
 
 fn free(system: u32, kind: &str, bypass: &str, active: bool) -> Op {
-    free_row(system, kind, bypass, active).op()
+    add(system, at_point(kind, bypass, active))
 }
 
 pub(crate) fn remove(megastructure: u32) -> Op {
     Op::RemoveMegastructure {
         megastructure,
         construction: None,
+        left_out: 0,
     }
 }
 
@@ -260,24 +238,24 @@ fn what_an_add_and_a_removal_refuse() {
     session
         .apply(free(0, "hyper_relay", "relay_bypass", true))
         .expect("a relay in Dristmak");
-    let free_ruin = Row {
-        ruin: true,
-        ..free_row(0, "hyper_relay", "relay_bypass", true)
-    }
-    .op();
-    let owned = Row {
-        owner: Some(999),
-        ..body_row(ALARI, "think_tank_3", 6)
-    }
-    .op();
-    let nan = Row {
-        at: MegastructurePlace::Free {
-            x: f64::NAN,
-            y: 0.0,
+    let owned = add(
+        ALARI,
+        NewMegastructure {
+            owner: Some(999),
+            ..on("think_tank_3", 6)
         },
-        ..free_row(1, "gateway_final", "gateway", true)
-    }
-    .op();
+    );
+    let nan = add(
+        1,
+        NewMegastructure {
+            at: NewMegastructurePlace::Free {
+                x: f64::NAN,
+                y: 0.0,
+            },
+            ..at_point("gateway_final", "gateway", true)
+        },
+    );
+    let bad_flag = add(ALARI, flagging("think_tank_3", 6, &["has megastructure"]));
     assert_refusals(
         &mut session,
         [
@@ -299,8 +277,8 @@ fn what_an_add_and_a_removal_refuse() {
                 "planet 6 is not a body of system 1",
             ),
             (
-                free_ruin,
-                "a hyper_relay cannot be added there: it stands on or around a planet or star, and a free point has none",
+                bad_flag,
+                "\"has megastructure\" cannot be written as a planet flag",
             ),
             (nan, "value is not a finite number"),
             (
@@ -309,7 +287,7 @@ fn what_an_add_and_a_removal_refuse() {
             ),
             (
                 remove(4),
-                "megastructure 4 was in the save when it was opened: only one added since then can be taken out again",
+                "megastructure 4 was in the save when it was opened: only one added since then can be changed this way",
             ),
         ],
     );
@@ -430,11 +408,17 @@ bypasses=
 fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
     let mut session = open_4_5();
     let sphere = |body| {
-        Row {
-            star_only: true,
-            ..body_row(1, "dyson_sphere_5", body)
-        }
-        .op()
+        add(
+            1,
+            NewMegastructure {
+                at: NewMegastructurePlace::Body {
+                    body,
+                    body_flags: Vec::new(),
+                    star_only: true,
+                },
+                ..on("dyson_sphere_5", body)
+            },
+        )
     };
     assert_refusals(
         &mut session,

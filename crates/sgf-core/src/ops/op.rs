@@ -1,4 +1,4 @@
-//! The op vocabulary: every edit the editor can make and the entries its plural ops take.
+//! The op vocabulary: every edit the editor can make, and the row that says what each reaches.
 
 use serde::{Deserialize, Serialize};
 use strum::{IntoStaticStr, VariantNames};
@@ -7,8 +7,8 @@ use ts_rs::TS;
 use crate::format::save::system_spec::SystemSpec;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::ops::OpError;
+use crate::ops::payload::*;
 use crate::projections::galaxy::{LGateOutcome, SpawnScript};
-use crate::projections::name::NameTemplate;
 use crate::views::{DocumentKind, OrbitPlacement};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr, VariantNames)]
@@ -781,8 +781,8 @@ pub enum Op {
     /// layout's bit. When the body lies past the system's `inner_radius`, that radius grows
     /// to its reach plus its margin. The game builds its construction queue when it loads,
     /// and nobody has surveyed it. A moon of a star, a moon or an asteroid, a parent
-    /// outside the system, a spec with both `moon_of` and moons, and a moon with moons or a
-    /// `moon_of` of its own are refused. The inverse is [`Op::RemoveBody`] for each moon, last
+    /// outside the system, a spec with both `moon_of` and moons, a moon with a ring and an
+    /// asteroid with moons or a `moon_of` are refused. The inverse is [`Op::RemoveBody`] for each moon, last
     /// first, then for the body, batched with the old inner radius when it grew. Stellaris
     /// 4.x save documents only.
     AddBody {
@@ -845,7 +845,7 @@ pub enum Op {
     /// The inner radius grows when a segment lies past it. A system with no star or more than
     /// one, one with a ring world segment or row standing within 5 of a radius the new ring's
     /// sections stand at, an unknown owner, no sections, a section with no planets, a size
-    /// of 0, a placement that is not finite or not past 0, a modifier of 0 days, under -1 or
+    /// of 0, a placement that is not finite or not past 0, a modifier of 0 days, of more than a save holds or
     /// listed twice, and a class, name, model, flag, modifier or type that cannot be written
     /// are refused. The inverse is [`Op::RemoveRingWorld`],
     /// batched with the old inner radius when it grew. Stellaris 4.x save documents only.
@@ -888,14 +888,13 @@ pub enum Op {
     RemoveDigSite {
         site: u32,
     },
-    /// A new `megastructures` row of type `kind` in save system `system`, written finished:
+    /// A new `megastructures` row of type `spec.kind` in save system `system`, written finished:
     /// at the slot past the highest the table has used, at generation 0, with no
     /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
     /// owner lists it in `owned_megastructures`; on load the game gives every row to the
-    /// owner of its system, whatever the row names. A row on a [`MegastructurePlace::Body`]
-    /// stands at the body's point and names it, one [`MegastructurePlace::Beside`] a body at
-    /// its own point, and the body gets `megastructure=<id>`, with the planet flags
-    /// `has_megastructure`, `ruined_orbital_ring_planet` and `has_orbital` when asked. The
+    /// owner of its system, whatever the row names. A row on a [`NewMegastructurePlace::Body`]
+    /// stands at the body's point and names it, one [`NewMegastructurePlace::Beside`] a body at
+    /// its own point, and the body gets `megastructure=<id>` and the place's `body_flags`. The
     /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
     /// new row is written past the highest, connected both ways to the relays of the systems
     /// a lane joins to `system` or to every other gateway, and the system lists it in
@@ -908,55 +907,17 @@ pub enum Op {
     /// naming it, with no planet to list it, as the deletion left it.
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
-    /// is not a star for a `star_only` type, a flag or `star_only` on a free point, a bypass
+    /// is not a star for a `star_only` type, a flag that is not an identifier, a bypass
     /// other than a gateway or a relay, a second bypass of that kind in the system, a type
     /// that is not an identifier, a point that is not finite and a save before Stellaris
     /// 4.0 are refused, and so are a construction modifier the entity has already or that
     /// is listed twice, one that lasts no days, a construction body outside the system, a
     /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
     /// is not an identifier. The inverse is [`Op::RemoveMegastructure`] with the
-    /// construction. Save documents only.
+    /// construction and `left_out`. Save documents only.
     AddMegastructure {
         system: u32,
-        kind: String,
-        /// The row's name, written first as the game writes one; filled only by the inverse
-        /// of [`Op::RemoveMegastructure`] for a row that had one.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        name: Option<NameTemplate>,
-        at: MegastructurePlace,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        owner: Option<u32>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        bypass: Option<NewBypass>,
-        /// The body gets the planet flag `ruined_orbital_ring_planet`, dated day one.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        #[ts(optional, as = "Option<bool>")]
-        ruined_orbital_ring: bool,
-        /// The body gets the planet flag `has_megastructure`, dated the save's current date,
-        /// as a type whose build sets it leaves its body.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        #[ts(optional, as = "Option<bool>")]
-        megastructure_flag: bool,
-        /// The body gets the planet flag `has_orbital`, dated the save's current date, as a
-        /// habitat orbital leaves its body.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        #[ts(optional, as = "Option<bool>")]
-        orbital_flag: bool,
-        /// The type is built only around a star: a body that is not one is refused.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        #[ts(optional, as = "Option<bool>")]
-        star_only: bool,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        construction: Option<MegastructureConstruction>,
-        /// How many effects of the type's construction the caller could not tell apply and
-        /// left out of `construction`; the description says so.
-        #[serde(default, skip_serializing_if = "is_zero")]
-        #[ts(optional, as = "Option<u32>")]
-        left_out: u32,
+        spec: NewMegastructure,
     },
     /// A `megastructures` row [`Op::AddMegastructure`] or [`Op::AddHabitat`] added since the
     /// file was opened, taken out again: it gives its slot back as an added body does, and it
@@ -972,7 +933,8 @@ pub enum Op {
     /// file held neither.
     /// A row the file held is refused. The inverse is the [`Op::AddMegastructure`] that adds
     /// it back as it stood: its type, name, place, owner and bypass, the body flags it left,
-    /// and what was taken back as its construction. Stellaris 4.x save documents only.
+    /// what was taken back as its construction, and `left_out`. Stellaris 4.x save documents
+    /// only.
     RemoveMegastructure {
         megastructure: u32,
         /// What the add's construction wrote; filled only by the inverse of
@@ -981,6 +943,11 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         construction: Option<MegastructureConstruction>,
+        /// How many effects of the add's construction it left out; filled only by the
+        /// inverse of [`Op::AddMegastructure`], whose description the re-add repeats.
+        #[serde(default, skip_serializing_if = "is_zero")]
+        #[ts(optional, as = "Option<u32>")]
+        left_out: u32,
     },
     /// A save `megastructures` row moved within its system, the file's own or one
     /// [`Op::AddMegastructure`] added. A row standing at a point of its own, such as a gateway,
@@ -1153,7 +1120,7 @@ impl Op {
             Self::Batch { ops, .. } => ops
                 .iter()
                 .map(Self::reach)
-                .fold(OpReach::of(BOTH), OpReach::with),
+                .fold(OpReach::of(Kinds::ALL), OpReach::with),
         }
     }
 
@@ -1168,7 +1135,7 @@ impl Op {
 
     /// Refuse the op before any format sees it when `kind` does not take it.
     pub(crate) fn check_kind(&self, kind: DocumentKind) -> Result<(), OpError> {
-        if self.reach().kinds.contains(&kind) {
+        if self.reach().kinds.contains(kind) {
             Ok(())
         } else {
             Err(OpError::Unsupported {
@@ -1179,24 +1146,44 @@ impl Op {
     }
 }
 
-const BOTH: &[DocumentKind] = &[DocumentKind::Save, DocumentKind::Scenario];
-const SAVE: &[DocumentKind] = &[DocumentKind::Save];
-const SCENARIO: &[DocumentKind] = &[DocumentKind::Scenario];
-const NEITHER: &[DocumentKind] = &[];
+const SAVE: Kinds = Kinds::of(DocumentKind::Save);
+const SCENARIO: Kinds = Kinds::of(DocumentKind::Scenario);
+const BOTH: Kinds = SAVE.or(SCENARIO);
 
 fn yes() -> bool {
     true
 }
 
-fn shared_kinds(a: &'static [DocumentKind], b: &'static [DocumentKind]) -> &'static [DocumentKind] {
-    match (
-        a.contains(&DocumentKind::Save) && b.contains(&DocumentKind::Save),
-        a.contains(&DocumentKind::Scenario) && b.contains(&DocumentKind::Scenario),
-    ) {
-        (true, true) => BOTH,
-        (true, false) => SAVE,
-        (false, true) => SCENARIO,
-        (false, false) => NEITHER,
+/// A set of document kinds, one bit each.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Kinds(u8);
+
+impl Kinds {
+    /// Every kind: what a batch takes before its members narrow it.
+    pub const ALL: Self = Self(u8::MAX);
+
+    pub const fn of(kind: DocumentKind) -> Self {
+        Self(1 << kind as u8)
+    }
+
+    pub const fn or(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    pub const fn contains(self, kind: DocumentKind) -> bool {
+        self.0 & Self::of(kind).0 != 0
+    }
+
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl std::ops::BitAnd for Kinds {
+    type Output = Self;
+
+    fn bitand(self, other: Self) -> Self {
+        Self(self.0 & other.0)
     }
 }
 
@@ -1204,7 +1191,7 @@ fn shared_kinds(a: &'static [DocumentKind], b: &'static [DocumentKind]) -> &'sta
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OpReach {
     /// The document kinds that take the op.
-    pub kinds: &'static [DocumentKind],
+    pub kinds: Kinds,
     pub details: DetailsReach,
     /// Whether the op can move how the systems it touched are classified: the initializer a
     /// classification is read from, the name it is labelled by, or the star flags the
@@ -1219,7 +1206,7 @@ pub struct OpReach {
 }
 
 impl OpReach {
-    const fn of(kinds: &'static [DocumentKind]) -> Self {
+    const fn of(kinds: Kinds) -> Self {
         Self {
             kinds,
             details: DetailsReach::Untouched,
@@ -1265,7 +1252,7 @@ impl OpReach {
     /// A batch's row with `member` added to it.
     fn with(self, member: Self) -> Self {
         Self {
-            kinds: shared_kinds(self.kinds, member.kinds),
+            kinds: self.kinds & member.kinds,
             details: self.details.with(member.details),
             reclassifies: self.reclassifies || member.reclassifies,
             whole_entries: self.whole_entries || member.whole_entries,
@@ -1306,580 +1293,4 @@ impl DetailsReach {
             _ => Self::Rebuild,
         }
     }
-}
-
-/// One star body's new planet class in [`Op::SetStarClass`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct StarBody {
-    pub body: u32,
-    pub class: String,
-}
-
-/// What the install says about one planet class, for [`Op::SetBodyClass`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct PlanetClassRule {
-    pub class: String,
-    pub change: ClassChange,
-    /// How many models the install numbers for the class, `<model>_01_entity` on; 0 when
-    /// it names none.
-    pub models: u32,
-}
-
-/// Which planets a class may be given to, or taken from, in [`Op::SetBodyClass`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "snake_case")]
-pub enum ClassChange {
-    /// None: a star, a habitat, a ring world, an ark and the other classes the game builds
-    /// or scripts its own way.
-    Never,
-    /// Any planet, a colony included: a class colonised with the standard district set.
-    Any,
-    /// A planet with no colony only.
-    Uncolonised,
-}
-
-/// A save planet's model in [`Op::SetBodyClass`]: its `entity` index and the
-/// `entity_name` it has in place of its class's own, each `None` where the planet has none.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct PlanetLook {
-    pub entity: Option<u32>,
-    pub entity_name: Option<String>,
-}
-
-/// The body [`Op::AddBody`] writes, every value chosen by the caller.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewBody {
-    /// `pc_desert`, `pc_gas_giant`, …
-    pub class: String,
-    pub size: u32,
-    /// The planet a moon orbits; `None` for a planet of the system's centre.
-    #[serde(default)]
-    pub moon_of: Option<u32>,
-    /// `None` numbers it after its siblings.
-    #[serde(default)]
-    pub name: Option<BodyName>,
-    /// Deposit keys, `d_minerals_2`, …
-    #[serde(default)]
-    pub deposits: Vec<String>,
-    /// Drawn with a ring around it. A moon is refused one.
-    #[serde(default)]
-    pub ring: bool,
-    /// Named from the save's pool of asteroid names and left out of the numbering. An
-    /// asteroid has no name of its own, no moons and is no moon.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    #[ts(optional, as = "Option<bool>")]
-    pub asteroid: bool,
-    /// The name is written with the fixed-name bit of `binary_flags`, which the game sets on
-    /// a name some layouts fix and not on others. Only a named body takes it.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    #[ts(optional, as = "Option<bool>")]
-    pub fixed_name: bool,
-    /// Which of the class's models the game draws; the first when `None`.
-    #[serde(default)]
-    pub entity: Option<u32>,
-    /// The model the game draws in place of the class's own.
-    #[serde(default)]
-    pub entity_name: Option<String>,
-    #[serde(default)]
-    pub modifiers: Vec<NewModifier>,
-    /// Only a planet of the system's centre has them.
-    #[serde(default)]
-    pub moons: Vec<NewMoon>,
-}
-
-/// The habitat [`Op::AddHabitat`] writes, as the install's habitat effect makes it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewHabitat {
-    /// `pc_habitat`.
-    pub class: String,
-    pub size: u32,
-    /// Its distance from the body it orbits, and its save angle about it.
-    pub at: OrbitPlacement,
-    /// The localisation key of its name, `HABITAT_PLANET_NAME`.
-    pub name: String,
-    /// The variable of the name that the system's name fills in,
-    /// `prev.solar_system.GetName`; `None` for a name with none.
-    #[serde(default)]
-    pub system_name: Option<String>,
-    /// The model drawn in place of the class's own, `mammalian_01_habitat_phase_03_entity`.
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Its planet flags, in the order they are set: `megastructure`, `habitat`,
-    /// `habitat_level_1`.
-    pub flags: Vec<String>,
-    /// The orbital a restored Habitat Central Complex leaves round the same body.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub orbital: Option<HabitatOrbital>,
-}
-
-/// The finished `megastructures` row [`Op::AddHabitat`] writes round the habitat's body, as
-/// the game's `spawn_orbital_effect` leaves one.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct HabitatOrbital {
-    /// `habitat_major_orbital`.
-    pub kind: String,
-    /// The country that owns it, whose graphical culture it takes; `None` for none.
-    #[serde(default)]
-    pub owner: Option<u32>,
-    /// The localisation key of its name, `TARGET_ORBITAL_NAME`; `None` for no name.
-    #[serde(default)]
-    pub name: Option<String>,
-    /// The variable of the name that the system's name fills in, `prevprev.GetName`;
-    /// `None` for a name with none.
-    #[serde(default)]
-    pub system_name: Option<String>,
-}
-
-/// The ring world [`Op::AddRingWorld`] writes, as the install's build chain lays one out.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewRingWorld {
-    /// Each quadrant in the order its row was spawned: A to D for the game's ring world.
-    pub quadrants: Vec<RingQuadrant>,
-    /// The system flags the chain leaves, in the order it sets them: `ring_world_built`, and
-    /// `ring_section_1` to `ring_section_3` while some sections stand unfinished.
-    pub system_flags: Vec<String>,
-    /// The system variables the chain leaves: Gigastructural Engineering's count of finished
-    /// sections, `ring_segments`.
-    #[serde(default)]
-    pub system_variables: Vec<RingVariable>,
-    /// The planet flags the chain leaves on the star: `has_megastructure` under
-    /// Gigastructural Engineering, none in the base game.
-    #[serde(default)]
-    pub star_flags: Vec<String>,
-}
-
-/// A system variable a [`NewRingWorld`] leaves, and its value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct RingVariable {
-    pub name: String,
-    pub value: f64,
-}
-
-/// One section of a [`NewRingWorld`] at its stage, with what the install leaves there.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(tag = "stage", rename_all = "snake_case")]
-pub enum RingQuadrant {
-    /// Built: its planets, tech, seam and habitable section.
-    Finished { segments: Vec<RingSegment> },
-    /// A ruin built again: its planets, laid out mirrored.
-    Restored { segments: Vec<RingSegment> },
-    /// Ruined as the game's `set_ruined_megastructure` ruins a section: its damaged planets.
-    Damaged { segments: Vec<RingSegment> },
-    /// A frame section waiting to be built: its row.
-    Frame { row: RingRow },
-    /// A ruined section: its row.
-    Ruined { row: RingRow },
-}
-
-/// A planet of a [`RingQuadrant`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct RingSegment {
-    /// `pc_ringworld_habitable`.
-    pub class: String,
-    pub size: u32,
-    /// Its distance from the system's centre and its save angle.
-    pub at: OrbitPlacement,
-    /// The localisation key of its name, `NAME_Habitable_Section_A`.
-    pub name: String,
-    /// The model drawn in place of the class's own,
-    /// `mammalian_01_ringworld_habitable_entity_01_entity`.
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Its planet flags, in the order they are set: `megastructure`.
-    pub flags: Vec<String>,
-    /// It shows the ring's megastructure icon: `trigger_megastructure_icon = yes`.
-    #[serde(default)]
-    pub megastructure_icon: bool,
-    /// Its timed modifiers, in the order they are added: Gigastructural Engineering's
-    /// `giga_titanic_housing` on a titanic ring's habitable section.
-    #[serde(default)]
-    pub modifiers: Vec<RingModifier>,
-}
-
-/// A timed modifier of a [`RingSegment`], as `add_modifier` gives it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct RingModifier {
-    pub modifier: String,
-    /// How many days it lasts, `-1` for no end.
-    pub days: i32,
-}
-
-/// The `megastructures` row of a [`RingQuadrant`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct RingRow {
-    /// `ring_world_2`.
-    pub kind: String,
-    /// Its distance from the system's centre and its save angle.
-    pub at: OrbitPlacement,
-    /// The name key, `NAME_Ring_Section_A`; a ruin has none.
-    #[serde(default)]
-    pub name: Option<String>,
-    /// The row takes the ring's owner.
-    pub owned: bool,
-    /// The graphical culture it is drawn in, written when it has an owner.
-    #[serde(default)]
-    pub culture: Option<String>,
-}
-
-/// What [`Op::AddRingWorld`] wrote, which its inverse takes out again.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RingWorldWritten {
-    pub owner: Option<u32>,
-    pub ring: NewRingWorld,
-    /// The planets written, in the sections' order.
-    pub planets: Vec<u32>,
-    /// The rows written, in the sections' order.
-    pub rows: Vec<u32>,
-    /// The flags of `ring.system_flags` the system lacked.
-    pub system_flags: Vec<String>,
-    /// The star, and the flags of `ring.star_flags` it lacked.
-    pub star: u32,
-    pub star_flags: Vec<String>,
-    /// Each variable of `ring.system_variables` with the value the system held, as written;
-    /// `None` where it held none.
-    pub variables: Vec<(String, Option<String>)>,
-    /// The system had no `variables` block.
-    pub variables_block: bool,
-}
-
-/// The name a [`NewBody`] is written with.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub enum BodyName {
-    /// A name as typed, written `{ key="<name>" literal=yes }`.
-    Typed(String),
-    /// A localisation key written as it stands, `NAME_Vermilion`.
-    Fixed(String),
-}
-
-/// One modifier of a [`NewBody`], as [`Op::AddBodyModifier`] takes it: a `timed_modifier`
-/// item per entry of `days`, and with `feature` a `planet_modifier` line.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewModifier {
-    pub modifier: String,
-    pub days: Vec<i32>,
-    #[serde(default)]
-    pub feature: Option<String>,
-}
-
-/// A moon of a [`NewBody`], placed about it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewMoon {
-    pub spec: NewBody,
-    pub at: OrbitPlacement,
-}
-
-/// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewSystem {
-    pub system: u32,
-    pub x: f64,
-    pub y: f64,
-    pub name: Option<String>,
-    pub initializer: Option<String>,
-    pub spawn_weight: Option<f64>,
-    #[serde(default)]
-    pub spawn_script: Option<SpawnScript>,
-    /// The whole `system` statement, written as it stands instead of one built from the
-    /// fields, which then only describe it: what a removal's inverse carries. It must
-    /// read as one `system` statement with this id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub statement: Option<String>,
-}
-
-/// The body [`Op::SetBodyParent`] makes a body orbit.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub enum Parent {
-    /// The system's centre: the body becomes a planet of it.
-    Centre,
-    /// Another body of the system: a planet of it when it is a star, a moon otherwise.
-    Body(u32),
-}
-
-impl Parent {
-    pub fn body(self) -> Option<u32> {
-        match self {
-            Self::Centre => None,
-            Self::Body(id) => Some(id),
-        }
-    }
-}
-
-impl From<Option<u32>> for Parent {
-    fn from(parent: Option<u32>) -> Self {
-        parent.map_or(Self::Centre, Self::Body)
-    }
-}
-
-/// The name [`Op::RenameBody`] writes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub enum NewName {
-    /// A name as typed, written `{ key="<name>" literal=yes }`.
-    Literal(String),
-    /// A whole `{ … }` name value written as it stands, which `name` only describes.
-    Block { value: String, name: String },
-}
-
-impl NewName {
-    /// The name as the player reads it.
-    pub fn shown(&self) -> &str {
-        match self {
-            Self::Literal(name) | Self::Block { name, .. } => name,
-        }
-    }
-}
-
-/// The two ends of a pair in [`Op::AddWormholePair`], each as x/y about its star.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct PairPoints {
-    pub a: (f64, f64),
-    pub b: (f64, f64),
-}
-
-/// Where [`Op::AddMegastructure`] puts its row, and [`Op::MoveMegastructure`] moves it.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(tag = "place", rename_all = "snake_case")]
-pub enum MegastructurePlace {
-    /// On or around a body of the system, at the body's point.
-    Body { body: u32 },
-    /// Tied to a body of the system, standing at a point of its own about the star, as the
-    /// row stores it.
-    Beside { body: u32, x: f64, y: f64 },
-    /// The row's own point about the star, as the row stores it.
-    Free { x: f64, y: f64 },
-}
-
-/// The `bypasses` row [`Op::AddMegastructure`] writes for its row: its `common/bypass`
-/// type, `gateway` or `relay_bypass`, and whether it is open.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NewBypass {
-    pub kind: String,
-    pub active: bool,
-}
-
-/// The map border and fill in [`Op::SetEmpireMapColors`], each a colour name from
-/// `flags/colors.txt`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct MapColorPair {
-    pub border: String,
-    pub fill: String,
-}
-
-/// An empire's flag in [`Op::SetEmpireFlag`]: the emblem's category and file under the
-/// install's `flags/`, the background file under `flags/backgrounds`, and the primary and
-/// secondary colours, each a colour name from `flags/colors.txt`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct EmpireFlag {
-    pub icon_category: String,
-    pub icon_file: String,
-    pub background: String,
-    pub primary: String,
-    pub secondary: String,
-}
-
-/// What a nebula leaves on one member system besides its member line, in
-/// [`Op::SetNebulaFootprints`]: the cloud that draws it in the system view, and the two
-/// permanent modifiers, which give only its numbers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NebulaFootprint {
-    pub system: u32,
-    pub cloud: Option<NebulaCloud>,
-    /// `nebula_cloaking`, which a save carries only with First Contact.
-    pub cloaking: bool,
-    /// `turbulent_nebula`.
-    pub turbulent: bool,
-}
-
-/// One entry of the save's `ambient_object` table that draws a nebula cloud: its id and
-/// its type, such as `nebula_3`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct NebulaCloud {
-    pub id: u32,
-    pub kind: String,
-}
-
-/// What a megastructure's construction adds to its system and owner, as
-/// [`Op::AddMegastructure`] writes it: the build chain of its type, up to its stage,
-/// replayed against the system it is added to.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct MegastructureConstruction {
-    pub modifiers: Vec<ConstructionModifier>,
-    pub deposits: Vec<ConstructionDeposit>,
-    pub variables: Vec<VariableRaise>,
-}
-
-impl MegastructureConstruction {
-    pub fn is_empty(&self) -> bool {
-        self.modifiers.is_empty() && self.deposits.is_empty() && self.variables.is_empty()
-    }
-}
-
-/// A timed modifier a construction gives its system or one of the system's bodies.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct ConstructionModifier {
-    pub on: ModifierHost,
-    pub modifier: String,
-    /// `-1` for one that never expires.
-    pub days: i32,
-}
-
-/// The entity a [`ConstructionModifier`] is written on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(tag = "host", rename_all = "snake_case")]
-pub enum ModifierHost {
-    System,
-    Body { body: u32 },
-}
-
-/// A deposit a construction adds to a body of its system.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct ConstructionDeposit {
-    pub body: u32,
-    pub kind: String,
-}
-
-/// One owner variable a construction raises, and by how much.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct VariableRaise {
-    pub variable: String,
-    pub by: u32,
-}
-
-/// What a megastructure type's dismantle takes back, read from the install's
-/// `on_dismantle_complete` and the scripted effects it calls: what [`Op::DeleteMegastructure`]
-/// takes back with a row.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct MegastructureDismantle {
-    /// The modifiers it removes, `orbital_arc_furnace_4_mod`.
-    pub modifiers: Vec<String>,
-    /// The deposit types it removes, `d_arc_furnace_4`.
-    pub deposits: Vec<String>,
-    /// The variables it lowers on the owner, `arc_furnace_counter`.
-    pub variables: Vec<VariableDrop>,
-}
-
-impl MegastructureDismantle {
-    pub fn is_empty(&self) -> bool {
-        self.modifiers.is_empty() && self.deposits.is_empty() && self.variables.is_empty()
-    }
-}
-
-/// One owner variable a dismantle lowers, and by how much.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct VariableDrop {
-    pub variable: String,
-    pub by: u32,
-}
-
-/// One save entity in [`Op::RestoreEntities`]: the table it stands in, its id, and its
-/// whole `<id>={ … }` statement.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct SavedEntity {
-    pub table: SavedTable,
-    pub id: u32,
-    pub text: String,
-}
-
-/// The id-keyed save tables [`SavedEntity`] names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub enum SavedTable {
-    System,
-    Planet,
-    Country,
-    Colony,
-    PopGroup,
-    PopJob,
-    District,
-    Zone,
-    Building,
-    Army,
-    Starbase,
-    Fleet,
-    Ship,
-    /// `construction.queue_mgr.queues`.
-    ConstructionQueue,
-    /// `construction.item_mgr.items`.
-    ConstructionItem,
-    Megastructure,
-    /// `bypasses`.
-    Bypass,
-    /// The whole top-level `dead_mega_structure` statement, with id 0.
-    DeadMegastructures,
-    Deposit,
-}
-
-/// One system's destination in [`Op::MoveSystems`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct SystemMove {
-    pub system: u32,
-    pub x: f64,
-    pub y: f64,
-}
-
-/// One system's height in [`Op::SetSystemHeights`]: its `coordinate.visual_height`, or
-/// `None` for none.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct SystemHeight {
-    pub system: u32,
-    pub height: Option<f64>,
-}
-
-/// One lane to add in [`Op::AddLanePairs`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct LanePair {
-    pub a: u32,
-    pub b: u32,
-    pub bridge: bool,
-}
-
-/// One lane's new length in [`Op::SetLaneLengths`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct LaneLength {
-    pub a: u32,
-    pub b: u32,
-    pub length: f64,
-}
-
-fn is_zero(n: &u32) -> bool {
-    *n == 0
 }

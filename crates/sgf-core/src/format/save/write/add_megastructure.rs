@@ -32,8 +32,8 @@ use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named, named_body};
 use crate::ops::{
-    Edit, Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, Op, OpError, ParseAt,
-    Plan, Planned, SavedTable, Subject,
+    Edit, Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
+    NewMegastructurePlace, Op, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
 };
 use crate::overlay::Anchor;
 use crate::projections::name::NameTemplate;
@@ -45,28 +45,16 @@ use crate::{plural, plural_of};
 const GATEWAY: &str = "gateway";
 const RELAY: &str = "relay_bypass";
 
-/// What [`Op::AddMegastructure`] asks for.
-pub(crate) struct NewRow<'a> {
-    pub system: u32,
-    pub kind: &'a str,
-    pub name: Option<&'a NameTemplate>,
-    pub at: MegastructurePlace,
-    pub owner: Option<u32>,
-    pub bypass: Option<&'a NewBypass>,
-    pub ruined_orbital_ring: bool,
-    pub megastructure_flag: bool,
-    pub orbital_flag: bool,
-    pub star_only: bool,
-    pub construction: Option<&'a MegastructureConstruction>,
-    pub left_out: u32,
-}
-
-pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result<Planned, OpError> {
-    check_text("a megastructure type", new.kind, Form::Bare)?;
-    if let Some(name) = new.name {
+pub(crate) fn plan_add(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    new: &NewMegastructure,
+) -> Result<Planned, OpError> {
+    check_text("a megastructure type", &new.kind, Form::Bare)?;
+    if let Some(name) = &new.name {
         check_name(name)?;
     }
-    let system = new.system;
     if !s.graph.systems.contains_key(&system) {
         return Err(OpError::UnknownSystem(system));
     }
@@ -75,23 +63,28 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
         reason,
     };
     let live = Live::read(&s.doc)?;
-    let (at, body) = match new.at {
-        MegastructurePlace::Free { x, y } => {
+    let (at, body, body_flags) = match &new.at {
+        &NewMegastructurePlace::Free { x, y } => {
             if !(x.is_finite() && y.is_finite()) {
                 return Err(OpError::NotFinite);
             }
-            if new.ruined_orbital_ring
-                || new.megastructure_flag
-                || new.orbital_flag
-                || new.star_only
-            {
-                return Err(refuse(
-                    "it stands on or around a planet or star, and a free point has none".to_owned(),
-                ));
-            }
-            ((x, y), None)
+            ((x, y), None, &[][..])
         }
-        MegastructurePlace::Body { body } | MegastructurePlace::Beside { body, .. } => {
+        NewMegastructurePlace::Body {
+            body,
+            body_flags,
+            star_only,
+        }
+        | NewMegastructurePlace::Beside {
+            body,
+            body_flags,
+            star_only,
+            ..
+        } => {
+            let (body, star_only) = (*body, *star_only);
+            for flag in body_flags {
+                check_text("a planet flag", flag, Form::Bare)?;
+            }
             let (node, src) = planet_entity(&s.doc, body)?;
             if planet_system(&node, src, body)? != system {
                 return Err(OpError::NotABody { body, system });
@@ -109,12 +102,12 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
                     "the game counts a megastructure built at planet {body} already"
                 )));
             }
-            if new.star_only && !is_star_body(s, system, body, &node, src)? {
+            if star_only && !is_star_body(s, system, body, &node, src)? {
                 return Err(refuse(format!(
                     "it is built only around a star, and planet {body} is not one"
                 )));
             }
-            let at = match new.at {
+            let at = match new.at.place() {
                 MegastructurePlace::Beside { x, y, .. } if !(x.is_finite() && y.is_finite()) => {
                     return Err(OpError::NotFinite);
                 }
@@ -122,10 +115,10 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
                 _ => read::coordinate(&node, src)
                     .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?,
             };
-            (at, Some(body))
+            (at, Some(body), body_flags.as_slice())
         }
     };
-    if let Some(bypass) = new.bypass {
+    if let Some(bypass) = &new.bypass {
         if bypass.kind != GATEWAY && bypass.kind != RELAY {
             return Err(refuse(format!(
                 "its bypass is a {}, which has not been tried in game",
@@ -140,8 +133,8 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             )));
         }
     }
-    if let Some(built) = new.construction {
-        construction::check(s, new.kind, system, new.owner, built)?;
+    if let Some(built) = &new.construction {
+        construction::check(s, &new.kind, system, new.owner, built)?;
     }
     let culture = match new.owner {
         Some(owner) => Some(culture_of(plan.edit_country(&s.doc, owner)?)?),
@@ -151,14 +144,14 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
     let mut table = SlotTable::megastructures(&s.doc)?;
     let slot = table.append();
     let id = slot.id();
-    let bypass_id = match new.bypass {
+    let bypass_id = match &new.bypass {
         Some(_) => Some(next_id(&s.doc, Table::Bypass)?),
         None => None,
     };
     let row = MegastructureRow {
         id,
-        name: new.name,
-        kind: new.kind,
+        name: new.name.as_ref(),
+        kind: &new.kind,
         at,
         system,
         owner: new
@@ -170,7 +163,7 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
     write_slot(plan, &s.doc, slot, &mut table, Emitted::Record, |indent| {
         megastructure_row(indent, &row)
     })?;
-    if let (Some(bypass), Some(bypass_id)) = (new.bypass, bypass_id) {
+    if let (Some(bypass), Some(bypass_id)) = (&new.bypass, bypass_id) {
         connect(plan, s, &live, system, id, bypass_id, bypass)?;
     }
     append(
@@ -185,28 +178,34 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             &[id],
         )?;
     }
-    if let Some(built) = new.construction {
-        construction::write_modifiers(plan, s, new.kind, system, built)?;
+    if let Some(built) = &new.construction {
+        construction::write_modifiers(plan, s, &new.kind, system, built)?;
         construction::write_rest(plan, s, system, new.owner, built)?;
     }
     if let Some(body) = body {
-        let mut flags = Vec::new();
-        if new.megastructure_flag {
-            flags.push((keys::HAS_MEGASTRUCTURE, today(&s.doc)?));
-        }
-        if new.ruined_orbital_ring {
-            flags.push((keys::RUINED_ORBITAL_RING_PLANET, day_one(&s.doc)?));
-        }
-        if new.orbital_flag {
-            flags.push((HAS_ORBITAL, today(&s.doc)?));
-        }
+        let flags = body_flags
+            .iter()
+            .map(|flag| {
+                // The game sets a ruined Orbital Ring's flag when it makes the galaxy.
+                let date = match flag == keys::RUINED_ORBITAL_RING_PLANET {
+                    true => day_one(&s.doc)?,
+                    false => today(&s.doc)?,
+                };
+                Ok((flag.as_str(), date))
+            })
+            .collect::<Result<Vec<_>, OpError>>()?;
         tie(plan.edit_planet(&s.doc, body, system)?, id, &flags)?;
     }
     let mut with: Vec<String> = bypass_id
         .map(|bypass| format!("bypass #{bypass}"))
         .into_iter()
         .collect();
-    with.extend(new.construction.map(counts).filter(|c| !c.is_empty()));
+    with.extend(
+        new.construction
+            .as_ref()
+            .map(counts)
+            .filter(|c| !c.is_empty()),
+    );
     let mut with = match with.as_slice() {
         [] => String::new(),
         parts => format!(", with {}", parts.join(" and ")),
@@ -225,7 +224,8 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
         ),
         inverse: Op::RemoveMegastructure {
             megastructure: id,
-            construction: new.construction.cloned(),
+            construction: new.construction.clone(),
+            left_out: new.left_out,
         },
     })
 }
@@ -235,13 +235,17 @@ pub(crate) fn plan_remove(
     s: &Session,
     id: u32,
     built: Option<&MegastructureConstruction>,
+    left_out: u32,
 ) -> Result<Planned, OpError> {
     let tied = megastructure_links::read(&s.doc, id)?.ok_or(OpError::UnknownEntity {
         table: SavedTable::Megastructure,
         id,
     })?;
     if s.doc.added().get(EntityKind::Megastructure, id).is_none() {
-        return Err(OpError::MegastructureNotAdded(id));
+        return Err(OpError::NotAdded {
+            kind: EntityKind::Megastructure,
+            id,
+        });
     }
     let system = tied
         .system
@@ -253,18 +257,10 @@ pub(crate) fn plan_remove(
         }),
         None => None,
     };
-    let (ruined_orbital_ring, megastructure_flag, orbital_flag) = match tied.planet {
-        Some(body) => {
-            let (node, src) = planet_entity(&s.doc, body)?;
-            (
-                planet_flag(&node, src, keys::RUINED_ORBITAL_RING_PLANET),
-                planet_flag(&node, src, keys::HAS_MEGASTRUCTURE),
-                planet_flag(&node, src, HAS_ORBITAL),
-            )
-        }
-        None => (false, false, false),
-    };
-    let found = row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::MegastructureNotAdded(id))?;
+    let found = row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::NotAdded {
+        kind: EntityKind::Megastructure,
+        id,
+    })?;
     let name = found
         .node
         .find(keys::NAME, found.src)
@@ -276,13 +272,31 @@ pub(crate) fn plan_remove(
             let (node, src) = planet_entity(&s.doc, body)?;
             let home = read::coordinate(&node, src)
                 .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
-            if same_point(home, (x, y)) {
-                MegastructurePlace::Body { body }
-            } else {
-                MegastructurePlace::Beside { body, x, y }
+            let body_flags = [
+                keys::HAS_MEGASTRUCTURE,
+                keys::RUINED_ORBITAL_RING_PLANET,
+                HAS_ORBITAL,
+            ]
+            .into_iter()
+            .filter(|flag| planet_flag(&node, src, flag))
+            .map(str::to_owned)
+            .collect();
+            match same_point(home, (x, y)) {
+                true => NewMegastructurePlace::Body {
+                    body,
+                    body_flags,
+                    star_only: false,
+                },
+                false => NewMegastructurePlace::Beside {
+                    body,
+                    x,
+                    y,
+                    body_flags,
+                    star_only: false,
+                },
             }
         }
-        None => MegastructurePlace::Free { x, y },
+        None => NewMegastructurePlace::Free { x, y },
     };
 
     let built = built.cloned().or_else(|| construction::of_session(s, id));
@@ -299,17 +313,15 @@ pub(crate) fn plan_remove(
     }
     let inverse = Op::AddMegastructure {
         system,
-        kind: tied.kind.clone(),
-        name,
-        at,
-        owner: tied.owner,
-        bypass,
-        ruined_orbital_ring,
-        megastructure_flag,
-        orbital_flag,
-        star_only: false,
-        construction: (!taken.is_empty()).then(|| taken.clone()),
-        left_out: 0,
+        spec: NewMegastructure {
+            kind: tied.kind.clone(),
+            name,
+            at,
+            owner: tied.owner,
+            bypass,
+            construction: (!taken.is_empty()).then(|| taken.clone()),
+            left_out,
+        },
     };
     let with = match counts(&taken) {
         counted if counted.is_empty() => String::new(),
