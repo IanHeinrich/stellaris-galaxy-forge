@@ -18,7 +18,7 @@ Saves
   models.
 - Add, move and delete megastructures, including ring worlds, with support for
   Gigastructural Engineering.
-  - Add a megastructure at any stage of construction, or as a ruin.
+  - Add megastructures at any construction stage or ruined.
 
 Scenarios
 
