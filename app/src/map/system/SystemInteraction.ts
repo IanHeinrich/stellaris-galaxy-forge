@@ -21,12 +21,8 @@ import { sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
 import type { SystemContext } from "./context";
 import type { StructureKind } from "./structures";
 import { handleOwnerAt, pickTarget, sameTarget, type SceneTarget } from "./picking";
-import {
-  STRUCTURE_KINDS,
-  SystemGestureModel,
-  type SystemInput,
-  type SystemIntent,
-} from "./SystemGestureModel";
+import { STRUCTURE_KINDS } from "./structureKinds";
+import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
 

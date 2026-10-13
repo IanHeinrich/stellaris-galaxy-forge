@@ -1,54 +1,14 @@
-import type { Capabilities } from "../../generated/Capabilities";
 import type { GeometryIntent } from "../../lib/details/orbitIntent";
-import { capabilityFor } from "../../lib/entities";
 import type { Pt } from "../../lib/geometry/pt";
-import { megastructureEntry, starbaseEntry, type Entry } from "../../store/inspectorStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";
 import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
 import type { SystemContext } from "./context";
 import type { StructureKind } from "./structures";
-import { HandleDrag, MegastructureDrag, WormholeDrag } from "./drags";
+import { HandleDrag, WormholeDrag } from "./drags";
 import type { SceneTarget } from "./picking";
-
-/** What the scene does with a megastructure or a starbase. */
-interface StructureKindRow {
-  /** The Inspector page a click opens, named `label`. */
-  entry(system: number, id: number, label: string): Entry;
-  /** What the open document must support for that page. */
-  capability: keyof Capabilities | undefined;
-  /** The menu a right-click opens; null for the system space's. */
-  menu(system: number, id: number): ContextTarget | null;
-  /** The drag a press starts, from the scene `frame`; null where it may not move. */
-  drag(frame: SystemContext, id: number, from: Pt): Drag | null;
-  /** Its plate's resource icons show tooltips. */
-  tips: boolean;
-}
-
-export const STRUCTURE_KINDS: Readonly<Record<StructureKind, StructureKindRow>> = {
-  megastructure: {
-    entry: (_system, id, label) => megastructureEntry(id, label),
-    capability: capabilityFor("megastructure"),
-    menu: (system, id) => ({ kind: "megastructure", system, id }),
-    drag: (frame, id, from) => MegastructureDrag.start(frame, id, from),
-    tips: true,
-  },
-  starbase: {
-    entry: starbaseEntry,
-    capability: capabilityFor("starbase"),
-    menu: () => null,
-    drag: () => null,
-    tips: false,
-  },
-};
-
-/** Whether `target` names a megastructure or a starbase. */
-export function isStructure(
-  target: SceneTarget | null,
-): target is { readonly kind: StructureKind; readonly id: number } {
-  return target !== null && target.kind in STRUCTURE_KINDS;
-}
+import { isStructure, STRUCTURE_KINDS } from "./structureKinds";
 
 /** One pointer event in the system scene, with the body, wormhole, handle or arrow under it. */
 export interface SystemInput {

@@ -140,11 +140,10 @@ describe("the system scene's radius labels", () => {
       flat_art: true,
       body_model: "orbital_habitat_01_entity",
     });
+    const sceneOf = (body: PlanetSummary) =>
+      systemContext({ ...classedContext([body], [HABITAT]), sceneLayers: RADII_SHOWN });
     const labelled = (body: PlanetSummary) => {
-      const ctx = systemContext({
-        ...classedContext([body], [HABITAT]),
-        sceneLayers: RADII_SHOWN,
-      });
+      const ctx = sceneOf(body);
       const layer = new RadiiLayer();
       layer.rebuild(ctx);
       const cam = viewport(layer, 2);
@@ -165,11 +164,12 @@ describe("the system scene's radius labels", () => {
         ? { width: 40, height: 40, anchor_x: 0.5, anchor_y: 0.5 }
         : undefined;
     const habitat = saveBody(3, HABITAT.key, spot, 90, 5, SUN);
-    const key = labelled(habitat).ctx.bodyById.get(habitat.id)!.look.model!;
+    const key = sceneOf(habitat).bodyById.get(habitat.id)!.look.model!;
+    const { cam, layer } = labelled(habitat);
     requestTextures([key]);
     await until(() => expect(getTexture(key)).toBeTruthy());
 
-    const { cam, box, layer } = labelled(habitat);
+    const box = shownBox(layer, cam, "90");
     layer.destroy();
     if (!box) throw new Error("the label is left out");
     const reach = landedModel(key, 1)!.radius * cam.scale;

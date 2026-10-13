@@ -56,8 +56,8 @@ function rank(a: Labelled, b: Labelled): number {
  * Each drawn ring's radius on a small plate, all at one screen angle, while the Orbit radii
  * layer is on. Rings the orbits layer draws as one take one label, reading every radius on them;
  * a moon's takes one only once it is large enough on screen. A label that would cover a body's
- * disc, or its model once that lands, or its selection ring, or one already placed, slides round its ring to the nearest clear
- * spot, and is left out when none is near.
+ * disc, or its model once that lands, or its selection ring, or one already placed, slides round
+ * its ring to the nearest clear spot, and is left out when none is near.
  */
 export class RadiiLayer implements SystemLayer {
   readonly container = new Container();

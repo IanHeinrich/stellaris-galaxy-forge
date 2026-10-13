@@ -23,7 +23,7 @@ import { documentSubject, readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { moveMarks } from "./moveMarks";
 import { plateUnder, type SceneTarget } from "./picking";
-import { isStructure, STRUCTURE_KINDS } from "./SystemGestureModel";
+import { isStructure, STRUCTURE_KINDS } from "./structureKinds";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { ExitsLayer } from "./layers/ExitsLayer";
