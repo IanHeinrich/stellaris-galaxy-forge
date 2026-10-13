@@ -355,8 +355,8 @@ fn each_type_is_written_as_the_game_swaps_it() {
     }
 }
 
-/// A row goes on the body clicked, at the point pressed in space, and a relay just outside the
-/// system's inner radius of 267.44 in the pressed direction.
+/// A row goes on the body clicked, or at the point pressed in space, whatever the type: a relay
+/// is not moved out to the system's inner radius.
 #[test]
 fn each_type_stands_where_the_add_puts_it() {
     let Some((w, _)) = with_game_data(SAMPLE_45) else {
@@ -377,13 +377,13 @@ fn each_type_stands_where_the_add_puts_it() {
         place(Spot::Space(30.0, 40.0), "shroud_seal"),
         MegastructurePlace::Free { x: 30.0, y: 40.0 }
     );
-    let MegastructurePlace::Free { x, y } = place(Spot::Space(0.0, -10.0), "hyper_relay") else {
-        panic!("a relay stands free");
-    };
-    assert!(
-        x.abs() < 1e-9 && (y + 1.05 * 267.44).abs() < 1e-9,
-        "({x}, {y})"
-    );
+    for kind in ["hyper_relay", "gateway_final", "lgate_base"] {
+        assert_eq!(
+            place(Spot::Space(0.0, -10.0), kind),
+            MegastructurePlace::Free { x: 0.0, y: -10.0 },
+            "{kind}"
+        );
+    }
 }
 
 #[test]

@@ -122,7 +122,7 @@ pub(crate) fn plan_add(
     if let Some(bypass) = &new.bypass {
         if !BYPASS_KINDS.contains(&bypass.kind.as_str()) {
             return Err(refuse(format!(
-                "its bypass is a {}, which has not been tried in game",
+                "its {} link hasn't been tested in game",
                 bypass.kind
             )));
         }

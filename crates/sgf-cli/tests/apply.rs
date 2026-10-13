@@ -280,7 +280,7 @@ fn apply_refuses_without_writing_and_names_the_file_and_the_op() {
         err.starts_with(&format!("error: {}: DeleteBody: ", file.display())),
         "{err}"
     );
-    assert!(err.contains("it is a ring world segment"), "{err}");
+    assert!(err.contains("it is a ring world section"), "{err}");
     assert!(!never.exists());
 
     let cases = [

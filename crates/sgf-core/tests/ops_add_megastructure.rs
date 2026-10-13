@@ -346,7 +346,7 @@ fn what_an_add_and_a_removal_refuse() {
             ),
             (
                 free(1, "shroud_seal", "shroud_tunnel", true),
-                "a shroud_seal cannot be added there: its bypass is a shroud_tunnel, which has not been tried in game",
+                "a shroud_seal cannot be added there: its shroud_tunnel link hasn't been tested in game",
             ),
             (
                 free(4, "lgate_base", "lgate", false),
@@ -510,7 +510,7 @@ fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
         [
             (
                 on_body(596, "think_tank_3", 6267),
-                "a think_tank_3 cannot be added there: the game counts a megastructure built at Ithomes Gate I #6267 already",
+                "a think_tank_3 cannot be added there: Ithomes Gate I #6267 has had a megastructure built on it, and the game still counts it",
             ),
             (
                 sphere(585),

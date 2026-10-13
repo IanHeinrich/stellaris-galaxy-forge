@@ -6,7 +6,6 @@
 
 use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
-use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
     NewMegastructure, NewMegastructurePlace, Op, OpError,
@@ -53,11 +52,11 @@ pub enum Refusal {
     /// The editor does not add type `kind`, or not at the place asked; `reason` says why.
     #[error("{reason}")]
     NotAdded { kind: String, reason: String },
-    #[error("{0} is not finished as a habitat.")]
+    #[error("{0} doesn't become a habitat when it's finished.")]
     NoHabitat(String),
     #[error("planet {body} is not a body of system {system}")]
     NotInSystem { body: u32, system: u32 },
-    #[error("Galaxy Forge can't build {name} from the game data: {reason}.")]
+    #[error("Galaxy Forge can't add {name} yet, because {reason}.")]
     NoRingWorld { name: String, reason: String },
     #[error("the install has no planet class {0}")]
     NoClass(String),
@@ -249,7 +248,6 @@ pub fn megastructure_fits(
     let raw = session.details().ok();
     let raw = raw.as_ref().and_then(|details| details.raw(system));
     let rows = raw.map_or(&[][..], |raw| raw.megastructures.as_slice());
-    let inner = raw.and_then(|raw| raw.inner_radius).unwrap_or(0.0);
     Ok(gd
         .megastructures
         .iter()
@@ -257,7 +255,7 @@ pub fn megastructure_fits(
         .map(|def| {
             let variant = made_at(&gd.megastructures, &def.key, class, flags);
             let made = gd.megastructures.get(&variant).unwrap_or(def);
-            let place = place_at(made, spot, inner);
+            let place = place_at(spot);
             MegastructureFit {
                 kind: def.key.clone(),
                 refusal: fit_refusal(gd, session, system, made, place, rows),
@@ -286,24 +284,11 @@ fn goes(def: &MegastructureDef, body: Option<&SiteBody>) -> bool {
     }
 }
 
-/// Where a row of `def` added at `spot` stands, in a system of `inner_radius`.
-fn place_at(def: &MegastructureDef, spot: AddSpot, inner_radius: f64) -> MegastructurePlace {
-    match (spot, &def.placement) {
-        (AddSpot::Body { body }, _) => MegastructurePlace::Body { body },
-        (
-            AddSpot::Space { x, y },
-            Placement::Free {
-                outside_gravity_well: true,
-            },
-        ) => {
-            let radius = RELAY_RADIUS_FACTOR * inner_radius;
-            let angle = y.atan2(x);
-            MegastructurePlace::Free {
-                x: radius * angle.cos(),
-                y: radius * angle.sin(),
-            }
-        }
-        (AddSpot::Space { x, y }, _) => MegastructurePlace::Free { x, y },
+/// Where a row added at `spot` stands: at the body, or at the clicked point.
+fn place_at(spot: AddSpot) -> MegastructurePlace {
+    match spot {
+        AddSpot::Body { body } => MegastructurePlace::Body { body },
+        AddSpot::Space { x, y } => MegastructurePlace::Free { x, y },
     }
 }
 
@@ -476,12 +461,12 @@ fn check_place(
     let reason = match (&def.placement, place) {
         (Placement::Unsupported { why }, _) => unsupported(gd, &name, why),
         (Placement::Body { .. }, MegastructurePlace::Free { .. }) => {
-            format!("{name} stands on or around a planet or star.")
+            format!("{name} goes on a planet or star, not in empty space.")
         }
         (
             Placement::Free { .. },
             MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. },
-        ) => format!("{name} stands at a point of its own."),
+        ) => format!("{name} goes in empty space, not on a planet or star."),
         _ => return Ok(()),
     };
     Err(Refusal::NotAdded {
@@ -546,19 +531,22 @@ fn add_op(
 /// Why the editor does not add type `name`.
 fn unsupported(gd: &GameData, name: &str, why: &Unsupported) -> String {
     match why {
-        Unsupported::Bypass { bypass } => format!(
-            "{name} stands for a {} bypass, which hasn't been tried in game.",
-            gd.loc.name_or_readable(bypass)
-        ),
+        Unsupported::Bypass { .. } => {
+            format!(
+                "Galaxy Forge can't add {name} yet, because adding it hasn't been tested in game."
+            )
+        }
         Unsupported::RingWorld => {
-            format!("{name} is part of a ring world, which is added as a whole ring world.")
+            format!(
+                "{name} is a stage of a ring world. Add the ring world to build the whole ring."
+            )
         }
         Unsupported::BecomesStarbase => {
-            format!("Building {name} makes a starbase, which Galaxy Forge can't add yet.")
+            format!("Galaxy Forge can't add {name} yet, because building it creates a starbase.")
         }
         Unsupported::ChangesBody => CHANGES_BODY.to_owned(),
         Unsupported::FixedClass { class } => format!(
-            "Makes the planet a {}, a class Galaxy Forge doesn't give a planet.",
+            "Galaxy Forge can't add this yet, because it can't turn a planet into a {}.",
             gd.loc.name_or_readable(class)
         ),
         Unsupported::WholeStructure { .. } => WHOLE_STRUCTURE.to_owned(),
@@ -566,10 +554,10 @@ fn unsupported(gd: &GameData, name: &str, why: &Unsupported) -> String {
 }
 
 const CHANGES_BODY: &str =
-    "Changes the planet's class or size in a way Galaxy Forge can't work out from the game data.";
+    "Galaxy Forge can't add this yet, because it can't tell how building it changes the planet.";
 const WHOLE_STRUCTURE: &str =
-    "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
+    "Galaxy Forge can't add this yet, because building it also creates other planets or sections.";
 const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
 const HABITAT_ROUND_SATELLITE: &str =
-    "It orbits a planet, and Galaxy Forge puts no habitat round a body that orbits a planet.";
-const RING_WORLD_NO_STAR: &str = "The system has no star for a ring world to stand round.";
+    "Galaxy Forge can't put a habitat round anything that orbits a planet, such as a moon.";
+const RING_WORLD_NO_STAR: &str = "Can't place a ring world in a system with no star.";

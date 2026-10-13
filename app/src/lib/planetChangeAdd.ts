@@ -31,9 +31,9 @@ export function changedTo(change: MegastructurePlanetChange, names: Names): stri
   return parts.join(", ");
 }
 
-/** The choice that changes the planet: "Change to Food Giant (as the game does)". */
+/** The choice that changes the planet: "Change to Food Giant, as in the game". */
 export function changePlanetText(change: MegastructurePlanetChange, names: Names): string {
-  return `Change to ${changedTo(change, names)} (as the game does)`;
+  return `Change to ${changedTo(change, names)}, as in the game`;
 }
 
 /** The choice that keeps the planet: "Keep Gas Giant", or "Keep its size" for a size change. */

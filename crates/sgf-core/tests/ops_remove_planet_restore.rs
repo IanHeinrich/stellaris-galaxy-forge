@@ -89,7 +89,7 @@ fn what_is_refused() {
             "ring world",
             open_4_5,
             delete(2445),
-            "planet 2445 cannot be deleted: it is a ring world segment: delete the ring world",
+            "planet 2445 cannot be deleted: it is a ring world section, so delete the whole ring world instead",
         ),
         (
             "no colony",
@@ -101,7 +101,7 @@ fn what_is_refused() {
             "megastructure",
             open_4_5,
             delete(936),
-            "planet 936 cannot be deleted: a megastructure stands on or around it: delete the megastructure first",
+            "planet 936 cannot be deleted: it has a megastructure, so delete the megastructure first",
         ),
         (
             "3.x",

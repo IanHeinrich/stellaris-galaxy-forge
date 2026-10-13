@@ -147,11 +147,10 @@ describe("the Add megastructure dialog on a ring world", () => {
   });
 
   it("greys out the Ring with the reason the shell refuses its ring world", () => {
-    const refusal =
-      "Galaxy Forge can't build Ring World Frame from the game data: it lays out no ring.";
+    const refusal = "Galaxy Forge can't add Ring World Frame yet, because it lays out no ring.";
     const page = html({ ring_world_2_intermediate: { refusal } });
     expect(page).toContain(
-      "Galaxy Forge can't build Ring World Frame from the game data: it lays out no ring.",
+      "Galaxy Forge can't add Ring World Frame yet, because it lays out no ring.",
     );
     expect(page).toContain('aria-disabled="true"');
     expect(page).not.toContain(SET_ALL);

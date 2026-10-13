@@ -152,7 +152,7 @@ fn the_join_places_a_relay_and_refuses_what_it_does_not_add() {
     };
     assert_eq!(
         refused("fx_relay", MegastructurePlace::Body { body: 6 }),
-        "Fx Relay stands at a point of its own.",
+        "Fx Relay goes in empty space, not on a planet or star.",
         "the type as the install names it"
     );
     assert_eq!(
@@ -209,7 +209,9 @@ fn the_fits_word_their_refusals_for_the_player() {
     };
     assert_eq!(
         refusal(&session, AddSpot::Body { body: 6 }, "fx_computer").as_deref(),
-        Some("Makes the planet a Planetary Computer, a class Galaxy Forge doesn't give a planet.")
+        Some(
+            "Galaxy Forge can't add this yet, because it can't turn a planet into a Planetary Computer."
+        )
     );
     let space = AddSpot::Space { x: 0.0, y: -10.0 };
     assert_eq!(refusal(&session, space, "fx_relay"), None);

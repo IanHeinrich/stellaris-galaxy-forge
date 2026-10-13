@@ -71,7 +71,7 @@ describe("deleting a megastructure", () => {
     armRow("hyper_relay", null, 23);
     await deleteMegastructure(NEXUS, "Hyper Relay", null);
     expect(asked()).toBe(
-      "Delete Hyper Relay? It is removed from the save. Without game data, the modifiers its construction added stay.",
+      "Delete Hyper Relay? It is removed from the save. Game data isn't loaded, so the modifiers from building it stay.",
     );
   });
 
@@ -93,7 +93,7 @@ describe("deleting a megastructure", () => {
     expect(await deleteMegastructure(NEXUS, "Cosmogenesis World", 0)).toBe(true);
 
     expect(asked()).toBe(
-      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. Without game data, the modifiers its construction added stay.",
+      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. Game data isn't loaded, so the modifiers from building it stay.",
     );
     expect(mockedIpc.getEntity).toHaveBeenCalledWith({ kind: "planet", id: WORLD }, ["flags"]);
     expect(labels()).toEqual(["Ostiuq"]);

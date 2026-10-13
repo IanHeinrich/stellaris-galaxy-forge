@@ -238,8 +238,8 @@ const NAMES = new Map([
 
 /**
  * The types the shell offers in space in this fixture. It offers the rest on a body, but the Strip
- * Mine, which changes its planet, not on a star. It refuses the Alderson Disk, whose structure
- * Galaxy Forge can't add yet.
+ * Mine, which changes its planet, not on a star. It refuses the Alderson Disk, because building it
+ * also creates other planets or sections.
  */
 const IN_SPACE = new Set([
   "gateway_0",
@@ -253,7 +253,8 @@ const IN_SPACE = new Set([
   "giga_battleship_restored",
 ]);
 
-const WHOLE = "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
+const WHOLE =
+  "Galaxy Forge can't add this yet, because building it also creates other planets or sections.";
 
 /** What the shell offers at `spot`, each type as itself, refused as it is unless `over` says. */
 function fitsAt(
@@ -379,7 +380,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         .flatMap(entryStages)
         .find((s) => s.key === key);
     expect(stage("alderson_disk_1")?.refused).toBe(
-      "Builds more planets or sections with it, which Galaxy Forge can't add yet.",
+      "Galaxy Forge can't add this yet, because building it also creates other planets or sections.",
     );
     expect(refusalSentence("planet 3 already has megastructure 1.")).toBe(
       "Planet 3 already has megastructure 1.",
@@ -539,7 +540,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     });
   });
 
-  it("shows a type no localisation names only to a filter on its key, last, under Unnamed types", () => {
+  it("shows a type no localisation names only to a filter on its key, last, under Unnamed megastructures", () => {
     const listed = entries(star);
     expect(listed.map(entryHeading).slice(-2)).toEqual(["Zeta Structures", UNNAMED_TYPES]);
     const giga = listed.filter((entry) => entry.section === GIGA);

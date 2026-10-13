@@ -184,13 +184,13 @@ describe("adding a megastructure from the system view", () => {
     await adds().add("think_tank_3");
 
     expect(useFileSessionStore.getState().notice).toBe(
-      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 of its construction's effects apply, so it left them out. Galaxy Forge doesn't write 1 of its construction's effects yet, so it left it out.",
+      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 effects of building it apply here, so it left them out. Galaxy Forge can't add 1 effect of building it yet, so it left that out.",
     );
     expect(leftOutNotice("Arc Furnace", 1, 0)).toBe(
-      "Added the Arc Furnace. Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
+      "Added the Arc Furnace. Galaxy Forge couldn't tell whether 1 effect of building it applies here, so it left that out.",
     );
     expect(leftOutNotice("Arc Furnace", 0, 3)).toBe(
-      "Added the Arc Furnace. Galaxy Forge doesn't write 3 of its construction's effects yet, so it left them out.",
+      "Added the Arc Furnace. Galaxy Forge can't add 3 effects of building it yet, so it left them out.",
     );
     expect(leftOutNotice("Arc Furnace", 0, 0)).toBeNull();
   });

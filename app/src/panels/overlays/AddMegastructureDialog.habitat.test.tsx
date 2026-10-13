@@ -49,11 +49,11 @@ describe("the Add megastructure dialog on a habitat", () => {
     expect(html).toContain(HABITAT_OWNER_NOTE);
   });
 
-  it("says the habitat has the class's default skin in a system no one owns", () => {
+  it("says the habitat has the default habitat skin in a system no one owns", () => {
     ownSystem(null);
     const html = footer();
     expect(html).toContain(writtenAsHabitat(false));
-    expect(html).toContain("No one owns the system, so it has the habitat class's default skin.");
+    expect(html).toContain("No one owns the system, so it has the default habitat skin.");
     expect(html).not.toContain("the empire that owns the system");
   });
   it("keeps the restored complex a habitat round a planet that has a megastructure", () => {
@@ -94,7 +94,7 @@ describe("the Add megastructure dialog on a habitat", () => {
       ownSystem(OWNER);
       const html = footer();
       expect(html).toContain(
-        "A major orbital is added at its host, owned by the empire that owns the system.",
+        "A major orbital is added at the planet or star it orbits, owned by the empire that owns the system.",
       );
       expect(html).toContain(habitatOrbitalNote(true, false));
       expect(html).toContain(HABITAT_ORBITAL_OWNER_NOTE);
@@ -104,7 +104,9 @@ describe("the Add megastructure dialog on a habitat", () => {
     it("says the orbital has no owner in a system no one owns", () => {
       ownSystem(null);
       const html = footer();
-      expect(html).toContain("A major orbital is added at its host, with no owner.");
+      expect(html).toContain(
+        "A major orbital is added at the planet or star it orbits, with no owner.",
+      );
       expect(html).not.toContain(HABITAT_ORBITAL_OWNER_NOTE);
     });
 

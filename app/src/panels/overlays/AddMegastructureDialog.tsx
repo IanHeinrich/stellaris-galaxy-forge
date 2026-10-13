@@ -121,7 +121,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const type = found === null ? undefined : types.get(found.stage.variant);
   const culture = ownerCulture(owner, details.values(), countries);
   const ownerCountry = owner === null ? undefined : countries.get(owner);
-  const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
+  const where = whereText(spot, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
   const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
   const ring = found?.stage.ring === true;
   const planetChange = found?.stage.refused === null ? planetChangeAt(type, spot) : null;
