@@ -94,11 +94,11 @@ pub(crate) trait Format: Sync {
     /// it rewrote, ascending.
     fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32>;
 
-    /// Whether the queries only a save answers read this document; the refusal names why
-    /// not.
-    fn save_queries(&self, doc: &Document) -> Result<(), OpError> {
+    /// Whether the queries only a save answers read this document; the refusal names
+    /// `query`, what the caller asked for, and why not.
+    fn save_queries(&self, doc: &Document, query: &'static str) -> Result<(), OpError> {
         Err(OpError::Unsupported {
-            op: "a save query",
+            op: query,
             kind: doc.kind(),
         })
     }

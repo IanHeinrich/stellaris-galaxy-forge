@@ -24,7 +24,7 @@ fn pasted(result: &OpResult) -> u32 {
 
 fn copy(session: &Session, bodies: &[u32]) -> Vec<NewBody> {
     session
-        .save()
+        .save("copying planets")
         .expect("a save")
         .copy_bodies(bodies)
         .expect("a copy")
@@ -100,7 +100,7 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
 
     let mut session = open_4_5();
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -140,7 +140,7 @@ fn a_colonised_planet_is_copied_without_its_colony() {
         "Linkirk I is numbered again"
     );
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -163,7 +163,7 @@ fn a_copy_goes_to_a_point_in_its_own_system() {
         angle: 45.0,
     };
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(140, &copies, Some(at))
         .expect("a paste");
@@ -179,7 +179,7 @@ fn a_moon_goes_with_its_planet_and_alone_becomes_a_planet() {
     assert_eq!(group.len(), 2, "moon 100 goes with planet 99");
     assert_eq!(group[0].moons.len(), 2);
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &group, None)
         .expect("a paste");
@@ -195,7 +195,7 @@ fn a_moon_goes_with_its_planet_and_alone_becomes_a_planet() {
     session
         .apply(
             session
-                .save()
+                .save("pasting planets")
                 .expect("a save")
                 .paste_bodies_op(KAZAM, &[moon], None)
                 .expect("op"),
@@ -210,7 +210,7 @@ fn a_paste_reports_the_planets_and_moons_it_created() {
     let mut session = open_4_5();
     let group = copy(&session, &[99, 402]);
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &group, None)
         .expect("a paste");
@@ -255,7 +255,7 @@ fn a_copy_from_one_save_is_pasted_into_another() {
     assert_eq!(copies[0].moons.len(), 1);
     let mut session = open_4_5();
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -294,7 +294,7 @@ fn stars_megastructures_and_empty_pastes_are_refused() {
     ];
     for (body, message) in refusals {
         let error = session
-            .save()
+            .save("copying planets")
             .expect("a save")
             .copy_bodies(&[body])
             .expect_err(message);
@@ -302,13 +302,13 @@ fn stars_megastructures_and_empty_pastes_are_refused() {
     }
     let copies = copy(&session, &[402]);
     let error = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &[], None)
         .expect_err("none");
     assert_eq!(error.to_string(), "no entries given");
     let error = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(99_999, &copies, None)
         .expect_err("no system");
@@ -337,7 +337,7 @@ fn an_asteroid_is_named_from_the_pool() {
     assert_eq!(copies[0].naming, BodyNaming::Asteroid, "{copies:?}");
     let mut session = open_4_5();
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -366,7 +366,7 @@ fn a_pasted_group_shows_in_the_live_details() {
     session.warm_details().expect("build details");
     let copies = copy(&session, &[10, 402, 1271]);
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -418,7 +418,7 @@ fn a_pasted_group_lines_up_at_one_angle() {
     };
     for (given, angle) in [(None, 0.0), (Some(at), 135.0)] {
         let op = session
-            .save()
+            .save("pasting planets")
             .expect("a save")
             .paste_bodies_op(KAZAM, &copies, given)
             .expect("a paste");
@@ -434,7 +434,7 @@ fn a_pasted_group_lines_up_at_one_angle() {
         }
     }
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, Some(at))
         .expect("a paste");
@@ -474,7 +474,7 @@ fn a_moon_with_an_asteroid_name_is_copied_lettered() {
     assert_eq!(copies[0].moons[0].spec.name, None, "{copies:?}");
     let mut session = open_4_5();
     let op = session
-        .save()
+        .save("pasting planets")
         .expect("a save")
         .paste_bodies_op(KAZAM, &copies, None)
         .expect("a paste");
@@ -509,7 +509,7 @@ fn a_star_its_system_does_not_list_is_refused() {
         *gamestate = gamestate.replacen(line, "", 1);
     });
     let error = session
-        .save()
+        .save("copying planets")
         .expect("a save")
         .copy_bodies(&[327])
         .expect_err("a star");

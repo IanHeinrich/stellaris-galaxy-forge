@@ -167,7 +167,8 @@ pub struct Capabilities {
     /// fallen empires and marauders and write them in one batch.
     pub prepare: bool,
     /// Several bodies selected together can be edited at once, as the system view's
-    /// selection offers.
+    /// selection offers. Each field still asks its own capability: a 3.x save has this with
+    /// `planet_classes` and `modifiers` off.
     pub edit_bodies: bool,
     /// Empires are seated by the scripts the systems name: the territories, day-one claims
     /// and marauder clans the game data resolves.

@@ -48,6 +48,29 @@ pub(crate) fn beside(spec: &SystemSpec, id: u32) -> SystemSpec {
     another(spec, "Sgf_Second", (spec.x + 20.0, spec.y + 20.0), vec![id])
 }
 
+/// An added system reports itself and every body it wrote, which are the bodies its details
+/// list. An undo reports nothing created, and a redo the same again.
+#[test]
+fn an_added_system_reports_its_bodies() {
+    let mut session = open_4_5();
+    let result = session.apply(add(mura())).expect("add the system");
+    let created = result.created.clone();
+    let [system] = created.systems[..] else {
+        panic!("one system: {created:?}");
+    };
+    let listed: BTreeSet<u32> = bodies(&session, system).iter().map(|b| b.0).collect();
+    assert_eq!(
+        created.planets.iter().copied().collect::<BTreeSet<_>>(),
+        listed
+    );
+    assert_eq!(created.planets.len(), listed.len());
+    assert!(created.megastructures.is_empty());
+    let undone = session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(undone.created, Default::default());
+    let redone = session.redo().expect("redo").expect("an op to redo");
+    assert_eq!(redone.created, created);
+}
+
 #[test]
 fn the_spike_system_is_written_as_the_game_spawns_one() {
     for sample in &SAMPLES {

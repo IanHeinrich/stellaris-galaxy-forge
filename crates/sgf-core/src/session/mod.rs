@@ -23,6 +23,7 @@ use std::sync::Arc;
 use crate::document::{self, Document};
 use crate::format::save::details::DetailsProjection;
 use crate::format::{self, Format};
+pub use crate::ops::Created;
 use crate::ops::history::History;
 use crate::ops::{Op, Subject, SystemRadii};
 use crate::projections::galaxy::{
@@ -75,41 +76,6 @@ pub struct OpResult {
     /// What an apply or a redo added; nothing for an undo.
     pub created: Created,
     pub issues: Vec<Issue>,
-}
-
-/// The systems, planets and megastructure rows an op added, in the order it wrote them, as
-/// the inverse its writer returned takes them out again. A planet comes before its moons.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Created {
-    pub systems: Vec<u32>,
-    pub planets: Vec<u32>,
-    pub megastructures: Vec<u32>,
-}
-
-impl Created {
-    /// What the op whose inverse is `inverse` added.
-    fn of(inverse: &Op) -> Self {
-        let mut created = Self::default();
-        created.read(inverse);
-        created
-    }
-
-    fn read(&mut self, inverse: &Op) {
-        match inverse {
-            Op::Batch { ops, .. } => ops.iter().rev().for_each(|op| self.read(op)),
-            Op::RemoveSystem { system } => self.systems.push(*system),
-            Op::RemoveSystems { systems } => self.systems.extend(systems),
-            Op::RemoveBody { body } => self.planets.push(*body),
-            Op::RemoveMegastructure { megastructure, .. } => {
-                self.megastructures.push(*megastructure);
-            }
-            Op::RemoveRingWorld { written, .. } => {
-                self.planets.extend(&written.planets);
-                self.megastructures.extend(&written.rows);
-            }
-            _ => {}
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

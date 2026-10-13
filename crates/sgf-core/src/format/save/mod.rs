@@ -390,7 +390,7 @@ impl Format for Save {
         format::stale_systems(subjects, bodies_only)
     }
 
-    fn save_queries(&self, doc: &Document) -> Result<(), OpError> {
+    fn save_queries(&self, doc: &Document, _query: &'static str) -> Result<(), OpError> {
         check_version(doc)
     }
 

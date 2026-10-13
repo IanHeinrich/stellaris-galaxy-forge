@@ -139,7 +139,8 @@ header: boolean,
 prepare: boolean, 
 /**
  * Several bodies selected together can be edited at once, as the system view's
- * selection offers.
+ * selection offers. Each field still asks its own capability: a 3.x save has this with
+ * `planet_classes` and `modifiers` off.
  */
 edit_bodies: boolean, 
 /**

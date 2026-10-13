@@ -171,7 +171,7 @@ fn result(
         renumbered,
         created: match undone {
             true => Created::default(),
-            false => Created::of(&applied.inverse),
+            false => applied.created.clone(),
         },
         issues: Vec::new(),
     }

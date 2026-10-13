@@ -77,7 +77,9 @@ pub async fn planet_move_targets<R: Runtime>(
 ) -> Result<PlanetMoveTargets, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(session.save()?.planet_move_targets(&planets))
+        Ok(session
+            .save("moving planets")?
+            .planet_move_targets(&planets))
     })
     .await
 }
@@ -93,7 +95,9 @@ pub async fn planet_move_check<R: Runtime>(
 ) -> Result<PlanetMoveCheck, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(session.save()?.planet_move_check(&planets, to, at))
+        Ok(session
+            .save("moving planets")?
+            .planet_move_check(&planets, to, at))
     })
     .await
 }
@@ -108,7 +112,9 @@ pub async fn planet_move_op<R: Runtime>(
 ) -> Result<Op, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(session.save()?.planet_move_op(&planets, to, at)?)
+        Ok(session
+            .save("moving planets")?
+            .planet_move_op(&planets, to, at)?)
     })
     .await
 }
@@ -121,7 +127,7 @@ pub async fn copy_bodies<R: Runtime>(
 ) -> Result<Vec<NewBody>, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(session.save()?.copy_bodies(&bodies)?)
+        Ok(session.save("copying planets")?.copy_bodies(&bodies)?)
     })
     .await
 }
@@ -137,7 +143,9 @@ pub async fn paste_bodies_op<R: Runtime>(
 ) -> Result<Op, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(session.save()?.paste_bodies_op(system, &copies, at)?)
+        Ok(session
+            .save("pasting planets")?
+            .paste_bodies_op(system, &copies, at)?)
     })
     .await
 }

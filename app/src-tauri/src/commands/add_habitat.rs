@@ -34,7 +34,9 @@ pub async fn add_habitat<R: Runtime>(
     }
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
-        let site = session.save()?.construction_site(system)?;
+        let site = session
+            .save("reading a construction site")?
+            .construction_site(system)?;
         let host = site.bodies.iter().find(|b| b.id == body).ok_or_else(|| {
             SgfError::new(
                 ErrorKind::Op,

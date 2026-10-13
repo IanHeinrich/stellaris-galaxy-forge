@@ -36,6 +36,55 @@ pub use op::{DetailsReach, Kinds, Op, OpReach};
 pub use payload::*;
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 
+/// The systems, planets and megastructure rows an op added, in the order it wrote them. A
+/// writer that adds more than its inverse names lists them through [`Plan::created`]; for
+/// any other op they are read from the inverse that takes them out again. A planet comes
+/// before its moons.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Created {
+    pub systems: Vec<u32>,
+    pub planets: Vec<u32>,
+    pub megastructures: Vec<u32>,
+}
+
+impl Created {
+    pub fn is_empty(&self) -> bool {
+        self.systems.is_empty() && self.planets.is_empty() && self.megastructures.is_empty()
+    }
+
+    /// What the op whose inverse is `inverse` added, as that inverse names it.
+    fn of_inverse(inverse: &Op) -> Self {
+        let mut created = Self::default();
+        created.read(inverse);
+        created
+    }
+
+    fn read(&mut self, inverse: &Op) {
+        match inverse {
+            Op::Batch { ops, .. } => ops.iter().rev().for_each(|op| self.read(op)),
+            Op::RemoveSystem { system } => self.systems.push(*system),
+            Op::RemoveSystems { systems } => self.systems.extend(systems),
+            Op::RemoveBody { body } => self.planets.push(*body),
+            Op::RemoveMegastructure { megastructure, .. } => {
+                self.megastructures.push(*megastructure);
+            }
+            Op::RemoveRingWorld { written, .. } => {
+                self.planets.extend(&written.planets);
+                self.megastructures.extend(&written.rows);
+            }
+            _ => {}
+        }
+    }
+
+    /// `self` followed by `next`.
+    fn then(mut self, next: Self) -> Self {
+        self.systems.extend(next.systems);
+        self.planets.extend(next.planets);
+        self.megastructures.extend(next.megastructures);
+        self
+    }
+}
+
 /// The record of one committed op: what changed, how to describe it, and the bytes
 /// needed to undo and redo it without re-running the op.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +106,8 @@ pub(crate) struct Applied {
     pub renumbered: Vec<(u32, Option<u32>)>,
     /// The save's `meta` before and after, when the op rewrote it.
     pub meta: Option<MetaEdit>,
+    /// What the op added.
+    pub created: Created,
 }
 
 /// The `meta` bytes an op displaced and wrote, each `None` for the bytes as loaded.
@@ -90,7 +141,10 @@ pub(crate) fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
 /// Apply one op that is not a batch, and keep beside each row it added what the bytes
 /// cannot say, so a later op, in the same batch or not, finds it there.
 fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
-    let applied = commit_one(session, op)?;
+    let mut applied = commit_one(session, op)?;
+    if applied.created.is_empty() {
+        applied.created = Created::of_inverse(&applied.inverse);
+    }
     if let Some(added) = session.doc.added_mut() {
         added.keep_written(&applied.inverse);
     }
@@ -130,6 +184,7 @@ fn joined(first: Applied, second: Applied) -> Applied {
     Applied {
         renumbered: then(&first.renumbered, &second.renumbered),
         meta: MetaEdit::then(first.meta, second.meta),
+        created: first.created.then(second.created),
         before: [first.before, second.before].concat(),
         after: [first.after, second.after].concat(),
         touched,
@@ -173,6 +228,7 @@ fn apply_batch(
     let mut touched = Vec::new();
     let mut renumbered = Vec::new();
     let mut meta = None;
+    let mut created = Created::default();
     for member in members {
         match member.inverse {
             Op::Batch { ops, .. } => inverses.extend(ops.into_iter().rev()),
@@ -183,6 +239,7 @@ fn apply_batch(
         touched.extend(member.touched);
         renumbered = then(&renumbered, &member.renumbered);
         meta = MetaEdit::then(meta, member.meta);
+        created = created.then(member.created);
     }
     inverses.reverse();
     touched.sort_unstable();
@@ -199,6 +256,7 @@ fn apply_batch(
         touched,
         renumbered,
         meta,
+        created,
     })
 }
 

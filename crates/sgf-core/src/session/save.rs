@@ -15,10 +15,11 @@ pub struct SaveQueries<'s> {
 }
 
 impl Session {
-    /// The save-only queries; refused once for a document that is not a save, naming its
+    /// The save-only queries, for `query`, what the caller asks them for, such as "copying
+    /// planets"; refused once for a document that is not a save, naming `query` and the
     /// kind, and for a save before Stellaris 4.0.
-    pub fn save(&self) -> Result<SaveQueries<'_>, OpError> {
-        self.format().save_queries(&self.doc)?;
+    pub fn save(&self, query: &'static str) -> Result<SaveQueries<'_>, OpError> {
+        self.format().save_queries(&self.doc, query)?;
         Ok(SaveQueries { session: self })
     }
 }
