@@ -6,8 +6,18 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+// Shows every hover card while `hover.shown`, as the pointer on each row would.
+const hover = vi.hoisted(() => ({ shown: false }));
+vi.mock("../useHoverCard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../useHoverCard")>();
+  return {
+    useHoverCard: () => {
+      const card = actual.useHoverCard();
+      return hover.shown ? { ...card, shown: true, describedBy: card.cardId } : card;
+    },
+  };
+});
 
-import { depositBars } from "../../../lib/details/depositBars";
 import { bindStores } from "../../../store/bindStores";
 import { drawnBy } from "../../../test/drawn";
 import { openGroups } from "../../../test/groups";
@@ -28,7 +38,7 @@ import {
   rolled,
   row,
 } from "../inspectorFixture";
-import { DepositCard, DepositKindsList, DepositPoolBars } from "./DepositPoolBars";
+import { DepositPoolBars } from "./DepositPoolBars";
 
 bindStores();
 
@@ -40,6 +50,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   resetStores();
+  hover.shown = false;
   useNameFormatsStore.setState({ formats: new Map() });
 });
 
@@ -201,15 +212,14 @@ describe("the deposits and features a scenario body can roll", () => {
       energy("d_energy_3", 3, "Energy Deposit"),
       energy("d_rich_energy_3", 3, "Rich Energy Field"),
     ]);
-    const [row] = depositBars(
-      [
-        { key: "d_energy_3", chance: 0.1 },
-        { key: "d_energy_2", chance: 0.26 },
-        { key: "d_rich_energy_3", chance: 0.08 },
-      ],
-      views,
-    );
-    const html = renderToStaticMarkup(<DepositCard row={row} id="card" rowId="row" />);
+    const picks = [
+      { key: "d_energy_3", chance: 0.1 },
+      { key: "d_energy_2", chance: 0.26 },
+      { key: "d_rich_energy_3", chance: 0.08 },
+    ];
+    usePlanetDataStore.setState({ depositTypes: views });
+    hover.shown = true;
+    const html = renderToStaticMarkup(<DepositPoolBars picks={picks} picked />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain(
       '<span class="dp-card-name"><span class="gi">E</span>Energy Credits · 44%</span>',
@@ -228,10 +238,8 @@ describe("the deposits and features a scenario body can roll", () => {
       '<span class="dp-card-note muted">How likely a deposit rolled here is to give this resource, at each amount.</span>',
     );
 
-    usePlanetDataStore.setState({ depositTypes: views });
-    const unhovered = renderToStaticMarkup(
-      <DepositPoolBars picks={[{ key: "d_energy_2", chance: 0.26 }]} picked />,
-    );
+    hover.shown = false;
+    const unhovered = renderToStaticMarkup(<DepositPoolBars picks={picks} picked />);
     expect(unhovered).toContain("pl-pool-seg");
     expect(unhovered).not.toContain("dp-card");
   });
@@ -249,14 +257,13 @@ describe("the deposits and features a scenario body can roll", () => {
       view("d_energy_2", "£energy£ +2", 2),
       view("d_energy_3", "Energy Deposit", 3),
     ]);
-    const [row] = depositBars(
-      [
-        { key: "d_energy_2", chance: null },
-        { key: "d_energy_3", chance: null },
-      ],
-      views,
-    );
-    const html = renderToStaticMarkup(<DepositCard row={row} id="card" rowId="row" />);
+    const picks = [
+      { key: "d_energy_2", chance: null },
+      { key: "d_energy_3", chance: null },
+    ];
+    usePlanetDataStore.setState({ depositTypes: views });
+    hover.shown = true;
+    const html = renderToStaticMarkup(<DepositPoolBars picks={picks} picked />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain(
       '<span class="dp-card-name"><span class="gi">E</span>Energy Credits</span>',
@@ -271,19 +278,22 @@ describe("the deposits and features a scenario body can roll", () => {
     expect(card).not.toContain("How likely");
     expect(card).toContain('<span class="dp-card-note muted">Depends on the class it gets.</span>');
 
-    const unhovered = renderToStaticMarkup(
-      <DepositKindsList kinds={{ resources: [row], blockers: [], other: [] }} picked />,
-    );
+    hover.shown = false;
+    const unhovered = renderToStaticMarkup(<DepositPoolBars picks={picks} picked />);
     expect(unhovered).toContain("pl-pool-chip");
     expect(unhovered).not.toContain("dp-card");
   });
 
   it("shows a deposit that yields nothing on hover by its name and chance", () => {
-    const [row] = depositBars(
-      [{ key: "d_toxic_kelp", chance: 0.004 }],
-      new Map([["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp" })]]),
+    usePlanetDataStore.setState({
+      depositTypes: new Map([
+        ["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp" })],
+      ]),
+    });
+    hover.shown = true;
+    const html = renderToStaticMarkup(
+      <DepositPoolBars picks={[{ key: "d_toxic_kelp", chance: 0.004 }]} picked />,
     );
-    const html = renderToStaticMarkup(<DepositCard row={row} id="card" rowId="row" />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain('<span class="dp-card-name">Toxic Kelp · &lt;1%</span>');
     expect(card).not.toContain("pl-pool-line");

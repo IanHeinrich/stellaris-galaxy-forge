@@ -60,7 +60,9 @@ export function MegastructureList({
     if (e.key === ENTER) {
       if (active >= 0) onConfirm();
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      onSelect(entries[listStep(e.key, active, entries.length) ?? 0]);
+      const to = listStep(e.key, active, entries.length);
+      if (to === null) return;
+      onSelect(entries[to]);
     } else return;
     e.preventDefault();
     e.stopPropagation();

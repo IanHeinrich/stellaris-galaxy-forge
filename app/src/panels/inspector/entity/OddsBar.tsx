@@ -40,17 +40,18 @@ export function PoolRow({
   name,
   bar,
   chance,
-  press,
   children,
-  ...attributes
+  ...rest
 }: {
   icon?: ReactNode;
   name?: ReactNode;
   bar?: ReactNode;
   chance: number | null;
-  press?: Press;
   children?: ReactNode;
-} & Omit<HTMLAttributes<HTMLDivElement>, "className" | "children">) {
+} & (
+  | { press: Press }
+  | ({ press?: undefined } & Omit<HTMLAttributes<HTMLDivElement>, "className" | "children">)
+)) {
   const cells = (
     <>
       <span className="pl-pool-icon">{icon}</span>
@@ -60,20 +61,20 @@ export function PoolRow({
       {children}
     </>
   );
-  if (press !== undefined) {
+  if (rest.press !== undefined) {
     return (
       <button
         type="button"
         className="pl-pool-row"
-        aria-pressed={press.pressed}
-        onClick={press.onPress}
+        aria-pressed={rest.press.pressed}
+        onClick={rest.press.onPress}
       >
         {cells}
       </button>
     );
   }
   return (
-    <div className="pl-pool-row" {...attributes}>
+    <div className="pl-pool-row" {...rest}>
       {cells}
     </div>
   );

@@ -67,7 +67,7 @@ function DepositBarCardLines({ row }: { row: BarRow }) {
 }
 
 /** A resource's card: its heading with its icon, then its amounts. */
-export function DepositCard({ row, id, rowId }: { row: BarRow; id: string; rowId: string }) {
+function DepositCard({ row, id, rowId }: { row: BarRow; id: string; rowId: string }) {
   const icon = hasIcon(row) ? row.icon : null;
   return (
     <HoverCard

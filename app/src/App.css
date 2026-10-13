@@ -498,6 +498,13 @@ kbd {
   box-shadow: var(--shadow-dialog);
 }
 
+.dialog > form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .dialog-head {
   display: flex;
   align-items: center;

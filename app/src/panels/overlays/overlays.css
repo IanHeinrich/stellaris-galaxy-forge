@@ -321,13 +321,6 @@
   container-type: inline-size;
 }
 
-.megastructure-add-dialog > form {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .megastructure-add-body {
   display: flex;
   flex-direction: column;
