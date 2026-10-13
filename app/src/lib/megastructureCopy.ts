@@ -15,8 +15,6 @@ import { capitalised } from "./text";
 export const ADD_MEGASTRUCTURE_HERE_LABEL = "Add megastructure here…";
 export const ADD_MEGASTRUCTURE_LABEL = "Add megastructure…";
 export const MEGASTRUCTURES_NEED_GAME_DATA = "Load game data to add a megastructure.";
-/** Used only by a context menu test that checks the menu never says it. */
-export const BODY_HAS_MEGASTRUCTURE = "It already has a megastructure.";
 export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can go here.";
 /** What the dialog says while it asks the save what goes at the spot. */
 export const READING_FITS = "Reading what can go here…";

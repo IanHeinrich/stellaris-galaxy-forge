@@ -1,7 +1,5 @@
-import {
-  MEGASTRUCTURES_NEED_GAME_DATA,
-  type MegastructureSpot,
-} from "../../../lib/megastructurePicks";
+import { MEGASTRUCTURES_NEED_GAME_DATA } from "../../../lib/megastructureCopy";
+import type { MegastructureSpot } from "../../../lib/megastructurePicks";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMegastructureAddStore } from "../../../store/megastructureAdd";
 import { MenuItem } from "./MenuItem";

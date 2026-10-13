@@ -2,7 +2,7 @@
 import type { MegastructurePlace } from "./MegastructurePlace";
 
 /**
- * One type the dialog offers at a spot.
+ * One type the add dialog offers at a spot.
  */
 export type MegastructureFit = { kind: string, 
 /**

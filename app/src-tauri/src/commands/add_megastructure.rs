@@ -9,7 +9,7 @@ use tauri::{AppHandle, Runtime};
 use super::{game_data, require, with_session};
 use crate::views::{Added, AddedMegastructure};
 
-const NO_MEGASTRUCTURES: &str = "this document takes no added megastructure";
+pub(super) const NO_MEGASTRUCTURES: &str = "this document takes no added megastructure";
 
 /// Add a finished megastructure of type `kind` to system `system` of the open save at
 /// `place`, as `sgf_gamedata::generate::megastructure_op` builds it, changing its planet as

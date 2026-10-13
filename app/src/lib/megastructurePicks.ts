@@ -19,13 +19,6 @@ import {
 import { swappedTypes, swapsByStarClass } from "./megastructureVariants";
 import { offeredStages } from "./ringWorldAdd";
 
-export {
-  ADD_MEGASTRUCTURE_HERE_LABEL,
-  ADD_MEGASTRUCTURE_LABEL,
-  BODY_HAS_MEGASTRUCTURE,
-  MEGASTRUCTURES_NEED_GAME_DATA,
-} from "./megastructureCopy";
-
 /** Whether `spot` is a body that a row of `rows` stands at. */
 export function hostHasMegastructure(
   spot: MegastructureSpot,
@@ -45,8 +38,6 @@ export type MegastructureSpot =
       readonly body: number;
       readonly star: boolean;
       readonly class?: string | null;
-      /** The body orbits a planet, as a moon or a habitat does: no habitat goes round it. */
-      readonly orbitsPlanet?: boolean;
     }
   | { readonly kind: "space"; readonly x: number; readonly y: number };
 

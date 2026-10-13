@@ -2,7 +2,7 @@ import { ADD_PLANET_LABEL } from "../../../lib/addBody";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { defaultBeltKind } from "../../../lib/details/orbitIntent";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
-import { ADD_MEGASTRUCTURE_HERE_LABEL } from "../../../lib/megastructurePicks";
+import { ADD_MEGASTRUCTURE_HERE_LABEL } from "../../../lib/megastructureCopy";
 import { placementAt } from "../../../lib/planetMove";
 import { useSystemNames } from "../../../store/browserRows";
 import type { ContextTarget } from "../../../store/mapChromeStore";

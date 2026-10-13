@@ -1,19 +1,26 @@
 //! The save's side of an added megastructure: the op that adds a finished row of any type the
 //! install defines, the habitat a type finishes as, or a whole ring world to a system of a
-//! save. Each is owned by the system's owner and drawn in that owner's graphical culture.
+//! save. Each is owned by the system's owner and drawn in that owner's graphical culture. The
+//! add dialog asks [`megastructure_fits`] which types go at a spot, and why the save would
+//! refuse each.
 
+use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
+use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
     NewMegastructurePlace, Op, OpError,
 };
 use sgf_core::session::{SaveQueries, Session};
+use sgf_core::views::details::SiteBody;
 use sgf_core::views::{ErrorKind, SgfError};
+use ts_rs::TS;
 
 use crate::GameData;
 use crate::construction::PlanetChange;
 use crate::construction::habitat::habitat;
 use crate::construction::ring_world::{RingStage, ring_world};
+use crate::registries::megastructure_swaps::made_at;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 
 /// An add's op, with what the type's construction does that the op leaves out.
@@ -174,6 +181,163 @@ pub fn ring_world_op(
     Ok(Planned::whole(
         save.ring_world_op(system, owner, ring, clear)?,
     ))
+}
+
+/// Where in a system the Add megastructure dialog was opened.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AddSpot {
+    /// On a body of the system.
+    Body { body: u32 },
+    /// At a point in empty space, about the star.
+    Space { x: f64, y: f64 },
+}
+
+/// One type the add dialog offers at a spot.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MegastructureFit {
+    pub kind: String,
+    /// The type Add writes: the one the game swaps a finished row of `kind` for at the spot,
+    /// else `kind`.
+    pub variant: String,
+    /// Where a row of `variant` stands: on the body, at the point pressed, or for a type built
+    /// outside the gravity well, just outside the system's inner radius in the pressed
+    /// direction.
+    pub place: MegastructurePlace,
+    /// Why the save would refuse `variant` there, as the add would say it; `None` when it goes.
+    pub refusal: Option<String>,
+}
+
+/// Each type the install defines that goes at `spot` of system `system` of `session`'s save,
+/// in the install's order. In empty space, one placed at a point of its own goes; on a star,
+/// one placed on a body that is not kept off stars and does not change its planet, a ring world
+/// and a whole structure; on a planet, one not built only round a star. A type whose build
+/// changes its planet in a way the editor cannot tell, or makes it a class it gives no planet,
+/// goes on any body. A bypass the editor has not tried and a type that becomes a starbase go
+/// nowhere. Each one's variant is the type the game makes of it at the body's class with the
+/// save's global flags, and its refusal is the add's own: the op [`megastructure_op`],
+/// [`habitat_op`] or [`ring_world_op`] builds, a ring world with every quadrant finished and
+/// the system kept, checked against the session without applying it. A body that is not in
+/// the system is refused.
+pub fn megastructure_fits(
+    gd: &GameData,
+    session: &Session,
+    system: u32,
+    spot: AddSpot,
+) -> Result<Vec<MegastructureFit>, Refusal> {
+    let site = session
+        .save("adding a megastructure")?
+        .construction_site(system)?;
+    let body = match spot {
+        AddSpot::Body { body } => Some(
+            site.bodies
+                .iter()
+                .find(|b| b.id == body)
+                .ok_or(Refusal::NotInSystem { body, system })?,
+        ),
+        AddSpot::Space { .. } => None,
+    };
+    let flags = &session.graph().global_flags;
+    let class = body.map(|b| b.class.as_str());
+    let inner = inner_radius(session, system);
+    Ok(gd
+        .megastructures
+        .iter()
+        .filter(|def| goes(def, body))
+        .map(|def| {
+            let variant = made_at(&gd.megastructures, &def.key, class, flags);
+            let made = gd.megastructures.get(&variant).unwrap_or(def);
+            let place = place_at(made, spot, inner);
+            MegastructureFit {
+                kind: def.key.clone(),
+                refusal: fit_refusal(gd, session, system, made, place),
+                variant,
+                place,
+            }
+        })
+        .collect())
+}
+
+/// Whether a type goes at `body`, or in empty space for none.
+fn goes(def: &MegastructureDef, body: Option<&SiteBody>) -> bool {
+    let Some(body) = body else {
+        return matches!(def.placement, Placement::Free { .. });
+    };
+    match &def.placement {
+        Placement::Free { .. } => false,
+        Placement::Body { .. } if body.star => !def.planet_only && def.planet_change.is_none(),
+        Placement::Body { star_only } => !star_only,
+        Placement::Unsupported { why } => match why {
+            Unsupported::ChangesBody | Unsupported::FixedClass { .. } => true,
+            Unsupported::WholeStructure { star_only } => !star_only || body.star,
+            Unsupported::RingWorld => body.star,
+            Unsupported::Bypass { .. } | Unsupported::BecomesStarbase => false,
+        },
+    }
+}
+
+/// Where a row of `def` added at `spot` stands, in a system of `inner_radius`.
+fn place_at(def: &MegastructureDef, spot: AddSpot, inner_radius: f64) -> MegastructurePlace {
+    match (spot, &def.placement) {
+        (AddSpot::Body { body }, _) => MegastructurePlace::Body { body },
+        (
+            AddSpot::Space { x, y },
+            Placement::Free {
+                outside_gravity_well: true,
+            },
+        ) => {
+            let radius = RELAY_RADIUS_FACTOR * inner_radius;
+            let angle = y.atan2(x);
+            MegastructurePlace::Free {
+                x: radius * angle.cos(),
+                y: radius * angle.sin(),
+            }
+        }
+        (AddSpot::Space { x, y }, _) => MegastructurePlace::Free { x, y },
+    }
+}
+
+/// The save's `inner_radius` of system `system`; 0 where it writes none.
+fn inner_radius(session: &Session, system: u32) -> f64 {
+    session
+        .details()
+        .ok()
+        .and_then(|details| details.raw(system).and_then(|raw| raw.inner_radius))
+        .unwrap_or(0.0)
+}
+
+/// Why the add of `def` at `place` would be refused.
+fn fit_refusal(
+    gd: &GameData,
+    session: &Session,
+    system: u32,
+    def: &MegastructureDef,
+    place: MegastructurePlace,
+) -> Option<String> {
+    let key = &def.key;
+    let ring = matches!(
+        def.placement,
+        Placement::Unsupported {
+            why: Unsupported::RingWorld
+        }
+    );
+    let planned = match place {
+        _ if ring => ring_world_op(gd, session, system, key, &[RingStage::Finished; 4], false),
+        MegastructurePlace::Body { body } if habitat(gd, key, true, None).is_some() => {
+            habitat_op(gd, session, system, body, key)
+        }
+        _ => megastructure_op(gd, session, system, key, place, false),
+    };
+    match planned {
+        Err(refused) => Some(refused.to_string()),
+        Ok(Planned {
+            op: Op::Batch { ops, .. },
+            ..
+        }) => ops.iter().find_map(|op| session.check_op(op)),
+        Ok(planned) => session.check_op(&planned.op),
+    }
 }
 
 fn defined<'g>(gd: &'g GameData, kind: &str) -> Result<&'g MegastructureDef, Refusal> {

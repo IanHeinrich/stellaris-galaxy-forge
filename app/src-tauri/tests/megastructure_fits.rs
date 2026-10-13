@@ -5,9 +5,9 @@
 use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
-use sgf_app_lib::commands::MegastructureFit;
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::views::ErrorKind;
+use sgf_gamedata::generate::MegastructureFit;
 use tauri::WebviewWindow;
 use tauri::test::MockRuntime;
 
