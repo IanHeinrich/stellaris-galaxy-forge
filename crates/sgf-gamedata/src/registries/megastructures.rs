@@ -19,8 +19,9 @@ use sgf_core::format::save::ring_world;
 use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
+use crate::install::walk::{self, CONDITIONAL, Scan, Script, Statement};
 use crate::registries::megastructure_offers::{Build, Offer};
-use crate::registries::megastructure_swaps::{self, Swap};
+use crate::registries::megastructure_swaps::{self, Swap, removes_row};
 use crate::registries::planet_classes::PlanetClasses;
 use crate::registries::registry::{FromDef, Registry};
 use crate::registries::scripted_triggers::ScriptedTriggers;
@@ -159,12 +160,11 @@ impl Completes {
         let converts_body = hosts.iter().any(|host| converts(host, src));
         let mut body_effects = Vec::new();
         for host in &hosts {
-            effects_called(host, src, &mut body_effects);
+            walk::calls(host, src, &mut body_effects);
         }
         let mut rows = Vec::new();
         script::find_deep(block, "spawn_megastructure", src, &mut rows);
-        let mut replaced_by = Vec::new();
-        replacements(block, src, &mut replaced_by);
+        let replaced_by = replacements(block, &Script::of_def(def));
         let mut removals = Vec::new();
         script::find_deep(block, "remove_megastructure", src, &mut removals);
         let mut planets = Vec::new();
@@ -172,8 +172,8 @@ impl Completes {
         Self {
             converts_body,
             body_effects,
-            spawns_planet: unconditional(block, "spawn_planet", src) > 0,
-            spawns_rows: unconditional(block, "spawn_megastructure", src),
+            spawns_planet: unconditional(def, block, "spawn_planet") > 0,
+            spawns_rows: unconditional(def, block, "spawn_megastructure"),
             spawned: rows
                 .iter()
                 .filter_map(|row| spawned_type(row, src))
@@ -207,73 +207,79 @@ fn converts(node: &Node, src: &[u8]) -> bool {
     })
 }
 
-/// The keys of each `key = yes` below `node`: the scripted effects it calls, among others.
-fn effects_called(node: &Node, src: &[u8], out: &mut Vec<String>) {
-    for child in node.children() {
-        match (child.key_str(src), child.scalar_str(src)) {
-            (Some(key), Some("yes")) => out.push(key.to_owned()),
-            _ => effects_called(child, src, out),
-        }
-    }
+/// Whether scripted effect `effect`, called with `= yes`, holds a statement `matches`
+/// accepts, itself or through the scripted effects it calls.
+fn effect_reaches(
+    effect: &str,
+    scripts: &ScriptIndex,
+    matches: fn(&Statement<'_>) -> bool,
+) -> bool {
+    let Some(def) = scripts.effect(effect) else {
+        return false;
+    };
+    let mut found = false;
+    walk::scan(
+        &Script::of_def(def),
+        &def.node,
+        Some(scripts),
+        &mut |statement| {
+            found = matches(statement);
+            if found { Scan::Stop } else { Scan::Enter }
+        },
+    );
+    found
 }
-
-/// How deep [`changes_body`] follows scripted effects calling scripted effects.
-const EFFECT_DEPTH: usize = 4;
 
 /// Whether `stage`'s `on_build_complete` changes the body it stands at, itself or through the
 /// scripted effects it calls on that body.
 fn changes_body(stage: &MegastructureDef, scripts: &ScriptIndex) -> bool {
-    fn through(effect: &str, scripts: &ScriptIndex, depth: usize) -> bool {
-        let Some(def) = scripts.effect(effect) else {
-            return false;
-        };
-        if converts(&def.node, &def.src) {
-            return true;
-        }
-        let mut called = Vec::new();
-        effects_called(&def.node, &def.src, &mut called);
-        depth < EFFECT_DEPTH && called.iter().any(|e| through(e, scripts, depth + 1))
-    }
     stage.completes.converts_body
-        || stage
-            .completes
-            .body_effects
-            .iter()
-            .any(|effect| through(effect, scripts, 1))
+        || stage.completes.body_effects.iter().any(|effect| {
+            effect_reaches(effect, scripts, |statement| {
+                CONVERTS.contains(&statement.key)
+            })
+        })
 }
 
-/// The blocks whose effects run only on a condition.
-const CONDITIONAL: [&str; 4] = ["if", "else_if", "else", "switch"];
-
-/// How many `key` statements stand below `node` outside a conditional block.
-fn unconditional(node: &Node, key: &str, src: &[u8]) -> usize {
-    node.children()
-        .iter()
-        .map(|child| match child.key_str(src) {
-            Some(found) if found == key => 1,
-            Some(found) if CONDITIONAL.contains(&found) => 0,
-            _ => unconditional(child, key, src),
-        })
-        .sum()
+/// How many `key` statements stand below `block` of `def` outside a conditional block.
+fn unconditional(def: &Def, block: &Node, key: &str) -> usize {
+    let mut count = 0;
+    walk::scan(&Script::of_def(def), block, None, &mut |statement| {
+        if statement.key == key {
+            count += 1;
+            Scan::Skip
+        } else if CONDITIONAL.contains(&statement.key) {
+            Scan::Skip
+        } else {
+            Scan::Enter
+        }
+    });
+    count
 }
 
 fn spawned_type(row: &Node, src: &[u8]) -> Option<String> {
     Some(row.find("type", src)?.scalar_str(src)?.to_owned())
 }
 
-/// The type each block below `node` spawns where it also removes the row it runs for.
-fn replacements(node: &Node, src: &[u8], out: &mut Vec<String>) {
-    let removes = node.children().iter().any(|child| {
-        child.key_str(src) == Some("remove_megastructure")
-            && child.scalar_str(src) == Some("fromfrom")
-    });
-    for child in node.children() {
-        if removes && child.key_str(src) == Some("spawn_megastructure") {
-            out.extend(spawned_type(child, src));
-        } else {
-            replacements(child, src, out);
+/// The type each block of `block`, itself included, spawns where it also removes the row it
+/// runs for.
+fn replacements(block: &Node, script: &Script<'_>) -> Vec<String> {
+    let mut out = Vec::new();
+    let spawns_of = |node: &Node, out: &mut Vec<String>| {
+        if node.scalar_span().is_none() && removes_row(node, script) {
+            for kept in script.children(node) {
+                if script.key(kept.node).as_deref() == Some("spawn_megastructure") {
+                    out.extend(script.field(kept.node, "type"));
+                }
+            }
         }
-    }
+    };
+    spawns_of(block, &mut out);
+    walk::scan(script, block, None, &mut |statement| {
+        spawns_of(statement.node, &mut out);
+        Scan::Enter
+    });
+    out
 }
 
 /// The effects that change the class or size of the body a structure stands at in place. A
@@ -483,7 +489,7 @@ pub(crate) fn placed(
                         .completes
                         .body_effects
                         .iter()
-                        .any(|effect| flags_body(effect, scripts, 1))
+                        .any(|effect| effect_reaches(effect, scripts, flags_megastructure))
             });
             let mut change = None;
             let own = match placement(&types, def, &on_stars, &rings) {
@@ -1048,34 +1054,28 @@ fn stages<'t>(
 fn sets_has_megastructure(def: &Def) -> bool {
     def.node
         .find("on_build_complete", &def.src)
-        .is_some_and(|block| flags_megastructure(block, &def.src))
+        .is_some_and(|block| sets_flag_below(block, &def.src))
 }
 
 /// The planet and carrier flag setters below `node` set `has_megastructure`.
-fn flags_megastructure(node: &Node, src: &[u8]) -> bool {
+fn sets_flag_below(node: &Node, src: &[u8]) -> bool {
     let mut found = Vec::new();
-    for key in ["set_planet_flag", "set_carrier_flag"] {
+    for key in FLAG_SETTERS {
         script::find_deep(node, key, src, &mut found);
     }
     found
         .iter()
-        .any(|flag| flag.scalar_str(src) == Some("has_megastructure"))
+        .any(|flag| flag.scalar_str(src) == Some(HAS_MEGASTRUCTURE))
 }
 
-/// The scripted effect `effect`, run on a stage's body, sets `has_megastructure` on it, as
-/// Gigastructural Engineering's `giga_set_has_mega_flag` does, itself or through the effects
-/// it calls.
-fn flags_body(effect: &str, scripts: &ScriptIndex, depth: usize) -> bool {
-    let Some(def) = scripts.effect(effect) else {
-        return false;
-    };
-    if flags_megastructure(&def.node, &def.src) {
-        return true;
-    }
-    let mut called = Vec::new();
-    effects_called(&def.node, &def.src, &mut called);
-    depth < EFFECT_DEPTH && called.iter().any(|e| flags_body(e, scripts, depth + 1))
+/// The statement sets the planet flag `has_megastructure`, as Gigastructural Engineering's
+/// `giga_set_has_mega_flag` does on a stage's body.
+fn flags_megastructure(statement: &Statement<'_>) -> bool {
+    FLAG_SETTERS.contains(&statement.key) && statement.value == Some(HAS_MEGASTRUCTURE)
 }
+
+const FLAG_SETTERS: [&str; 2] = ["set_planet_flag", "set_carrier_flag"];
+const HAS_MEGASTRUCTURE: &str = "has_megastructure";
 
 fn activates_gateway(def: &Def) -> bool {
     let mut found = Vec::new();

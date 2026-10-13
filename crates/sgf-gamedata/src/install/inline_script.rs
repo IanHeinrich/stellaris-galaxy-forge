@@ -134,7 +134,22 @@ pub(crate) fn substitute(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
     put_params(&conditionals(text, params), params)
 }
 
-fn put_params(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
+/// `text` with each `$NAME$` and `$NAME|default$` replaced as [`substitute`] replaces them,
+/// borrowed when it names no parameter.
+pub(crate) fn put_params_in<'t, K: AsRef<str>, V: AsRef<str>>(
+    text: &'t str,
+    params: &[(K, V)],
+) -> Cow<'t, str> {
+    if !text.contains('$') {
+        return Cow::Borrowed(text);
+    }
+    match String::from_utf8(put_params(text.as_bytes(), params)) {
+        Ok(put) => Cow::Owned(put),
+        Err(_) => Cow::Borrowed(text),
+    }
+}
+
+fn put_params<K: AsRef<str>, V: AsRef<str>>(text: &[u8], params: &[(K, V)]) -> Vec<u8> {
     let mut out = Vec::with_capacity(text.len());
     let mut rest = text;
     while let Some(open) = rest.iter().position(|&b| b == b'$') {
@@ -151,8 +166,8 @@ fn put_params(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
         };
         let value = params
             .iter()
-            .find(|(key, _)| key.as_bytes() == name)
-            .map(|(_, value)| value.as_bytes())
+            .find(|(key, _)| key.as_ref().as_bytes() == name)
+            .map(|(_, value)| value.as_ref().as_bytes())
             .or(default);
         match value {
             Some(value) => out.extend_from_slice(value),
@@ -176,9 +191,8 @@ fn conditionals(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
             at += 1;
             continue;
         };
-        let given = params.iter().any(|(key, _)| key.as_bytes() == block.name);
         let body = &text[block.body.clone()];
-        if given != block.negated {
+        if block.header.kept(params) {
             out.extend(conditionals(body, params));
         } else {
             out.extend(body.iter().filter(|&&b| b == b'\n'));
@@ -188,10 +202,108 @@ fn conditionals(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
     out
 }
 
-/// A `[[NAME] … ]` or `[[!NAME] … ]` block of an inline script.
-struct Conditional<'t> {
+/// The children of `node` its conditional blocks keep, as [`substitute`] keeps their text: in
+/// a script parsed before its parameters are put in, a block's `[[NAME]` and its `]` stand as
+/// keyless statements around the statements it holds. `[[!NAME]` parses as two, `[[` and
+/// `!NAME]`, and the closing `]` can be the last character of a value, `x = yes]`. A `]` that
+/// closes a bracket the same text or an earlier one opened, as inline maths does, closes no
+/// block.
+pub(crate) fn kept_children<'n, K: AsRef<str>, V>(
+    node: &'n Node,
+    src: &[u8],
+    params: &[(K, V)],
+) -> Vec<Kept<'n>> {
+    let children = node.children();
+    let bare = |at: usize| {
+        let child = children.get(at)?;
+        child.key.is_none().then(|| child.scalar_str(src)).flatten()
+    };
+    let mut open: Vec<bool> = Vec::new();
+    let mut loose = 0usize;
+    let mut kept = Vec::new();
+    let mut at = 0;
+    while at < children.len() {
+        if let Some(text) = bare(at) {
+            let (header, words) = match (text, bare(at + 1)) {
+                ("[[", Some(next)) => (next, 2),
+                _ => (text.strip_prefix("[[").unwrap_or_default(), 1),
+            };
+            if let Some(header) = header
+                .strip_suffix(']')
+                .and_then(|h| Header::parse(h.as_bytes()))
+            {
+                open.push(header.kept(params));
+                at += words;
+                continue;
+            }
+        }
+        let child = &children[at];
+        let on = open.iter().all(|&on| on);
+        let text = child.scalar_str(src).unwrap_or_default();
+        let mut closes = 0;
+        for b in text.bytes() {
+            match b {
+                b'[' => loose += 1,
+                b']' if loose > 0 => loose -= 1,
+                b']' if open.pop().is_some() => closes += 1,
+                _ => {}
+            }
+        }
+        let only_brackets = child.key.is_none() && closes > 0 && text.len() == closes;
+        if on && !only_brackets {
+            kept.push(Kept {
+                node: child,
+                closes,
+            });
+        }
+        at += 1;
+    }
+    kept
+}
+
+/// A statement a conditional block keeps.
+pub(crate) struct Kept<'n> {
+    pub node: &'n Node,
+    /// How many `]` closing conditional blocks end its value, which are no part of it.
+    pub closes: usize,
+}
+
+impl<'n> Kept<'n> {
+    /// Its scalar value without the brackets that close blocks.
+    pub(crate) fn value<'s>(&self, src: &'s [u8]) -> Option<&'s str> {
+        let text = self.node.scalar_str(src)?;
+        Some(&text[..text.len() - self.closes.min(text.len())])
+    }
+}
+
+/// What stands between a conditional block's `[[` and `]`: `NAME`, or `!NAME`.
+struct Header<'t> {
     name: &'t [u8],
     negated: bool,
+}
+
+impl<'t> Header<'t> {
+    fn parse(header: &'t [u8]) -> Option<Self> {
+        let (negated, name) = match header.strip_prefix(b"!") {
+            Some(name) => (true, name),
+            None => (false, header),
+        };
+        let word = |b: &u8| b.is_ascii_alphanumeric() || *b == b'_';
+        (!name.is_empty() && name.iter().all(word)).then_some(Self { name, negated })
+    }
+
+    /// The block is kept: its parameter is given, or for `!NAME` it is not.
+    fn kept<K: AsRef<str>, V>(&self, params: &[(K, V)]) -> bool {
+        let given = params
+            .iter()
+            .any(|(key, _)| key.as_ref().as_bytes() == self.name);
+        given != self.negated
+    }
+}
+
+/// A `[[NAME] … ]` or `[[!NAME] … ]` block of an inline script.
+struct Conditional<'t> {
+    header: Header<'t>,
     /// Its text, between the header and the closing bracket.
     body: std::ops::Range<usize>,
     /// Just past the closing bracket.
@@ -202,15 +314,7 @@ struct Conditional<'t> {
 fn conditional(text: &[u8], at: usize) -> Option<Conditional<'_>> {
     let rest = text.get(at..)?.strip_prefix(b"[[")?;
     let header_len = rest.iter().position(|&b| b == b']')?;
-    let header = &rest[..header_len];
-    let (negated, name) = match header.strip_prefix(b"!") {
-        Some(name) => (true, name),
-        None => (false, header),
-    };
-    let word = |b: &u8| b.is_ascii_alphanumeric() || *b == b'_';
-    if name.is_empty() || !name.iter().all(word) {
-        return None;
-    }
+    let header = Header::parse(&rest[..header_len])?;
     let start = at + 2 + header_len + 1;
     let mut depth = 1;
     for (offset, &b) in text[start..].iter().enumerate() {
@@ -220,8 +324,7 @@ fn conditional(text: &[u8], at: usize) -> Option<Conditional<'_>> {
                 depth -= 1;
                 if depth == 0 {
                     return Some(Conditional {
-                        name,
-                        negated,
+                        header,
                         body: start..start + offset,
                         end: start + offset + 1,
                     });

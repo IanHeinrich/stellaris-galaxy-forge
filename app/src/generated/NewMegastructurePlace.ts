@@ -6,8 +6,8 @@
  */
 export type NewMegastructurePlace = { "place": "body", body: number, 
 /**
- * The planet flags the body gets, in order, each dated the save's date but
- * `ruined_orbital_ring_planet`, which is dated day one.
+ * The planet flags the body gets, in order, each one a megastructure leaves, and
+ * each dated the save's date but `ruined_orbital_ring_planet`, which is dated day one.
  */
 body_flags?: Array<string>, 
 /**

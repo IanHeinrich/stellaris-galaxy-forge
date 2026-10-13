@@ -11,6 +11,7 @@ use sgf_core::cst::Node;
 
 use crate::condition::{Condition, Subject};
 use crate::install::script::{self, Def};
+use crate::install::walk::{self, CONDITIONAL, Scan, Script};
 use crate::registries::megastructures::{
     MegastructureDef, MegastructureTypes, is_ruin, variant_stem,
 };
@@ -111,12 +112,6 @@ pub struct Build {
     pub leaves: Option<HiddenWhy>,
 }
 
-/// How deep the completion's scripted effects are followed.
-const EFFECT_DEPTH: usize = 4;
-
-/// The blocks whose effects run only on a condition.
-const CONDITIONAL: [&str; 4] = ["if", "else_if", "else", "switch"];
-
 impl Build {
     /// `def`'s build facts, its completion's effects followed through `scripts` and the
     /// triggers its `potential` and `possible` call through `triggers`.
@@ -129,7 +124,7 @@ impl Build {
                 let mut found = Vec::new();
                 script::find_deep(block, "has_technology", src, &mut found);
                 let mut called = Vec::new();
-                calls(block, src, &mut called);
+                walk::calls(block, src, &mut called);
                 !found.is_empty()
                     || called.iter().any(|name| {
                         let call = Condition::Call(name.clone(), true);
@@ -151,17 +146,7 @@ impl Build {
                 .node
                 .find("on_build_complete", src)
                 .filter(|_| def.node.find("starbase", src).is_none())
-                .and_then(|block| leaves(block, src, scripts)),
-        }
-    }
-}
-
-/// The key of each `key = yes` below `node`: the scripted triggers it calls, among others.
-fn calls(node: &Node, src: &[u8], out: &mut Vec<String>) {
-    for child in node.children() {
-        match (child.key_str(src), child.scalar_str(src)) {
-            (Some(key), Some("yes")) => out.push(key.to_owned()),
-            _ => calls(child, src, out),
+                .and_then(|block| leaves(&Script::of_def(def), block, scripts)),
         }
     }
 }
@@ -205,12 +190,15 @@ fn asks_fleet(node: &Node, src: &[u8]) -> bool {
 /// What a completion that removes its row whatever happens leaves in its place: a fleet,
 /// or nothing when it spawns no structure, starbase, planet or ship. `None` when it keeps the
 /// row or spawns one of those.
-fn leaves(block: &Node, src: &[u8], scripts: &ScriptIndex) -> Option<HiddenWhy> {
-    if !removes_row(block, src) {
+fn leaves(script: &Script<'_>, block: &Node, scripts: &ScriptIndex) -> Option<HiddenWhy> {
+    if !always_removes_row(script, block) {
         return None;
     }
     let mut keys = BTreeSet::new();
-    effect_keys(block, src, scripts, 0, &mut keys);
+    walk::scan(script, block, Some(scripts), &mut |statement| {
+        keys.insert(statement.key.to_owned());
+        Scan::Enter
+    });
     let has = |key: &str| keys.contains(key);
     if has("spawn_megastructure") || has("create_starbase") {
         None
@@ -223,37 +211,20 @@ fn leaves(block: &Node, src: &[u8], scripts: &ScriptIndex) -> Option<HiddenWhy> 
     }
 }
 
-/// `remove_megastructure = fromfrom` outside a conditional block.
-fn removes_row(node: &Node, src: &[u8]) -> bool {
-    node.children()
-        .iter()
-        .any(|child| match child.key_str(src) {
-            Some("remove_megastructure") => child.scalar_str(src) == Some("fromfrom"),
-            Some(key) if CONDITIONAL.contains(&key) => false,
-            _ => removes_row(child, src),
-        })
-}
-
-/// Every key below `node`, and below the scripted effects it calls, `depth` calls deep.
-fn effect_keys(
-    node: &Node,
-    src: &[u8],
-    scripts: &ScriptIndex,
-    depth: usize,
-    out: &mut BTreeSet<String>,
-) {
-    for child in node.children() {
-        let Some(key) = child.key_str(src) else {
-            continue;
-        };
-        out.insert(key.to_owned());
-        if depth < EFFECT_DEPTH
-            && let Some(effect) = scripts.effect(key)
-        {
-            effect_keys(&effect.node, &effect.src, scripts, depth + 1, out);
+/// `remove_megastructure = fromfrom` below `block` outside a conditional block.
+fn always_removes_row(script: &Script<'_>, block: &Node) -> bool {
+    let mut removes = false;
+    walk::scan(script, block, None, &mut |statement| {
+        if statement.key == "remove_megastructure" {
+            removes = statement.value == Some("fromfrom");
+            if removes { Scan::Stop } else { Scan::Skip }
+        } else if CONDITIONAL.contains(&statement.key) {
+            Scan::Skip
+        } else {
+            Scan::Enter
         }
-        effect_keys(child, src, scripts, depth, out);
-    }
+    });
+    removes
 }
 
 /// A player's empire, as a `potential` is judged for it: not an AI, of the default country

@@ -5,10 +5,7 @@
 //! its own and sprites are merged into the registry by name, vanilla first
 //! then each mod in load order, so a mod replaces a vanilla sprite by name.
 
-use std::path::{Path, PathBuf};
-
 use sgf_core::cst::Node;
-use walkdir::WalkDir;
 
 use crate::Diagnostic;
 use crate::install::layers::Layout;
@@ -16,6 +13,9 @@ use crate::install::script;
 use crate::registries::registry::Registry;
 
 pub type Sprites = Registry<SpriteDef>;
+
+/// Where the sprites' `.gfx` files are, by path below a layer root.
+pub(crate) const INTERFACE_DIR: &str = "interface";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpriteDef {
@@ -55,26 +55,13 @@ impl Sprites {
 
 pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Sprites {
     let mut sprites = Sprites::default();
-    for layer in &layout.layers {
-        for file in gfx_files(&layer.root.join("interface")) {
-            let Some((root, src)) = script::parse_file(&file, diagnostics) else {
-                continue;
-            };
-            read_sprite_types(&root, &src, &mut sprites);
-        }
+    for file in layout.every_file_under(INTERFACE_DIR, &["gfx"]) {
+        let Some((root, src)) = script::parse_graphics_file(&file, diagnostics) else {
+            continue;
+        };
+        read_sprite_types(&root, &src, &mut sprites);
     }
     sprites
-}
-
-fn gfx_files(interface_dir: &Path) -> Vec<PathBuf> {
-    WalkDir::new(interface_dir)
-        .sort_by_file_name()
-        .into_iter()
-        .flatten()
-        .filter(|e| e.file_type().is_file())
-        .map(|e| e.into_path())
-        .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("gfx")))
-        .collect()
 }
 
 fn read_sprite_types(root: &Node, src: &[u8], sprites: &mut Sprites) {

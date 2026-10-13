@@ -169,7 +169,7 @@ pub enum OpError {
         capped: bool,
     },
     #[error(
-        "{kind} {id} was in the save when it was opened: only one added since then can be changed this way"
+        "{kind} {id} was in the save when it was opened: only a {kind} added since then can be removed or changed"
     )]
     NotAdded { kind: EntityKind, id: u32 },
     #[error("deposit {0} does not exist")]
