@@ -1,4 +1,4 @@
 ### Fixed
 
-- In Add deposit and Add modifier, the line that confirms what you just
-  added is green, so it reads as done rather than as the highlight.
+- In Add deposit, Add blocker and Add modifier, the line naming what you
+  just added is green.

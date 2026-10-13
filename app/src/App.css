@@ -34,7 +34,8 @@
   --link-rgb: 127, 179, 255;
   --link: rgb(var(--link-rgb));
   /* Issue severities, matching the rings the map draws (`map/layers/IssuesLayer.ts`). */
-  --sev-info: #60a5fa;
+  --sev-info-rgb: 96, 165, 250;
+  --sev-info: rgb(var(--sev-info-rgb));
   --sev-warning: #f59e0b;
   --sev-error: #ef4444;
 

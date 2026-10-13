@@ -1,5 +1,6 @@
 .inspector {
-  --ins-ok: #7bd88f;
+  --ins-ok-rgb: 123, 216, 143;
+  --ins-ok: rgb(var(--ins-ok-rgb));
   --ins-rule: #1a2436;
   display: flex;
   flex-direction: column;
@@ -282,7 +283,7 @@ button.chip.jump:hover {
   width: 14px;
   height: 14px;
   margin-inline-end: 3px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg-muted);
 }
 
@@ -497,7 +498,7 @@ button.link.ins-drill:hover {
   height: 13px;
   border: 1px dashed currentColor;
   border-radius: 50%;
-  font-size: 9px;
+  font-size: var(--text-micro);
   font-style: normal;
   font-weight: 600;
   line-height: 1;

@@ -75,7 +75,7 @@
   right: 8px;
   transform: translateY(-50%);
   padding: 0 5px;
-  font: 11px/16px var(--font-mono, monospace);
+  font: var(--text-hint)/16px var(--font-mono, monospace);
   color: var(--fg-muted);
   border: 1px solid var(--border);
   border-radius: 3px;

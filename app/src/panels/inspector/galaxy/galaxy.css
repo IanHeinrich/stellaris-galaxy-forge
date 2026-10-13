@@ -179,12 +179,12 @@
 
 .prep-tag.forge {
   color: var(--ins-ok);
-  background: rgb(123 216 143 / 12%);
+  background: rgba(var(--ins-ok-rgb), 0.12);
 }
 
 .prep-tag.game {
   color: var(--sev-info);
-  background: rgb(96 165 250 / 12%);
+  background: rgba(var(--sev-info-rgb), 0.12);
 }
 
 .prep-tag.none {
