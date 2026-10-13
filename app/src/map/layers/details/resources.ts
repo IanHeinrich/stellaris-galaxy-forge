@@ -20,6 +20,8 @@ export const ICON_SHADOW_OFFSET_PX = 1;
 export const ICON_SHADOW_ALPHA = 0.6;
 /** How far below the icon's top the abbreviation that stands in for a missing icon starts. */
 const ABBREV_TOP_PX = 3;
+/** The least space between two neighbouring cells' texts, so amounts never run together. */
+export const RESOURCE_TEXT_GAP_PX = 3;
 const AMOUNT_STYLE = { fontFamily: MAP_FONT, fontSize: RESOURCE_AMOUNT_PX, fill: 0xffffff };
 
 /**
@@ -36,9 +38,8 @@ export interface ResourceCell {
   readonly amountY: number;
 }
 
-/** Cell `i` of a row of `count` whose top is `top`, across from the row's middle. */
-export function resourceCell(i: number, count: number, top: number): ResourceCell {
-  const x = (i - (count - 1) / 2) * resourceStride(count);
+/** The cell centred on `x` whose top is `top`. */
+export function resourceCell(x: number, top: number): ResourceCell {
   return {
     x,
     iconX: x - RESOURCE_ICON_PX / 2,
@@ -63,6 +64,37 @@ export interface ResourceReach {
   readonly height: number;
 }
 
+/** A text placed in the row, and how wide it came out. */
+interface PlacedText {
+  readonly mark: number;
+  readonly width: number;
+}
+
+/** What a cell needs of its neighbours: its widest text, and the whole cell's width. */
+export interface CellWidth {
+  readonly text: number;
+  readonly wide: number;
+}
+
+/**
+ * Where the cells of a row stand, centred across x = 0 by their widths. Neighbours keep the
+ * game's stride unless their texts would come within `RESOURCE_TEXT_GAP_PX` of each other, so a
+ * row of short amounts stays dense and a row of long ones spreads out.
+ */
+export function resourceCentres(cells: readonly CellWidth[]): { xs: number[]; half: number } {
+  if (cells.length === 0) return { xs: [], half: 0 };
+  const stride = resourceStride(cells.length);
+  const xs = [0];
+  for (let i = 1; i < cells.length; i++) {
+    const apart = (cells[i - 1].text + cells[i].text) / 2 + RESOURCE_TEXT_GAP_PX;
+    xs.push(xs[i - 1] + Math.max(stride, apart));
+  }
+  const left = -cells[0].wide / 2;
+  const right = xs[xs.length - 1] + cells[cells.length - 1].wide / 2;
+  const middle = (left + right) / 2;
+  return { xs: xs.map((x) => x - middle), half: (right - left) / 2 };
+}
+
 /**
  * Each resource's icon over its amount, centred across x = 0 with its top at `top`, the icon's
  * abbreviation standing in where the icon cannot load.
@@ -75,27 +107,39 @@ export function resourceIcons(
   top: number,
   styles: ResourceStyles = RESOURCE_STYLES,
 ): ResourceReach {
-  let half = 0;
-  let height = 0;
-  for (const [i, r] of rows.entries()) {
-    const cell = resourceCell(i, rows.length, top);
+  const placed = rows.map((r) => {
     const texture = tex.texture(r.sprite);
     const title = names.get(r.resource) ?? resourceLabel(r.resource);
     const amount = formatAmount(r.amount);
     const tip = { title, lines: [`+${amount} ${title}`] };
-    let wide = cell.size;
-    if (texture) {
-      row.shadow(texture, cell.iconX, cell.iconY, cell.size);
-      row.sprite(texture, cell.iconX, cell.iconY, cell.size, tip);
-    } else if (texture === null) {
-      const w = row.text(resourceAbbrev(r.resource), cell.x, cell.abbrevY, tip, styles.abbrev);
-      row.nudgeLastText(-w / 2);
-      wide = Math.max(wide, w);
+    const cell = resourceCell(0, top);
+    let abbrev: PlacedText | null = null;
+    if (texture === null) {
+      const width = row.text(resourceAbbrev(r.resource), 0, cell.abbrevY, tip, styles.abbrev);
+      abbrev = { mark: row.lastTextMark(), width };
     }
-    const w = row.text(amount, cell.x, cell.amountY, tip, styles.amount);
-    row.nudgeLastText(-w / 2);
-    half = Math.max(half, Math.abs(cell.x) + Math.max(wide, w) / 2);
-    height = Math.max(height, cell.amountY - top + row.lastTextHeight());
+    const width = row.text(amount, 0, cell.amountY, tip, styles.amount);
+    const text = Math.max(width, abbrev?.width ?? 0);
+    return {
+      texture,
+      tip,
+      abbrev,
+      amount: { mark: row.lastTextMark(), width },
+      cell: { text, wide: Math.max(cell.size, text) },
+      height: cell.amountY - top + row.lastTextHeight(),
+    };
+  });
+  const { xs, half } = resourceCentres(placed.map((p) => p.cell));
+  let height = 0;
+  for (const [i, p] of placed.entries()) {
+    const cell = resourceCell(xs[i], top);
+    if (p.texture) {
+      row.shadow(p.texture, cell.iconX, cell.iconY, cell.size);
+      row.sprite(p.texture, cell.iconX, cell.iconY, cell.size, p.tip);
+    }
+    if (p.abbrev) row.moveText(p.abbrev.mark, cell.x - p.abbrev.width / 2);
+    row.moveText(p.amount.mark, cell.x - p.amount.width / 2);
+    height = Math.max(height, p.height);
   }
   return { half, height };
 }
