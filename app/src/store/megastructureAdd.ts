@@ -9,7 +9,7 @@ import type { AddSpot } from "../generated/AddSpot";
 import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
 import { megastructureLabel } from "../lib/details/labels";
-import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA } from "../lib/megastructureCopy";
+import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA, NOT_PLACED } from "../lib/megastructureCopy";
 import {
   fitsByKind,
   placeOf,
@@ -34,10 +34,11 @@ interface MegastructureAddState {
   /** What goes at the prompt's spot, by type, as the shell answered; null until read. */
   fits: MegastructureFits | null;
   /**
-   * The generation of the prompt's system, as `useOpCheckStore` counts its edits, that `fits`
-   * were asked at or are being asked at; null before the dialog asks.
+   * The game data's version and the generation of the prompt's system, as `useOpCheckStore`
+   * counts its edits, that `fits` were asked at or are being asked at; null before the dialog
+   * asks, and after a read that failed.
    */
-  fitsAt: number | null;
+  fitsAt: string | null;
   /** Why what goes at the spot couldn't be read. */
   fitsError: string | null;
   /** The stage added last, which the dialog opens on next where it goes. */
@@ -74,8 +75,9 @@ interface MegastructureAddState {
   setRingClear(clear: boolean): void;
   setKeepPlanet(keep: boolean): void;
   /**
-   * Asks the shell what goes at the dialog's spot, its system at `generation`, unless that has
-   * been asked already. An answer for another opening or an older generation is dropped.
+   * Asks the shell what goes at the dialog's spot, its system at `generation` and the game data
+   * as loaded now, unless that has been asked already. An answer for another opening, an older
+   * generation or other game data is dropped, and a failed read is asked again.
    */
   loadFits(generation: number): Promise<void>;
   /** Reads what clearing the dialog's system takes, once per opening. */
@@ -166,14 +168,15 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
 
   async loadFits(generation) {
     const { prompt, fitsAt } = get();
-    if (prompt === null || fitsAt === generation) return;
-    set({ fitsAt: generation, fitsError: null });
-    const current = () => get().prompt === prompt && get().fitsAt === generation;
+    const at = `${useGameDataStore.getState().version}:${generation}`;
+    if (prompt === null || fitsAt === at) return;
+    set({ fitsAt: at, fitsError: null });
+    const current = () => get().prompt === prompt && get().fitsAt === at;
     try {
       const fits = fitsByKind(await ipc.getMegastructureFits(prompt.system, addSpot(prompt.spot)));
       if (current()) set({ fits });
     } catch (e) {
-      if (current()) set({ fitsError: ipc.errorMessage(e) });
+      if (current()) set({ fitsAt: null, fitsError: ipc.errorMessage(e) });
     }
   },
 
@@ -215,7 +218,10 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
       return true;
     }
     const at = fits === null ? null : placeOf(fits, kind);
-    if (at === null) return false;
+    if (at === null) {
+      useFileSessionStore.getState().setError(NOT_PLACED);
+      return false;
+    }
     const added = await useEditorStore.getState().addMegastructure(system, kind, at, keepPlanet);
     if (added === null) return false;
     set({ last: stage });

@@ -19,6 +19,10 @@ export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can
 /** What the dialog says while it asks the save what goes at the spot. */
 export const READING_FITS = "Reading what can go here…";
 
+/** Why Add wrote nothing: the dialog hadn't read where the megastructure stands. */
+export const NOT_PLACED =
+  "Galaxy Forge hadn't read what can go here yet, so nothing was added. Open the dialog again.";
+
 /** What the dialog says when it can't learn what goes at the spot. */
 export function fitsUnread(why: string): string {
   return `Couldn't read what can go here: ${why}`;

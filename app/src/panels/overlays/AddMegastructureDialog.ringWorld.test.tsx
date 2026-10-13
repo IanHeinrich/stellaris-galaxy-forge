@@ -148,10 +148,10 @@ describe("the Add megastructure dialog on a ring world", () => {
 
   it("greys out the Ring with the reason the shell refuses its ring world", () => {
     const refusal =
-      "a ring world of ring_world_2_intermediate cannot be added: it lays out no ring";
+      "Galaxy Forge can't build Ring World Frame from the game data: it lays out no ring.";
     const page = html({ ring_world_2_intermediate: { refusal } });
     expect(page).toContain(
-      "A ring world of ring_world_2_intermediate cannot be added: it lays out no ring.",
+      "Galaxy Forge can't build Ring World Frame from the game data: it lays out no ring.",
     );
     expect(page).toContain('aria-disabled="true"');
     expect(page).not.toContain(SET_ALL);
@@ -227,12 +227,10 @@ describe("the Add megastructure dialog on a ring world", () => {
     it("greys out the Ring at a size the shell refuses, and keeps the sizes to pick another", () => {
       const overlap = {
         ring_world_2_intermediate: {
-          refusal:
-            "a ring_world cannot be added there: planet 7 of Lachium is a segment of the ring world at orbit 45.20385",
+          refusal: "This ring would overlap the ring world at orbit 45.",
         },
       };
-      const refused =
-        "A ring_world cannot be added there: planet 7 of Lachium is a segment of the ring world at orbit 45.20385.";
+      const refused = "This ring would overlap the ring world at orbit 45.";
       const page = html(overlap);
       expect(page).toContain('aria-label="Size"');
       expect(page).toContain(`aria-disabled="true" title="${refused}"`);

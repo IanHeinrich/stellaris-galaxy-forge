@@ -1,7 +1,7 @@
 //! What the Add megastructure dialog offers at spots of the real 4.5 sample save, read through
-//! the shell from the add's own refusals. The tables are what the dialog decided in TypeScript
-//! before it asked the shell, on the base game, after a relay is added in system 0 and a ring
-//! world in system 2.
+//! the shell from the add's own refusals and worded with no key. The tables are what the
+//! dialog decided in TypeScript before it asked the shell, on the base game, after a relay is
+//! added in system 0 and a ring world in system 2.
 use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
@@ -318,6 +318,15 @@ fn each_spot_offers_and_refuses_what_the_dialog_did() {
         assert_eq!(
             got, want,
             "refused in system {system} at {at}: {differing:?}"
+        );
+        let keyed: Vec<_> = fits
+            .iter()
+            .filter_map(|fit| fit.refusal.as_ref())
+            .filter(|refusal| refusal.contains('_'))
+            .collect();
+        assert!(
+            keyed.is_empty(),
+            "worded with a key in system {system}: {keyed:?}"
         );
     }
 }

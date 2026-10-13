@@ -26,7 +26,6 @@ export function hostHasMegastructure(
 ): boolean {
   return spot.kind === "body" && rows.some((row) => row.planet === spot.body);
 }
-/** Why no habitat goes round a body. */
 
 /**
  * Where in the system view the Add megastructure menu was opened: on a body, with its class when

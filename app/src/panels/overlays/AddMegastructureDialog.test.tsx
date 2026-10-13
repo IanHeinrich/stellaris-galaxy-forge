@@ -152,7 +152,7 @@ describe("the Add megastructure dialog", () => {
   it("lists the base game's megastructures first and a mod's under its name, opens past a second relay, and greys it out with the shell's reason", () => {
     const relayed = {
       hyper_relay: {
-        refusal: "a hyper_relay cannot be added there: Sol already has a relay_bypass",
+        refusal: "The system already has a Hyper Relay.",
       },
     };
     openAt(space);
@@ -167,7 +167,7 @@ describe("the Add megastructure dialog", () => {
     html = dialog(relayed);
     expect(html).toContain("<h2>Hyper Relay</h2>");
     expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain("A hyper_relay cannot be added there: Sol already has a relay_bypass.");
+    expect(html).toContain("The system already has a Hyper Relay.");
     expect(html).toContain('type="submit" disabled=""');
   });
 

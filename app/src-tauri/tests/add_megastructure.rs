@@ -125,7 +125,14 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
     let free = json!({ "place": "free", "x": 0.0, "y": -260.0 });
     let lgate = refuse("lgate_base", free.clone());
     assert_eq!(lgate.kind, ErrorKind::Op);
-    assert!(lgate.message.contains("lgate"), "{}", lgate.message);
+    assert!(
+        lgate
+            .message
+            .contains("bypass, which hasn't been tried in game"),
+        "{}",
+        lgate.message
+    );
+    assert!(!lgate.message.contains("lgate_base"), "{}", lgate.message);
     let ring = refuse("ring_world_2", json!({ "place": "body", "body": 584 }));
     assert!(ring.message.contains("ring world"), "{}", ring.message);
     let unknown = refuse("no_such_structure", free);

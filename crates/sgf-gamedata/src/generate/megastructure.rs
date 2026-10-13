@@ -6,20 +6,22 @@
 
 use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
+use sgf_core::format::save::details::RawPlanet;
+use sgf_core::format::save::ring_world::{RING_SLACK, is_ring_row, is_segment};
 use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, NewBypass, NewMegastructure,
-    NewMegastructurePlace, Op, OpError,
+    NewMegastructurePlace, NewRingWorld, Op, OpError, RingQuadrant,
 };
 use sgf_core::session::{SaveQueries, Session};
-use sgf_core::views::details::SiteBody;
+use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
 use sgf_core::views::{ErrorKind, SgfError};
 use ts_rs::TS;
 
 use crate::GameData;
 use crate::construction::PlanetChange;
 use crate::construction::habitat::habitat;
-use crate::construction::ring_world::{RingStage, ring_world};
+use crate::construction::ring_world::{RingStage, quadrants, ring_world};
 use crate::registries::megastructure_swaps::made_at;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 
@@ -44,19 +46,21 @@ impl Planned {
     }
 }
 
-/// Why an add could not be built.
+/// Why an add could not be built, in the player's words: a type and a planet class are named
+/// as the game names them.
 #[derive(Debug, thiserror::Error)]
 pub enum Refusal {
     #[error("the install and its mods define no megastructure {0}")]
     NoType(String),
-    #[error("a {kind} cannot be added: {reason}")]
+    /// The editor does not add type `kind`, or not at the place asked; `reason` says why.
+    #[error("{reason}")]
     NotAdded { kind: String, reason: String },
-    #[error("a {0} is not finished as a habitat")]
+    #[error("{0} is not finished as a habitat.")]
     NoHabitat(String),
     #[error("planet {body} is not a body of system {system}")]
     NotInSystem { body: u32, system: u32 },
-    #[error("a ring world of {kind} cannot be added: {reason}")]
-    NoRingWorld { kind: String, reason: String },
+    #[error("Galaxy Forge can't build {name} from the game data: {reason}.")]
+    NoRingWorld { name: String, reason: String },
     #[error("the install has no planet class {0}")]
     NoClass(String),
     #[error(transparent)]
@@ -90,7 +94,7 @@ pub fn megastructure_op(
     keep_planet: bool,
 ) -> Result<Planned, Refusal> {
     let def = defined(gd, kind)?;
-    check_place(def, place)?;
+    check_place(gd, def, place)?;
     let save = session.save("adding a megastructure")?;
     let host = match place {
         MegastructurePlace::Body { body } | MegastructurePlace::Beside { body, .. } => Some(body),
@@ -145,7 +149,7 @@ pub fn habitat_op(
     let owner = owner(session, system);
     let culture = culture(session, owner);
     let mut habitat = habitat(gd, kind, host.star, culture.as_deref())
-        .ok_or_else(|| Refusal::NoHabitat(kind.to_owned()))?;
+        .ok_or_else(|| Refusal::NoHabitat(gd.loc.name_or_readable(kind)))?;
     if let Some(orbital) = &mut habitat.orbital {
         orbital.owner = owner;
     }
@@ -174,7 +178,7 @@ pub fn ring_world_op(
     let held = save.construction_site(system)?.flags;
     let ring = ring_world(gd, kind, stages, culture.as_deref(), &held).map_err(|reason| {
         Refusal::NoRingWorld {
-            kind: kind.to_owned(),
+            name: gd.loc.name_or_readable(kind),
             reason,
         }
     })?;
@@ -219,8 +223,10 @@ pub struct MegastructureFit {
 /// nowhere. Each one's variant is the type the game makes of it at the body's class with the
 /// save's global flags, and its refusal is the add's own: the op [`megastructure_op`],
 /// [`habitat_op`] or [`ring_world_op`] builds, a ring world with every quadrant finished and
-/// the system kept, checked against the session without applying it. A body that is not in
-/// the system is refused.
+/// the system kept, checked against the session without applying it. A refusal the core gives
+/// is worded for the player where the system shows why: a second bypass of its kind, a body that
+/// has a megastructure, a habitat round a body that orbits a planet, a ring world in a system of
+/// other than one star or over another ring. A body that is not in the system is refused.
 pub fn megastructure_fits(
     gd: &GameData,
     session: &Session,
@@ -241,7 +247,14 @@ pub fn megastructure_fits(
     };
     let flags = &session.graph().global_flags;
     let class = body.map(|b| b.class.as_str());
-    let inner = inner_radius(session, system);
+    let raw = session.details().ok();
+    let raw = raw.as_ref().and_then(|details| details.raw(system));
+    let here = Here {
+        site: &site,
+        planets: raw.map_or(&[][..], |raw| raw.planets.as_slice()),
+        rows: raw.map_or(&[][..], |raw| raw.megastructures.as_slice()),
+    };
+    let inner = raw.and_then(|raw| raw.inner_radius).unwrap_or(0.0);
     Ok(gd
         .megastructures
         .iter()
@@ -252,7 +265,7 @@ pub fn megastructure_fits(
             let place = place_at(made, spot, inner);
             MegastructureFit {
                 kind: def.key.clone(),
-                refusal: fit_refusal(gd, session, system, made, place),
+                refusal: fit_refusal(gd, session, system, made, place, &here),
                 variant,
                 place,
             }
@@ -299,46 +312,161 @@ fn place_at(def: &MegastructureDef, spot: AddSpot, inner_radius: f64) -> Megastr
     }
 }
 
-/// The save's `inner_radius` of system `system`; 0 where it writes none.
-fn inner_radius(session: &Session, system: u32) -> f64 {
-    session
-        .details()
-        .ok()
-        .and_then(|details| details.raw(system).and_then(|raw| raw.inner_radius))
-        .unwrap_or(0.0)
+/// The system the fits are read for: its bodies, planets and rows.
+struct Here<'s> {
+    site: &'s ConstructionSite,
+    planets: &'s [RawPlanet],
+    rows: &'s [MegastructureSummary],
 }
 
-/// Why the add of `def` at `place` would be refused.
+/// Why the add of `def` at `place` would be refused. Each op of a planet-change batch is
+/// checked against the planet as it is, not as the batch's class and size ops leave it. The core
+/// decides whether an add is refused, and [`worded`] says why where it can.
 fn fit_refusal(
     gd: &GameData,
     session: &Session,
     system: u32,
     def: &MegastructureDef,
     place: MegastructurePlace,
+    here: &Here<'_>,
 ) -> Option<String> {
     let key = &def.key;
-    let ring = matches!(
-        def.placement,
-        Placement::Unsupported {
-            why: Unsupported::RingWorld
-        }
-    );
     let planned = match place {
-        _ if ring => ring_world_op(gd, session, system, key, &[RingStage::Finished; 4], false),
+        _ if is_ring_world(def) => {
+            ring_world_op(gd, session, system, key, &[RingStage::Finished; 4], false)
+        }
         MegastructurePlace::Body { body } if habitat(gd, key, true, None).is_some() => {
             habitat_op(gd, session, system, body, key)
         }
         _ => megastructure_op(gd, session, system, key, place, false),
     };
-    match planned {
-        Err(refused) => Some(refused.to_string()),
+    let refused = match planned {
+        Err(refused) => return Some(refused.to_string()),
         Ok(Planned {
             op: Op::Batch { ops, .. },
             ..
         }) => ops.iter().find_map(|op| session.check_op(op)),
         Ok(planned) => session.check_op(&planned.op),
+    }?;
+    Some(worded(gd, def, place, here).unwrap_or(refused))
+}
+
+fn is_ring_world(def: &MegastructureDef) -> bool {
+    matches!(
+        def.placement,
+        Placement::Unsupported {
+            why: Unsupported::RingWorld
+        }
+    )
+}
+
+/// Why the core refuses `def` at `place`, in the player's words, where the system shows it;
+/// `None` where it doesn't.
+fn worded(
+    gd: &GameData,
+    def: &MegastructureDef,
+    place: MegastructurePlace,
+    here: &Here<'_>,
+) -> Option<String> {
+    if is_ring_world(def) {
+        return ring_refusal(gd, def, here);
+    }
+    if let MegastructurePlace::Body { body } = place {
+        if habitat(gd, &def.key, true, None).is_some() {
+            return here
+                .orbits_planet(body)
+                .then(|| HABITAT_ROUND_SATELLITE.to_owned());
+        }
+        if here.holds(body) {
+            return Some(BODY_HAS_MEGASTRUCTURE.to_owned());
+        }
+    }
+    let bypass = def.bypass_type.as_deref()?;
+    let held = here.rows.iter().find(|row| {
+        gd.megastructures
+            .get(&row.kind)
+            .is_some_and(|other| other.bypass_type.as_deref() == Some(bypass))
+    })?;
+    Some(format!(
+        "The system already has a {}.",
+        gd.loc.name_or_readable(&held.kind)
+    ))
+}
+
+/// Why a ring world of `def` with every quadrant finished doesn't go in the system: other than
+/// one star, or a section standing within the core's slack of a ring world part already there.
+fn ring_refusal(gd: &GameData, def: &MegastructureDef, here: &Here<'_>) -> Option<String> {
+    match here.site.bodies.iter().filter(|b| b.star).count() {
+        0 => return Some(RING_WORLD_NO_STAR.to_owned()),
+        1 => {}
+        stars => {
+            return Some(format!(
+                "The system has {stars} stars, and a ring world stands round one."
+            ));
+        }
+    }
+    let count = quadrants(gd, &def.key).unwrap_or(4);
+    let ring = ring_world(gd, &def.key, &vec![RingStage::Finished; count], None, &[]).ok()?;
+    let radii = section_radii(&ring);
+    let segments = here
+        .planets
+        .iter()
+        .filter(|p| is_segment(&p.class))
+        .filter_map(|p| p.at.map(|(x, y)| x.hypot(y)));
+    let rows = here
+        .rows
+        .iter()
+        .filter(|row| is_ring_row(&row.kind))
+        .filter_map(|row| row.at.map(|(x, y)| x.hypot(y)));
+    let distance = segments
+        .chain(rows)
+        .find(|d| radii.iter().any(|r| (d - r).abs() <= RING_SLACK))?;
+    Some(format!(
+        "This ring would overlap the ring world at orbit {}.",
+        distance.round()
+    ))
+}
+
+/// Each radius a section of `ring` stands at.
+fn section_radii(ring: &NewRingWorld) -> Vec<f64> {
+    ring.quadrants
+        .iter()
+        .flat_map(|quadrant| match quadrant {
+            RingQuadrant::Finished { segments }
+            | RingQuadrant::Restored { segments }
+            | RingQuadrant::Damaged { segments } => segments
+                .iter()
+                .map(|s| s.planet.at.radius)
+                .collect::<Vec<_>>(),
+            RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => vec![row.at.radius],
+        })
+        .collect()
+}
+
+impl Here<'_> {
+    /// Body `body` orbits a body that is not a star.
+    fn orbits_planet(&self, body: u32) -> bool {
+        let parent = self
+            .planets
+            .iter()
+            .find(|p| p.id == body)
+            .and_then(|p| p.parent);
+        parent.is_some_and(|parent| self.site.bodies.iter().any(|b| b.id == parent && !b.star))
+    }
+
+    /// A row stands at body `body`, or the game counts a megastructure built there.
+    fn holds(&self, body: u32) -> bool {
+        self.rows.iter().any(|row| row.planet == Some(body))
+            || self
+                .site
+                .bodies
+                .iter()
+                .any(|b| b.id == body && b.flags.iter().any(|flag| flag == HAS_MEGASTRUCTURE_FLAG))
     }
 }
+
+/// The planet flag the game sets on a body a megastructure is built at.
+const HAS_MEGASTRUCTURE_FLAG: &str = "has_megastructure";
 
 fn defined<'g>(gd: &'g GameData, kind: &str) -> Result<&'g MegastructureDef, Refusal> {
     gd.megastructures
@@ -416,16 +544,21 @@ fn with_planet_change(
 }
 
 /// Refuse a type the editor does not add, or one whose placement `place` does not match.
-fn check_place(def: &MegastructureDef, place: MegastructurePlace) -> Result<(), Refusal> {
+fn check_place(
+    gd: &GameData,
+    def: &MegastructureDef,
+    place: MegastructurePlace,
+) -> Result<(), Refusal> {
+    let name = gd.loc.name_or_readable(&def.key);
     let reason = match (&def.placement, place) {
-        (Placement::Unsupported { why }, _) => unsupported(why),
+        (Placement::Unsupported { why }, _) => unsupported(gd, &name, why),
         (Placement::Body { .. }, MegastructurePlace::Free { .. }) => {
-            "it stands on or around a planet or star".to_owned()
+            format!("{name} stands on or around a planet or star.")
         }
         (
             Placement::Free { .. },
             MegastructurePlace::Body { .. } | MegastructurePlace::Beside { .. },
-        ) => "it stands at a point of its own".to_owned(),
+        ) => format!("{name} stands at a point of its own."),
         _ => return Ok(()),
     };
     Err(Refusal::NotAdded {
@@ -487,26 +620,33 @@ fn add_op(
     }
 }
 
-fn unsupported(why: &Unsupported) -> String {
+/// Why the editor does not add type `name`.
+fn unsupported(gd: &GameData, name: &str, why: &Unsupported) -> String {
     match why {
-        Unsupported::Bypass { bypass } => {
-            format!("it stands for a {bypass} bypass, which has not been tried in game")
-        }
+        Unsupported::Bypass { bypass } => format!(
+            "{name} stands for a {} bypass, which hasn't been tried in game.",
+            gd.loc.name_or_readable(bypass)
+        ),
         Unsupported::RingWorld => {
-            "a ring world past its site is several rows and planets, added as a whole ring world"
-                .to_owned()
+            format!("{name} is part of a ring world, which is added as a whole ring world.")
         }
         Unsupported::BecomesStarbase => {
-            "building it makes a starbase, which the editor does not write".to_owned()
+            format!("Building {name} makes a starbase, which Galaxy Forge can't add yet.")
         }
-        Unsupported::ChangesBody => {
-            "it changes the class or size of its planet in a way the editor cannot tell".to_owned()
-        }
-        Unsupported::FixedClass { class } => {
-            format!("it makes its planet a {class}, which the editor gives no planet")
-        }
-        Unsupported::WholeStructure { .. } => {
-            "it is built with more planets or sections, which the editor does not write".to_owned()
-        }
+        Unsupported::ChangesBody => CHANGES_BODY.to_owned(),
+        Unsupported::FixedClass { class } => format!(
+            "Makes the planet a {}, a class Galaxy Forge doesn't give a planet.",
+            gd.loc.name_or_readable(class)
+        ),
+        Unsupported::WholeStructure { .. } => WHOLE_STRUCTURE.to_owned(),
     }
 }
+
+const CHANGES_BODY: &str =
+    "Changes the planet's class or size in a way Galaxy Forge can't work out from the game data.";
+const WHOLE_STRUCTURE: &str =
+    "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
+const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
+const HABITAT_ROUND_SATELLITE: &str =
+    "It orbits a planet, and Galaxy Forge puts no habitat round a body that orbits a planet.";
+const RING_WORLD_NO_STAR: &str = "The system has no star for a ring world to stand round.";

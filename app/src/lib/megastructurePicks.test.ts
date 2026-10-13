@@ -240,7 +240,7 @@ const NAMES = new Map([
 /**
  * The types the shell offers in space in this fixture. It offers the rest on a body, but the L-Gate
  * nowhere and the Strip Mine, which changes its planet, not on a star. It refuses the Alderson Disk,
- * whose structure the editor does not write.
+ * whose structure Galaxy Forge can't add yet.
  */
 const IN_SPACE = new Set([
   "gateway_0",
@@ -253,7 +253,7 @@ const IN_SPACE = new Set([
   "giga_battleship_restored",
 ]);
 
-const WHOLE = "it is built with more planets or sections, which the editor does not write";
+const WHOLE = "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
 
 /** What the shell offers at `spot`, each type as itself, refused as it is unless `over` says. */
 function fitsAt(
@@ -381,7 +381,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         .flatMap(entryStages)
         .find((s) => s.key === key);
     expect(stage("alderson_disk_1")?.refused).toBe(
-      "It is built with more planets or sections, which the editor does not write.",
+      "Builds more planets or sections with it, which Galaxy Forge can't add yet.",
     );
     expect(refusalSentence("planet 3 already has megastructure 1.")).toBe(
       "Planet 3 already has megastructure 1.",
@@ -426,10 +426,9 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         .flatMap(entryStages)
         .find((s) => s.ring === true);
     expect(ringTile({})?.refused).toBeNull();
-    const twin =
-      "a ring_world cannot be added there: Sol has 2 stars, and a ring world stands round one";
+    const twin = "The system has 2 stars, and a ring world stands round one.";
     expect(ringTile({ ring_world_2_intermediate: { refusal: twin } })?.refused).toBe(
-      "A ring_world cannot be added there: Sol has 2 stars, and a ring world stands round one.",
+      "The system has 2 stars, and a ring world stands round one.",
     );
   });
 
@@ -533,8 +532,8 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     });
 
     it("greys out the size whose ring world type the shell refuses, on its size and its Ring tile", () => {
-      const overlap = { refusal: "a ring_world cannot be added there: it would overlap" };
-      const refused = "A ring_world cannot be added there: it would overlap.";
+      const refused = "This ring would overlap the ring world at orbit 90.";
+      const overlap = { refusal: refused };
       const over = { ringworld_titanic_1: overlap };
       expect(ringEntries(over)[0].sizes.map((s) => s.refused)).toEqual([null, refused, null]);
       const [titanic] = ringEntries(over, "ringworld_titanic_1");
@@ -623,7 +622,9 @@ describe("the megastructures the Add megastructure dialog lists", () => {
 
 describe("the stage the dialog has selected", () => {
   it("opens past a stage the save would refuse here, to the first one it takes", () => {
-    const list = entries(space, { hyper_relay: { refusal: "Sol already has a relay_bypass" } });
+    const list = entries(space, {
+      hyper_relay: { refusal: "The system already has a Hyper Relay." },
+    });
     expect(defaultStage(list, space, null)).toBe("gateway_final");
     expect(defaultStage(list, space, "hyper_relay")).toBe("gateway_final");
     const all = Object.fromEntries([...IN_SPACE].map((key) => [key, { refusal: "no" }]));

@@ -11,7 +11,9 @@ use sgf_core::ops::{
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::construction::ring_world::RingStage;
-use sgf_gamedata::generate::{Planned, megastructure_op, ring_world_op};
+use sgf_gamedata::generate::{
+    AddSpot, MegastructureFit, Planned, megastructure_fits, megastructure_op, ring_world_op,
+};
 
 /// Alari, owned by country 0, whose planet 6 is a gas giant.
 const ALARI: u32 = 169;
@@ -150,11 +152,73 @@ fn the_join_places_a_relay_and_refuses_what_it_does_not_add() {
     };
     assert_eq!(
         refused("fx_relay", MegastructurePlace::Body { body: 6 }),
-        "a fx_relay cannot be added: it stands at a point of its own"
+        "Fx Relay stands at a point of its own.",
+        "the type as the install names it"
     );
     assert_eq!(
         refused("fx_none", free),
         "the install and its mods define no megastructure fx_none"
+    );
+}
+
+/// An install whose computer makes its planet a class it defines no planet of, and whose relay
+/// and the class are named in its localisation.
+fn named_fixture() -> (tempfile::TempDir, GameData) {
+    common::hand_written(&[
+        (
+            "common/bypass/fx.txt",
+            "relay_bypass = { always_active = yes }\n",
+        ),
+        (
+            "common/planet_classes/fx.txt",
+            "pc_gas_giant = { entity = \"gas_giant\" }\n",
+        ),
+        (
+            "common/megastructures/fx.txt",
+            "fx_computer = {
+	on_build_complete = {
+		fromfrom.planet = { change_pc = pc_fx_computer }
+	}
+}
+fx_relay = {
+	build_outside_gravity_well = yes
+	bypass_type = relay_bypass
+}
+",
+        ),
+        (
+            "localisation/english/fx_l_english.yml",
+            "l_english:\n fx_relay:0 \"Hyper Relay\"\n pc_fx_computer:0 \"Planetary Computer\"\n",
+        ),
+    ])
+}
+
+/// The add dialog's answer for Alari's gas giant and its empty space names the class a type
+/// would make that the editor gives no planet, and, once Alari has a relay, the relay.
+#[test]
+fn the_fits_word_their_refusals_for_the_player() {
+    let (_dir, gd) = named_fixture();
+    let mut session = common::open_4_5();
+    let refusal = |session: &Session, spot: AddSpot, kind: &str| {
+        megastructure_fits(&gd, session, ALARI, spot)
+            .expect("the fits")
+            .into_iter()
+            .find(|fit: &MegastructureFit| fit.kind == kind)
+            .unwrap_or_else(|| panic!("{kind}"))
+            .refusal
+    };
+    assert_eq!(
+        refusal(&session, AddSpot::Body { body: 6 }, "fx_computer").as_deref(),
+        Some("Makes the planet a Planetary Computer, a class Galaxy Forge doesn't give a planet.")
+    );
+    let space = AddSpot::Space { x: 0.0, y: -10.0 };
+    assert_eq!(refusal(&session, space, "fx_relay"), None);
+    let free = MegastructurePlace::Free { x: 0.0, y: -300.0 };
+    let relay = megastructure_op(&gd, &session, ALARI, "fx_relay", free, false).expect("a relay");
+    session.apply(relay.op).expect("the relay applies");
+    assert_eq!(
+        refusal(&session, space, "fx_relay").as_deref(),
+        Some("The system already has a Hyper Relay.")
     );
 }
 

@@ -5,7 +5,7 @@ vi.mock("../api/events");
 
 import type { AddSpot } from "../generated/AddSpot";
 import type { MegastructureFit } from "../generated/MegastructureFit";
-import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA } from "../lib/megastructureCopy";
+import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA, NOT_PLACED } from "../lib/megastructureCopy";
 import type { MegastructureSpot } from "../lib/megastructurePicks";
 import { mockedIpc } from "../test/ipc";
 import { inSystem } from "../test/session";
@@ -95,11 +95,14 @@ describe("adding a megastructure from the system view", () => {
     ]);
   });
 
-  it("asks what goes at the spot once per generation of its system, and drops an answer for an earlier opening", async () => {
+  it("asks what goes at the spot once per generation of its system and load of the game data, and drops an answer for an earlier opening", async () => {
     await opened({ kind: "body", body: 12, star: false });
     await adds().loadFits(0);
     await adds().loadFits(1);
     expect(mockedIpc.getMegastructureFits).toHaveBeenCalledTimes(2);
+    useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
+    await adds().loadFits(1);
+    expect(mockedIpc.getMegastructureFits).toHaveBeenCalledTimes(3);
 
     let answer: (fits: MegastructureFit[]) => void = () => {};
     mockedIpc.getMegastructureFits.mockImplementationOnce(
@@ -113,14 +116,18 @@ describe("adding a megastructure from the system view", () => {
     expect(adds().fits).toBeNull();
   });
 
-  it("adds nothing before the fits are read, and says why they couldn't be", async () => {
+  it("adds nothing before the fits are read and says so, and asks again after a read that failed", async () => {
     adds().open(SYSTEM, { kind: "body", body: 12, star: false });
     expect(await adds().add("think_tank_3")).toBe(false);
     expect(mockedIpc.addMegastructure).not.toHaveBeenCalled();
+    expect(sessionError()).toBe(NOT_PLACED);
 
-    mockedIpc.getMegastructureFits.mockRejectedValue({ kind: "op", message: "no such system" });
+    mockedIpc.getMegastructureFits.mockRejectedValueOnce({ kind: "op", message: "no such system" });
     await opened({ kind: "body", body: 12, star: false });
     expect(adds().fitsError).toBe("no such system");
+    await adds().loadFits(0);
+    expect(adds().fitsError).toBeNull();
+    expect(adds().fits?.has("think_tank_3")).toBe(true);
   });
 
   it("changes the planet as the game does unless the dialog keeps it, and changes it again on the next opening", async () => {

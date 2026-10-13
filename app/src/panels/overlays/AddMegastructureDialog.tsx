@@ -100,6 +100,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const loadFits = useMegastructureAddStore((s) => s.loadFits);
   const { system, spot } = prompt;
   const generation = useOpCheckStore((s) => s.generations.get(system) ?? 0);
+  const dataVersion = useGameDataStore((s) => s.version);
   const types = useGameDataStore((s) => s.megastructureTypes);
   const names = useGameDataStore((s) => s.names);
   const countries = useGalaxyStore((s) => s.countries);
@@ -150,7 +151,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
 
   useEffect(() => {
     void loadFits(generation);
-  }, [generation, loadFits]);
+  }, [generation, dataVersion, loadFits]);
 
   useEffect(() => {
     if (ring) void loadClearing();

@@ -41,31 +41,34 @@ impl Swap {
             && self.not_classes.is_empty()
     }
 
-    /// Whether the completion makes this swap at a body of class `star_class`, `None` in
-    /// empty space or where the class is not known, in a save with the global `flags`.
-    pub fn holds(&self, star_class: Option<&str>, flags: &[String]) -> bool {
+    /// Whether the completion makes this swap in a save with the global `flags`, the row
+    /// standing at the clicked body of class `class`: a star's class for a swap that tests it,
+    /// `None` in empty space or where the class is not known.
+    pub fn holds(&self, class: Option<&str>, flags: &[String]) -> bool {
         let flagged = |flag: &String| flags.contains(flag);
         self.resolved
             && self.flags.iter().all(flagged)
             && !self.no_flags.iter().any(flagged)
-            && self.classes.as_ref().is_none_or(|classes| {
-                star_class.is_some_and(|class| classes.iter().any(|c| c == class))
-            })
-            && star_class.is_none_or(|class| !self.not_classes.iter().any(|c| c == class))
+            && self
+                .classes
+                .as_ref()
+                .is_none_or(|classes| class.is_some_and(|class| classes.iter().any(|c| c == class)))
+            && class.is_none_or(|class| !self.not_classes.iter().any(|c| c == class))
     }
 }
 
-/// The type the game makes of a finished row of type `kind` at a body of class `star_class`
-/// in a save with the global `flags`. The stage nearest `kind` back through each stage's
-/// first `upgrade_from` whose completion swaps its row, with a swap that holds, starts a
-/// chain: the type swapped in, then each type first built over the one before. `kind` is
-/// the type as many stages along that chain as it is past the swapping stage. It is `kind`
-/// itself when no stage on the way swaps, none of the nearest one's swaps holds, the chain
-/// is too short, or `kind` is on the chain already, made only by the swap.
+/// The type the game makes of a finished row of type `kind` added at the clicked body of class
+/// `class`, `None` in empty space, in a save with the global `flags`. The stage nearest
+/// `kind` back through each stage's first `upgrade_from` whose completion swaps its row, with
+/// a swap that holds, starts a chain: the type swapped in, then each type first built over the
+/// one before. The type made is the one as many stages along that chain as `kind` is past the
+/// swapping stage. It is `kind` itself when no stage on the way swaps, none of the nearest
+/// one's swaps holds, the chain is too short, or `kind` is on the chain already, made only by
+/// the swap.
 pub fn made_at(
     types: &MegastructureTypes,
     kind: &str,
-    star_class: Option<&str>,
+    class: Option<&str>,
     flags: &[String],
 ) -> String {
     let mut at = kind;
@@ -87,7 +90,7 @@ pub fn made_at(
             _ => return kind.to_owned(),
         }
     };
-    let Some(swap) = swaps.iter().find(|swap| swap.holds(star_class, flags)) else {
+    let Some(swap) = swaps.iter().find(|swap| swap.holds(class, flags)) else {
         return kind.to_owned();
     };
     let chain = swap_chain(types, &swap.into);
