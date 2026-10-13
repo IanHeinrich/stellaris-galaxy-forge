@@ -4,26 +4,13 @@
 
 use std::path::{Path, PathBuf};
 
-const MOD_PREFIXES: &[&str] = &[
-    "giga_",
-    "ehof_",
-    "frameworld_",
-    "blokkat_",
-    "pc_pd_",
-    "pdengine",
-    "nsc_",
-];
+use sgf_gamedata::mod_compatibility::MOD_PREFIXES;
 
-/// Today's literals that name a mod, each with the batch that moves it to `mod_compatibility/`.
-const MOD_NAME_OFFENDERS: &[(&str, &str)] = &[
-    ("crates/sgf-core/src/format/save/ring_world.rs", "3d"),
-    (
-        "crates/sgf-gamedata/src/registries/megastructure_offers.rs",
-        "3d",
-    ),
-    ("crates/sgf-core/src/format/scenario/paint.rs", "3d"),
-    ("crates/sgf-gamedata/src/install/mods.rs", "3d"),
-];
+/// The files outside `mod_compatibility/` that may name a mod, each with why.
+const MOD_NAME_SEAMS: &[(&str, &str)] = &[(
+    "crates/sgf-core/src/format/scenario/paint.rs",
+    "the Paint a Galaxy scenario names the mod it needs, and sgf-core cannot read sgf-gamedata",
+)];
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -139,13 +126,13 @@ fn only_mod_compatibility_names_a_mod() {
                     continue;
                 };
                 found.push(file.clone());
-                if !MOD_NAME_OFFENDERS.iter().any(|(listed, _)| *listed == file) {
+                if !MOD_NAME_SEAMS.iter().any(|(listed, _)| *listed == file) {
                     unlisted.push(format!("{file}:{}: \"{literal}\"", i + 1));
                 }
             }
         }
     }
-    let cleared: Vec<_> = MOD_NAME_OFFENDERS
+    let cleared: Vec<_> = MOD_NAME_SEAMS
         .iter()
         .filter(|(listed, _)| !found.iter().any(|file| file == listed))
         .map(|(listed, _)| listed)
@@ -157,6 +144,6 @@ fn only_mod_compatibility_names_a_mod() {
     );
     assert!(
         cleared.is_empty(),
-        "These files no longer name a mod; delete their MOD_NAME_OFFENDERS line: {cleared:?}"
+        "These files no longer name a mod; delete their MOD_NAME_SEAMS line: {cleared:?}"
     );
 }

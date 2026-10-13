@@ -1,11 +1,16 @@
 //! The ring world a megastructure type's completion lays out, read from its [`layout`]: a
 //! type whose completion spawns rows round the system's centre, each of which is taken to
 //! the stage the player picks for its quadrant. The editor adds it whole, with
-//! [`sgf_core::ops::Op::AddRingWorld`].
+//! [`sgf_core::ops::Op::AddRingWorld`]. Which types make up a ring world, and the flags each
+//! chain's ring leaves, are read here too, for the session and a ring world delete.
+
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use sgf_core::format::save::ring_world::RingWorldTypes;
 use sgf_core::ops::{
-    NewPlanet, NewRingWorld, RingQuadrant, RingRow, RingSegment, RingVariable, TimedModifier,
+    NewPlanet, NewRingWorld, RingFlags, RingQuadrant, RingRow, RingSegment, RingVariable,
+    TimedModifier,
 };
 use sgf_core::views::OrbitPlacement;
 use ts_rs::TS;
@@ -14,7 +19,7 @@ use super::lasting;
 use super::layout::{self, Around, LaidPlanet, LaidRow, Plan, SectionStage, SystemLayout};
 use crate::GameData;
 use crate::registries::megastructure_families::closure;
-use crate::registries::megastructures::{MegastructureDef, is_ruin};
+use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported, is_ruin};
 
 /// The name the game's initializers give a damaged segment, which
 /// `set_ruined_megastructure` spawns with none of its own.
@@ -103,6 +108,94 @@ pub fn quadrants(gd: &GameData, key: &str) -> Option<usize> {
         .map(|def| def.completes.spawns_rows)
         .filter(|&rows| rows > 1)
         .max()
+}
+
+/// The install's word on which megastructure types make up a ring world, for the session:
+/// every type it defines, with the registry's [`MegastructureDef::ring_world`].
+pub fn ring_world_types(gd: &GameData) -> RingWorldTypes {
+    RingWorldTypes::new(
+        gd.megastructures
+            .iter()
+            .map(|def| (def.key.clone(), def.ring_world)),
+    )
+}
+
+impl GameData {
+    /// The rings the install's ring world chains lay out with every quadrant finished, for
+    /// [`sgf_core::ops::Op::DeleteRingWorld`], worked out once for these registries. Each
+    /// chain is laid out once, nearest the star first, on a system holding the section flags
+    /// the rings before it took, as when a ring is built beside the base game's.
+    pub fn ring_flags(&self) -> &[RingFlags] {
+        self.ring_flags.get_or_init(|| lay_out_rings(self))
+    }
+}
+
+fn lay_out_rings(gd: &GameData) -> Vec<RingFlags> {
+    let finished = |key: &str, held: &[String]| {
+        let count = quadrants(gd, key).unwrap_or(4);
+        ring_world(gd, key, &vec![RingStage::Finished; count], None, held).ok()
+    };
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    let mut chains: Vec<(f64, &str)> = Vec::new();
+    for def in gd.megastructures.iter() {
+        let ring_type = matches!(
+            def.placement,
+            Placement::Unsupported {
+                why: Unsupported::RingWorld
+            }
+        );
+        if !ring_type || seen.contains(def.key.as_str()) {
+            continue;
+        }
+        let Some(radius) = finished(&def.key, &[]).as_ref().and_then(radius) else {
+            continue;
+        };
+        seen.extend(joined(gd, &def.key).into_iter().map(|d| d.key.as_str()));
+        chains.push((radius, &def.key));
+    }
+    chains.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut held: Vec<String> = Vec::new();
+    let mut rings = Vec::new();
+    for (radius, key) in chains {
+        let Some(ring) = finished(key, &held) else {
+            continue;
+        };
+        let holding_it: Vec<String> = held.iter().chain(&ring.system_flags).cloned().collect();
+        let next = finished(key, &holding_it).map(|next| next.system_flags);
+        let taken: Vec<String> = ring
+            .system_flags
+            .iter()
+            .filter(|flag| next.as_ref().is_some_and(|next| !next.contains(flag)))
+            .cloned()
+            .collect();
+        let mut sections: Vec<String> = Vec::new();
+        for prefix in taken.iter().filter_map(|flag| section_prefix(flag)) {
+            if !sections.iter().any(|known| known == prefix) {
+                sections.push(prefix.to_owned());
+            }
+        }
+        held.extend(taken);
+        rings.push(RingFlags {
+            radius,
+            flags: ring.system_flags,
+            sections,
+        });
+    }
+    rings
+}
+
+/// The radius `ring`'s first finished segment stands at.
+fn radius(ring: &NewRingWorld) -> Option<f64> {
+    ring.quadrants.iter().find_map(|quadrant| match quadrant {
+        RingQuadrant::Finished { segments } => segments.first().map(|s| s.planet.at.radius),
+        _ => None,
+    })
+}
+
+/// `flag` less the digits it ends with, when it ends with some: `ring_` of `ring_05`.
+fn section_prefix(flag: &str) -> Option<&str> {
+    let prefix = flag.trim_end_matches(|c: char| c.is_ascii_digit());
+    (prefix.len() < flag.len() && !prefix.is_empty()).then_some(prefix)
 }
 
 /// Every type joined to `key`, itself first: by `upgrade_from` either way, by a type its

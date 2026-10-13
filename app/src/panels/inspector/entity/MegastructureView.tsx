@@ -7,6 +7,7 @@ import {
 import { isRingRow } from "../../../lib/details/ringWorldRemoval";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { deleteMegastructure } from "../../../store/megastructureRemoval";
 import { useOpCheck } from "../../useOpCheck";
@@ -34,7 +35,8 @@ function DeleteAction({ id, name }: { id: number; name: string }) {
       ? undefined
       : s.details.get(system)?.megastructures.find((m) => m.id === id)?.kind,
   );
-  if (system !== null && kind !== undefined && isRingRow(kind)) {
+  const types = useGameDataStore((s) => s.megastructureTypes);
+  if (system !== null && kind !== undefined && isRingRow(kind, types)) {
     return <DeleteRingWorldAction system={system} />;
   }
   return <DeleteMegastructureAction id={id} name={name} />;

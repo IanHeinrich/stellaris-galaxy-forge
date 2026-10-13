@@ -730,14 +730,17 @@ pub enum Op {
     /// A save system's ring world, whole: each segment, a body whose class starts with
     /// `pc_ringworld` (the damaged ones too) or `pc_shattered_ring`, goes as
     /// [`Op::DeleteBody`] takes a body, with its moons, its colony and the station working
-    /// it, and each `megastructures` row whose type starts with `ring_world` or `ringworld`
+    /// it, and each `megastructures` row the session's ring world types name, by the type's
+    /// key starting with `ring_world` or `ringworld` for a type the install does not define,
     /// goes as [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and
     /// rows standing within 5 of it from the system's centre go; without it, every ring of
-    /// the system. The system loses the flags of each size of ring deleted: for a ring
-    /// within 5 of 90, 134 or 179, Gigastructural Engineering's titanic, behemoth or
-    /// gargantuan ring, `ring_world_built_one` and `giga_has_titanic_ring`, `_two` and
-    /// `giga_has_behemoth_ring`, or `_three` and `giga_has_gargantuan_ring`; for any other,
-    /// `ring_world_built` and `ring_section_1` to `ring_section_3`. Its star loses the planet
+    /// the system. The system loses the flags of each ring deleted: those of each entry of
+    /// `rings` whose radius is within 5 of where the ring stands, a ring with nothing standing
+    /// off the star standing at 45, and none for a ring no entry lists. Without `rings`, the
+    /// only entry is the base game's ring at 45, with `ring_world_built` and `ring_section_1`
+    /// to `ring_section_3`. When no segment or ring row is left in the system, it also loses
+    /// every flag named as a section of an entry, its `sections` prefix followed by digits.
+    /// Its star loses the planet
     /// flag `has_megastructure` unless a ring world segment or row is left in the system or
     /// a row left names the star. A fleet of the system that orbits a deleted segment and does not go
     /// with it, such as a fallen empire's deep-space citadel, stays where it stands and
@@ -753,6 +756,9 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         radius: Option<f64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        rings: Option<Vec<RingFlags>>,
     },
     /// Save entities written back whole, each over whatever stands for it now: what
     /// [`Op::RemoveColony`], [`Op::DeleteBody`], [`Op::DeleteMegastructure`],

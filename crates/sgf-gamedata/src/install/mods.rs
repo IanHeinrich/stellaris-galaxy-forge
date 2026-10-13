@@ -8,16 +8,14 @@ use serde::Deserialize;
 use sgf_core::cst::{self, Node};
 
 use crate::Diagnostic;
+pub use crate::mod_compatibility::paint_a_galaxy::{
+    LOCAL_CLUSTER_WORKSHOP_ID, RESERVED_SPAWNS_WORKSHOP_ID,
+};
 
 /// Where Steam unpacks workshop items for Stellaris (app id 281990).
 const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
 /// Paint a Galaxy's Steam Workshop item.
 pub const PAINT_MOD_WORKSHOP_ID: &str = sgf_core::format::scenario::paint::WORKSHOP_ID;
-/// The Reserved Spawns submod's Steam Workshop item, whose traits a reserved seat's empire holds.
-pub const RESERVED_SPAWNS_WORKSHOP_ID: &str = "3762808682";
-/// The Local Cluster submod's Steam Workshop item, the usual workaround for Sol having no
-/// Sol-specific neighbours.
-pub const LOCAL_CLUSTER_WORKSHOP_ID: &str = "3634498401";
 /// A Steam Workshop item's page, less its id.
 const WORKSHOP_PAGE: &str = "https://steamcommunity.com/sharedfiles/filedetails/?id=";
 

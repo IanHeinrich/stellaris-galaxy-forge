@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 use crate::document::{self, Document};
 use crate::format::save::details::DetailsProjection;
+use crate::format::save::ring_world::RingWorldTypes;
 use crate::format::{self, Format};
 pub use crate::ops::Created;
 use crate::ops::history::History;
@@ -98,6 +99,9 @@ pub struct Session {
     /// What the loaded install says of stars; what is known without one until the shell
     /// sets the install's.
     stars: Arc<StarClasses>,
+    /// Which megastructure types the loaded install makes ring worlds of; empty, and read by
+    /// their keys, until the shell sets the install's.
+    ring_world_types: Arc<RingWorldTypes>,
 }
 
 impl Session {
