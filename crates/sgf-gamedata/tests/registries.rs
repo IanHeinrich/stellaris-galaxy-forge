@@ -250,7 +250,7 @@ fn a_mod_overrides_a_ship_size_icon() {
 }
 
 #[test]
-fn bypass_icon_frame_is_read_and_an_absent_frame_is_none() {
+fn bypass_icon_frame_and_always_active_are_read_and_an_absent_frame_is_none() {
     let gd = common::cached_fixture();
     let gateway = gd.bypasses.get("fixture_gateway").expect("fixture_gateway");
     assert_eq!(gateway.icon_frame, Some(25));
@@ -260,6 +260,8 @@ fn bypass_icon_frame_is_read_and_an_absent_frame_is_none() {
         rift.icon_frame, None,
         "a bypass without an icon_frame field"
     );
+    assert!(!gateway.always_active);
+    assert!(rift.always_active);
 
     assert_eq!(gateway.icon_frame, Some(25));
 }

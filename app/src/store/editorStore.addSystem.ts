@@ -116,7 +116,7 @@ export function addSystemActions(
     addBodyAt(system, at, parent = null, planetClass = null) {
       const gameData = useGameDataStore.getState().status === "ready";
       return refuseOr(gameData ? null : BODIES_NEED_GAME_DATA, async () => {
-        let planet: number | null = null;
+        let planet: number | undefined;
         const result = await runEdit(async () => {
           const added = await ipc.addBody(
             system,
@@ -127,10 +127,10 @@ export function addSystemActions(
             at.angle,
             newSeed(),
           );
-          planet = added.planet;
+          planet = added.planets[0];
           return added.edit;
         });
-        if (result === null || planet === null) return false;
+        if (result === null || planet === undefined) return false;
         useSceneStore.getState().showBody(system, planet);
         return true;
       });
@@ -139,8 +139,13 @@ export function addSystemActions(
     async addMegastructure(system, kind, at, keepPlanet = false) {
       let added: { megastructure: number; unsure: string[]; unwritten: string[] } | null = null;
       const result = await runEdit(async () => {
-        const { edit, ...answer } = await ipc.addMegastructure(system, kind, at, keepPlanet);
-        added = answer;
+        const { edit, megastructures, unsure, unwritten } = await ipc.addMegastructure(
+          system,
+          kind,
+          at,
+          keepPlanet,
+        );
+        added = { megastructure: megastructures[0], unsure, unwritten };
         return edit;
       });
       return result === null ? null : added;
@@ -150,16 +155,16 @@ export function addSystemActions(
       let planet: number | null = null;
       const result = await runEdit(async () => {
         const added = await ipc.addHabitat(system, body, kind);
-        planet = added.planet;
+        planet = added.planets[0];
         return added.edit;
       });
       return result === null ? null : planet;
     },
 
-    async addRingWorld(system, kind, stages, owner, clear) {
+    async addRingWorld(system, kind, stages, clear) {
       let added: { planets: number[]; megastructures: number[] } | null = null;
       const result = await runEdit(async () => {
-        const { edit, ...answer } = await ipc.addRingWorld(system, kind, [...stages], owner, clear);
+        const { edit, ...answer } = await ipc.addRingWorld(system, kind, [...stages], clear);
         added = answer;
         return edit;
       });

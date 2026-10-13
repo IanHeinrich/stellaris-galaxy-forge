@@ -1,73 +1,32 @@
 //! Adding a ring world round the star of a system of the open save, whole, with each quadrant
 //! at the stage the player picks, and what clearing the system for it would take.
 
-use sgf_core::ops::Op;
-use sgf_core::views::{ErrorKind, RingWorldClearing, SgfError};
-use sgf_gamedata::construction::ring_world::{RingStage, ring_world};
+use sgf_core::views::{RingWorldClearing, SgfError};
+use sgf_gamedata::construction::ring_world::RingStage;
+use sgf_gamedata::generate;
 use tauri::{AppHandle, Runtime};
 
-use super::{game_data, is_save, require, with_session};
-use crate::views::AddedRingWorld;
+use super::{game_data, with_session};
+use crate::views::Added;
 
-const ONLY_A_SAVE_ADDS: &str = "only a save takes an added ring world";
-
-/// Add the ring world of megastructure type `kind`, any stage of its chain (its site, frame,
-/// a quadrant or a ruin), round the star of system `system`, each quadrant at its stage in
-/// `stages`, in the order the chain spawns them; its habitable sections are named on from
-/// the system's flags, after a ring standing there. Rows that take an owner are owned by
-/// `owner`, and its graphical culture picks the culture of the rows and segment models that
-/// take one; with no owner the classes' own models are drawn. With `clear`, every body that
-/// is not a star and every belt go first, in the same edit, as the game's frame clears the
-/// system; without it they stay where they are. A type the install does not define, a chain
-/// that lays out no ring of as many quadrants as `stages` holds, a clearing that would delete
-/// a planet a starbase orbits, and anything `AddRingWorld` refuses are refused.
+/// Add the ring world of megastructure type `kind`, any stage of its chain, round the star of
+/// system `system`, each quadrant at its stage in `stages`, clearing the system first with
+/// `clear`, as `sgf_gamedata::generate::ring_world_op` builds it. Answers the planets and
+/// rows it wrote, in the quadrants' order.
 #[tauri::command]
 pub async fn add_ring_world<R: Runtime>(
     app: AppHandle<R>,
     system: u32,
     kind: String,
     stages: Vec<RingStage>,
-    owner: Option<u32>,
     clear: bool,
-) -> Result<AddedRingWorld, SgfError> {
+) -> Result<Added, SgfError> {
     let gd = game_data(&app, "add a ring world")?;
-    if gd.megastructures.get(&kind).is_none() {
-        return Err(SgfError::new(
-            ErrorKind::Op,
-            format!("the install and its mods define no megastructure {kind}"),
-        ));
-    }
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
-        let graph = session.graph();
-        let culture = owner
-            .and_then(|owner| graph.countries.iter().find(|c| c.id == owner))
-            .and_then(|country| country.graphical_culture.clone());
-        let held = session
-            .save("reading a construction site")?
-            .construction_site(system)?
-            .flags;
-        let ring =
-            ring_world(&gd, &kind, &stages, culture.as_deref(), &held).map_err(|reason| {
-                SgfError::new(
-                    ErrorKind::Op,
-                    format!("a ring world of {kind} cannot be added: {reason}"),
-                )
-            })?;
-        let op = session
-            .save("adding a ring world")?
-            .ring_world_op(system, owner, ring, clear)?;
-        let result = session.apply(op)?;
-        let written = match &result.inverse {
-            Op::Batch { ops, .. } => ops.iter().find_map(written_by),
-            inverse => written_by(inverse),
-        }
-        .ok_or_else(|| SgfError::new(ErrorKind::Op, "the add named no new ring world"))?;
-        Ok(AddedRingWorld {
-            edit: session.edit_result(result),
-            planets: written.0,
-            megastructures: written.1,
-        })
+        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let planned = generate::ring_world_op(&gd, session, system, &kind, &stages, clear)?;
+        let result = session.apply(planned.op)?;
+        Ok(Added::of(session, result))
     })
     .await
 }
@@ -79,21 +38,11 @@ pub async fn get_ring_world_clearing<R: Runtime>(
     app: AppHandle<R>,
     system: u32,
 ) -> Result<RingWorldClearing, SgfError> {
-    with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         Ok(session
             .save("clearing a system for a ring world")?
             .ring_world_clearing(system)?)
     })
     .await
-}
-
-/// The planets and rows the ring world whose removal `op` is wrote.
-fn written_by(op: &Op) -> Option<(Vec<u32>, Vec<u32>)> {
-    match op {
-        Op::RemoveRingWorld { written, .. } => {
-            Some((written.planets.clone(), written.rows.clone()))
-        }
-        _ => None,
-    }
 }

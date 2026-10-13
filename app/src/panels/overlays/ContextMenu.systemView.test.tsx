@@ -371,7 +371,8 @@ describe("adding a planet or moon in the system view", () => {
     useGeneratorStore.setState({ planetClasses: [desert], moonClasses: [barren] });
     vi.mocked(ipc.addBody).mockResolvedValue({
       edit: editResult({ details_stale: [0] }),
-      planet: 20,
+      planets: [20],
+      megastructures: [],
     });
   });
 

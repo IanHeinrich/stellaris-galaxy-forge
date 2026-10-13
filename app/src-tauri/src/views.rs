@@ -1,4 +1,4 @@
-//! The shell's own IPC view types: what the updater, add-body and prepare commands answer with,
+//! The shell's own IPC view types: what the updater, add and prepare commands answer with,
 //! and what the document watcher reports.
 //!
 //! Each type derives `TS`; `cargo test -p sgf-app` writes the TypeScript
@@ -8,51 +8,53 @@
 use serde::{Deserialize, Serialize};
 use sgf_core::export::ScenarioProfile;
 use sgf_core::format::scenario::FeZone;
+use sgf_core::ops::Created;
 use sgf_core::prepare::RowSystems;
 use sgf_core::projections::galaxy::SystemNode;
+use sgf_core::session::{OpResult, Session};
 use sgf_core::views::EditResult;
 use sgf_gamedata::scripts::{ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::special::SpecialSystem;
 use ts_rs::TS;
 
-/// What adding a body answers with: the edit, and the id the new body took.
+/// What adding planets or megastructure rows answers with: the edit, and the planets and rows
+/// it created, in the order it wrote them, a planet before its moons.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct AddedBody {
+pub struct Added {
     pub edit: EditResult,
-    pub planet: u32,
+    pub planets: Vec<u32>,
+    pub megastructures: Vec<u32>,
 }
 
-/// What adding a megastructure answers with: the edit, the id the new row took, and the
-/// effects of its construction left out, each as the type's script says it.
+impl Added {
+    /// What `result`, just applied to `session`, created.
+    pub fn of(session: &Session, mut result: OpResult) -> Self {
+        let Created {
+            planets,
+            megastructures,
+            ..
+        } = std::mem::take(&mut result.created);
+        Self {
+            edit: session.edit_result(result),
+            planets,
+            megastructures,
+        }
+    }
+}
+
+/// What adding a megastructure answers with: what it created, and the effects of its
+/// construction left out, each as the type's script says it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AddedMegastructure {
-    pub edit: EditResult,
-    pub megastructure: u32,
+    #[serde(flatten)]
+    pub added: Added,
     /// Each effect the editor could not tell applies, or where.
     pub unsure: Vec<String>,
     /// Each effect that applies but that the editor does not write, such as a modifier the
     /// construction removes.
     pub unwritten: Vec<String>,
-}
-
-/// What adding a habitat answers with: the edit and the id the new planet took.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct AddedHabitat {
-    pub edit: EditResult,
-    pub planet: u32,
-}
-
-/// What adding a ring world answers with: the edit, and the ids of the planets and rows it
-/// wrote, in the quadrants' order.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct AddedRingWorld {
-    pub edit: EditResult,
-    pub planets: Vec<u32>,
-    pub megastructures: Vec<u32>,
 }
 
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,

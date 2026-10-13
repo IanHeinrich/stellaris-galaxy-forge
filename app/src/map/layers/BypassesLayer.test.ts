@@ -211,7 +211,9 @@ describe("the bypasses layer", () => {
   });
 
   it("wears a modded bypass kind's own icon frame instead of the built-in table's", () => {
-    const kinds: BypassKinds = new Map([["gateway", { key: "gateway", icon_frame: 91 }]]);
+    const kinds: BypassKinds = new Map([
+      ["gateway", { key: "gateway", icon_frame: 91, always_active: false }],
+    ]);
     drawn([{ type: "gateway", system: 0, active: true }], 1, kinds);
     expect(vi.mocked(requestTextures).mock.calls.flat(2)).toContain(
       "sprite:GFX_ship_class_small#91",

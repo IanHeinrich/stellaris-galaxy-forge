@@ -1,6 +1,6 @@
 //! Rolling a planet or moon into a system of the real sample save, end to end.
 use serde_json::json;
-use sgf_app_lib::views::AddedBody;
+use sgf_app_lib::views::Added;
 use sgf_core::entity::{EntityAddr, EntityKind};
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::picks::BodyClassPick;
@@ -19,7 +19,7 @@ fn adding_a_body_needs_game_data() {
         "system": 408, "parent": null, "class": null, "size": null,
         "radius": 170.0, "angle": 200.0, "seed": 7
     });
-    let refused = invoke::<AddedBody>(&w, "add_body", args).expect_err("refused");
+    let refused = invoke::<Added>(&w, "add_body", args).expect_err("refused");
     assert_eq!(refused.kind, ErrorKind::Op);
     assert!(refused.message.contains("game data"), "{}", refused.message);
 }
@@ -40,14 +40,14 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
     let moons: Vec<BodyClassPick> =
         invoke(&w, "get_body_classes", json!({ "moon": true })).expect("moon classes");
     assert!(!moons.is_empty());
-    let names_its_body = |added: &AddedBody| {
+    let names_its_body = |added: &Added| {
         added
             .edit
             .touched_entities
-            .contains(&EntityAddr::new(EntityKind::Planet, added.planet))
+            .contains(&EntityAddr::new(EntityKind::Planet, added.planets[0]))
     };
 
-    let planet: AddedBody = invoke(
+    let planet: Added = invoke(
         &w,
         "add_body",
         json!({
@@ -63,7 +63,7 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
     );
     assert_eq!(planet.edit.details_stale, [408]);
 
-    let moon: AddedBody = invoke(
+    let moon: Added = invoke(
         &w,
         "add_body",
         json!({
@@ -72,7 +72,7 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
         }),
     )
     .expect("a desert moon");
-    assert_ne!(moon.planet, planet.planet);
+    assert_ne!(moon.planets, planet.planets);
     assert!(names_its_body(&moon), "{:?}", moon.edit.touched_entities);
     assert_eq!(moon.edit.history.undo.len(), 2);
 

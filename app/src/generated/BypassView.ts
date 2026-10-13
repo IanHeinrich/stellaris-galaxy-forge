@@ -4,4 +4,8 @@ export type BypassView = { key: string,
 /**
  * The frame of the map icon sheet; a negative `icon_frame` means none.
  */
-icon_frame: number | null, };
+icon_frame: number | null, 
+/**
+ * `always_active = yes`: a bypass of this kind is open from the moment it is made.
+ */
+always_active: boolean, };

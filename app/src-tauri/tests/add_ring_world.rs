@@ -1,7 +1,7 @@
 //! Adding a ring world round a star of the real 4.5 sample save, end to end, and what
 //! clearing a system for one would take.
 use serde_json::json;
-use sgf_app_lib::views::AddedRingWorld;
+use sgf_app_lib::views::Added;
 use sgf_core::views::{EditResult, ErrorKind, RingWorldClearing};
 
 use crate::common;
@@ -13,7 +13,7 @@ const HABRAQ: u32 = 159;
 const VINH: u32 = 174;
 
 fn ring(system: u32, kind: &str, stages: &[&str], clear: bool) -> serde_json::Value {
-    json!({ "system": system, "kind": kind, "stages": stages, "owner": 19, "clear": clear })
+    json!({ "system": system, "kind": kind, "stages": stages, "clear": clear })
 }
 
 #[test]
@@ -21,7 +21,7 @@ fn adding_a_ring_world_needs_game_data() {
     let w = webview();
     open(&w, SAMPLE_45);
     let stages = ["finished"; 4];
-    let refused = invoke::<AddedRingWorld>(
+    let refused = invoke::<Added>(
         &w,
         "add_ring_world",
         ring(HABRAQ, "ring_world_2_intermediate", &stages, true),
@@ -49,7 +49,7 @@ fn a_ring_world_is_added_whole_and_undone() {
     let Some((w, _)) = with_game_data(SAMPLE_45) else {
         return;
     };
-    let added: AddedRingWorld = invoke(
+    let added: Added = invoke(
         &w,
         "add_ring_world",
         ring(HABRAQ, "ring_world_1", &["finished"; 4], true),
@@ -65,7 +65,7 @@ fn a_ring_world_is_added_whole_and_undone() {
     let undone: EditResult = invoke(&w, "undo", json!({})).expect("undo");
     assert!(undone.history.undo.is_empty());
 
-    let mixed: AddedRingWorld = invoke(
+    let mixed: Added = invoke(
         &w,
         "add_ring_world",
         ring(
@@ -85,7 +85,7 @@ fn a_type_that_lays_out_no_ring_is_refused() {
     let Some((w, _)) = with_game_data(SAMPLE_45) else {
         return;
     };
-    let refused = invoke::<AddedRingWorld>(
+    let refused = invoke::<Added>(
         &w,
         "add_ring_world",
         ring(HABRAQ, "habitat_central_complex", &["finished"; 4], false),

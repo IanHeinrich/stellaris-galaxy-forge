@@ -45,9 +45,8 @@ pub async fn open_save<R: Runtime>(
 #[tauri::command]
 pub async fn reload_document<R: Runtime>(
     app: AppHandle<R>,
-    discard: Option<bool>,
+    discard: bool,
 ) -> Result<OpenResult, SgfError> {
-    let discard = discard.unwrap_or(false);
     let path = with_session(app.clone(), move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         if !discard {
@@ -348,11 +347,8 @@ pub async fn redo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, S
 /// `changed_on_disk` when something else wrote the file since it was opened or last saved,
 /// unless `force`. Emits `sgf://progress`.
 #[tauri::command]
-pub async fn save<R: Runtime>(
-    app: AppHandle<R>,
-    force: Option<bool>,
-) -> Result<SaveResult, SgfError> {
-    save_to(app, None, force.unwrap_or(false)).await
+pub async fn save<R: Runtime>(app: AppHandle<R>, force: bool) -> Result<SaveResult, SgfError> {
+    save_to(app, None, force).await
 }
 
 /// Write the open session to `path`, which becomes the session's path. When `path` is the
@@ -361,9 +357,9 @@ pub async fn save<R: Runtime>(
 pub async fn save_as<R: Runtime>(
     app: AppHandle<R>,
     path: String,
-    force: Option<bool>,
+    force: bool,
 ) -> Result<SaveResult, SgfError> {
-    save_to(app, Some(path), force.unwrap_or(false)).await
+    save_to(app, Some(path), force).await
 }
 
 async fn save_to<R: Runtime>(
