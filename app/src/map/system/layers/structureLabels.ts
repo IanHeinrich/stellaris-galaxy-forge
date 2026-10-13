@@ -71,14 +71,7 @@ export function structureSlot(index: number): number {
 export function platedAlike(a: readonly SceneStructure[], b: readonly SceneStructure[]): boolean {
   return (
     a.length === b.length &&
-    a.every(
-      (s, i) =>
-        s.kind === b[i].kind &&
-        s.id === b[i].id &&
-        s.name === b[i].name &&
-        s.on === b[i].on &&
-        s.resources === b[i].resources,
-    )
+    a.every((s, i) => s.kind === b[i].kind && s.id === b[i].id && s.plate === b[i].plate)
   );
 }
 

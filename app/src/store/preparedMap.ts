@@ -1,10 +1,12 @@
 import type { CountryNode } from "../generated/CountryNode";
+import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { PreparedMap } from "../generated/PreparedMap";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
+import type { AppIssue } from "../lib/issues";
 import { lastOf } from "../lib/memo";
 import { templateName } from "../lib/names";
 import { composeOwnership, settledOwnership, type Ownership } from "../lib/ownership";
@@ -14,6 +16,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { countryMap, stampOwners, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { ownerMap } from "./gameDataStore.document";
+import { useIssuesStore } from "./issuesStore";
 import { currentOwnership } from "./ownership";
 import { currentPrecursors } from "./precursors";
 import { shownProjection, usePrepareStore } from "./prepareStore";
@@ -33,6 +36,7 @@ export interface MapInputs {
 }
 
 const NONE: ReadonlySet<number> = new Set<number>();
+const NO_ISSUES: readonly AppIssue[] = [];
 
 /** The map's inputs as the stores stand. */
 export function mapInputs(): MapInputs {
@@ -132,4 +136,29 @@ export function mapDetails(): MapDetails {
     details: new Map([...details].filter(([id]) => !shown.changed.has(id))),
     version: --projectedVersion,
   }));
+}
+
+/** The issues the map marks: none while it shows the map as Prepare's choices would leave it. */
+export function mapIssues(): readonly AppIssue[] {
+  return shownProjection(usePrepareStore.getState()) ? NO_ISSUES : useIssuesStore.getState().issues;
+}
+
+/**
+ * `delta` with each system as the map shows it, so a system Prepare's choices rewrite keeps the
+ * look they give it.
+ */
+export function mapDelta(delta: GalaxyDelta): GalaxyDelta {
+  const { systems } = mapInputs();
+  return { ...delta, systems: delta.systems.flatMap((node) => systems.get(node.id) ?? []) };
+}
+
+/** Every system either projection rewrites, as the map now shows it, for the layers to redraw. */
+export function projectionDelta(
+  before: PreparedMap | null,
+  after: PreparedMap | null,
+): GalaxyDelta {
+  const nodes = new Map(
+    [...(before?.systems ?? []), ...(after?.systems ?? [])].map((s) => [s.id, s]),
+  );
+  return mapDelta({ systems: [...nodes.values()] });
 }

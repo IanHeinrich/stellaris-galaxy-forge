@@ -312,19 +312,18 @@ export class InteractionController {
   }
 
   private input(kind: InputKind, e: PointerEvent): MapInput {
-    const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
-    const input: MapInput = {
+    return this.remeasure({
       kind,
       sx: e.offsetX,
       sy: e.offsetY,
-      wx: w.x,
-      wy: w.y,
+      wx: 0,
+      wy: 0,
       button: e.button,
       shift: e.shiftKey,
       ctrl: e.ctrlKey || e.metaKey,
       alt: e.altKey,
       time: e.timeStamp,
-      selection: editor().selection,
+      selection: [],
       system: null,
       zone: null,
       edge: null,
@@ -333,11 +332,10 @@ export class InteractionController {
       snap: null,
       nebula: null,
       prevented: null,
-    };
-    return this.model === this.models.select ? this.pick(input, w) : input;
+    });
   }
 
-  /** `input` at the same screen point under the camera as it stands now, picked again. */
+  /** `input` at its screen point under the camera as it stands now, with the selection and picks read again. */
   private remeasure(input: MapInput): MapInput {
     const w = this.cam.screenToWorld(input.sx, input.sy, this.at);
     const moved = { ...input, wx: w.x, wy: w.y, selection: editor().selection };

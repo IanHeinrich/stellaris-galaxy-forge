@@ -33,14 +33,11 @@ export const LAYER_IDS = [
 ] as const;
 export type LayerId = (typeof LAYER_IDS)[number];
 
-/** Layers the map draws that no menu switches: each shows whatever its store hands it. */
-export const UNSWITCHED_IDS = ["outcomes"] as const;
-export type MapLayerId = LayerId | (typeof UNSWITCHED_IDS)[number];
-
-/** Whether a menu switches layer `id`. */
-export function isSwitched(id: MapLayerId): id is LayerId {
-  return !(UNSWITCHED_IDS as readonly string[]).includes(id);
-}
+/**
+ * Every layer the map draws: the switched ones, and those no menu switches. The extra ids must be
+ * exactly the registry entries marked `switched: false`.
+ */
+export type MapLayerId = LayerId | "outcomes";
 
 /**
  * The layers the system scene draws, each switched there apart from the galaxy, with what the

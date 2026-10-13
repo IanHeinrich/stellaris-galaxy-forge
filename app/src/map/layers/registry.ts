@@ -3,12 +3,7 @@ import type { Capabilities } from "../../generated/Capabilities";
 import { supports } from "../../lib/capabilities";
 import { WorkerTerritoryClient } from "../../lib/geometry/territoryClient";
 import type { DrawnPositions } from "../drawnPositions";
-import {
-  isSwitched,
-  SCENE_ONLY_IDS,
-  type LayerId,
-  type MapLayerId,
-} from "../../lib/visual/layerIds";
+import { SCENE_ONLY_IDS, type LayerId, type MapLayerId } from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
 import { FeZonesLayer } from "./FeZonesLayer";
@@ -35,6 +30,8 @@ export interface LayerEntry {
   create?(renderer: Renderer, drawn: DrawnPositions): MapLayer;
   /** A layer without one draws for every document. */
   readonly requires?: keyof Capabilities;
+  /** False for a layer no menu switches: it shows whatever its store hands it. */
+  readonly switched?: false;
   /** The menus leave the layer out until the install has been read. */
   readonly requiresGameData?: true;
 }
@@ -72,6 +69,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "systems", create: (renderer, drawn) => new SystemsLayer(renderer, drawn) },
   {
     id: "outcomes",
+    switched: false,
     requires: "create_systems",
     create: (_renderer, drawn) => new OutcomesLayer(drawn),
   },
@@ -92,6 +90,16 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "colonies" },
   { id: "special", requires: "special", create: (_renderer, drawn) => new SpecialLayer(drawn) },
 ];
+
+/** The layers no menu switches, from the entries that say so. */
+const UNSWITCHED_IDS: ReadonlySet<MapLayerId> = new Set(
+  LAYER_REGISTRY.filter((entry) => entry.switched === false).map((entry) => entry.id),
+);
+
+/** Whether a menu switches layer `id`. */
+export function isSwitched(id: MapLayerId): id is LayerId {
+  return !UNSWITCHED_IDS.has(id);
+}
 
 /** Every entry the open document can answer for, drawn or menu-only, in draw order. */
 function supportedBy(capabilities: Capabilities): LayerEntry[] {

@@ -8,6 +8,7 @@ import { PLANET_ICON_KEYS } from "../../lib/details/icons";
 import {
   bodyLayout,
   countryNode,
+  megastructureSummary,
   name,
   planetClassView,
   planetSummary,
@@ -88,8 +89,8 @@ describe("the bodies of a system", () => {
         id: SYSTEM,
         planets,
         megastructures: [
-          { id: 50, kind: "dyson_sphere_2", owner: null, planet: 2, at: null, culture: null },
-          { id: 51, kind: "gateway_final", owner: null, planet: 2, at: null, culture: null },
+          megastructureSummary({ id: 50, kind: "dyson_sphere_2", planet: 2, at: null }),
+          megastructureSummary({ id: 51, kind: "gateway_final", planet: 2, at: null }),
         ],
         sites: [{ id: 60, kind: "site_zroni_ruins", planet: 3 }],
       }),

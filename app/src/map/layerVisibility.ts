@@ -1,10 +1,6 @@
 import type { Capabilities } from "../generated/Capabilities";
-import {
-  isGalaxyLayer,
-  isSwitched,
-  type GalaxyLayers,
-  type MapLayerId,
-} from "../lib/visual/layerIds";
+import { isGalaxyLayer, type GalaxyLayers, type MapLayerId } from "../lib/visual/layerIds";
+import { isSwitched } from "./layers/registry";
 
 /**
  * Whether a layer draws. The bypasses layer draws both of a scenario's sources, so either toggle

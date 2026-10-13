@@ -3,7 +3,7 @@ import { capabilityFor } from "../../lib/entities";
 import type { Pt } from "../../lib/geometry/pt";
 import type { Entry } from "../../store/inspectorStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
-import type { Drag } from "./bodyDrag";
+import type { Drag } from "./drag";
 import type { SystemContext } from "./context";
 import { MegastructureDrag } from "./drags";
 import type { SceneTarget } from "./picking";

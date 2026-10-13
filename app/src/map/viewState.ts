@@ -19,7 +19,7 @@ import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
-import { mapInputs } from "../store/preparedMap";
+import { mapDelta, mapIssues, projectionDelta } from "../store/preparedMap";
 import {
   ringedSystems,
   shownProjection,
@@ -36,7 +36,6 @@ import { matchingSystems } from "./matchingSystems";
 
 const EMPTY_MATCH: ReadonlySet<number> = new Set();
 const NO_OUTCOME: ReadonlyMap<number, Outcome> = new Map();
-const NO_ISSUES: readonly AppIssue[] = [];
 
 /** What a store change moves: the layers, and the camera and context work the controller owns. */
 export interface MapView {
@@ -72,7 +71,7 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
       if (state.framed) view.fit();
     } else if (state.version !== prev.version && state.lastDelta) {
       view.refreshContext();
-      applyDelta(view, shownDelta(state.lastDelta));
+      applyDelta(view, mapDelta(state.lastDelta));
     } else if (state.hiddenCountries !== prev.hiddenCountries) {
       view.refreshContext();
     }
@@ -195,12 +194,7 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     "bind",
   ),
 
-  follows(
-    useIssuesStore,
-    [(s) => s.issues],
-    (_s, view) => setIssues(view, shownIssues()),
-    "layers",
-  ),
+  follows(useIssuesStore, [(s) => s.issues], (_s, view) => setIssues(view, mapIssues()), "layers"),
   follows(
     useWatchlistStore,
     [(s) => s.entries, (s) => s.results],
@@ -288,20 +282,6 @@ function setIssues(view: MapView, issues: readonly AppIssue[]): void {
   for (const layer of view.layers) layer.setIssues?.(issues);
 }
 
-/** The issues the map marks: none while it shows the map as Prepare's choices would leave it. */
-function shownIssues(): readonly AppIssue[] {
-  return shownProjection(usePrepareStore.getState()) ? NO_ISSUES : useIssuesStore.getState().issues;
-}
-
-/**
- * `delta` with each system as the map shows it, so a system Prepare's choices rewrite keeps the
- * look they give it.
- */
-function shownDelta(delta: GalaxyDelta): GalaxyDelta {
-  const { systems } = mapInputs();
-  return { ...delta, systems: delta.systems.flatMap((node) => systems.get(node.id) ?? []) };
-}
-
 /**
  * Swaps the map between the document and the map as Prepare's choices would leave it. The layers
  * that redraw one system at a time are handed each system either projection rewrites.
@@ -312,11 +292,8 @@ function showProjection(
   after: PreparedMap | null,
 ): void {
   view.refreshContext();
-  const nodes = new Map(
-    [...(before?.systems ?? []), ...(after?.systems ?? [])].map((s) => [s.id, s]),
-  );
-  applyDelta(view, shownDelta({ systems: [...nodes.values()] }));
-  setIssues(view, shownIssues());
+  applyDelta(view, projectionDelta(before, after));
+  setIssues(view, mapIssues());
 }
 
 function setWatchlist(view: MapView, rings: readonly WatchRings[]): void {

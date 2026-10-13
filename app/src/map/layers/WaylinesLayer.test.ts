@@ -8,7 +8,7 @@ import type { Wayline } from "../../generated/Wayline";
 import type { Waystation } from "../../generated/Waystation";
 import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { name, systemDetails } from "../../test/builders";
+import { name, starbaseSummary, systemDetails } from "../../test/builders";
 import { DETAIL_SCALE } from "../../lib/visual/labels";
 import type { RenderContext } from "../RenderContext";
 import {
@@ -38,22 +38,14 @@ const LINES: Wayline[] = [
 ];
 
 function starbase(id: number, level: string): StarbaseSummary {
-  return {
+  return starbaseSummary({
     id,
     level,
     kind: "swaystation",
     name: name("NAME_Station"),
     name_key: "NAME_Station",
-    owner: null,
-    modules: [],
-    buildings: [],
-    shipyard: false,
-    hull: 0,
-    max_hull: 0,
     at: null,
-    planet: null,
-    culture: null,
-  };
+  });
 }
 
 /** Sol's station is a Wayport, Alpha's a Wayhold; Beta's system has not been read. */

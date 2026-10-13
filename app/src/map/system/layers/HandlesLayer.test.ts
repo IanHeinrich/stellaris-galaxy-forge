@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Graphics } from "pixi.js";
 import { SAVE_GEOMETRY } from "../../../lib/details/saveGeometry";
 import { orbitClasses, orbitSystem } from "../../../test/builders";
-import type { DragMarks } from "../bodyDrag";
+import { NO_MARKS, type DragMarks } from "../drag";
 import { systemContext, type SystemContext } from "../context";
 import { drawOps, viewport } from "../drawFixture";
 import { NO_SOURCES } from "../sources";
@@ -40,17 +40,7 @@ describe("the system scene's handles layer", () => {
   it("keeps a dragged band's handles shown wherever the pointer goes", () => {
     const layer = new HandlesLayer();
     viewport(layer, 1);
-    const drag: DragMarks = {
-      body: null,
-      ghost: null,
-      tone: "own",
-      other: null,
-      host: null,
-      handle: { kind: "innerRadius" },
-      wormhole: null,
-      megastructure: null,
-      targets: [],
-    };
+    const drag: DragMarks = { ...NO_MARKS, handle: { kind: "innerRadius" } };
     layer.rebuild(saved(drag));
     layer.reveal(null);
     expect(circles(layer)).toBe(6);
