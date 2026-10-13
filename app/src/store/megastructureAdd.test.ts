@@ -148,6 +148,36 @@ describe("adding a megastructure from the system view", () => {
     ]);
   });
 
+  it("removes the host's moons unless the dialog keeps them for the type or the save refuses, and removes them again on the next opening", async () => {
+    const planet = { kind: "body", body: 12, star: false } as const;
+    const moonsOf = (host_moons: MegastructureFit["host_moons"]) =>
+      mockedIpc.getMegastructureFits.mockImplementation(async (_system, spot) =>
+        fitsFor(spot).map((fit) => ({ ...fit, host_moons })),
+      );
+    moonsOf({ kind: "removable", count: 3 });
+    await opened(planet);
+    expect(adds().keepMoonsOf).toBeNull();
+    await adds().add("think_tank_3");
+    await opened(planet);
+    adds().setKeepMoons("think_tank_3", true);
+    await adds().add("think_tank_3");
+    await opened(planet);
+    adds().setKeepMoons("shroud_seal", true);
+    await adds().add("think_tank_3");
+    adds().open(SYSTEM, planet);
+    expect(adds().keepMoonsOf).toBeNull();
+    moonsOf({ kind: "refused", reason: "a moon holds a colony" });
+    await adds().loadFits(0);
+    await adds().add("think_tank_3");
+
+    expect(mockedIpc.addMegastructure.mock.calls.map(([, , , , moons]) => moons)).toEqual([
+      "remove",
+      "keep",
+      "remove",
+      "keep",
+    ]);
+  });
+
   it("opens the new megastructure's page, named as the game names it", async () => {
     await opened({ kind: "body", body: 12, star: false });
     await adds().add("think_tank_3");

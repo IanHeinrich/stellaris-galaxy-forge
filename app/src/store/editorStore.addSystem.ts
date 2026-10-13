@@ -126,8 +126,8 @@ export function addSystemActions(
       });
     },
 
-    addMegastructure(system, kind, at, keepPlanet = false) {
-      return runAnswered(runEdit, () => ipc.addMegastructure(system, kind, at, keepPlanet));
+    addMegastructure(system, kind, at, keepPlanet, moons) {
+      return runAnswered(runEdit, () => ipc.addMegastructure(system, kind, at, keepPlanet, moons));
     },
 
     addHabitat(system, body, kind) {

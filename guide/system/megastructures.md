@@ -1,7 +1,7 @@
 ---
 title: Megastructures
 description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, or add or delete a whole ring world.
-aliases: [megastructure, add megastructure, move megastructure, drag megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex]
+aliases: [megastructure, add megastructure, move megastructure, drag megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex, equatorial shipyard, processing ring, megastructure moons]
 ---
 # Megastructures <Badge type="tip" text="Save" />
 
@@ -163,6 +163,23 @@ structures:
   Behemoth egg and the Shroud Seal.
 - Ruins that have no repair.
 
+## Add an Equatorial Shipyard
+
+With Gigastructural Engineering, you can add an Equatorial Shipyard to a
+planet from the Add megastructure dialog. Building one in the game
+removes the planet's moons. For a planet with moons, the dialog shows a
+Moons choice under the stages:
+
+- Remove its moons, as the game does, is picked when the dialog opens.
+  The moons are deleted in the same edit as the shipyard.
+- Keep its moons adds the shipyard and leaves the moons where they are.
+
+When the moons can't be removed, Remove is greyed out, Keep is picked,
+and the dialog says why.
+
+Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to take the shipyard out again. Any
+moons it removed come back.
+
 ## Move within a system
 
 In a Stellaris 4.x save, you can move a megastructure to another place
@@ -218,7 +235,7 @@ These stay where they are:
 - Deep Space Citadels and the Nomads' waystations, which come with a
   starbase.
 - Megastructures that are part of a larger structure, such as the
-  sections of an Alderson Disk.
+  sections of an Alderson Disk or an Equatorial Shipyard.
 - A megastructure whose building created its planet, such as a
   Cosmogenesis World.
 - A megastructure at the system's centre that isn't attached to a

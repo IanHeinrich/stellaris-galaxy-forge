@@ -1,3 +1,8 @@
+### Added
+
+- Add Gigastructural Engineering's Equatorial Shipyard. Choose whether to remove
+  the planet's moons, as the game does, or keep them.
+
 ### Changed
 
 - Gateways, Hyper Relays and L-Gates you add now go where you click.

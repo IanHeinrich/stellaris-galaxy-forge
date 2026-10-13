@@ -84,6 +84,7 @@ export function megastructureMove(
     if (placement.why.kind === "becomes_starbase") return fixed("starbase");
     if (placement.why.kind === "whole_structure") return fixed("whole");
   }
+  if (type?.host_planet === true) return fixed("whole");
   if (row.made_body === true) return fixed("made");
   if (row.planet !== null) {
     const starOnly = placement?.place === "body" && placement.star_only;

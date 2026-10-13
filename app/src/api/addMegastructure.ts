@@ -16,8 +16,8 @@ export function addMegastructure(
   system: number,
   kind: string,
   place: MegastructurePlace,
-  keepPlanet = false,
-  moons: HostMoons = "remove",
+  keepPlanet: boolean,
+  moons: HostMoons,
 ): Promise<AddedMegastructure> {
   return invoke<AddedMegastructure>("add_megastructure", {
     system,

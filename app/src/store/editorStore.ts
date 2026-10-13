@@ -6,6 +6,7 @@ import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { HistoryView } from "../generated/HistoryView";
+import type { HostMoons } from "../generated/HostMoons";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PrepareOptions } from "../generated/PrepareOptions";
@@ -220,14 +221,16 @@ export interface EditorState {
   /**
    * Adds a finished megastructure of type `kind` to system `system` of the open save in one
    * edit, at `at`, owned by the system's owner. The planet changes class or size as the type's
-   * build changes it, unless `keepPlanet`. Answers the new row and the construction effects the
-   * core left out, or null when it refused the add.
+   * build changes it, unless `keepPlanet`, and the moons of the body it stands on go as its build
+   * removes them when `moons` asks. Answers the new row and the construction effects the core left
+   * out, or null when it refused the add.
    */
   addMegastructure(
     system: number,
     kind: string,
     at: MegastructurePlace,
-    keepPlanet?: boolean,
+    keepPlanet: boolean,
+    moons: HostMoons,
   ): Promise<Omit<AddedMegastructure, "edit"> | null>;
   /**
    * Adds the habitat a megastructure of type `kind` finishes as round body `body` of system

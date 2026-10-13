@@ -22,6 +22,7 @@ import {
   clearingUnread,
   clearingWarning,
 } from "../../lib/ringWorldAdd";
+import { hostMoonsChoice, hostMoonsOf } from "../../lib/hostMoonsAdd";
 import { PLANET_KEPT_NOTE, planetChangeAt, planetChangeNote } from "../../lib/planetChangeAdd";
 import {
   megastructureDescriptionKeys,
@@ -47,6 +48,7 @@ import {
   MegastructurePreviewPane,
   MegastructureStages,
 } from "./MegastructureBrowser";
+import { HostMoonsPicks } from "./HostMoonsPicks";
 import { PlanetChangePicks } from "./PlanetChangePicks";
 import { RingWorldPicks } from "./RingWorldPicks";
 import "./overlays.css";
@@ -125,6 +127,10 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
   const ring = found?.stage.ring === true;
   const planetChange = found?.stage.refused === null ? planetChangeAt(type, spot) : null;
+  const moonsChoice =
+    found?.stage.refused === null && spot.kind === "body"
+      ? hostMoonsChoice(type, hostMoonsOf(fits, found.stage.variant))
+      : null;
   const spotClass = spot.kind === "body" ? (spot.class ?? null) : null;
   const planetText = spot.kind === "body" ? bodyName(spot.body)?.text : undefined;
   const planetNote =
@@ -242,6 +248,9 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                 )}
                 {planetChange !== null && (
                   <PlanetChangePicks change={planetChange} planetClass={spotClass} names={names} />
+                )}
+                {moonsChoice !== null && (
+                  <HostMoonsPicks kind={found.stage.variant} choice={moonsChoice} />
                 )}
               </div>
             )}

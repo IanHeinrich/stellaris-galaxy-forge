@@ -116,7 +116,7 @@ describe("how a megastructure moves", () => {
     expect(megastructureMove(free, undefined)).toEqual({ place: "free" });
   });
 
-  it("keeps a bypass not yet tried in game, a ring world section, a starbase's structure and one at the centre", () => {
+  it("keeps a bypass not yet tried in game, a ring world section, a starbase's structure, one at the centre and one that comes with a planet", () => {
     const fixed = (why: string) => ({ place: "fixed", why });
     const catapult = megastructureSummary({ kind: "quantum_catapult_3", at: [21, 21] });
     const catapultType = megastructureTypeView("quantum_catapult_3", {
@@ -135,6 +135,9 @@ describe("how a megastructure moves", () => {
     expect(megastructureMove(station, citadel)).toEqual(fixed(MEGASTRUCTURE_FIXED.starbase));
     const ruin = megastructureSummary({ kind: "dyson_sphere_5", at: [0, 0] });
     expect(megastructureMove(ruin, sphere)).toEqual(fixed(MEGASTRUCTURE_FIXED.centre));
+    const shipyardType = megastructureTypeView("giga_equatorial_shipyard_3", { host_planet: true });
+    const shipyard = megastructureSummary({ kind: "giga_equatorial_shipyard_3", planet: 6 });
+    expect(megastructureMove(shipyard, shipyardType)).toEqual(fixed(MEGASTRUCTURE_FIXED.whole));
   });
 });
 
