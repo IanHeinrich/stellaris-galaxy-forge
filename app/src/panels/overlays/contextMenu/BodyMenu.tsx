@@ -2,7 +2,6 @@ import { ADD_MOON_LABEL, takesMoons } from "../../../lib/addBody";
 import { lockedToName } from "../../../lib/details/orbitIntent";
 import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
-import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { ADD_MEGASTRUCTURE_LABEL } from "../../../lib/megastructureCopy";
@@ -12,18 +11,16 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { planetEditAdapterFor } from "../../../store/planetEditAdapter";
 import { bodyEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { useSystemBodyNames } from "../../inspector/entity/useBodyName";
-import { useOpCheck } from "../../useOpCheck";
 import { AddBodyItems } from "./AddBodyItems";
 import { AddMegastructureItem } from "./AddMegastructureItem";
+import { DeleteItem } from "./DeleteItem";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
-import { RingWorldItem } from "./RingWorldItem";
 import { CopyItem, CutItem } from "./PlanetMoveItems";
 
 /**
@@ -108,43 +105,21 @@ export function BodyMenu({
           label={ADD_MEGASTRUCTURE_LABEL}
         />
       )}
-      {offers.deleteBody &&
-        name !== undefined &&
-        (segment ? (
-          <RingWorldItem system={target.system} />
-        ) : (
-          <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />
-        ))}
+      {offers.deleteBody && name !== undefined && planet !== undefined && (
+        <DeleteItem
+          target={{
+            kind: "planet",
+            system: target.system,
+            id: target.id,
+            name,
+            moon,
+            class: planet.class,
+          }}
+        />
+      )}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
         Back to galaxy
       </MenuItem>
     </MenuFrame>
-  );
-}
-
-/** Deletes the body with its moons, or says why it cannot: offered once the core has answered. */
-function DeleteItem({
-  system,
-  planet,
-  name,
-  moon,
-}: {
-  system: number;
-  planet: number;
-  name: string;
-  moon: boolean;
-}) {
-  const refusal = useOpCheck(deleteOp(planet), system);
-  const kind = useFileSessionStore((s) => s.kind);
-  return (
-    <MenuItem
-      disabled={refusal !== null}
-      className={refusal ? "hinted" : undefined}
-      title={refusal ?? undefined}
-      run={() => planetEditAdapterFor(kind, { system, id: planet }).remove(name, moon)}
-    >
-      {deleteLabel(moon)}
-      {refusal && <span className="muted">{refusal}</span>}
-    </MenuItem>
   );
 }
