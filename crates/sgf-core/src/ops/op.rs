@@ -260,7 +260,7 @@ pub enum Op {
     /// Whether the game treats a system as an empire's home, which the plain profile writes
     /// on a seat it gives one of the game's ordinary systems: `home` writes the
     /// `empire_home_system` star flag and a guarded `if` that generates the starting
-    /// deposits and rings the capital at the end of the system's `effect` block, and
+    /// deposits and sizes the capital at the end of the system's `effect` block, and
     /// `false` takes out only those, with an earlier `if` behind the same guard, leaving
     /// the block's other statements as they are. A system already as asked is refused; one
     /// holding only some of those statements is not marked, so marking it writes them whole.
@@ -734,11 +734,13 @@ pub enum Op {
     /// key starting with `ring_world` or `ringworld` for a type the install does not define,
     /// goes as [`Op::DeleteMegastructure`] takes a row. With `radius`, only the segments and
     /// rows standing within 5 of it from the system's centre go; without it, every ring of
-    /// the system. The system loses the flags of each ring deleted: those of the entry of
+    /// the system. The system loses the flags of each ring deleted: those of each entry of
     /// `rings` whose radius is within 5 of where the ring stands, a ring with nothing standing
-    /// off the star standing at 45. For a ring no entry lists, and for any ring without `rings`,
-    /// it loses the base game's ring's `ring_world_built` and `ring_section_1` to
-    /// `ring_section_3`. Its star loses the planet
+    /// off the star standing at 45, and none for a ring no entry lists. Without `rings`, the
+    /// only entry is the base game's ring at 45, with `ring_world_built` and `ring_section_1`
+    /// to `ring_section_3`. When no segment or ring row is left in the system, it also loses
+    /// every flag named as a section of an entry, its `sections` prefix followed by digits.
+    /// Its star loses the planet
     /// flag `has_megastructure` unless a ring world segment or row is left in the system or
     /// a row left names the star. A fleet of the system that orbits a deleted segment and does not go
     /// with it, such as a fallen empire's deep-space citadel, stays where it stands and

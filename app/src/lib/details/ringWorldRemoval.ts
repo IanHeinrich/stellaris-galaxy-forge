@@ -5,7 +5,6 @@
 import { RING_WORLD_ROW_PREFIXES, RING_WORLD_SEGMENT_PREFIXES } from "../../generated/constants";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
-import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { counted } from "../text";
@@ -21,18 +20,6 @@ export function deleteRingWorldOp(system: number): Op {
 /** Whether a body of `planetClass` is a ring world segment. */
 export function isRingSegment(planetClass: string): boolean {
   return RING_WORLD_SEGMENT_PREFIXES.some((prefix) => planetClass.startsWith(prefix));
-}
-
-/**
- * Whether a body of `planetClass` is a ring world segment, by the class's `ringworld` flag when
- * the install in `classes` defines it, else by its key.
- */
-export function isRingSegmentClass(
-  planetClass: string,
-  classes: ReadonlyMap<string, PlanetClassView>,
-): boolean {
-  const view = classes.get(planetClass);
-  return view === undefined ? isRingSegment(planetClass) : view.ringworld === true;
 }
 
 /**

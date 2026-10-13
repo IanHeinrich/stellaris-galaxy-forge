@@ -40,6 +40,7 @@ export function MegastructureMenu({
     s.details.get(target.system)?.megastructures.find((m) => m.id === target.id),
   );
   const names = useGameDataStore((s) => s.names);
+  const types = useGameDataStore((s) => s.megastructureTypes);
   const removable = useFileSessionStore((s) => documentCapabilities(s).remove_megastructures);
   const paged = useFileSessionStore((s) =>
     supports(documentCapabilities(s), capabilityFor("megastructure")),
@@ -62,7 +63,7 @@ export function MegastructureMenu({
       {removable &&
         name !== undefined &&
         row !== undefined &&
-        (isRingRow(row.kind) ? (
+        (isRingRow(row.kind, types) ? (
           <RingWorldItem system={target.system} />
         ) : (
           <DeleteItem system={target.system} id={target.id} name={name} />

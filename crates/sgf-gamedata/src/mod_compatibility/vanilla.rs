@@ -3,28 +3,22 @@
 
 use super::{HeldBack, Shaders};
 
+const CRISIS: &str = "built on the crisis path";
+const LAID: &str = "a story structure: an egg a Behemoth lays";
+
 /// The base game's megastructure families the add dialog leaves out for now.
 pub const HELD_BACK: [HeldBack; 9] = [
-    (
-        "crisis_sphere_0",
-        "the Aetherophasic Engine, built on the crisis path",
-    ),
-    ("galactic_crucible_0", "built on the crisis path"),
-    ("cosmogenesis_needle", "built on the crisis path"),
-    ("behemoth_egg", "a story structure: the Behemoth's egg"),
-    (
-        "behemoth_chrysalis",
-        "a story structure: the Behemoth's egg",
-    ),
-    (
-        "behemoth_chrysalis_big",
-        "a story structure: the Behemoth's egg",
-    ),
-    ("dyson_sphere_disco", "a story structure"),
+    ("crisis_sphere_0", CRISIS),
+    ("galactic_crucible_0", CRISIS),
+    ("cosmogenesis_needle", CRISIS),
+    ("behemoth_egg", "a story structure: a Behemoth's egg"),
+    ("behemoth_chrysalis", LAID),
+    ("behemoth_chrysalis_big", LAID),
+    ("dyson_sphere_disco", CRISIS),
     ("shroud_seal", "a story structure"),
     (
         "waystation_megastructure",
-        "a Nomad origin's waystation, which makes a starbase",
+        "a nomad waystation, which makes a starbase",
     ),
 ];
 

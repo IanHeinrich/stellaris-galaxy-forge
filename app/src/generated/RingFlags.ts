@@ -5,4 +5,10 @@
  * sections out at, read from the install: what [`Op::DeleteRingWorld`] clears for a ring
  * standing there.
  */
-export type RingFlags = { radius: number, flags: Array<string>, };
+export type RingFlags = { radius: number, flags: Array<string>, 
+/**
+ * What the flags naming the ring's sections start with, the rest of each digits, as
+ * `ring_` names `ring_05`: the flags a ring takes in turn, which the delete of a
+ * system's last ring clears whichever ring set them.
+ */
+sections: Array<string>, };

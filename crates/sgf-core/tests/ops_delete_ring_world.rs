@@ -45,27 +45,60 @@ fn delete_at(system: u32, radius: f64) -> Op {
     }
 }
 
-/// The ring at `radius` deleted, with the base game's ring and `ring` as the rings the
+/// The rings of `system` at `radius`, or all of them, deleted with `rings` as the rings the
 /// install lays out.
-fn delete_ringed(radius: f64, ring: RingFlags) -> Op {
-    let (base_radius, base_flags) = BASE_RING;
-    let base = RingFlags {
-        radius: base_radius,
-        flags: base_flags.map(str::to_owned).to_vec(),
-    };
+fn delete_ringed(system: u32, radius: Option<f64>, rings: Vec<RingFlags>) -> Op {
     Op::DeleteRingWorld {
-        system: LACHIUM,
-        radius: Some(radius),
-        rings: Some(vec![base, ring]),
+        system,
+        radius,
+        rings: Some(rings),
     }
 }
 
-/// The flags `ring` writes, as the ring at `radius`.
-fn flags_of(ring: &NewRingWorld, radius: f64) -> RingFlags {
+fn ring_flags(radius: f64, flags: &[&str], sections: &[&str]) -> RingFlags {
+    let owned = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect();
     RingFlags {
         radius,
-        flags: ring.system_flags.clone(),
+        flags: owned(flags),
+        sections: owned(sections),
     }
+}
+
+/// The base game's ring as the install lays it out.
+fn base_ring() -> RingFlags {
+    ring_flags(BASE_RING.0, &BASE_RING.1, &[])
+}
+
+/// The rings an install with Gigastructural Engineering lays out: its base ring at 45, whose
+/// habitable sections take `ring_01` to `ring_04`, and its titanic ring at 90, laid out
+/// beside it, whose sections take `ring_05` to `ring_08`.
+fn giga_rings() -> Vec<RingFlags> {
+    vec![
+        ring_flags(
+            45.0,
+            &[
+                "giga_forbid_planet_dismantlement",
+                "ring_01",
+                "ring_02",
+                "ring_03",
+                "ring_world_built",
+                "ring_04",
+            ],
+            &["ring_"],
+        ),
+        ring_flags(
+            90.0,
+            &[
+                "giga_has_titanic_ring",
+                "ring_05",
+                "ring_06",
+                "ring_07",
+                "ring_world_built_one",
+                "ring_08",
+            ],
+            &["ring_"],
+        ),
+    ]
 }
 
 #[test]
@@ -198,7 +231,7 @@ fn two_rings() -> Session {
 
 /// The titanic ring at 90 deleted, with the flags its build sets.
 fn delete_titanic() -> Op {
-    delete_ringed(90.0, flags_of(&titanic_ring(), 90.0))
+    delete_ringed(LACHIUM, Some(90.0), giga_rings())
 }
 
 /// Deleting one of two rings takes the flags of its own size only: the base game's ring at
@@ -210,7 +243,7 @@ fn deleting_one_of_two_rings_keeps_the_others_flags() {
     let result = snapshot_step(
         &mut session,
         "the_ring_beside_a_titanic_ring",
-        delete_ringed(45.0, flags_of(&titanic_ring(), 90.0)),
+        delete_ringed(LACHIUM, Some(45.0), giga_rings()),
     );
     assert!(
         result
@@ -249,7 +282,12 @@ fn deleting_one_of_two_rings_keeps_the_others_flags() {
 
 /// The flags of Lachium's own `flags` block, each as written.
 fn lachium_flags(session: &Session) -> Vec<String> {
-    let text = system_text(session, LACHIUM);
+    system_flags(session, LACHIUM)
+}
+
+/// The flags of system `system`'s own `flags` block, each as written.
+fn system_flags(session: &Session, system: u32) -> Vec<String> {
+    let text = system_text(session, system);
     let open = "\n\t\tflags=\n\t\t{\n";
     let Some(at) = text.find(open) else {
         return Vec::new();
@@ -285,8 +323,9 @@ fn deleting_an_added_ring_takes_every_flag_its_build_set() {
     assert_eq!(lachium_flags(&session), before);
 }
 
-/// A ring at a radius no other ring stands at takes its own flags, and leaves the base
-/// game's `ring_world_built` to the ring at 45 that still stands.
+/// A ring a mod's chain lays out at 65 takes its own flags, and leaves the base game's
+/// `ring_world_built` to the ring at 45 that still stands. Where the install lays out no ring
+/// at 65, its delete takes no flags.
 #[test]
 fn a_ring_at_another_radius_takes_its_own_flags() {
     let mut ring = titanic_ring();
@@ -298,23 +337,74 @@ fn a_ring_at_another_radius_takes_its_own_flags() {
         }
     }
     ring.system_flags = vec!["my_mod_ring_built".to_owned()];
+    let modded = vec![base_ring(), ring_flags(65.0, &["my_mod_ring_built"], &[])];
     let (mut session, before) = added_beside_lachiums(ring.clone());
     session
-        .apply(delete_ringed(65.0, flags_of(&ring, 65.0)))
+        .apply(delete_ringed(LACHIUM, Some(65.0), modded))
         .expect("the ring at 65");
     assert_eq!(lachium_flags(&session), before);
 
-    let (mut unlisted, _) = added_beside_lachiums(ring.clone());
+    let (mut unlisted, _) = added_beside_lachiums(ring);
     unlisted
-        .apply(delete_ringed(65.0, flags_of(&ring, 90.0)))
+        .apply(delete_ringed(LACHIUM, Some(65.0), vec![base_ring()]))
         .expect("the ring at 65");
     let flags = lachium_flags(&unlisted);
+    for flag in ["ring_world_built=", "my_mod_ring_built="] {
+        assert!(
+            flags.iter().any(|held| held.starts_with(flag)),
+            "{flag}: {flags:?}"
+        );
+    }
+}
+
+/// Without game data a delete takes the base game's ring's flags for a ring at 45 only: the
+/// titanic ring's leaves the base ring standing beside it its `ring_world_built`.
+#[test]
+fn without_game_data_only_a_ring_at_45_takes_the_base_rings_flags() {
+    let (mut session, _) = added_beside_lachiums(titanic_ring());
+    session
+        .apply(delete_at(LACHIUM, 90.0))
+        .expect("the titanic ring");
+    let flags = lachium_flags(&session);
     assert!(
-        !flags
+        flags
             .iter()
             .any(|flag| flag.starts_with("ring_world_built=")),
-        "a ring at a radius no entry lists takes the base game's ring's flags: {flags:?}"
+        "{flags:?}"
     );
+}
+
+/// Habraq, system 159: no ring world stands there.
+const HABRAQ: u32 = 159;
+
+/// The last ring of a system takes every flag named as a section, whichever ring the
+/// install lists it for: a titanic ring built alone took `ring_01` to `ring_04`, which the
+/// install lists for its base ring.
+#[test]
+fn the_last_ring_takes_every_section_flag() {
+    let mut ring = titanic_ring();
+    ring.system_flags = [
+        "giga_has_titanic_ring",
+        "ring_01",
+        "ring_02",
+        "ring_03",
+        "ring_world_built_one",
+        "ring_04",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    let mut session = open_4_5();
+    let before = system_flags(&session, HABRAQ);
+    let op = session
+        .save("adding a ring world")
+        .expect("a save")
+        .ring_world_op(HABRAQ, None, ring, true)
+        .expect("the ring");
+    session.apply(op).expect("the ring");
+    session
+        .apply(delete_ringed(HABRAQ, None, giga_rings()))
+        .expect("the ring");
+    assert_eq!(system_flags(&session, HABRAQ), before);
 }
 
 /// Segment 2446 of Lachium names no megastructure row of its own.

@@ -14,7 +14,7 @@ use crate::format::save::write::fleets::present_fleets;
 use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, Tied, unlink_all};
 use crate::format::save::write::remove_planet::{Deletion, Segments, dug};
 use crate::format::save::write::restore::{Saved, live, tombstoned};
-use crate::format::save::{planet_entity, planet_statement, system_statement};
+use crate::format::save::{entity, planet_entity, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::rules::{named, named_body};
 use crate::ops::{OpError, Plan, Planned, RingFlags, SavedTable, Subject};
@@ -53,8 +53,9 @@ pub(crate) fn plan_delete(
         ));
     }
     let going: Vec<u32> = rows.iter().map(|tied| tied.id).collect();
-    let flags = rings_flags(s, rings, &frame, &bodies, &going)?;
     let standing = rings_left(s, system, &frame, &bodies, &going)?;
+    let flags = rings_flags(s, system, rings, (&frame, &bodies, &going), standing)?;
+    let flags: Vec<&str> = flags.iter().map(String::as_str).collect();
     let deletion = Deletion::read(s, system, &frame, bodies, Segments::Taken, &going)?;
 
     let mut saved = Saved::default();
@@ -114,21 +115,27 @@ pub(crate) fn plan_delete(
     })
 }
 
-/// The system flags of each ring in `rings` that a segment among `bodies` or a row among
-/// `going` stands at, by its distance from the system's centre; a ring with nothing standing
-/// off the star stands at the base game's ring's radius. The base game's ring's for a ring
-/// at a radius `rings` does not list, and for every ring without `rings`.
-fn rings_flags<'a>(
+/// The system flags the deleted rings leave: those of each ring in `rings`, the base game's
+/// ring alone without them, that a segment among `bodies` or a row among `going` stands at
+/// by its distance from the system's centre. A ring with nothing standing off the star
+/// stands at the base game's ring's radius, and a ring no entry lists leaves none. With no
+/// ring `standing` afterwards, every flag of the system named as a section of an entry is
+/// taken too.
+fn rings_flags(
     s: &Session,
-    rings: Option<&'a [RingFlags]>,
-    frame: &[Body],
-    bodies: &[u32],
-    going: &[u32],
-) -> Result<Vec<&'a str>, OpError> {
+    system: u32,
+    rings: Option<&[RingFlags]>,
+    deleted: (&[Body], &[u32], &[u32]),
+    standing: bool,
+) -> Result<Vec<String>, OpError> {
+    let (frame, bodies, going) = deleted;
     let (base_radius, base_flags) = BASE_RING;
-    let Some(rings) = rings else {
-        return Ok(base_flags.to_vec());
-    };
+    let base = [RingFlags {
+        radius: base_radius,
+        flags: base_flags.map(str::to_owned).to_vec(),
+        sections: Vec::new(),
+    }];
+    let rings = rings.unwrap_or(&base);
     let mut distances: Vec<f64> = frame
         .iter()
         .filter(|body| bodies.contains(&body.id))
@@ -145,21 +152,28 @@ fn rings_flags<'a>(
     if distances.is_empty() {
         distances.push(base_radius);
     }
-    let mut flags: Vec<&'a str> = Vec::new();
+    let mut flags: Vec<String> = Vec::new();
     for distance in distances {
-        let standing: Vec<&str> = rings
+        let standing_there = rings
             .iter()
-            .filter(|ring| (distance - ring.radius).abs() <= RING_SLACK)
-            .flat_map(|ring| ring.flags.iter().map(String::as_str))
-            .collect();
-        let ring_flags = if standing.is_empty() {
-            base_flags.to_vec()
-        } else {
-            standing
-        };
-        for flag in ring_flags {
-            if !flags.contains(&flag) {
-                flags.push(flag);
+            .filter(|ring| (distance - ring.radius).abs() <= RING_SLACK);
+        for flag in standing_there.flat_map(|ring| &ring.flags) {
+            if !flags.contains(flag) {
+                flags.push(flag.clone());
+            }
+        }
+    }
+    if !standing {
+        let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
+        let (node, src) = entity(&s.doc, Subject::System(system), anchor)?;
+        let held = node.find(keys::FLAGS, src).map(|block| block.children());
+        for flag in held.into_iter().flatten().filter_map(|f| f.key_str(src)) {
+            let section = rings.iter().flat_map(|ring| &ring.sections).any(|prefix| {
+                flag.strip_prefix(prefix.as_str())
+                    .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+            });
+            if section && !flags.iter().any(|f| f == flag) {
+                flags.push(flag.to_owned());
             }
         }
     }

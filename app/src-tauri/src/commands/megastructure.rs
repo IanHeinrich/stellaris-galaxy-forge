@@ -4,7 +4,6 @@
 
 use sgf_core::ops::Op;
 use sgf_core::views::{EditResult, SgfError};
-use sgf_gamedata::construction::ring_world::ring_flags;
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::with_session;
@@ -50,7 +49,7 @@ pub async fn delete_ring_world<R: Runtime>(
     let rings = app
         .state::<GameDataState>()
         .loaded()
-        .map(|gd| ring_flags(&gd));
+        .map(|gd| gd.ring_flags().to_vec());
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let result = session.apply(Op::DeleteRingWorld {

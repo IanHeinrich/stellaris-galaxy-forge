@@ -613,7 +613,7 @@ fn the_base_games_ring_is_a_ring_world_to_the_session() {
     let types = added::ring_world_types(gd);
     assert!(types.is_ring_row("ring_world_ruined"));
     assert!(!types.is_ring_row("dyson_sphere_1"));
-    let rings = added::ring_flags(gd);
+    let rings = gd.ring_flags();
     let base = rings
         .iter()
         .find(|ring| ring.radius == 45.0)

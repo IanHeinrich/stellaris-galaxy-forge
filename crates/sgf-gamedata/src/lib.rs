@@ -66,7 +66,7 @@ use registries::star_classes::StarClass;
 use registries::{
     colors, flags, gfx, planet_lists, registry, section_templates, star_names, starbase_levels,
 };
-use sgf_core::ops::SystemRadii;
+use sgf_core::ops::{RingFlags, SystemRadii};
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
@@ -178,6 +178,9 @@ pub struct GameData {
     flat_art: Arc<OnceLock<BTreeSet<String>>>,
     /// The planet classes drawn broken apart, worked out once for this layout.
     shattered: Arc<OnceLock<BTreeSet<String>>>,
+    /// The rings each ring world chain lays out, with the flags a delete clears, worked out
+    /// once for these registries.
+    ring_flags: Arc<OnceLock<Vec<RingFlags>>>,
     /// What the `gfx/worldgfx` files say each star lighting class draws with, read the first
     /// time a star disc asks.
     worlds: Arc<OnceLock<textures::Worlds>>,
@@ -445,6 +448,7 @@ impl GameData {
             models: Arc::new(models),
             flat_art: Arc::default(),
             shattered: Arc::default(),
+            ring_flags: Arc::default(),
             worlds: Arc::default(),
             read_classes: planet_classes,
             megastructure_defs: Arc::new(megastructure_defs),
@@ -474,6 +478,7 @@ impl GameData {
                     textures::planet_disc::draws_nothing(models, entity)
                 });
         self.megastructures = Arc::new(megastructures);
+        self.ring_flags = Arc::default();
         self.planet_classes = Arc::new(planet_classes);
     }
 }
