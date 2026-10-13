@@ -12,6 +12,7 @@
 pub(crate) mod bodies;
 pub(crate) mod bypasses;
 mod countries;
+pub(crate) mod fleets;
 pub(crate) mod lgate;
 mod nebulae;
 pub(super) mod starbases;

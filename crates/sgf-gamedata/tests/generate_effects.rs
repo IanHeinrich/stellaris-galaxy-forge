@@ -5,8 +5,8 @@ use crate::common;
 
 use std::collections::BTreeMap;
 
-use sgf_core::format::save::details::OrbitFit;
 use sgf_core::ops::SystemSpec;
+use sgf_core::views::details::OrbitFit;
 use sgf_gamedata::GameData;
 use sgf_gamedata::body_effects::{BodyEffect, Dropping};
 use sgf_gamedata::condition::Condition;

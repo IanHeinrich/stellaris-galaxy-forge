@@ -56,14 +56,7 @@ fn restored(body: u32) -> Op {
 }
 
 fn added_id(result: &sgf_core::session::OpResult) -> u32 {
-    match &result.inverse {
-        Op::RemoveBody { body } => *body,
-        Op::Batch { ops, .. } => match ops.first() {
-            Some(Op::RemoveBody { body }) => *body,
-            other => panic!("{other:?}"),
-        },
-        other => panic!("{other:?}"),
-    }
+    result.created.planets[0]
 }
 
 #[test]
@@ -246,7 +239,17 @@ fn a_restored_habitat_has_its_orbital() {
     for key in [format!("habitat{id}="), "has_orbital=".to_owned()] {
         assert!(host.contains(&key), "{key}: {host}");
     }
-    assert!(host.contains("megastructure="), "{host}");
+    let [orbital] = result.created.megastructures[..] else {
+        panic!("one orbital: {:?}", result.created);
+    };
+    assert_eq!(result.created.planets, [id]);
+    assert!(
+        host.contains(&format!(
+            "megastructure={orbital}
+"
+        )),
+        "{host}"
+    );
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(current(&session), session.doc().original());
 }

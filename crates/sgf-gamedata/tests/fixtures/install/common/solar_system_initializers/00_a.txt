@@ -217,7 +217,7 @@ structures_init = {
 			orbit_angle = 360
 		}
 		spawn_megastructure = {
-			type = "hyper_relay_ruined"
+			type = "fixture_relay_ruined"
 			random_pos = yes
 			orbit_angle = 360
 		}

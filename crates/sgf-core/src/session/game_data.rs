@@ -3,7 +3,6 @@ use std::sync::Arc;
 use super::Session;
 use crate::ops::SystemRadii;
 use crate::projections::galaxy::{GalaxyGraph, StarClasses, draw_scenario_stars};
-use crate::views::DocumentKind;
 
 impl Session {
     /// How the geometry ops size a system.
@@ -35,20 +34,21 @@ impl Session {
         self.draw_stars();
     }
 
-    /// Give a scenario's systems the star their initializer draws, which an op that
-    /// rewrote a system leaves unset.
+    /// Give the systems of a document whose layouts are rolled the star their initializer
+    /// draws, which an op that rewrote a system leaves unset.
     pub(super) fn draw_stars(&mut self) {
-        draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
+        draw_rolled_stars(self.rolls_stars(), &mut self.graph, &self.stars);
+    }
+
+    /// Whether the document's systems are rolled from their initializers, stars included.
+    pub(super) fn rolls_stars(&self) -> bool {
+        self.format().capabilities(&self.doc).rolled_layout
     }
 }
 
 /// [`Session::draw_stars`] on the fields an undo or redo leaves free while it holds the op.
-pub(super) fn draw_scenario_stars_of(
-    kind: DocumentKind,
-    graph: &mut GalaxyGraph,
-    stars: &StarClasses,
-) {
-    if kind == DocumentKind::Scenario {
+pub(super) fn draw_rolled_stars(rolled: bool, graph: &mut GalaxyGraph, stars: &StarClasses) {
+    if rolled {
         draw_scenario_stars(&mut graph.systems, stars);
     }
 }

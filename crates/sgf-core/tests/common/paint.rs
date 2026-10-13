@@ -6,7 +6,7 @@ use sgf_core::export::policy::is_generic_home;
 use sgf_core::export::{ExportReport, ScenarioProfile};
 use sgf_core::format::scenario::fe_zone::{FeDirection, FeKind, FeZone};
 use sgf_core::ops::Op;
-use sgf_core::projections::galaxy::{Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
+use sgf_core::projections::galaxy::{Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 
@@ -27,9 +27,10 @@ pub fn left_out(save: &Galaxy, written: &Galaxy) -> BTreeSet<u32> {
 /// the seats and zones bear out. Returns the typed zones, keyed by anchor.
 pub fn assert_paint_export_holds_together(
     save: &Galaxy,
-    graph: &GalaxyGraph,
+    reopened: &Session,
     report: &ExportReport,
 ) -> BTreeMap<u32, FeZone> {
+    let graph = reopened.graph();
     let written: &Galaxy = graph;
     let omitted: u32 = report.omitted.iter().map(|c| c.systems).sum();
     let clusters: u32 = report
@@ -66,7 +67,7 @@ pub fn assert_paint_export_holds_together(
             );
         }
     }
-    let issues = sgf_core::validate::validate(graph);
+    let issues = reopened.validate();
     for issue in &issues {
         assert!(
             !matches!(

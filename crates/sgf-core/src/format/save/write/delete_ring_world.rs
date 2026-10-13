@@ -6,12 +6,13 @@
 
 use crate::entity::facts::megastructure;
 use crate::format::save::added::rows;
+use crate::format::save::galaxy::fleets::orbited_planet;
 use crate::format::save::ring_world::{
     BASE_RING, RING_SLACK, is_ring_row, is_segment, on_ring, size_at,
 };
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::flags::{drop_flags, flag_spans};
-use crate::format::save::write::fleets::{orbited_planet, present_fleets};
+use crate::format::save::write::fleets::present_fleets;
 use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, Tied, unlink_all};
 use crate::format::save::write::remove_planet::{Deletion, Segments, dug};
 use crate::format::save::write::restore::{Saved, live, tombstoned};

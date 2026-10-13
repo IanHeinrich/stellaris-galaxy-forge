@@ -14,6 +14,7 @@ mod file;
 mod game_data;
 mod query;
 mod report;
+mod save;
 
 use std::cell::OnceCell;
 use std::path::{Path, PathBuf};
@@ -22,6 +23,7 @@ use std::sync::Arc;
 use crate::document::{self, Document};
 use crate::format::save::details::DetailsProjection;
 use crate::format::{self, Format};
+pub use crate::ops::Created;
 use crate::ops::history::History;
 use crate::ops::{Op, Subject, SystemRadii};
 use crate::projections::galaxy::{
@@ -31,6 +33,7 @@ use crate::validate::{self, Issue, validate};
 use crate::views::{DocumentKind, ErrorKind, HistoryEntry, HistoryView, SgfError};
 pub use file::DiskChange;
 use file::DiskStamp;
+pub use save::SaveQueries;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
@@ -70,6 +73,8 @@ pub struct OpResult {
     /// See [`crate::ops::Applied::renumbered`]; an undo reports the renumbering that takes it
     /// back.
     pub renumbered: Vec<(u32, Option<u32>)>,
+    /// What an apply or a redo added; nothing for an undo.
+    pub created: Created,
     pub issues: Vec<Issue>,
 }
 
@@ -84,9 +89,6 @@ pub struct Session {
     pub(crate) graph: GalaxyGraph,
     details: OnceCell<Arc<DetailsProjection>>,
     history: History,
-    /// The inverses of the members of the batch being applied, in the order they were
-    /// applied; empty outside a batch.
-    pub(crate) batch: Vec<crate::ops::Op>,
     /// Undo-stack length when the document was last opened or saved; `None` once that
     /// state has been discarded by a new op after an undo.
     saved_at: Option<usize>,
@@ -144,15 +146,6 @@ impl Session {
         self.history.entries()
     }
 
-    /// The inverse of every op waiting to be undone, oldest first, then of each member of
-    /// the batch being applied so far.
-    pub(crate) fn applied_inverses(&self) -> impl DoubleEndedIterator<Item = &crate::ops::Op> {
-        self.history
-            .applied()
-            .map(|applied| &applied.inverse)
-            .chain(&self.batch)
-    }
-
     pub fn system(&self, id: u32) -> Option<&SystemNode> {
         self.graph.systems.get(&id)
     }
@@ -165,7 +158,7 @@ impl Session {
 
 fn validate_document(doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
     let mut issues = validate(graph);
-    issues.extend(format::of(doc.kind()).issues(doc));
+    issues.extend(format::of(doc.kind()).issues(doc, graph));
     validate::sort(&mut issues);
     issues
 }

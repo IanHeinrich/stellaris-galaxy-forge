@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 
 use super::edit::{BufEdit, Edit, Splice, load, owns_line, parsed, splice, spliced};
-use super::{Applied, MetaEdit, Op, OpError, ParseAt, Subject, refresh, rollback};
+use super::{Applied, Created, MetaEdit, Op, OpError, ParseAt, Subject, refresh, rollback};
 use crate::Span;
 use crate::cst::{self, Node};
 use crate::document::Document;
@@ -66,6 +66,8 @@ pub(crate) struct Plan {
     renumbered: Vec<(u32, Option<u32>)>,
     /// See [`Self::stale`].
     stales: Vec<Subject>,
+    /// See [`Self::created`].
+    created: Created,
 }
 
 impl Plan {
@@ -77,7 +79,15 @@ impl Plan {
             absorbed: BTreeMap::new(),
             renumbered: Vec::new(),
             stales: Vec::new(),
+            created: Created::default(),
         }
+    }
+
+    /// What the op adds, filled by a writer that adds more than its inverse names, such as
+    /// a system's bodies or the orbital row beside a habitat; that writer lists all it adds.
+    /// Left empty, the op's [`Created`] is read from its inverse.
+    pub fn created(&mut self) -> &mut Created {
+        &mut self.created
     }
 
     /// Record that system `old` is now `new`, or gone when `None`, once the plan commits.
@@ -311,6 +321,7 @@ impl Plan {
             touched,
             renumbered: self.renumbered,
             meta,
+            created: self.created,
         })
     }
 }

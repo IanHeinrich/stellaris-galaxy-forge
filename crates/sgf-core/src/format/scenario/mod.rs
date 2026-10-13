@@ -29,13 +29,13 @@ use std::path::{Path, PathBuf};
 use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
-use crate::format::Format;
 use crate::format::scenario::index::{
     Changes, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
 };
+use crate::format::{self, Format};
 use crate::keys::scenario as keys;
 use crate::lexer::{self, Mode};
-use crate::ops::{Op, OpError, Plan, Planned, Subject};
+use crate::ops::{DetailsReach, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{
     Galaxy, GalaxyGraph, Lane, Nebula, ProjectionError, SpawnModifier, SystemNode, lane_length,
@@ -43,8 +43,8 @@ use crate::projections::galaxy::{
 use crate::projections::name::{NameTemplate, looks_like_key};
 use crate::projections::read;
 use crate::session::Session;
-use crate::validate::{Issue, IssueCode};
-use crate::views::{Capabilities, DocumentKind};
+use crate::validate::{self, Issue, IssueCode};
+use crate::views::{Capabilities, DocumentKind, SaveMeta};
 
 /// The game's ordinary systems the plain profile gives a seat, with the odds the game rolls
 /// each at. `basic_init_04` is left out because its last body can be an ice asteroid.
@@ -218,20 +218,39 @@ impl Format for Scenario {
         index(doc).header.name.clone()
     }
 
-    fn issues(&self, doc: &Document) -> Vec<Issue> {
-        if !index(doc).header.has_coordinate_transform {
-            return Vec::new();
+    fn meta(&self, _doc: &Document) -> Result<Option<SaveMeta>, archive::Error> {
+        Ok(None)
+    }
+
+    fn painted(&self, doc: &Document) -> bool {
+        paint::is_painted(doc.original())
+    }
+
+    fn issues(&self, doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
+        let mut issues = validate::scenario_rules(graph);
+        if index(doc).header.has_coordinate_transform {
+            issues.push(Issue::new(
+                IssueCode::CoordinateTransform,
+                "the scenario has a coordinate_transform; positions are shown untransformed"
+                    .to_owned(),
+                Vec::new(),
+            ));
         }
-        vec![Issue::new(
-            IssueCode::CoordinateTransform,
-            "the scenario has a coordinate_transform; positions are shown untransformed".to_owned(),
-            Vec::new(),
-        )]
+        issues
     }
 
     /// A scenario's systems carry none of the keys the curated rows read.
     fn curates_entities(&self) -> bool {
         false
+    }
+
+    /// A scenario system has no bodies of its own, and an op that only writes a save's
+    /// bodies writes a statement's own text here.
+    fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32> {
+        match reach {
+            DetailsReach::SaveBodies => Vec::new(),
+            _ => format::stale_systems(subjects, false),
+        }
     }
 
     fn capabilities(&self, _doc: &Document) -> Capabilities {
@@ -247,6 +266,7 @@ impl Format for Scenario {
             header: true,
             scripted_owners: true,
             scripts: true,
+            prepare: true,
             ..Capabilities::default()
         }
     }

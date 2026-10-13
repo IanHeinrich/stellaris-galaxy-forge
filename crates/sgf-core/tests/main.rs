@@ -111,6 +111,7 @@ mod overlay;
 mod overlay_model;
 mod planet_page;
 mod prepare_zones;
+mod save_queries;
 mod scenario;
 mod scenario_files;
 mod scenario_paint;

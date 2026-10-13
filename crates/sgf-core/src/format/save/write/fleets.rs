@@ -1,14 +1,12 @@
 //! The fleets standing in a system, and moving one with its ships from one system to
 //! another.
 
-use crate::document::Document;
 use crate::emit::coord;
+use crate::format::save::galaxy::fleets::{position, record};
 use crate::format::save::{entity, entity_at, system_statement};
 use crate::keys;
 use crate::ops::{Edit, OpError, Plan, Subject};
-use crate::overlay::Anchor;
 use crate::projections::read;
-use crate::scan::Value;
 use crate::session::Session;
 
 /// The `movement_manager.state` of a fleet that stands still.
@@ -19,19 +17,6 @@ const IDLE: &str = "move_idle";
 /// elsewhere, stays out of both systems' `fleet_presence`.
 pub(crate) fn stationed(s: &Session, fleet: u32, from: u32) -> bool {
     position(&s.doc, fleet).is_some_and(|(origin, _)| origin == from)
-}
-
-/// Where fleet `fleet` stands, from the bytes now standing for it: the system its
-/// `movement_manager.coordinate` names, and the point when it writes one. `None` for a fleet
-/// the save does not hold, or one whose coordinate names no system.
-pub(crate) fn position(doc: &Document, fleet: u32) -> Option<(u32, Option<(f64, f64)>)> {
-    let anchor = record(doc, keys::FLEET, fleet)?;
-    let (node, src) = entity_at(doc, anchor).ok()??;
-    let movement = node.find(keys::MOVEMENT_MANAGER, src)?;
-    Some((
-        read::origin(movement, src)?,
-        read::coordinate(movement, src).ok(),
-    ))
 }
 
 /// The fleets of system `system`'s `fleet_presence` parked in orbit of a body of `bodies`,
@@ -61,18 +46,6 @@ pub(crate) fn parked(s: &Session, system: u32, bodies: &[u32]) -> Result<Vec<(u3
         }
     }
     Ok(parked)
-}
-
-/// The planet fleet `fleet` orbits, from the bytes now standing for it: its
-/// `movement_manager.orbit.orbitable.planet`. `None` for a fleet that orbits no planet.
-pub(crate) fn orbited_planet(doc: &Document, fleet: u32) -> Option<u32> {
-    let anchor = record(doc, keys::FLEET, fleet)?;
-    let (node, src) = entity_at(doc, anchor).ok()??;
-    let orbitable = node
-        .find(keys::MOVEMENT_MANAGER, src)?
-        .find(keys::ORBIT, src)?
-        .find(keys::ORBITABLE, src)?;
-    read::scalar_u32(orbitable, keys::PLANET, src).filter(|&id| id != crate::NULL_ID)
 }
 
 /// The fleets system `id`'s `fleet_presence` lists.
@@ -116,15 +89,6 @@ pub(crate) fn move_fleet(
         shift(edit, &[keys::TARGET_COORDINATE], systems, step)?;
     }
     Ok(())
-}
-
-/// The statement of entity `id` of the top-level table `section`; `None` for one the save
-/// does not hold or holds as a tombstone.
-fn record(doc: &Document, section: &str, id: u32) -> Option<Anchor> {
-    doc.index()
-        .entity(section, u64::from(id))
-        .filter(|e| matches!(e.value, Value::Block { .. }))
-        .map(|e| Anchor::Original(e.stmt))
 }
 
 /// Give the coordinate at `path` origin `to` when its origin is `from`, and shift its point

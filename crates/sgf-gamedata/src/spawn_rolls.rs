@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use sgf_core::emit::roman;
-use sgf_core::format::save::details::{
+use sgf_core::views::details::{
     BodyRole, Bounds, ClassPool, ClassRolls, DepositStep, OrbitFit, PlanetSummary, PoolClass,
     PoolEntry, SpawnClass, SpawnName, SpawnPool, SpawnRing,
 };

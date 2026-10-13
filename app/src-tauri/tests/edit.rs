@@ -1,8 +1,8 @@
 //! Edit / undo / redo IPC commands end to end, through the mock runtime, on the real sample save.
 use serde_json::json;
-use sgf_core::format::save::details::SystemDetails;
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::validate::Issue;
+use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 
 use crate::common;

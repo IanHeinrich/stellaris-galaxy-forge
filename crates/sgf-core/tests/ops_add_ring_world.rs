@@ -43,6 +43,8 @@ fn a_finished_ring_in_a_cleared_system() {
     let owner = owner(&session, HABRAQ);
     assert!(owner.is_some(), "Habraq is owned");
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(HABRAQ, owner, finished_ring(), true)
         .expect("the batch");
     let Op::Batch { ops, description } = &op else {
@@ -76,6 +78,8 @@ fn a_mixed_ring_with_the_planets_left_in_place() {
     let owner = owner(&session, CHORS_COMPASS);
     let before = common::planet_ids(&session, CHORS_COMPASS);
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(CHORS_COMPASS, owner, mixed_ring(), false)
         .expect("the op");
     assert_eq!(op, chors_ring(owner), "no batch without clearing");
@@ -120,11 +124,17 @@ fn removing_an_added_ring_world_leaves_the_save_as_it_was() {
 #[test]
 fn the_clearing_names_the_colonies_it_takes() {
     let mut session = open_4_5();
-    let clearing = session.ring_world_clearing(VINH).expect("the clearing");
+    let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
+        .ring_world_clearing(VINH)
+        .expect("the clearing");
     assert_eq!(clearing.colonies, [517]);
     assert_eq!(clearing.bodies.len(), 12);
     assert_eq!(clearing.moons, 2);
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(VINH, None, finished_ring(), true)
         .expect("the batch");
     let result = session.apply(op).expect("the add");
@@ -229,9 +239,15 @@ fn what_an_add_refuses() {
 #[test]
 fn clearing_a_planet_a_starbase_orbits_is_refused() {
     let mut session = open_4_5();
-    let clearing = session.ring_world_clearing(PLESSIS).expect("the clearing");
+    let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
+        .ring_world_clearing(PLESSIS)
+        .expect("the clearing");
     assert_eq!(clearing.starbase_bodies, [484]);
     let refused = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(PLESSIS, None, finished_ring(), true)
         .expect_err("a starbase's planet");
     assert_eq!(
@@ -239,6 +255,8 @@ fn clearing_a_planet_a_starbase_orbits_is_refused() {
         "a ring world cannot be added there: a starbase orbits planet 484, which clearing Plessis #298 would delete; add the ring with the planets left in place"
     );
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(PLESSIS, None, finished_ring(), false)
         .expect("left in place");
     session.apply(op).expect("the ring");
@@ -267,6 +285,8 @@ fn a_ring_round_a_star_a_dyson_sphere_wraps() {
     let row = entity_text(&session, EntityKind::Megastructure, 16);
     assert!(planet_text(&session, STAR).contains("megastructure=16"));
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(STAR_SYSTEM, None, finished_ring(), false)
         .expect("the op");
     session.apply(op).expect("the ring beside the sphere");
@@ -286,12 +306,18 @@ fn clearing_a_planet_a_megastructure_stands_on() {
     let mut session = open_4_5();
     session.apply(sol_nexus()).expect("the nexus");
     let with_nexus = current(&session);
-    let clearing = session.ring_world_clearing(ALARI).expect("the clearing");
+    let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
+        .ring_world_clearing(ALARI)
+        .expect("the clearing");
     assert_eq!(
         clearing.megastructures,
         [ClearedMegastructure { id: 16, body: 6 }]
     );
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(ALARI, Some(0), finished_ring(), true)
         .expect("the batch");
     let Op::Batch { ops, description } = &op else {
@@ -417,6 +443,8 @@ galactic_object=
 fn a_titanic_ring_beside_a_ring_the_file_holds() {
     let mut session = open_4_5();
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(LACHIUM, None, titanic_ring(), false)
         .expect("the op");
     let result = snapshot_step(&mut session, "titanic_ring_beside_lachiums", op);
@@ -463,6 +491,8 @@ fn clearing_for_a_second_ring_keeps_the_first() {
         .collect();
     assert_eq!(segments.len(), 6, "{segments:?}");
     let clearing = session
+        .save("clearing a system for a ring world")
+        .expect("a save")
         .ring_world_clearing(CHORS_COMPASS)
         .expect("the clearing");
     assert_eq!(clearing.bodies.len(), 4, "{:?}", clearing.bodies);
@@ -471,6 +501,8 @@ fn clearing_for_a_second_ring_keeps_the_first() {
         "{clearing:?}"
     );
     let op = session
+        .save("adding a ring world")
+        .expect("a save")
         .ring_world_op(CHORS_COMPASS, None, titanic_ring(), true)
         .expect("the batch");
     let result = session.apply(op).expect("the cleared titanic ring");

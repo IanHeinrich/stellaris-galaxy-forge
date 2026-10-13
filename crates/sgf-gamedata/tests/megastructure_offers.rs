@@ -425,7 +425,6 @@ fn gigas_types_are_offered_as_the_audit_sorts_them() {
     };
     let offered = |key: &str| mega(gd, key).offer == Offer::Offered;
     for key in [
-        "orbital_elysium_origin_platform_1",
         "asteroid_artillery_0",
         "asteroid_artillery_ruined",
         "asteroid_manufactory_0",
@@ -487,6 +486,7 @@ fn gigas_types_are_offered_as_the_audit_sorts_them() {
         "frameworld_outpost_construction",
         "frameworld_harvest_0",
         "orbital_elysium_0",
+        "orbital_elysium_origin_platform_1",
         "asteroid_manufactory_ai_alloys",
         "asteroid_artillery_config",
         "interstellar_habitat_0",

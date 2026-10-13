@@ -36,16 +36,9 @@ fn add(system: u32, spec: NewBody, radius: f64, angle: f64) -> Op {
     }
 }
 
-/// The planet an add wrote, as its inverse names it.
+/// The planet an add wrote.
 fn added(result: &OpResult) -> u32 {
-    let removal = match &result.inverse {
-        Op::Batch { ops, .. } => &ops[0],
-        inverse => inverse,
-    };
-    match removal {
-        Op::RemoveBody { body: planet } => *planet,
-        other => panic!("a removal, not {other:?}"),
-    }
+    result.created.planets[0]
 }
 
 /// The literal keys of a name's `NUMERAL` variables, outermost last.

@@ -4,7 +4,7 @@
 
 use std::fs;
 
-use sgf_core::format::save::details::{SourceLine, SystemDetails};
+use sgf_core::views::details::{SourceLine, SystemDetails};
 
 use crate::common;
 

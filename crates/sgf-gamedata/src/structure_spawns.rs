@@ -4,7 +4,7 @@
 //! ([`GameData::initializer_details`](crate::GameData::initializer_details)).
 
 use sgf_core::cst::Node;
-use sgf_core::format::save::details::SourceLine;
+use sgf_core::views::details::SourceLine;
 
 use crate::initializers::{InitStarbase, Origin};
 use crate::install::script::{self, Def, Range};

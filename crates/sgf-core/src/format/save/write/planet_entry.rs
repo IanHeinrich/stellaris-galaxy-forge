@@ -68,14 +68,12 @@ pub(crate) fn is_star(role: BodyRole) -> bool {
     matches!(role, BodyRole::Primary | BodyRole::Star)
 }
 
-/// Whether body `id` of the system whose bodies are `stored` is a star: the system's primary
-/// or another star. A body `stored` does not hold is not one.
+/// Whether body `id` of the system whose bodies are `stored` is a star: the system's primary,
+/// the first of `stored`, or another star.
 pub(crate) fn body_is_star(s: &Session, stored: &[Stored], id: u32) -> Result<bool, OpError> {
-    let Some(at) = stored.iter().position(|b| b.body.id == id) else {
-        return Ok(false);
-    };
+    let primary = stored.first().is_some_and(|b| b.body.id == id);
     let (node, src) = planet_entity(&s.doc, id)?;
-    Ok(is_star(role(&node, src, at == 0, s.star_classes())))
+    Ok(is_star(role(&node, src, primary, s.star_classes())))
 }
 
 /// Write `moon_of`, before `moons` or `planet_orbitals` when the body has none, or take it

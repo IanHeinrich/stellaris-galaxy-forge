@@ -23,9 +23,10 @@ use crate::weight::Weight;
 const HABITABLE_FACTOR: f64 = 2.0;
 /// What a new, unowned body in a new system has none of: flags, an origin, modifiers,
 /// buildings, an owner, a `planet` or `solar_system` scope to ask, free districts.
-const NEVER_ON_A_NEW_BODY: [&str; 7] = [
+const NEVER_ON_A_NEW_BODY: [&str; 8] = [
     "has_origin",
     "has_building",
+    "has_planet_modifier",
     "exists",
     "owner",
     "planet",
@@ -77,8 +78,10 @@ impl DepositRoll {
     }
 }
 
-/// A body the generator has just made, as a deposit's `potential` and `drop_weight` judge
-/// it: unowned, in no nebula, primary when it is a star.
+/// A body the generator has just made, as a deposit's `potential` and `drop_weight` and a
+/// planet feature's `potential` and `spawn_chance` judge it: unowned, with no modifier, flag
+/// or building yet, primary when it is a star. It stands outside any nebula, since the
+/// generator rolls it without asking where its system lies.
 pub struct NewBody<'a> {
     pub body: &'a RollBody<'a>,
     /// `None` for a class the install does not define.
@@ -118,6 +121,7 @@ impl Subject for NewBody<'_> {
             Condition::Size(cmp, n) => Some(cmp.holds(f64::from(body.size), *n)),
             Condition::HasDeposit(key) => Some(self.deposits.iter().any(|d| d == key)),
             Condition::HasModifier(_) | Condition::PlanetFlag(_) => Some(false),
+            Condition::Modifiers(cmp, n) => Some(cmp.holds(0.0, *n)),
             Condition::Unknown(key) if NEVER_ON_A_NEW_BODY.contains(&key.as_str()) => Some(false),
             _ => None,
         }

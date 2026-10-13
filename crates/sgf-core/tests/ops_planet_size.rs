@@ -1,9 +1,10 @@
 //! The planet size op on both sample saves: the diff each change produces is
 //! snapshotted, the details read the new size, and undo puts the original bytes back.
 
-use sgf_core::format::save::details::{Bounds, HeuristicResolver};
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::Op;
 use sgf_core::session::{OpResult, Session};
+use sgf_core::views::details::Bounds;
 
 use crate::common;
 use common::diff::round_trip;

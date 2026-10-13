@@ -22,21 +22,10 @@ use crate::document::Document;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError, StarClasses};
 use crate::projections::read;
 use crate::validate::{self, Issue};
+use crate::views::details::SystemDetails;
 
-pub use crate::entity::facts::planet::BodyRole;
-pub use extract::{
-    ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawStarbase, RawSystemDetails,
-    ShipSizeCount, WormholeSummary,
-};
-pub use resolve::{
-    AddedModifier, AmbientObject, AnomalyPrevention, BodyLayout, BodySpawn, Bounds, ClassPool,
-    ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver,
-    FleetPresence, HeuristicResolver, InlineScriptUse, ListMember, NeighborSystem, OrbitFit,
-    PlanetSummary, PoolClass, PoolEntry, RawStatement, ResourceAmount, SourceLine, SpawnClass,
-    SpawnName, SpawnPlace, SpawnPool, SpawnRing, SpawnStar, StarbaseSummary, StatedAnomalies,
-    StatedFeatures, StructureSpawn, SystemDetails, SystemSpawn, UnknownClass, UsageOdds,
-    VariableUse,
-};
+pub use extract::{RawPlanet, RawStarbase, RawSystemDetails};
+pub use resolve::{DetailsResolver, HeuristicResolver};
 
 /// What one row of a save is drawn from: a megastructure's type, a starbase's level or a
 /// planet's class, with its culture and where it stands, as the system view reads them.

@@ -115,6 +115,8 @@ pub(crate) fn plan_add(
         }
         None => None,
     };
+    plan.created().planets.push(id);
+    plan.created().megastructures.extend(orbital);
     let host_edit = plan.edit_planet(&s.doc, body, system)?;
     list_moon(host_edit, id)?;
     let host_flag = format!("{HABITAT}{id}");
