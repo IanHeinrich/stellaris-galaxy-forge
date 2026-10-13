@@ -186,6 +186,7 @@ pub(crate) fn write_rows(
     )?;
     let owner_of = |new: &NewRow| new.owner.map(|(owner, _)| owner);
     let mut owners: Vec<u32> = rows.iter().filter_map(owner_of).collect();
+    owners.sort_unstable();
     owners.dedup();
     for owner in owners {
         let owned: Vec<u32> = rows

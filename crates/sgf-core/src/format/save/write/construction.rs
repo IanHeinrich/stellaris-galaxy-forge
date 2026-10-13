@@ -175,10 +175,10 @@ pub(crate) fn write_modifiers(
                 ModifierHost::System => "the system".to_owned(),
                 ModifierHost::Body { body } => format!("planet {body}"),
             };
-            return Err(OpError::MegastructureRefused {
-                kind: kind.to_owned(),
-                reason: format!("{on} already has modifier {}", item.timed.modifier),
-            });
+            return Err(megastructure_links::refuse(kind)(format!(
+                "{on} already has modifier {}",
+                item.timed.modifier
+            )));
         }
         let adding: Vec<(&str, ItemEdit)> = items
             .iter()

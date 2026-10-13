@@ -96,7 +96,9 @@ pub(crate) fn plan_parent(
     let primary = listed(&s.doc, system)?.first().copied();
     // A body orbiting the primary is a planet, so the primary is no star parent here.
     let star = match parent {
-        Some(p) if Some(p) != primary => body_is_star(s, &stored, p)?,
+        Some(p) if Some(p) != primary => {
+            stored.iter().any(|b| b.body.id == p) && body_is_star(s, &stored, p)?
+        }
         _ => false,
     };
     let before: Vec<Body> = stored.iter().map(|b| b.body).collect();

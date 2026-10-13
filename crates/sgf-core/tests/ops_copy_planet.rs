@@ -460,3 +460,23 @@ fn a_moon_with_an_asteroid_name_is_copied_lettered() {
         moons[0]
     );
 }
+
+/// Alpha Centauri's companion star 327 (system 278 of the 4.4 sample) is still refused as a
+/// star when its system's planet list leaves it out.
+#[test]
+fn a_star_its_system_does_not_list_is_refused() {
+    let session = common::open_edited(|gamestate| {
+        let line = "\t\tplanet=327\n";
+        assert_eq!(
+            gamestate.matches(line).count(),
+            1,
+            "one planet line for 327"
+        );
+        *gamestate = gamestate.replacen(line, "", 1);
+    });
+    let error = session.copy_bodies(&[327]).expect_err("a star");
+    assert_eq!(
+        error.to_string(),
+        "planet 327 is a star: only a planet or moon can be copied"
+    );
+}
