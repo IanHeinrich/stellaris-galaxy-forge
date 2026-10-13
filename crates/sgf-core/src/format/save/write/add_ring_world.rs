@@ -103,25 +103,29 @@ pub(crate) fn plan_add(
                 for segment in segments {
                     let slot = planets.take();
                     let id = slot.id();
-                    let (at, orbit) = spawned(&SEGMENT_POINTS, segment.at.radius, segment.at.angle);
-                    let name = NameTemplate::plain(&segment.name);
+                    let (at, orbit) = spawned(
+                        &SEGMENT_POINTS,
+                        segment.planet.at.radius,
+                        segment.planet.at.angle,
+                    );
+                    let name = NameTemplate::plain(&segment.planet.name);
                     let modifiers: Vec<(&str, i32)> = segment
                         .modifiers
                         .iter()
-                        .map(|m| (m.modifier.as_str(), m.days))
+                        .map(|m| (m.modifier.as_str(), m.written_days()))
                         .collect();
                     let entry = SegmentEntry {
                         id,
-                        class: &segment.class,
-                        size: segment.size,
+                        class: &segment.planet.class,
+                        size: segment.planet.size,
                         name: &name,
                         x: at.0,
                         y: at.1,
                         system,
                         orbit,
-                        flags: &segment.flags,
+                        flags: &segment.planet.flags,
                         flag_date: &date,
-                        entity_name: segment.model.as_deref(),
+                        entity_name: segment.planet.model.as_deref(),
                         megastructure_icon: segment.megastructure_icon,
                         modifiers: &modifiers,
                     };
@@ -248,14 +252,20 @@ pub(crate) fn plan_remove(
         let slot = doc
             .added()
             .get(EntityKind::Planet, id)
-            .ok_or(OpError::BodyNotAdded(id))?;
+            .ok_or(OpError::NotAdded {
+                kind: EntityKind::Planet,
+                id,
+            })?;
         planets.free(plan, doc, Subject::Planet { id, system }, id, slot)?;
     }
     planets.settle(plan, doc)?;
     let mut tied: Vec<Tied> = Vec::new();
     for &id in &written.rows {
         if doc.added().get(EntityKind::Megastructure, id).is_none() {
-            return Err(OpError::MegastructureNotAdded(id));
+            return Err(OpError::NotAdded {
+                kind: EntityKind::Megastructure,
+                id,
+            });
         }
         tied.extend(megastructure_links::read(doc, id)?);
     }
@@ -527,21 +537,25 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
 }
 
 fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
-    check_text("a planet class", &segment.class, Form::Bare)?;
-    if segment.size == 0 {
+    check_text("a planet class", &segment.planet.class, Form::Bare)?;
+    if segment.planet.size == 0 {
         return Err(OpError::ZeroPlanetSize);
     }
-    check_placement(segment.at.radius, segment.at.angle)?;
-    check_text("a name key", &segment.name, Form::Quoted)?;
-    if let Some(model) = &segment.model {
+    check_placement(segment.planet.at.radius, segment.planet.at.angle)?;
+    check_text("a name key", &segment.planet.name, Form::Quoted)?;
+    if let Some(model) = &segment.planet.model {
         check_text("a model", model, Form::Bare)?;
     }
     for (i, item) in segment.modifiers.iter().enumerate() {
         check_text("a modifier", &item.modifier, Form::Bare)?;
-        if item.days == 0 || item.days < -1 {
+        if item.lasts_wrongly() {
             return Err(OpError::MegastructureRefused {
                 kind: RING_WORLD.to_owned(),
-                reason: format!("modifier {} would last {} days", item.modifier, item.days),
+                reason: format!(
+                    "modifier {} would last {} days",
+                    item.modifier,
+                    item.days.unwrap_or_default()
+                ),
             });
         }
         if segment.modifiers[..i]
@@ -554,7 +568,7 @@ fn check_segment(segment: &RingSegment) -> Result<(), OpError> {
             });
         }
     }
-    check_flags("a planet flag", &segment.flags)
+    check_flags("a planet flag", &segment.planet.flags)
 }
 
 fn check_row(row: &RingRow) -> Result<(), OpError> {
@@ -665,7 +679,9 @@ fn radii(ring: &NewRingWorld) -> Vec<f64> {
         let placed: Vec<f64> = match quadrant {
             RingQuadrant::Finished { segments }
             | RingQuadrant::Restored { segments }
-            | RingQuadrant::Damaged { segments } => segments.iter().map(|s| s.at.radius).collect(),
+            | RingQuadrant::Damaged { segments } => {
+                segments.iter().map(|s| s.planet.at.radius).collect()
+            }
             RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } => vec![row.at.radius],
         };
         for radius in placed {

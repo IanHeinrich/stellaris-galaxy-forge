@@ -47,10 +47,14 @@ fn gigas_ring_world_is_added_as_it_builds_one() {
         .iter()
         .map(|s| {
             (
-                s.at.angle,
-                s.name.as_str(),
-                s.model.as_deref(),
-                s.flags.iter().map(String::as_str).collect::<Vec<_>>(),
+                s.planet.at.angle,
+                s.planet.name.as_str(),
+                s.planet.model.as_deref(),
+                s.planet
+                    .flags
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>(),
                 s.megastructure_icon,
             )
         })
@@ -118,7 +122,7 @@ fn gigas_ring_world_is_added_as_it_builds_one() {
         panic!("{:?}", other.quadrants[0]);
     };
     assert_eq!(
-        segments[0].model.as_deref(),
+        segments[0].planet.model.as_deref(),
         Some("nowhere_01_tech_entity_01_entity")
     );
 }
@@ -226,7 +230,7 @@ fn gigas_larger_rings_are_added_whole() {
             .quadrants
             .iter()
             .map(|q| match q {
-                RingQuadrant::Finished { segments } => segments[2].name.as_str(),
+                RingQuadrant::Finished { segments } => segments[2].planet.name.as_str(),
                 other => panic!("{other:?}"),
             })
             .collect();
@@ -246,10 +250,10 @@ fn gigas_larger_rings_are_added_whole() {
             .iter()
             .map(|s| {
                 (
-                    s.class.as_str(),
-                    s.size,
-                    s.at.radius,
-                    s.model.clone(),
+                    s.planet.class.as_str(),
+                    s.planet.size,
+                    s.planet.at.radius,
+                    s.planet.model.clone(),
                     s.modifiers
                         .iter()
                         .map(|m| (m.modifier.clone(), m.days))
@@ -268,17 +272,18 @@ fn gigas_larger_rings_are_added_whole() {
                     habitable,
                     radius,
                     model("gaia_habitable"),
-                    vec![(format!("giga_{size}_housing"), -1)]
+                    vec![(format!("giga_{size}_housing"), None)]
                 ),
             ],
             "{size}"
         );
         assert!(
             segments[2]
+                .planet
                 .flags
                 .contains(&format!("giga_ringworld_{short}")),
             "{:?}",
-            segments[2].flags
+            segments[2].planet.flags
         );
 
         let begun = added::ring_world(gd, &site, &[Frame, Ruined, Frame, Frame], culture, &[])

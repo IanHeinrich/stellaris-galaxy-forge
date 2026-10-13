@@ -332,25 +332,43 @@ impl Compiler<'_> {
         Condition::All(self.group(node, skip))
     }
 
+    /// A block's keyed children but those keyed `skip`; in a walk, those its `[[PARAM] … ]`
+    /// blocks keep.
     fn group(&self, node: &Node, skip: &[&str]) -> Vec<Condition> {
         let items = node.children();
-        (0..items.len())
-            .filter(|&at| {
-                items[at]
-                    .key_str(self.src)
-                    .is_some_and(|key| !skip.contains(&key))
-            })
-            .map(|at| self.condition(items, at))
-            .collect()
+        let keyed = |at: &usize| {
+            items[*at]
+                .key_str(self.src)
+                .is_some_and(|key| !skip.contains(&key))
+        };
+        match self.walk {
+            None => (0..items.len())
+                .filter(keyed)
+                .map(|at| self.condition(items, at, 0))
+                .collect(),
+            Some(walk) => walk
+                .children(node)
+                .iter()
+                .filter_map(|kept| {
+                    let at = items
+                        .iter()
+                        .position(|item| std::ptr::eq(item, kept.node))?;
+                    keyed(&at).then(|| self.condition(items, at, kept.closes))
+                })
+                .collect(),
+        }
     }
 
     /// The condition `siblings[at]` writes, read with the statements that follow it when
-    /// they are the rest of its inline maths.
-    fn condition(&self, siblings: &[Node], at: usize) -> Condition {
+    /// they are the rest of its inline maths, its value without the `closes` brackets that
+    /// end conditional blocks.
+    fn condition(&self, siblings: &[Node], at: usize, closes: usize) -> Condition {
         let node = &siblings[at];
         let key = self.put(node.key_str(self.src).unwrap_or_default());
         let key = key.as_ref();
-        let value = node.scalar_str(self.src).map(|v| self.put(v));
+        let value = node
+            .scalar_str(self.src)
+            .map(|v| self.put(&v[..v.len() - closes.min(v.len())]));
         let value = value.as_deref();
         let yes = match value {
             Some("yes") => Some(true),

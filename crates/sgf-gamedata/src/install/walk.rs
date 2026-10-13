@@ -5,10 +5,11 @@
 //! is up to the reader, a [`Visitor`].
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 use sgf_core::cst::Node;
 
-use crate::install::inline_script::{kept_children, put_params_in};
+use crate::install::inline_script::{Kept, kept_children, put_params_in};
 use crate::install::script::{Def, Names, written, written_key};
 use crate::scripts::ScriptIndex;
 
@@ -88,8 +89,13 @@ impl<'s> Script<'s> {
     }
 
     /// The children of `node` its `[[PARAM] … ]` blocks keep.
-    pub(crate) fn children<'n>(&self, node: &'n Node) -> Vec<&'n Node> {
+    pub(crate) fn children<'n>(&self, node: &'n Node) -> Vec<Kept<'n>> {
         kept_children(node, self.src, &self.params)
+    }
+
+    /// The scalar value of a kept child, without the brackets that close blocks.
+    pub(crate) fn kept_value(&self, kept: &Kept<'_>) -> Option<Cow<'s, str>> {
+        Some(self.put(kept.value(self.src)?))
     }
 
     /// The text of scripted effect `effect` as call `call` reaches it: `name = yes`, or
@@ -166,7 +172,8 @@ pub(crate) fn block<V: Visitor>(
     node: &Node,
 ) -> Flow {
     let mut chain = V::Chain::default();
-    for child in script.children(node) {
+    for kept in script.children(node) {
+        let child = kept.node;
         let Some(key) = script.key(child) else {
             continue;
         };
@@ -182,7 +189,7 @@ pub(crate) fn block<V: Visitor>(
         let flow = match branch {
             Some(branch) => visitor.branch(script, at, branch, child, &mut chain),
             None => {
-                let value = script.value(child);
+                let value = script.kept_value(&kept);
                 let statement = Statement {
                     key: &key,
                     value: value.as_deref(),
@@ -241,7 +248,8 @@ impl Branch {
 
 /// Hand every statement below `node` to `each`, in order, a branch of an `if` chain as a
 /// statement keyed `if`, `else_if` or `else`, and go where it says. A scripted effect a
-/// statement names is followed only when `scripts` is given.
+/// statement names is followed only when `scripts` is given, and only the first time it is
+/// called with the same parameters.
 pub(crate) fn scan(
     script: &Script<'_>,
     node: &Node,
@@ -251,6 +259,7 @@ pub(crate) fn scan(
     let mut scanner = Scanner {
         scripts,
         each,
+        followed: HashSet::new(),
         stopped: false,
     };
     block(&mut scanner, script, &(), node);
@@ -259,6 +268,8 @@ pub(crate) fn scan(
 struct Scanner<'a, 'f> {
     scripts: Option<&'a ScriptIndex>,
     each: &'f mut dyn FnMut(&Statement<'_>) -> Scan,
+    /// Each scripted effect followed, with the parameters it was given.
+    followed: HashSet<(String, Vec<(String, String)>)>,
     stopped: bool,
 }
 
@@ -268,12 +279,22 @@ impl Scanner<'_, '_> {
             Scan::Stop => self.stopped = true,
             Scan::Skip => {}
             Scan::Enter => {
-                let scripts = self.scripts;
                 let node = statement.node;
-                let followed = scripts
-                    .is_some_and(|scripts| follow(self, scripts, script, &(), statement.key, node));
-                if !followed && node.scalar_span().is_none() {
-                    block(self, script, &(), node);
+                let called = self
+                    .scripts
+                    .and_then(|scripts| scripts.effect(statement.key))
+                    .and_then(|effect| Some((effect, script.call(effect, node)?)));
+                match called {
+                    Some((effect, inner)) => {
+                        let call = (statement.key.to_owned(), inner.params.clone());
+                        if self.followed.insert(call) {
+                            block(self, &inner, &(), &effect.node);
+                        }
+                    }
+                    None if node.scalar_span().is_none() => {
+                        block(self, script, &(), node);
+                    }
+                    None => {}
                 }
             }
         }

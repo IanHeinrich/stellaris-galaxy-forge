@@ -301,7 +301,7 @@ function spec(planetClass: string): NewBody {
     class: planetClass,
     size: 16,
     moon_of: null,
-    name: null,
+    naming: "Numbered",
     deposits: [],
     ring: false,
     entity: null,

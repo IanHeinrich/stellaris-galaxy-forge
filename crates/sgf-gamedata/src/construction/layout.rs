@@ -742,8 +742,8 @@ impl<'w, 's> Walk<'w, 's> {
         let pick = |name: &str| {
             branches
                 .iter()
-                .find(|branch| branch.key_str(src) == Some(name))
-                .copied()
+                .find(|branch| branch.node.key_str(src) == Some(name))
+                .map(|branch| branch.node)
         };
         let branch = st
             .culture

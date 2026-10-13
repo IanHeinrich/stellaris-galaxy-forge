@@ -310,41 +310,20 @@ impl Format for Save {
                 belts::plan_inner_radius(plan, s, *system, *radius)
             }
             Op::SetSystemHeights { heights } => system_height::plan_set(plan, s, heights),
-            Op::AddMegastructure {
-                system,
-                kind,
-                name,
-                at,
-                owner,
-                bypass,
-                ruined_orbital_ring,
-                megastructure_flag,
-                orbital_flag,
-                star_only,
-                construction,
-                left_out,
-            } => add_megastructure::plan_add(
-                plan,
-                s,
-                &add_megastructure::NewRow {
-                    system: *system,
-                    kind,
-                    name: name.as_ref(),
-                    at: *at,
-                    owner: *owner,
-                    bypass: bypass.as_ref(),
-                    ruined_orbital_ring: *ruined_orbital_ring,
-                    megastructure_flag: *megastructure_flag,
-                    orbital_flag: *orbital_flag,
-                    star_only: *star_only,
-                    construction: construction.as_ref(),
-                    left_out: *left_out,
-                },
-            ),
+            Op::AddMegastructure { system, spec } => {
+                add_megastructure::plan_add(plan, s, *system, spec)
+            }
             Op::RemoveMegastructure {
                 megastructure,
                 construction,
-            } => add_megastructure::plan_remove(plan, s, *megastructure, construction.as_ref()),
+                left_out,
+            } => add_megastructure::plan_remove(
+                plan,
+                s,
+                *megastructure,
+                construction.as_ref(),
+                *left_out,
+            ),
             Op::MoveMegastructure { megastructure, at } => {
                 move_megastructure::plan_move(plan, s, *megastructure, *at)
             }

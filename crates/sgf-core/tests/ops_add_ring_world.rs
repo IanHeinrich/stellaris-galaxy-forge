@@ -3,7 +3,8 @@
 
 use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{
-    MegastructurePlace, NewRingWorld, Op, RingModifier, RingQuadrant, RingVariable,
+    NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, RingQuadrant, RingVariable,
+    TimedModifier,
 };
 use sgf_core::session::Session;
 use sgf_core::views::ClearedMegastructure;
@@ -154,7 +155,7 @@ fn what_an_add_refuses() {
     };
     let mut sizeless = finished_ring();
     if let RingQuadrant::Finished { segments } = &mut sizeless.quadrants[0] {
-        segments[0].size = 0;
+        segments[0].planet.size = 0;
     }
     let no_planets = NewRingWorld {
         quadrants: vec![RingQuadrant::Finished {
@@ -251,17 +252,15 @@ fn a_ring_round_a_star_a_dyson_sphere_wraps() {
     let mut session = open_4_5();
     let sphere = Op::AddMegastructure {
         system: STAR_SYSTEM,
-        kind: "dyson_sphere_5".to_owned(),
-        name: None,
-        at: MegastructurePlace::Body { body: STAR },
-        owner: None,
-        bypass: None,
-        ruined_orbital_ring: false,
-        megastructure_flag: true,
-        orbital_flag: false,
-        star_only: true,
-        construction: None,
-        left_out: 0,
+        spec: NewMegastructure {
+            kind: "dyson_sphere_5".to_owned(),
+            at: NewMegastructurePlace::Body {
+                body: STAR,
+                body_flags: vec!["has_megastructure".to_owned()],
+                star_only: true,
+            },
+            ..NewMegastructure::default()
+        },
     };
     session.apply(sphere).expect("the sphere");
     let with_sphere = current(&session);
@@ -486,17 +485,17 @@ fn clearing_for_a_second_ring_keeps_the_first() {
     assert_eq!(current(&session), with_ring);
 }
 
-/// A segment's timed modifier is checked as an added modifier is: a day count of 0, one under
-/// -1 and a modifier listed twice are refused.
+/// A segment's timed modifier is checked as an added modifier is: a day count of 0, one past
+/// what a save holds and a modifier listed twice are refused.
 #[test]
 fn what_a_segments_modifiers_refuse() {
     let mut session = open_4_5();
-    let with = |days: &[i32]| {
+    let with = |days: &[Option<u32>]| {
         let mut ring = titanic_ring();
         if let RingQuadrant::Finished { segments } = &mut ring.quadrants[0] {
             segments[2].modifiers = days
                 .iter()
-                .map(|&days| RingModifier {
+                .map(|&days| TimedModifier {
                     modifier: "giga_titanic_housing".to_owned(),
                     days,
                 })
@@ -512,15 +511,15 @@ fn what_a_segments_modifiers_refuse() {
         &mut session,
         [
             (
-                with(&[0]),
+                with(&[Some(0)]),
                 "a ring world cannot be added there: modifier giga_titanic_housing would last 0 days",
             ),
             (
-                with(&[-2]),
-                "a ring world cannot be added there: modifier giga_titanic_housing would last -2 days",
+                with(&[Some(u32::MAX)]),
+                "a ring world cannot be added there: modifier giga_titanic_housing would last 4294967295 days",
             ),
             (
-                with(&[-1, 360]),
+                with(&[None, Some(360)]),
                 "\"giga_titanic_housing\" cannot be written as a modifier listed once",
             ),
         ],

@@ -282,6 +282,15 @@ impl Construction {
     }
 }
 
+/// The days of an `add_modifier` as a payload takes them, `-1` being no end; `None` for any
+/// other negative count, which a payload cannot carry.
+pub(crate) fn lasting(days: i32) -> Option<Option<u32>> {
+    match days {
+        -1 => Some(None),
+        days => u32::try_from(days).ok().map(Some),
+    }
+}
+
 /// The scope a walk stands in.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Scope {

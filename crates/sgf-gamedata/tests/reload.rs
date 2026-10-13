@@ -119,6 +119,63 @@ fn rebuilding_the_scripts_says_what_a_full_load_says_about_the_bypasses() {
 }
 
 #[test]
+fn rebuilding_the_scripts_reads_the_megastructures_again() {
+    let (dir, before) = common::hand_written(&[
+        (
+            "common/megastructures/00_probe.txt",
+            "probe_mega = {
+	on_build_complete = {
+		probe_effect = yes
+	}
+}
+",
+        ),
+        (
+            "common/scripted_effects/00_probe.txt",
+            "probe_effect = {
+	add_modifier = probe_mod_a
+}
+",
+        ),
+    ]);
+    let effect = dir
+        .path()
+        .join("install/common/scripted_effects/00_probe.txt");
+    fs::write(
+        &effect,
+        "probe_effect = {
+	add_modifier = probe_mod_b
+}
+",
+    )
+    .expect("rewrite the effect");
+
+    let kind = RegistryKind::classify(&before.layout, &effect);
+    assert_eq!(kind, Some(RegistryKind::Scripts));
+    let (rebuilt, _) = before.rebuild(&kinds([RegistryKind::Scripts]));
+    let full = common::load_tree(
+        &dir.path().join("install"),
+        Some(&dir.path().join("user")),
+        false,
+    );
+
+    let construction = |gd: &GameData| {
+        let def = gd.megastructures.get("probe_mega").expect("probe_mega");
+        format!("{:?}", def.construction.steps)
+    };
+    assert!(
+        construction(&full).contains("probe_mod_b"),
+        "{}",
+        construction(&full)
+    );
+    assert_eq!(construction(&rebuilt), construction(&full));
+    assert_eq!(
+        rebuilt.megastructures.iter().collect::<Vec<_>>(),
+        full.megastructures.iter().collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn rebuilding_the_localisation_says_what_a_full_load_says() {
     let tree = fixture_copy();
     let before = load(tree.path());
@@ -365,6 +422,63 @@ fn a_changed_path_names_the_registry_that_reads_it() {
             path.display()
         );
     }
+}
+
+#[test]
+fn a_changed_model_star_lighting_or_sprite_file_names_the_graphics() {
+    let tree = fixture_copy();
+    let gd = load(tree.path());
+    let install = tree.path().join("install");
+    let one = tree.path().join("userdata/mod/one");
+
+    for path in [
+        install.join("gfx/models/megastructures/x.asset"),
+        install.join("gfx/models/megastructures/x.gfx"),
+        install.join("gfx/models/megastructures/x.mesh"),
+        install.join("gfx/models/megastructures/x_diffuse.dds"),
+        one.join("gfx/models/planets/Y.ASSET"),
+        install.join("gfx/worldgfx/x.txt"),
+        install.join("interface/x.gfx"),
+        one.join("interface/nested/y.gfx"),
+    ] {
+        assert_eq!(
+            RegistryKind::classify(&gd.layout, &path).map(RegistryKind::as_str),
+            Some("graphics"),
+            "{}",
+            path.display()
+        );
+    }
+}
+
+#[test]
+fn rebuilding_the_graphics_reads_the_sprites_again() {
+    let tree = fixture_copy();
+    let before = load(tree.path());
+    let gfx = tree.path().join("install/interface/00_fixture.gfx");
+    append(
+        &gfx,
+        "
+spriteTypes = {
+	spriteType = {
+		name = \"GFX_reloaded\"
+		texturefile = \"gfx/interface/icons/reloaded.dds\"
+	}
+}
+",
+    );
+
+    let kind = RegistryKind::classify(&before.layout, &gfx).expect("a registry reads .gfx files");
+    let (rebuilt, replaced) = before.rebuild(&kinds([kind]));
+    let full = load(tree.path());
+
+    let reloaded = |gd: &GameData| gd.sprites.resolve("GFX_reloaded", None);
+    assert_eq!(before.sprites.resolve("GFX_reloaded", None), None);
+    assert!(reloaded(&rebuilt).is_some());
+    assert_eq!(reloaded(&rebuilt), reloaded(&full));
+    assert_eq!(summary(&rebuilt), summary(&full));
+    assert_eq!(replaced, kinds([kind]));
+    assert!(Arc::ptr_eq(&before.scripts, &rebuilt.scripts));
+    assert!(Arc::ptr_eq(&before.loc, &rebuilt.loc));
 }
 
 /// The diagnostics a rebuild merges keep no order a full load promises, so

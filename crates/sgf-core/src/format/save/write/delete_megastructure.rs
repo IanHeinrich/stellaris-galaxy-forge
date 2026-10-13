@@ -43,7 +43,7 @@ pub(crate) fn plan_delete(
         dismantle::check(dismantle)?;
     }
     if doc.added().get(EntityKind::Megastructure, id).is_some() {
-        return add_megastructure::plan_remove(plan, s, id, None);
+        return add_megastructure::plan_remove(plan, s, id, None, 0);
     }
     let tied = megastructure_links::read(doc, id)?.ok_or(OpError::UnknownEntity {
         table: SavedTable::Megastructure,

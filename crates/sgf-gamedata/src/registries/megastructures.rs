@@ -428,9 +428,9 @@ fn replacements(block: &Node, script: &Script<'_>) -> Vec<String> {
     let mut out = Vec::new();
     let spawns_of = |node: &Node, out: &mut Vec<String>| {
         if node.scalar_span().is_none() && removes_row(node, script) {
-            for child in script.children(node) {
-                if script.key(child).as_deref() == Some("spawn_megastructure") {
-                    out.extend(script.field(child, "type"));
+            for kept in script.children(node) {
+                if script.key(kept.node).as_deref() == Some("spawn_megastructure") {
+                    out.extend(script.field(kept.node, "type"));
                 }
             }
         }

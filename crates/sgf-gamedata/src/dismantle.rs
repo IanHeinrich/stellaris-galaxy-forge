@@ -4,7 +4,7 @@
 //! it calls with the parameters they are given, but the events it fires are not followed and
 //! conditions are not judged, so a removal behind an `if` counts.
 
-use sgf_core::ops::{MegastructureDismantle, VariableDrop};
+use sgf_core::ops::{MegastructureDismantle, VariableStep};
 
 use crate::construction::{self, Effect, Met, Record};
 use crate::install::script::Def;
@@ -31,7 +31,7 @@ pub(crate) fn read(def: &Def, scripts: &ScriptIndex) -> MegastructureDismantle {
                     && by <= f64::from(u32::MAX)
                     && !out.variables.iter().any(|v| v.variable == variable)
                 {
-                    out.variables.push(VariableDrop {
+                    out.variables.push(VariableStep {
                         variable,
                         by: by as u32,
                     });

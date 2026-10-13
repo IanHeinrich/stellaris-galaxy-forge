@@ -4,6 +4,7 @@
 
 use std::collections::BTreeSet;
 
+use sgf_core::entity::EntityKind;
 use sgf_core::ops::{Op, OpError, SystemSpec};
 use sgf_core::session::Session;
 
@@ -41,7 +42,7 @@ fn a_system_the_file_held_is_refused() {
         let (mut session, first, home) = ((sample.open)(), sample.id, sample.home());
         let error = session.apply(remove(home)).expect_err("refused");
         assert!(
-            matches!(error, OpError::SystemNotAdded(id) if id == home),
+            matches!(error, OpError::NotAdded { kind: EntityKind::System, id } if id == home),
             "{error}"
         );
         let error = session.apply(remove(99_999)).expect_err("refused");
@@ -56,7 +57,7 @@ fn a_system_the_file_held_is_refused() {
             })
             .expect_err("one of them was in the file");
         assert!(
-            matches!(error, OpError::SystemNotAdded(id) if id == home),
+            matches!(error, OpError::NotAdded { kind: EntityKind::System, id } if id == home),
             "{error}"
         );
         assert!(!session.is_dirty(), "a refusal writes nothing");
@@ -67,7 +68,7 @@ fn a_system_the_file_held_is_refused() {
         let mut reopened = Session::open(&path).expect("reopen");
         let error = reopened.apply(remove(first)).expect_err("refused");
         assert!(
-            matches!(error, OpError::SystemNotAdded(id) if id == first),
+            matches!(error, OpError::NotAdded { kind: EntityKind::System, id } if id == first),
             "{error}"
         );
         assert!(!reopened.is_dirty());

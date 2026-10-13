@@ -509,6 +509,10 @@ order. Within a `common/` dir it processes files in filename order.
   file in that folder.
 - For a localisation key, the last file loaded wins. Files in
   `replace/` win over all of them.
+- The end of a `.gfx` or `.asset` file closes every block still open.
+  Vanilla's `gfx/models/effects/nomads.gfx` has one more `{` than `}`
+  and loads. The editor reads `gfx/worldgfx` the same way, and reports
+  any other script file that ends inside a block.
 
 `Layout::files_in` applies those rules to a `common/` dir. The code walks
 other folders by rules of their own:

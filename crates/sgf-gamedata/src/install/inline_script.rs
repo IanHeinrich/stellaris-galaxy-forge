@@ -205,18 +205,21 @@ fn conditionals(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
 /// The children of `node` its conditional blocks keep, as [`substitute`] keeps their text: in
 /// a script parsed before its parameters are put in, a block's `[[NAME]` and its `]` stand as
 /// keyless statements around the statements it holds. `[[!NAME]` parses as two, `[[` and
-/// `!NAME]`.
+/// `!NAME]`, and the closing `]` can be the last character of a value, `x = yes]`. A `]` that
+/// closes a bracket the same text or an earlier one opened, as inline maths does, closes no
+/// block.
 pub(crate) fn kept_children<'n, K: AsRef<str>, V>(
     node: &'n Node,
     src: &[u8],
     params: &[(K, V)],
-) -> Vec<&'n Node> {
+) -> Vec<Kept<'n>> {
     let children = node.children();
     let bare = |at: usize| {
         let child = children.get(at)?;
         child.key.is_none().then(|| child.scalar_str(src)).flatten()
     };
     let mut open: Vec<bool> = Vec::new();
+    let mut loose = 0usize;
     let mut kept = Vec::new();
     let mut at = 0;
     while at < children.len() {
@@ -233,17 +236,44 @@ pub(crate) fn kept_children<'n, K: AsRef<str>, V>(
                 at += words;
                 continue;
             }
-            if text == "]" && open.pop().is_some() {
-                at += 1;
-                continue;
+        }
+        let child = &children[at];
+        let on = open.iter().all(|&on| on);
+        let text = child.scalar_str(src).unwrap_or_default();
+        let mut closes = 0;
+        for b in text.bytes() {
+            match b {
+                b'[' => loose += 1,
+                b']' if loose > 0 => loose -= 1,
+                b']' if open.pop().is_some() => closes += 1,
+                _ => {}
             }
         }
-        if open.iter().all(|&on| on) {
-            kept.push(&children[at]);
+        let only_brackets = child.key.is_none() && closes > 0 && text.len() == closes;
+        if on && !only_brackets {
+            kept.push(Kept {
+                node: child,
+                closes,
+            });
         }
         at += 1;
     }
     kept
+}
+
+/// A statement a conditional block keeps.
+pub(crate) struct Kept<'n> {
+    pub node: &'n Node,
+    /// How many `]` closing conditional blocks end its value, which are no part of it.
+    pub closes: usize,
+}
+
+impl<'n> Kept<'n> {
+    /// Its scalar value without the brackets that close blocks.
+    pub(crate) fn value<'s>(&self, src: &'s [u8]) -> Option<&'s str> {
+        let text = self.node.scalar_str(src)?;
+        Some(&text[..text.len() - self.closes.min(text.len())])
+    }
 }
 
 /// What stands between a conditional block's `[[` and `]`: `NAME`, or `!NAME`.

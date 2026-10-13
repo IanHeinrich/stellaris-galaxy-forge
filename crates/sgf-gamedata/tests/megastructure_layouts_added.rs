@@ -4,7 +4,7 @@
 
 use crate::common;
 
-use sgf_core::ops::{HabitatOrbital, NewHabitat, RingModifier, RingQuadrant, RingRow};
+use sgf_core::ops::{HabitatOrbital, NewHabitat, NewPlanet, RingQuadrant, RingRow, TimedModifier};
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::construction::habitat::habitat;
 use sgf_gamedata::construction::layout::{Plan, lay_out};
@@ -35,25 +35,27 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
             assert_eq!(
                 found,
                 NewHabitat {
-                    class: "pc_habitat".to_owned(),
-                    size: 6,
-                    at: OrbitPlacement {
-                        radius,
-                        angle: 315.0,
+                    planet: NewPlanet {
+                        class: "pc_habitat".to_owned(),
+                        size: 6,
+                        at: OrbitPlacement {
+                            radius,
+                            angle: 315.0,
+                        },
+                        name: "HABITAT_PLANET_NAME".to_owned(),
+                        model: Some("avian_01_habitat_phase_03_entity".to_owned()),
+                        flags: ["megastructure", "habitat", "habitat_level_1"]
+                            .map(str::to_owned)
+                            .to_vec(),
                     },
-                    name: "HABITAT_PLANET_NAME".to_owned(),
                     system_name: Some("prev.solar_system.GetName".to_owned()),
-                    model: Some("avian_01_habitat_phase_03_entity".to_owned()),
-                    flags: ["megastructure", "habitat", "habitat_level_1"]
-                        .map(str::to_owned)
-                        .to_vec(),
                     orbital: orbital.clone(),
                 },
                 "{key}"
             );
         }
         let unowned = habitat(gd, key, true, None).expect(key);
-        assert_eq!(unowned.model, None, "{key}: the class's own model");
+        assert_eq!(unowned.planet.model, None, "{key}: the class's own model");
     }
     for key in ["habitat_central_complex_ruined", "cosmogenesis_world_0"] {
         assert_eq!(habitat(gd, key, false, None), None, "{key}");
@@ -90,11 +92,11 @@ fn the_ring_world_is_added_with_each_quadrant_at_its_stage() {
         .iter()
         .map(|s| {
             (
-                s.class.as_str(),
-                s.at.angle,
-                s.at.radius,
-                s.name.as_str(),
-                s.model.as_deref(),
+                s.planet.class.as_str(),
+                s.planet.at.angle,
+                s.planet.at.radius,
+                s.planet.name.as_str(),
+                s.planet.model.as_deref(),
                 s.megastructure_icon,
             )
         })
@@ -131,7 +133,7 @@ fn the_ring_world_is_added_with_each_quadrant_at_its_stage() {
     assert!(
         segments
             .iter()
-            .all(|s| s.size == 10 && s.flags == ["megastructure"])
+            .all(|s| s.planet.size == 10 && s.planet.flags == ["megastructure"])
     );
     let row = |kind: &str, angle: f64, name: Option<&str>, culture: Option<&str>| RingRow {
         kind: kind.to_owned(),
@@ -164,16 +166,16 @@ fn the_ring_world_is_added_with_each_quadrant_at_its_stage() {
         panic!("{d:?}");
     };
     assert!(
-        segments
-            .iter()
-            .all(|s| s.name == "NAME_Ring_Section" && s.model.is_none() && s.flags.is_empty()),
+        segments.iter().all(|s| s.planet.name == "NAME_Ring_Section"
+            && s.planet.model.is_none()
+            && s.planet.flags.is_empty()),
         "{segments:?}"
     );
 
     let unowned = added::ring_world(gd, "ring_world_2_intermediate", &[Finished; 4], None, &[])
         .expect("ring");
     assert!(unowned.quadrants.iter().all(|q| match q {
-        RingQuadrant::Finished { segments } => segments.iter().all(|s| s.model.is_none()),
+        RingQuadrant::Finished { segments } => segments.iter().all(|s| s.planet.model.is_none()),
         _ => false,
     }));
     assert_eq!(unowned.system_flags, ["ring_world_built"]);
@@ -234,6 +236,26 @@ mod_ring_3 = {
 		remove_megastructure = fromfrom
 	}
 }
+neg_ring_frame = {
+	on_build_complete = {
+		spawn_megastructure = { type = neg_ring_2 orbit_angle = 0 orbit_distance = 50 }
+		spawn_megastructure = { type = neg_ring_2 orbit_angle = 180 orbit_distance = 50 }
+		remove_megastructure = fromfrom
+	}
+}
+neg_ring_2 = { }
+neg_ring_3 = {
+	upgrade_from = { neg_ring_2 }
+	on_build_complete = {
+		spawn_planet = {
+			class = pc_neg_segment
+			location = fromfrom
+			size = 10
+			init_effect = { add_modifier = { modifier = neg_housing days = -2 } }
+		}
+		remove_megastructure = fromfrom
+	}
+}
 ",
     )]);
     let frame = added::ring_world(
@@ -288,6 +310,12 @@ mod_ring_3 = {
     assert!(
         refused.starts_with("the model of its pc_mod_segment hangs on what Galaxy Forge cannot follow: mod_ring_3: a branch behind has_country_flag"),
         "{refused}"
+    );
+    let negative = added::ring_world(&gd, "neg_ring_2", &[Finished, Finished], None, &[])
+        .expect_err("a modifier of -2 days");
+    assert_eq!(
+        negative,
+        "its pc_neg_segment takes modifier neg_housing for -2 days, which Galaxy Forge does not write"
     );
 }
 
@@ -486,17 +514,17 @@ fz_built = {
             RingQuadrant::Finished { segments } => {
                 let section = &segments[1];
                 (
-                    section.name.as_str(),
-                    section.size,
+                    section.planet.name.as_str(),
+                    section.planet.size,
                     section.modifiers.clone(),
                 )
             }
             other => panic!("{other:?}"),
         })
         .collect();
-    let housing = vec![RingModifier {
+    let housing = vec![TimedModifier {
         modifier: "fx_housing".to_owned(),
-        days: -1,
+        days: None,
     }];
     assert_eq!(
         habitable,
