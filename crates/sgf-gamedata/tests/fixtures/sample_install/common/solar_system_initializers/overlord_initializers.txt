@@ -1,0 +1,219 @@
+broken_shroudwalker_init_01 = {
+	class = "sc_trinary_2"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				potential_shroudwalker_enclave = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			broken_shroudwalker_enclave
+		}
+}
+
+orbital_ring_init_01 = {
+	class = "rl_binary_stars"
+	flags = { ruined_orbital_ring_system galactic_landmark_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_overlord_dlc = no
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0.2
+				closest_system = {
+					has_megastructure = ring_world_ruined
+					distance = {
+						source = prev
+						max_distance <= 200
+					}
+				}
+			}
+		}
+	max_instances = 1
+	init_effect = { }
+}
+
+salvager_enclave_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_overlord_dlc = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			salvager_enclave_system
+			enclave
+		}
+	init_effect = { }
+}
+
+salvager_enclave_init_02 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_overlord_dlc = yes
+				add = @spawn_system_extreme
+			}
+			#Should ideally be near the primary system
+			modifier = {
+				has_overlord_dlc = yes
+				any_neighbor_system = { has_star_flag = salvager_enclave_system }
+				add = 50
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			salvager_enclave_system
+			enclave
+		}
+	init_effect = { }
+}
+
+salvager_enclave_init_03 = {
+	class = "sc_black_hole"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_overlord_dlc = yes
+				add = @spawn_system_extreme
+			}
+			#Should ideally be near the primary system
+			modifier = {
+				has_overlord_dlc = yes
+				any_neighbor_system = { has_star_flag = salvager_enclave_system }
+				add = 50
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			salvager_enclave_system
+			enclave
+		}
+}
+
+shroudwalker_enclave_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				potential_shroudwalker_enclave = yes
+				add = @spawn_system_enclave
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			shroudwalker_enclave_system
+			enclave
+		}
+	init_effect = { }
+}
+
+shroudwalker_enclave_init_02 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				potential_shroudwalker_enclave = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			shroudwalker_enclave_system
+			enclave
+		}
+	init_effect = { }
+}
+
+shroudwalker_enclave_init_03 = {
+	class = "sc_a"
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				potential_shroudwalker_enclave = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				is_fe_cluster = yes
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = {
+			shroudwalker_enclave_system
+			enclave
+		}
+	init_effect = { }
+}

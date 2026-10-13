@@ -7,6 +7,7 @@ readonly SEMVER='^[0-9]+\.[0-9]+\.[0-9]+$'
 readonly ISO_DATE='^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
 readonly UNRELEASED='## [Unreleased]'
 readonly FRAGMENT_DIR='changelog.d'
+readonly VOICE_LINT='guide/scripts/voice-lint.mjs'
 readonly KIND_ORDER='Added Changed Deprecated Removed Fixed Security'
 
 usage() {
@@ -21,7 +22,8 @@ usage: scripts/changelog.sh <command>
                                 Unreleased above it (date defaults to today, UTC)
   check <base-ref>              pass when the diff against the base adds or
                                 changes a fragment or CHANGELOG.md, and
-                                validate the fragments it adds or changes
+                                validate the fragments it adds or changes,
+                                voice lint included
 USAGE
 	exit 2
 }
@@ -246,6 +248,7 @@ cmd_release() {
 
 cmd_check() {
 	local base="$1" path found=0 ok=1
+	local fragments=()
 
 	git rev-parse --verify --quiet "$base^{commit}" >/dev/null || {
 		printf 'unknown base ref: %s\n' "$base" >&2
@@ -261,9 +264,18 @@ cmd_check() {
 		"$FRAGMENT_DIR"/*.md)
 			found=1
 			parse_entries "$path" 1 <"$path" >/dev/null || ok=0
+			fragments+=("$path")
 			;;
 		esac
 	done < <(git -c core.quotepath=off diff --name-only --diff-filter=ACMR "$base...HEAD" -- CHANGELOG.md "$FRAGMENT_DIR")
+
+	if [ "${#fragments[@]}" -gt 0 ]; then
+		[ -f "$VOICE_LINT" ] || {
+			printf 'missing %s\n' "$VOICE_LINT" >&2
+			exit 1
+		}
+		node "$VOICE_LINT" "${fragments[@]}" || ok=0
+	fi
 
 	[ "$ok" -eq 1 ] || exit 1
 	if [ "$found" -eq 0 ]; then

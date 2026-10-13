@@ -1,0 +1,75 @@
+marauder_1_1 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	max_instances = 1
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 2000000
+				host_has_dlc = "Apocalypse"
+				num_marauder_empires_to_spawn > 0
+				is_in_cluster = resource_cluster_1 # Defined in code; see RESOURCE_CLUSTER_COUNT
+				NOR = {
+					has_star_flag = empire_cluster
+					any_neighbor_system = {
+						has_star_flag = empire_cluster
+					}
+				}
+			}
+		}
+	flags = { marauder_system marauder_capital_1 }
+	init_effect = {
+		spawn_system = { initializer = marauder_1_2 }
+		spawn_system = { initializer = marauder_1_3 }
+	}
+}
+
+marauder_1_2 = {
+	class = "rl_standard_stars"
+	flags = { marauder_system }
+	init_effect = { }
+}
+
+marauder_1_3 = {
+	class = "rl_standard_stars"
+	flags = { marauder_system }
+	init_effect = { }
+}
+
+marauder_2_1 = {
+	class = "sc_black_hole"
+	usage = misc_system_init
+	max_instances = 1
+	usage_odds = {
+			base = 0
+			modifier = {
+				add = 2000000
+				host_has_dlc = "Apocalypse"
+				num_marauder_empires_to_spawn > 1
+				is_in_cluster = resource_cluster_2 # Defined in code; see RESOURCE_CLUSTER_COUNT
+				NOR = {
+					has_star_flag = empire_cluster
+					any_neighbor_system = {
+						has_star_flag = empire_cluster
+					}
+				}
+			}
+		}
+	flags = { marauder_system marauder_capital_2 }
+	init_effect = {
+		spawn_system = { initializer = marauder_2_2 }
+		spawn_system = { initializer = marauder_2_3 }
+	}
+}
+
+marauder_2_2 = {
+	class = "rl_standard_stars"
+	flags = { marauder_system }
+	init_effect = { }
+}
+
+marauder_2_3 = {
+	class = "rl_standard_stars"
+	flags = { marauder_system }
+	init_effect = { }
+}

@@ -3,7 +3,8 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Moved megastructure #6 (gateway_ruined) in Melitane #116 from 313.32 at 15.66° to 269.26 at 338.2°
-inverse: RestoreEntities { description: "Undid: Moved megastructure #6 (gateway_ruined) in Melitane #116 from 313.32 at 15.66° to 269.26 at 338.2°", entities: [SavedEntity { table: Megastructure, id: 6, text: "6=\n\t{\n\t\ttype=\"gateway_ruined\"\n\t\tcoordinate=\n\t\t{\n\t\t\tx=301.69487\n\t\t\ty=84.54792\n\t\t\torigin=116\n\t\t}\n\t\tplanet=4294967295\n\t\tbypass=3\n\t\torbitals=\n\t\t{\n\t\t}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}" }] }
+inverse: RestoreEntities "Undid: Moved megastructure #6 (gateway_ruined) in Melitane #116 from 313.32 at 15.66° to 269.26 at 338.2°"
+  Megastructure 6 (230 bytes)
 
 --- gamestate
 +++ gamestate

@@ -1,0 +1,104 @@
+ai_titawin_init = {
+	class = "rl_binary_starting_stars"
+	usage = misc_system_init
+	flags = { empire_home_system theian_system }
+	neighbor_system = { initializer = neighbor_t1 }
+	neighbor_system = { initializer = neighbor_t1_first_colony }
+	planet = {
+		init_effect = {
+			create_country = { name = "EMPIRE_DESIGN_lithoid_humans" type = default }
+		}
+	}
+}
+
+deneb_neighbor_t1_first_colony = {
+	class = "rl_standard_stars"
+	flags = { neighbor_t1_first_colony }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t2 }
+	}
+}
+
+deneb_system = {
+	class = "sc_a"
+	flags = { empire_home_system deneb_system }
+	usage = custom_empire
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+une_deneb_system = {
+	class = "sc_a"
+	flags = { empire_home_system deneb_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				NOT = { has_global_flag = human_lost_colony_is_grs }
+				NOT = {
+					any_country = {
+						has_country_flag = human_3
+					}
+				}
+				any_country = {
+					has_country_flag = human_1
+					is_human_species = yes
+					NOT = { has_origin = origin_lost_colony }
+					NOT = { has_origin = origin_broken_shackles }
+				}
+				NOT = { any_system = { has_star_flag = deneb_system } }
+				NOT = { has_star_flag = empire_cluster }
+				num_ai_empires_setting >= 1
+
+				add = 99999
+			}
+		}
+	max_instances = 1
+	init_effect = {
+		create_country = { name = "NAME_Commonwealth_of_Man" type = default }
+		spawn_system = { initializer = deneb_neighbor_t1 }
+		spawn_system = { initializer = deneb_neighbor_t1_first_colony }
+	}
+}
+
+une_vela_system = {
+	class = "sc_binary_1"
+	flags = { empire_home_system vela_system }
+	usage = misc_system_init
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_global_flag = human_lost_colony_is_grs
+				any_country = {
+					has_country_flag = human_1
+					is_human_species = yes
+					NOT = { has_origin = origin_lost_colony }
+				}
+				NOR = {
+					any_system = { has_star_flag = vela_system }
+					has_star_flag = empire_cluster
+				}
+				num_ai_empires_setting >= 1
+				add = 99999
+			}
+		}
+	max_instances = 1
+	init_effect = {
+		create_country = { name = "EMPIRE_DESIGN_humans3" type = default }
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}
+
+vela_system = {
+	class = "sc_binary_1"
+	usage_odds = 0
+	flags = { empire_home_system vela_system }
+	usage = nomad_init
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}

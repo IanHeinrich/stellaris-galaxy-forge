@@ -1,0 +1,436 @@
+hostile_init_01 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0.1
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system blue_system shield_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_02 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	flags = { hostile_system blue2_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_03 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system green_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_04 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	flags = { hostile_system green2_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_05 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	flags = { hostile_system red_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_06 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system red2_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_07 = {
+	class = sc_pulsar
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_1 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system elite_system crystal_home_system space_critter_system space_ecology_system }
+	init_effect = {
+		spawn_system = { initializer = hostile_init_04 }
+		spawn_system = { initializer = hostile_init_06 }
+	}
+}
+
+hostile_init_08 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0.1
+				NOT = { is_in_cluster = resource_cluster_2 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	flags = { hostile_system void_system }
+	init_effect = { }
+}
+
+hostile_init_10 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_3 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	flags = { hostile_system amoeba_1_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_10_small_amoeba_pack = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0.1
+				NOT = { is_in_cluster = resource_cluster_3 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system amoeba_2_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_11 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_3 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system amoeba_3_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_12 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0.1
+				NOT = { is_in_cluster = resource_cluster_4 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system drone_system_1 }
+	init_effect = { }
+}
+
+hostile_init_12_drone_destroyer = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_4 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	flags = { hostile_system drone_destroyer_system }
+	init_effect = { }
+}
+
+hostile_init_12_mining_drones = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_4 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system drone_system_2 }
+	init_effect = { }
+}
+
+hostile_init_13 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_4 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { hostile_system drone_system_3 }
+	init_effect = { }
+}
+
+hostile_init_14 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				NOT = { is_in_cluster = resource_cluster_4 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system drone_home_system space_ecology_system }
+	neighbor_system = { initializer = hostile_init_12 }
+	neighbor_system = { initializer = hostile_init_12_drone_destroyer }
+}
+
+hostile_init_15 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_common
+			modifier = {
+				factor = 0.1
+				NOT = { is_in_cluster = resource_cluster_5 }
+			}
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	flags = { tiyanki_home_system space_critter_system }
+	init_effect = { }
+}
+
+hostile_init_16 = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+		}
+	max_instances = 1
+	flags = { tiyanki_spawn_system space_critter_system space_ecology_system }
+	init_effect = { }
+}
+
+hostile_init_20 = {
+	class = "rl_trinary_stars"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				OR = {
+					has_star_flag = empire_cluster
+					is_fe_cluster = yes
+					is_marauder_cluster = yes
+				}
+			}
+			modifier = {
+				factor = 0
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { hostile_system amoeba_home_system space_critter_system space_ecology_system }
+	init_effect = {
+		create_country = { name = "NAME_Space_Amoebas_United" type = amoeba_garrison }
+	}
+}
+
+hostile_init_21 = {
+	class = "sc_m_giant"
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_extreme
+			modifier = {
+				factor = 0
+				has_star_flag = empire_cluster
+			}
+			modifier = {
+				factor = 2
+				is_bottleneck_system = yes
+			}
+		}
+	max_instances = 1
+	flags = { tiyanki_graveyard_system space_critter_system space_ecology_system }
+	init_effect = { }
+}
+
+hostile_init_22 = {
+	class = "rl_standard_stars"
+	flags = { hostile_system drone_system_4 }
+	usage = misc_system_init
+	usage_odds ={
+			base = @spawn_system_verycommon
+			modifier = {
+				factor = 0
+				OR = {
+					is_fe_cluster = yes
+					is_marauder_cluster = yes
+					has_star_flag = empire_cluster
+				}
+			}
+		}
+	max_instances = 1
+	init_effect = { }
+}

@@ -1,0 +1,9 @@
+pc_gas_giant = { }
+
+pc_asteroid = {
+	asteroid = yes
+}
+
+pc_ice_asteroid = {
+	asteroid = yes
+}

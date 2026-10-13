@@ -80,77 +80,51 @@ fn a_save_and_an_unknown_choice_are_refused() {
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("plain_please is none of"));
 }
 
+/// Bare shell lists the 17 new seats and how many systems it kept clear around them. Rolling
+/// around the seats keeps none clear, and another seed draws other seats.
 #[test]
-fn bare_shell_says_how_many_systems_it_kept_clear_around_the_seats() {
+fn bare_shell_lists_the_new_seats_and_what_it_kept_clear_around_them() {
     let out = temp_scenario();
-    let run = sgf(&[
-        "prepare",
-        SCENARIO,
-        "--preset",
-        "shell",
-        "--no-mods",
-        "-o",
-        out.to_str().expect("a UTF-8 path"),
-    ]);
-    if without_install(&run) {
+    let path = out.to_str().expect("a UTF-8 path");
+    let shell = |more: &[&str]| {
+        let mut args = vec![
+            "prepare",
+            SCENARIO,
+            "--preset",
+            "shell",
+            "--no-mods",
+            "-o",
+            path,
+        ];
+        args.extend(more);
+        let run = sgf(&args);
+        if without_install(&run) {
+            return None;
+        }
+        ok(&run);
+        Some(stdout(&run))
+    };
+    let new_seats = |text: &str| {
+        let line = text
+            .lines()
+            .find_map(|line| line.strip_prefix("new seats: "));
+        line.unwrap_or_else(|| panic!("the new seats: {text}"))
+            .to_owned()
+    };
+    let Some(first) = shell(&["--seed", "0"]) else {
         return;
-    }
-    ok(&run);
-    let text = stdout(&run);
-    let kept: usize = text
+    };
+    let kept: usize = first
         .lines()
         .find_map(|line| line.strip_prefix("kept clear around seats: "))
         .expect("the count")
         .parse()
         .expect("a number");
-    assert!(kept > 0, "{text}");
+    assert!(kept > 0, "{first}");
+    let seats = new_seats(&first);
+    assert_eq!(seats.split(", ").count(), 17, "{seats}");
 
-    let rolled = sgf(&[
-        "prepare",
-        SCENARIO,
-        "--preset",
-        "shell",
-        "--roll-around-seats",
-        "--no-mods",
-        "-o",
-        out.to_str().expect("a UTF-8 path"),
-    ]);
-    ok(&rolled);
-    let text = stdout(&rolled);
-    assert!(!text.contains("kept clear around seats"), "{text}");
-}
-
-#[test]
-fn bare_shell_lists_the_new_seats_and_another_seed_draws_others() {
-    let out = temp_scenario();
-    let path = out.to_str().expect("a UTF-8 path");
-    let seats = |seed: &str| {
-        let run = sgf(&[
-            "prepare",
-            SCENARIO,
-            "--preset",
-            "shell",
-            "--seed",
-            seed,
-            "--no-mods",
-            "-o",
-            path,
-        ]);
-        if without_install(&run) {
-            return None;
-        }
-        ok(&run);
-        let text = stdout(&run);
-        let line = text
-            .lines()
-            .find_map(|line| line.strip_prefix("new seats: "))
-            .unwrap_or_else(|| panic!("the new seats: {text}"));
-        Some(line.to_owned())
-    };
-    let Some(first) = seats("0") else {
-        return;
-    };
-    assert_eq!(first.split(", ").count(), 17, "{first}");
-    assert_eq!(seats("0").as_deref(), Some(first.as_str()));
-    assert_ne!(seats("1").as_deref(), Some(first.as_str()));
+    let rolled = shell(&["--seed", "1", "--roll-around-seats"]).expect("the install");
+    assert!(!rolled.contains("kept clear around seats"), "{rolled}");
+    assert_ne!(new_seats(&rolled), seats);
 }

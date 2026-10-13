@@ -35,8 +35,9 @@ and what undo should do.
 
 1. Open an issue first for anything beyond a small fix, so the approach
    is agreed before the work.
-2. Build from source as the README describes, and run the checks before
-   you push:
+2. Build from source as the README describes. Run `git lfs install`
+   once after cloning, so the sample saves in `testdata/` resolve. Run
+   the checks before you push:
 
    ```
    cargo test --workspace
@@ -47,9 +48,10 @@ and what undo should do.
 
    `cargo test --workspace` also rewrites `app/src/generated/`. Commit
    what it writes and never edit those files by hand.
-3. Add an entry to `CHANGELOG.md` under `## [Unreleased]`, written for a
-   user, or ask for the `skip-changelog` label if the change is invisible
-   to one. The `Changelog entry` check enforces this.
+3. Add one file under `changelog.d/`, written for a player
+   (`changelog.d/README.md` says how), or ask for the `skip-changelog`
+   label if a player would not notice the change. The `Changelog entry`
+   check enforces this.
 4. Fill in the pull request template. If the change touches anything the
    game reads, run the in-game checks it lists and say which you ran.
 5. Keep the pull request to one change. A refactor and a behaviour change

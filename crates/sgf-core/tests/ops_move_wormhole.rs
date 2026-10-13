@@ -1,38 +1,19 @@
 //! Moving a save's natural wormhole about its system's star, on the 4.x samples: the diff,
 //! byte-exact undo, what the details read back, and what is refused.
 
-use sgf_core::format::save::details::{HeuristicResolver, WormholeSummary};
+use sgf_core::format::save::details::WormholeSummary;
 use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{open, open_4_5};
+use common::{open, open_4_5, wormhole, wormholes};
 
 fn move_wormhole(wormhole: u32, radius: f64, angle: f64) -> Op {
     Op::MoveWormhole {
         wormhole,
         radius,
         angle,
-    }
-}
-
-fn wormholes(session: &Session, system: u32) -> Vec<WormholeSummary> {
-    let details = session.details().expect("details");
-    details
-        .resolve(system, &HeuristicResolver, false)
-        .expect("the system's details")
-        .wormholes
-}
-
-fn wormhole(id: u32, bypass: u32, partner: u32, x: f64, y: f64) -> WormholeSummary {
-    WormholeSummary {
-        id,
-        bypass,
-        kind: "wormhole".to_owned(),
-        partner: Some(partner),
-        x,
-        y,
     }
 }
 

@@ -1,0 +1,15 @@
+lone_defender = {
+	class = sc_g
+	usage = misc_system_init
+	usage_odds = {
+			base = @spawn_system_slightlycommon
+			inline_script = "solar_system_initializers/initializer_modifiers_habitable_world_systems"
+		}
+	max_instances = 1
+	flags = { unique_system lone_defender_system }
+	planet = {
+		init_effect = {
+			create_country = { name = "NAME_Lone_Defender_country" type = faction }
+		}
+	}
+}

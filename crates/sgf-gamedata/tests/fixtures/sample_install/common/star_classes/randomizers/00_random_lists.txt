@@ -1,0 +1,11 @@
+rl_standard_stars = {
+	stars = {
+		"sc_a"
+		"sc_b"
+		"sc_f"
+		"sc_g"
+		"sc_k"
+		"sc_m"
+		"sc_m_giant"
+	}
+}

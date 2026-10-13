@@ -8,7 +8,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{plain_report, round_trip_step};
-use common::{country, current, meta_flag, names, open, open_4_5, reprojected};
+use common::{assert_country_edit, country, meta_flag, names, open, open_4_5};
 
 /// The player empire in both samples; in 4.5 it has Independent Map Color on.
 const PLAYER: u32 = 0;
@@ -52,32 +52,9 @@ fn change(mut session: Session, op: Op, snapshot: &str) -> Vec<u8> {
     let before = flag(&session.graph().countries, id);
     let result = round_trip_step(&mut session, snapshot, op);
     common::snapshot(snapshot, &plain_report(&session, &result));
-    assert_eq!(flag(&session.graph().countries, id), expected, "{snapshot}");
-    assert_eq!(
-        flag(&reprojected(&session).countries, id),
-        expected,
-        "{snapshot}: reload"
-    );
-    let edit = session.edit_result(result.clone());
-    assert_eq!(
-        flag(&edit.delta.countries, id),
-        expected,
-        "{snapshot}: reaches the app"
-    );
     assert_eq!(result.inverse, set(id, before), "{snapshot}");
-    let edited_meta = session.doc().meta().to_vec();
-    session.apply(result.inverse).expect("apply the inverse");
-    assert_eq!(
-        current(&session),
-        session.doc().original(),
-        "{snapshot}: the inverse"
-    );
-    assert_eq!(
-        session.doc().meta(),
-        session.doc().original_meta(),
-        "{snapshot}: the inverse puts meta back"
-    );
-    edited_meta
+    let read = |countries: &[CountryNode]| flag(countries, id);
+    assert_country_edit(session, result, read, &expected, snapshot)
 }
 
 #[test]

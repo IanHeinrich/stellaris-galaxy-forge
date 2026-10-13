@@ -1,7 +1,6 @@
 //! Adding and removing a save's natural wormhole pairs on the 4.x samples: the diff,
 //! byte-exact undo, what the galaxy and the details read back, and what is refused.
 
-use sgf_core::format::save::details::{HeuristicResolver, WormholeSummary};
 use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph};
 use sgf_core::session::Session;
@@ -9,7 +8,7 @@ use sgf_core::session::Session;
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
 use common::examples::save_with_added;
-use common::{current, open, open_4_5};
+use common::{current, open, open_4_5, wormhole, wormholes};
 
 fn add(a: u32, b: u32) -> Op {
     Op::AddWormholePair { a, b, at: None }
@@ -17,25 +16,6 @@ fn add(a: u32, b: u32) -> Op {
 
 fn remove(a: u32, b: u32) -> Op {
     Op::RemoveWormholePair { a, b }
-}
-
-fn wormholes(session: &Session, system: u32) -> Vec<WormholeSummary> {
-    let details = session.details().expect("details");
-    details
-        .resolve(system, &HeuristicResolver, false)
-        .expect("the system's details")
-        .wormholes
-}
-
-fn wormhole(id: u32, bypass: u32, partner: u32, x: f64, y: f64) -> WormholeSummary {
-    WormholeSummary {
-        id,
-        bypass,
-        kind: "wormhole".to_owned(),
-        partner: Some(partner),
-        x,
-        y,
-    }
 }
 
 fn linked(graph: &GalaxyGraph, a: u32, b: u32) -> bool {

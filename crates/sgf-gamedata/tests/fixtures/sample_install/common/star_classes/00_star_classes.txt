@@ -1,0 +1,41 @@
+sc_b = {
+	class = b_star
+	planet = { key = pc_b_star }
+	spawn_odds = 10
+}
+
+sc_a = {
+	class = a_star
+	planet = { key = pc_a_star }
+	spawn_odds = 10
+}
+
+sc_f = {
+	class = f_star
+	planet = { key = pc_f_star }
+	spawn_odds = 15
+}
+
+sc_g = {
+	class = g_star
+	planet = { key = pc_g_star }
+	spawn_odds = 30
+}
+
+sc_k = {
+	class = k_star
+	planet = { key = pc_k_star }
+	spawn_odds = 20
+}
+
+sc_m = {
+	class = m_star
+	planet = { key = pc_m_star }
+	spawn_odds = 20
+}
+
+sc_m_giant = {
+	class = m_star
+	planet = { key = pc_m_giant_star }
+	spawn_odds = 20
+}

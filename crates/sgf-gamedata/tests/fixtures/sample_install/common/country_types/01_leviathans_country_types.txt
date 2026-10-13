@@ -1,0 +1,14 @@
+guardian_dragon = {
+	is_space_critter = yes
+	destroys_starbases = yes
+}
+
+guardian_fortress = {
+	is_space_critter = yes
+	destroys_starbases = yes
+}
+
+guardian_dreadnought = {
+	is_space_critter = yes
+	destroys_starbases = yes
+}

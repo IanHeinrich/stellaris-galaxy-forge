@@ -59,6 +59,12 @@ jobs:
       - name: App lint
         run: npm run lint
         working-directory: app
+      - name: Copied code, reported only
+        continue-on-error: true
+        run: >-
+          npx jscpd --min-lines 8 --format rust,typescript,tsx --ignore "**/generated/**"
+          --reporters console ../crates/*/src src src-tauri/src
+        working-directory: app
       - name: Restore the Vitest transform cache
         uses: actions/cache/restore@v4
         with:

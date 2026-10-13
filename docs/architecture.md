@@ -306,6 +306,31 @@ slot's bytes go out instead of the original ones. An inserted statement
 goes out at its insertion offset. The old file is then renamed to
 `<name>.sav.bak-<stamp>` and the new one is moved into place.
 
+## When the file changes on disk
+
+The open document is watched. The session notes the file's length and
+modification time when it opens the file and again after each save. The
+shell watches the file's folder, and checks again when the window gets
+focus back. A change that doesn't match the stamp reloads a scenario
+with no unsaved edits, keeping the view: the camera, the tilt, the
+hidden empires and the selection where the file still holds it.
+Everything read from the old bytes is reset. Prepare keeps its choices
+and reads its preview again. With unsaved edits, or for a save, the app
+asks: Reload reads the file again and clears undo history; Keep my
+changes leaves both. The app's own saves update the stamp under the
+session lock, so they never reload.
+
+Save still checks: if Stellaris (or anything else) has written the file
+since, a save in place refuses with `changed_on_disk` and the app asks.
+Overwrite saves again with `force`, and the backup-then-persist path
+renames the other version aside as the backup; Save As picks another
+file; Cancel writes nothing. A save to a different path is not checked,
+because the file dialog already asked about overwriting it.
+
+Game data is watched too: a change under a loaded root rereads the
+registries its folder feeds, each through its loader over the whole
+layout, so override and `replace_path` rules hold as in a full load.
+
 ## Ownership
 
 Who owns a system comes from three places. `sgf-core` reads the

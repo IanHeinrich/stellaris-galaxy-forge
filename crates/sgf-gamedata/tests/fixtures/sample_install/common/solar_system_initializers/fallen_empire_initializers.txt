@@ -1,0 +1,156 @@
+fallen_1 = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ancient_wonders_system }
+	init_effect = {
+		spawn_system = { initializer = fallen_1_2 }
+		spawn_system = { initializer = fallen_orbitals_1 }
+		spawn_system = { initializer = fallen_orbitals_2 }
+	}
+}
+
+fallen_1_2 = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ancient_wonders_system }
+	init_effect = { }
+}
+
+fallen_2 = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ancient_wonders_system }
+	init_effect = {
+		spawn_system = { initializer = fallen_orbitals_1 }
+		spawn_system = { initializer = fallen_orbitals_2 }
+		spawn_system = { initializer = fallen_holy_01 }
+		spawn_system = { initializer = fallen_holy_02 }
+		spawn_system = { initializer = fallen_holy_03 }
+		spawn_system = { initializer = fallen_holy_04 }
+		spawn_system = { initializer = fallen_shrouded }
+	}
+}
+
+fallen_3 = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ancient_wonders_system }
+	init_effect = {
+		spawn_system = { initializer = fallen_xeno_zoo }
+		spawn_system = { initializer = fallen_orbitals_1 }
+		spawn_system = { initializer = fallen_orbitals_2 }
+	}
+}
+
+fallen_4 = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ancient_wonders_system }
+	init_effect = {
+		spawn_system = { initializer = fallen_orbitals_1 }
+		spawn_system = { initializer = fallen_orbitals_2 }
+		spawn_system = { initializer = fallen_shielded_1 }
+		spawn_system = { initializer = fallen_shielded_2 }
+		spawn_system = { initializer = fallen_shielded_3 }
+	}
+}
+
+fallen_col_1 = {
+	class = "rl_standard_stars"
+	init_effect = { }
+}
+
+fallen_col_2 = {
+	class = "rl_standard_stars"
+	init_effect = { }
+}
+
+fallen_holy_01 = {
+	class = "rl_standard_stars"
+	flags = { holy_system_1 }
+	init_effect = { }
+}
+
+fallen_holy_02 = {
+	class = "rl_standard_stars"
+	flags = { holy_system_2 }
+	init_effect = { }
+}
+
+fallen_holy_03 = {
+	class = "rl_standard_stars"
+	flags = { holy_system_3 }
+	init_effect = { }
+}
+
+fallen_holy_04 = {
+	class = "rl_standard_stars"
+	flags = { holy_system_4 }
+	init_effect = { }
+}
+
+fallen_machine = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ring_world_built ancient_wonders_system }
+	init_effect = {
+		spawn_system = { initializer = fallen_machine_2 }
+		spawn_system = { initializer = fallen_machine_3 }
+		spawn_system = { initializer = fallen_machine_4 }
+		spawn_system = { initializer = fallen_machine_5 }
+	}
+}
+
+fallen_machine_2 = {
+	class = "rl_standard_stars"
+	init_effect = { }
+}
+
+fallen_machine_3 = {
+	class = "rl_standard_stars"
+	init_effect = { }
+}
+
+fallen_machine_4 = {
+	class = "rl_standard_stars"
+	init_effect = { }
+}
+
+fallen_machine_5 = {
+	class = sc_black_hole
+	init_effect = { }
+}
+
+fallen_orbitals_1 = {
+	class = "rl_standard_stars"
+	init_effect = {
+		spawn_system = { initializer = fallen_col_1 }
+		spawn_system = { initializer = fallen_col_2 }
+	}
+}
+
+fallen_orbitals_2 = {
+	class = "rl_standard_stars"
+	init_effect = {
+		spawn_system = { initializer = fallen_col_1 }
+		spawn_system = { initializer = fallen_col_2 }
+	}
+}
+
+fallen_shielded_1 = {
+	class = "rl_standard_stars"
+	flags = { fallen_shielded_1 }
+	init_effect = { }
+}
+
+fallen_shielded_2 = {
+	class = "rl_standard_stars"
+	flags = { fallen_shielded_2 }
+	init_effect = { }
+}
+
+fallen_shielded_3 = {
+	class = "rl_standard_stars"
+	flags = { fallen_shielded_3 }
+	init_effect = { }
+}

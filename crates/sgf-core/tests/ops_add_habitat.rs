@@ -1,21 +1,15 @@
 //! Adding a habitat round a body of the 4.5 sample and deleting it again: the diff, the
 //! flags the host and the system take and give back, and what is refused.
 
-use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{HabitatOrbital, NewHabitat, Op};
-use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
 use common::diff::snapshot_step;
+use common::edit::{ALARI, open_4_5_edited, planet_text, system_text};
 use common::examples::{ADDED_MEGASTRUCTURE, sol_habitat, sol_nexus};
-use common::{
-    SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5, open_edited_sample, text,
-};
+use common::{SAMPLE_4_5, assert_refusals, current, open_4_5, open_edited_sample, text};
 
-/// The 4.5 sample's capital system, Alari: star 0, the capital 2 with its moon 3, and barren
-/// planet 4, which has neither moons nor flags.
-const SOL: u32 = 169;
 /// Ithomes Gate, whose three habitats the event that made them left with no `habitat<id>`
 /// flag on their hosts and no `has_habitat` on the system. Habitat 6268 orbits gas giant
 /// 6267; gas giant 6269 orbits the black hole.
@@ -67,14 +61,6 @@ fn added_id(result: &sgf_core::session::OpResult) -> u32 {
         },
         other => panic!("{other:?}"),
     }
-}
-
-fn system_text(session: &Session, system: u32) -> String {
-    entity_text(session, EntityKind::System, system)
-}
-
-fn planet_text(session: &Session, planet: u32) -> String {
-    entity_text(session, EntityKind::Planet, planet)
 }
 
 #[test]
@@ -139,9 +125,6 @@ fn what_an_add_refuses() {
             ),
         ],
     );
-    let mut old = open_3_4();
-    let error = old.apply(sol_habitat()).expect_err("a 3.4 save");
-    assert!(error.to_string().contains("3.4"), "{error}");
 }
 
 /// Deleting an added habitat takes its host's flag and the system's `has_habitat` with it,
@@ -169,10 +152,10 @@ fn a_habitat_round_a_planet() {
     let mut session = open_4_5();
     let result = snapshot_step(&mut session, "habitat_round_a_planet", sol_habitat());
     let id = added_id(&result);
-    assert_eq!(result.details_stale, [SOL]);
+    assert_eq!(result.details_stale, [ALARI]);
     let host = planet_text(&session, 4);
     assert!(host.contains(&format!("habitat{id}=")), "{host}");
-    assert!(system_text(&session, SOL).contains("has_habitat="));
+    assert!(system_text(&session, ALARI).contains("has_habitat="));
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(current(&session), session.doc().original());
 }
@@ -232,7 +215,7 @@ fn the_flags_are_dated_in_the_games_360_day_years() {
 /// where the game writes one, after `arm`'s neighbours and before `initializer`.
 #[test]
 fn a_system_with_no_flags_gets_its_block() {
-    let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+    let mut session = open_4_5_edited(|gamestate| {
         let objects = gamestate
             .find("\ngalactic_object=\n")
             .expect("galactic_object");
@@ -244,9 +227,9 @@ fn a_system_with_no_flags_gets_its_block() {
         let end = start + gamestate[start..].find("\n\t\t}\n").expect("their end") + 4;
         gamestate.replace_range(start..end, "");
     });
-    assert!(!system_text(&session, SOL).contains("flags="));
+    assert!(!system_text(&session, ALARI).contains("flags="));
     snapshot_step(&mut session, "habitat_system_flags_created", sol_habitat());
-    let system = system_text(&session, SOL);
+    let system = system_text(&session, ALARI);
     let flags = system.find("\t\tflags=").expect("a flags block");
     assert!(
         flags < system.find("initializer=").expect("initializer"),

@@ -195,7 +195,7 @@ fn to_bbcode(body: &[&str]) -> String {
         .join("\n")
 }
 
-/// The subset of Markdown the changelog is written in, as `docs/engineering-rules.md` states
+/// The subset of Markdown the changelog is written in, as `docs/maintaining.md` states
 /// it. A line outside it is paragraph text.
 fn blocks(body: &[&str]) -> Vec<Block> {
     let mut blocks = Vec::new();

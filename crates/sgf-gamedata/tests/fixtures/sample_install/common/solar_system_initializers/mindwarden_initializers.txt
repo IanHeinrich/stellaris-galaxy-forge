@@ -1,0 +1,25 @@
+mindwarden_enclave_initializer = {
+	class = "rl_standard_stars"
+	usage = misc_system_init
+	max_instances = 1
+	usage_odds = {
+			base = 0
+			modifier = {
+				has_shroud_dlc = yes
+				add = @spawn_system_extreme
+			}
+			modifier = {
+				factor = 0
+				any_country = {
+					has_origin = origin_mindwardens
+				}
+			}
+		}
+	flags = {
+			mindwarden_enclave_system
+			enclave
+		}
+	init_effect = {
+		create_country = { name = "random" type = mindwarden_enclave }
+	}
+}

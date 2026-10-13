@@ -1,133 +1,21 @@
 import { vi } from "vitest";
-import type { SgfError } from "../../generated/SgfError";
 
-export type { SgfError };
+/** The helpers that are not commands keep their real behaviour: tests assert on their messages. */
+const REAL = new Set(["errorMessage", "isSgfError"]);
 
 /**
  * Every Tauri command as a spy, so a store test says only what the calls it exercises
  * resolve to. A command a test has not armed rejects, because the backend always answers.
  */
-const command = (name: string) =>
-  vi.fn(async (): Promise<never> => {
-    throw new Error(`unarmed ipc mock: ${name}`);
-  });
+const actual = await vi.importActual<Record<string, unknown>>("../ipc");
+for (const [name, value] of Object.entries(actual)) {
+  if (typeof value === "function" && !REAL.has(name)) {
+    Object.defineProperty(actual, name, {
+      value: vi.fn(async (): Promise<never> => {
+        throw new Error(`unarmed ipc mock: ${name}`);
+      }),
+    });
+  }
+}
 
-export const saveDirs = command("saveDirs");
-export const listCampaigns = command("listCampaigns");
-export const listCampaignSaves = command("listCampaignSaves");
-export const listScenarios = command("listScenarios");
-export const scenarioPainted = command("scenarioPainted");
-export const saveDetails = command("saveDetails");
-export const missingPaths = command("missingPaths");
-export const documentKind = command("documentKind");
-export const openSave = command("openSave");
-export const openAsScenario = command("openAsScenario");
-export const newScenario = command("newScenario");
-export const exportScenario = command("exportScenario");
-export const previewExport = command("previewExport");
-export const getGalaxy = command("getGalaxy");
-export const getSystem = command("getSystem");
-export const search = command("search");
-export const warmDetails = command("warmDetails");
-export const getModelUses = command("getModelUses");
-export const applyOp = command("applyOp");
-export const addRandomSystem = command("addRandomSystem");
-export const addBody = command("addBody");
-export const addHabitat = command("addHabitat");
-export const addMegastructure = command("addMegastructure");
-export const addRingWorld = command("addRingWorld");
-export const getRingWorldClearing = command("getRingWorldClearing");
-export const deleteMegastructure = command("deleteMegastructure");
-export const deleteRingWorld = command("deleteRingWorld");
-export const addSpecialSystem = command("addSpecialSystem");
-export const rerollSystem = command("rerollSystem");
-export const removeAddedSystems = command("removeAddedSystems");
-export const addNebula = command("addNebula");
-export const getAddSystemPicks = command("getAddSystemPicks");
-export const feZoneFit = command("feZoneFit");
-export const feZoneCandidateCount = command("feZoneCandidateCount");
-export const setFeLinks = command("setFeLinks");
-export const headerEmpireCounts = command("headerEmpireCounts");
-export const preparePreview = command("preparePreview");
-export const prepareApply = command("prepareApply");
-export const siblingScenarioNames = command("siblingScenarioNames");
-export const undo = command("undo");
-export const redo = command("redo");
-export const reloadDocument = command("reloadDocument");
-export const checkDocumentOnDisk = command("checkDocumentOnDisk");
-export const closeSave = command("closeSave");
-export const save = command("save");
-export const saveAs = command("saveAs");
-export const isCloudSave = command("isCloudSave");
-export const loadGameData = command("loadGameData");
-export const gameDataSummary = command("gameDataSummary");
-export const unloadGameData = command("unloadGameData");
-export const resumeAutoReload = command("resumeAutoReload");
-export const getSpecialSystems = command("getSpecialSystems");
-export const getEntity = command("getEntity");
-export const getEntitySource = command("getEntitySource");
-export const getEntitySchema = command("getEntitySchema");
-export const getPlanetPage = command("getPlanetPage");
-export const planetMoveTargets = command("planetMoveTargets");
-export const planetMoveCheck = command("planetMoveCheck");
-export const checkOp = command("checkOp");
-export const planetMoveOp = command("planetMoveOp");
-export const copyBodies = command("copyBodies");
-export const pasteBodiesOp = command("pasteBodiesOp");
-export const getScenarioOwners = command("getScenarioOwners");
-export const getScenarioBypasses = command("getScenarioBypasses");
-export const getSystemScripts = command("getSystemScripts");
-export const paintMod = command("paintMod");
-export const openScript = command("openScript");
-export const editorChoices = command("editorChoices");
-export const openInEditor = command("openInEditor");
-export const chooseEditorProgram = command("chooseEditorProgram");
-export const answerEditorChooser = command("answerEditorChooser");
-export const openUrl = command("openUrl");
-export const workshopLinks = command("workshopLinks");
-export const getNames = command("getNames");
-export const getGameTexts = command("getGameTexts");
-export const getRawNames = command("getRawNames");
-export const resolveNames = command("resolveNames");
-export const getStarClasses = command("getStarClasses");
-export const getGeneratorStarClasses = command("getGeneratorStarClasses");
-export const getBodyClasses = command("getBodyClasses");
-export const getDeposits = command("getDeposits");
-export const getDepositChoices = command("getDepositChoices");
-export const getDepositTypes = command("getDepositTypes");
-export const getModifierChoices = command("getModifierChoices");
-export const getAnomalyChoices = command("getAnomalyChoices");
-export const getDigSiteChoices = command("getDigSiteChoices");
-export const getModifiers = command("getModifiers");
-export const getPlanetModels = command("getPlanetModels");
-export const getColonyTypes = command("getColonyTypes");
-export const getBypasses = command("getBypasses");
-export const getInitializers = command("getInitializers");
-export const getInitializerDefinition = command("getInitializerDefinition");
-export const getGalaxyShapes = command("getGalaxyShapes");
-export const getPrecursors = command("getPrecursors");
-export const getMapFont = command("getMapFont");
-export const getMapColors = command("getMapColors");
-export const getMapColorSource = command("getMapColorSource");
-export const getFlagParts = command("getFlagParts");
-export const getPlanetClasses = command("getPlanetClasses");
-export const getTerraformCandidates = command("getTerraformCandidates");
-export const getStarbaseLevels = command("getStarbaseLevels");
-export const getMegastructureTypes = command("getMegastructureTypes");
-export const getShipSizes = command("getShipSizes");
-export const getCountryTypes = command("getCountryTypes");
-export const getResourceIcons = command("getResourceIcons");
-export const getLgateOutcomeMods = command("getLgateOutcomeMods");
-export const getTextures = command("getTextures");
-export const getSystemDetails = command("getSystemDetails");
-export const getSystemRoll = command("getSystemRoll");
-export const getClassRolls = command("getClassRolls");
-export const checkForUpdate = command("checkForUpdate");
-export const installUpdate = command("installUpdate");
-export const appVersion = command("appVersion");
-
-/** The two pure helpers keep their real behaviour: tests assert on the messages they produce. */
-export { errorMessage, isSgfError } from "../errors";
-
-/** Not a command either: the releases URL is the constant the store holds before any check. */
-export { GUIDE_URL, RELEASES_URL } from "../update";
+export * from "../ipc";

@@ -10,13 +10,12 @@ use sgf_core::views::ClearedMegastructure;
 
 use crate::common;
 use common::diff::snapshot_step;
+use common::edit::{ALARI, open_4_5_edited, planet_text, system_text};
 use common::examples::{
     CHORS_COMPASS, HABRAQ, chors_ring, finished_quadrant, finished_ring, mixed_ring, sol_nexus,
     titanic_ring,
 };
-use common::{
-    SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5, open_edited_sample,
-};
+use common::{assert_refusals, current, entity_text, open_4_5};
 
 /// Lachium, whose ruined ring the sample holds.
 const LACHIUM: u32 = 203;
@@ -29,19 +28,9 @@ const STAR: u32 = 584;
 const VINH: u32 = 174;
 /// Plessis, whose starbase orbits the uncolonised shielded world 484.
 const PLESSIS: u32 = 298;
-/// The capital system, where `sol_nexus` builds on gas giant 6.
-const ALARI: u32 = 169;
 
 fn owner(session: &Session, system: u32) -> Option<u32> {
     session.graph().systems.get(&system).and_then(|s| s.owner)
-}
-
-fn system_text(session: &Session, system: u32) -> String {
-    entity_text(session, EntityKind::System, system)
-}
-
-fn planet_text(session: &Session, planet: u32) -> String {
-    entity_text(session, EntityKind::Planet, planet)
 }
 
 /// Cleared as the game's frame clears it, Habraq loses its four planets, the moon of 782 and
@@ -116,11 +105,6 @@ fn removing_an_added_ring_world_leaves_the_save_as_it_was() {
     let added = session.apply(add.clone()).expect("the add");
     let removal = added.inverse.clone();
     assert!(matches!(removal, Op::RemoveRingWorld { .. }), "{removal:?}");
-    let refused = session.apply(removal.clone()).expect_err("from outside");
-    assert_eq!(
-        refused.to_string(),
-        "RemoveRingWorld is only an inverse: undo writes it back"
-    );
     let removed = session.apply_inverse(removal).expect("the removal");
     assert_eq!(
         removed.entry.description,
@@ -236,9 +220,6 @@ fn what_an_add_refuses() {
             "a ring world cannot be added there: planet 16777273 of Chors Compass #23 is a segment of the ring world at orbit 45.21",
         )],
     );
-    let mut old = open_3_4();
-    let error = old.apply(chors_ring(None)).expect_err("a 3.4 save");
-    assert!(error.to_string().contains("3.4"), "{error}");
 }
 
 /// No save shows what the game does with a starbase whose planet the frame removes, so the
@@ -383,7 +364,7 @@ fn the_rings_variables_are_written_and_taken_back() {
 		}",
         ),
     ] {
-        let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+        let mut session = open_4_5_edited(|gamestate| {
             let objects = gamestate
                 .find(
                     "

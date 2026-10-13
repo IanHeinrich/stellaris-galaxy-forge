@@ -1,147 +1,24 @@
 # `lib/`
 
-`lib/` is what the data means: pure helpers over the generated types, names,
-the game's own vocabulary and the humanisers that turn its keys into English.
+`lib/` is what the data means: pure functions over the generated types, the
+game's vocabulary, and the words the app shows. A module is named for the game
+concept or the screen it serves.
 
-- `lib/geometry/`: points, the mesh and the drawn territory: the maths,
-  which knows no game vocabulary at all. `territories.ts` keeps one galaxy's
-  territories between edits, `territories.worker.ts` runs it off the UI thread
-  and `territoryClient.ts` is how the map talks to either. `territory.ts` is
-  the influence field the territories are traced from. It measures each tile
-  in `influenceRaster.ts` and traces it in `influenceMarch.ts`, from the
-  sources in `influenceSources.ts`, the tile layout in `influenceTiles.ts` and
-  the rounding in `influenceSmoothing.ts`. `contour.ts` turns the
-  traced segments into rings, and `polygon.ts` holds the ring helpers: area,
-  point in ring, and nesting rings into polygons with holes. `pairs.ts` and
-  `segments.ts` are id pairs and segment crossings, `symmetry.ts` a point's
-  images about the centre, and `joinIslands.ts` the fewest short edges that
-  join separate components.
-- `lib/brush/`: what a brush stroke does, without a canvas: the five brushes
-  and what Alt turns each into (`brushTools`), where painted systems land
-  (`sample`, `grid`, `symmetricSpacing`), what a stroke sweeps (`stroke`,
-  `sweep`, and `special` for the systems an eraser spares), the lanes it adds
-  (`lanes`), what the Height brush does to the heights under it, and a
-  ripple's rings and presets (`heightBrush`), and the stroke as a whole
-  (`brushStroke`).
-- `lib/initializer/`: what the game's initializers are: how they group, how
-  they are searched, the rows they read as and the labels the legend shows.
-- `lib/details/`: one system's own detail: where its name row and plate sit
-  and whose flag shows beside it (`layout`), the icons right of a system's or
-  a body's name (`nameIcons`), the English its keys read as (`labels`), the textures and frames
-  it draws with (`icons`), and its fleets and resources. `planetPage` is one
-  body's page: its deposits grouped by type, the district caps they add up to,
-  and its planet and timed modifiers as rows. `starBody` says whether a body
-  is a star and what a star body's type and size can change to, and
-  `starClass` is the star class pickers and the bulk plan that sets one
-  class on many systems. `terraform` says what making a body a terraforming
-  candidate needs. `planetEdits` is the words a planet's page shows beside
-  its edits, and the hint of a body's Edit chip. `planetModel` is the Model
-  field's rows, usual models first, and `planetClass` is the Class field's
-  rows, with a colony's narrower choice, and the rows several planets
-  share. `bodiesEdit` is the selection page's edit of several bodies of
-  one system: which bodies each field leaves out and why, the deposit and
-  modifier rows with who has each, and the one `Batch` each action sends. A body's page reads its body through
-  a `BodySource`, one per kind of document (`panels/inspector/entity/bodySources.ts`),
-  which also gives it the adapter that edits the body. The save's adapter,
-  `store/planetEditAdapter.ts`, builds every op a save body's page sends.
-  `planetOffers` says which edits a body's page and the system view's menus
-  offer, from the document's capabilities.
-  `planetRemoval` is the ops that delete a body or remove its colony and
-  the sentences their confirms ask. `picker` is what the deposit, modifier,
-  dig site and anomaly pickers share: the search, the usual rows first,
-  a row's effect summary, where the side card goes, and the target and
-  edit adapter they add through, so a source other than a save can plug
-  in its own adapter (`store/planetEditAdapter.ts` holds the save's). `depositPicker` groups
-  the deposit types its picker offers into families, sections and chips,
-  `modifierPicker` is the modifier picker's rows and chips,
-  `digSitePicker` is the dig site picker's rows and chips and the line a
-  planet's site reads as, and `anomalyPicker` is the anomaly picker's rows
-  and level chips. The system view's layout is `orbits`: where each body,
-  orbit, belt and hyperlane exit sits, from the
-  roll and the details gamedata sends. It walks no initializer itself.
-  `orbitIntent` is what a geometry edit asks for, a body or belt at an
-  absolute radius and angle, and what an adapter answers: what may be
-  edited, why not, and the words for both. `orbitReach` holds the layout
-  rules the core holds too: what a body orbits, which body another would
-  stand on, and how the inner radius grows and how low it may go.
-  `saveGeometry` picks an adapter per document: a save's builds the save
-  ops, and a scenario's makes nothing editable. Its `layoutEditing` and
-  `layoutPreview` say what may be edited and preview an edit as a layout
-  override for any source, so the scene and the geometry fields read the
-  adapter and not the kind of file. `geometry` works one system's layout, what
-  may be edited and the frame an edit is built in from its details, roll
-  and adapter, once for the scene, the pages and the nudge. A place that
-  has to differ by kind picks a row of `documentKinds` or a `BodySource`,
-  and a new kind fails to compile until each has its row.
-  `discs` sizes each body's disc. `spawnFacts` is what a scenario system's
-  initializer says beyond a save's fields, in the Inspector's words: its
-  planet, moon and asteroid counts, how a star or a class is decided, which
-  copy of its block a body is, the lines its deposits, features and
-  anomalies add, and the facts only a random galaxy uses. `bodyBlocks` turns
-  a scenario system's bodies into the Planets list's rows, one per
-  initializer block, with the block's count and the moons each copy has.
-- `lib/scriptText.ts`: script text as a snippet shows it: moved left by the
-  indent its lines share, cut into the tokens it is coloured by under the
-  core lexer's rules, and split into lines. `layoutLines` lays a statement
-  out one key per line for the Source tab, with the text an edit changed
-  marked.
-- `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
-  queries: hit-testing maths, so it lives here and not in `map/`.
-- The game's concepts, one module each and named for it: `feZone`, `feLinks`,
-  `feSpawnGhosts`, `marauder`, `ownership`, `countryKinds`, `spawn`,
-  `special`, `paint`, `guides`, `entities`, `resources`, `scenarioBypasses`,
-  `wormholes` (a save's natural wormhole pairs, read from its bypass links),
-  `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them),
-  `addSystem` (where a system may be added, and the Special menu's marks),
-  `addBody` (the words of the Add planet and Add moon menus, and which
-  bodies may take a moon),
-  `height` (a system's height as the editor shows it, 0 on the game's default
-  plane, and the colour it reads as),
-  `flags` (an empire's flag as the flag fields edit it: its emblem and
-  background rows, the mods it needs and the palette swatches),
-  `precursors` (each system's precursor flags, matched against the install's
-  definitions and grouped into the legend the map draws) and `planetMove`
-  (moving save planets between systems: where a click in the system view
-  places a lone planet, the systems nearest by jumps, and every sentence the
-  menus, the cut bar and the inspector say about a cut and its paste).
-- The app's words: `editorCopy` (the Open buttons, the editor chooser and the
-  editor setting), `issueCopy`, `paintCopy`, `prepareCopy` (the Prepare for a
-  new game section's rows, choices and consequences, one table per scenario
-  profile), `sessionCopy` and `toolCopy` (the
-  brush options' labels, hints and drop-downs) hold the
-  sentences each screen uses for one subject, and `names`, `text` and
-  `version` turn keys, counts and version strings into English.
-  `releaseNotes` reads a release's notes into the spans the update dialog
-  shows. `systemLabel` names a system in an undo line the way the core does,
-  as `Name #id`. `systemsBatch` builds the one op, or the named batch, that
-  edits many systems at once. `guideLinks` says where each "?" opens the
-  user guide, and the anchor the guide gives a heading.
-- The rows a screen lists, as pure functions of what has been read:
-  `openRows` for the Open screen, `browserRows` for the dock's lists.
-- The editor's own vocabulary: `tools` (the rail's tools), `keys` (every key
-  binding), `capabilities` (what the open document can take), `documentKinds`
-  (what differs between a save and a scenario in data: the label, file filter,
-  bar, default layers and the rest, one row per kind so a new kind fails to
-  compile until it has one), `flagKey` (the
-  texture key of an empire's flag), `paths` and `random` (a seeded sequence,
-  and fresh seeds).
-  `menuAim` keeps a submenu open while the pointer heads for it, `watchlist`
-  is the pinned searches' colours, rings and labels, and `renumber` follows
-  system ids and lanes through an edit that renumbers them.
+- `lib/geometry/`: points, meshes and the drawn territory, with no game
+  vocabulary.
+- `lib/brush/`: what a brush stroke does, without a canvas.
+- `lib/initializer/`: how the game's initializers group, search and read.
+- `lib/details/`: one system's and one body's detail, the system view's
+  layout, and the pickers and edit adapters a body's page uses.
+- `lib/visual/`: how things look, shared by the map and the panels: colours,
+  fonts, textures, layer ids and badge styles.
+- The root: one module per game concept (`feZone`, `marauder`, `wormholes`,
+  `height` and the rest), the sentences each screen uses (`*Copy`), and the
+  editor's own vocabulary (`tools`, `keys`, `capabilities`, `documentKinds`).
 
 A rule the core owns as well, such as the L-Cluster circle, the spawn buffer
 or a fallen empire zone's reach, is read from `generated/constants.ts`, which
-the core's tests write. `guides`, `addSystem` and `feZone` re-export what they
-use of it.
-
-`lib/visual/` is how it looks: colours, fonts, textures, layer ids and badge
-styles, shared by the map and the panels so both draw the same thing. The
-colour and icon key of each special kind sit with its label in `lib/special.ts`,
-and `specialStyle` reads them.
-`color` mixes two colours. `barMode` is which bar the chrome shows (a
-save's, a scenario's or a system's) and which layer buttons, controls and
-number keys each offers. It stays beside `layerIds` because most of what it
-gates is layer buttons.
+the core's tests write.
 
 Nothing in `lib/` may import from `store/`, `map/` or `panels/`; `store/` may
 not import `map/` or `panels/`; `map/` may not import `panels/`.

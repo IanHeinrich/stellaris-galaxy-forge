@@ -1,0 +1,9 @@
+toxic_knights_start = {
+	class = "rl_starting_stars"
+	usage = origin
+	flags = { empire_home_system }
+	init_effect = {
+		spawn_system = { initializer = neighbor_t1 }
+		spawn_system = { initializer = neighbor_t1_first_colony }
+	}
+}

@@ -4,6 +4,7 @@ set -uo pipefail
 # Tests scripts/changelog.sh in throwaway repos built under a temp folder.
 
 script="$(cd "$(dirname "$0")" && pwd)/changelog.sh"
+voice="$(cd "$(dirname "$0")/../guide/scripts" && pwd)"
 root="$(mktemp -d)"
 trap 'rm -rf "$root"' EXIT
 
@@ -19,8 +20,9 @@ pass() { printf 'ok: %s\n' "$1"; }
 new_repo() {
 	repo="$root/$1"
 	rm -rf "$repo"
-	mkdir -p "$repo/scripts" "$repo/changelog.d"
+	mkdir -p "$repo/scripts" "$repo/changelog.d" "$repo/guide/scripts"
 	cp "$script" "$repo/scripts/changelog.sh"
+	cp "$voice/voice-lint.mjs" "$voice/voice-allow.json" "$repo/guide/scripts/"
 	cat >"$repo/CHANGELOG.md" <<'CHANGELOG'
 # Changelog
 
@@ -246,6 +248,19 @@ elif grep -q 'bullet before any ### heading' "$root/err"; then
 	pass "check fails for a bad fragment"
 else
 	fail "check fails for a bad fragment"
+fi
+
+git_in checkout -q -b semicolon main
+printf '### Added\n\n- Add a thing; and another.\n' >"$repo/changelog.d/a-thing.md"
+git_in add -A
+git_in commit -qm semicolon
+if check; then
+	fail "check fails for a fragment the voice lint rejects"
+elif grep -q 'semicolon' "$root/err"; then
+	pass "check fails for a fragment the voice lint rejects"
+else
+	fail "check fails for a fragment the voice lint rejects"
+	cat "$root/err"
 fi
 
 git_in checkout -q -b direct main
