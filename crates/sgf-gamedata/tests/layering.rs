@@ -7,7 +7,9 @@ use std::collections::BTreeSet;
 use crate::common;
 
 use sgf_core::format::scenario::listings::{self, ScenarioSource};
+use sgf_core::paths::Case;
 use sgf_gamedata::Diagnostic;
+use sgf_gamedata::install::layers::{Layer, Layout};
 use sgf_gamedata::install::mods::ModStatus;
 use sgf_gamedata::install::scenarios::scenario_roots;
 use sgf_gamedata::views::StarClassView;
@@ -348,4 +350,41 @@ fn a_sibling_whose_name_starts_with_the_install_is_not_game_data() {
     let bare = common::load_tree(&install, Some(&tmp.path().join("user")), false);
     assert!(bare.layout.contains(&install.join("common/00_fixture.txt")));
     assert!(!bare.layout.contains(&sibling.join("steal.txt")));
+}
+
+/// A file is credited to the root it lies in. Two mod roots whose paths differ only by letter
+/// case are two layers where case matters and one where it does not. The rule is passed in, so
+/// this holds on every OS.
+#[test]
+fn roots_that_differ_by_case_are_two_layers_where_case_matters() {
+    let layer = |name: &str, root: &str| Layer {
+        name: name.to_owned(),
+        root: root.into(),
+        replace_paths: Vec::new(),
+    };
+    let layout = Layout {
+        install: "/game".into(),
+        user_dir: None,
+        layers: vec![layer("upper", "/mods/Foo"), layer("lower", "/mods/foo")],
+    };
+    let in_lower = std::path::Path::new("/mods/foo/common/a.txt");
+
+    let (layer, rel) = layout
+        .layer_of_by(in_lower, Case::Sensitive)
+        .expect("a layer");
+    assert_eq!(
+        (layer.name.as_str(), rel.as_str()),
+        ("lower", "common/a.txt")
+    );
+    let in_upper = std::path::Path::new("/mods/Foo/common/a.txt");
+    let (layer, _) = layout
+        .layer_of_by(in_upper, Case::Sensitive)
+        .expect("a layer");
+    assert_eq!(layer.name, "upper");
+
+    let (layer, rel) = layout.layer_of_by(in_upper, Case::Blind).expect("a layer");
+    assert_eq!(
+        (layer.name.as_str(), rel.as_str()),
+        ("lower", "common/a.txt")
+    );
 }

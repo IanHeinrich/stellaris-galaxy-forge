@@ -1,5 +1,5 @@
 //! Whether two paths are the same, or one is below the other. Windows and macOS file systems
-//! ignore letter case, Linux's do not, and every comparison in the shell takes that from here.
+//! ignore letter case, Linux's do not, and every comparison of paths takes that from here.
 
 use std::ffi::OsStr;
 use std::path::Path;

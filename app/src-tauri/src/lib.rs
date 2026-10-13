@@ -2,7 +2,6 @@
 
 pub mod commands;
 pub mod editors;
-pub mod paths;
 pub mod state;
 pub mod views;
 pub mod watch;

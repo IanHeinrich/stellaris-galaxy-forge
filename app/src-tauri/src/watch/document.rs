@@ -13,9 +13,9 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use super::DEBOUNCE;
 use crate::commands::DOCUMENT_CHANGED_EVENT;
-use crate::paths::Case;
 use crate::state::{AppState, relock};
 use crate::views::{DocumentChange, DocumentChanged};
+use sgf_core::paths::Case;
 
 #[derive(Default)]
 pub struct DocumentWatchState(Mutex<Option<Watched>>);

@@ -11,8 +11,8 @@ use super::{io_error, with_session};
 use crate::editors::{
     self, EditorChoices, EditorPick, OpenedFile, PendingProgram, PickedProgramFile,
 };
-use crate::paths;
 use crate::state::GameDataState;
+use sgf_core::paths;
 
 /// Open a game-data script file or the open scenario's own file with the system default, or
 /// show it in its folder. The check in [`openable`] keeps a stray path in a view, or a program,

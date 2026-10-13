@@ -11,8 +11,8 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::paths;
 use crate::state::relock;
+use sgf_core::paths;
 
 pub use detect::{Editor, Places, Platform, detect, found};
 pub use launch::{Launch, launch_for, start};

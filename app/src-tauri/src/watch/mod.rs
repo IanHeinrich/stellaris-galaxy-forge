@@ -28,9 +28,9 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::timeout_at;
 
 use crate::commands::{GAME_DATA_CHANGED_EVENT, refit_open_session};
-use crate::paths::Case;
 use crate::state::{GameDataState, relock};
 use guard::{Action, Guard};
+use sgf_core::paths::Case;
 
 /// How long a path must sit still before the debouncer reports it, for the game data and for
 /// the open document.
