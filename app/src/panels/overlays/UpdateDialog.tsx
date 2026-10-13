@@ -147,6 +147,7 @@ export function UpdateBody({
   }
 
   const installing = status === "installing";
+  const installs = update.install === "app";
   return (
     <>
       <h1>Version {update.version} is available</h1>
@@ -161,14 +162,20 @@ export function UpdateBody({
       {installing && <DownloadState progress={progress} />}
       {error !== null && <p className="warn">{error}</p>}
       <div className="notice-actions">
-        {update.install === "app" && (
-          <button type="button" disabled={installing} onClick={onInstall}>
+        {installs && (
+          <button type="button" className="primary" disabled={installing} onClick={onInstall}>
             Install and restart
           </button>
         )}
-        <button type="button" onClick={onReleases}>
-          Open releases page
-        </button>
+        {installs ? (
+          <button type="button" onClick={onReleases}>
+            Open releases page
+          </button>
+        ) : (
+          <button type="button" className="primary" onClick={onReleases}>
+            Open releases page
+          </button>
+        )}
         <button type="button" onClick={onSkip}>
           Skip this version
         </button>

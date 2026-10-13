@@ -211,11 +211,11 @@ fn a_site_is_refused_for_a_star_a_planet_with_one_or_an_unknown_id() {
         (add(99_999, LOST_MOMENTS, 1), "planet 99999 does not exist"),
         (
             add(STAR, LOST_MOMENTS, 1),
-            "planet 584 is a star, which takes no dig site",
+            "Xu Nur #584 is a star, which takes no dig site",
         ),
         (
             add(COMPANION_STAR, LOST_MOMENTS, 1),
-            "planet 619 is a star, which takes no dig site",
+            "Tuzhik #619 is a star, which takes no dig site",
         ),
         (
             add(GRAVEYARD_PLANET, LOST_MOMENTS, 1),

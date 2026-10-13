@@ -39,7 +39,7 @@ impl<'s> PlanetEntry<'s> {
         let entry = Self::open(s, id)?;
         let primary = bodies(&s.doc, entry.system)?.first() == Some(&id);
         if is_star(role(&entry.node, entry.src, primary, s.star_classes())) {
-            return Err(OpError::StarRefused { body: id, edit });
+            return Err(star_refused(&entry.node, entry.src, id, edit));
         }
         Ok(entry)
     }
@@ -55,6 +55,20 @@ pub(crate) fn named_planet(s: &Session, id: u32) -> Result<String, OpError> {
         true => named_as("star", &name, id),
         false => named_body(&name, id),
     })
+}
+
+/// What a description calls the body whose entity is `node`: [`named_body`] over its name.
+pub(crate) fn named_entity(node: &Node, src: &[u8], id: u32) -> String {
+    named_body(&read::name(node, src), id)
+}
+
+/// The refusal of `edit` on star `id`, whose entity is `node`.
+pub(crate) fn star_refused(node: &Node, src: &[u8], id: u32, edit: StarEdit) -> OpError {
+    OpError::StarRefused {
+        body: id,
+        name: named_entity(node, src, id),
+        edit,
+    }
 }
 
 /// [`named_planet`] for a body of kind `kind` ("moon Lachium I a #2448").

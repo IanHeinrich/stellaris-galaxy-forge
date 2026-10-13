@@ -206,11 +206,11 @@ fn a_modifier_is_refused_for_a_star_an_unknown_planet_or_no_change() {
         (add(99_999, CANDIDATE, &[-1]), "planet 99999 does not exist"),
         (
             add(584, CANDIDATE, &[-1]),
-            "planet 584 is its system's star, which takes no planet modifiers",
+            "Xu Nur #584 is its system's star, which takes no planet modifiers",
         ),
         (
             remove(584, CANDIDATE, None),
-            "planet 584 is its system's star, which takes no planet modifiers",
+            "Xu Nur #584 is its system's star, which takes no planet modifiers",
         ),
         (
             remove(585, CANDIDATE, None),

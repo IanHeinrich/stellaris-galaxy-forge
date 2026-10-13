@@ -3,7 +3,7 @@
 //! A moon is refused one: no save or vanilla initializer writes a ringed moon.
 
 use crate::emit::system::{MOON_FLAG, RING_FLAG};
-use crate::format::save::write::planet_entry::{PlanetEntry, named_planet, set_flag};
+use crate::format::save::write::planet_entry::{PlanetEntry, named_entity, named_planet, set_flag};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::read;
@@ -27,7 +27,7 @@ pub(crate) fn plan_set(
         } else {
             "has no ring"
         };
-        return Err(OpError::unchanged(format!("planet {id}"), state));
+        return Err(OpError::unchanged(named_entity(&node, src, id), state));
     }
     set_flag(plan.edit_planet(&s.doc, id, system)?, RING_FLAG, ring)?;
     let named = named_planet(s, id)?;

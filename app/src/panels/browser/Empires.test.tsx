@@ -149,6 +149,8 @@ describe("a save's empire rows", () => {
     const html = drawnBy(empires);
     expect(html).toContain('aria-label="Open Test Empire&#x27;s page"');
     expect(html).not.toContain("Map colours");
+    // A row with no systems keeps the fit action's room, so every pencil stands in one column.
+    expect(html).toMatch(/✎<\/button>(<button|<span class="browser-no-action")/);
 
     drawnButton("Open Test Empire's page").onClick();
     const { stack, tab } = useInspectorStore.getState();

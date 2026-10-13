@@ -1,7 +1,20 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import type { DocumentKind } from "../generated/DocumentKind";
 import { documentCapabilities } from "../lib/capabilities";
-import { isToolAction, orbitNudge, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
+import {
+  isEditableTarget,
+  isToolAction,
+  keyAction,
+  layerKeyOf,
+  modalDialogOpen,
+  nudgeOf,
+  orbitNudge,
+  radiusStepOf,
+  toolOfAction,
+  type KeyAction,
+  type KeyLike,
+  type Nudge,
+} from "../lib/keys";
 import { groupsFor, type Source } from "../lib/visual/layerGroups";
 import {
   barShows,
@@ -396,4 +409,31 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       useToolStore.getState().toggleSymmetry();
       return true;
   }
+}
+
+/**
+ * What a key press the window hears does: the brackets resize, Shift+arrows nudge, the number keys
+ * toggle layers and the rest run their command. A modal dialog holds every key. Says whether the
+ * press was the app's to keep.
+ */
+export function pressKey(
+  e: KeyLike & { target: EventTarget | null },
+  effects: CommandEffects,
+): boolean {
+  if (modalDialogOpen()) return false;
+  const inInput = isEditableTarget(e.target);
+  const step = radiusStepOf(e, inInput);
+  if (step !== null && (resizeBrush(step) || resizeNebula(step))) return true;
+  const nudge = nudgeOf(e, inInput);
+  if (nudge && nudgeHasTarget()) {
+    nudgeSelected(nudge);
+    return true;
+  }
+  const layer = layerKeyOf(e, inInput);
+  if (layer !== null) {
+    toggleLayerKey(layer);
+    return true;
+  }
+  const action = keyAction(e, inInput, canGoBack());
+  return action !== null && run(action, inInput, effects);
 }

@@ -198,7 +198,7 @@ impl Names {
         }
     }
 
-    fn variable(&self, name: &str) -> Option<&str> {
+    pub(crate) fn variable(&self, name: &str) -> Option<&str> {
         self.vars
             .get(name)
             .map(|own| own.value.as_str())

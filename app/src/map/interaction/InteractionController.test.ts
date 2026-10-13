@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { name, systemNode } from "../../test/builders";
+import { stubModalDialog } from "../../test/canvas";
 import { until } from "../../test/wait";
 
 vi.mock("../../api/ipc");
@@ -183,6 +184,15 @@ describe("a brush stroke", () => {
     expect(useToolStore.getState().tool).toBe("cut");
 
     expect(key("keydown", "Escape")()).toBe(false);
+  });
+
+  it("is kept through an Esc pressed while a modal dialog is open, which the dialog answers", () => {
+    const { surface, brush, mid } = laned("cut");
+
+    surface.fire("pointerdown", mid.x, mid.y);
+    stubModalDialog(true);
+    expect(key("keydown", "Escape")()).toBe(false);
+    expect(strokes(brush("brushMarks"))).toHaveLength(1);
   });
 
   it("is dropped with the brush it belongs to when the tool changes", () => {

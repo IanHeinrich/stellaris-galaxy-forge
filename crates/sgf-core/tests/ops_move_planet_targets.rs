@@ -75,7 +75,7 @@ fn move_targets_drop_what_moves_with_its_parent_and_list_the_systems() {
         [
             (
                 86,
-                "planet 86 is a star: only a planet can move to another system"
+                "Trenacca #86 is a star: only a planet can move to another system"
             ),
             (
                 936,
@@ -187,7 +187,7 @@ fn a_batch_with_a_refused_planet_changes_nothing() {
     let original = current(&session);
     let systems = [2, 169].map(|id| session.system(id).cloned());
     let set = [8, 10, 14, 86];
-    let refusal = "planet 86 is a star: only a planet can move to another system";
+    let refusal = "Trenacca #86 is a star: only a planet can move to another system";
     assert_eq!(
         session
             .save("moving planets")

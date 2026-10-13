@@ -122,11 +122,11 @@ fn moves_are_refused() {
         ),
         (
             move_planet(86, 216),
-            "planet 86 is a star: only a planet can move to another system",
+            "Trenacca #86 is a star: only a planet can move to another system",
         ),
         (
             move_planet(807, 216),
-            "planet 807 is a star: only a planet can move to another system",
+            "Scorom #807 is a star: only a planet can move to another system",
         ),
         (
             move_planet(936, 216),
@@ -134,11 +134,11 @@ fn moves_are_refused() {
         ),
         (
             move_planet(619, 216),
-            "planet 619 is a star: only a planet can move to another system",
+            "Tuzhik #619 is a star: only a planet can move to another system",
         ),
         (
             move_planet(1140, 216),
-            "planet 1140 is a star: only a planet can move to another system",
+            "Subspace Rupture 1 #1140 is a star: only a planet can move to another system",
         ),
     ];
     common::assert_refusals(&mut session, refusals);

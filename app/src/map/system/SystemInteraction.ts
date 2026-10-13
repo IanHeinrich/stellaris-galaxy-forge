@@ -3,7 +3,7 @@ import { beltLabel, shownBodyName } from "../../lib/details/labels";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
 import type { MegastructureMove } from "../../lib/details/megastructureMoves";
-import { isEditableTarget } from "../../lib/keys";
+import { isEditableTarget, modalDialogOpen } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
 import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -267,7 +267,8 @@ export class SystemInteraction {
   private bindKeys(): void {
     const down = (e: KeyboardEvent) => {
       this.modifierChanged(e.key, true);
-      if (e.key !== "Escape" || isEditableTarget(e.target) || !this.model.busy()) return;
+      if (e.key !== "Escape" || isEditableTarget(e.target) || modalDialogOpen()) return;
+      if (!this.model.busy()) return;
       e.stopImmediatePropagation();
       this.model.cancel(this.intent);
       this.canvas.style.cursor = this.model.cursor();

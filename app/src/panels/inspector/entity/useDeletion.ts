@@ -10,6 +10,7 @@ import {
   deleteOp,
   REMOVE_COLONY,
   removeColonyOp,
+  type DeletedBody,
 } from "../../../lib/details/planetRemoval";
 import {
   DELETE_RING_WORLD,
@@ -29,7 +30,7 @@ import { useOpCheck } from "../../useOpCheck";
  * read so far lists it.
  */
 export type DeletionTarget =
-  | { kind: "planet"; system: number; id: number; name: string; moon: boolean; class: string }
+  | { kind: "planet"; system: number; id: number; name: string; body: DeletedBody; class: string }
   | { kind: "colony"; system: number; id: number; name: string }
   | { kind: "megastructure"; system: number | null; id: number; name: string; row: string };
 
@@ -64,12 +65,12 @@ const DELETIONS: {
     isRingSegment(t.class)
       ? ringWorld(t.system)
       : {
-          label: deleteLabel(t.moon),
+          label: deleteLabel(t.body),
           op: deleteOp(t.id),
           run: () =>
             planetEditAdapterFor(documentKind, { system: t.system, id: t.id }).remove(
               t.name,
-              t.moon,
+              t.body === "moon",
             ),
         },
   colony: (t, { documentKind }) => ({

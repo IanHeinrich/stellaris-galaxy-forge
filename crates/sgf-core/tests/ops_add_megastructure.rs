@@ -270,7 +270,7 @@ fn what_an_add_and_a_removal_refuse() {
         [
             (
                 on_body(38, "think_tank_3", 936),
-                "a think_tank_3 cannot be added there: planet 936 already has megastructure 4",
+                "a think_tank_3 cannot be added there: Sargas II #936 already has megastructure 4",
             ),
             (
                 free(0, "hyper_relay", "relay_bypass", true),
@@ -438,11 +438,11 @@ fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
         [
             (
                 on_body(596, "think_tank_3", 6267),
-                "a think_tank_3 cannot be added there: the game counts a megastructure built at planet 6267 already",
+                "a think_tank_3 cannot be added there: the game counts a megastructure built at Ithomes Gate I #6267 already",
             ),
             (
                 sphere(585),
-                "a dyson_sphere_5 cannot be added there: it is built only around a star, and planet 585 is not one",
+                "a dyson_sphere_5 cannot be added there: it is built only around a star, and Xu Nur I #585 is not one",
             ),
         ],
     );

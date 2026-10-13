@@ -137,15 +137,6 @@
   color: var(--fg-muted);
 }
 
-.context-submenu-item.hinted {
-  flex-direction: column;
-  align-items: stretch;
-  height: auto;
-  min-height: 22px;
-  padding-top: 2px;
-  padding-bottom: 2px;
-}
-
 /* A refused entry dims its label as a disabled button does; its reason stays readable. */
 .context-menu button.context-submenu-item:disabled {
   opacity: 1;

@@ -205,6 +205,11 @@
   color: var(--fg-muted);
 }
 
+.browser-no-action {
+  flex: none;
+  width: 18px;
+}
+
 .browser-actions button:hover:not(:disabled) {
   color: var(--accent);
 }

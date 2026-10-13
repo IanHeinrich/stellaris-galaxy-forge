@@ -258,7 +258,7 @@ fn a_move_to_where_the_body_stands_is_refused() {
     let error = session
         .apply(move_body(1, 585, 70.0, 400.0))
         .expect_err("already there");
-    assert_eq!(error.to_string(), "planet 585 already stands there");
+    assert_eq!(error.to_string(), "Xu Nur I #585 already stands there");
     assert_eq!(session.history().undo.len(), 1);
 }
 

@@ -25,12 +25,12 @@ use crate::format::save::write::megastructure_links::{
     unlink, write_rows,
 };
 use crate::format::save::write::place;
-use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::planet_entry::{body_is_star, named_entity};
 use crate::format::save::write::shared::{culture_of, tie};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::modifiers::listed_once;
-use crate::ops::rules::{Form, check_text, named, named_body};
+use crate::ops::rules::{Form, check_text, named};
 use crate::ops::{
     Emitted, MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
     NewMegastructure, NewMegastructurePlace, Op, OpError, ParseAt, Plan, Planned, SavedTable,
@@ -94,12 +94,17 @@ pub(crate) fn plan_add(
             if held.is_some() || holders.flags.contains(&keys::HAS_MEGASTRUCTURE) {
                 return Err(megastructure_links::refused(
                     &new.kind,
-                    MegastructureRefusal::HoldsMegastructure { body, row: held },
+                    MegastructureRefusal::HoldsMegastructure {
+                        body,
+                        planet: named_entity(&node, src, body),
+                        row: held,
+                    },
                 ));
             }
             if star_only && !body_is_star(s, &frame(s, system)?, body)? {
                 return Err(refuse(format!(
-                    "it is built only around a star, and planet {body} is not one"
+                    "it is built only around a star, and {} is not one",
+                    named_entity(&node, src, body)
                 )));
             }
             let at = match new.at.place() {
@@ -476,7 +481,7 @@ pub(crate) fn planet_change_description(
     size: Option<u32>,
 ) -> Result<String, OpError> {
     let (node, src) = planet_entity(&s.doc, body)?;
-    let planet = named_body(&read::name(&node, src), body);
+    let planet = named_entity(&node, src, body);
     let made = match (class, size) {
         (Some(class), Some(size)) => format!("{} and size {size}", with_article(class)),
         (Some(class), None) => with_article(class),

@@ -64,7 +64,17 @@ impl<'s> Script<'s> {
 
     /// `node`'s scalar value; `None` for a block.
     pub(crate) fn value(&self, node: &Node) -> Option<Cow<'s, str>> {
-        Some(self.put(node.scalar_str(self.src)?))
+        Some(self.resolved(self.put(node.scalar_str(self.src)?)))
+    }
+
+    /// `text`, or the value of the `@variable` it is, where the file or the install names one.
+    fn resolved<'t>(&self, text: Cow<'t, str>) -> Cow<'t, str> {
+        let value = text
+            .strip_prefix('@')
+            .filter(|name| !name.starts_with('['))
+            .and_then(|name| self.names.variable(name))
+            .map(str::to_owned);
+        value.map_or(text, Cow::Owned)
     }
 
     /// The scalar value of the first child of `node` named `name`.
@@ -95,7 +105,7 @@ impl<'s> Script<'s> {
 
     /// The scalar value of a kept child, without the brackets that close blocks.
     pub(crate) fn kept_value(&self, kept: &Kept<'_>) -> Option<Cow<'s, str>> {
-        Some(self.put(kept.value(self.src)?))
+        Some(self.resolved(self.put(kept.value(self.src)?)))
     }
 
     /// The text of scripted effect `effect` as call `call` reaches it: `name = yes`, or

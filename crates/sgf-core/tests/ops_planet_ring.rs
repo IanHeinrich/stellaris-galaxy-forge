@@ -66,8 +66,8 @@ fn a_ring_is_refused_for_an_unknown_planet_a_moon_or_no_change() {
     let mut session = open_4_5();
     let refusals = [
         (set(99_999, true), "planet 99999 does not exist"),
-        (set(589, true), "planet 589 already has a ring"),
-        (set(585, false), "planet 585 has no ring"),
+        (set(589, true), "Xu Nur IV #589 already has a ring"),
+        (set(585, false), "Xu Nur I #585 has no ring"),
         (set(8, true), "a moon cannot have a ring"),
         (set(586, true), "a moon cannot have a ring"),
     ];

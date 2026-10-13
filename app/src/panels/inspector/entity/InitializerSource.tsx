@@ -63,7 +63,7 @@ export function InitializerSource({ system, spawn }: { system: number; spawn?: B
     <div className="ins-init-source">
       <div className="ins-init-head">
         <span className="mono ins-init-name">{name}</span>
-        <span className="muted" title={definition.at.file}>
+        <span className="muted ins-init-file" title={definition.at.file}>
           {fileName(definition.at.file)}
         </span>
       </div>

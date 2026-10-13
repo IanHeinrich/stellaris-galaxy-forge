@@ -9,7 +9,7 @@ use crate::format::save::write::add_body::{moon_spec_of, spec_of};
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::megastructure_links;
 use crate::format::save::write::move_planet::normalised_set;
-use crate::format::save::write::planet_entry::body_is_star;
+use crate::format::save::write::planet_entry::{body_is_star, star_refused};
 use crate::format::save::write::remove_planet::{check_planet, check_segment_stays};
 use crate::format::save::write::shared::placement;
 use crate::format::save::{planet_entity, planet_system};
@@ -34,10 +34,7 @@ fn copy_one(s: &Session, body: u32) -> Result<NewBody, OpError> {
     let system = planet_system(&node, src, body)?;
     let stored = frame(s, system)?;
     if body_is_star(s, &stored, body)? {
-        return Err(OpError::StarRefused {
-            body,
-            edit: StarEdit::Copy,
-        });
+        return Err(star_refused(&node, src, body, StarEdit::Copy));
     }
     copyable(s, body, &node, src)?;
     let mut spec = spec_of(&s.doc, &node, src, None);

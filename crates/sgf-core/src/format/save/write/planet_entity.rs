@@ -7,7 +7,7 @@
 use crate::emit::quoted;
 use crate::emit::system::ENTITY_NAME_FLAG;
 use crate::format::save::write::place::{self, insert_key};
-use crate::format::save::write::planet_entry::{PlanetEntry, named_planet, set_flag};
+use crate::format::save::write::planet_entry::{PlanetEntry, named_entity, named_planet, set_flag};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned, StarEdit};
@@ -30,7 +30,7 @@ pub(crate) fn plan_set(
             Some(entity) => format!("already has the model {entity}"),
             None => "has no model of its own".to_owned(),
         };
-        return Err(OpError::unchanged(format!("planet {id}"), state));
+        return Err(OpError::unchanged(named_entity(&node, src, id), state));
     }
 
     let named = named_planet(s, id)?;

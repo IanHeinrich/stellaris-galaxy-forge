@@ -204,3 +204,16 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   const tag = target.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
+
+/**
+ * Whether a modal dialog is open. It holds every key, wherever focus is, so no app or map
+ * shortcut answers one; the dialog's own controls handle what reaches them.
+ */
+export function modalDialogOpen(): boolean {
+  return document.querySelector('[aria-modal="true"]') !== null;
+}
+
+/** Whether `target` is inside a menu, whose items take the arrow keys. */
+export function isMenuTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('[role="menu"]') !== null;
+}

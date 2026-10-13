@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect } from "react";
 import "./App.css";
-import { isEditableTarget, keyAction, layerKeyOf, nudgeOf, radiusStepOf } from "./lib/keys";
+import { isEditableTarget } from "./lib/keys";
 import { fileName } from "./lib/paths";
 import { barShows } from "./lib/visual/barMode";
 import { MapCanvas } from "./map/MapCanvas";
@@ -42,16 +42,7 @@ import { ToolOptions } from "./panels/chrome/ToolOptions";
 import { ToolRail } from "./panels/chrome/ToolRail";
 import { ViewMenu } from "./panels/chrome/ViewMenu";
 import { TrafficLightInset, WindowControls } from "./panels/chrome/WindowControls";
-import {
-  canGoBack,
-  nudgeHasTarget,
-  nudgeSelected,
-  resizeBrush,
-  resizeNebula,
-  run,
-  toggleLayerKey,
-  type CommandEffects,
-} from "./store/commands";
+import { pressKey, type CommandEffects } from "./store/commands";
 import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
@@ -130,26 +121,7 @@ function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const inInput = isEditableTarget(e.target);
-      const step = radiusStepOf(e, inInput);
-      if (step !== null && (resizeBrush(step) || resizeNebula(step))) {
-        e.preventDefault();
-        return;
-      }
-      const nudge = nudgeOf(e, inInput);
-      if (nudge && nudgeHasTarget()) {
-        e.preventDefault();
-        nudgeSelected(nudge);
-        return;
-      }
-      const layer = layerKeyOf(e, inInput);
-      if (layer !== null) {
-        e.preventDefault();
-        toggleLayerKey(layer);
-        return;
-      }
-      const action = keyAction(e, inInput, canGoBack());
-      if (action !== null && run(action, inInput, EFFECTS)) e.preventDefault();
+      if (pressKey(e, EFFECTS)) e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

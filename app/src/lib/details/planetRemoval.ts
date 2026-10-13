@@ -5,9 +5,17 @@ import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import { counted, thousands } from "../text";
 
-/** The action's name: a moon is deleted as a moon. */
-export function deleteLabel(moon: boolean): string {
-  return moon ? "Delete moon" : "Delete planet";
+/** What a body in a system's list is, as its Delete names it. */
+export type DeletedBody = "planet" | "moon" | "star";
+
+/** The action's name: a moon is deleted as a moon, and a star, which the core refuses, as neither. */
+export function deleteLabel(body: DeletedBody): string {
+  const labels: Record<DeletedBody, string> = {
+    planet: "Delete planet",
+    moon: "Delete moon",
+    star: "Delete",
+  };
+  return labels[body];
 }
 
 export const REMOVE_COLONY = "Remove colony";

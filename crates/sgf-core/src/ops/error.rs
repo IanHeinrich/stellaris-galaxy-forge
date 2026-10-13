@@ -104,8 +104,13 @@ pub enum OpError {
     },
     #[error("{what} {state}")]
     Unchanged { what: String, state: String },
-    #[error("planet {body} {edit}")]
-    StarRefused { body: u32, edit: StarEdit },
+    /// Star `body`, named `name` as [`crate::ops::rules::named_body`] names it, turns `edit` away.
+    #[error("{name} {edit}")]
+    StarRefused {
+        body: u32,
+        name: String,
+        edit: StarEdit,
+    },
     #[error("the document has no global flags")]
     NoFlags,
     #[error("the galaxy has no L-Gate")]
@@ -436,11 +441,27 @@ impl OpError {
 pub enum MegastructureRefusal {
     /// The system, named `place`, already has a bypass of type `kind`.
     BypassPresent { place: String, kind: String },
-    /// Planet `body` has megastructure row `row`, or with none, the flag the game sets on a
-    /// body a megastructure was built at.
-    HoldsMegastructure { body: u32, row: Option<u32> },
-    /// Planet `body` orbits planet `parent`, and no habitat goes round a body that does.
-    HabitatRoundSatellite { body: u32, parent: u32 },
+    /// Planet `body`, named `planet`, has megastructure row `row`, or with none, the flag the
+    /// game sets on a body a megastructure was built at.
+    HoldsMegastructure {
+        body: u32,
+        planet: String,
+        row: Option<u32>,
+    },
+    /// Planet `body`, named `planet`, orbits planet `parent`, named `orbits`, and no habitat
+    /// goes round a body that does.
+    HabitatRoundSatellite {
+        body: u32,
+        planet: String,
+        parent: u32,
+        orbits: String,
+    },
+    /// Planet `body`, named `planet`, has a habitat already: its `flag` names it.
+    HabitatPresent {
+        body: u32,
+        planet: String,
+        flag: String,
+    },
     /// The system, named `place`, has no star for a ring world to stand round.
     NoStar { place: String },
     /// The system, named `place`, has `count` stars, and a ring world stands round one.
@@ -459,8 +480,15 @@ pub enum MegastructureRefusal {
 /// What part of a ring world stands in a new ring's way.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RingPart {
-    Segment { planet: u32 },
-    Row { megastructure: u32, kind: String },
+    /// Planet `planet`, named `name`.
+    Segment {
+        planet: u32,
+        name: String,
+    },
+    Row {
+        megastructure: u32,
+        kind: String,
+    },
 }
 
 impl fmt::Display for MegastructureRefusal {
@@ -468,17 +496,23 @@ impl fmt::Display for MegastructureRefusal {
         match self {
             Self::BypassPresent { place, kind } => write!(f, "{place} already has a {kind}"),
             Self::HoldsMegastructure {
-                body,
+                planet,
                 row: Some(row),
-            } => write!(f, "planet {body} already has megastructure {row}"),
-            Self::HoldsMegastructure { body, row: None } => write!(
+                ..
+            } => write!(f, "{planet} already has megastructure {row}"),
+            Self::HoldsMegastructure {
+                planet, row: None, ..
+            } => write!(
                 f,
-                "the game counts a megastructure built at planet {body} already"
+                "the game counts a megastructure built at {planet} already"
             ),
-            Self::HabitatRoundSatellite { body, parent } => write!(
+            Self::HabitatRoundSatellite { planet, orbits, .. } => write!(
                 f,
-                "planet {body} orbits planet {parent}, and Galaxy Forge puts nothing round a body that orbits a planet"
+                "{planet} orbits {orbits}, and Galaxy Forge puts nothing round a body that orbits a planet"
             ),
+            Self::HabitatPresent { planet, flag, .. } => {
+                write!(f, "{planet} has a habitat already ({flag})")
+            }
             Self::NoStar { place } => write!(f, "{place} has no star to stand round"),
             Self::ManyStars { place, count } => write!(
                 f,
@@ -486,11 +520,11 @@ impl fmt::Display for MegastructureRefusal {
             ),
             Self::RingOverlap {
                 place,
-                part: RingPart::Segment { planet },
+                part: RingPart::Segment { name, .. },
                 orbit,
             } => write!(
                 f,
-                "planet {planet} of {place} is a segment of the ring world at orbit {}",
+                "{name} of {place} is a segment of the ring world at orbit {}",
                 crate::number(*orbit)
             ),
             Self::RingOverlap {

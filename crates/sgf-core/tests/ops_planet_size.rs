@@ -62,7 +62,7 @@ fn a_planet_size_is_refused_for_an_unknown_planet_zero_or_no_change() {
     let refusals = [
         (set(99_999, 10), "planet 99999 does not exist"),
         (set(748, 0), "a planet size may not be zero"),
-        (set(748, 25), "planet 748 is already size 25"),
+        (set(748, 25), "Grugmora #748 is already size 25"),
     ];
     common::assert_refusals(&mut session, refusals);
 }

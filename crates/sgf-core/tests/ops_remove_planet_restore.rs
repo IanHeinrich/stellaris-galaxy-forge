@@ -83,7 +83,7 @@ fn what_is_refused() {
             "star",
             open_4_5,
             delete(0),
-            "planet 0 is a star: only a planet or moon can be deleted",
+            "Alari system #0 is a star: only a planet or moon can be deleted",
         ),
         (
             "ring world",

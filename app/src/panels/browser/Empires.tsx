@@ -16,7 +16,7 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useOwnership } from "../../store/ownership";
 import { Chip, SourceChip } from "../parts";
 import { useCollapse } from "./collapse";
-import { Action, Emblem, Eye, Group, Row } from "./rows";
+import { Action, Emblem, Eye, Group, NoAction, Row } from "./rows";
 
 /** Why a territory's day-one badge means what it means, shown on hover. */
 const DAY_ONE_TITLE = "An event gives these systems to the empire on the first day of the game.";
@@ -121,7 +121,9 @@ function EmpireLine({
               persistent
             />
           )}
-          {row.systemCount > 0 && (
+          {row.systemCount === 0 ? (
+            <NoAction />
+          ) : (
             <Action
               glyph="⊙"
               label={`Select and fit the ${row.systemCount} systems of ${row.name}`}
