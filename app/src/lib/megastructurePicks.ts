@@ -8,7 +8,7 @@ import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
 import type { MegastructureView } from "../generated/MegastructureView";
 import type { RingStage } from "../generated/RingStage";
-import { megastructureLabel } from "./details/labels";
+import { cleanName, megastructureLabel, megastructureName } from "./details/labels";
 import {
   FINISHED,
   RING_STAGE,
@@ -79,7 +79,7 @@ export function ringWorldSizes(
       label: RING_WORLD_LABEL,
     }));
   }
-  const nameOf = (key: string) => cleanName(names.get(key) ?? "") || megastructureLabel(key);
+  const nameOf = (key: string) => megastructureName(key, names);
   const sources = groups.map(({ keys }) => {
     const site = keys
       .flatMap((key) => {
@@ -396,9 +396,6 @@ function groupRows(
   return [...rows, ...ruins];
 }
 
-/** A localised name without the zero-width spaces some mods pad it with. */
-export const cleanName = (name: string) => name.replace(/\u200b/g, "").trim();
-
 const plainWords = (text: string) =>
   text
     .toLowerCase()
@@ -627,8 +624,7 @@ export function megastructureEntries(
   ringSize: string | null = null,
 ): MegastructureEntry[] {
   const named = (key: string) => cleanName(names.get(key) ?? "") !== "";
-  const nameOf = (key: string) =>
-    named(key) ? cleanName(names.get(key)!) : megastructureLabel(key);
+  const nameOf = (key: string) => megastructureName(key, names);
   const swapped = swappedTypes(types);
   const classStems = new Set([...swappedTypes(types, true)].map(stem));
   const listed = (type: MegastructureView) =>

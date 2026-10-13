@@ -20,8 +20,6 @@ export function deleteMegastructureOp(megastructure: number): Op {
   return { type: "DeleteMegastructure", megastructure };
 }
 
-export { megastructureName } from "./labels";
-
 /** The system of `details` that lists megastructure `id`, or null where none read so far does. */
 export function systemOfMegastructure(
   details: ReadonlyMap<number, { megastructures: readonly MegastructureSummary[] }>,

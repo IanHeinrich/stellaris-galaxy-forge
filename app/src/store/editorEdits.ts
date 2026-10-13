@@ -81,7 +81,7 @@ export function editPipeline(
     useOpCheckStore.getState().staled(result.details_stale);
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
-      useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
+      useInspectorStore.getState().dropPages({ bodies: restaled(result.details_stale, pairs) });
       useClassRollsStore.getState().forget(result.details_stale);
       useInspectorStore.getState().dropClassPicks(result.details_stale);
     }

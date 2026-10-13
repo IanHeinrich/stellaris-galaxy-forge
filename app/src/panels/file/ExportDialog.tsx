@@ -128,15 +128,14 @@ export function ExportForm({
 
 /** What an export of the open save would carry over, before the file dialog asks where to put it. */
 export function ExportDialog() {
-  const report = useFileSessionStore((s) => s.pendingExport);
-  const profile = useFileSessionStore((s) => s.pendingExportProfile);
+  const pending = useFileSessionStore((s) => s.pendingExport);
   const confirmExport = useFileSessionStore((s) => s.confirmExport);
-  if (report === null) return null;
+  if (pending === null) return null;
 
   const cancel = () => void confirmExport(null);
   return (
     <Dialog className="open-dialog" label="Export as scenario" onClose={cancel} onDismiss={cancel}>
-      <ExportForm report={report} profile={profile ?? "plain"} />
+      <ExportForm report={pending.report} profile={pending.profile} />
     </Dialog>
   );
 }

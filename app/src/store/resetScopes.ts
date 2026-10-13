@@ -26,7 +26,7 @@ export const DOCUMENT_SCOPED: readonly (() => void)[] = [
 export const GAME_DATA_SCOPED: readonly (() => void)[] = [
   () => usePlanetDataStore.getState().clear(),
   () => useGeneratorStore.getState().clear(),
-  () => useInspectorStore.getState().dropBodies(),
+  () => useInspectorStore.getState().dropPages({ bodies: true }),
   () => useInspectorStore.getState().dropClassPicks(),
   () => useClassRollsStore.getState().clear(),
   () => setRollWithin(systemRadiiOf(useGameDataStore.getState()).min_inner),

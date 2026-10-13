@@ -10,12 +10,12 @@ import type { SummaryKind } from "../generated/SummaryKind";
 import type { SystemDetails } from "../generated/SystemDetails";
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
 import { producedRows, type ResourceRow } from "./details/resources";
+import { cleanName } from "./details/labels";
 import { capitalised, withArticle } from "./text";
 import { megastructureLook, modelKey } from "./details/structures";
 import { plainGameText } from "./gameText";
 import { addLabel, stageLine } from "./megastructureCopy";
 import {
-  cleanName,
   type MegastructureChain,
   type MegastructureEntry,
   type MegastructureStage,

@@ -328,9 +328,12 @@ export function shownMegastructures(
 }
 
 /** One icon for all the megastructures here, titled by the one or their count; null without any. */
-export function megastructureIcon(megastructures: readonly MegastructureSummary[]): Icon | null {
+export function megastructureIcon(
+  megastructures: readonly MegastructureSummary[],
+  names: Names,
+): Icon | null {
   return collapsedIcon(
-    shownMegastructures(megastructures).map((m) => megastructureLabel(m.kind)),
+    shownMegastructures(megastructures).map((m) => megastructureName(m.kind, names)),
     "megastructure",
     [MEGASTRUCTURE_ICON_KEY],
     "◈",

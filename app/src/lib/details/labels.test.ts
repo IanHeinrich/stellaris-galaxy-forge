@@ -128,6 +128,8 @@ describe("planetClassLabel", () => {
 });
 
 describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
+  const NAMES = new Map<string, string>();
+
   it.each([
     ["ring_world_ruined", { name: "Ring World", state: "ruined", warn: true }],
     ["dyson_sphere_2", { name: "Dyson Sphere", state: "stage 2", warn: false }],
@@ -162,21 +164,25 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
   });
 
   it("collapses every megastructure into one generic icon, titled by the one or the count", () => {
-    const one = megastructureIcon([
-      { id: 1, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
-    ]);
+    const one = megastructureIcon(
+      [{ id: 1, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null }],
+      NAMES,
+    );
     expect(one).toEqual({
       keys: ["sprite:GFX_ship_class_small#22"],
       glyph: "◈",
       label: "Ring World (ruined)",
       frame: "poi",
     });
-    const two = megastructureIcon([
-      { id: 1, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
-      { id: 2, kind: "dyson_sphere_3", owner: 4, planet: null, at: null, culture: null },
-    ]);
+    const two = megastructureIcon(
+      [
+        { id: 1, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
+        { id: 2, kind: "dyson_sphere_3", owner: 4, planet: null, at: null, culture: null },
+      ],
+      NAMES,
+    );
     expect(two?.label).toBe("2 megastructures");
-    expect(megastructureIcon([])).toBeNull();
+    expect(megastructureIcon([], NAMES)).toBeNull();
   });
 
   it("leaves gateways, L-Gates and hyper relays to the bypass icon", () => {
@@ -199,8 +205,8 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
       culture: null,
     };
     expect(shownMegastructures([lgate, gateway, relay, ring])).toEqual([ring]);
-    expect(megastructureIcon([lgate, relay])).toBeNull();
-    expect(megastructureIcon([relay, ring])?.label).toBe("Ring World (ruined)");
+    expect(megastructureIcon([lgate, relay], NAMES)).toBeNull();
+    expect(megastructureIcon([relay, ring], NAMES)?.label).toBe("Ring World (ruined)");
     expect(
       ["lgate_base", "gateway_final", "hyper_relay", "ring_world_ruined"].map(
         isBypassMegastructure,

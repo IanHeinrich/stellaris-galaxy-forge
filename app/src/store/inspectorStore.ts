@@ -70,7 +70,7 @@ export const GALAXY_ENTRY: Entry = { ref: { kind: "galaxy" }, label: "Galaxy" };
 
 /** What a change took away, by the pages that showed it. */
 export interface GonePages {
-  /** Bodies the document rolls: those in these systems, or every one for `true`. */
+  /** Bodies the document rolls: those in these systems, or every one for `true`. A document with planets of its own keeps them. */
   bodies?: readonly number[] | true;
   /** Save planets and moons, by id. */
   planets?: readonly number[];
@@ -373,11 +373,6 @@ export interface InspectorState {
    * up crumbs, with the dock turned to the inspector as a selection turns it.
    */
   openFromMap(entry: Entry): void;
-  /**
-   * Closes every page on a body the document rolls, or on one in `systems`, with everything
-   * opened from it. A document with planets of its own keeps them.
-   */
-  dropBodies(systems?: readonly number[]): void;
   /** Forgets the class picked on every body page in `systems`, or on every one without. */
   dropClassPicks(systems?: readonly number[]): void;
   /** Moves every page on one of `bodies` to `system`, where a move has taken them. */
@@ -525,10 +520,6 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const next = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, entry];
     set({ stack: next, tab: tabFor(entry.ref, tab) });
     useLayoutStore.getState().revealInspector();
-  },
-
-  dropBodies(systems) {
-    get().dropPages({ bodies: systems ?? true });
   },
 
   dropClassPicks(systems) {

@@ -126,18 +126,12 @@ export function addSystemActions(
       });
     },
 
-    async addMegastructure(system, kind, at, keepPlanet = false) {
-      const added = await runAnswered(runEdit, () =>
-        ipc.addMegastructure(system, kind, at, keepPlanet),
-      );
-      if (added === null) return null;
-      const { megastructures, unsure, unwritten } = added;
-      return { megastructure: megastructures[0], unsure, unwritten };
+    addMegastructure(system, kind, at, keepPlanet = false) {
+      return runAnswered(runEdit, () => ipc.addMegastructure(system, kind, at, keepPlanet));
     },
 
-    async addHabitat(system, body, kind) {
-      const added = await runAnswered(runEdit, () => ipc.addHabitat(system, body, kind));
-      return added?.planets[0] ?? null;
+    addHabitat(system, body, kind) {
+      return runAnswered(runEdit, () => ipc.addHabitat(system, body, kind));
     },
 
     addRingWorld(system, kind, stages, clear) {

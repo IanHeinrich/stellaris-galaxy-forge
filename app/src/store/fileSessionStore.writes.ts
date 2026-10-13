@@ -47,7 +47,7 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
       // the export it was read again for was answered, belongs to nobody.
       if (mine !== opens() || get().status !== "ready" || profile !== standingProfile()) return;
       if (again && get().pendingExport === null) return;
-      set({ pendingExport: report, pendingExportProfile: profile });
+      set({ pendingExport: { report, profile } });
     } catch (e) {
       set({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
     }
@@ -118,7 +118,7 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
     async confirmExport(profile) {
       const { pendingExport, status, saving, kind, title } = get();
       if (pendingExport === null || status !== "ready" || saving || kind !== "save") return;
-      set({ pendingExport: null, pendingExportProfile: null });
+      set({ pendingExport: null });
       if (profile === null) return;
       const picked = await saveDialog({
         defaultPath: newFilePath(title, "txt", profile === "paint_a_galaxy"),

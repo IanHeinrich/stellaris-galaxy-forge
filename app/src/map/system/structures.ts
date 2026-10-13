@@ -7,7 +7,7 @@ import type { StructureSpawn } from "../../generated/StructureSpawn";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
 import {
-  megastructureLabel,
+  megastructureName,
   randomlyPlacedLabel,
   starbaseKeys,
   starbaseLabel,
@@ -208,7 +208,7 @@ function megastructure(
   // Turned from where it is drawn, so a drag turns it as it goes.
   const yaw = megastructureYaw(type, at);
   const chance = structureChance(row.spawn);
-  const name = src.names.get(row.kind) ?? megastructureLabel(row.kind);
+  const name = megastructureName(row.kind, src.names);
   return {
     kind: "megastructure",
     id: row.id,

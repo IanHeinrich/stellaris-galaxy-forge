@@ -220,21 +220,21 @@ export interface EditorState {
   /**
    * Adds a finished megastructure of type `kind` to system `system` of the open save in one
    * edit, at `at`, owned by the system's owner. The planet changes class or size as the type's
-   * build changes it, unless `keepPlanet`. Answers the new row's id and the construction effects
-   * the core left out, or null when it refused the add.
+   * build changes it, unless `keepPlanet`. Answers the new row and the construction effects the
+   * core left out, or null when it refused the add.
    */
   addMegastructure(
     system: number,
     kind: string,
     at: MegastructurePlace,
     keepPlanet?: boolean,
-  ): Promise<(Pick<AddedMegastructure, "unsure" | "unwritten"> & { megastructure: number }) | null>;
+  ): Promise<Omit<AddedMegastructure, "edit"> | null>;
   /**
    * Adds the habitat a megastructure of type `kind` finishes as round body `body` of system
-   * `system` in one edit: a planet with no owner. Answers the new planet's id, or null when the
-   * core refused the add.
+   * `system` in one edit: a planet with no owner. Answers the new planet, or null when the core
+   * refused the add.
    */
-  addHabitat(system: number, body: number, kind: string): Promise<number | null>;
+  addHabitat(system: number, body: number, kind: string): Promise<Omit<Added, "edit"> | null>;
   /**
    * Adds the ring world of type `kind`'s chain whole round the star of system `system` in one
    * edit, each quadrant at its stage in `stages`, owned by the system's owner; with `clear`, every

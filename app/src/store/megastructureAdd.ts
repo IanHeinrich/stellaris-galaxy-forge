@@ -8,7 +8,7 @@ import * as ipc from "../api/ipc";
 import type { AddSpot } from "../generated/AddSpot";
 import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
-import { megastructureLabel } from "../lib/details/labels";
+import { megastructureName } from "../lib/details/labels";
 import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA, NOT_PLACED } from "../lib/megastructureCopy";
 import {
   fitsByKind,
@@ -223,10 +223,10 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const { system, spot } = prompt;
     const data = useGameDataStore.getState();
     if (data.megastructureTypes.get(kind)?.habitat === true && spot.kind === "body") {
-      const planet = await useEditorStore.getState().addHabitat(system, spot.body, kind);
-      if (planet === null) return false;
+      const habitat = await useEditorStore.getState().addHabitat(system, spot.body, kind);
+      if (habitat === null) return false;
       set({ last: stage });
-      useSceneStore.getState().showBody(system, planet);
+      useSceneStore.getState().showBody(system, habitat.planets[0]);
       return true;
     }
     const at = fits === null ? null : placeOf(fits, kind);
@@ -237,8 +237,8 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const added = await useEditorStore.getState().addMegastructure(system, kind, at, keepPlanet);
     if (added === null) return false;
     set({ last: stage });
-    const name = data.names.get(kind) ?? megastructureLabel(kind);
-    useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructure, name));
+    const name = megastructureName(kind, data.names);
+    useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructures[0], name));
     const notice = leftOutNotice(name, added.unsure.length, added.unwritten.length);
     if (notice !== null) useFileSessionStore.getState().setNotice(notice);
     return true;

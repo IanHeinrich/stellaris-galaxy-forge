@@ -140,10 +140,8 @@ export interface FileSessionState {
   pendingAsScenario: boolean;
   /** A scenario file waiting for the user to answer the Paint a Galaxy question. */
   scenarioPrompt: ScenarioPrompt | null;
-  /** What an export would carry over, waiting for the user to confirm or cancel it. */
-  pendingExport: ExportReport | null;
-  /** The profile `pendingExport` was previewed under. */
-  pendingExportProfile: ScenarioProfile | null;
+  /** What an export would carry over under `profile`, waiting for the user to confirm or cancel it. */
+  pendingExport: { report: ExportReport; profile: ScenarioProfile } | null;
   /** The open scenario carries Paint a Galaxy's scripts or flags, or Forge's header for the mod. */
   painted: boolean;
   /** The open scenario was started or opened under the mod's profile, whatever its bytes say. */
@@ -259,8 +257,7 @@ const INITIAL = {
   pendingOpen: null as string | null,
   pendingAsScenario: false,
   scenarioPrompt: null as ScenarioPrompt | null,
-  pendingExport: null as ExportReport | null,
-  pendingExportProfile: null as ScenarioProfile | null,
+  pendingExport: null as { report: ExportReport; profile: ScenarioProfile } | null,
   painted: false,
   paintChosen: false,
   fromSave: false,
