@@ -1,10 +1,9 @@
 import type { CountryNode } from "../generated/CountryNode";
-import type { DocumentKind } from "../generated/DocumentKind";
+import type { Capabilities } from "../generated/Capabilities";
 import type { MapColor } from "../generated/MapColor";
 import type { SpecialKind } from "../generated/SpecialKind";
 import type { SystemNode } from "../generated/SystemNode";
 import { drawsBorders, isMarauder, territoryKind, type CountryTypes } from "./countryKinds";
-import { kindCapabilities } from "./documentKinds";
 import { basesBeside, clanOf, isHome } from "./marauder";
 import { MARAUDER_COLORS, ownerColors, type OwnerColors } from "./visual/ownerColors";
 
@@ -33,7 +32,8 @@ export interface Ownership {
 }
 
 export interface OwnershipInput {
-  readonly kind: DocumentKind | null;
+  /** What the open document supports: with `scripted_owners`, the clans its systems place. */
+  readonly capabilities: Capabilities;
   /** A scenario's systems carry the owners its scripts stamp on them. */
   readonly systems: ReadonlyMap<number, SystemNode>;
   readonly countries: ReadonlyMap<number, CountryNode>;
@@ -65,7 +65,7 @@ export function clanLabel(clan: number): string {
  * so that system still paints and the country still has an Empires row.
  */
 export function composeOwnership(input: OwnershipInput): Ownership {
-  const { kind, systems, countries, countryTypes, mapColors, countryName } = input;
+  const { capabilities, systems, countries, countryTypes, mapColors, countryName } = input;
   const owners = new Map<number, number>();
   for (const s of systems.values()) if (s.owner !== null) owners.set(s.id, s.owner);
   const table = new Map<number, OwnerEntry>();
@@ -81,7 +81,7 @@ export function composeOwnership(input: OwnershipInput): Ownership {
       country,
     });
   }
-  if (!kindCapabilities(kind).scripted_owners) return { owners, table };
+  if (!capabilities.scripted_owners) return { owners, table };
   const scriptedClans = new Set<number>();
   for (const home of systems.values()) {
     if (!isHome(home) || home.marauder === null) continue;

@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from "react";
 import { counted } from "../../lib/text";
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import { pinnedEntry, shownLabel, unpinLabel, type WatchEntry } from "../../lib/watchlist";
 import { useWatchlistStore } from "../../store/watchlistStore";
 import { PinGlyph } from "./icons";

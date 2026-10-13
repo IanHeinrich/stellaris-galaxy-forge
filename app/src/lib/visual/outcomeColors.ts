@@ -8,8 +8,3 @@ export const OUTCOME_COLORS: Record<Outcome, number> = {
 
 /** Every mark's stroke. */
 export const OUTCOME_STROKE = { width: 2.5, alpha: 0.9 };
-
-/** The same colour as CSS writes it, for the legend. */
-export function outcomeCss(outcome: Outcome): string {
-  return `#${OUTCOME_COLORS[outcome].toString(16).padStart(6, "0")}`;
-}

@@ -20,6 +20,7 @@ import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { toggleGroup } from "../../../test/groups";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { planetClassView } from "../../../test/builders";
 
 bindStores();
 
@@ -457,6 +458,12 @@ describe("a scenario system's single rows", () => {
 
 describe("a save system's head", () => {
   it("counts planets alone, with its moons and asteroids in the Planets section", async () => {
+    useGameDataStore.setState({
+      planetClasses: new Map([
+        ["pc_g_star", planetClassView("pc_g_star")],
+        ["pc_asteroid", planetClassView("pc_asteroid", false, null, { asteroid: true })],
+      ]),
+    });
     await open("save");
     await land(
       details({

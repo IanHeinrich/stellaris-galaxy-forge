@@ -42,7 +42,7 @@ export function mapContext(
   ctx.capabilities = over.capabilities ?? kindCapabilities(ctx.kind);
   if (over.owners !== undefined || over.table !== undefined) return ctx;
   const { owners, table } = composeOwnership({
-    kind: ctx.kind,
+    capabilities: ctx.capabilities,
     systems: ctx.systems,
     countries: ctx.countries,
     countryTypes: ctx.countryTypes,

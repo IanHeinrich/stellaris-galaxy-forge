@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
+import { DOCUMENT_KINDS } from "../../../lib/documentKinds";
 import { scenarioHeaderName, seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { randomBypassLine } from "../../../lib/scenarioBypasses";
@@ -176,6 +177,7 @@ export function GalaxyView() {
   const ownHeader = useCanEdit("header");
   const scripted = useCanEdit("scripts");
   const lgateEditable = useCanEdit("lgate");
+  const prepares = useCanEdit("prepare");
   const path = useFileSessionStore((s) => s.path);
   const cloud = useFileSessionStore((s) => s.cloud);
   const countsIssue = useIssuesStore(
@@ -216,14 +218,10 @@ export function GalaxyView() {
     <>
       {head}
       <div className="ins-sub muted">
-        {meta
-          ? `${meta.date} · ${meta.version}`
-          : kind === "scenario"
-            ? "static galaxy scenario"
-            : "no save metadata"}
+        {meta ? `${meta.date} · ${meta.version}` : DOCUMENT_KINDS[kind ?? "save"].noMetaLine}
       </div>
       {ownHeader && <NameField header={header} />}
-      {kind === "scenario" && <PrepareSection />}
+      {prepares && <PrepareSection />}
       {lgateEditable && lgate !== null && <LGateBlock lgate={lgate} />}
       <Section id="galaxy.counts" title="Galaxy">
         <Properties>

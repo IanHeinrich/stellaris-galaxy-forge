@@ -150,7 +150,7 @@ export function bodyMarks(
   names: Names,
 ): BodyMarks {
   const icons = bodyIcons(p, d, names);
-  return { emblem: nameEmblem([p], countries), icons, slots: nameIconSlots(icons) };
+  return { emblem: nameEmblem([p], countries), icons, slots: nameIconSlots(icons, names) };
 }
 
 /** Whether both draw the same flag, plate and icons, so a label laid out for one fits the other. */

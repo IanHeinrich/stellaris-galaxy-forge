@@ -4,6 +4,7 @@
  */
 import type { PlanetClassRule } from "../../generated/PlanetClassRule";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
+import { needsGameData } from "../text";
 import type { GroupedRow } from "./picker";
 
 /** The Class field's hover text. */
@@ -20,7 +21,7 @@ export const CLASS_LOOK_NOTE = "Changing the class resets the planet's look.";
 export const CLASSES_LOOK_NOTE = "Changing the class resets each planet's look.";
 
 /** Why the field takes no pick. */
-export const CLASSES_NEED_GAME_DATA = "Load game data to pick a class";
+export const CLASSES_NEED_GAME_DATA = needsGameData("pick a class");
 export const CLASS_FIXED = "This kind of planet keeps its class";
 export const COLONY_CLASS_FIXED = "A colony on this class keeps it";
 export const NO_SHARED_CLASS = "No class fits every selected planet";

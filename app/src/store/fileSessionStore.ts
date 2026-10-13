@@ -140,10 +140,8 @@ export interface FileSessionState {
   pendingAsScenario: boolean;
   /** A scenario file waiting for the user to answer the Paint a Galaxy question. */
   scenarioPrompt: ScenarioPrompt | null;
-  /** What an export would carry over, waiting for the user to confirm or cancel it. */
-  pendingExport: ExportReport | null;
-  /** The profile `pendingExport` was previewed under. */
-  pendingExportProfile: ScenarioProfile | null;
+  /** What an export would carry over under `profile`, waiting for the user to confirm or cancel it. */
+  pendingExport: { report: ExportReport; profile: ScenarioProfile } | null;
   /** The open scenario carries Paint a Galaxy's scripts or flags, or Forge's header for the mod. */
   painted: boolean;
   /** The open scenario was started or opened under the mod's profile, whatever its bytes say. */
@@ -259,8 +257,7 @@ const INITIAL = {
   pendingOpen: null as string | null,
   pendingAsScenario: false,
   scenarioPrompt: null as ScenarioPrompt | null,
-  pendingExport: null as ExportReport | null,
-  pendingExportProfile: null as ScenarioProfile | null,
+  pendingExport: null as { report: ExportReport; profile: ScenarioProfile } | null,
   painted: false,
   paintChosen: false,
   fromSave: false,
@@ -389,6 +386,11 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   },
 }));
 
+/** Puts the message of `promise`'s failure on the session, where every other failure lands. */
+export function reportFailure(promise: Promise<unknown>): void {
+  promise.catch((e: unknown) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+}
+
 /** Whether the open document supports `cap`, as `documentCapabilities` reads it. */
 export function canEdit(cap: keyof Capabilities): boolean {
   return supports(documentCapabilities(useFileSessionStore.getState()), cap);
@@ -472,7 +474,7 @@ async function openDocument(
     }
     useGalaxyStore.getState().load(result.galaxy);
     followDiskChanges((changed) => void getState().noteDiskChange(changed));
-    if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
+    if (result.capabilities.scripted_owners && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
       try {
         await useGameDataStore.getState().onDocumentOpened();
@@ -543,12 +545,21 @@ async function askScenarioOpen(
   });
 }
 
+/** How a file of each kind is opened from its path: a save first asks how to open it. */
+const ROUTES: Record<
+  DocumentKind,
+  (path: string, listings: readonly ScenarioListing[] | null) => Promise<void>
+> = {
+  save: async (path) =>
+    useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false }),
+  scenario: async (path, listings) => {
+    await OPENERS.scenario(path, false, listings);
+  },
+};
+
 /** A scenario opens once any Paint a Galaxy question is answered; a save first asks how to open it. */
 async function routeOpen(path: string, listings: readonly ScenarioListing[] | null): Promise<void> {
-  const kind = await kindOf(path);
-  if (kind === "save")
-    useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false });
-  else await OPENERS[kind](path, false, listings);
+  await ROUTES[await kindOf(path)](path, listings);
 }
 
 /**
@@ -589,16 +600,21 @@ const OPENERS: Record<DocumentKind, Opener> = {
   },
 };
 
+/** Whether the open document's systems are rolled from their initializers, stars included. */
+function rollsStars(): boolean {
+  return documentCapabilities(useFileSessionStore.getState()).rolled_layout;
+}
+
 /**
- * Reads the open scenario's galaxy again, for when game data changes the star each of its
+ * Reads the open document's galaxy again, for when game data changes the star each of its rolled
  * systems is drawn as. A save's stars are its own, and a galaxy that can't be read keeps the
  * stars it has.
  */
 export async function redrawStars(): Promise<void> {
   const mine = opens;
-  if (useFileSessionStore.getState().kind !== "scenario") return;
+  if (!rollsStars()) return;
   const galaxy = await ipc.getGalaxy().catch(() => null);
-  if (galaxy !== null && mine === opens && useFileSessionStore.getState().kind === "scenario") {
+  if (galaxy !== null && mine === opens && rollsStars()) {
     useGalaxyStore.getState().applyDelta({ systems: galaxy.systems });
   }
 }

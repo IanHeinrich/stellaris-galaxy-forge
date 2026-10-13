@@ -1,5 +1,6 @@
 import { MAP_PREVIEW_NOTE, OUTCOME_LABELS, type Outcome } from "../../lib/prepareCopy";
-import { outcomeCss, OUTCOME_STROKE } from "../../lib/visual/outcomeColors";
+import { toCss } from "../../lib/visual/color";
+import { OUTCOME_COLORS, OUTCOME_STROKE } from "../../lib/visual/outcomeColors";
 import { shownProjection, systemOutcomes, usePrepareStore } from "../../store/prepareStore";
 import "./chrome.css";
 
@@ -27,7 +28,10 @@ export function PrepareLegend() {
         <div key={outcome} className="prepare-legend-row">
           <span
             className="prepare-legend-ring"
-            style={{ borderColor: outcomeCss(outcome), borderWidth: OUTCOME_STROKE.width }}
+            style={{
+              borderColor: toCss(OUTCOME_COLORS[outcome]),
+              borderWidth: OUTCOME_STROKE.width,
+            }}
             aria-hidden="true"
           />
           <span>{OUTCOME_LABELS[outcome]}</span>

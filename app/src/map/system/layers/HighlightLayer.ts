@@ -10,9 +10,10 @@ import {
 } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { dashedCircle, dashedLine } from "../../layers/dashes";
-import { sameHandle, type DragMarks } from "../bodyDrag";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
+import { sameHandle, type DragMarks } from "../drag";
 import {
+  DISC_ONLY,
   drawnDisc,
   drawnWormhole,
   exitTriangle,
@@ -98,7 +99,7 @@ function radians(degrees: number): number {
 /** How far from its ring's centre a body's radius line and rays start: clear of the disc there. */
 function hubReach(body: SceneBody, cam: Camera): number {
   const hub = body.readout?.hub ?? 0;
-  return hub > 0 ? drawnDisc(hub, cam.scale) + RADIUS_HUB_GAP_PX / cam.scale : 0;
+  return hub > 0 ? drawnDisc(hub, cam.scale, DISC_ONLY) + RADIUS_HUB_GAP_PX / cam.scale : 0;
 }
 
 /**
@@ -470,7 +471,7 @@ export class HighlightLayer implements SystemLayer {
     };
     if (drag?.ghost) {
       const { x, y, disc } = drag.ghost;
-      g.circle(x, y, drawnDisc(disc, cam.scale, scene(drag.body)?.look)).fill({
+      g.circle(x, y, drawnDisc(disc, cam.scale, scene(drag.body)?.look ?? DISC_ONLY)).fill({
         color: HOVER_COLOR,
         alpha: GHOST_ALPHA / 2,
       });
@@ -547,7 +548,7 @@ export class HighlightLayer implements SystemLayer {
     const width = TARGET_WIDTH_PX / cam.scale;
     dashedCircle(g, 0, 0, ghost.radius, ringDashes(ghost.radius, cam.scale));
     g.stroke({ color: ACCENT_COLOR, alpha: PASTE_RING_ALPHA, width });
-    g.circle(ghost.x, ghost.y, drawnDisc(ghost.disc, cam.scale))
+    g.circle(ghost.x, ghost.y, drawnDisc(ghost.disc, cam.scale, DISC_ONLY))
       .fill({ color: HOVER_COLOR, alpha: GHOST_ALPHA / 2 })
       .stroke({ color: ACCENT_COLOR, alpha: PASTE_RING_ALPHA, width });
   }

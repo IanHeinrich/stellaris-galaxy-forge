@@ -31,15 +31,15 @@ describe("exporting a save as a scenario", () => {
     mockedIpc.previewExport.mockResolvedValueOnce(plain);
     await session().exportScenario();
     expect(mockedIpc.previewExport).toHaveBeenLastCalledWith("plain");
-    expect(session().pendingExport).toEqual(plain);
+    expect(session().pendingExport).toEqual({ report: plain, profile: "plain" });
 
     const painted = exportReport({ seats: 17, player_seat: 217, player_seat_kind: "sol" });
     mockedIpc.previewExport.mockResolvedValueOnce(painted);
     usePaintModStore.setState({ paintChoice: true });
-    await until(() => expect(session().pendingExport).toBe(painted));
+    await until(() => expect(session().pendingExport?.report).toBe(painted));
     expect(mockedIpc.previewExport).toHaveBeenLastCalledWith("paint_a_galaxy");
 
-    expect(session().pendingExportProfile).toBe("paint_a_galaxy");
+    expect(session().pendingExport?.profile).toBe("paint_a_galaxy");
 
     await session().confirmExport(null);
     mockedIpc.previewExport.mockClear();
@@ -61,7 +61,6 @@ describe("exporting a save as a scenario", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(session().pendingExport).toBeNull();
-    expect(session().pendingExportProfile).toBeNull();
   });
 
   it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {
@@ -71,7 +70,7 @@ describe("exporting a save as a scenario", () => {
     const report = exportReport({ dropped: { wormhole_pairs: 6, gateways: 0, lgates: 0 } });
     mockedIpc.previewExport.mockResolvedValueOnce(report);
     await session().exportScenario();
-    expect(session().pendingExport).toEqual(report);
+    expect(session().pendingExport?.report).toEqual(report);
     expect(mockedIpc.saveDialog).not.toHaveBeenCalled();
 
     const exported = "C:/mods/map/setup_scenarios/test_empire.txt";

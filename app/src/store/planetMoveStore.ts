@@ -15,6 +15,7 @@ import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
+import { latest } from "./reads";
 import { sceneSystem, useSceneStore, type BodySelection } from "./sceneStore";
 
 /** Planets cut and waiting for a paste. Nothing has moved. */
@@ -152,16 +153,16 @@ export function pointerPlacement(system: number): OrbitPlacement | null {
   return placementAt(scenePointer.x, scenePointer.y);
 }
 
-/** Bumped by every selection change and reset, so a late answer for an older one is dropped. */
-let selectionAsk = 0;
-/** Bumped by every cut change and reset. */
-let cutAsk = 0;
-/** Bumped by every cut the user makes, which a fresh read of its targets does not change. */
-let cutMade = 0;
-/** Bumped by every read of a page's planet's targets and every reset. */
-let planetAsk = 0;
-/** Bumped by every copy, cut, clear and reset, so a late copy does not land after any of them. */
-let copyAsk = 0;
+/** Moved on by every selection change and reset, so a late answer for an older one is dropped. */
+const selectionAsk = latest();
+/** Moved on by every cut change and reset. */
+const cutAsk = latest();
+/** Moved on by every cut the user makes, which a fresh read of its targets does not change. */
+const cutMade = latest();
+/** Moved on by every read of a page's planet's targets and every reset. */
+const planetAsk = latest();
+/** Moved on by every copy, cut, clear and reset, so a late copy does not land after any of them. */
+const copyAsk = latest();
 
 /** `planets` and the moons that move with them, as the read details list them. */
 function withMoons(planets: readonly number[]): number[] {
@@ -191,41 +192,41 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
   function fetchSelectionTargets(): void {
     const selection = scene().bodySelection;
     if (selection === null || !planetsCanMove()) return;
-    const ask = selectionAsk;
+    const ask = selectionAsk.current();
     ipc
       .planetMoveTargets([...selection.ids])
       .then((selectionTargets) => {
-        if (ask === selectionAsk) set({ selectionTargets });
+        if (selectionAsk.is(ask)) set({ selectionTargets });
       })
       .catch((e: unknown) => {
-        if (ask === selectionAsk) console.warn("planet move targets", ipc.errorMessage(e));
+        if (selectionAsk.is(ask)) console.warn("planet move targets", ipc.errorMessage(e));
       });
   }
 
   function fetchCutTargets(cut: PlanetCut): void {
-    const ask = ++cutAsk;
+    const ask = cutAsk.next();
     ipc
       .planetMoveTargets([...cut.planets])
       .then((targets) => {
-        if (ask !== cutAsk || get().cut !== cut) return;
+        if (!cutAsk.is(ask) || get().cut !== cut) return;
         const left = targets.systems.some((s) => s.system === cut.from);
         set({ cut: left ? null : { ...cut, planets: targets.planets, targets } });
       })
       .catch(() => {
-        if (ask === cutAsk && get().cut === cut) set({ cut: null });
+        if (cutAsk.is(ask) && get().cut === cut) set({ cut: null });
       });
   }
 
   function fetchPlanetTargets(planet: number): void {
-    const ask = ++planetAsk;
+    const ask = planetAsk.next();
     ipc
       .planetMoveTargets([planet])
       .then((targets) => {
-        if (ask === planetAsk) set({ planetTargets: { planet, read: { targets } } });
+        if (planetAsk.is(ask)) set({ planetTargets: { planet, read: { targets } } });
       })
       .catch((e: unknown) => {
         console.warn("planet move targets", ipc.errorMessage(e));
-        if (ask === planetAsk) set({ planetTargets: { planet, read: { failed: true } } });
+        if (planetAsk.is(ask)) set({ planetTargets: { planet, read: { failed: true } } });
       });
   }
 
@@ -235,14 +236,10 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     at?: OrbitPlacement | null,
   ): Promise<boolean> {
     if (!bodiesCanCopy()) return false;
-    let op;
-    try {
-      op = await ipc.pasteBodiesOp(to, [...copy.copies], at ?? null);
-    } catch (e) {
-      useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      return false;
-    }
-    if (!(await useEditorStore.getState().applyOp(op))) return false;
+    const pasted = await useEditorStore
+      .getState()
+      .applyOp(() => ipc.pasteBodiesOp(to, [...copy.copies], at ?? null));
+    if (!pasted) return false;
     if (sceneSystem() === null) await useEditorStore.getState().select(to);
     return true;
   }
@@ -262,9 +259,9 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       if (availability.kind !== "ready" || selection === null || selectionTargets === null) {
         return false;
       }
-      cutAsk += 1;
-      cutMade += 1;
-      copyAsk += 1;
+      cutAsk.next();
+      cutMade.next();
+      copyAsk.next();
       set({
         cut: { planets: availability.planets, from: selection.system, targets: selectionTargets },
         copy: null,
@@ -275,7 +272,7 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
 
     cancelCut() {
       if (get().cut === null) return false;
-      cutAsk += 1;
+      cutAsk.next();
       set({ cut: null, checks: NO_CHECKS });
       return true;
     },
@@ -283,27 +280,27 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     async copySelection() {
       const selection = scene().bodySelection;
       if (selection === null || !bodiesCanCopy()) return false;
-      const ask = ++copyAsk;
+      const ask = copyAsk.next();
       let copies;
       try {
         copies = await ipc.copyBodies([...selection.ids]);
       } catch (e) {
-        if (ask === copyAsk) useFileSessionStore.getState().setError(ipc.errorMessage(e));
+        if (copyAsk.is(ask)) useFileSessionStore.getState().setError(ipc.errorMessage(e));
         return false;
       }
-      if (ask !== copyAsk) return false;
+      if (!copyAsk.is(ask)) return false;
       const named = copiedPlanets(selection.system, selection.ids);
       const planets =
         named.length === copies.length
           ? named
           : copies.map(() => ({ name: "a planet", moon: false }));
-      cutAsk += 1;
+      cutAsk.next();
       set({ copy: { copies, planets, from: selection.system }, cut: null, checks: NO_CHECKS });
       return true;
     },
 
     clearClipboard() {
-      copyAsk += 1;
+      copyAsk.next();
       if (get().cancelCut()) return true;
       if (get().copy === null || !bodiesCanCopy()) return false;
       set({ copy: null });
@@ -330,10 +327,10 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     async paste(to, at) {
       const { cut, copy } = get();
       if (cut === null) return copy !== null && pasteCopy(copy, to, at);
-      const made = cutMade;
+      const made = cutMade.current();
       const { planets } = cut;
       if (!(await get().move(planets, to, at))) return false;
-      if (cutMade === made) get().cancelCut();
+      if (cutMade.is(made)) get().cancelCut();
       const shown = sceneSystem();
       if (shown === to && planets.length === 1) scene().showBody(to, planets[0]);
       else {
@@ -345,15 +342,12 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     },
 
     async move(planets, to, at) {
-      let op;
-      try {
-        op = await ipc.planetMoveOp([...planets], to, at ?? null);
-      } catch (e) {
-        useFileSessionStore.getState().setError(ipc.errorMessage(e));
-        return false;
-      }
-      const moving = withMoons(planets);
-      if (!(await useEditorStore.getState().applyOp(op))) return false;
+      let moving: number[] = [];
+      const moved = await useEditorStore.getState().applyOp(() => {
+        moving = withMoons(planets);
+        return ipc.planetMoveOp([...planets], to, at ?? null);
+      });
+      if (!moved) return false;
       useInspectorStore.getState().moveBodies(moving, to);
       return true;
     },
@@ -367,7 +361,7 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     },
 
     followPlanet(id) {
-      planetAsk += 1;
+      planetAsk.next();
       if (id === null) {
         set({ planetTargets: null });
         return;
@@ -385,16 +379,16 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     },
 
     followSelection() {
-      selectionAsk += 1;
+      selectionAsk.next();
       set({ selectionTargets: null });
       fetchSelectionTargets();
     },
 
     reset() {
-      selectionAsk += 1;
-      cutAsk += 1;
-      planetAsk += 1;
-      copyAsk += 1;
+      selectionAsk.next();
+      cutAsk.next();
+      planetAsk.next();
+      copyAsk.next();
       set({
         selectionTargets: null,
         cut: null,

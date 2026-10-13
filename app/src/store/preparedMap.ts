@@ -1,10 +1,14 @@
 import type { CountryNode } from "../generated/CountryNode";
+import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { PreparedMap } from "../generated/PreparedMap";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
+import { documentCapabilities } from "../lib/capabilities";
+import type { AppIssue } from "../lib/issues";
+import { lastOf } from "../lib/memo";
 import { templateName } from "../lib/names";
 import { composeOwnership, settledOwnership, type Ownership } from "../lib/ownership";
 import { composePrecursors, type PrecursorRegions } from "../lib/precursors";
@@ -13,6 +17,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { countryMap, stampOwners, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { ownerMap } from "./gameDataStore.document";
+import { useIssuesStore } from "./issuesStore";
 import { currentOwnership } from "./ownership";
 import { currentPrecursors } from "./precursors";
 import { shownProjection, usePrepareStore } from "./prepareStore";
@@ -32,26 +37,14 @@ export interface MapInputs {
 }
 
 const NONE: ReadonlySet<number> = new Set<number>();
-
-/** `compute`'s last answer, computed again, from the answer before, when a value in `from` changes. */
-function memo<T>(): (from: readonly unknown[], compute: (previous: T | null) => T) => T {
-  let last: readonly unknown[] | null = null;
-  let value: T | null = null;
-  return (from, compute) => {
-    if (value === null || last === null || from.some((v, i) => v !== last?.[i])) {
-      last = from;
-      value = compute(value);
-    }
-    return value;
-  };
-}
+const NO_ISSUES: readonly AppIssue[] = [];
 
 /** The map's inputs as the stores stand. */
 export function mapInputs(): MapInputs {
   return projectedInputs() ?? stored();
 }
 
-const projectedMemo = memo<MapInputs>();
+const projectedMemo = lastOf<MapInputs>();
 
 /** The map as Prepare's choices would leave it while it shows them, one object per change; else null. */
 function projectedInputs(): MapInputs | null {
@@ -92,18 +85,18 @@ function projected(projection: PreparedMap): MapInputs {
   };
 }
 
-const ownershipMemo = memo<Ownership>();
+const ownershipMemo = lastOf<Ownership>();
 
 /** Who owns what on the map: `currentOwnership`, or composed from the projection's inputs. */
 export function mapOwnership(): Ownership {
   const shown = projectedInputs();
   if (shown === null) return currentOwnership();
   const data = useGameDataStore.getState();
-  const kind = useFileSessionStore.getState().kind;
-  const from = [shown, kind, data.countryTypes, data.mapColors, data.names];
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  const from = [shown, capabilities, data.countryTypes, data.mapColors, data.names];
   return ownershipMemo(from, (previous) => {
     const next = composeOwnership({
-      kind,
+      capabilities,
       systems: shown.systems,
       countries: shown.countries,
       countryTypes: data.countryTypes,
@@ -114,7 +107,7 @@ export function mapOwnership(): Ownership {
   });
 }
 
-const precursorsMemo = memo<PrecursorRegions>();
+const precursorsMemo = lastOf<PrecursorRegions>();
 
 /** Each system's precursors on the map: `currentPrecursors`, or read from the projection's systems. */
 export function mapPrecursors(): PrecursorRegions {
@@ -129,7 +122,7 @@ export interface MapDetails {
   readonly version: number;
 }
 
-const detailsMemo = memo<MapDetails>();
+const detailsMemo = lastOf<MapDetails>();
 let projectedVersion = -1;
 
 /**
@@ -144,4 +137,29 @@ export function mapDetails(): MapDetails {
     details: new Map([...details].filter(([id]) => !shown.changed.has(id))),
     version: --projectedVersion,
   }));
+}
+
+/** The issues the map marks: none while it shows the map as Prepare's choices would leave it. */
+export function mapIssues(): readonly AppIssue[] {
+  return shownProjection(usePrepareStore.getState()) ? NO_ISSUES : useIssuesStore.getState().issues;
+}
+
+/**
+ * `delta` with each system as the map shows it, so a system Prepare's choices rewrite keeps the
+ * look they give it.
+ */
+export function mapDelta(delta: GalaxyDelta): GalaxyDelta {
+  const { systems } = mapInputs();
+  return { ...delta, systems: delta.systems.flatMap((node) => systems.get(node.id) ?? []) };
+}
+
+/** Every system either projection rewrites, as the map now shows it, for the layers to redraw. */
+export function projectionDelta(
+  before: PreparedMap | null,
+  after: PreparedMap | null,
+): GalaxyDelta {
+  const nodes = new Map(
+    [...(before?.systems ?? []), ...(after?.systems ?? [])].map((s) => [s.id, s]),
+  );
+  return mapDelta({ systems: [...nodes.values()] });
 }

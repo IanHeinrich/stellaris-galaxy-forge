@@ -277,7 +277,7 @@ describe("the dialog", () => {
   it("is absent until an export is pending, then shows the report and the profile box", () => {
     expect(renderToStaticMarkup(<ExportDialog />)).toBe("");
 
-    useFileSessionStore.setState({ pendingExport: FULL });
+    useFileSessionStore.setState({ pendingExport: { report: FULL, profile: "plain" } });
     const html = renderToStaticMarkup(<ExportDialog />);
     expect(html).toContain('aria-label="Export as scenario"');
     expect(html).toContain("Not carried over");
@@ -286,7 +286,10 @@ describe("the dialog", () => {
 
   it("exports under the profile the box says on submit, and Cancel answers with none", () => {
     const confirmExport = vi.fn();
-    useFileSessionStore.setState({ pendingExport: FULL, confirmExport });
+    useFileSessionStore.setState({
+      pendingExport: { report: FULL, profile: "plain" },
+      confirmExport,
+    });
     const preventDefault = vi.fn();
 
     form(<ExportForm report={FULL} profile="plain" />).props.onSubmit({ preventDefault });

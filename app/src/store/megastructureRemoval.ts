@@ -2,7 +2,6 @@
  * Deleting a save's megastructure: it reads what goes with the row, asks the user, applies one
  * op, and closes the inspector's pages on what went.
  */
-import { confirm } from "@tauri-apps/plugin-dialog";
 import * as ipc from "../api/ipc";
 import type { MegastructureDismantle } from "../generated/MegastructureDismantle";
 import { bodyName } from "../lib/details/labels";
@@ -14,11 +13,10 @@ import {
   megastructureRow,
   type MegastructureLoss,
 } from "../lib/details/megastructureRemoval";
+import { confirmDeletion } from "./confirmDeletion";
 import { useEditorStore } from "./editorStore";
-import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { useInspectorStore } from "./inspectorStore";
 
 /**
  * What deleting megastructure `id` takes besides its row: a bypass, and the colony on a planet
@@ -49,26 +47,23 @@ function dismantleOf(kind: string): MegastructureDismantle | null {
  * Deletes megastructure `id`, named `name`, of `system` (null where no system read lists it),
  * once the user confirms.
  */
-export async function deleteMegastructure(
+export function deleteMegastructure(
   id: number,
   name: string,
   system: number | null,
 ): Promise<boolean> {
-  let loss: MegastructureLoss;
-  try {
-    loss = await lossOf(id);
-  } catch (e) {
-    const why = ipc.errorMessage(e);
-    useFileSessionStore
-      .getState()
-      .setError(`Couldn't read ${name}, so nothing was deleted: ${why}`);
-    return false;
-  }
-  const where = system === null ? null : useGalaxyStore.getState().systemName(system);
-  const question = deleteMegastructureQuestion(name, where, loss);
-  if (!(await confirm(question, { title: name, kind: "warning" }))) return false;
-  if (!(await useEditorStore.getState().deleteMegastructure(id))) return false;
-  const colonies = loss.colony?.page.colony ? [loss.colony.page.colony.id] : [];
-  useInspectorStore.getState().dropMegastructure(id, colonies);
-  return true;
+  return confirmDeletion({
+    title: name,
+    unreadable: `Couldn't read ${name}, so nothing was deleted`,
+    read: () => lossOf(id),
+    question(loss) {
+      const where = system === null ? null : useGalaxyStore.getState().systemName(system);
+      return deleteMegastructureQuestion(name, where, loss);
+    },
+    apply: () => useEditorStore.getState().deleteMegastructure(id),
+    gone: (loss) => ({
+      megastructures: [id],
+      colonies: loss.colony?.page.colony ? [loss.colony.page.colony.id] : [],
+    }),
+  });
 }

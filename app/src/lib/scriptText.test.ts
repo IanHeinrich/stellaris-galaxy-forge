@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   dedent,
   layoutLines,
-  lineText,
+  scriptLineText,
   scriptLines,
   scriptTokens,
   type ScriptToken,
@@ -184,7 +184,7 @@ describe("dedent", () => {
 describe("scriptLines", () => {
   it("gives one entry per line, dedented, with a string across lines split between them", () => {
     const lines = scriptLines('a = {\n\t\tdesc = "one\n\t\ttwo"\n\t}');
-    expect(lines.map(lineText)).toEqual(["a = {", '\tdesc = "one', '\ttwo"', "}"]);
+    expect(lines.map(scriptLineText)).toEqual(["a = {", '\tdesc = "one', '\ttwo"', "}"]);
     expect(lines[2].tokens).toEqual([{ kind: "string", text: '\ttwo"' }]);
   });
 });
@@ -193,7 +193,7 @@ describe("layoutLines", () => {
   it("lays a one-line statement out one key per line, its blocks a tab further in", () => {
     const text =
       'system = { id = "106" name = "Xu-an" position = { x = -267.49 y = -89.32 } flags = { a b } }';
-    expect(layoutLines(text).map(lineText)).toEqual([
+    expect(layoutLines(text).map(scriptLineText)).toEqual([
       "system = {",
       '\tid = "106"',
       '\tname = "Xu-an"',
@@ -208,7 +208,7 @@ describe("layoutLines", () => {
 
   it("keeps a game file's own layout, its spacing and a comment after a statement", () => {
     const text = "a={\n\tb=1 # one\n\t# alone\n\tc={ 1 2 }\n}";
-    expect(layoutLines(text).map(lineText)).toEqual([
+    expect(layoutLines(text).map(scriptLineText)).toEqual([
       "a={",
       "\tb=1 # one",
       "\t# alone",

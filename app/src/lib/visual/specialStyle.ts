@@ -2,7 +2,7 @@ import type { FlagIcon } from "../../generated/FlagIcon";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SpecialSystem } from "../../generated/SpecialSystem";
-import { megastructureLabel, shownMegastructures } from "../details/labels";
+import { megastructureName, shownMegastructures } from "../details/labels";
 import { displayNameIn } from "../names";
 import { KIND_ORDER, kindColor, kindIcon, kindLabel, kindNotable } from "../special";
 import { titleCase } from "../text";
@@ -151,7 +151,7 @@ export function badgeLabel(
     case "landmark": {
       const megastructure = shownMegastructures(megastructures)[0];
       return (
-        (megastructure && megastructureLabel(megastructure.kind)) ??
+        (megastructure && megastructureName(megastructure.kind, names)) ??
         initializerLabel(special) ??
         classifierLabel(special, systemName) ??
         kindLabel(kind)

@@ -13,7 +13,8 @@ import { bindStores } from "../../../store/bindStores";
 import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { bodyLayout } from "../../../test/builders";
+import { useGameDataStore } from "../../../store/gameDataStore";
+import { bodyLayout, planetClassView } from "../../../test/builders";
 import { hintOf } from "../../../test/hints";
 import { poolRows } from "../../../test/poolRows";
 import { details, land, open, planet, resetStores, SYSTEM } from "../inspectorFixture";
@@ -431,6 +432,11 @@ describe("a scenario body's page", () => {
         features: { modifier: null, none: true, cleared: false, added: [] },
         anomalies: { categories: [], prevented: "body" },
       }),
+    });
+    useGameDataStore.setState({
+      planetClasses: new Map([
+        ["pc_asteroid", planetClassView("pc_asteroid", false, null, { asteroid: true })],
+      ]),
     });
     await open("scenario");
     await land(details({ planets: [rock], spawn: systemSpawn() }));

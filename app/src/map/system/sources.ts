@@ -15,7 +15,7 @@ import { documentCapabilities } from "../../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
 import type { BypassKinds } from "../../lib/details/icons";
 import type { GeometryAdapter } from "../../lib/details/orbitIntent";
-import { geometryAdapterFor, NO_GEOMETRY } from "../../lib/details/saveGeometry";
+import { geometryAdapterFor, NO_GEOMETRY } from "../../lib/details/geometryAdapters";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import type { SceneLayerId } from "../../lib/visual/layerIds";
@@ -24,7 +24,9 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { moonScaleOf, systemRadiiOf, useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { currentOwnership, subscribeOwnership } from "../../store/ownership";
+import { subscribeOwnership } from "../../store/ownership";
+import { mapDetails, mapInputs, mapOwnership } from "../../store/preparedMap";
+import { shownProjection, usePrepareStore } from "../../store/prepareStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { follows, sameFields, type Binding } from "../follows";
 import type { Systems } from "../RenderContext";
@@ -222,9 +224,9 @@ const GALAXY_SUBJECT: SubjectProvider = {
     const details = useDetailsStore.getState();
     if (id !== null) details.requestRoll(id, useSceneStore.getState().roll);
     return {
-      details: id === null ? null : (details.details.get(id) ?? null),
+      details: id === null ? null : (mapDetails().details.get(id) ?? null),
       roll: shownRoll(details.rolls, id),
-      ...placeIn(useGalaxyStore.getState().systems, id),
+      ...placeIn(mapInputs().systems, id),
     };
   },
   follows: [
@@ -264,6 +266,7 @@ export const SOURCE_FOLLOWS: readonly SourceFollow[] = [
   ),
   follows(useDetailsStore, [(s) => s.resourceIcons], refresh),
   follows(useGalaxyStore, [(s) => s.systems, (s) => s.countries], refresh),
+  follows(usePrepareStore, [(s) => shownProjection(s)], refresh),
   follows(useFileSessionStore, [(s) => s.kind, (s) => s.capabilities], refresh),
   follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
   follows(useSceneStore, [(s) => s.lockedBodies], refresh),
@@ -274,6 +277,7 @@ export const SOURCE_FOLLOWS: readonly SourceFollow[] = [
 /** The stores' state for system `id`, as the scene reads it, with `subject` giving the system. */
 export function readSystemSources(id: number | null, subject: SubjectProvider): SystemSources {
   const galaxy = useGalaxyStore.getState();
+  const shown = mapInputs();
   const data = useGameDataStore.getState();
   const details = useDetailsStore.getState();
   const { lockedBodies } = useSceneStore.getState();
@@ -291,7 +295,7 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     id,
     ...read,
     givenNames: givenNamesNow(id, read.details?.planets),
-    systems: galaxy.systems,
+    systems: shown.systems,
     names,
     planetClasses: data.planetClasses,
     moonScale: moonScaleOf(data),
@@ -305,8 +309,8 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,
     sceneLayers: useMapChromeStore.getState().sceneLayers,
-    ownership: currentOwnership(),
-    countries: galaxy.countries,
+    ownership: mapOwnership(),
+    countries: shown.countries,
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),

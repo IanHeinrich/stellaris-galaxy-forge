@@ -11,13 +11,16 @@ import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { RowChoice } from "../generated/RowChoice";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { Outcome } from "../lib/prepareCopy";
+import { newSeed } from "../lib/random";
 import { useEditorStore } from "./editorStore";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { documentCapabilities } from "../lib/capabilities";
+import { getPaintLayer, useFileSessionStore, type FileSessionState } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, prefField } from "./prefs";
+import { latest } from "./reads";
 
 /** The Galaxy page's section key, which the inspector keeps open or closed. */
 export const PREPARE_SECTION = "galaxy.prepare";
@@ -195,15 +198,13 @@ function setupFor(fromSave: boolean, state: Pick<PrepareState, "applied" | "dism
  */
 export function setupScreen(): boolean {
   const session = useFileSessionStore.getState();
-  const fromSave = session.status === "ready" && session.kind === "scenario" && session.fromSave;
+  const fromSave = session.status === "ready" && session.fromSave;
   return setupFor(fromSave, usePrepareStore.getState());
 }
 
 /** `setupScreen`, for a component. */
 export function useSetupScreen(): boolean {
-  const fromSave = useFileSessionStore(
-    (s) => s.status === "ready" && s.kind === "scenario" && s.fromSave,
-  );
+  const fromSave = useFileSessionStore((s) => s.status === "ready" && s.fromSave);
   const pending = usePrepareStore((s) => setupFor(true, s));
   return fromSave && pending;
 }
@@ -211,8 +212,13 @@ export function useSetupScreen(): boolean {
 /** Whether the map marks each system's outcome: the section is in view, open or as the setup screen. */
 export function outcomeInView(): boolean {
   const session = useFileSessionStore.getState();
-  if (session.status !== "ready" || session.kind !== "scenario" || !galaxyShown()) return false;
+  if (!prepares(session) || !galaxyShown()) return false;
   return setupScreen() || !useInspectorStore.getState().collapsed(PREPARE_SECTION, true);
+}
+
+/** Whether `session` holds an open document that Prepare works on. */
+function prepares(session: Pick<FileSessionState, "status" | "capabilities">): boolean {
+  return session.status === "ready" && documentCapabilities(session).prepare;
 }
 
 /** The Galaxy page is in view: the inspector's tab, in an open dock, on the galaxy itself. */
@@ -266,28 +272,22 @@ function rowChoices(choices: PrepareChoices): RowChoice[] {
   return PREPARE_ROWS.map((row) => ({ row, choice: choices[row] }));
 }
 
-/** A preview can be read: a scenario is open and the game data that sorts its systems is loaded. */
+/**
+ * A preview can be read: a document Prepare works on is open and the game data that sorts its
+ * systems is loaded.
+ */
 function previewable(): boolean {
-  const session = useFileSessionStore.getState();
-  return (
-    session.status === "ready" &&
-    session.kind === "scenario" &&
-    useGameDataStore.getState().status === "ready"
-  );
+  return prepares(useFileSessionStore.getState()) && useGameDataStore.getState().status === "ready";
 }
 
-/** Bumped by every read and reset, so only the latest read lands. */
-let asks = 0;
+/** Moved on by every read and reset, so only the latest read lands. */
+const asks = latest();
 /** Whether the latest read asked for the map as the choices would leave it. */
 let mapAsked = false;
 
 /** `preview` without its map, which stands for the document only until an edit. */
 function unmapped(preview: PreparePreview): PreparePreview {
   return { ...preview, map: undefined };
-}
-
-function newSeed(): number {
-  return Math.floor(Math.random() * 2 ** 32);
 }
 
 function initial() {
@@ -363,7 +363,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   followHistory(undo) {
-    asks += 1;
+    asks.next();
     const { applied, undone, current, preview, applying } = get();
     // Apply keeps the map until the classification it changed is read again.
     if (preview?.map && !applying) set({ preview: unmapped(preview) });
@@ -383,7 +383,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   async refresh() {
-    const ask = ++asks;
+    const ask = asks.next();
     if (get().applying) return;
     if (!previewable()) {
       set({ preview: null, current: false, error: null });
@@ -393,9 +393,9 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
       const { choices, options, outcomeShown } = get();
       mapAsked = outcomeShown;
       const preview = await ipc.preparePreview(rowChoices(choices), options, outcomeShown);
-      if (ask === asks) set({ preview, current: true, error: null });
+      if (asks.is(ask)) set({ preview, current: true, error: null });
     } catch (e) {
-      if (ask === asks) set({ preview: null, current: false, error: ipc.errorMessage(e) });
+      if (asks.is(ask)) set({ preview: null, current: false, error: ipc.errorMessage(e) });
     }
   },
 
@@ -436,7 +436,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   reset() {
-    asks += 1;
+    asks.next();
     mapAsked = false;
     set(initial());
   },

@@ -10,10 +10,11 @@ import { useGeometryEdit } from "../../useGeometryEdit";
 import type { Bounds } from "../../../../generated/Bounds";
 import { boundsText } from "../../../../lib/details/labels";
 import { innerOffsetHint } from "../../../../lib/details/spawnFacts";
+import { needsGameData } from "../../../../lib/text";
 import { LockedRow, Section } from "../../parts";
 import { Hinted, Rolled, Unknown } from "../../states";
 
-const KINDS_NEED_GAME_DATA = "Load the game data to change a belt's kind";
+const KINDS_NEED_GAME_DATA = needsGameData("change a belt's kind");
 const NO_KINDS: readonly Named[] = [];
 
 function kindName(kind: string, kinds: readonly Named[]): string {

@@ -20,11 +20,6 @@ export function useBodyLookup(): (id: number) => { name: string; moon: boolean }
   };
 }
 
-/** Body `id` as the system list names it, or `#id` while no read system lists it. */
-export function useBodyName(id: number): string {
-  return useBodyLookup()(id).name;
-}
-
 /** The name formats as the install writes them, asking for those `planets` use and are not read. */
 function useFormats(planets: readonly PlanetSummary[] | undefined): ReadonlyMap<string, string> {
   const formats = useNameFormatsStore((s) => s.formats);

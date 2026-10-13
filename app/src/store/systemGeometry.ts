@@ -6,7 +6,7 @@ import type { SystemDetails } from "../generated/SystemDetails";
 import { documentCapabilities } from "../lib/capabilities";
 import { geometryOf, type SystemGeometry } from "../lib/details/geometry";
 import { bodyOrbit, inspectedBody, nudged, type GeometryIntent } from "../lib/details/orbitIntent";
-import { geometryAdapterFor } from "../lib/details/saveGeometry";
+import { geometryAdapterFor } from "../lib/details/geometryAdapters";
 import { shownRoll, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";

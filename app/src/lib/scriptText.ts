@@ -279,6 +279,6 @@ export function layoutLines(
 }
 
 /** A line's text as written. */
-export function lineText(line: ScriptLine): string {
+export function scriptLineText(line: ScriptLine): string {
   return line.tokens.map((t) => t.text).join("");
 }

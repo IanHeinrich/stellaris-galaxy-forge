@@ -9,6 +9,7 @@ import {
   nearestSystem,
   refuseOr,
   runAdd,
+  runAnswered,
   systems,
   withTrackedSystem,
   type RunEdit,
@@ -116,59 +117,25 @@ export function addSystemActions(
     addBodyAt(system, at, parent = null, planetClass = null) {
       const gameData = useGameDataStore.getState().status === "ready";
       return refuseOr(gameData ? null : BODIES_NEED_GAME_DATA, async () => {
-        let planet: number | undefined;
-        const result = await runEdit(async () => {
-          const added = await ipc.addBody(
-            system,
-            parent,
-            planetClass,
-            null,
-            at.radius,
-            at.angle,
-            newSeed(),
-          );
-          planet = added.planets[0];
-          return added.edit;
-        });
-        if (result === null || planet === undefined) return false;
-        useSceneStore.getState().showBody(system, planet);
+        const added = await runAnswered(runEdit, () =>
+          ipc.addBody(system, parent, planetClass, null, at.radius, at.angle, newSeed()),
+        );
+        if (added === null || added.planets.length === 0) return false;
+        useSceneStore.getState().showBody(system, added.planets[0]);
         return true;
       });
     },
 
-    async addMegastructure(system, kind, at, keepPlanet = false) {
-      let added: { megastructure: number; unsure: string[]; unwritten: string[] } | null = null;
-      const result = await runEdit(async () => {
-        const { edit, megastructures, unsure, unwritten } = await ipc.addMegastructure(
-          system,
-          kind,
-          at,
-          keepPlanet,
-        );
-        added = { megastructure: megastructures[0], unsure, unwritten };
-        return edit;
-      });
-      return result === null ? null : added;
+    addMegastructure(system, kind, at, keepPlanet = false) {
+      return runAnswered(runEdit, () => ipc.addMegastructure(system, kind, at, keepPlanet));
     },
 
-    async addHabitat(system, body, kind) {
-      let planet: number | null = null;
-      const result = await runEdit(async () => {
-        const added = await ipc.addHabitat(system, body, kind);
-        planet = added.planets[0];
-        return added.edit;
-      });
-      return result === null ? null : planet;
+    addHabitat(system, body, kind) {
+      return runAnswered(runEdit, () => ipc.addHabitat(system, body, kind));
     },
 
-    async addRingWorld(system, kind, stages, clear) {
-      let added: { planets: number[]; megastructures: number[] } | null = null;
-      const result = await runEdit(async () => {
-        const { edit, ...answer } = await ipc.addRingWorld(system, kind, [...stages], clear);
-        added = answer;
-        return edit;
-      });
-      return result === null ? null : added;
+    addRingWorld(system, kind, stages, clear) {
+      return runAnswered(runEdit, () => ipc.addRingWorld(system, kind, [...stages], clear));
     },
 
     rerollSystem(id, starClass) {

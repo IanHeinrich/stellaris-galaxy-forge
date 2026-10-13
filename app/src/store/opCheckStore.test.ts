@@ -30,6 +30,18 @@ describe("the core's answers about an op", () => {
     expect(mockedIpc.checkOp).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps only the answers of each system's current generation", async () => {
+    mockedIpc.checkOp.mockResolvedValue(null);
+    store().ask(OP, 140, 0);
+    store().ask(OP, 141, 0);
+    store().ask(OP, null, 0);
+    await until(() => expect(store().answers.size).toBe(3));
+
+    store().staled([140]);
+
+    expect([...store().answers.keys()]).toEqual([opCheckKey(OP, 141)]);
+  });
+
   it("counts every edit, for an op about no system", () => {
     store().staled([]);
     store().staled([140]);

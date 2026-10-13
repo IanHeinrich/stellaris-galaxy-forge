@@ -7,7 +7,7 @@ import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { SystemDetails } from "../../generated/SystemDetails";
-import { counted } from "../text";
+import { counted, listed } from "../text";
 import { colonyParts } from "./planetRemoval";
 
 export const DELETE_RING_WORLD = "Delete ring world";
@@ -95,7 +95,9 @@ function settled(colonies: readonly RingColony[]): string {
   if (rest.length === 0) {
     return ` The colony on ${first.planet} goes with it: ${colonyParts(first.page)}.`;
   }
-  const names = colonies.map((c) => c.planet);
-  const listed = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  return ` The colonies on ${listed} go with it, with their pops, buildings and defence armies.`;
+  const names = listed(
+    colonies.map((c) => c.planet),
+    "and",
+  );
+  return ` The colonies on ${names} go with it, with their pops, buildings and defence armies.`;
 }

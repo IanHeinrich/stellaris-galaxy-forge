@@ -7,6 +7,7 @@ import { normalise } from "../lib/paths";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { prefField } from "./prefs";
+import { latest } from "./reads";
 
 /** A file to open, at a line or at its top. */
 export interface OpenTarget {
@@ -45,19 +46,19 @@ export interface ScriptEditorState {
   forget(): void;
 }
 
+const PICK_CHECKS: { [K in EditorPick["kind"]]: (pick: Record<string, unknown>) => boolean } = {
+  found: (pick) => typeof pick.id === "string",
+  system_default: () => true,
+  other: (pick) => typeof pick.args === "string",
+};
+
 function isEditorPick(value: unknown): value is EditorPick {
   if (typeof value !== "object" || value === null) return false;
   const pick = value as Record<string, unknown>;
-  switch (pick.kind) {
-    case "found":
-      return typeof pick.id === "string";
-    case "system_default":
-      return true;
-    case "other":
-      return typeof pick.args === "string";
-    default:
-      return false;
-  }
+  const check = Object.prototype.hasOwnProperty.call(PICK_CHECKS, String(pick.kind))
+    ? PICK_CHECKS[pick.kind as EditorPick["kind"]]
+    : undefined;
+  return check !== undefined && check(pick);
 }
 
 function isEditorChoice(value: unknown): value is EditorChoice | null {
@@ -93,15 +94,18 @@ async function launch(file: string, line: number | null, choice: EditorChoice): 
 }
 
 export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
+  /** Moved on whenever the chooser opens or closes, so what a closed one offers lands nowhere. */
+  const chooserAsk = latest();
+
   /** Shows the chooser for `target` and asks the shell what it offers. */
   const ask = async (target: OpenTarget | null) => {
-    const chooser = { target };
-    set({ chooser, choices: null });
+    const mine = chooserAsk.next();
+    set({ chooser: { target }, choices: null });
     try {
       const choices = await ipc.editorChoices(target?.file ?? "");
-      if (get().chooser === chooser) set({ choices });
+      if (chooserAsk.is(mine)) set({ choices });
     } catch (e) {
-      if (get().chooser === chooser) set({ chooser: null });
+      if (chooserAsk.is(mine)) set({ chooser: null });
       useFileSessionStore.getState().setError(ipc.errorMessage(e));
     }
   };
@@ -132,6 +136,7 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
         return;
       }
       CHOICE.save(choice);
+      chooserAsk.next();
       set({ choice, chooser: null, choices: null });
       if (target !== null) await launch(target.file, target.line ?? null, choice);
     },
@@ -149,6 +154,7 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
     },
 
     cancel() {
+      chooserAsk.next();
       set({ chooser: null, choices: null });
       ipc
         .answerEditorChooser(null)

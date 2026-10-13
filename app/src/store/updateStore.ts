@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { onUpdateProgress } from "../api/events";
-import { errorMessage } from "../api/errors";
 import * as ipc from "../api/ipc";
 import type { UpdateProgress } from "../generated/UpdateProgress";
 import type { UpdateView } from "../generated/UpdateView";
@@ -95,7 +94,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       });
     } catch (e) {
       // Being offline is the normal reason a check fails, so only a check the user asked for says so.
-      set({ status: "failed", error: errorMessage(e), dialog: manual });
+      set({ status: "failed", error: ipc.errorMessage(e), dialog: manual });
     }
   },
 
@@ -131,7 +130,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       await ipc.installUpdate();
     } catch (e) {
       // The backend keeps the update parked, so the dialog comes back with the error over a retry.
-      set({ status: "available", error: errorMessage(e), dialog: true });
+      set({ status: "available", error: ipc.errorMessage(e), dialog: true });
     } finally {
       unlisten?.();
     }
@@ -141,7 +140,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     try {
       await ipc.openUrl(get().releasesUrl);
     } catch (e) {
-      set({ error: errorMessage(e) });
+      set({ error: ipc.errorMessage(e) });
     }
   },
 

@@ -44,10 +44,10 @@ export function preFtlWorlds(s: NameIconSubject): PlanetSummary[] {
  * The icons right of a name, in order: the megastructures as one, each bypass, the dig sites
  * as one, the anomaly and the pre-FTL civilisation.
  */
-export function nameIconSlots(s: NameIconSubject): NameIconSlot[] {
+export function nameIconSlots(s: NameIconSubject, names: Names): NameIconSlot[] {
   const slots: NameIconSlot[] = [];
   const structures = shownMegastructures(s.megastructures);
-  const megastructures = megastructureIcon(structures);
+  const megastructures = megastructureIcon(structures, names);
   if (megastructures) {
     slots.push({ kind: "megastructures", icon: megastructures, count: structures.length });
   }

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { MapColor } from "../../generated/MapColor";
 import type { SystemNode } from "../../generated/SystemNode";
-import { countryRegions } from "../../lib/geometry/territory";
+import { countryRegions } from "../../lib/geometry/territory.fixture";
 import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { MARAUDER_COLORS, ownerColors } from "../../lib/visual/ownerColors";
 import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";

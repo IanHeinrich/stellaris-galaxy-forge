@@ -12,7 +12,15 @@ import { mockedIpc } from "../test/ipc";
 import { planetClassView, planetPage, starClassView } from "../test/builders";
 import { openFixtureSave } from "./editorFixture";
 import { editResult } from "./fixture";
-import { heldAnomaly, planetEditAdapterFor, savePickerTarget } from "./planetEditAdapter";
+import { documentCapabilities } from "../lib/capabilities";
+import { selectedBody } from "../lib/details/bodiesEdit";
+import { useFileSessionStore } from "./fileSessionStore";
+import {
+  bodiesEdits,
+  heldAnomaly,
+  planetEditAdapterFor,
+  savePickerTarget,
+} from "./planetEditAdapter";
 
 /** Save body `page` in system 1, as its page hands it to the pickers. */
 const pickerTarget = (page: PlanetPage) =>
@@ -228,6 +236,60 @@ describe("a save body's rows", () => {
       type: "RemoveDeposit",
       deposit: 3,
     });
+  });
+});
+
+describe("several selected bodies' edits", () => {
+  const NO_ROWS = {
+    deposits: { features: [], blockers: [], addWarnings: () => [] },
+    modifiers: [],
+  };
+  const FACTS = {
+    planetClasses: new Map(),
+    starClasses: new Map(),
+    megastructures: new Set<number>(),
+  };
+  const bodies = [41, 42].map((id) =>
+    selectedBody(
+      {
+        summary: planetSummary({ id, class: "pc_desert", size: 10 }),
+        rows: NO_ROWS,
+        held: { deposits: [], modifiers: [] },
+      },
+      `#${id}`,
+      FACTS,
+    ),
+  );
+  const several = () =>
+    bodiesEdits(
+      {
+        kind: "save",
+        bodies,
+        system: 4,
+        where: "Olbers",
+        lock: { sending: false },
+        depositName: (kind) => kind,
+        className: (key) => key,
+      },
+      () => {},
+    );
+
+  it("send each body the op its own page sends, as one edit, while the document takes them", async () => {
+    expect(await sent(several().setSize({ min: 12, max: 12 }, 10))).toEqual([
+      true,
+      {
+        type: "Batch",
+        description: "Set the size of 2 planets to 12 in Olbers",
+        ops: [41, 42].map((body) => ({ type: "SetBodySize", body, size: 12 })),
+      },
+    ]);
+
+    mockedIpc.applyOp.mockClear();
+    useFileSessionStore.setState((s) => ({
+      capabilities: { ...documentCapabilities(s), edit_bodies: false },
+    }));
+    expect(await several().setSize({ min: 14, max: 14 }, 10)).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 

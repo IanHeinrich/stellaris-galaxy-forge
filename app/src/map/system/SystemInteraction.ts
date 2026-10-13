@@ -1,18 +1,11 @@
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { beltLabel, shownBodyName } from "../../lib/details/labels";
-import { capabilityFor } from "../../lib/entities";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
 import type { MegastructureMove } from "../../lib/details/megastructureMoves";
 import { isEditableTarget } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
-import {
-  bodyEntry,
-  megastructureEntry,
-  starbaseEntry,
-  useInspectorStore,
-  wormholeEntry,
-} from "../../store/inspectorStore";
+import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { noteScenePointer, planetsCanMove } from "../../store/planetMoveStore";
@@ -24,16 +17,19 @@ import { queuedTextures } from "../layers/details/cell";
 import type { Tip } from "../layers/details/Hover";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
-import { sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
-import type { StructureKind, SystemContext } from "./context";
+import { sameHandle, type DragStep, type HandleRef } from "./drag";
+import type { SystemContext } from "./context";
+import type { StructureKind } from "./structures";
 import { handleOwnerAt, pickTarget, sameTarget, type SceneTarget } from "./picking";
+import { STRUCTURE_KINDS } from "./structureKinds";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
 
 /** Whether the open document has a page for a structure of `kind`; a scenario's have none. */
 function hasPage(kind: StructureKind): boolean {
-  return supports(documentCapabilities(useFileSessionStore.getState()), capabilityFor(kind));
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  return supports(capabilities, STRUCTURE_KINDS[kind].capability);
 }
 
 /** What the scene's pointer controller reads from the scene and asks of it. */
@@ -301,7 +297,10 @@ export class SystemInteraction {
     this.pointer.handle(this.remeasure({ ...last, shift, ctrl }));
   }
 
-  /** `input` at the same screen point under the camera as it stands now, kept as the last move. */
+  /**
+   * `input` at the same screen point under the camera as it stands now, kept as the last move. It
+   * keeps its target, since a drag in progress owns it.
+   */
   private remeasure(input: SystemInput): SystemInput {
     const w = this.cam.screenToWorld(input.sx, input.sy, this.at);
     this.lastMove = { ...input, wx: w.x, wy: w.y, scale: this.cam.scale };
@@ -357,11 +356,7 @@ export class SystemInteraction {
     if (!shown) return;
     useSceneStore.getState().clearBodies();
     if (!hasPage(kind)) return;
-    const entry =
-      kind === "megastructure"
-        ? megastructureEntry(id, shown.name)
-        : starbaseEntry(system, id, shown.name);
-    useInspectorStore.getState().openFromMap(entry);
+    useInspectorStore.getState().openFromMap(STRUCTURE_KINDS[kind].entry(system, id, shown.name));
   }
 
   private selectAlone(system: number, id: number): void {

@@ -67,8 +67,8 @@ placed about a point, built on it. A page sends a geometry edit through
 `useGeometryEdit` and shows the refusal beside the field.
 
 Several bodies selected in the system view open
-`inspector/selection/BodySelectionView.tsx`. In a save, its
-`BodySelectionFields` draws the planet page's Size, Class, Ring, Deposits
+`inspector/selection/BodySelectionView.tsx`. Where the document's
+capabilities have `edit_bodies`, its `BodySelectionFields` draws the planet page's Size, Class, Ring, Deposits
 and Modifiers for all of them, with the body page's own field, row and
 picker components. Their adapter, `bodiesEdits` in
 `store/planetEditAdapter.ts`, sends each change as one batch.

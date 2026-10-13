@@ -10,11 +10,11 @@ import type {
   MegastructureStage,
 } from "./megastructurePicks";
 import { orbitText, placementAt } from "./planetMove";
-import { capitalised } from "./text";
+import { capitalised, needsGameData } from "./text";
 
 export const ADD_MEGASTRUCTURE_HERE_LABEL = "Add megastructure here…";
 export const ADD_MEGASTRUCTURE_LABEL = "Add megastructure…";
-export const MEGASTRUCTURES_NEED_GAME_DATA = "Load game data to add a megastructure.";
+export const MEGASTRUCTURES_NEED_GAME_DATA = needsGameData("add a megastructure");
 export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can go here.";
 /** What the dialog says while it asks the save what goes at the spot. */
 export const READING_FITS = "Reading what can go here…";

@@ -9,7 +9,7 @@ import {
   roundHeight,
   sliderToHeight,
 } from "../../../lib/height";
-import { toCss } from "../../../lib/visual/ownerColors";
+import { toCss } from "../../../lib/visual/color";
 import { useEditorStore } from "../../../store/editorStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
 import { useHeightPreviewStore } from "../../../store/heightPreviewStore";

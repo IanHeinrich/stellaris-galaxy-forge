@@ -12,9 +12,9 @@ import { useBarMode } from "../../store/sceneStore";
 import { useToolStore } from "../../store/toolStore";
 import "./chrome.css";
 
-/** Whether the galaxy map shown can lean: a save's. */
+/** Whether the galaxy map is shown and can lean. */
 function useTiltShown(): boolean {
-  const galaxy = useBarMode() === "save";
+  const galaxy = useBarMode() !== "system";
   const ready = useFileSessionStore((s) => s.status === "ready");
   const capabilities = useFileSessionStore(documentCapabilities);
   return galaxy && ready && tiltAvailable(capabilities);

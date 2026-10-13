@@ -3,8 +3,8 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { placedNode } from "../../test/builders";
 import { bandOf, inRing, trimmedInner, type Region } from "./polygon";
 import type { Pt } from "./pt";
-import { countryRegions, InfluenceField } from "./territory";
-import { PARAMS } from "./territory.fixture";
+import { InfluenceField } from "./territory";
+import { countryRegions, PARAMS } from "./territory.fixture";
 
 const system = (
   id: number,

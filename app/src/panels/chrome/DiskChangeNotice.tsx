@@ -1,4 +1,5 @@
-import { fileName } from "../../lib/paths";
+import { diskChangeLine } from "../../lib/documentKinds";
+import type { DocumentKind } from "../../generated/DocumentKind";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { diskChangeShown } from "../../store/fileSessionStore.refresh";
 import "./chrome.css";
@@ -6,11 +7,8 @@ import "./chrome.css";
 const DROPS_EDITS = "Reloading drops your unsaved changes and their undo history.";
 
 /** What the banner says about the file, and what Reload costs, before the buttons. */
-function diskChangeText(kind: string | null, path: string | null, dirty: boolean): string {
-  const what =
-    kind === "save"
-      ? "This save changed on disk. Stellaris may have saved over it."
-      : `${fileName(path)} changed on disk.`;
+function diskChangeText(kind: DocumentKind | null, path: string | null, dirty: boolean): string {
+  const what = diskChangeLine(kind, path);
   return dirty ? `${what} ${DROPS_EDITS}` : what;
 }
 

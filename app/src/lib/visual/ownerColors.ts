@@ -96,10 +96,6 @@ export function ownerColor(
   return ownerColors(country, index, palette).outline;
 }
 
-export function toCss(color: number): string {
-  return `#${color.toString(16).padStart(6, "0")}`;
-}
-
 /** Mixes `color` towards black by `amount` in [0, 1]. */
 function darken(color: number, amount: number): number {
   const channel = (shift: number): number => {

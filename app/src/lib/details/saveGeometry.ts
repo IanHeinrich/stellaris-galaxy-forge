@@ -1,12 +1,10 @@
 /**
- * What may be edited in a system's layout and what an edit draws, whatever the document is, and
- * the save's adapter, which turns an intent into the save's geometry ops. `geometryAdapterFor` is
- * the one place a source is chosen, and this is the only file that names the geometry ops.
+ * A save's geometry adapter: what may be edited in a system's layout, what an edit draws, and the
+ * save's geometry op for an intent. This is the only file that names the geometry ops;
+ * `geometryAdapters.ts` chooses the adapter for the open document.
  */
 import type { Bounds } from "../../generated/Bounds";
-import type { Capabilities } from "../../generated/Capabilities";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
-import type { DocumentKind } from "../../generated/DocumentKind";
 import type { Op } from "../../generated/Op";
 import { BELT_SCATTER, VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import { systemLabel } from "../systemLabel";
@@ -55,21 +53,14 @@ import { isRingSegment as isSegmentClass } from "./ringWorldRemoval";
 
 type Belt = { kind: string; radius: number };
 
-const NOTHING_EDITABLE: SceneEditing = {
+/** A system of which nothing may be edited. */
+export const NOTHING_EDITABLE: SceneEditing = {
   bodies: new Map(),
   belts: false,
   innerRadius: false,
   innerFloor: VANILLA_SYSTEM_RADII.min_inner,
   wormholes: new Set(),
   megastructures: false,
-};
-
-/** Nothing about the system's geometry may be edited. */
-export const NO_GEOMETRY: GeometryAdapter = {
-  ranges: false,
-  editing: () => NOTHING_EDITABLE,
-  preview: () => ({}),
-  op: () => null,
 };
 
 /** Whether the install's classes make `planetClass` an asteroid. */
@@ -466,24 +457,3 @@ export const SAVE_GEOMETRY: GeometryAdapter = {
   preview: layoutPreview,
   op: saveOp,
 };
-
-/** The adapter each kind of document edits its geometry with, where its capabilities allow. */
-const GEOMETRY_ADAPTERS: Readonly<Record<DocumentKind, GeometryAdapter>> = {
-  save: SAVE_GEOMETRY,
-  scenario: NO_GEOMETRY,
-};
-
-/**
- * The adapter that edits system `system`'s geometry in a document of `kind` that supports
- * `capabilities`: the one place a source is chosen. Before a document reports its kind, a save's,
- * as `documentCapabilities` assumes. Without the geometry capability or a system there is nothing
- * to edit.
- */
-export function geometryAdapterFor(
-  kind: DocumentKind | null,
-  capabilities: Capabilities,
-  system: number | null,
-): GeometryAdapter {
-  if (!capabilities.geometry || system === null) return NO_GEOMETRY;
-  return GEOMETRY_ADAPTERS[kind ?? "save"];
-}

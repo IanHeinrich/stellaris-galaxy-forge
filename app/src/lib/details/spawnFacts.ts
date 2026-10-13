@@ -74,12 +74,12 @@ export function planetCounts(
   return { planets: exactly(planets), moons: exactly(moons), asteroids: exactly(asteroids) };
 }
 
-/** Whether a class is an asteroid's, as the game data or its key says. */
+/** Whether a class is an asteroid's, as the game data's flag says. */
 export function isAsteroidClass(
   planetClass: string,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
 ): boolean {
-  return planetClasses.get(planetClass)?.asteroid === true || planetClass.includes("asteroid");
+  return planetClasses.get(planetClass)?.asteroid === true;
 }
 
 /** What the system's head says of an unknown count: a script places the bodies. */

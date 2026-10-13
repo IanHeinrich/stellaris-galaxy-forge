@@ -2,19 +2,21 @@ import { beltLabel } from "../../lib/details/labels";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import { targetRefusal, type MegastructureMove } from "../../lib/details/megastructureMoves";
 import { DRAG_HINTS, toStructureHint, type GeometryIntent } from "../../lib/details/orbitIntent";
-import { near, polar, polarAbout, wrapDegrees } from "../../lib/details/orbits";
+import { near, polar, polarAbout } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import {
+  captureReach,
   change,
   degrees,
+  freeStep,
   heldAbout,
   holdFrom,
   holdHint,
   nearestRing,
+  nearestWithin,
   NO_MARKS,
   ORIGIN,
   SHARED_SNAP_PX,
-  snapAngle,
   type Drag,
   type DragFrame,
   type DragMarks,
@@ -23,9 +25,8 @@ import {
   type HandleRef,
   type Hold,
   type Polar,
-} from "./bodyDrag";
+} from "./drag";
 import type { SceneBody, SceneWormhole, SystemContext } from "./context";
-import { drawnDisc } from "./geometry";
 
 /**
  * A natural wormhole dragged freely about the centre, in whole units and degrees, or Shift's steps.
@@ -47,18 +48,15 @@ export class WormholeDrag implements Drag {
   }
 
   move(pointer: DragPointer): DragStep {
-    const at = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
-    const radius = Math.max(1, Math.round(Math.hypot(at.x, at.y)));
-    const angle = snapAngle(polarAbout(at, ORIGIN).angle, pointer.shift);
+    const held = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
+    const { radius, angle, readout, changed } = freeStep(held, this.wormhole, pointer.shift);
     const id = this.wormhole.id;
-    const was = polarAbout(this.wormhole, ORIGIN);
-    const same = near(radius, was.radius) && near(wrapDegrees(angle - was.angle + 180), 180);
     return {
       intent: { kind: "moveWormhole", system: this.system, wormhole: id, radius, angle },
       marks: { ...NO_MARKS, wormhole: id },
-      readout: { text: `r ${change(was.radius, radius)} · ${degrees(angle)}` },
+      readout,
       hint: DRAG_HINTS.wormhole,
-      changed: !same,
+      changed,
     };
   }
 }
@@ -124,11 +122,6 @@ export class HandleDrag implements Drag {
     };
   }
 }
-
-/** How far past its drawn disc, in screen pixels, a body takes a dragged megastructure. */
-const STRUCTURE_CAPTURE_PAST_PX = 10;
-/** The least reach, in screen pixels, at which a body takes a dragged megastructure. */
-const STRUCTURE_CAPTURE_MIN_PX = 18;
 
 /** What a megastructure's drag reads of the scene as it starts. */
 export type MegastructureFrame = Pick<SystemContext, "id" | "details" | "structures" | "bodies">;
@@ -214,17 +207,13 @@ export class MegastructureDrag implements Drag {
 
   private toPoint(pointer: DragPointer): DragStep {
     const held = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
-    const radius = Math.max(1, Math.round(Math.hypot(held.x, held.y)));
-    const angle = snapAngle(polarAbout(held, ORIGIN).angle, pointer.shift);
-    const was = polarAbout(this.at, ORIGIN);
-    const same = near(radius, was.radius) && near(wrapDegrees(angle - was.angle + 180), 180);
-    const { x, y } = polar(0, 0, radius, angle);
+    const { point, readout, changed } = freeStep(held, this.at, pointer.shift);
     return {
-      intent: this.intent({ place: "free", x, y }),
+      intent: this.intent({ place: "free", x: point.x, y: point.y }),
       marks: { ...NO_MARKS, megastructure: this.id },
-      readout: { text: `r ${change(was.radius, radius)} · ${degrees(angle)}` },
+      readout,
       hint: DRAG_HINTS.megastructure,
-      changed: !same,
+      changed,
     };
   }
 
@@ -299,20 +288,11 @@ export class MegastructureDrag implements Drag {
 
   /** The body the pointer is within reach of, nearest first, or null. */
   private over(pointer: DragPointer): SceneBody | null {
-    let best: SceneBody | null = null;
-    let bestPx = Infinity;
-    for (const body of this.bodies) {
-      const { x, y, disc } = body.placement;
-      const px = Math.hypot(x - pointer.wx, y - pointer.wy) * pointer.scale;
-      const reach = Math.max(
-        STRUCTURE_CAPTURE_MIN_PX,
-        drawnDisc(disc, pointer.scale, body.look) * pointer.scale + STRUCTURE_CAPTURE_PAST_PX,
-      );
-      if (px <= reach && px < bestPx) {
-        best = body;
-        bestPx = px;
-      }
-    }
-    return best;
+    return nearestWithin(
+      this.bodies,
+      pointer,
+      (body) => body.placement,
+      ({ placement, look }) => captureReach(placement.disc, look, pointer.scale),
+    );
   }
 }

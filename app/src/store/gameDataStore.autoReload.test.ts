@@ -83,6 +83,16 @@ describe("auto-reload", () => {
     expect(mockedIpc.loadGameData).not.toHaveBeenCalled();
   });
 
+  it("a rebuilt graphics registry drops the textures, so the map reads them again", async () => {
+    const changed = await ready();
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
+
+    changed({ ...CHANGED, registries: ["graphics"] });
+
+    await until(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    expect(vi.mocked(clearTextures)).toHaveBeenCalledTimes(1);
+  });
+
   it("a scenario saved into the install rereads the summary and the galaxy shapes alone", async () => {
     const changed = await ready();
     useGameDataStore.setState({ galaxyShapes: [] });

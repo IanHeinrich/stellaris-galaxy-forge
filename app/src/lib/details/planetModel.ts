@@ -3,6 +3,7 @@
  * planet's class first.
  */
 import type { PlanetModelChoice } from "../../generated/PlanetModelChoice";
+import { needsGameData } from "../text";
 import type { GroupedRow } from "./picker";
 
 /** The row that takes the planet's own model off, back to its class's. */
@@ -14,7 +15,7 @@ export const MODEL_TITLE =
   "Change how this planet looks. Changing its class in game, by terraforming for example, puts back its class's look.";
 
 /** The Model field's hover text while no game data lists the models. */
-export const MODELS_NEED_GAME_DATA = "Load game data to pick a model";
+export const MODELS_NEED_GAME_DATA = needsGameData("pick a model");
 
 /** The label the field shows for `current`: its model's, its key where no model matches, or Default. */
 export function modelLabel(models: readonly PlanetModelChoice[], current: string | null): string {

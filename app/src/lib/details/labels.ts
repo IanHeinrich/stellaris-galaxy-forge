@@ -295,6 +295,14 @@ export function megastructureLabel(kind: string): string {
   return PLAIN_MEGASTRUCTURE_STATES.has(state) ? name : `${name} (${state})`;
 }
 
+/** A localised name without the zero-width spaces some mods pad it with. */
+export const cleanName = (name: string) => name.replace(/\u200b/g, "").trim();
+
+/** A megastructure of `kind`, named as the game localises it, else from its key. */
+export function megastructureName(kind: string, names: ReadonlyMap<string, string>): string {
+  return cleanName(names.get(kind) ?? "") || megastructureLabel(kind);
+}
+
 /** What a megastructure the game places at random is called where it stands in at a typical spot. */
 export function randomlyPlacedLabel(name: string): string {
   return `${name} · placed at random`;
@@ -320,9 +328,12 @@ export function shownMegastructures(
 }
 
 /** One icon for all the megastructures here, titled by the one or their count; null without any. */
-export function megastructureIcon(megastructures: readonly MegastructureSummary[]): Icon | null {
+export function megastructureIcon(
+  megastructures: readonly MegastructureSummary[],
+  names: Names,
+): Icon | null {
   return collapsedIcon(
-    shownMegastructures(megastructures).map((m) => megastructureLabel(m.kind)),
+    shownMegastructures(megastructures).map((m) => megastructureName(m.kind, names)),
     "megastructure",
     [MEGASTRUCTURE_ICON_KEY],
     "◈",

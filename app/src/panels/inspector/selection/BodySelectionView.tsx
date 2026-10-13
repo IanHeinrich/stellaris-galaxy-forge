@@ -85,8 +85,8 @@ function SelectedBody({
 
 /**
  * Two or more bodies selected in a system's view: what moves with them, each body with a × that
- * drops it from the selection, Cut, or Cancel move once these planets are cut, and in a save the
- * planet page's fields for all of them at once.
+ * drops it from the selection, Cut, or Cancel move once these planets are cut, and, where the
+ * document takes it, the planet page's fields for all of them at once.
  */
 export function BodySelectionView({ entry }: { entry: Entry }) {
   const system = entry.ref.kind === "bodies" ? entry.ref.system : null;
@@ -127,7 +127,8 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
   const availability = cutAvailability(selection, selectionTargets);
   const taken = cutPlanets(selection, selectionTargets, read);
   const isCut = cut !== null && cut.from === system && sameIds(cut.planets, taken);
-  const save = useFileSessionStore((s) => s.kind === "save");
+  const kind = useFileSessionStore((s) => s.kind);
+  const editsBodies = useFileSessionStore((s) => documentCapabilities(s).edit_bodies);
   const folded = useInspectorStore((s) => s.sections[FOLD_SECTION] ?? true);
   const toggleSection = useInspectorStore((s) => s.toggleSection);
   const foldable = selection.ids.length > FOLD_PAST;
@@ -200,7 +201,9 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
         </div>
         <div className="muted ins-hint">{cutHint(isCut)}</div>
       </Section>
-      {save && <BodySelectionFields selection={selection} read={read} />}
+      {editsBodies && kind !== null && (
+        <BodySelectionFields key={kind} kind={kind} selection={selection} read={read} />
+      )}
     </>
   );
 }

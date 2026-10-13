@@ -1,15 +1,11 @@
 import * as ipc from "../../api/ipc";
 import type { WorkshopLinks } from "../../generated/WorkshopLinks";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { reportFailure } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
 
 /** Opens one of the shell's Workshop pages in the user's browser; a refusal lands on the session. */
 function openWorkshop(page: keyof WorkshopLinks): void {
-  void usePaintModStore
-    .getState()
-    .workshopLink(page)
-    .then(ipc.openUrl)
-    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+  reportFailure(usePaintModStore.getState().workshopLink(page).then(ipc.openUrl));
 }
 
 /** Opens the mod's Workshop page in the user's browser. */

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { InitializerDefinition } from "../generated/InitializerDefinition";
 import { useGameDataStore } from "./gameDataStore";
+import { keyedReads } from "./reads";
 
 /** One definition's read: asked for, answered, or refused with the message to show. */
 export type DefinitionRead =
@@ -16,6 +17,13 @@ export interface InitializerDefinitionsState {
   request(name: string, version: number): void;
 }
 
+const definitionReads = keyedReads(([name]: string[]) => ipc.getInitializerDefinition(name), {
+  scope: () => useInitializerDefinitions.getState().version,
+  batch: 1,
+  answered: ([name], definition) => settle(name, { definition }),
+  failed: ([name], error) => settle(name, { error }),
+});
+
 export const useInitializerDefinitions = create<InitializerDefinitionsState>((set, get) => ({
   version: 0,
   reads: new Map(),
@@ -25,17 +33,13 @@ export const useInitializerDefinitions = create<InitializerDefinitionsState>((se
     const reads = state.version === version ? state.reads : new Map<string, DefinitionRead>();
     if (reads.has(name)) return;
     set({ version, reads: new Map(reads).set(name, { pending: true }) });
-    void ipc.getInitializerDefinition(name).then(
-      (definition) => settle(name, version, { definition }),
-      (e: unknown) => settle(name, version, { error: ipc.errorMessage(e) }),
-    );
+    void definitionReads.read([name]);
   },
 }));
 
-function settle(name: string, version: number, read: DefinitionRead): void {
-  const state = useInitializerDefinitions.getState();
-  if (state.version !== version) return;
-  useInitializerDefinitions.setState({ reads: new Map(state.reads).set(name, read) });
+function settle(name: string, read: DefinitionRead): void {
+  const { reads } = useInitializerDefinitions.getState();
+  useInitializerDefinitions.setState({ reads: new Map(reads).set(name, read) });
 }
 
 /**

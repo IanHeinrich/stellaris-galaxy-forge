@@ -249,14 +249,14 @@ describe("a scenario body's page", () => {
     expect(inspector().tab).toBe("overview");
     inspector().open(YAVIN);
 
-    inspector().dropBodies([2]);
+    inspector().dropPages({ bodies: [2] });
     expect(labels()).toEqual(["Alpha Centauri", "Tarkin", "Yavin"]);
 
-    inspector().dropBodies([1]);
+    inspector().dropPages({ bodies: [1] });
     expect(labels()).toEqual(["Alpha Centauri"]);
 
     inspector().openFromMap(TARKIN);
-    inspector().dropBodies();
+    inspector().dropPages({ bodies: true });
     expect(labels()).toEqual(["Alpha Centauri"]);
   });
 });

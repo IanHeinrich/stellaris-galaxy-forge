@@ -8,7 +8,7 @@ import * as ipc from "../api/ipc";
 import type { AddSpot } from "../generated/AddSpot";
 import type { RingStage } from "../generated/RingStage";
 import type { RingWorldClearing } from "../generated/RingWorldClearing";
-import { megastructureLabel } from "../lib/details/labels";
+import { megastructureName } from "../lib/details/labels";
 import { leftOutNotice, MEGASTRUCTURES_NEED_GAME_DATA, NOT_PLACED } from "../lib/megastructureCopy";
 import {
   fitsByKind,
@@ -21,6 +21,7 @@ import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { megastructureEntry, useInspectorStore } from "./inspectorStore";
+import { latest } from "./reads";
 import { useSceneStore } from "./sceneStore";
 
 /** Where the dialog adds: a spot of system `system`'s view. */
@@ -112,6 +113,16 @@ const CLOSED = {
   clearingError: null,
 } as const;
 
+/** The dialog's two reads. Opening or closing it moves both on, so a reply to an older opening lands nowhere. */
+const fitsAsk = latest();
+const clearingAsk = latest();
+
+function closed(): typeof CLOSED {
+  fitsAsk.next();
+  clearingAsk.next();
+  return CLOSED;
+}
+
 /** The spot as the shell takes it. */
 function addSpot(spot: MegastructureSpot): AddSpot {
   return spot.kind === "body" ? { kind: "body", body: spot.body } : spot;
@@ -131,7 +142,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
       return false;
     }
     set({
-      ...CLOSED,
+      ...closed(),
       prompt: { system, spot },
       ringStages: ALL_FINISHED,
       ringSize: null,
@@ -142,7 +153,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   },
 
   cancel() {
-    if (get().prompt !== null) set(CLOSED);
+    if (get().prompt !== null) set(closed());
   },
 
   setRingStage(quadrant, stage) {
@@ -170,13 +181,13 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const { prompt, fitsAt } = get();
     const at = `${useGameDataStore.getState().version}:${generation}`;
     if (prompt === null || fitsAt === at) return;
+    const mine = fitsAsk.next();
     set({ fitsAt: at, fitsError: null });
-    const current = () => get().prompt === prompt && get().fitsAt === at;
     try {
       const fits = fitsByKind(await ipc.getMegastructureFits(prompt.system, addSpot(prompt.spot)));
-      if (current()) set({ fits });
+      if (fitsAsk.is(mine)) set({ fits });
     } catch (e) {
-      if (current()) set({ fitsAt: null, fitsError: ipc.errorMessage(e) });
+      if (fitsAsk.is(mine)) set({ fitsAt: null, fitsError: ipc.errorMessage(e) });
     }
   },
 
@@ -184,19 +195,20 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const { prompt, clearingFor } = get();
     if (prompt === null || clearingFor === prompt.system) return;
     const { system } = prompt;
+    const mine = clearingAsk.next();
     set({ clearingFor: system, clearing: null, clearingError: null });
     try {
       const clearing = await ipc.getRingWorldClearing(system);
-      if (get().clearingFor === system) set({ clearing });
+      if (clearingAsk.is(mine)) set({ clearing });
     } catch (e) {
-      if (get().clearingFor === system) set({ clearingError: ipc.errorMessage(e) });
+      if (clearingAsk.is(mine)) set({ clearingError: ipc.errorMessage(e) });
     }
   },
 
   async addRing(kind, stage = kind) {
     const { prompt, ringStages, ringClear } = get();
     if (prompt === null) return false;
-    set(CLOSED);
+    set(closed());
     const editor = useEditorStore.getState();
     const added = await editor.addRingWorld(prompt.system, kind, ringStages, ringClear);
     if (added === null) return false;
@@ -207,14 +219,14 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   async add(kind, stage = kind) {
     const { prompt, keepPlanet, fits } = get();
     if (prompt === null) return false;
-    set(CLOSED);
+    set(closed());
     const { system, spot } = prompt;
     const data = useGameDataStore.getState();
     if (data.megastructureTypes.get(kind)?.habitat === true && spot.kind === "body") {
-      const planet = await useEditorStore.getState().addHabitat(system, spot.body, kind);
-      if (planet === null) return false;
+      const habitat = await useEditorStore.getState().addHabitat(system, spot.body, kind);
+      if (habitat === null) return false;
       set({ last: stage });
-      useSceneStore.getState().showBody(system, planet);
+      useSceneStore.getState().showBody(system, habitat.planets[0]);
       return true;
     }
     const at = fits === null ? null : placeOf(fits, kind);
@@ -225,8 +237,8 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const added = await useEditorStore.getState().addMegastructure(system, kind, at, keepPlanet);
     if (added === null) return false;
     set({ last: stage });
-    const name = data.names.get(kind) ?? megastructureLabel(kind);
-    useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructure, name));
+    const name = megastructureName(kind, data.names);
+    useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructures[0], name));
     const notice = leftOutNotice(name, added.unsure.length, added.unwritten.length);
     if (notice !== null) useFileSessionStore.getState().setNotice(notice);
     return true;

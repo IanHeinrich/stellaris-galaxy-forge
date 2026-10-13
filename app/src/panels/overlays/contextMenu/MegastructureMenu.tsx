@@ -3,8 +3,8 @@ import { documentCapabilities, supports } from "../../../lib/capabilities";
 import {
   DELETE_MEGASTRUCTURE,
   deleteMegastructureOp,
-  megastructureName,
 } from "../../../lib/details/megastructureRemoval";
+import { megastructureName } from "../../../lib/details/labels";
 import { snapBody, snapLabel } from "../../../lib/details/megastructureMoves";
 import { isRingRow } from "../../../lib/details/ringWorldRemoval";
 import { capabilityFor } from "../../../lib/entities";

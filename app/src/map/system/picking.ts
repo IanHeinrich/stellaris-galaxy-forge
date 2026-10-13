@@ -1,20 +1,11 @@
-import { modelSize } from "../../lib/details/structures";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import type { Pt } from "../../lib/geometry/pt";
-import { getModelPlacement, getTexture } from "../../lib/visual/textures";
 import type { Camera } from "../Camera";
 import { PICK_RADIUS_PX } from "../picking/zones";
-import { sameHandle, type HandleRef } from "./bodyDrag";
-import type {
-  Exit,
-  SceneBody,
-  SceneHandle,
-  SceneStructure,
-  SceneWormhole,
-  StructureKind,
-  SystemContext,
-} from "./context";
-import { drawnDisc, drawnWormhole, exitCentre } from "./geometry";
+import { sameHandle, type HandleRef } from "./drag";
+import type { Exit, SceneBody, SceneHandle, SceneWormhole, SystemContext } from "./context";
+import type { SceneStructure, StructureKind } from "./structures";
+import { drawnDisc, drawnWormhole, exitCentre, landedModel } from "./geometry";
 
 const centre: Pt = { x: 0, y: 0 };
 
@@ -106,15 +97,13 @@ export function pickExit(exits: readonly Exit[], cam: Camera, at: Pt): number | 
  * the empty corners round a round model leave what is under them pickable.
  */
 function onModel(s: SceneStructure, at: Pt): boolean {
-  if (s.modelKey === null || !getTexture(s.modelKey)) return false;
-  const placement = getModelPlacement(s.modelKey);
-  if (placement === undefined) return false;
-  const { width, height } = modelSize(placement, s.scale);
+  const model = landedModel(s.modelKey, s.scale);
+  if (model === null) return false;
+  const { width, height, centre } = model;
   const right = (at.x - s.x) * SAVE_X_SIGN;
   const down = (at.y - s.y) * SAVE_Y_SIGN;
-  const { anchor_x: ax, anchor_y: ay } = placement;
-  const across = (right - (0.5 - ax) * width) / (width / 2);
-  const along = (down - (0.5 - ay) * height) / (height / 2);
+  const across = (right - centre.x) / (width / 2);
+  const along = (down - centre.y) / (height / 2);
   return across * across + along * along <= 1;
 }
 
@@ -242,37 +231,26 @@ export function pickTarget(
   return plateAt() ?? others() ?? pickStructure(ctx.structures, cam, at);
 }
 
-/** A shown name plate: its top-left in world units and its size in screen pixels. */
-export interface PlatePick {
-  id: number;
+/** A shown plate: its top-left in world units and its size in screen pixels. */
+export interface PlateBox {
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
-/** The structure whose shown plate or rows cover the screen point `s`. */
-export function pickStructurePlate(
-  plates: readonly Omit<PlatePick, "id">[] & readonly { target: SceneTarget }[],
-  cam: Camera,
-  s: Pt,
-): SceneTarget | null {
-  const top: Pt = { x: 0, y: 0 };
-  for (const plate of plates) {
-    cam.worldToScreen(plate.x, plate.y, top);
-    const inX = s.x >= top.x && s.x < top.x + plate.w;
-    if (inX && s.y >= top.y && s.y < top.y + plate.h) return plate.target;
-  }
-  return null;
+/** A shown name plate of the body `id`. */
+export interface PlatePick extends PlateBox {
+  id: number;
 }
 
-/** The body whose name plate, resource row included, covers the screen point `s`. */
-export function pickPlate(plates: readonly PlatePick[], cam: Camera, s: Pt): number | null {
+/** The first of `plates` that covers the screen point `s`, resource rows included. */
+export function plateUnder<T extends PlateBox>(plates: readonly T[], cam: Camera, s: Pt): T | null {
   const top: Pt = { x: 0, y: 0 };
   for (const plate of plates) {
     cam.worldToScreen(plate.x, plate.y, top);
     const inX = s.x >= top.x && s.x < top.x + plate.w;
-    if (inX && s.y >= top.y && s.y < top.y + plate.h) return plate.id;
+    if (inX && s.y >= top.y && s.y < top.y + plate.h) return plate;
   }
   return null;
 }

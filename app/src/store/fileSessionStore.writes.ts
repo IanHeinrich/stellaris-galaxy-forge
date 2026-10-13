@@ -3,7 +3,8 @@ import { isSgfError } from "../api/errors";
 import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import type { SaveResult } from "../generated/SaveResult";
-import { DOCUMENT_KINDS } from "../lib/documentKinds";
+import { documentCapabilities } from "../lib/capabilities";
+import { DOCUMENT_KINDS, isPaintTarget } from "../lib/documentKinds";
 import { paintLayer, scenarioHeaderName } from "../lib/paint";
 import { fileName, isUnder, joinPath } from "../lib/paths";
 import type { FileSessionState } from "./fileSessionStore";
@@ -36,8 +37,8 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
    * already pending, and drops the answer if that export was answered meanwhile.
    */
   async function preview(again: boolean): Promise<void> {
-    const { status, saving, kind, pendingExport } = get();
-    if (status !== "ready" || saving || kind !== "save") return;
+    const { status, saving, pendingExport } = get();
+    if (status !== "ready" || saving || !documentCapabilities(get()).export) return;
     if (again && pendingExport === null) return;
     const mine = opens();
     const profile = standingProfile();
@@ -47,7 +48,7 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
       // the export it was read again for was answered, belongs to nobody.
       if (mine !== opens() || get().status !== "ready" || profile !== standingProfile()) return;
       if (again && get().pendingExport === null) return;
-      set({ pendingExport: report, pendingExportProfile: profile });
+      set({ pendingExport: { report, profile } });
     } catch (e) {
       set({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
     }
@@ -102,7 +103,7 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
     async saveIntoPaintMod() {
       const dir = paintScenariosDir();
       const { kind, path, title } = get();
-      if (kind !== "scenario" || dir === null) return;
+      if (!isPaintTarget(kind) || dir === null) return;
       const name = fileName(path) || defaultName(title, "txt");
       await get().saveAs(name === undefined ? dir : joinPath(dir, name));
     },
@@ -116,9 +117,10 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
     },
 
     async confirmExport(profile) {
-      const { pendingExport, status, saving, kind, title } = get();
-      if (pendingExport === null || status !== "ready" || saving || kind !== "save") return;
-      set({ pendingExport: null, pendingExportProfile: null });
+      const { pendingExport, status, saving, title } = get();
+      if (pendingExport === null || status !== "ready" || saving) return;
+      if (!documentCapabilities(get()).export) return;
+      set({ pendingExport: null });
       if (profile === null) return;
       const picked = await saveDialog({
         defaultPath: newFilePath(title, "txt", profile === "paint_a_galaxy"),
@@ -154,7 +156,7 @@ function newFilePath(title: string | null, extension: string, forPaintMod: boole
 function noteSavedIntoPaintMod({ getState }: SessionApi): void {
   const { kind, path, setNotice } = getState();
   const dir = paintScenariosDir();
-  if (kind !== "scenario" || path === null || dir === null || !isUnder(path, dir)) return;
+  if (!isPaintTarget(kind) || path === null || dir === null || !isUnder(path, dir)) return;
   const name = scenarioHeaderName(useGalaxyStore.getState().header);
   if (name === null) return;
   setNotice(

@@ -3,7 +3,8 @@ import type { BodySpawn } from "../../../generated/BodySpawn";
 import type { SpawnPool } from "../../../generated/SpawnPool";
 import { planetTint } from "../../../lib/details/icons";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
-import { NEUTRAL_BAR, oddsRows, readableTint } from "../../../lib/details/oddsBars";
+import { NEUTRAL_BAR, oddsRows } from "../../../lib/details/oddsBars";
+import { readableTint } from "../../../lib/visual/color";
 import { modelLabel } from "../../../lib/details/planetModel";
 import {
   ANY_CLASS,

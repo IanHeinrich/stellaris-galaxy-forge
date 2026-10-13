@@ -1,14 +1,10 @@
 import { Container, Graphics, Sprite, Texture } from "pixi.js";
-import { modelSize } from "../../../lib/details/structures";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
-import {
-  getModelPlacement,
-  getTexture,
-  onTextures,
-  requestTextures,
-} from "../../../lib/visual/textures";
+import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
-import { EMPTY_SYSTEM_CONTEXT, type SceneStructure, type SystemContext } from "../context";
+import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
+import { dressModelSprite, landedModel, SAVE_AXES } from "../geometry";
+import type { SceneStructure } from "../structures";
 import { drawHalo } from "./halo";
 import type { SystemLayer } from "./SystemLayer";
 
@@ -41,16 +37,7 @@ function firstLanded(keys: readonly string[]): Texture | null {
 function sameLooks(a: readonly SceneStructure[], b: readonly SceneStructure[]): boolean {
   return (
     a.length === b.length &&
-    a.every(
-      (s, i) =>
-        s.kind === b[i].kind &&
-        s.id === b[i].id &&
-        s.modelKey === b[i].modelKey &&
-        s.chance.mayNotSpawn === b[i].chance.mayNotSpawn &&
-        s.chance.random === b[i].chance.random &&
-        s.iconKeys.length === b[i].iconKeys.length &&
-        s.iconKeys.every((key, k) => key === b[i].iconKeys[k]),
-    )
+    a.every((s, i) => s.kind === b[i].kind && s.id === b[i].id && s.art === b[i].art)
   );
 }
 
@@ -150,20 +137,11 @@ export class StructuresLayer implements SystemLayer {
   private dress(): void {
     for (const { structure, model, icon } of this.drawn) {
       const key = structure.modelKey;
-      const texture = key === null ? null : getTexture(key);
-      const placement = key === null ? undefined : getModelPlacement(key);
+      const landed = landedModel(key, structure.scale);
       // The last bake stays up while a new one for a turned or changed model is made.
-      const baking = texture === undefined && model.visible;
-      if (!baking) model.visible = Boolean(texture && placement);
-      if (texture && placement) {
-        const { width, height } = modelSize(placement, structure.scale);
-        model.texture = texture;
-        model.anchor.set(placement.anchor_x, placement.anchor_y);
-        model.scale.set(
-          (SAVE_X_SIGN * width) / Math.max(texture.width, 1),
-          (SAVE_Y_SIGN * height) / Math.max(texture.height, 1),
-        );
-      }
+      const baking = key !== null && getTexture(key) === undefined && model.visible;
+      if (!baking) model.visible = landed !== null;
+      if (landed) dressModelSprite(model, landed, SAVE_AXES);
       const glyph = showsIcon(structure) ? firstLanded(structure.iconKeys) : null;
       icon.visible = glyph !== null;
       if (glyph) icon.texture = glyph;
@@ -203,12 +181,8 @@ function haloCircle(
   modelShown: boolean,
   iconSide: number,
 ): { x: number; y: number; radius: number } {
-  const placement = structure.modelKey === null ? undefined : getModelPlacement(structure.modelKey);
-  if (!modelShown || placement === undefined) return { x: 0, y: 0, radius: iconSide / 2 };
-  const { width, height } = modelSize(placement, structure.scale);
-  return {
-    x: SAVE_X_SIGN * (0.5 - placement.anchor_x) * width,
-    y: SAVE_Y_SIGN * (0.5 - placement.anchor_y) * height,
-    radius: Math.max(width, height) / 2,
-  };
+  const landed = modelShown ? landedModel(structure.modelKey, structure.scale) : null;
+  if (landed === null) return { x: 0, y: 0, radius: iconSide / 2 };
+  const { centre, radius } = landed;
+  return { x: SAVE_X_SIGN * centre.x, y: SAVE_Y_SIGN * centre.y, radius };
 }

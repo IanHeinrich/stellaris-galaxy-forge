@@ -19,7 +19,7 @@ import {
   RIPPLE_PRESET_LABELS,
   type Choice,
 } from "../../lib/toolCopy";
-import { toCss } from "../../lib/visual/ownerColors";
+import { toCss } from "../../lib/visual/color";
 import {
   effectiveSpacing,
   HEIGHT_SET_RANGE,

@@ -4,8 +4,9 @@ import * as ipc from "../api/ipc";
 import type { DocumentChange } from "../generated/DocumentChange";
 import type { DocumentChanged } from "../generated/DocumentChanged";
 import type { OpenResult } from "../generated/OpenResult";
+import { DOCUMENT_KINDS } from "../lib/documentKinds";
 import { fileName } from "../lib/paths";
-import { useEditorStore } from "./editorStore";
+import { selectSystems, useEditorStore } from "./editorStore";
 import type { FileSessionState } from "./fileSessionStore";
 import type { SessionApi } from "./fileSessionStore.saveGate";
 import { useGalaxyStore } from "./galaxyStore";
@@ -75,7 +76,8 @@ export function refreshActions(session: SessionApi): RefreshActions {
         });
         return;
       }
-      if (kind === "save" || dirty || changed.dirty) {
+      const alwaysAsks = kind !== null && DOCUMENT_KINDS[kind].diskChange.alwaysAsks;
+      if (alwaysAsks || dirty || changed.dirty) {
         ask();
         return;
       }
@@ -149,7 +151,8 @@ function keepView({ setState }: SessionApi, result: OpenResult): void {
   editor.resetSession();
   useIssuesStore.getState().load(result.issues);
   useGalaxyStore.getState().load(result.galaxy, { keepView: true });
-  useEditorStore.setState({ selection, selectedLane, selectedNebula });
+  void selectSystems(selection, false);
+  useEditorStore.setState({ selectedLane, selectedNebula });
   void useGameDataStore.getState().onDocumentOpened();
   const opened = issuesDocument();
   void ipc

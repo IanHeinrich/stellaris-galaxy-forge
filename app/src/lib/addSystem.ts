@@ -3,14 +3,14 @@ import type { PickSummary } from "../generated/PickSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SystemNode } from "../generated/SystemNode";
 import { ADDED_SYSTEMS_FROM_MAJOR, SPAWN_BUFFER } from "../generated/constants";
-import { counted } from "./text";
+import { counted, listed, needsGameData } from "./text";
 import type { Span } from "../generated/Span";
 import type { SpecialLayout } from "../generated/SpecialLayout";
 import { versionNumber } from "./version";
 
 export { SPAWN_BUFFER };
 
-export const NEEDS_GAME_DATA = "Load game data to add a system";
+export const NEEDS_GAME_DATA = needsGameData("add a system");
 export const NEEDS_STELLARIS_4 = "Adding systems needs a Stellaris 4 save";
 export const ADDED_THIS_SESSION = "Added this session";
 /** What the placing rules read about the open save and the spot. */
@@ -101,8 +101,7 @@ function featureText(features: Feature[]): string {
 
 function starText(names: string[]): string {
   if (names.length > 3) return `One of ${names.length} classes`;
-  if (names.length < 2) return names.join("");
-  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+  return listed(names, "or");
 }
 
 /** The hover card of a pick of the Add system menu, leaving out the lines it has nothing for. */

@@ -1,34 +1,18 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
-import { FURNACE_ENTITY } from "../../generated/constants";
-import type { MegastructurePlace } from "../../generated/MegastructurePlace";
-import type { MegastructureSummary } from "../../generated/MegastructureSummary";
-import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
-import type { StarbaseSummary } from "../../generated/StarbaseSummary";
-import type { StructureSpawn } from "../../generated/StructureSpawn";
-import type { SystemRoll } from "../../generated/SystemRoll";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { geometryOf } from "../../lib/details/geometry";
-import { bypassIconKey, MEGASTRUCTURE_ICON_KEY, PLANET_ICON_KEYS } from "../../lib/details/icons";
+import { bypassIconKey, PLANET_ICON_KEYS } from "../../lib/details/icons";
 import {
   boundsText,
   isColony,
-  megastructureLabel,
-  randomlyPlacedLabel,
   shownBodyName,
-  starbaseKeys,
-  starbaseLabel,
   wormholeLabel,
   wormholePlateName,
 } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
-import {
-  floatsFree,
-  megastructureMove,
-  type MegastructureMove,
-} from "../../lib/details/megastructureMoves";
 import {
   inspectedBody,
   isNaturalWormhole,
@@ -45,26 +29,20 @@ import {
   type RolledPlanet,
   type SystemLayout,
 } from "../../lib/details/orbits";
-import { planetResourceRows, producedRows, type ResourceRow } from "../../lib/details/resources";
+import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
 import { maySpawn, neverSpawns } from "../../lib/details/spawnFacts";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
-import {
-  bodyModelKey,
-  megastructureLook,
-  megastructureYaw,
-  modelKey,
-  planetScale,
-  starbaseLook,
-  type StructureLook,
-} from "../../lib/details/structures";
+import { bodyModelKey } from "../../lib/details/structures";
+import { lastOf } from "../../lib/memo";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
 import { drawnStarClass } from "../../lib/visual/starGlyphs";
 import type { EntityRef } from "../../store/inspectorStore";
-import type { DragMarks, HandleRef } from "./bodyDrag";
+import type { DragMarks, HandleRef } from "./drag";
 import { bodyLook, type BodyLook } from "./look";
 import { NO_SOURCES, type SystemSources } from "./sources";
+import { sceneStructures, STRUCTURE_KEYS, type SceneStructure } from "./structures";
 
 /**
  * One body the scene draws, resolved from its source: a save and a scenario that say the same
@@ -236,60 +214,6 @@ export interface SceneWormhole {
   readonly iconKey: string | null;
 }
 
-/** What a structure the scene draws is: a megastructure row or a starbase, by its own id. */
-export type StructureKind = "megastructure" | "starbase";
-
-/** What a scenario leaves to chance about a megastructure or a starbase; a save leaves nothing. */
-export interface StructureChance {
-  /** The game may not place it: it is written under a condition, or in a body the game may not place. */
-  readonly mayNotSpawn: boolean;
-  /**
-   * The game places it at random when a new game starts: it stands in at a typical spot, faint,
-   * and is not picked.
-   */
-  readonly random: boolean;
-}
-
-const NO_STRUCTURE_CHANCE: StructureChance = Object.freeze({ mayNotSpawn: false, random: false });
-
-function structureChance(spawn: StructureSpawn | undefined): StructureChance {
-  if (spawn === undefined) return NO_STRUCTURE_CHANCE;
-  return { mayNotSpawn: !spawn.always, random: spawn.place.kind === "random" };
-}
-
-/**
- * A megastructure or starbase, drawn from the game's model at its point: on the body it is tied
- * to, where that body is drawn now, else where its source puts it.
- */
-export interface SceneStructure {
-  readonly kind: StructureKind;
-  readonly id: number;
-  /** Where the model's origin stands, its type's offset included, in save units. */
-  readonly x: number;
-  readonly y: number;
-  /** The model's texture key; null where only the map icon is drawn. */
-  readonly modelKey: string | null;
-  /** How many times its placement's size the model is drawn: more than 1 on a planet it grows with. */
-  readonly scale: number;
-  /** The map icon drawn in place of a model the game data does not know or that cannot be baked. */
-  readonly iconKeys: readonly string[];
-  /** What its tooltip and its name plate call it. */
-  readonly name: string;
-  /** Its starbase level as the Station section names it; null for a megastructure. */
-  readonly level: string | null;
-  /**
-   * The body it stands on, under whose plate its own goes; null where it stands alone or is drawn
-   * off its body.
-   */
-  readonly on: number | null;
-  /** What it produces each month, per resource, as the Details layer shows it under its plate. */
-  readonly resources: readonly ResourceRow[];
-  /** How a drag moves it, where the source may be edited; null for a starbase or a source that may not. */
-  readonly move: MegastructureMove | null;
-  /** What its source leaves to chance, each drawn as a marker. */
-  readonly chance: StructureChance;
-}
-
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
 export interface ScenePreview {
   readonly override: LayoutOverride;
@@ -350,6 +274,9 @@ type BodyArt = Pick<
   "surfaceClass" | "starClass" | "look" | "iconKeys" | "largeIconKeys" | "atmosphere"
 >;
 
+/** What a body's art is read from. */
+type ArtSources = Pick<SystemSources, "planetClasses" | "starClasses">;
+
 interface KeptArt {
   drawn: DrawnClass;
   planetClasses: SystemSources["planetClasses"];
@@ -361,7 +288,7 @@ interface KeptArt {
 const keptArt = new WeakMap<PlanetSummary, KeptArt>();
 
 /** `freshArt`, the same objects again while the record, its class and the classes stand. */
-function artOf(drawn: DrawnClass, src: SystemSources, planet: PlanetSummary | null): BodyArt {
+function artOf(drawn: DrawnClass, src: ArtSources, planet: PlanetSummary | null): BodyArt {
   const kept = planet === null ? undefined : keptArt.get(planet);
   if (
     kept &&
@@ -402,24 +329,6 @@ function rowsOf(planet: PlanetSummary, icons: SystemSources["resourceIcons"]) {
   return rows;
 }
 
-/** Each type's production rows as last worked out, so a structure redrawn keeps its rows. */
-const keptProduced = new WeakMap<
-  MegastructureView,
-  { icons: SystemSources["resourceIcons"]; rows: readonly ResourceRow[] }
->();
-
-function producedOf(
-  type: MegastructureView,
-  icons: SystemSources["resourceIcons"],
-): readonly ResourceRow[] {
-  if (type.produces.length === 0) return NOTHING;
-  const kept = keptProduced.get(type);
-  if (kept?.icons === icons) return kept.rows;
-  const rows = producedRows(type.produces, icons);
-  keptProduced.set(type, { icons, rows });
-  return rows;
-}
-
 function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
   const {
     atmosphere_color: hex,
@@ -434,7 +343,7 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
 function freshArt(
   { planetClass, starClass, drawn, model, bodyModel, id }: DrawnClass,
-  src: SystemSources,
+  src: ArtSources,
 ): BodyArt {
   if (starClass !== null) {
     const look = bodyLook({ planetClass, starClass, drawn });
@@ -480,7 +389,7 @@ function freshArt(
 const CLUSTER_SPREAD = 4;
 
 /** The system's star class, for a star that names none of its own; none outside a galaxy. */
-function systemStar(src: SystemSources): string {
+function systemStar(src: Pick<SystemSources, "node">): string {
   return src.node ? drawnStarClass(src.node) : "";
 }
 
@@ -488,7 +397,7 @@ function systemStar(src: SystemSources): string {
  * The stars the galaxy lists for a system, drawn about the centre until its own record lands:
  * with none listed, every star of its star class.
  */
-function galaxyStars(src: SystemSources): SceneBody[] {
+function galaxyStars(src: Pick<SystemSources, "node"> & ArtSources): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (src.node?.bodies ?? []).filter((b) => isStar(b.class));
   const system = systemStar(src);
@@ -589,11 +498,29 @@ function readoutOf(
 }
 
 /** A body's name in the scene: the name the game gives it, at its lowest numeral. */
-function bodyLabel(src: SystemSources, planet: PlanetSummary): string {
+function bodyLabel(src: Pick<SystemSources, "givenNames" | "names">, planet: PlanetSummary) {
   return shownBodyName(planet, src.givenNames, src.names);
 }
 
-function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
+const BODY_KEYS = [
+  "node",
+  "details",
+  "rolledLayout",
+  "planetClasses",
+  "starClasses",
+  "names",
+  "givenNames",
+  "ownership",
+  "countries",
+  "resourceIcons",
+] as const;
+
+/** The bodies `layout` places; while `structuresShown` that layer draws their megastructures. */
+function sceneBodies(
+  src: Pick<SystemSources, (typeof BODY_KEYS)[number]>,
+  layout: SystemLayout,
+  structuresShown: boolean,
+): SceneBody[] {
   const details = src.details;
   if (details === null || (src.rolledLayout && details.planets.length === 0)) {
     return galaxyStars(src);
@@ -602,7 +529,7 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
   const system = systemStar(src);
   const discs = discsByPoint(layout.bodies);
   // The structures layer draws the megastructures in place of their name icons.
-  const marked = src.sceneLayers.megastructures ? { ...details, megastructures: NOTHING } : details;
+  const marked = structuresShown ? { ...details, megastructures: NOTHING } : details;
   return layout.bodies.flatMap((placement) => {
     const planet = planets.get(placement.id);
     if (!planet) return [];
@@ -647,7 +574,9 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
   });
 }
 
-function sceneExits(src: SystemSources, radius: number): Exit[] {
+const EXIT_KEYS = ["node", "neighbours", "nodeName"] as const;
+
+function sceneExits(src: Pick<SystemSources, (typeof EXIT_KEYS)[number]>, radius: number): Exit[] {
   const { node } = src;
   if (!node) return NOTHING;
   return src.neighbours.map(({ node: other, length }) => {
@@ -664,30 +593,48 @@ function sceneExits(src: SystemSources, radius: number): Exit[] {
   });
 }
 
-/** Gives the last answer again while every input is the one it was computed from. */
-function lastOf<R>(): (inputs: readonly unknown[], compute: () => R) => R {
-  let last: { inputs: readonly unknown[]; result: R } | null = null;
-  return (inputs, compute) => {
-    if (
-      last &&
-      last.inputs.length === inputs.length &&
-      inputs.every((v, i) => v === last?.inputs[i])
-    ) {
-      return last.result;
-    }
-    last = { inputs, result: compute() };
-    return last.result;
-  };
+/** Fields `readSystemSources` makes anew on each read, compared by what they are made from. */
+const MADE_FROM: { readonly [K in keyof SystemSources]?: readonly (keyof SystemSources)[] } = {
+  nodeName: ["names"],
+  templateName: ["names", "gameDataReady"],
+};
+
+/**
+ * `compute`, giving its last answer again while the fields `keys` names and every other argument
+ * are the ones it was computed from. It is handed those fields alone, so it reads none unseen.
+ */
+function memoOn<K extends keyof SystemSources, A extends readonly unknown[], R>(
+  keys: readonly K[],
+  compute: (src: Pick<SystemSources, NoInfer<K>>, ...args: A) => R,
+): (src: SystemSources, ...args: A) => R {
+  const last = lastOf<R>();
+  const compared = keys.flatMap((key) => MADE_FROM[key] ?? [key]);
+  return (src, ...args) =>
+    last([...compared.map((key) => src[key]), ...args], () => compute(src, ...args));
 }
 
-const lastBodies = lastOf<readonly SceneBody[]>();
+const lastBodies = memoOn(BODY_KEYS, sceneBodies);
 const lastById = lastOf<ReadonlyMap<number, SceneBody>>();
-const lastBelts = lastOf<readonly SceneBelt[]>();
-const lastExits = lastOf<readonly Exit[]>();
-const lastRolled = lastOf<readonly RolledPlanet[]>();
+const lastBelts = memoOn(["beltKinds"], (src, belts: readonly BeltBand[]) =>
+  belts.map((belt) => sceneBelt(belt, src.beltKinds)),
+);
+const lastExits = memoOn(EXIT_KEYS, sceneExits);
+const lastRolled = memoOn(["roll", "planetClasses"], (src) =>
+  src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses) : NOTHING,
+);
 const lastHandles = lastOf<readonly SceneHandle[]>();
-const lastWormholes = lastOf<readonly SceneWormhole[]>();
-const lastStructures = lastOf<readonly SceneStructure[]>();
+const lastStructures = memoOn(
+  STRUCTURE_KEYS,
+  (
+    src,
+    shown: boolean,
+    bodyById: ReadonlyMap<number, SceneBody>,
+    base: SystemLayout,
+    editing: SceneEditing,
+    moved: LayoutOverride["megastructures"],
+  ): readonly SceneStructure[] =>
+    shown ? sceneStructures({ src, bodyById, base, editing, moved }) : NOTHING,
+);
 
 /** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
 const HANDLES_PER_CIRCLE = 6;
@@ -716,12 +663,15 @@ function sceneHandles(layout: SystemLayout, editing: SceneEditing): SceneHandle[
   return [...belts, ...handlesAt({ kind: "innerRadius" }, layout.innerRadius, null)];
 }
 
+const WORMHOLE_KEYS = ["details", "systems", "node", "nodeName", "bypassKinds"] as const;
+
 function sceneWormholes(
-  src: SystemSources,
+  src: Pick<SystemSources, (typeof WORMHOLE_KEYS)[number]>,
+  shown: boolean,
   editing: SceneEditing,
   moved: LayoutOverride["wormholes"],
 ): SceneWormhole[] {
-  if (!src.sceneLayers.bypasses || !src.details) return NOTHING;
+  if (!shown || !src.details) return NOTHING;
   const hereName = src.node ? src.nodeName(src.node.name) : "";
   return src.details.wormholes.map((w) => {
     const partner = w.partner === null ? undefined : src.systems.get(w.partner);
@@ -742,167 +692,7 @@ function sceneWormholes(
   });
 }
 
-/**
- * Where a structure drawn as `look` stands: about `body` where it has one, else at `at`. One that
- * `grows` with its planet takes the size of `sizedBy`, its body unless a drag holds it off it.
- */
-function placeStructure(
-  look: Exclude<StructureLook, { kind: "none" }>,
-  body: SceneBody | undefined,
-  at: readonly [number, number] | null,
-  offset: readonly [number, number],
-  grows: boolean,
-  sizedBy: SceneBody | undefined = body,
-): Pick<SceneStructure, "x" | "y" | "scale"> | null {
-  const point = body ? [body.placement.x, body.placement.y] : at;
-  if (point == null) return null;
-  const scale = look.kind === "model" ? look.scale : 1;
-  return {
-    x: point[0] + offset[0],
-    y: point[1] + offset[1],
-    scale: grows && sizedBy ? scale * planetScale(sizedBy.placement.disc) : scale,
-  };
-}
-
-/** Within this many save units of its body's point, a floating row stands at its standard spot. */
-const ON_BODY = 1e-3;
-
-/**
- * Where `row` stands in `roll`: a scenario row at a body stands where the roll lands the body;
- * any other row where its source puts it.
- */
-function rolledAt(
-  roll: SystemRoll | null,
-  row: MegastructureSummary,
-): readonly [number, number] | null {
-  return roll?.structures?.find((s) => s.id === row.id)?.at ?? row.at;
-}
-
-function megastructure(
-  src: SystemSources,
-  bodyById: ReadonlyMap<number, SceneBody>,
-  base: SystemLayout,
-  row: MegastructureSummary,
-  movable: boolean,
-  moved: MegastructurePlace | undefined,
-): SceneStructure | null {
-  const type = src.megastructureTypes.get(row.kind);
-  const look = megastructureLook(type);
-  if (look.kind === "none") return null;
-  const homeBody = row.planet === null ? undefined : bodyById.get(row.planet);
-  const home = {
-    star: homeBody?.placement.star === true,
-    hidden: homeBody?.planet?.entity_name === FURNACE_ENTITY,
-  };
-  const floats = row.planet !== null && floatsFree(type, home.star);
-  const offset = type?.entity_offset ?? [0, 0];
-  const centred = offset[0] === 0 && offset[1] === 0;
-  const sourceAt = rolledAt(src.roll, row);
-  let body: SceneBody | undefined;
-  let at: readonly [number, number] | null;
-  let on: number | null;
-  if (moved !== undefined && moved.place !== "body") {
-    [body, at, on] = [undefined, [moved.x, moved.y], null];
-  } else if (moved !== undefined) {
-    body = bodyById.get(moved.body);
-    [at, on] = [null, centred ? (body?.placement.id ?? null) : null];
-  } else if (floats && homeBody) {
-    const was = base.bodies.find((b) => b.id === homeBody.placement.id);
-    const point = sourceAt ?? (was ? ([was.x, was.y] as const) : null);
-    at = drifted(point, homeBody.placement, was);
-    body = undefined;
-    const standard = point !== null && was !== undefined && atBody(point, was);
-    on = centred && standard ? homeBody.placement.id : null;
-  } else {
-    [body, at] = [homeBody, sourceAt];
-    on = centred ? (body?.placement.id ?? null) : null;
-  }
-  const grows = type?.scales_with_planet === true;
-  const placed = placeStructure(look, body, at, offset, grows, body ?? homeBody);
-  if (placed === null) return null;
-  // Turned from where it is drawn, so a drag turns it as it goes.
-  const yaw = megastructureYaw(type, at);
-  const chance = structureChance(row.spawn);
-  const name = src.names.get(row.kind) ?? megastructureLabel(row.kind);
-  return {
-    kind: "megastructure",
-    id: row.id,
-    ...placed,
-    modelKey: look.kind === "model" ? modelKey(row.culture, look.entity, yaw) : null,
-    iconKeys: [MEGASTRUCTURE_ICON_KEY],
-    name: chance.random ? randomlyPlacedLabel(name) : name,
-    level: null,
-    // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
-    on,
-    resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
-    move: movable ? megastructureMove(row, type, home) : null,
-    chance,
-  };
-}
-
-/** `point`, moved by as much as its body was moved from `was` to `now`, as a preview moves it. */
-function drifted(
-  point: readonly [number, number] | null,
-  now: BodyPlacement,
-  was: BodyPlacement | undefined,
-): readonly [number, number] | null {
-  if (point === null || was === undefined) return point;
-  return [point[0] + now.x - was.x, point[1] + now.y - was.y];
-}
-
-/** Whether `point` is `body`'s own point. */
-function atBody(point: readonly [number, number], body: BodyPlacement): boolean {
-  return Math.abs(point[0] - body.x) < ON_BODY && Math.abs(point[1] - body.y) < ON_BODY;
-}
-
-function starbase(
-  src: SystemSources,
-  bodyById: ReadonlyMap<number, SceneBody>,
-  station: StarbaseSummary,
-): SceneStructure | null {
-  const level = src.starbaseLevels.get(station.level);
-  const look = starbaseLook(level);
-  if (look.kind === "none" || station.at === null) return null;
-  const grows = level?.scales_with_planet === true;
-  // An orbital ring stands on the planet it rings; any other station keeps its own point.
-  const body = grows && station.planet !== null ? bodyById.get(station.planet) : undefined;
-  const placed = placeStructure(look, body, station.at, [0, 0], grows);
-  if (placed === null) return null;
-  const owner = station.owner === null ? undefined : src.countries.get(station.owner);
-  const label = starbaseLabel(station.level);
-  return {
-    kind: "starbase",
-    id: station.id,
-    ...placed,
-    modelKey: look.kind === "model" ? modelKey(station.culture, look.entity) : null,
-    iconKeys: starbaseKeys(station.level, src.starbaseLevels, owner),
-    name: src.templateName(station) || label,
-    level: label,
-    on: body?.placement.id ?? null,
-    resources: NOTHING,
-    move: null,
-    chance: structureChance(station.spawn),
-  };
-}
-
-/** Each megastructure and starbase of the system while their switch is on. */
-function sceneStructures(
-  src: SystemSources,
-  bodyById: ReadonlyMap<number, SceneBody>,
-  base: SystemLayout,
-  editing: SceneEditing,
-  moved: LayoutOverride["megastructures"],
-): SceneStructure[] {
-  const { details } = src;
-  if (!src.sceneLayers.megastructures || details === null) return NOTHING;
-  const stations = details.starbase ? [details.starbase, ...details.other_starbases] : [];
-  return [
-    ...details.megastructures.map((row) =>
-      megastructure(src, bodyById, base, row, editing.megastructures, moved?.get(row.id)),
-    ),
-    ...stations.map((station) => starbase(src, bodyById, station)),
-  ].filter((s): s is SceneStructure => s !== null);
-}
+const lastWormholes = memoOn(WORMHOLE_KEYS, sceneWormholes);
 
 /**
  * Where everything of the system `src` names is drawn, with `preview`'s override and marks in
@@ -916,73 +706,31 @@ export function systemContext(
   const layout = preview
     ? systemLayout(src.details, src.roll, src.planetClasses, src.moonScale, preview.override)
     : base;
-  const bodies = lastBodies(
-    [
-      layout,
-      src.node,
-      src.details,
-      src.rolledLayout,
-      src.planetClasses,
-      src.starClasses,
-      src.names,
-      src.gameDataReady,
-      src.ownership,
-      src.countries,
-      src.resourceIcons,
-      src.sceneLayers.megastructures,
-    ],
-    () => sceneBodies(src, layout),
-  );
+  const shown = src.sceneLayers;
+  const bodies = lastBodies(src, layout, shown.megastructures);
   const bodyById = lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b])));
-  const wormholes = lastWormholes(
-    [
-      src.details,
-      src.sceneLayers.bypasses,
-      editing,
-      preview?.override.wormholes,
-      src.systems,
-      src.names,
-      src.node,
-      src.bypassKinds,
-    ],
-    () => sceneWormholes(src, editing, preview?.override.wormholes),
-  );
+  const wormholes = lastWormholes(src, shown.bypasses, editing, preview?.override.wormholes);
   return Object.freeze({
     ...src,
     layout,
     bodies,
     bodyById,
-    belts: lastBelts([layout.belts, src.beltKinds], () =>
-      layout.belts.map((belt) => sceneBelt(belt, src.beltKinds)),
-    ),
-    exits: lastExits([src.node, src.neighbours, src.names, layout.innerRadius], () =>
-      sceneExits(src, layout.innerRadius),
-    ),
+    belts: lastBelts(src, layout.belts),
+    exits: lastExits(src, layout.innerRadius),
     inNebula: src.node?.nebula != null,
-    rolled: lastRolled([src.roll, src.planetClasses], () =>
-      src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses) : NOTHING,
-    ),
+    rolled: lastRolled(src),
     editing,
     handles: lastHandles([layout.belts, layout.innerRadius, editing], () =>
       sceneHandles(layout, editing),
     ),
     wormholes,
     structures: lastStructures(
-      [
-        bodies,
-        src.details,
-        src.roll,
-        src.sceneLayers.megastructures,
-        src.megastructureTypes,
-        src.starbaseLevels,
-        src.names,
-        src.countries,
-        src.resourceIcons,
-        src.gameDataReady,
-        editing,
-        preview?.override.megastructures,
-      ],
-      () => sceneStructures(src, bodyById, base, editing, preview?.override.megastructures),
+      src,
+      shown.megastructures,
+      bodyById,
+      base,
+      editing,
+      preview?.override.megastructures,
     ),
     viewRadius: Math.max(
       layout.fitRadius,

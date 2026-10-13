@@ -2,6 +2,7 @@ import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { DOCUMENT_KINDS, type GroupLayout } from "../documentKinds";
 import { KIND_ORDER } from "../special";
+import { needsGameData } from "../text";
 import {
   LAYER_IDS,
   PRIMARY_KINDS,
@@ -70,10 +71,10 @@ export const SOURCE_LABELS: Record<Source, string> = {
 };
 
 /** Why the scripts group is dead until the install has been read. */
-export const NO_GAME_DATA_TITLE = "Load game data to see what the scripts add";
+export const NO_GAME_DATA_TITLE = needsGameData("see what the scripts add");
 
 /** Why the initializers group is dead until the install has been read. */
-export const NO_GAME_DATA_KEYS_TITLE = "Load game data to read what each initializer places";
+export const NO_GAME_DATA_KEYS_TITLE = needsGameData("read what each initializer places");
 
 const SCENARIO_GROUPS: readonly Group[] = [
   {

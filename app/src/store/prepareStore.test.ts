@@ -13,8 +13,8 @@ import { summaryLine } from "../lib/prepareCopy";
 import { stubPrefs } from "../test/prefs";
 import { mockedIpc } from "../test/ipc";
 import { until } from "../test/wait";
-import { deferred, editor, openFixtureSave, openFixtureScenario } from "./editorFixture";
-import { editResult, historyEntry, SCENARIO_RESULT } from "./fixture";
+import { deferred, editor, openFixtureScenario } from "./editorFixture";
+import { editResult, historyEntry, OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -128,8 +128,9 @@ describe("the Prepare choices", () => {
     await until(() => expect(mockedIpc.preparePreview).toHaveBeenCalledTimes(1));
   });
 
-  it("are never previewed on a save", async () => {
-    await openFixtureSave();
+  it("are previewed only on a document that takes Prepare, whatever its kind", async () => {
+    const without = { ...SCENARIO_RESULT.capabilities, prepare: false };
+    await openFixtureScenario({ ...SCENARIO_RESULT, capabilities: without });
     mockedIpc.getInitializers.mockResolvedValue([]);
     useGameDataStore.setState({ status: "ready" });
     await prepare().refresh();
@@ -138,6 +139,13 @@ describe("the Prepare choices", () => {
     await new Promise((r) => setTimeout(r, 400));
     expect(mockedIpc.preparePreview).not.toHaveBeenCalled();
     expect(prepare().preview).toBeNull();
+
+    const save = { ...OPEN_RESULT, capabilities: { ...OPEN_RESULT.capabilities, prepare: true } };
+    mockedIpc.openDocument.mockResolvedValueOnce(save);
+    await useFileSessionStore.getState().openSave(save.path);
+    mockedIpc.preparePreview.mockResolvedValue(previewOf(4));
+    await prepare().refresh();
+    await until(() => expect(prepare().preview?.changes).toBe(4));
   });
 
   it("drop the preview without game data, and keep only the latest answer", async () => {

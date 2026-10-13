@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
+import type { EditResult } from "../generated/EditResult";
 import type { NewBody } from "../generated/NewBody";
 import type { Op } from "../generated/Op";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
@@ -359,6 +360,23 @@ describe("copy and paste", () => {
     expect(mockedIpc.pasteBodiesOp).toHaveBeenLastCalledWith(SOL, [CONTINENTAL, ARID], null);
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2);
     expect(moves().copy?.copies).toEqual([CONTINENTAL, ARID]);
+  });
+
+  it("builds a second paste's op only once the first paste's edit has landed", async () => {
+    let land!: (result: EditResult) => void;
+    mockedIpc.applyOp.mockImplementationOnce(
+      () => new Promise<EditResult>((resolve) => (land = resolve)),
+    );
+    await selectTwo();
+    await moves().copySelection();
+    const first = moves().paste(CENTAURI);
+    const second = moves().paste(CENTAURI);
+    await flush();
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenCalledTimes(1);
+    land(editResult());
+    expect(await Promise.all([first, second])).toEqual([true, true]);
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2);
   });
 
   it("pastes a lone copy at the clicked orbit in the system view, and stays there", async () => {

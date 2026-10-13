@@ -1,5 +1,5 @@
 import type { MegastructureSummary } from "../../../generated/MegastructureSummary";
-import { megastructureLabel, shownMegastructures, siteLabel } from "../../../lib/details/labels";
+import { megastructureName, shownMegastructures, siteLabel } from "../../../lib/details/labels";
 import {
   type NameIconKind,
   type NameIconSlot,
@@ -22,7 +22,10 @@ const ANOMALY_LINES: MapTooltipLine[] = ["Anomaly"];
 
 /** The icons right of a name, as `nameIconSlots` orders them, each with its tooltip's lines. */
 export function nameIcons(ctx: PlanetLineContext, tex: Textures, s: NameIconSubject): NameIcon[] {
-  return nameIconSlots(s).map((slot) => ({ ...slot, lines: slotLines(ctx, tex, s, slot.kind) }));
+  return nameIconSlots(s, ctx.names).map((slot) => ({
+    ...slot,
+    lines: slotLines(ctx, tex, s, slot.kind),
+  }));
 }
 
 /** Draws `icons` from cell `x` on; returns the x past the last. */
@@ -63,7 +66,7 @@ function megastructureLines(
 ): MapTooltipLine[] {
   if (structures.length < 2) return [];
   return structures.map((m) => ({
-    label: megastructureLabel(m.kind),
+    label: megastructureName(m.kind, ctx.names),
     value: m.owner === null ? "unowned" : ctx.countryName(m.owner),
   }));
 }
