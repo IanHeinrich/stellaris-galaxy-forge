@@ -137,7 +137,7 @@
 
 .context-submenu-caret {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--fg-muted);
 }
 
@@ -221,7 +221,7 @@
 
 .pick-dlc {
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   line-height: 14px;
   color: var(--fg-muted);
   border: 1px solid var(--border);
@@ -450,7 +450,7 @@
 
 .megastructure-add-category,
 .megastructure-add-summary {
-  font-size: 11px;
+  font-size: var(--text-hint);
   overflow-wrap: anywhere;
 }
 
@@ -471,7 +471,7 @@
 .megastructure-add-section {
   padding: 6px 10px 2px;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-hint);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -542,7 +542,7 @@
 }
 
 .ring-world-quadrants th {
-  font-size: 11.5px;
+  font-size: var(--text-note);
   font-weight: normal;
 }
 
@@ -562,7 +562,7 @@
 
 .ring-world-set-all button {
   padding: 1px 8px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .ring-world-size label,
@@ -574,7 +574,7 @@
 
 .megastructure-add-row-label {
   margin: 0 0 2px 2px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .megastructure-add-row {
@@ -615,7 +615,7 @@
 
 .megastructure-add-mark,
 .megastructure-add-count {
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .megastructure-add-refusal {
@@ -646,7 +646,7 @@
   display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
-  font-size: 11.5px;
+  font-size: var(--text-note);
   line-height: 1.25;
   text-align: center;
   -webkit-box-orient: vertical;

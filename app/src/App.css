@@ -13,7 +13,8 @@
   --accent-bg: rgba(var(--accent-rgb), 0.07);
   --accent-bg-soft: rgba(var(--accent-rgb), 0.1);
   --accent-bg-strong: rgba(var(--accent-rgb), 0.12);
-  --warn: #ff8c66;
+  --warn-rgb: 255, 140, 102;
+  --warn: rgb(var(--warn-rgb));
   --allowed: #6ee7b7;
   --allowed-dim: #2f6b55;
   --allowed-bg: rgba(110, 231, 183, 0.1);
@@ -30,7 +31,8 @@
   --script-string: #ce9178;
   --script-comment: #6a9955;
   --script-text: #d4d4d4;
-  --link: #7fb3ff;
+  --link-rgb: 127, 179, 255;
+  --link: rgb(var(--link-rgb));
   /* Issue severities, matching the rings the map draws (`map/layers/IssuesLayer.ts`). */
   --sev-info: #60a5fa;
   --sev-warning: #f59e0b;
@@ -39,6 +41,8 @@
   --font-ui: "Segoe UI", Inter, system-ui, -apple-system, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
   --text-micro: 9px;
+  --text-fine: 10px;
+  --text-small: 10.5px;
   --text-hint: 11px;
   --text-note: 11.5px;
   --text-control: 12px;
@@ -221,7 +225,7 @@ h3 {
 }
 
 .badge.warn {
-  border-color: rgba(255, 140, 102, 0.5);
+  border-color: rgba(var(--warn-rgb), 0.5);
   color: var(--warn);
 }
 
@@ -229,7 +233,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  border: 1px solid rgba(255, 140, 102, 0.5);
+  border: 1px solid rgba(var(--warn-rgb), 0.5);
 }
 
 .badge.auto-reload button.link {
@@ -285,7 +289,7 @@ button.master.init[aria-pressed="mixed"],
 kbd {
   padding: 0 4px;
   font: inherit;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
   background: var(--bg);
   border: 1px solid var(--border);
@@ -431,7 +435,7 @@ kbd {
   flex: none;
   min-width: 15px;
   padding: 0 3px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   line-height: 14px;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -472,7 +476,7 @@ kbd {
 
 .tri {
   width: 10px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--fg-muted);
 }
 

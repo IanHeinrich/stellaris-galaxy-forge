@@ -40,7 +40,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   color: var(--fg-muted);
   margin-bottom: 2px;
 }
@@ -72,7 +72,7 @@
 
 .ins-crumbs button.link {
   padding: 0 2px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .ins-head {
@@ -120,7 +120,7 @@
 button.chip.pick {
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
+  font-size: var(--text-fine);
 }
 
 button.chip.pick:hover {
@@ -131,7 +131,7 @@ button.chip.pick:hover {
 button.chip.jump {
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
+  font-size: var(--text-fine);
 }
 
 button.chip.jump:hover {
@@ -146,7 +146,7 @@ button.chip.jump:hover {
   width: 100%;
   margin: 10px 0 4px;
   padding: 0;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-muted);
@@ -246,7 +246,7 @@ button.chip.jump:hover {
 .ins-kv.mono,
 .ins-kv .mono {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 
@@ -408,7 +408,7 @@ button.link.ins-drill:hover {
   align-items: center;
   gap: 3px;
   margin-left: 8px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   color: var(--fg-muted);
   opacity: 0.8;
 }
@@ -448,7 +448,7 @@ button.link.ins-drill:hover {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  color: #7fb3ff;
+  color: var(--link);
 }
 
 /* The die before a rolled value: a rounded square with three pips, in the value's colour. */
@@ -549,8 +549,8 @@ button.link.ins-drill:hover {
 
 .ins-block-count.ins-st-rolled {
   display: inline-flex;
-  border-color: rgba(127, 179, 255, 0.35);
-  background: rgba(127, 179, 255, 0.08);
+  border-color: rgba(var(--link-rgb), 0.35);
+  background: rgba(var(--link-rgb), 0.08);
 }
 
 /* A body the game never places: its mark in the count's place, and on its page's head. */

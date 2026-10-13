@@ -10,7 +10,7 @@
 }
 
 .ins-setup-head {
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-align: center;
   color: var(--fg-muted);
 }
@@ -178,12 +178,12 @@
 }
 
 .prep-tag.forge {
-  color: #7bd88f;
+  color: var(--ins-ok);
   background: rgb(123 216 143 / 12%);
 }
 
 .prep-tag.game {
-  color: #60a5fa;
+  color: var(--sev-info);
   background: rgb(96 165 250 / 12%);
 }
 
@@ -264,7 +264,7 @@
 
 .prep-setup-title {
   margin: 6px 0 4px;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--fg-muted);

@@ -54,7 +54,7 @@
 
 .ib-hint {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .ib-cols {
@@ -106,7 +106,7 @@
 .ib-badge {
   flex: none;
   color: var(--fg-muted);
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .ib-list {
@@ -198,12 +198,12 @@
 
 .ib-current {
   color: var(--accent);
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .ib-default {
   color: var(--fg-muted);
-  font-size: 10.5px;
+  font-size: var(--text-small);
 }
 
 .ib-pin {
@@ -311,7 +311,7 @@
 .ib-hints {
   flex: 1;
   min-width: 0;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

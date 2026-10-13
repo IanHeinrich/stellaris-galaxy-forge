@@ -52,7 +52,7 @@ button.master {
   justify-content: center;
   height: 22px;
   padding: 0 9px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
@@ -119,7 +119,7 @@ button.master.init[aria-pressed="true"] {
   top: -6px;
   left: 7px;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -416,7 +416,7 @@ button.master.init[aria-pressed="true"] {
 
 .menu-section .master-pill > span {
   padding: 0 7px;
-  font-size: 10px;
+  font-size: var(--text-fine);
   font-weight: 700;
   line-height: 15px;
   letter-spacing: 0.08em;
@@ -657,7 +657,7 @@ button.master.init[aria-pressed="true"] {
 
 .menu-detail {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: var(--text-small);
   white-space: nowrap;
 }
 

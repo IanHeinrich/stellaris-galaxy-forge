@@ -245,7 +245,7 @@
   border: none;
   padding: 0;
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: var(--text-fine);
   line-height: 1;
 }
 

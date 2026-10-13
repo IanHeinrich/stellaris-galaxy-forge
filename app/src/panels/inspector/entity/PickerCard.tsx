@@ -14,6 +14,7 @@ import {
   type Span,
 } from "../../../lib/details/picker";
 import { GameText } from "../../GameText";
+import "./entity.css";
 
 export const NO_DESCRIPTION = "No description";
 export const NO_EFFECT = "No effect";
