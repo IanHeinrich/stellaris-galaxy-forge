@@ -1,18 +1,20 @@
 //! A trigger block (a `limit`, a `potential`, a weight's `modifier`, a scripted trigger's
 //! body) compiled once to the conditions this crate can judge, and judged against what a
-//! caller knows: the DLC a save was played with, a body the generator has just made, or a
-//! scenario system's flags. What the subject cannot answer is unknown, and the connectives
-//! fold it in three-valued logic.
+//! caller knows: the DLC a save was played with, a body the generator has just made, a
+//! scenario system's flags, or what an effect walk has run so far. What the subject cannot
+//! answer is unknown, and the connectives fold it in three-valued logic.
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use sgf_core::cst::Node;
 
 use crate::install::script::{Def, written};
+use crate::install::walk::Script;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 
 /// How deep scripted triggers may call each other before the answer is unknown.
-const MAX_DEPTH: usize = 16;
+pub(crate) const MAX_DEPTH: usize = 16;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Condition {
@@ -48,6 +50,19 @@ pub enum Condition {
     PlanetFlag(String),
     /// `has_deposit_for = …`: a deposit worked by that station class.
     DepositFor(String),
+    /// `is_megastructure_type = …`, read in an effect walk.
+    MegastructureType(String),
+    /// `graphical_culture = …`, read in an effect walk.
+    GraphicalCulture(String),
+    /// `check_variable = { which = … value > … }`, read in an effect walk.
+    CheckVariable {
+        which: String,
+        cmp: Comparison,
+        value: f64,
+    },
+    /// A block under any other key, read in an effect walk: the scope the key leads to, and
+    /// what must hold there.
+    Scoped(String, Box<Condition>),
     Not(Box<Condition>),
     All(Vec<Condition>),
     Any(Vec<Condition>),
@@ -109,6 +124,20 @@ impl Condition {
         Compiler {
             src,
             number: &|text| text.parse().ok(),
+            walk: None,
+        }
+        .block(node, &[])
+    }
+
+    /// A block of an effect script as a walk standing in `script` reads it: its keys and
+    /// values with the walk's parameters put in, its numbers as the file names them, the
+    /// leaves only a walk judges read, and each block under another key kept as a
+    /// [`Self::Scoped`].
+    pub(crate) fn in_walk(node: &Node, script: &Script<'_>) -> Self {
+        Compiler {
+            src: script.src(),
+            number: &|text| script.number_of(text),
+            walk: Some(script),
         }
         .block(node, &[])
     }
@@ -124,6 +153,7 @@ impl Condition {
         Compiler {
             src: &def.src,
             number: &|text| def.number_of(text),
+            walk: None,
         }
         .block(node, skip)
     }
@@ -222,7 +252,7 @@ impl Condition {
         match self {
             Self::Always(_) => "always",
             Self::HostDlc(_) => "host_has_dlc",
-            Self::Call(name, _) | Self::Unknown(name) => name,
+            Self::Call(name, _) | Self::Unknown(name) | Self::Scoped(name, _) => name,
             Self::StarFlag(_) => "has_star_flag",
             Self::GlobalFlag(_) => "has_global_flag",
             Self::CountryType(_) => "is_country_type",
@@ -242,6 +272,9 @@ impl Condition {
             Self::HasModifier(_) => "has_modifier",
             Self::PlanetFlag(_) => "has_planet_flag",
             Self::DepositFor(_) => "has_deposit_for",
+            Self::MegastructureType(_) => "is_megastructure_type",
+            Self::GraphicalCulture(_) => "graphical_culture",
+            Self::CheckVariable { .. } => "check_variable",
             Self::Not(_) => "NOT",
             Self::All(_) => "AND",
             Self::Any(_) => "OR",
@@ -278,9 +311,18 @@ fn connective(key: &str) -> Option<fn(Vec<Condition>) -> Condition> {
 struct Compiler<'a> {
     src: &'a [u8],
     number: &'a dyn Fn(&str) -> Option<f64>,
+    /// The walk an effect script's block is read in.
+    walk: Option<&'a Script<'a>>,
 }
 
 impl Compiler<'_> {
+    fn put<'t>(&self, text: &'t str) -> Cow<'t, str> {
+        match self.walk {
+            Some(walk) => walk.put(text),
+            None => Cow::Borrowed(text),
+        }
+    }
+
     /// A block's keyed children but those keyed `skip`, an implicit `AND`; bare items such as
     /// `optimize_memory` say nothing. A scalar where a block belongs is unknown.
     fn block(&self, node: &Node, skip: &[&str]) -> Condition {
@@ -306,8 +348,10 @@ impl Compiler<'_> {
     /// they are the rest of its inline maths.
     fn condition(&self, siblings: &[Node], at: usize) -> Condition {
         let node = &siblings[at];
-        let key = node.key_str(self.src).unwrap_or_default();
-        let value = node.scalar_str(self.src);
+        let key = self.put(node.key_str(self.src).unwrap_or_default());
+        let key = key.as_ref();
+        let value = node.scalar_str(self.src).map(|v| self.put(v));
+        let value = value.as_deref();
         let yes = match value {
             Some("yes") => Some(true),
             Some("no") => Some(false),
@@ -323,6 +367,14 @@ impl Compiler<'_> {
             |make: fn(String) -> Condition| value.map_or_else(unknown, |v| make(v.to_owned()));
         if let Some(make) = connective(key) {
             return block(make);
+        }
+        if self.walk.is_some() {
+            match key {
+                "is_megastructure_type" => return named(Condition::MegastructureType),
+                "graphical_culture" => return named(Condition::GraphicalCulture),
+                "check_variable" => return self.check_variable(node).unwrap_or_else(unknown),
+                _ => {}
+            }
         }
         match key {
             "always" => flag(Condition::Always),
@@ -349,11 +401,29 @@ impl Compiler<'_> {
                 .comparison(siblings, at)
                 .map(|(cmp, n)| Condition::Modifiers(cmp, n))
                 .unwrap_or_else(unknown),
-            _ => match yes {
-                Some(want) => Condition::Call(key.to_owned(), want),
-                None => unknown(),
+            _ => match (yes, value) {
+                (Some(want), _) => Condition::Call(key.to_owned(), want),
+                (None, None) if self.walk.is_some() => {
+                    Condition::Scoped(key.to_owned(), Box::new(block(Condition::All)))
+                }
+                _ => unknown(),
             },
         }
+    }
+
+    /// `check_variable = { which = … value > … }`.
+    fn check_variable(&self, node: &Node) -> Option<Condition> {
+        let which = self.put(node.find("which", self.src)?.scalar_str(self.src)?);
+        let items = node.children();
+        let at = items
+            .iter()
+            .position(|item| item.key_str(self.src) == Some("value"))?;
+        let (cmp, value) = self.comparison(items, at)?;
+        Some(Condition::CheckVariable {
+            which: which.into_owned(),
+            cmp,
+            value,
+        })
     }
 
     /// `planet_size < 15`: the operator is whatever the file writes between key and value.
@@ -369,7 +439,7 @@ impl Compiler<'_> {
         let value = node.scalar_span()?;
         let op = std::str::from_utf8(self.src.get(key.end..value.start)?).ok()?;
         let cmp = Comparison::parse(op.trim())?;
-        let n = (self.number)(&written(siblings, at, self.src)?)?;
+        let n = (self.number)(&self.put(&written(siblings, at, self.src)?))?;
         Some((cmp, n))
     }
 }

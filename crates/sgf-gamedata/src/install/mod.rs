@@ -7,3 +7,4 @@ pub mod layers;
 pub mod mods;
 pub mod scenarios;
 pub mod script;
+pub(crate) mod walk;

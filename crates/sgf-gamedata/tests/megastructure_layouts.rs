@@ -463,7 +463,7 @@ mod_row = { }
     ), (
         "common/scripted_effects/mod.txt",
         "mod_spawn_at = {
-	spawn_planet = { class = pc_mod location = fromfrom.planet orbit_location = yes orbit_distance_offset = $DISTANCE$ orbit_angle_offset = $ANGLE|10$ }
+	spawn_planet = { class = pc_mod location = fromfrom.planet orbit_location = yes orbit_distance_offset = $DISTANCE$ orbit_angle_offset = $ANGLE$ }
 }
 ",
     )]);
@@ -478,7 +478,7 @@ mod_row = { }
     for unreadable in [
         "orbit_distance = { … }",
         "orbit_angle = @mod_undefined",
-        "orbit_angle_offset = $ANGLE|10$",
+        "orbit_angle_offset = $ANGLE$",
         "size = { … }",
     ] {
         assert!(
