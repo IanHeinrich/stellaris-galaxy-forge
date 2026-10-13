@@ -41,6 +41,9 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "model:mammalian_01:box_entity:yaw90",
         "model:mammalian_01:box_entity:px256",
         "model:mammalian_01:box_entity:yaw90:px256",
+        "model:mammalian_01:box_entity:tilt30",
+        "model:mammalian_01:box_entity:tilt1:px256",
+        "model:mammalian_01:box_entity:yaw90:tilt80:px256",
         "planet_ring",
     ] {
         let parsed: TextureKey = key.parse().unwrap_or_else(|e| panic!("{key}: {e}"));
@@ -97,6 +100,17 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "model:mammalian_01:box_entity:px256:yaw90",
         "model:mammalian_01:box_entity:px256:px128",
         "model:mammalian_01:box_entity:yaw90:x",
+        "model:mammalian_01:box_entity:tilt",
+        "model:mammalian_01:box_entity:tilt0",
+        "model:mammalian_01:box_entity:tilt81",
+        "model:mammalian_01:box_entity:tilt300",
+        "model:mammalian_01:box_entity:tilt030",
+        "model:mammalian_01:box_entity:tilt-30",
+        "model:mammalian_01:box_entity:tilt+30",
+        "model:mammalian_01:box_entity:tilt30.5",
+        "model:mammalian_01:box_entity:tilt30:yaw90",
+        "model:mammalian_01:box_entity:px256:tilt30",
+        "model:mammalian_01:box_entity:tilt30:tilt20",
     ] {
         assert!(
             matches!(bad.parse::<TextureKey>(), Err(TextureError::BadKey(_))),

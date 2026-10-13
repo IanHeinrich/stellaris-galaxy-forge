@@ -60,14 +60,17 @@ pub enum TextureKey {
         class: String,
     },
     /// A megastructure's or starbase's model in a graphical culture, by its entity name
-    /// without the culture's prefix, turned `yaw` whole degrees about its up axis and baked
-    /// at most `px` pixels along its longer side
-    /// (`model:<culture>:<entity>[:yaw<degrees>][:px<pixels>]`, the turn left out when it
-    /// is 0 and the cap when there is none).
+    /// without the culture's prefix, turned `yaw` whole degrees about its up axis, seen from
+    /// `tilt` whole degrees off straight down, and baked at most `px` pixels along its longer
+    /// side (`model:<culture>:<entity>[:yaw<degrees>][:tilt<degrees>][:px<pixels>]`, the turn
+    /// left out when it is 0, the tilt when it is the map's and the cap when there is none). A
+    /// tilt of its own makes it a thumbnail, drawn brighter.
     Model {
         culture: String,
         entity: String,
         yaw: u16,
+        /// From 1 to [`MAX_TILT`] degrees; `None` is the system map's own tilt.
+        tilt: Option<u8>,
         px: Option<u32>,
     },
 }
@@ -181,6 +184,10 @@ impl FromStr for TextureKey {
                     }
                     None => 0,
                 };
+                let tilt = next.and_then(tilt_degrees);
+                if tilt.is_some() {
+                    next = parts.next();
+                }
                 let px = next.map(|cap| pixels(cap).ok_or_else(bad)).transpose()?;
                 if parts.next().is_some() {
                     return Err(bad());
@@ -189,6 +196,7 @@ impl FromStr for TextureKey {
                     culture,
                     entity,
                     yaw,
+                    tilt,
                     px,
                 }
             }
@@ -232,11 +240,15 @@ impl fmt::Display for TextureKey {
                 culture,
                 entity,
                 yaw,
+                tilt,
                 px,
             } => {
                 write!(f, "model:{culture}:{entity}")?;
                 if *yaw != 0 {
                     write!(f, ":yaw{yaw}")?;
+                }
+                if let Some(tilt) = tilt {
+                    write!(f, ":tilt{tilt}")?;
                 }
                 match px {
                     Some(px) => write!(f, ":px{px}"),
@@ -251,6 +263,16 @@ impl fmt::Display for TextureKey {
 fn yaw_degrees(s: &str) -> Option<u16> {
     let degrees: i32 = s.strip_prefix("yaw")?.parse().ok()?;
     u16::try_from(degrees.rem_euclid(360)).ok()
+}
+
+/// The steepest camera tilt a `model:` key takes, in degrees off straight down.
+const MAX_TILT: u8 = 80;
+
+/// `tilt<degrees>`, whole degrees from 1 to [`MAX_TILT`], written without a leading zero.
+fn tilt_degrees(s: &str) -> Option<u8> {
+    let digits = s.strip_prefix("tilt")?;
+    let clean = !digits.starts_with('0') && digits.bytes().all(|b| b.is_ascii_digit());
+    digits.parse().ok().filter(|t| clean && *t <= MAX_TILT)
 }
 
 /// `px<pixels>`, a whole number of pixels above 0.

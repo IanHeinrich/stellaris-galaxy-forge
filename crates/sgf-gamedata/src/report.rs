@@ -294,6 +294,7 @@ fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
             culture: NO_CULTURE.to_owned(),
             entity: (*entity).to_owned(),
             yaw: 0,
+            tilt: None,
             px: None,
         };
         gd.untabled_shaders(&key.to_string())

@@ -83,6 +83,10 @@ entity = {
 \tpdxmesh = \"tested_mesh\"
 }
 entity = {
+\tname = \"mammalian_01_wall_entity\"
+\tpdxmesh = \"wall_mesh\"
+}
+entity = {
 \tname = \"mammalian_01_mirrored_entity\"
 \tpdxmesh = \"mirrored_mesh\"
 \tscale = -1
@@ -117,6 +121,7 @@ const MESHES: &str = "objectTypes = {
 \t}
 \tpdxmesh = { name = \"tested_mesh\" file = \"gfx/models/test/tested.mesh\" }
 \tpdxmesh = { name = \"mirrored_mesh\" file = \"gfx/models/test/mirrored.mesh\" }
+\tpdxmesh = { name = \"wall_mesh\" file = \"gfx/models/test/wall.mesh\" }
 }
 ";
 
@@ -244,6 +249,12 @@ fn box_mesh() -> Vec<u8> {
     mesh_file(&[("boxShape", vec![cuboid(20.0, 3.0, 5.0)])])
 }
 
+/// A wall 40 world units across the screen and 6 tall, 0.2 thick along screen-up: a line from
+/// straight down, as a ring's side is.
+fn wall_mesh() -> Vec<u8> {
+    mesh_file(&[("wallShape", vec![cuboid(0.1, 3.0, 20.0)])])
+}
+
 /// A planet's texture, kept where the game keeps them.
 const LAVA: &str = "gfx/models/planets/lava_diffuse.dds";
 
@@ -362,6 +373,7 @@ pub(crate) fn boxes() -> (TempDir, GameData) {
         ("gfx/models/test/added.mesh", added_mesh()),
         ("gfx/models/test/tested.mesh", tested_mesh()),
         ("gfx/models/test/mirrored.mesh", mirrored_mesh()),
+        ("gfx/models/test/wall.mesh", wall_mesh()),
         ("gfx/models/test/green_half.dds", solid([0, 255, 0, 128])),
         ("gfx/models/test/red_half.dds", solid([255, 0, 0, 128])),
         ("gfx/models/test/grey.dds", solid([128, 128, 128, 255])),
@@ -619,6 +631,40 @@ fn a_pixel_cap_in_the_key_bakes_no_larger_and_keeps_the_placement() {
 
     let (wide, _) = sprite(&gd, &textures, "model:mammalian_01:pair_entity:px4096");
     assert_eq!(wide.dimensions(), full.dimensions(), "a cap above the size");
+}
+
+#[test]
+fn a_tilt_in_the_key_shows_more_of_a_thin_model_brighter_and_none_keeps_the_maps_look() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (map, at_map) = sprite(&gd, &textures, "model:mammalian_01:wall_entity");
+    let (tilted, at_tilted) = sprite(&gd, &textures, "model:mammalian_01:wall_entity:tilt60");
+    // The wall's 0.6 units of height seen at 15° and at 60°, its 0.02 of thickness at the
+    // cosine, and the margin, 1% of its 4 units across, above and below.
+    assert!(close(at_map.height, 0.255, 0.05), "{at_map:?}");
+    assert!(close(at_tilted.height, 0.61, 0.05), "{at_tilted:?}");
+    assert!(close(at_tilted.width, at_map.width, 1e-3), "{at_tilted:?}");
+    let opaque = |image: &RgbaImage| image.pixels().filter(|p| p.0[3] == 255).count();
+    assert!(
+        opaque(&tilted) > 2 * opaque(&map),
+        "{} against {}",
+        opaque(&tilted),
+        opaque(&map)
+    );
+
+    let (fifteen, at_fifteen) = sprite(&gd, &textures, "model:mammalian_01:wall_entity:tilt15");
+    assert_eq!(at_fifteen, at_map, "the map's tilt is 15°");
+    let light = |image: &RgbaImage| {
+        image
+            .pixels()
+            .filter(|p| p.0[3] == 255)
+            .map(|p| u32::from(p.0[0]))
+            .sum::<u32>()
+    };
+    assert!(
+        light(&fifteen) > light(&map) * 11 / 10,
+        "a thumbnail is drawn brighter"
+    );
 }
 
 #[test]

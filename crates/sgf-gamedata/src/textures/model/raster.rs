@@ -9,8 +9,11 @@ use super::ModelPlacement;
 use super::space::{GROUND_RIGHT, GROUND_UP, Vec3, WORLD_PER_SAVE, cross, dot, normalize};
 
 /// The editor's camera tilt from straight down, in degrees: its map is seen from above, with
-/// a little tilt for depth.
+/// a little tilt for depth. A key's own tilt takes its place.
 const TILT_DEGREES: f32 = 15.0;
+/// How much a sprite baked at a key's own tilt, a thumbnail, brightens its darker colours, so a
+/// dark model reads on a small tile; the curve eases towards white so bright ones keep detail.
+const THUMB_EXPOSURE: f32 = 2.5;
 /// Screen pixels per save unit at the system view's closest zoom, where the largest body fills
 /// the view's short side: a G star of size 27 in a view 1000 pixels high.
 const CLOSEST_PX_PER_SAVE: f32 = 40.0;
@@ -115,11 +118,15 @@ struct Camera {
     up: Vec3,
     forward: Vec3,
     light: Vec3,
+    /// How much brighter the colours are drawn, easing towards white; `None` for the map's.
+    exposure: Option<f32>,
 }
 
 impl Camera {
-    fn tilted() -> Self {
-        let (sin, cos) = TILT_DEGREES.to_radians().sin_cos();
+    /// A camera `tilt` degrees off straight down, its far side up the screen, exposed for a
+    /// thumbnail; the map's camera when `None`. The light stays put in the world.
+    fn tilted(tilt: Option<u8>) -> Self {
+        let (sin, cos) = tilt.map_or(TILT_DEGREES, f32::from).to_radians().sin_cos();
         let sky = [0.0, 1.0, 0.0];
         let mix =
             |a: Vec3, wa: f32, b: Vec3, wb: f32| std::array::from_fn(|k| a[k] * wa + b[k] * wb);
@@ -130,6 +137,7 @@ impl Camera {
             up: mix(GROUND_UP, cos, sky, sin),
             forward: mix(sky, -cos, GROUND_UP, sin),
             light: normalize(light),
+            exposure: tilt.map(|_| THUMB_EXPOSURE),
         }
     }
 
@@ -170,22 +178,23 @@ struct Framed {
     span: f32,
 }
 
-/// The sprite's longer side in pixels for a model whose vertices are `positions`: about what
-/// it covers at the system view's closest zoom, within [`MIN_LONG_SIDE`] and
-/// [`MAX_LONG_SIDE`].
-pub(super) fn long_side(positions: impl IntoIterator<Item = Vec3>) -> u32 {
-    let covered = framed(&Camera::tilted(), positions)
+/// The sprite's longer side in pixels for a model whose vertices are `positions`, seen at
+/// `tilt`: about what it covers at the system view's closest zoom, within [`MIN_LONG_SIDE`]
+/// and [`MAX_LONG_SIDE`].
+pub(super) fn long_side(positions: impl IntoIterator<Item = Vec3>, tilt: Option<u8>) -> u32 {
+    let covered = framed(&Camera::tilted(tilt), positions)
         .map_or(0.0, |f| f.span / WORLD_PER_SAVE * CLOSEST_PX_PER_SAVE);
     (covered.round() as u32).clamp(MIN_LONG_SIDE, MAX_LONG_SIDE)
 }
 
-/// The surfaces drawn into a sprite whose longer side is `long_side` pixels, with where the
-/// model's origin falls in it; `None` when they have no vertices.
+/// The surfaces seen at `tilt` drawn into a sprite whose longer side is `long_side` pixels,
+/// with where the model's origin falls in it; `None` when they have no vertices.
 pub(super) fn render(
     surfaces: &[Surface<'_>],
     long_side: u32,
+    tilt: Option<u8>,
 ) -> Option<(RgbaImage, ModelPlacement)> {
-    let camera = Camera::tilted();
+    let camera = Camera::tilted(tilt);
     let Framed { lo, hi, span } = framed(
         &camera,
         surfaces.iter().flat_map(|s| s.positions.iter().copied()),
@@ -436,10 +445,19 @@ fn shade(camera: &Camera, surface: &Surface<'_>, ids: [usize; 3], weights: [f32;
     let albedo: Vec3 =
         std::array::from_fn(|k| diffuse[k] * (1.0 - mask) + diffuse[k] * EMPIRE[k] * mask);
     let lit = 0.3 + 0.9 * dot(n, camera.light).max(0.0);
-    [
+    let colour = [
         albedo[0] * lit * (1.0 - emissive) + diffuse[0] * emissive,
         albedo[1] * lit * (1.0 - emissive) + diffuse[1] * emissive,
         albedo[2] * lit * (1.0 - emissive) + diffuse[2] * emissive,
         base[3],
-    ]
+    ];
+    match camera.exposure {
+        Some(gain) => {
+            let [r, g, b, alpha] = colour;
+            let [r, g, b] =
+                [r, g, b].map(|c| c.max(0.0) * gain / (1.0 + (gain - 1.0) * c.max(0.0)));
+            [r, g, b, alpha]
+        }
+        None => colour,
+    }
 }

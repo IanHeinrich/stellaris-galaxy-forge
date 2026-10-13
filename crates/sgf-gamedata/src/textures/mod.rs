@@ -6,7 +6,7 @@
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
 //! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
 //! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>`,
-//! `model:<culture>:<entity>[:yaw<degrees>][:px<pixels>]` and `planet_ring`.
+//! `model:<culture>:<entity>[:yaw<degrees>][:tilt<degrees>][:px<pixels>]` and `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -317,6 +317,7 @@ impl Job {
                 culture,
                 entity,
                 yaw,
+                tilt,
                 px,
             } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
@@ -324,6 +325,7 @@ impl Job {
                 &(lookups.cultures)(culture),
                 entity,
                 *yaw,
+                *tilt,
                 *px,
             )?)),
             TextureKey::PlanetDisc { class } => {
