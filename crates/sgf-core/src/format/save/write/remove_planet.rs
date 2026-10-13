@@ -418,11 +418,12 @@ fn then(first: Op, description: String, rest: impl Iterator<Item = Op>) -> Op {
 }
 
 /// Why a ring world segment is not deleted alone.
-pub(crate) const SEGMENT_GOES_WHOLE: &str = "it is a ring world segment: delete the ring world";
+pub(crate) const SEGMENT_GOES_WHOLE: &str =
+    "it is a ring world section, so delete the whole ring world instead";
 
 /// Why a ring world segment keeps its colony.
 pub(crate) const SEGMENT_KEEPS_COLONY: &str =
-    "it is a ring world segment, which has not been tried in game";
+    "removing a colony from a ring world section hasn't been tested in game";
 
 /// What refuses a colony's removal and a copy: a ring world segment, and a megastructure on
 /// or around the body, which is a live row naming it. The body's own `megastructure` key can
@@ -474,7 +475,7 @@ fn check_megastructures(
         .is_some()
     {
         return Err(refuse(
-            "a megastructure stands on or around it: delete the megastructure first".to_owned(),
+            "it has a megastructure, so delete the megastructure first".to_owned(),
         ));
     }
     Ok(())

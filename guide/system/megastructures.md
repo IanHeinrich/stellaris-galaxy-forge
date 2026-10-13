@@ -16,8 +16,8 @@ define to a system in a Stellaris 4.x save. You need the game data
 loaded. The ones you can't add yet are listed at the end of this
 section.
 
-The megastructure is added finished, with the modifiers, deposits and
-counters its construction adds. An Arc Furnace gives the planets of its
+The megastructure is added already built, with the modifiers, deposits
+and counters that building it adds. An Arc Furnace gives the planets of its
 system its mining bonus and deposit, and a Dyson Swarm gives its star
 its modifier. The app reads these from your game files and mods.
 
@@ -37,16 +37,16 @@ under the stages, and they're offered on a planet only:
   megastructure.
 - Keep adds only the megastructure. The planet keeps its class and size.
 
-The app leaves out a construction's effects when it can't tell whether
-they apply, and ones it doesn't write yet, such as a modifier the
-construction removes. After the add, the status bar says how many it
-left out.
+The app leaves out an effect of building it when it can't tell whether
+the effect applies, and effects it can't add yet, such as a modifier
+that building it removes. After the add, the status bar says how many
+it left out.
 
 1. Open the system in the [system view](system-view.md).
 2. Right-click where the megastructure goes:
-   - For one built on or around a body, such as a Science Nexus or an
-     Arc Furnace, right-click the planet, moon or star and select Add
-     megastructure.
+   - For one built on a planet, moon or star, such as a Science Nexus
+     or an Arc Furnace, right-click the planet, moon or star and select
+     Add megastructure.
    - For a Hyper Relay, a Gateway or an L-Gate, right-click empty space
      and select Add megastructure here.
 3. Pick a megastructure from the list on the left.
@@ -54,8 +54,8 @@ left out.
 5. Click Add.
 
 The new megastructure's page opens in the Inspector. Press
-<kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it out again, with everything its
-construction added.
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it out again, with everything that
+building it added.
 
 The list shows each megastructure once, under Base game or the name of
 the mod that adds it. Its build stages, ruins and variants are inside
@@ -71,19 +71,20 @@ name.
 
 The tiles show the stages of the megastructure you picked, each with its
 model, in the order they are built. Above a stage's short name, a tile
-shows its place in the row, such as "3 of 4". Its ruined and restored
+shows its place in the build order, such as "3 of 4". Its ruined and restored
 versions come after the stages. A mod that has several versions of one
 megastructure shows one row of tiles for each, with a label above the
-row. A tile marked No model yet is a megastructure the app can't draw
-yet.
+row. A tile marked No model yet is a megastructure whose model the app
+can't show yet.
 
 With Gigastructural Engineering, a Dyson Sphere, Dyson Swarm,
 Matrioshka Brain or Star Lifter is one row, not one for each star
 class. Add writes the version the game builds at the star you
 right-clicked. It picks that version from the star's class and from the
 save's Gigastructural Engineering settings for star scaling. In a save
-without star scaling, Add writes the generic version. Types switched off
-in those settings, such as Maginot worlds, are still in the list.
+without star scaling, Add writes the generic version. Megastructures
+switched off in those settings, such as Maginot worlds, are still in the
+list.
 
 Giga's wrecked warships are listed as wrecks. Their repaired stage turns
 into a ship, so it isn't listed.
@@ -97,8 +98,8 @@ top, the panel shows:
 3. The game's description, with its colours and icons.
 4. Produces each month.
 5. Empire effects, which the megastructure gives its owner.
-6. Adding it also writes, which lists the modifiers and deposits its
-   construction adds.
+6. It also adds, which lists the modifiers and deposits that building it
+   adds.
 
 A part the stage has nothing for is left out. The Add button names what
 it adds, such as "Add Maturity, stage 3 of 4".
@@ -113,7 +114,7 @@ the others the game never builds on a star aren't offered on a star. A
 second Hyper Relay, Gateway or L-Gate in a system is greyed out, and the
 preview says why.
 
-A Hyper Relay, a Gateway or an L-Gate stands just outside the system's
+A Hyper Relay, a Gateway or an L-Gate goes just outside the system's
 [inner radius](../reference/glossary.md#inner-radius), in the direction
 you right-clicked. A Hyper Relay links to the relays in the systems its
 hyperlanes lead to, and a Gateway links to every other gateway.
@@ -131,15 +132,18 @@ megastructure is built there, and some planets keep that mark with no
 megastructure left. Adding one to such a planet is refused, and the
 dialog says why.
 
-Some types are in the list greyed out. Select one to read the reason in
-the preview. Galaxy Forge can't add these yet:
+Some megastructures are greyed out in the list. Select one to read the
+reason in the preview. Galaxy Forge can't add these yet:
 
-- Megastructures that change their planet's class or size in a way the
-  app can't work out from your game files, such as only on a condition.
-- Megastructures that are built as a whole with more planets or
-  sections, such as an Alderson Disk.
+- Megastructures that change their planet in a way the app can't tell
+  from your game files, such as only on a condition.
+- Megastructures that turn their planet into a class the app can't give
+  a planet, such as a Planetary Computer.
+- Megastructures whose building also creates other planets or sections,
+  such as an Alderson Disk.
 
-Types the game gives no name are listed last, under Unnamed types. They
+Megastructures the game gives no name are listed last, under Unnamed
+megastructures. They
 show only when what you type in the filter is part of the key of one of
 their stages.
 
@@ -148,10 +152,10 @@ Galaxy Forge can't add these yet, and they aren't in the list:
 - The later stages of the Quantum Catapult.
 - Megastructures that become a starbase when they are built: the Deep
   Space Citadel and the Nomads' waystations.
-- Some Gigastructural Engineering types that Galaxy Forge doesn't
-  support yet.
+- Some Gigastructural Engineering megastructures that Galaxy Forge
+  doesn't support yet.
 
-The list also leaves out types you can't build or that aren't
+The list also leaves out megastructures you can't build or that aren't
 structures:
 
 - Placeholders.
@@ -166,59 +170,60 @@ In a Stellaris 4.x save, you can move a megastructure to another place
 in its system. Hold the pointer over a megastructure in the system view
 and its tooltip says how it moves, or why it stays where it is.
 
-A Hyper Relay, a Gateway, an L-Gate or the Shroud Seal stands at a
-point of its own. Drag it to where it should stand, anywhere in its
-system. It moves in whole units and degrees, and <kbd>Shift</kbd> snaps
+A Hyper Relay, a Gateway, an L-Gate or the Shroud Seal sits in open
+space. Drag it anywhere in its system. It moves in whole units and degrees, and <kbd>Shift</kbd> snaps
 the angle to 15° steps. Its links to other relays or gateways stay as
 they are.
 
-A megastructure built on or around a body belongs to that body. It
-moves in one of two ways:
+A megastructure built on a planet, moon or star belongs to it. It moves
+in one of two ways:
 
-- A Science Nexus and most others stand beside their planet, and you
-  drag them as you drag a moon. Drop one anywhere in the system and it
+- A Science Nexus and most others sit beside their planet, and you drag
+  them as you drag a moon. Drop one anywhere in the system and it
   stays there, still belonging to its planet. When you move the planet,
   it moves with it. To put it back beside its planet, right-click it and
   select the Snap to item that names the planet.
-- An Orbital Ring, an Arc Furnace, a Dyson Sphere and the others the
-  game draws wrapped round their planet or star always sit on it. Drag
-  one and drop it on another body to move it there. Dropped anywhere
-  else, it goes back to its body.
+- An Orbital Ring, an Arc Furnace, a Dyson Sphere and the others that
+  wrap round their planet or star in the game always sit on it. Drag
+  one and drop it on another planet, moon or star to move it there.
+  Dropped anywhere else, it goes back to where it was.
 
 Either kind moves to another planet, moon or star of the same system
-when you drop it on one. While you drag, the bodies it can move to are
-ringed.
+when you drop it on one. While you drag, the planets, moons and stars
+it can move to are ringed.
 
 An Arc Furnace hides its new planet, and its old planet shows again.
 A finished Arc Furnace can also go on a star, which it hides nothing of:
 the star looks as before, with the furnace round it. The modifiers and
-deposits its construction added stay where they are, so an Arc
+deposits that building it added stay where they are, so an Arc
 Furnace's mining bonus stays on the planets of its system.
 
-While you drag, a body that can't take the megastructure is ringed in
-red when the pointer is over it, and the status bar says why:
+While you drag, a planet, moon or star that can't take the megastructure
+is ringed in red when the pointer is over it, and the status bar says
+why:
 
 - It already has a megastructure.
-- The megastructure is built only around a star, such as a Dyson
-  Sphere, and the body is a planet or a moon. In a system with one star,
+- The megastructure can only be attached to a star, such as a Dyson Sphere, and
+  you're over a planet or a moon. In a system with one star,
   such a megastructure has nowhere to go.
-- The game never builds the megastructure on a star, as with a Science
-  Nexus, and the body is a star. Only a finished Arc Furnace can go on
+- The megastructure can't be attached to a star, as with a Science Nexus, and
+  you're over a star. Only a finished Arc Furnace can go on
   a star, not its earlier stages or its ruin.
 
 Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to move it back.
 
 These stay where they are:
 
-- Quantum Catapults.
+- Quantum Catapults, because moving them hasn't been tested in game.
 - Ring world sections.
-- Deep Space Citadels and the Nomads' waystations, which stand with a
+- Deep Space Citadels and the Nomads' waystations, which come with a
   starbase.
-- Megastructures that are built as a whole with more planets or
-  sections, such as an Alderson Disk.
-- A megastructure that made its planet, such as a Cosmogenesis World.
-- A megastructure at the system's centre that names no body, as some
-  ruined Dyson Spheres do.
+- Megastructures that are part of a larger structure, such as an
+  Alderson Disk.
+- A megastructure whose building created its planet, such as a
+  Cosmogenesis World.
+- A megastructure at the system's centre that isn't attached to a
+  planet or star, as with some ruined Dyson Spheres.
 
 ## Add a habitat
 
@@ -232,7 +237,7 @@ megastructure. You need the game data loaded.
 
 Add puts in the habitat the finished complex makes, not the complex.
 The habitat is a planet that orbits the planet or star you
-right-clicked, where the game puts one. It stands further out round a
+right-clicked, where the game puts one. It orbits further out round a
 star than round a planet. The new habitat is selected, and its page
 opens in the Inspector. Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it
 out again.
@@ -240,7 +245,7 @@ out again.
 - The habitat has no owner and no colony, as when the game finishes
   one. Colonise it in the game.
 - It has the habitat skin of the empire that owns the system. In a
-  system no one owns, it has the habitat class's default skin.
+  system no one owns, it has the default habitat skin.
 - The restored Habitat Central Complex adds the same habitat, and also
   the major orbital the game builds round the planet or star when a
   restored complex is finished. The orbital belongs to the empire that
@@ -251,11 +256,11 @@ out again.
 
 You can add a habitat where the game wouldn't let you build one, such
 as a second habitat in a system, or one round an asteroid or a black
-hole. A moon, or a habitat that orbits a planet, can't have a habitat
-round it, and Habitat Central Complex is greyed out there.
+hole. Galaxy Forge can't put a habitat round anything that orbits a
+planet, such as a moon, so Habitat Central Complex is greyed out there.
 
 A planet or star can have more than one habitat. Each new one goes as
-far round it from the others as it can, so a second habitat stands
+far round it from the others as it can, so a second habitat goes
 opposite the first.
 
 To delete a habitat, right-click it and select Delete planet, as for
@@ -320,13 +325,13 @@ owner.
 Ring is greyed out, and the details panel says why, in a system that:
 
 - has more than one star, or none
-- already has a ring where the new one would stand. The reason names
-  that ring and its orbit.
+- already has a ring where the new one would go. The reason names
+  that ring's orbit.
 
 A site on the star doesn't stop you adding a ring.
 
-A mod's ring world that Galaxy Forge can't build from the game files is
-greyed out too, with the reason.
+A mod's ring world that Galaxy Forge can't add yet is greyed out too,
+with the reason.
 
 Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo the add. The planets and belts
 it cleared come back.
@@ -348,7 +353,7 @@ one undo puts it all back.
   Deleting one of those removes the colony on that planet first, and
   the confirmation lists what goes with it. The planet stays, and you
   can then delete it as any other planet.
-- The modifiers and deposits its construction added go with it, as
+- The modifiers and deposits that building it added go with it, as
   when it is dismantled in the game. An Arc Furnace's mining bonus
   leaves the planets of its system, and a Dyson Swarm's modifier leaves
   its star. The app reads which from your game files, so load the game
@@ -360,7 +365,8 @@ The menu item and the button say why when a megastructure can't be
 deleted:
 
 - an L-Gate the save had when you opened it, or a megastructure with any
-  other link than a relay's or a gateway's
+  other link than a relay's or a gateway's, because deleting those
+  hasn't been tested in game
 - a ring world, which is deleted whole: see
   [Delete a ring world](#delete-a-ring-world)
 - a save from before Stellaris 4.0

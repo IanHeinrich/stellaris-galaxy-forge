@@ -498,16 +498,16 @@ impl fmt::Display for MegastructureRefusal {
                 planet, row: None, ..
             } => write!(
                 f,
-                "the game counts a megastructure built at {planet} already"
+                "{planet} has had a megastructure built on it, and the game still counts it"
             ),
             Self::HabitatRoundSatellite { planet, orbits, .. } => write!(
                 f,
-                "{planet} orbits {orbits}, and Galaxy Forge puts nothing round a body that orbits a planet"
+                "{planet} orbits {orbits}, and Galaxy Forge can't put a habitat round anything that orbits a planet"
             ),
-            Self::NoStar { place } => write!(f, "{place} has no star to stand round"),
+            Self::NoStar { place } => write!(f, "{place} has no star for a ring world to go round"),
             Self::ManyStars { place, count } => write!(
                 f,
-                "{place} has {count} stars, and a ring world stands round one"
+                "{place} has {count} stars, and a ring world can only go round a single star"
             ),
             Self::RingOverlap {
                 place,

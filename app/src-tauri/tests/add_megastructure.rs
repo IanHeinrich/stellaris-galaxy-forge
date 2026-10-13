@@ -128,7 +128,7 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
     assert!(
         catapult
             .message
-            .contains("bypass, which hasn't been tried in game"),
+            .contains("adding it hasn't been tested in game"),
         "{}",
         catapult.message
     );

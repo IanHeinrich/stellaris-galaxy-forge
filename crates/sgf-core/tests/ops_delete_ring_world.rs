@@ -441,18 +441,18 @@ fn what_is_refused() {
             ),
             (
                 Op::DeleteBody { body: 2445 },
-                "planet 2445 cannot be deleted: it is a ring world segment: delete the ring world",
+                "planet 2445 cannot be deleted: it is a ring world section, so delete the whole ring world instead",
             ),
             (
                 Op::DeleteMegastructure {
                     megastructure: 10,
                     dismantle: None,
                 },
-                "megastructure 10 cannot be deleted: it is part of a ring world: delete the ring world",
+                "megastructure 10 cannot be deleted: it is part of a ring world, so delete the whole ring world instead",
             ),
             (
                 Op::RemoveColony { body: 2447 },
-                "the colony on planet 2447 cannot be removed: it is a ring world segment, which has not been tried in game",
+                "the colony on planet 2447 cannot be removed: removing a colony from a ring world section hasn't been tested in game",
             ),
             (move_body(LACHIUM, 2446, 45.0, 10.0), SEGMENT_2446_STAYS),
             (
@@ -569,14 +569,14 @@ fn the_installs_ring_world_types_decide_which_rows_are_rings() {
         [
             (
                 alone.clone(),
-                "megastructure 16 cannot be deleted: it is part of a ring world: delete the ring world",
+                "megastructure 16 cannot be deleted: it is part of a ring world, so delete the whole ring world instead",
             ),
             (
                 Op::MoveMegastructure {
                     megastructure: 16,
                     at: MegastructurePlace::Free { x: 5.0, y: 5.0 },
                 },
-                "megastructure 16 cannot be moved: it is part of a ring world, which stands where it is",
+                "megastructure 16 cannot be moved: it is part of a ring world, which stays where it is",
             ),
         ],
     );

@@ -192,7 +192,7 @@ fn what_an_add_refuses() {
             ),
             (
                 add(TUZHIK, finished_ring()),
-                "a ring world cannot be added there: Tuzhik #5 has 2 stars, and a ring world stands round one",
+                "a ring world cannot be added there: Tuzhik #5 has 2 stars, and a ring world can only go round a single star",
             ),
             (
                 Op::AddRingWorld {

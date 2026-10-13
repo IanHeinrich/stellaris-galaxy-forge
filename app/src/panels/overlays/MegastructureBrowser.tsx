@@ -335,7 +335,7 @@ export function MegastructurePreviewPane({
         </div>
       )}
       <Lines title="Empire effects" lines={preview.effects} />
-      <Lines title="Adding it also writes" lines={preview.writes} />
+      <Lines title="It also adds" lines={preview.writes} />
     </aside>
   );
 }

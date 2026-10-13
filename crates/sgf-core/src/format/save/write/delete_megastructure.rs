@@ -28,7 +28,8 @@ use crate::projections::read;
 use crate::session::Session;
 
 /// Why a ring world's row is not deleted alone.
-pub(crate) const RING_ROW: &str = "it is part of a ring world: delete the ring world";
+pub(crate) const RING_ROW: &str =
+    "it is part of a ring world, so delete the whole ring world instead";
 
 pub(crate) fn plan_delete(
     plan: &mut Plan,
@@ -57,14 +58,14 @@ pub(crate) fn plan_delete(
     }
     let system = tied
         .system
-        .ok_or_else(|| refuse("it stands in no system".to_owned()))?;
+        .ok_or_else(|| refuse("it isn't in any system".to_owned()))?;
     let bypass = match tied.bypass {
         Some(bypass) => match row(doc, Table::Bypass, bypass)? {
             Some(found) => {
                 let kind = read::text(&found.node, keys::TYPE, found.src);
                 if !DELETED_BYPASS_KINDS.contains(&kind.as_str()) {
                     return Err(refuse(format!(
-                        "its bypass is a {kind}, which has not been tried in game"
+                        "its {kind} link hasn't been tested in game"
                     )));
                 }
                 Some(bypass)

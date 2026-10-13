@@ -38,18 +38,18 @@ export type MegastructureMove =
 /** Why a row stays where it is, as the tooltip and the status bar say it. */
 export const MEGASTRUCTURE_FIXED = {
   ringWorld: "A ring world section stays where it is",
-  bypass: "This kind of bypass stays where the game put it",
-  starbase: "It stands with a starbase, which stays where it is",
-  whole: "It is part of a larger structure, which stays where it is",
-  centre: "It stands at the system's centre without naming a body, so it stays where it is",
-  made: "It made the planet it stands on, so it stays with it",
+  bypass: "Galaxy Forge can't move this yet, because moving it hasn't been tested in game",
+  starbase: "It comes with a starbase, so it stays where it is",
+  whole: "It's part of a larger structure, so it stays where it is",
+  centre: "It isn't attached to a planet or star, so it stays at the system's centre",
+  made: "Building it created its planet, so it stays with that planet",
 } as const;
 
 /** Why a body will not take a dragged row. */
 export const MEGASTRUCTURE_REFUSALS = {
-  elsewhere: "That body is not in this system",
-  starOnly: (name: string) => `${name} stands only around a star`,
-  planetOnly: (name: string) => `${name} can't stand on a star`,
+  elsewhere: "That planet or star isn't in this system",
+  starOnly: (name: string) => `${name} can only be attached to a star`,
+  planetOnly: (name: string) => `${name} can't be attached to a star`,
   taken: (body: string) => `${body} already has a megastructure`,
 } as const;
 

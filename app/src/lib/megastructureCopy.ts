@@ -16,17 +16,17 @@ import { capitalised, needsGameData } from "./text";
 export const ADD_MEGASTRUCTURE_HERE_LABEL = "Add megastructure here…";
 export const ADD_MEGASTRUCTURE_LABEL = "Add megastructure…";
 export const MEGASTRUCTURES_NEED_GAME_DATA = needsGameData("add a megastructure");
-export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can go here.";
+export const NO_MEGASTRUCTURE_FITS = "No megastructure can go here.";
 /** What the dialog says while it asks the save what goes at the spot. */
-export const READING_FITS = "Reading what can go here…";
+export const READING_FITS = "Checking what can go here…";
 
 /** Why Add wrote nothing: the dialog hadn't read where the megastructure stands. */
 export const NOT_PLACED =
-  "Galaxy Forge hadn't read what can go here yet, so nothing was added. Open the dialog again.";
+  "Galaxy Forge hadn't finished checking what can go here, so nothing was added. Open the dialog again.";
 
 /** What the dialog says when it can't learn what goes at the spot. */
 export function fitsUnread(why: string): string {
-  return `Couldn't read what can go here: ${why}`;
+  return `Couldn't check what can go here: ${why}`;
 }
 
 /** Why the save refuses a stage, as a sentence: the core's reason, capitalised and stopped. */
@@ -36,7 +36,8 @@ export function refusalSentence(reason: string): string {
 }
 
 /** What the dialog says before Add. */
-export const WRITTEN_FINISHED = "The megastructure is added finished.";
+export const WRITTEN_FINISHED =
+  "The megastructure is added already built, at the stage you picked.";
 /**
  * What the dialog says before Add of a type whose finished stage is a habitat, in a system an
  * empire owns when `owned`.
@@ -44,8 +45,8 @@ export const WRITTEN_FINISHED = "The megastructure is added finished.";
 export function writtenAsHabitat(owned: boolean): string {
   const skin = owned
     ? "It has the habitat skin of the empire that owns the system."
-    : "No one owns the system, so it has the habitat class's default skin.";
-  return `The habitat is added finished, as a planet with no colony. ${skin}`;
+    : "No one owns the system, so it has the default habitat skin.";
+  return `The habitat is added already built, as a planet with no colony. ${skin}`;
 }
 /** What the dialog says of a habitat's owner. */
 export const HABITAT_OWNER_NOTE = "A habitat is added with no owner.";
@@ -54,7 +55,7 @@ export const HABITAT_ORBITAL_OWNER_NOTE =
   "Its major orbital goes to the empire that owns the system.";
 /** Why a habitat comes with no major orbital. */
 export const HABITAT_ORBITAL_HOST_TAKEN =
-  "Its host already has a megastructure, so no major orbital is added.";
+  "The planet or star it orbits already has a megastructure, so no major orbital is added.";
 /**
  * What the dialog says of the major orbital that comes with a habitat, in a system an empire
  * owns when `owned`, and `hostTaken` when the habitat's host holds a megastructure already.
@@ -62,7 +63,7 @@ export const HABITAT_ORBITAL_HOST_TAKEN =
 export function habitatOrbitalNote(owned: boolean, hostTaken: boolean): string {
   if (hostTaken) return HABITAT_ORBITAL_HOST_TAKEN;
   const owner = owned ? "owned by the empire that owns the system" : "with no owner";
-  return `A major orbital is added at its host, ${owner}.`;
+  return `A major orbital is added at the planet or star it orbits, ${owner}.`;
 }
 
 /** What the dialog calls a ring world, its tile that adds the whole ring, and the list's summary of it. */
@@ -71,11 +72,11 @@ export const RING_STAGE = "Ring";
 export const RING_WORLD_SUMMARY = "Site or whole ring";
 
 export const BASE_GAME = "Base game";
-export const UNNAMED_TYPES = "Unnamed types";
+export const UNNAMED_TYPES = "Unnamed megastructures";
 
 /**
- * The heading the list shows `entry` under: its mod's name, `Base game`, or `Unnamed types` for
- * one the game names nothing of, which the list shows last.
+ * The heading the list shows `entry` under: its mod's name, `Base game`, or
+ * `Unnamed megastructures` for one the game names nothing of, which the list shows last.
  */
 export function entryHeading(entry: MegastructureEntry): string {
   return entry.unnamed ? UNNAMED_TYPES : (entry.section ?? BASE_GAME);
@@ -106,7 +107,7 @@ export function addLabel(stage: MegastructureStage, chain: MegastructureChain): 
 /** What the dialog says of the owner a new megastructure gets. */
 export const OWNER_NOTE = "It goes to the empire that owns the system.";
 export const NO_OWNER = "No owner";
-export const NO_OWNER_NOTE = "A megastructure goes to the empire that owns its system.";
+export const NO_OWNER_NOTE = "No one owns the system, so the megastructure has no owner.";
 
 /**
  * The dialog's Owner line: who the megastructure goes to, `ownerName` naming the empire that owns
@@ -156,7 +157,7 @@ export function footerLine(
 
 /** What the dialog says of a type it has no model for. */
 export const NO_MODEL = "No model yet";
-export const NO_MODEL_NOTE = "Galaxy Forge can't draw this type's model yet.";
+export const NO_MODEL_NOTE = "Galaxy Forge can't show this megastructure's model yet.";
 
 /**
  * The notice after an add that left out effects of its construction: `unsure` the editor could not
@@ -167,20 +168,18 @@ export function leftOutNotice(name: string, unsure: number, unwritten: number): 
   const parts = [`Added the ${name}.`];
   if (unsure === 1) {
     parts.push(
-      "Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
+      "Galaxy Forge couldn't tell whether 1 effect of building it applies here, so it left that out.",
     );
   } else if (unsure > 1) {
     parts.push(
-      `Galaxy Forge couldn't tell whether ${unsure} of its construction's effects apply, so it left them out.`,
+      `Galaxy Forge couldn't tell whether ${unsure} effects of building it apply here, so it left them out.`,
     );
   }
   if (unwritten === 1) {
-    parts.push(
-      "Galaxy Forge doesn't write 1 of its construction's effects yet, so it left it out.",
-    );
+    parts.push("Galaxy Forge can't add 1 effect of building it yet, so it left that out.");
   } else if (unwritten > 1) {
     parts.push(
-      `Galaxy Forge doesn't write ${unwritten} of its construction's effects yet, so it left them out.`,
+      `Galaxy Forge can't add ${unwritten} effects of building it yet, so it left them out.`,
     );
   }
   return parts.join(" ");

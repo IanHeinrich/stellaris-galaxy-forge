@@ -152,25 +152,25 @@ its star, and an Arc Furnace rings its planet. A megastructure built on
 a planet or moon stays with it when you move the planet. Ring world
 sections turn to face their star, so the pieces of a ring world join up.
 
-![A system with a Dyson Sphere drawn from the game's model](../images/system/megastructures.png)
+![A system with a Dyson Sphere, as it looks in the game](../images/system/megastructures.png)
 
-Habitats and ring world segments are planets, and they show as their
+Habitats and ring world sections are planets, and they show as their
 models from the game too. You select, move and name them as you do any
 other planet. To add a habitat, see
 [Add a habitat](megastructures.md#add-a-habitat). To add a ring world
-with its segments, see
+with its sections, see
 [Add a ring world](megastructures.md#add-a-ring-world).
 
 Each megastructure and starbase shows its name on a plate under it
-while Names is on. One drawn over a star or a planet, such as a Dyson
-Sphere or an Arc Furnace, has its plate under that body's plate. With System details on, a megastructure that
+while Names is on. One that covers a star or a planet, such as a Dyson
+Sphere or an Arc Furnace, has its plate under that star's or planet's plate. With System details on, a megastructure that
 produces resources, such as a Dyson Sphere or a Science Nexus, shows
 what it produces each month under its name. This is the base output,
 before your empire's modifiers, so the game can show a different figure.
 
 Hover over a megastructure or starbase to see its name. Click its model
 to open its page in the Inspector. To select a planet or star under a
-megastructure, click the body itself or its name plate.
+megastructure, click the planet or star itself or its name plate.
 
 Right-click a megastructure to inspect it or delete it. See
 [Delete a megastructure](megastructures.md#delete-a-megastructure).
@@ -192,19 +192,19 @@ A scenario system shows the megastructures and the starbase its
 [initializer](../scenario/initializers.md) places, where the game puts
 them when a new game starts. You need the game data loaded.
 
-- A megastructure placed at a planet stands on that planet. Click Roll
+- A megastructure placed at a planet sits on that planet. Click Roll
   again and it moves with the planet.
-- A megastructure placed at a distance and angle from the star stands
+- A megastructure placed at a distance and angle from the star sits
   at that point, such as the ruined ring world sections in a fallen
   empire's home system.
-- The starbase stands beside the star, where the game puts a system's
+- The starbase sits beside the star, where the game puts a system's
   first starbase.
 - A megastructure or starbase the game may not place has a dashed halo.
   That covers one the initializer places only under a condition, and
   one on a planet the game may not place.
 - The game places some ruins, such as a ruined gateway or a ruined
   Hyper Relay, at random when the game starts. Each shows faint at a
-  typical spot, with "placed at random" after its name. A relay stands
+  typical spot, with "placed at random" after its name. A relay sits
   just outside the inner radius, and a gateway halfway between the inner
   and outer radius. You can't select these.
 

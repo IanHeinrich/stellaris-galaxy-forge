@@ -94,7 +94,7 @@ describe("the Add megastructure dialog", () => {
       "Produces each month",
       "Empire effects",
       "+5 Max Energy",
-      "Adding it also writes",
+      "It also adds",
       "A Dyson Glow modifier on the system",
     ].map((part) => html.indexOf(part));
     expect(parts).not.toContain(-1);
@@ -107,7 +107,7 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain("<h2>Loom</h2>");
     expect(html).not.toContain("Produces each month");
     expect(html).not.toContain("Empire effects");
-    expect(html).not.toContain("Adding it also writes");
+    expect(html).not.toContain("It also adds");
     expect(html).not.toContain("megastructure-add-description");
   });
 
@@ -185,7 +185,7 @@ describe("the Add megastructure dialog", () => {
     useGameDataStore.setState({ megastructureTypes: new Map() });
     openAt(space);
     const html = dialog();
-    expect(html).toContain("No megastructure the game data defines can go here.");
+    expect(html).toContain("No megastructure can go here.");
     expect(html).toContain('type="submit" class="primary" disabled=""');
   });
 });

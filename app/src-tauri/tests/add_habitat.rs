@@ -79,7 +79,8 @@ fn a_type_that_is_no_habitat_and_a_moon_are_refused() {
     )
     .expect_err("the ruin");
     assert!(
-        ruin.message.contains("not finished as a habitat"),
+        ruin.message
+            .contains("doesn't become a habitat when it's finished"),
         "{}",
         ruin.message
     );

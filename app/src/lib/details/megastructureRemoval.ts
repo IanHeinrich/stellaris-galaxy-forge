@@ -102,7 +102,7 @@ export function deleteMegastructureQuestion(
       : ` The colony on ${colony.planet} goes with it: ${colonyParts(colony.page)}. The planet stays.`;
   const kept =
     dismantle === null && !added
-      ? " Without game data, the modifiers its construction added stay."
+      ? " Game data isn't loaded, so the modifiers from building it stay."
       : "";
   return `Delete ${name}${where}? It is removed from the save.${settled}${kept}`;
 }

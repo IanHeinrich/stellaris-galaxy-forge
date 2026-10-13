@@ -37,7 +37,7 @@ fn a_ruined_orbital_ring_leaves_its_planet_free() {
     assert_eq!(
         refused.as_deref(),
         Some(
-            "planet 936 cannot be deleted: a megastructure stands on or around it: delete the megastructure first"
+            "planet 936 cannot be deleted: it has a megastructure, so delete the megastructure first"
         )
     );
     snapshot_step(&mut session, "orbital_ring_ruined", delete(4));
@@ -147,7 +147,7 @@ fn what_is_refused() {
         [
             (
                 delete(0),
-                "megastructure 0 cannot be deleted: its bypass is a lgate, which has not been tried in game",
+                "megastructure 0 cannot be deleted: its lgate link hasn't been tested in game",
             ),
             (delete(14), "Megastructure 14 does not exist"),
             (delete(999), "Megastructure 999 does not exist"),
@@ -173,7 +173,7 @@ fn a_ring_world_quadrant_is_refused() {
         &mut session,
         [(
             delete(4),
-            "megastructure 4 cannot be deleted: it is part of a ring world: delete the ring world",
+            "megastructure 4 cannot be deleted: it is part of a ring world, so delete the whole ring world instead",
         )],
     );
 }
