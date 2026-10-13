@@ -293,7 +293,9 @@ describe("a scenario body's class picker", () => {
       [expect.stringContaining("barren"), "true"],
       [expect.stringContaining("toxic"), "false"],
     ]);
-    expect(rows.every((r) => r.html.includes('role="button" tabindex="0"'))).toBe(true);
+    expect(rows.every((r) => r.html.startsWith('<button type="button" class="pl-pool-row"'))).toBe(
+      true,
+    );
   });
 
   it("gives a star of a rolled list the same picker over its odds, asking as its star's class", async () => {

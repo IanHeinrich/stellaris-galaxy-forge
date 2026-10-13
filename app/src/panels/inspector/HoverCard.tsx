@@ -14,6 +14,7 @@ import {
 } from "../../lib/details/picker";
 import { GameText } from "../GameText";
 import { scrollParents } from "../scrollParents";
+import "../panels.css";
 import "./inspector.css";
 
 export const NO_DESCRIPTION = "No description";
@@ -167,7 +168,7 @@ export function HoverCard({
     <div
       id={id}
       ref={card}
-      className={under ? "dp-card under" : "dp-card"}
+      className={under ? "dp-card pop-surface under" : "dp-card pop-surface"}
       style={
         under
           ? undefined

@@ -11,7 +11,7 @@ import { Section } from "../parts";
 import { ModifierArt } from "./ModifierArt";
 import { MODIFIER_PICKER } from "./ModifierPicker";
 import { PickedRow } from "./PickedRow";
-import type { Spread } from "./PlanetDeposits";
+import type { Spread } from "./RowParts";
 import { modifierCard } from "./modifierCard";
 import { EffectSummary, HoverCard } from "../HoverCard";
 import { useHoverCard } from "../useHoverCard";
@@ -63,18 +63,8 @@ export function ModifierRowView({
         art={<ModifierArt icon={view?.icon} frame={view?.icon_frame} />}
         name={name}
         mono={view === undefined}
-        lines={[
-          ...(line === undefined ? [] : [{ className: "l2" as const, text: line }]),
-          ...(spread === undefined
-            ? []
-            : [
-                { className: "l3" as const, text: spread.line },
-                {
-                  className: "l3" as const,
-                  text: <span className="pl-spread-acts">{spread.actions}</span>,
-                },
-              ]),
-        ]}
+        lines={line === undefined ? [] : [{ className: "l2", text: line }]}
+        spread={spread}
         remove={
           onRemove === null
             ? null

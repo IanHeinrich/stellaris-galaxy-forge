@@ -23,6 +23,7 @@ import { headerRows } from "../iconPickerRows";
 import { ENTER } from "../keys";
 import { GameText } from "../GameText";
 import { FilterField, Icon } from "../parts";
+import "../panels.css";
 
 /**
  * The megastructure list: a filter over every megastructure and stage name, and the
@@ -95,6 +96,7 @@ export function MegastructureList({
             <li
               key={entry.key}
               id={optionId(i)}
+              className="listbox-option"
               role="option"
               aria-selected={entry.key === current?.key}
               onClick={() => onSelect(entry)}
@@ -157,7 +159,9 @@ function Tile({
       id={id}
       role="option"
       className={
-        refused ? "megastructure-add-tile megastructure-add-refused" : "megastructure-add-tile"
+        refused
+          ? "megastructure-add-tile listbox-option megastructure-add-refused"
+          : "megastructure-add-tile listbox-option"
       }
       aria-selected={selected}
       aria-disabled={refused || undefined}

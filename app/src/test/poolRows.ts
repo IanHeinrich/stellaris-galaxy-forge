@@ -25,7 +25,7 @@ export interface ShownPoolRow {
 }
 
 const ROW =
-  /<div class="pl-pool-row"([^>]*)><span class="pl-pool-icon">(.*?)<\/span><span class="pl-pool-name">(.*?)<\/span><span class="pl-pool-cell">(.*?)<\/span><span class="muted pl-pool-chance">([^<]*)<\/span>/g;
+  /<(?:div|button type="button") class="pl-pool-row"([^>]*)><span class="pl-pool-icon">(.*?)<\/span><span class="pl-pool-name">(.*?)<\/span><span class="pl-pool-cell">(.*?)<\/span><span class="muted pl-pool-chance">([^<]*)<\/span>/g;
 
 const SEGMENT =
   /class="pl-pool-seg" style="flex-grow:([^;]*);background:([^;"]*)(?:;color:([^"]*))?">([^<]*)<\/span>/g;

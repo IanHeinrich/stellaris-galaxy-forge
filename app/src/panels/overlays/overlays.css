@@ -435,14 +435,6 @@
   white-space: nowrap;
 }
 
-.megastructure-add-list > [role="option"]:hover {
-  background: var(--bg-panel);
-}
-
-.megastructure-add-list > [role="option"][aria-selected="true"] {
-  background: var(--accent-bg);
-}
-
 .megastructure-add-section {
   padding: 6px 10px 2px;
   color: var(--fg-muted);
@@ -526,9 +518,8 @@
   text-align: left;
 }
 
-.ring-world-size,
-.ring-world-set-all,
-.ring-world-planets {
+.radio-choice,
+.ring-world-set-all {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -540,8 +531,7 @@
   font-size: var(--text-note);
 }
 
-.ring-world-size label,
-.ring-world-planets label {
+.radio-choice label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -569,19 +559,6 @@
   gap: 4px;
   min-width: 0;
   padding: 4px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.megastructure-add-tile:hover {
-  background: var(--bg-panel);
-  border-color: var(--border);
-}
-
-.megastructure-add-tile[aria-selected="true"] {
-  background: var(--accent-bg);
-  border-color: var(--accent);
 }
 
 .megastructure-add-refused {

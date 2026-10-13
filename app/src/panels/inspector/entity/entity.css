@@ -623,7 +623,9 @@
 }
 
 .pl-pool-row[tabindex]:hover,
-.pl-pool-row[tabindex]:focus-visible {
+.pl-pool-row[tabindex]:focus-visible,
+button.pl-pool-row:hover,
+button.pl-pool-row:focus-visible {
   background: var(--bg-elevated);
 }
 
@@ -663,7 +665,8 @@
   transition: background 80ms;
 }
 
-.pl-pool-row[tabindex]:hover .pl-pool-track {
+.pl-pool-row[tabindex]:hover .pl-pool-track,
+button.pl-pool-row:hover .pl-pool-track {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -786,7 +789,14 @@
   color: var(--fg);
 }
 
-.pl-pool-row[role="button"] {
+button.pl-pool-row {
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
   cursor: pointer;
 }
 

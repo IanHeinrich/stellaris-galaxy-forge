@@ -31,13 +31,13 @@ import { EditBlock, EditNote, EditRow, ToggleField } from "../../EditField";
 import { Icon } from "../../parts";
 import { Empty, Section } from "../parts";
 import { BODY_SOURCES, type BodyAnswer, type BodySource } from "../entity/bodySources";
-import { ConfirmLine } from "../entity/ConfirmLine";
 import { DEPOSIT_PICKERS } from "../entity/DepositPicker";
 import { MODIFIER_PICKER } from "../entity/ModifierPicker";
 import { PlanetClassField } from "../entity/PlanetClassField";
-import { DepositRow } from "../entity/PlanetDeposits";
+import { DepositRow, RemovalConfirm } from "../entity/PlanetDeposits";
 import { ModifierRowView } from "../entity/PlanetModifiers";
 import { PlanetPicker } from "../entity/PlanetPicker";
+import { SpreadActions } from "../entity/RowParts";
 import { SizeField } from "../entity/StarBlock";
 import {
   useSelectedBodies,
@@ -169,26 +169,14 @@ function SpreadDepositRow({
     void edits.removeDeposit(group.kind);
   };
   const actions = (
-    <>
-      {lacking > 0 && (
-        <button
-          type="button"
-          className="dp-amount"
-          title={`Add one ${name} to each body without one`}
-          onClick={() => void edits.fillDeposit(group.kind)}
-        >
-          Add to the other {lacking}
-        </button>
-      )}
-      <button
-        type="button"
-        className="dp-amount"
-        title={`Remove one ${name} from each body that has one`}
-        onClick={warnings.length === 0 ? remove : () => setConfirming(group.kind)}
-      >
-        Remove from {holders.length}
-      </button>
-    </>
+    <SpreadActions
+      lacking={lacking}
+      holders={holders.length}
+      addTitle={`Add one ${name} to each body without one`}
+      removeTitle={`Remove one ${name} from each body that has one`}
+      onAdd={() => void edits.fillDeposit(group.kind)}
+      onRemove={warnings.length === 0 ? remove : () => setConfirming(group.kind)}
+    />
   );
   return (
     <>
@@ -198,15 +186,14 @@ function SpreadDepositRow({
         removal={null}
         spread={{ line: spreadLine(holders, bodies.length), actions }}
       />
-      {confirming && warnings.length > 0 && (
-        <ConfirmLine
-          className="pl-dep-confirm"
-          warnings={warnings}
-          confirmLabel="Remove anyway"
-          onConfirm={remove}
-          onCancel={() => setConfirming(null)}
-        />
-      )}
+      <RemovalConfirm
+        removal={{
+          warnings,
+          confirming: confirming && warnings.length > 0,
+          confirm: remove,
+          cancel: () => setConfirming(null),
+        }}
+      />
     </>
   );
 }
@@ -277,26 +264,14 @@ function ModifiersSection({
         const lacking = planets.length - holders.length;
         const name = row.view?.name ?? row.key;
         const actions = (
-          <>
-            {lacking > 0 && (
-              <button
-                type="button"
-                className="dp-amount"
-                title={`Add ${name} to each planet without it, for good`}
-                onClick={() => void edits.fillModifier(row)}
-              >
-                Add to the other {lacking}
-              </button>
-            )}
-            <button
-              type="button"
-              className="dp-amount"
-              title={`Remove ${name} from each planet that has it`}
-              onClick={() => void edits.removeModifier(row)}
-            >
-              Remove from {holders.length}
-            </button>
-          </>
+          <SpreadActions
+            lacking={lacking}
+            holders={holders.length}
+            addTitle={`Add ${name} to each planet without it, for good`}
+            removeTitle={`Remove ${name} from each planet that has it`}
+            onAdd={() => void edits.fillModifier(row)}
+            onRemove={() => void edits.removeModifier(row)}
+          />
         );
         return (
           <ModifierRowView

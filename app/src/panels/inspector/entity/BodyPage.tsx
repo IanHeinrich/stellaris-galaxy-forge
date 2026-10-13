@@ -17,7 +17,6 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
-import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { canEnterSystem, useBodyShown, useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { Chip } from "../../parts";
@@ -55,16 +54,13 @@ import {
 } from "./SpawnRows";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useGivenNames } from "./useBodyName";
+import { usePlanetData } from "./usePlanetData";
 import { useClassPreview } from "./useClassPreview";
 import "./entity.css";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations, anomaly, dig site and class names. */
-function usePlanetData(read: BodyRead): void {
-  const generation = usePlanetDataStore((s) => s.generation);
-  const { dataKeys } = read;
-  useEffect(() => {
-    usePlanetDataStore.getState().request(dataKeys);
-  }, [dataKeys, generation]);
+function usePageData(read: BodyRead): void {
+  usePlanetData(read.dataKeys);
   const moons = read.details.planets.filter((p) => p.parent === read.summary.id);
   useNamed([read.summary.class, ...moons.map((m) => m.class)]);
 }
@@ -256,7 +252,7 @@ const SECTIONS: readonly {
 function BodyOverview({ read: listedRead }: { read: BodyRead }) {
   const preview = useClassPreview(listedRead);
   const read = preview.read;
-  usePlanetData(read);
+  usePageData(read);
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { selectedBody, type SelectedBody } from "../../../lib/details/bodiesEdit";
@@ -8,9 +8,10 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useEntityStore } from "../../../store/entityStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { bodiesStale } from "../../../store/planetEditAdapter";
-import { usePlanetDataStore, type PlanetDataKeys } from "../../../store/planetDataStore";
+import type { PlanetDataKeys } from "../../../store/planetDataStore";
 import type { BodySelection } from "../../../store/sceneStore";
 import type { BodyAnswer, Listed } from "../entity/bodySources";
+import { usePlanetData } from "../entity/usePlanetData";
 
 /** A selected body its system's details list, as a body's source is handed it. */
 export interface ListedBody {
@@ -55,22 +56,22 @@ function answerParts(answer: BodyAnswer): readonly unknown[] {
 }
 
 /** Asks for the game data the rows show: every deposit and modifier the answers name. */
-function usePlanetData(answers: readonly BodyAnswer[]): void {
-  const generation = usePlanetDataStore((s) => s.generation);
-  const [memo] = useState(() => lastOf<PlanetDataKeys[]>());
+function useRowData(answers: readonly BodyAnswer[]): void {
+  const [memo] = useState(() => lastOf<PlanetDataKeys>());
   const keys = memo(
     answers.map((a) => ("read" in a ? a.read.dataKeys : null)),
-    () => answers.flatMap((a) => ("read" in a ? [a.read.dataKeys] : [])),
+    () => {
+      const read = answers.flatMap((a) => ("read" in a ? [a.read.dataKeys] : []));
+      return {
+        deposits: read.flatMap((k) => k.deposits),
+        modifiers: read.flatMap((k) => k.modifiers),
+        colonyTypes: [],
+        anomalies: [],
+        digSites: [],
+      };
+    },
   );
-  useEffect(() => {
-    usePlanetDataStore.getState().request({
-      deposits: keys.flatMap((k) => k.deposits),
-      modifiers: keys.flatMap((k) => k.modifiers),
-      colonyTypes: [],
-      anomalies: [],
-      digSites: [],
-    });
-  }, [keys, generation]);
+  usePlanetData(keys);
 }
 
 /**
@@ -87,7 +88,7 @@ export function useSelectedBodies(
   const starClasses = useGameDataStore((s) => s.starClasses);
   const names = useGameDataStore((s) => s.names);
   const [memo] = useState(() => lastOf<ReadBodies | null>());
-  usePlanetData(answers);
+  useRowData(answers);
   return memo(
     [listing, read, planetClasses, starClasses, names, ...answers.flatMap(answerParts)],
     () => {

@@ -127,7 +127,11 @@ function TilePanel({
             key={item.key}
             id={tileId(i)}
             role="option"
-            className={i === active ? "tile-panel-tile active" : "tile-panel-tile"}
+            className={
+              i === active
+                ? "tile-panel-tile listbox-option active"
+                : "tile-panel-tile listbox-option"
+            }
             aria-selected={item.key === current.key}
             aria-label={item.label}
             title={item.label}

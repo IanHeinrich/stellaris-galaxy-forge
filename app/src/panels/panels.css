@@ -69,10 +69,6 @@
   list-style: none;
   font-size: var(--text-control);
   color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 /* Without room below the field, the list opens above it. */
@@ -125,12 +121,6 @@
   gap: 6px;
   min-height: 34px;
   padding: 0 6px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.icon-picker-option.active {
-  background: var(--bg-panel);
 }
 
 .icon-picker-option[aria-selected="true"] .icon-picker-label {
@@ -481,22 +471,6 @@
   justify-content: center;
   aspect-ratio: 1;
   padding: 3px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.tile-panel-tile.active {
-  background: var(--bg-panel);
-  border-color: var(--border);
-}
-
-.tile-panel-grid:focus-visible .tile-panel-tile.active {
-  border-color: var(--fg-muted);
-}
-
-.tile-panel-tile[aria-selected="true"] {
-  border-color: var(--accent);
 }
 
 .tile-panel-thumb {
@@ -527,10 +501,6 @@
   list-style: none;
   font-size: var(--text-control);
   color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow-pop);
 }
 
 .combo-option {
@@ -832,4 +802,35 @@ button.link.snippet-more .tri {
 
 .gt-icon {
   vertical-align: -2px;
+}
+
+/* A popover's surface: menus, pickers' lists and the Inspector's hover card. */
+.pop-surface {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-pop);
+}
+
+/* An option of a listbox or a tile of a grid: raised while the arrows or the pointer are on it,
+   ringed while its list has the keyboard, and in the accent while it is the one chosen. */
+.listbox-option {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.listbox-option.active,
+.listbox-option:hover {
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+[role="listbox"]:focus-visible .listbox-option.active {
+  border-color: var(--fg-muted);
+}
+
+.listbox-option[aria-selected="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent);
 }

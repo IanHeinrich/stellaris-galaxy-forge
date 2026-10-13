@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
 import type { ResourceAmountView } from "../../../generated/ResourceAmountView";
 import { formatAmount } from "../../../lib/details/resources";
@@ -31,6 +31,7 @@ import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
 import { depositPoolTail } from "../../../lib/details/depositBars";
 import { DepositPoolBars } from "./DepositPoolBars";
+import { RemoveButton, SpreadLines, type RemoveAction, type Spread } from "./RowParts";
 import { ResourceIcon } from "./ResourceIcon";
 import { PoolLines } from "./Pools";
 import { useEntityView, useOpenEntity } from "./useEntity";
@@ -43,10 +44,7 @@ const groupKey = (group: DepositGroup) => `${group.kind}|${group.swapType ?? ""}
  * A button that takes one deposit of a row's type off the planet. With `warnings`, the row
  * shows them with a confirm in place of removing at once.
  */
-export interface Removal {
-  title: string;
-  label: string;
-  run: () => void;
+export interface Removal extends RemoveAction {
   warnings: readonly string[];
   confirming: boolean;
   confirm: () => void;
@@ -54,7 +52,11 @@ export interface Removal {
 }
 
 /** What the game takes away for a removal, and the buttons that make it or drop it. */
-export function RemovalConfirm({ removal }: { removal: Removal | null }) {
+export function RemovalConfirm({
+  removal,
+}: {
+  removal: Pick<Removal, "warnings" | "confirming" | "confirm" | "cancel"> | null;
+}) {
   if (removal === null || !removal.confirming) return null;
   return (
     <ConfirmLine
@@ -156,37 +158,8 @@ function RowEnd({ count, removal }: { count: number; removal: Removal | null }) 
   return (
     <span className="pl-dep-end">
       <Count count={count} />
-      {removal !== null && (
-        <button
-          type="button"
-          className="pl-dep-remove"
-          title={removal.title}
-          aria-label={removal.label}
-          onClick={removal.run}
-        >
-          ✕
-        </button>
-      )}
+      {removal !== null && <RemoveButton remove={removal} className="pl-dep-remove" />}
     </span>
-  );
-}
-
-/**
- * Who of several selected bodies has a row, and the buttons that act on it; drawn under the row's
- * other lines.
- */
-export interface Spread {
-  line: string;
-  actions: ReactNode;
-}
-
-function SpreadLines({ spread }: { spread: Spread | undefined }) {
-  if (spread === undefined) return null;
-  return (
-    <>
-      <span className="l3">{spread.line}</span>
-      <span className="pl-spread-acts">{spread.actions}</span>
-    </>
   );
 }
 

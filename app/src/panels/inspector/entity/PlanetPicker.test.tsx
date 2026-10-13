@@ -155,7 +155,7 @@ describe("a picker's rows and card", () => {
     });
     const html = renderToStaticMarkup(<PlanetPicker kind={MODIFIER_PICKER} target={TARGET} />);
     expect(html).toMatch(/class="dp-row active" aria-describedby="(mp-row-[^"]+-details)"/);
-    expect(html).toMatch(/<div id="mp-row-[^"]+-details" class="dp-card"/);
+    expect(html).toMatch(/<div id="mp-row-[^"]+-details" class="dp-card pop-surface"/);
     expect(html).toContain(
       '<span class="dp-card-name">Rocky Planet</span>' +
         '<span class="dp-card-category muted">Positive</span>' +

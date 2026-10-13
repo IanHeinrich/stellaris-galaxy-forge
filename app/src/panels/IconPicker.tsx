@@ -222,7 +222,7 @@ export function IconPicker({
 
   const listbox = (
     <ul
-      className={filtered ? "icon-picker-list" : "icon-picker-pop"}
+      className={filtered ? "icon-picker-list" : "icon-picker-pop pop-surface"}
       id={listId}
       role="listbox"
       aria-label={label}
@@ -276,7 +276,7 @@ export function IconPicker({
       {open &&
         !disabled &&
         (filtered ? (
-          <div className="icon-picker-pop icon-picker-filtered" ref={filteredPop}>
+          <div className="icon-picker-pop icon-picker-filtered pop-surface" ref={filteredPop}>
             <FilterField
               label={`Filter ${items.length} choices`}
               value={query}
@@ -324,7 +324,9 @@ function Option({
       <li
         id={id}
         role="option"
-        className={active ? "icon-picker-option active" : "icon-picker-option"}
+        className={
+          active ? "icon-picker-option listbox-option active" : "icon-picker-option listbox-option"
+        }
         aria-selected={selected}
         onMouseMove={active ? undefined : onHover}
         onClick={onPick}

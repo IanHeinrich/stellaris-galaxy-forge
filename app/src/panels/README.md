@@ -14,6 +14,8 @@ dialog with a form uses; its rules (`.dialog*`, `button.primary`) are in
 `gridStep`) and `scrollParents.ts` the walk up to the boxes that scroll.
 `inspector/HoverCard.tsx` is the Inspector's hover card and
 `inspector/useHoverCard.ts` its wiring.
+`panels.css` holds `.pop-surface`, the surface every popover wears, and
+`.listbox-option`, the states an option or tile of a listbox shows.
 
 ## Stylesheets
 

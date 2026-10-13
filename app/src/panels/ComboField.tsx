@@ -115,7 +115,7 @@ export function ComboField({
         </span>
       </span>
       {open && (
-        <ul className="combo-pop" id={`${id}-list`} role="listbox" aria-label={label}>
+        <ul className="combo-pop pop-surface" id={`${id}-list`} role="listbox" aria-label={label}>
           {shown.length === 0 && (
             <li className="combo-more muted" role="presentation">
               {empty}
