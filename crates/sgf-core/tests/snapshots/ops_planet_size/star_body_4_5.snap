@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Set the size of Xu Nur #584 from 29 to 40
+Set the size of star Xu Nur #584 from 29 to 40
 inverse: SetBodySize { body: 584, size: 29 }
 
 --- gamestate

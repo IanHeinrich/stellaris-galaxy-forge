@@ -36,7 +36,7 @@ fn the_4_5_samples_star_body_grows_and_back() {
     let result = change(&mut session, 1, 584, 40, "star_body_4_5");
     assert_eq!(
         result.entry.description,
-        "Set the size of Xu Nur #584 from 29 to 40"
+        "Set the size of star Xu Nur #584 from 29 to 40"
     );
     assert_eq!(result.inverse, set(584, 29));
 }

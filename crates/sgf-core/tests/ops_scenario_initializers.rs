@@ -4,6 +4,7 @@
 use crate::common::batch::initializers;
 use sgf_core::document::Document;
 use sgf_core::ops::{NewSystem, Op, OpError};
+use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -33,6 +34,73 @@ fn set_initializer_leaves_the_spawn_weight_beside_it_alone() {
             initializer: Some("misc_system_init_01".to_owned()),
         },
     );
+}
+
+/// System 77 writes its statements on lines of their own, `name` after `position`.
+fn late_name() -> Session {
+    let lonely = "	system = { id = \"9\" name = \"Lonely\" position = { x = -90 y = 90 } }
+";
+    let late = "	system = {
+		id = \"77\"
+		position = { x = -30 y = 120 }
+		name = \"Late Name\"
+	}
+";
+    GRAMMAR.open_edited(&[(lonely, &format!("{lonely}{late}"))])
+}
+
+/// A new initializer goes after the system's `name` and `position`, on its own line, where a
+/// seat that gives the system one writes it.
+#[test]
+fn set_initializer_goes_after_a_name_written_after_the_position() {
+    let initializer = "random_empire_init_01";
+    snapshot(
+        "set_initializer_after_a_late_name",
+        late_name(),
+        Op::SetInitializer {
+            system: 77,
+            initializer: Some(initializer.to_owned()),
+        },
+    );
+    let applied = |op| {
+        let mut session = late_name();
+        session.apply(op).expect("apply");
+        String::from_utf8(current(&session)).expect("utf-8")
+    };
+    let set = applied(Op::SetInitializer {
+        system: 77,
+        initializer: Some(initializer.to_owned()),
+    });
+    let seated = applied(Op::SetSpawnScript {
+        system: 77,
+        script: Some(SpawnScript::PaintAGalaxy {
+            kind: PaintSpawnKind::Enabled,
+            random_value: 1,
+            player: false,
+        }),
+    });
+    let written = |text: &str| {
+        let at = text.find("id = \"77\"").expect("system 77");
+        let line = text[at..]
+            .lines()
+            .find(|line| line.contains("initializer = "))
+            .expect("an initializer line")
+            .trim()
+            .to_owned();
+        let before = text[at..]
+            .split(&line)
+            .next()
+            .expect("text before it")
+            .to_owned();
+        (before, line)
+    };
+    let (set_before, set_line) = written(&set);
+    let (seated_before, seated_line) = written(&seated);
+    assert_eq!(
+        set_before, seated_before,
+        "both go after the same statement"
+    );
+    assert!(set_line.starts_with("initializer = ") && seated_line.starts_with("initializer = "));
 }
 
 /// One that already names an initializer, one that names none, and one cleared.

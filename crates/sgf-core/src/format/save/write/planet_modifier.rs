@@ -81,7 +81,7 @@ pub(crate) fn plan_add(
         add_feature_line(edit, feature)?;
     }
     Ok(Planned {
-        description: add_description(&named_planet(&s.doc, id)?, modifier, days, written),
+        description: add_description(&named_planet(s, id)?, modifier, days, written),
         inverse: Op::RemoveBodyModifier {
             body: id,
             modifier: modifier.to_owned(),
@@ -128,7 +128,7 @@ pub(crate) fn plan_remove(
             edit.bytes().remove_lines(span);
         }
     }
-    let named = named_planet(&s.doc, id)?;
+    let named = named_planet(s, id)?;
     let description = match taken {
         Some(feature) => format!("Removed planet feature {feature} ({modifier}) from {named}"),
         None => format!("Removed modifier {modifier} from {named}"),

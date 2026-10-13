@@ -113,7 +113,7 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
             ],
             vec![
                 "Added d_minerals_3 (#16777216) to planet #3",
-                "Added d_energy_2 (#16777217) to Alari system #0",
+                "Added d_energy_2 (#16777217) to star Alari system #0",
                 "Removed d_minerals_3 (#16777216) from planet #3",
             ],
         ),
@@ -191,7 +191,7 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
                 json!({ "type": "RemoveColony", "body": 517 }),
             ],
             vec![
-                "Added Meissa V #16777273 to Meissa #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit",
+                "Added planet Meissa V #16777273 to Meissa #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit",
                 "Deleted planet #99 and its 2 moons",
                 "Removed colony #18 from Vinh III #517",
             ],

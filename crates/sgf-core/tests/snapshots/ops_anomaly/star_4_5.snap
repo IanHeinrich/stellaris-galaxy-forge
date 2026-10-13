@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added anomaly DISTAR_TIME_CAT to Xu Nur #584
+Added anomaly DISTAR_TIME_CAT to star Xu Nur #584
 inverse: RemoveAnomaly { body: 584 }
 
 --- gamestate

@@ -233,8 +233,8 @@ fn to_body(
         "Moved megastructure #{id} ({}) in {} from {} to {}{standing}",
         tied.kind,
         named(&s.graph, system),
-        named_planet(&s.doc, from)?,
-        named_planet(&s.doc, body)?
+        named_planet(s, from)?,
+        named_planet(s, body)?
     ))
 }
 
@@ -262,7 +262,7 @@ fn beside(
         return Err(OpError::unchanged(format!("megastructure {id}"), state));
     }
     splice_coordinate(edit, at.0, at.1)?;
-    let planet = named_planet(&s.doc, body)?;
+    let planet = named_planet(s, body)?;
     let to = if same_point(at, home) {
         format!("back to {planet}")
     } else {

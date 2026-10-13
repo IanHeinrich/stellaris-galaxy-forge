@@ -45,10 +45,16 @@ impl<'s> PlanetEntry<'s> {
     }
 }
 
-/// What a description calls planet `id`: [`named_body`] over the name the save holds.
-pub(crate) fn named_planet(doc: &Document, id: u32) -> Result<String, OpError> {
-    let (node, src) = planet_entity(doc, id)?;
-    Ok(named_body(&read::name(&node, src), id))
+/// What a description calls body `id`: [`named_body`] over the name the save holds, or
+/// [`named_as`] "star" for a star, whose name is often its system's.
+pub(crate) fn named_planet(s: &Session, id: u32) -> Result<String, OpError> {
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
+    let primary = bodies(&s.doc, system)?.first() == Some(&id);
+    let name = read::name(&node, src);
+    Ok(match is_star(role(&node, src, primary, s.star_classes())) {
+        true => named_as("star", &name, id),
+        false => named_body(&name, id),
+    })
 }
 
 /// [`named_planet`] for a body of kind `kind` ("moon Lachium I a #2448").

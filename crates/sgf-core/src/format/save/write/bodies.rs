@@ -122,7 +122,7 @@ pub(crate) fn plan_parent(
     let kind = kind_of(&stored, body);
     let becomes = match parent {
         Some(parent) if star => format!("a planet of {}", named_planet_as(&s.doc, "star", parent)?),
-        Some(parent) => format!("a moon of {}", named_planet(&s.doc, parent)?),
+        Some(parent) => format!("a moon of {}", named_planet(s, parent)?),
         None if kind == "moon" => "a planet".to_owned(),
         None => "a planet of the system's centre".to_owned(),
     };

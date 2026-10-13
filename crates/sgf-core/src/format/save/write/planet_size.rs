@@ -34,7 +34,7 @@ pub(crate) fn plan_set(
     Ok(Planned {
         description: format!(
             "Set the size of {} from {old} to {size}",
-            named_planet(&s.doc, id)?
+            named_planet(s, id)?
         ),
         inverse: Op::SetBodySize {
             body: id,

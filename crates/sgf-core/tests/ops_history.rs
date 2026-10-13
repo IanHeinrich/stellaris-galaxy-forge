@@ -174,8 +174,7 @@ const BYTES_DIFFER: [(&str, &str); 17] = [
 const DETAILS_READ_BACK_NEAR: [&str; 3] = ["MoveBody", "SetBodyParent", "MoveBodyToSystem"];
 
 /// Ops whose inverse's inverse, applied after the inverse put the bytes back, writes other
-/// bytes than the op did. A save's nebula keeps the clouds the op took the first time, and
-/// a scenario system's name is written after its spawn weight.
+/// bytes than the op did. A save's nebula keeps the clouds the op took the first time.
 const REWRITES_ANOTHER_WAY: [(&str, DocumentKind); 2] = [
     ("MoveNebula", DocumentKind::Save),
     ("RemoveNebula", DocumentKind::Save),

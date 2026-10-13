@@ -30,7 +30,7 @@ pub(crate) fn plan_set(
         return Err(OpError::unchanged(format!("planet {id}"), state));
     }
     set_flag(plan.edit_planet(&s.doc, id, system)?, RING_FLAG, ring)?;
-    let named = named_planet(&s.doc, id)?;
+    let named = named_planet(s, id)?;
     let description = match ring {
         true => format!("Gave {named} a ring"),
         false => format!("Took the ring off {named}"),
