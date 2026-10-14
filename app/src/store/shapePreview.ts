@@ -5,7 +5,7 @@ import { extentOf } from "../lib/guides";
 import { needsGameData } from "../lib/text";
 import { PlacementGround } from "../lib/placement/ground";
 import { shapePlacement } from "../lib/shapes/placement";
-import { PLACEMENT_RULES, shapePath, type PlacementPath } from "../lib/shapes/rules";
+import { PLACEMENT_RULES, shapePath, type PlacementPath } from "../lib/placement/rules";
 import { starWeights } from "../lib/shapes/stars";
 import type { PendingShape, ShapeGround, ShapePreview } from "../lib/shapes/types";
 import type { SpatialGrid } from "../lib/spatialGrid";

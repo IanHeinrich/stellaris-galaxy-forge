@@ -17,6 +17,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixture";
 import { openPlaced, sent, sym } from "./symmetryFixture";
 import { spreadBrush, useToolStore } from "./toolStore";
+import { placementBoundsNow } from "./toolStore.shape";
 import { mockedIpc } from "../test/ipc";
 import { flush } from "../test/flush";
 import type { EditResult } from "../generated/EditResult";
@@ -491,11 +492,9 @@ describe("a spread stroke", () => {
     await openFixtureSave();
     const radius = useGalaxyStore.getState().galaxy!.galaxy_radius;
     expect(radius).toBeGreaterThan(0);
-    expect(spreadBrush(false)).toMatchObject({
-      gap: SPAWN_BUFFER,
-      edge: { shape: "circle", radius },
-    });
-    expect(SPAWN_BUFFER).toBe(10);
+    const bounds = { gap: SPAWN_BUFFER, edge: { shape: "circle", radius } };
+    expect(placementBoundsNow()).toEqual(bounds);
+    expect(spreadBrush(false)).toMatchObject(bounds);
   });
 
   it("works its moves out from where a stroke sent before it left the systems", async () => {

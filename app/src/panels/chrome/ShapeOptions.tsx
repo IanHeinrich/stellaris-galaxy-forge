@@ -8,7 +8,7 @@ import {
   shapePath,
   type PlacementPath,
   type PlacementRules,
-} from "../../lib/shapes/rules";
+} from "../../lib/placement/rules";
 import {
   FILL_CHOICES,
   fillChoiceLabel,

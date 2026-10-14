@@ -9,8 +9,6 @@ import {
 } from "../lib/brush/heightBrush";
 import { homeSystems } from "../lib/brush/special";
 import type { SpreadBrush } from "../lib/brush/spread";
-import { systemGap } from "../lib/documentKinds";
-import { mapExtent } from "../lib/guides";
 import { LANE_MODES, type LaneMode } from "../lib/placement/lanes";
 import { LEAST_SPACING, MOST_SPACING } from "../lib/placement/limits";
 import { clampTo } from "../lib/geometry/geometry";
@@ -23,7 +21,7 @@ import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, isOneOf, prefField, type PrefField } from "./prefs";
-import { shapeSlice, type ShapeState } from "./toolStore.shape";
+import { placementBoundsNow, shapeSlice, type ShapeState } from "./toolStore.shape";
 
 /** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -197,14 +195,12 @@ export function heightBrush(flipped: boolean): HeightBrush {
 /** The spread brush as the options and the open document stand, Gather while Alt is held. */
 export function spreadBrush(flipped: boolean): SpreadBrush {
   const t = useToolStore.getState();
-  const { systems, countries, galaxy } = useGalaxyStore.getState();
-  const kind = useFileSessionStore.getState().kind;
+  const { systems, countries } = useGalaxyStore.getState();
   return {
     strength: t.spreadStrength / 100,
     specials: t.spreadSpecials,
     gather: flipped,
-    edge: mapExtent(kind, galaxy?.galaxy_radius ?? 0),
-    gap: systemGap(kind),
+    ...placementBoundsNow(),
     homes: homeSystems(systems.values(), countries.values()),
   };
 }

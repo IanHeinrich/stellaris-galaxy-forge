@@ -2,7 +2,7 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import { shapePlacement } from "../lib/shapes/placement";
-import { shapePath } from "../lib/shapes/rules";
+import { shapePath } from "../lib/placement/rules";
 import { placeLead } from "../lib/shapes/shapeCopy";
 import type { PendingShape } from "../lib/shapes/types";
 import { refuseOr, type RunEdit } from "./editorEdits";

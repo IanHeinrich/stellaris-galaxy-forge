@@ -4,7 +4,7 @@ import type { MapExtent } from "../guides";
 import type { PlacementGround } from "../placement/ground";
 import type { LaneMode } from "../placement/lanes";
 import type { Placement } from "../placement/placement";
-import type { PlacementRules } from "./rules";
+import type { PlacementRules } from "../placement/rules";
 import type { StarChoice } from "./stars";
 
 /** The figures the Shape tool draws. */
