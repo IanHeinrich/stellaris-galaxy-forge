@@ -9,11 +9,11 @@ import type { Nebula } from "../generated/Nebula";
 import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
-import { islandLanes } from "../lib/geometry/islandLanes";
 import { componentCount } from "../lib/geometry/joinIslands";
 import { PairSet } from "../lib/geometry/pairs";
 import { isLClusterSystem } from "../lib/guides";
-import { meshPairs, type MeshPoint } from "../lib/geometry/mesh";
+import type { MeshPoint } from "../lib/geometry/mesh";
+import { meshWithin } from "../lib/placement/lanes";
 import { nodeName, stripped, templateName } from "../lib/names";
 import { SpatialGrid } from "../lib/spatialGrid";
 import { blankName, systemLabel, unnamedSystem } from "../lib/systemLabel";
@@ -433,10 +433,10 @@ export function meshLanes(
     const s = systems.get(id);
     if (s) points.push({ id, x: s.x, y: s.y });
   }
-  const pairs = islands
-    ? islandLanes(points, density, MESH_ISLAND_SEED).pairs
-    : meshPairs(points, density);
-  return pairs.filter(([a, b]) => !linked(systems, a, b));
+  const islandSeed = islands ? MESH_ISLAND_SEED : null;
+  return meshWithin(points, { density, maxLength: Infinity, existing: [], islandSeed }).filter(
+    ([a, b]) => !linked(systems, a, b),
+  );
 }
 
 /** Unordered pairs within `ids` joined by a lane, each as `[min, max]`. */

@@ -1,9 +1,11 @@
 import type { SystemNode } from "../../generated/SystemNode";
 import { islandLanes } from "../geometry/islandLanes";
-import { meshPairs, type MeshPoint } from "../geometry/mesh";
-import { comparePairs, pairOf, type Pair } from "../geometry/pairs";
+import { delaunayPairs, meshPairs, type MeshPoint } from "../geometry/mesh";
+import { comparePairs, pairOf, PairSet, type Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
 import { SegmentIndex, type Segment } from "../geometry/segments";
+import { copies } from "../geometry/symmetry";
+import { UnionFind } from "../geometry/unionFind";
 import type { ImageOfNew, PlacementGround } from "./ground";
 
 /** Which lanes a paint stroke adds: none, among its new systems, or also to the systems near it. */
@@ -103,32 +105,48 @@ export interface StrokeLanesInput {
   density: number;
   mode: LaneMode;
   maxLength: number;
+  /** Which lanes are wanted at all; islands grow over these alone. */
+  keep?: (a: number, b: number) => boolean;
   /** Groups the lanes among new points into islands as the game does, under this seed; null or left out for the even mesh. */
   islandSeed?: number | null;
 }
 
 /**
  * The lanes a paint stroke adds, each touching at least one new point. Meshing is planar, so
- * the new lanes never cross each other. Islands are grown from the new points alone, and the
- * lanes to nearby systems are the mesh's, less any that would cross an island's lane.
+ * the new lanes never cross each other. Islands join new points only, over a triangulation that
+ * takes the nearby systems in too, so no island lane runs over one; the lanes to nearby systems
+ * are the mesh's, less any that would cross an island's lane.
  */
 export function strokeLanes(input: StrokeLanesInput): Pair[] {
-  const { added, nearby, existing, density, mode, maxLength, islandSeed = null } = input;
+  const { added, nearby, existing, density, mode, maxLength, keep, islandSeed = null } = input;
   if (mode === "off") return [];
-  const among = mode === "new" || islandSeed !== null;
-  const inner = among ? meshWithin(added, { density, maxLength, existing, islandSeed }) : [];
-  if (mode === "new") return inner;
   const fresh = new Set(added.map((p) => p.id));
-  const at = new Map(added.map((p) => [p.id, p]));
+  const wanted = (a: number, b: number) => !keep || keep(a, b);
+  if (islandSeed === null) {
+    if (mode === "new") return meshWithin(added, { density, maxLength, existing, keep });
+    return meshWithin([...added, ...nearby], {
+      density,
+      maxLength,
+      existing,
+      keep: (a, b) => (fresh.has(a) || fresh.has(b)) && wanted(a, b),
+    });
+  }
+  const all = [...added, ...nearby];
+  const inner = meshWithin(all, {
+    density,
+    maxLength,
+    existing,
+    keep: (a, b) => fresh.has(a) && fresh.has(b) && wanted(a, b),
+    islandSeed,
+  });
+  if (mode === "new") return inner;
+  const at = new Map(all.map((p) => [p.id, p]));
   const laid = inner.map(([a, b]) => ({ a: at.get(a)!, b: at.get(b)! }));
-  const links = meshWithin([...added, ...nearby], {
+  const links = meshWithin(all, {
     density,
     maxLength,
     existing: [...existing, ...laid],
-    keep:
-      islandSeed === null
-        ? (a, b) => fresh.has(a) || fresh.has(b)
-        : (a, b) => fresh.has(a) !== fresh.has(b),
+    keep: (a, b) => fresh.has(a) !== fresh.has(b) && wanted(a, b),
   });
   return [...inner, ...links].sort(comparePairs);
 }
@@ -152,7 +170,8 @@ export interface PlacedLanesInput {
 /**
  * The lanes new points add, under their provisional ids: at most `LANE_REACH` spacings long and
  * crossing no existing lane. Under symmetry a lane goes in with all its images or not at all,
- * so islands are grown over every copy and the first copy's lanes are mirrored onto the rest.
+ * so islands are grown over every copy, the first copy's lanes are mirrored onto the rest, and
+ * `seamJoins` joins the copies again where a join across the seam was dropped.
  */
 export function placedLanes(input: PlacedLanesInput): Pair[] {
   const { points, base, mode, density, spacing, ground, imageOfNew, keep, islandSeed } = input;
@@ -166,18 +185,79 @@ export function placedLanes(input: PlacedLanesInput): Pair[] {
     density,
     mode,
     maxLength,
+    keep,
     islandSeed,
-  })
-    .map(([a, b]) => pairOf(a, b))
-    .filter(([a, b]) => !keep || keep(a, b));
+  }).map(([a, b]) => pairOf(a, b));
   if (!ground.symmetric) return pairs;
   const inFirst = (id: number) => id < 0 && provisionalIndex(id) < base;
   const at = (id: number): Pt => (id < 0 ? points[provisionalIndex(id)] : ground.systems.get(id)!);
-  return ground.symmetricLanes(
+  const mirrored = ground.symmetricLanes(
     pairs.filter(([a, b]) => inFirst(a) || inFirst(b)),
     imageOfNew,
     at,
     existing,
     keep,
   );
+  if (islandSeed === null) return mirrored;
+  const seams = { points, base, ground, imageOfNew, at, existing, keep, maxLength };
+  return [...mirrored, ...seamJoins(mirrored, seams)].sort(comparePairs);
+}
+
+interface SeamGround {
+  points: readonly Pt[];
+  base: number;
+  ground: PlacementGround;
+  imageOfNew: ImageOfNew;
+  at: (id: number) => Pt;
+  existing: readonly Segment[];
+  keep?: (a: number, b: number) => boolean;
+  maxLength: number;
+}
+
+/**
+ * The joins, each with all its images, that put the new points of a symmetric placement back
+ * into one network with `laid`. A join between islands across a mirror crosses its own image,
+ * so `symmetricLanes` drops it and the copies come apart. The candidates are the Delaunay edges
+ * between new points apart and each first-copy point's lane to its own images, shortest first.
+ */
+function seamJoins(laid: readonly Pair[], seams: SeamGround): Pair[] {
+  const { points, base, ground, imageOfNew, at, existing, keep, maxLength } = seams;
+  const index = new Map<number, number>();
+  const slot = (id: number) => {
+    if (!index.has(id)) index.set(id, index.size);
+    return index.get(id)!;
+  };
+  points.forEach((_, i) => slot(provisionalId(i)));
+  const ends = new Set(laid.flat());
+  for (const id of ends) slot(id);
+  const sets = new UnionFind(index.size);
+  for (const [a, b] of laid) sets.union(slot(a), slot(b));
+  const apart = ([a, b]: Pair) => sets.find(slot(a)) !== sets.find(slot(b));
+
+  const candidates = new PairSet();
+  for (const [a, b] of delaunayPairs(withProvisionalIds(points))) candidates.add(a, b);
+  for (let i = 0; i < base; i++) {
+    for (let m = 1; m < copies(ground.symmetry); m++) {
+      const j = imageOfNew(i, m);
+      if (j !== null && j !== i) candidates.add(provisionalId(i), provisionalId(j));
+    }
+  }
+  const length = ([a, b]: Pair) => dist2(at(a), at(b));
+  const max2 = maxLength * maxLength;
+  const ordered = [...candidates.values()]
+    .filter((pair) => length(pair) <= max2)
+    .sort((p, q) => length(p) - length(q) || comparePairs(p, q));
+
+  const lanes = [...existing, ...laid.map(([a, b]) => ({ a: at(a), b: at(b) }))];
+  const joins: Pair[] = [];
+  for (const pair of ordered) {
+    if (!apart(pair)) continue;
+    const orbit = ground.symmetricLanes([pair], imageOfNew, at, lanes, keep);
+    for (const [a, b] of orbit) {
+      sets.union(slot(a), slot(b));
+      lanes.push({ a: at(a), b: at(b) });
+    }
+    joins.push(...orbit);
+  }
+  return joins;
 }

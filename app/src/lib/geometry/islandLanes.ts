@@ -71,13 +71,15 @@ export function islandLanes(
   const drop = dropShare(density);
   const laid: Array<[number, number]> = [];
   for (const list of inside.values()) laid.push(...thinned(list, drop, length));
-  laid.push(...joins([...between.values()], island, new Set(island).size, length, rand));
   const members = new Map<number, number[]>();
   island.forEach((s, i) => {
     const list = members.get(s) ?? [];
     list.push(points[i].id);
     members.set(s, list);
   });
+  // A point left alone has no edge it may use, so it takes no share of the joins.
+  const joined = [...members.values()].filter((ids) => ids.length > 1).length;
+  laid.push(...joins([...between.values()], island, joined, length, rand));
   return {
     pairs: laid.map(([i, j]) => pairOf(points[i].id, points[j].id)).sort(comparePairs),
     islands: [...members.values()],

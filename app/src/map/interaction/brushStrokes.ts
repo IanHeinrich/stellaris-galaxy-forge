@@ -29,8 +29,7 @@ import type { SystemMove } from "../../generated/SystemMove";
 import { showGhosts } from "./moveDrag";
 import { SettlingPreview } from "./settlingPreview";
 
-/** The settings a stroke of `tool` takes from the tool options as they stand, `flipped` while Alt is held. */
-export function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
+function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
   const t = useToolStore.getState();
   return {
     tool,
