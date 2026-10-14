@@ -1,28 +1,23 @@
 import { Container, Graphics, GraphicsContext } from "pixi.js";
 import type { SystemNode } from "../../../generated/SystemNode";
 import type { Pt } from "../../../lib/geometry/pt";
-import { ALLOWED_COLOR, PLATE_COLOR } from "../../../lib/visual/style";
+import { ALLOWED_COLOR } from "../../../lib/visual/style";
 import type { Systems } from "../../RenderContext";
 import { destroyChildren } from "../destroyChildren";
 
-/** Where the plus sits from the star's centre, and its size, in marker units. */
-const OFFSET = { x: 9, y: -9 };
-const RADIUS = 4.5;
-const ARM = 2.4;
-const PLATE = PLATE_COLOR;
+/** Where the plus sits from the star's centre, and its arm, in marker units. */
+const OFFSET = { x: 7, y: -7 };
+const ARM = 2;
 
-/** A small green plus at the upper right of every save system added this session. */
+/** A small faint green plus at the upper right of every save system added this session. */
 export class AddedMarks {
   readonly container = new Container({ label: "addedMarks", eventMode: "none" });
   private readonly shape = new GraphicsContext()
-    .circle(OFFSET.x, OFFSET.y, RADIUS)
-    .fill({ color: PLATE, alpha: 0.9 })
-    .stroke({ color: ALLOWED_COLOR, width: 1.2 })
     .moveTo(OFFSET.x - ARM, OFFSET.y)
     .lineTo(OFFSET.x + ARM, OFFSET.y)
     .moveTo(OFFSET.x, OFFSET.y - ARM)
     .lineTo(OFFSET.x, OFFSET.y + ARM)
-    .stroke({ color: ALLOWED_COLOR, width: 1.3 });
+    .stroke({ color: ALLOWED_COLOR, width: 1, alpha: 0.6 });
   private readonly marks = new Map<number, Graphics>();
   private readonly scale: Pt = { x: 1, y: 1 };
 
