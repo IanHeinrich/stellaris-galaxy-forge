@@ -12,6 +12,7 @@ import type {
   ShapeHandle,
   ShapePreview,
 } from "../../../lib/shapes/types";
+import { starGlyph } from "../../../lib/visual/starGlyphs";
 import { ACCENT_COLOR, HANDLE_COLOR, MAP_FONT } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { specOf } from "../../../lib/shapes/specs";
@@ -54,10 +55,11 @@ export interface ShapeDrawing {
 }
 
 /**
- * The Shape tool's pending shape: the systems it would add as gold points, the points it leaves
- * out hollow beside existing systems and orange past the edge, its lanes, its handles at a fixed
- * size on screen, its own line and the galaxy's edge faintly, and the readout centred below all
- * of it. A placed shape's points and lanes stay until its edit lands, without the rest.
+ * The Shape tool's pending shape: the systems it would add as points, each in its star's colour
+ * where the preview rolled stars and gold otherwise, the points it leaves out hollow beside
+ * existing systems and orange past the edge, its lanes, its handles at a fixed size on screen,
+ * its own line and the galaxy's edge faintly, and the readout centred below all of it. A placed
+ * shape's points and lanes stay until its edit lands, without the rest.
  */
 export class ShapeOverlay {
   readonly container = new Container({ label: "shape" });
@@ -164,7 +166,12 @@ export class ShapeOverlay {
       }
       for (const at of p.outside) g.circle(at.x, at.y, OUTSIDE.radiusPx * px);
       if (p.outside.length > 0) g.fill({ color: OUTSIDE.color, alpha: OUTSIDE.alpha });
-      drawDots(g, p.points, px);
+      drawDots(
+        g,
+        p.points,
+        px,
+        p.classes?.map((c) => starGlyph(c).tint),
+      );
     }
     const shape = d.pending?.shape;
     const handles = shape ? specOf(shape).handles(shape) : [];

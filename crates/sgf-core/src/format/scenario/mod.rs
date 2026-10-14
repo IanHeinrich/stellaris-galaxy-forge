@@ -261,6 +261,7 @@ impl Format for Scenario {
             nebulae: true,
             special: true,
             create_systems: true,
+            bulk_add_systems: true,
             symmetry: true,
             rolled_layout: true,
             structures: true,

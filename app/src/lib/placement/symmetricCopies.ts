@@ -13,6 +13,8 @@ import { PointGrid } from "./pointGrid";
 export interface SymmetricCopies {
   /** `base` in order, then each later copy's kept images, copy by copy. */
   points: Pt[];
+  /** The base point and copy each of `points` was made as. */
+  made: ReadonlyArray<readonly [number, number]>;
   imageOfNew: ImageOfNew;
 }
 
@@ -59,6 +61,7 @@ export function symmetricCopies(
   }
   return {
     points,
+    made,
     imageOfNew: (j, m) => {
       const [i, k] = made[j];
       return at[i][composed(sym, m, k)];

@@ -25,6 +25,7 @@ mod galaxy_shapes;
 mod galaxy_sizes;
 mod generate;
 mod generate_effects;
+mod generate_many;
 mod generate_pinned;
 mod generate_star_class;
 mod initializer_corpus;

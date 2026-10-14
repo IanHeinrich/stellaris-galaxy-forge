@@ -1,12 +1,14 @@
 import type { StoreApi } from "zustand";
 import { clampTo } from "../lib/geometry/geometry";
 import type { Pt } from "../lib/geometry/pt";
-import { mapExtent, type MapExtent } from "../lib/guides";
+import { extentOf, type MapExtent } from "../lib/guides";
+import { PLACEMENT_RULES, shapePath } from "../lib/shapes/rules";
 import { LANE_MODES } from "../lib/placement/lanes";
 import { SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
 import { galaxyFrame } from "../lib/shapes/drag";
 import { FILL_CHOICES, LATTICES } from "../lib/shapes/shapeCopy";
+import type { StarChoice } from "../lib/shapes/stars";
 import {
   centreOf,
   heldShape,
@@ -70,6 +72,8 @@ export interface ShapeState {
   /** Changes one or both of the pending shape's lane settings, or the remembered kind's. */
   setShapeLanes(change: Partial<ShapeLanes>): void;
   setSkipNear(on: boolean): void;
+  /** Sets which stars a save's shape rolls, for the pending shape and the next; nothing for a choice that is none. */
+  setShapeStars(choice: StarChoice): void;
   /** Rolls a new seed, so a scattered fill lays out again. */
   shuffleShape(): void;
   /**
@@ -112,9 +116,17 @@ function initialSettings<K extends ShapeKind>(kind: K): ShapeSettings<K> {
   return { shape: SHAPE_SPECS[kind].initial, fill, lanes: defaultLanes(fill) };
 }
 
+/** The stars a shape rolls until the player picks others: the game's usual mix. */
+const RANDOM_STARS: StarChoice = { kind: "random" };
+
 function firstMemory(): ShapeMemory {
   const kinds = Object.fromEntries(SHAPE_KINDS.map((kind) => [kind, initialSettings(kind)]));
-  return { kind: "circle", kinds: kinds as ShapeMemory["kinds"], skipNear: true };
+  return {
+    kind: "circle",
+    kinds: kinds as ShapeMemory["kinds"],
+    skipNear: true,
+    stars: RANDOM_STARS,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -129,6 +141,28 @@ const isShapeKind = isOneOf(SHAPE_KINDS);
 const isFillChoice = isOneOf(FILL_CHOICES);
 const isLattice = isOneOf(LATTICES);
 const isLaneMode = isOneOf(LANE_MODES);
+
+function isClassKey(value: unknown): value is string {
+  return typeof value === "string" && value !== "";
+}
+
+/** `value` as a star choice, a mix's classes each once; null when it is none, or a mix of none. */
+function heldStars(value: unknown): StarChoice | null {
+  if (!isRecord(value)) return null;
+  switch (value.kind) {
+    case "random":
+      return RANDOM_STARS;
+    case "one":
+      return isClassKey(value.class) ? { kind: "one", class: value.class } : null;
+    case "mix": {
+      if (!Array.isArray(value.classes) || !value.classes.every(isClassKey)) return null;
+      const classes = [...new Set(value.classes)];
+      return classes.length > 0 ? { kind: "mix", classes } : null;
+    }
+    default:
+      return null;
+  }
+}
 
 function isLanes(value: unknown): value is ShapeLanes {
   return isRecord(value) && isBoolean(value.follow) && isLaneMode(value.mode);
@@ -197,6 +231,7 @@ function storedMemory(): ShapeMemory {
     kind: isShapeKind(value.kind) ? value.kind : first.kind,
     kinds: Object.fromEntries(held) as ShapeMemory["kinds"],
     skipNear: isBoolean(value.skipNear) ? value.skipNear : first.skipNear,
+    stars: heldStars(value.stars) ?? first.stars,
   };
 }
 
@@ -256,7 +291,8 @@ function resizedWithin(shape: Shape, want: number): Shape {
 /** The open document's edge; null when it records none. */
 function extentNow(): MapExtent | null {
   const radius = useGalaxyStore.getState().galaxy?.galaxy_radius ?? 0;
-  return mapExtent(useFileSessionStore.getState().kind, radius);
+  const path = shapePath(useFileSessionStore.getState().capabilities);
+  return path === null ? null : extentOf(PLACEMENT_RULES[path].edge, radius);
 }
 
 /** `p` held inside `extent`. */
@@ -357,6 +393,7 @@ export function shapeSlice(
           fill,
           lanes,
           skipNear: shapeMemory.skipNear,
+          stars: shapeMemory.stars,
           seed: newSeed(),
         },
       });
@@ -430,6 +467,14 @@ export function shapeSlice(
       remember({ ...shapeMemory, skipNear });
     },
 
+    setShapeStars(choice) {
+      const stars = heldStars(choice);
+      if (stars === null) return;
+      const { pendingShape, shapeMemory } = get();
+      if (pendingShape) set({ pendingShape: { ...pendingShape, stars } });
+      remember({ ...shapeMemory, stars });
+    },
+
     shuffleShape() {
       const pending = get().pendingShape;
       if (pending) set({ pendingShape: { ...pending, seed: newSeed() } });
@@ -447,6 +492,7 @@ export function shapeSlice(
         fill: settings.fill,
         lanes: settings.lanes,
         skipNear: shapeMemory.skipNear,
+        stars: shapeMemory.stars,
         seed: sameDrag ? pendingShape.seed : newSeed(),
       });
     },

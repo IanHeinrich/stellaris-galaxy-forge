@@ -155,6 +155,8 @@ pub enum OpError {
     SystemIdsNotDense { last: u32, count: usize },
     #[error("system {id} is {distance:.2} away; a new system needs 10 between them")]
     TooClose { id: u32, distance: f64 },
+    #[error("{count} systems are more than the {cap} one add writes into a save")]
+    TooManySystems { count: usize, cap: usize },
     #[error("({x}, {y}) is outside the galaxy's radius of {radius}")]
     OutsideGalaxy { x: f64, y: f64, radius: f64 },
     #[error("{0} cannot have moons")]
@@ -372,6 +374,7 @@ impl OpError {
             | Self::MissingKey { .. }
             | Self::SystemIdsNotDense { .. }
             | Self::TooClose { .. }
+            | Self::TooManySystems { .. }
             | Self::OutsideGalaxy { .. }
             | Self::MoonsNotAllowed { .. }
             | Self::AsteroidNotAllowed { .. }

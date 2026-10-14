@@ -2,20 +2,22 @@ import type { SystemNode } from "../../generated/SystemNode";
 import type { MeshPoint } from "../geometry/mesh";
 import { boxOf } from "../geometry/polygon";
 import { PairSet, type Pair } from "../geometry/pairs";
-import { dist2, type Pt } from "../geometry/pt";
+import { dist2, type Pt, WRITTEN_DRIFT, writtenPt } from "../geometry/pt";
 import { SEGMENT_CELL, type Segment } from "../geometry/segments";
 import { copies, COUNTERPART_REACH, images, type Symmetry } from "../geometry/symmetry";
 import { insideExtent } from "../guides";
 import type { ImageOfNew } from "../placement/ground";
 import { PlacementGround } from "../placement/ground";
-import { LEAST_SPACING, MOST_SPACING, ON_TOP, SAMPLE_CAP } from "../placement/limits";
+import { LEAST_SPACING, MOST_SPACING, ON_TOP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
-import { symmetricCopies } from "../placement/symmetricCopies";
+import { symmetricCopies, type SymmetricCopies } from "../placement/symmetricCopies";
 import { lattice, scatterDensity, scatterPattern } from "./fills";
 import { angleOf, lerp, type ShapeFrame } from "./frame";
 import { polylineLength } from "./outline";
+import type { PlacementRules } from "./rules";
 import { centreOf, specOf } from "./specs";
+import { rollStars } from "./stars";
 import type {
   Fill,
   LeftOut,
@@ -115,30 +117,39 @@ function coveredArea(shape: Shape, sym: Symmetry): number {
 
 /**
  * The least spacing at which `fill` fills the whole of `shape` and its images under `sym`
- * without passing `SAMPLE_CAP`; never under `LEAST_SPACING`. It counts the points the area they
+ * without passing the rules' cap; never under `LEAST_SPACING` or their least gap. It counts the points the area they
  * cover together takes, and one per spacing of their edge: the edge row, or for a grid the
  * lattice points a boundary can add over its area's share. Their edge is the shape's over each
  * copy, shrunk by the share of the copies' area that overlaps. Points past the map's edge or
  * left out beside a system only lower the count.
  */
-export function leastSpacing(shape: Shape, fill: SpacedFill, sym: Symmetry): number {
+export function leastSpacing(
+  shape: Shape,
+  fill: SpacedFill,
+  sym: Symmetry,
+  rules: PlacementRules,
+): number {
   const own = specOf(shape).area(shape);
   const covered = coveredArea(shape, sym);
   const c = copies(sym);
   const apart = own > 0 ? Math.min(1, covered / (own * c)) : 1;
   const area = covered * pointsPerSquare(fill);
   const edge = hasEdgeRow(fill) || fill.kind === "grid" ? edgeLength(shape) * c * apart : 0;
-  // area / d² + edge / d = SAMPLE_CAP, solved for 1 / d.
+  const { cap } = rules;
+  // area / d² + edge / d = cap, solved for 1 / d.
   const perUnit =
-    area > 0
-      ? (Math.sqrt(edge * edge + 4 * area * SAMPLE_CAP) - edge) / (2 * area)
-      : SAMPLE_CAP / edge;
-  return Math.max(LEAST_SPACING, 1 / perUnit);
+    area > 0 ? (Math.sqrt(edge * edge + 4 * area * cap) - edge) / (2 * area) : cap / edge;
+  return Math.max(LEAST_SPACING, rules.minGap, 1 / perUnit);
 }
 
 /** The spacing `fill` is laid at: its own, loosened to `leastSpacing` when the shape is too large for it. */
-export function fillSpacing(shape: Shape, fill: SpacedFill, sym: Symmetry): number {
-  return Math.max(fill.spacing, leastSpacing(shape, fill, sym));
+export function fillSpacing(
+  shape: Shape,
+  fill: SpacedFill,
+  sym: Symmetry,
+  rules: PlacementRules,
+): number {
+  return Math.max(fill.spacing, leastSpacing(shape, fill, sym, rules));
 }
 
 /** The frame a shape's fill pattern is laid in, so it moves and turns with the shape. */
@@ -189,7 +200,12 @@ function* inside(points: Iterable<Pt>, contains: (p: Pt) => boolean): Generator<
   for (const p of points) if (contains(p)) yield p;
 }
 
-function layout(pending: PendingShape, sym: Symmetry): Layout {
+/** `p`'s images under `sym`, each as the file keeps it. */
+function writtenImages(p: Pt, sym: Symmetry): Pt[] {
+  return images(p, sym).map(writtenPt);
+}
+
+function layout(pending: PendingShape, sym: Symmetry, rules: PlacementRules): Layout {
   const { shape, fill, seed } = pending;
   const spec = specOf(shape);
   if (fill.kind === "outline") {
@@ -206,7 +222,8 @@ function layout(pending: PendingShape, sym: Symmetry): Layout {
       skip: Math.min(spacing / 2, ON_TOP),
     };
   }
-  const spacing = fillSpacing(shape, fill, sym);
+  // Laid a little past the gap, so rounding to the file's decimals can't bring two points under it.
+  const spacing = Math.max(fillSpacing(shape, fill, sym, rules), rules.minGap + WRITTEN_DRIFT);
   const filled = spec.fills(shape).includes(fill.kind);
   const { row, closed } =
     hasEdgeRow(fill) || !filled ? fillRow(shape, spacing, sym) : { row: [], closed: true };
@@ -222,37 +239,47 @@ function layout(pending: PendingShape, sym: Symmetry): Layout {
 }
 
 /**
- * Keeps a growing set of points and all their images spaced. An image within
- * `COUNTERPART_REACH` of one already kept merges into it, as an image on the pivot does.
+ * Keeps a growing set of points and all their images spaced, and the ones placed `gap` from
+ * each other. An image within `COUNTERPART_REACH` of one already kept merges into it, as an
+ * image on the pivot does. Images are taken as the file keeps them, and the gap is held
+ * strictly on those, as the core holds it.
  */
 class SpacedImages {
   /** The points taken, as placed. */
   private readonly own: PointGrid;
   /** Their images in the symmetry's other copies. */
   private readonly others: PointGrid;
+  /** The points and images taken that place a system, which the gap is kept from. */
+  private readonly placed: PointGrid;
   private readonly least: number;
+  private readonly gap: number;
 
   constructor(
     private readonly sym: Symmetry,
     spacing: number,
+    gap: number,
+    private readonly places: (q: Pt) => boolean,
   ) {
     const cell = Math.max(spacing, COUNTERPART_REACH);
     this.own = new PointGrid(cell);
     this.others = new PointGrid(cell);
-    // Lattice images land a spacing apart give or take float noise.
-    this.least = spacing * (1 - 1e-9);
+    this.placed = new PointGrid(Math.max(gap, COUNTERPART_REACH));
+    // Lattice images land a spacing apart give or take rounding to the file's decimals.
+    this.least = spacing - WRITTEN_DRIFT;
+    this.gap = gap;
   }
 
   /**
    * Whether `p` and its images each merge into a point taken or keep their distance from every
-   * one, and how many new points `places` would place. A row point is only held apart from
-   * images, since the row keeps its own spacing; a fill point that is itself an image already
-   * taken adds nothing, so it does not fit.
+   * one, whether one that places a system comes within the gap of another that does, and how
+   * many new points they would place. A row point is only held its spacing from images, since
+   * the row keeps its own spacing, but the gap from its own row too; a fill point that is
+   * itself an image already taken adds nothing, so it does not fit.
    */
-  check(p: Pt, row: boolean, places: (q: Pt) => boolean): { fits: boolean; adds: number } {
+  check(p: Pt, row: boolean): { fits: boolean; tooClose: boolean; adds: number } {
     const reach2 = COUNTERPART_REACH * COUNTERPART_REACH;
     const least2 = this.least * this.least;
-    const imgs = images(p, this.sym);
+    const imgs = writtenImages(p, this.sym);
     let fits = true;
     let adds = 0;
     for (let k = 0; k < imgs.length; k++) {
@@ -277,13 +304,32 @@ class SpacedImages {
       this.own.someInBox(q.x - s, q.y - s, q.x + s, q.y + s, near);
       if (crowded && !(k === 0 && row)) fits = false;
       if (k === 0 && merges && !row) fits = false;
-      if (!merges && places(q)) adds++;
+      if (!merges && this.places(q)) adds++;
     }
-    return { fits, adds };
+    return { fits, tooClose: adds > 0 && this.withinGap(imgs), adds };
+  }
+
+  /** Whether an image that places a system comes within the gap of a placed point or another such image, short of merging. */
+  private withinGap(imgs: readonly Pt[]): boolean {
+    if (!(this.gap > 0)) return false;
+    const close = (a: Pt, b: Pt) => {
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      return d >= COUNTERPART_REACH && d < this.gap;
+    };
+    const placing = imgs.filter(this.places);
+    const g = this.gap;
+    return placing.some(
+      (q, k) =>
+        placing.slice(0, k).some((o) => close(o, q)) ||
+        this.placed.someInBox(q.x - g, q.y - g, q.x + g, q.y + g, (t) => close(t, q)),
+    );
   }
 
   take(p: Pt): void {
-    images(p, this.sym).forEach((q, k) => (k === 0 ? this.own : this.others).add(q));
+    writtenImages(p, this.sym).forEach((q, k) => {
+      (k === 0 ? this.own : this.others).add(q);
+      if (this.gap > 0 && this.places(q)) this.placed.add(q);
+    });
   }
 }
 
@@ -293,41 +339,72 @@ interface Where {
   places(p: Pt): boolean;
 }
 
+/** The points a shape places before the galaxy has a say, and what kept it from placing more. */
+interface Base {
+  /** The points, as the file keeps them. */
+  base: Pt[];
+  /** Each base point's place in the layout: its index in the row, or the row's length plus its place among the fill's points. */
+  ordinals: number[];
+  rowCount: number;
+  rowCut: boolean;
+  /** New systems a row point would have placed, dropped for standing within the gap of another. */
+  crowded: number;
+  capped: boolean;
+}
+
 /**
  * The points a shape places before the galaxy has a say: the row, then the fill, until they
- * and their images would place more than `SAMPLE_CAP`. Under symmetry that is the cap over
+ * and their images would place more than the rules' cap. Under symmetry that is the cap over
  * the copies, less what merges. A point past the edge or left out for a system doesn't count,
- * and a fill point with no image inside the extent is dropped.
+ * and a fill point with no image inside the extent is dropped. A row point within the rules'
+ * gap of another new point is dropped and counted, even an outline's. Each point is taken as
+ * the file keeps it.
  */
 function basePoints(
   { row, rowGivesWay, fill, spacing }: Layout,
   sym: Symmetry,
+  rules: PlacementRules,
   where: Where,
-): { base: Pt[]; rowCount: number; rowCut: boolean; capped: boolean } {
-  const spaced = new SpacedImages(sym, spacing);
+): Base {
+  const spaced = new SpacedImages(sym, spacing, rules.minGap, where.places);
   const base: Pt[] = [];
-  let total = 0;
-  for (const p of row) {
-    const { fits, adds } = spaced.check(p, true, where.places);
-    if (rowGivesWay && !fits) continue;
-    if (total + adds > SAMPLE_CAP) {
-      return { base, rowCount: base.length, rowCut: true, capped: true };
-    }
+  const ordinals: number[] = [];
+  const keep = (p: Pt, ordinal: number) => {
     base.push(p);
+    ordinals.push(ordinal);
     spaced.take(p);
+  };
+  let total = 0;
+  let crowded = 0;
+  for (const [i, laid] of row.entries()) {
+    const p = writtenPt(laid);
+    const { fits, tooClose, adds } = spaced.check(p, true);
+    if (tooClose) {
+      crowded += adds;
+      continue;
+    }
+    if (rowGivesWay && !fits) continue;
+    if (total + adds > rules.cap) {
+      return { base, ordinals, rowCount: base.length, rowCut: true, crowded, capped: true };
+    }
+    keep(p, i);
     total += adds;
   }
   const rowCount = base.length;
-  for (const p of fill) {
-    if (!images(p, sym).some(where.inside)) continue;
-    const { fits, adds } = spaced.check(p, false, where.places);
-    if (!fits) continue;
-    if (total + adds > SAMPLE_CAP) return { base, rowCount, rowCut: false, capped: true };
-    base.push(p);
-    spaced.take(p);
+  let next = row.length;
+  for (const laid of fill) {
+    const ordinal = next++;
+    const p = writtenPt(laid);
+    if (!writtenImages(p, sym).some(where.inside)) continue;
+    const { fits, tooClose, adds } = spaced.check(p, false);
+    if (!fits || tooClose) continue;
+    if (total + adds > rules.cap) {
+      return { base, ordinals, rowCount, rowCut: false, crowded, capped: true };
+    }
+    keep(p, ordinal);
     total += adds;
   }
-  return { base, rowCount, rowCut: false, capped: false };
+  return { base, ordinals, rowCount, rowCut: false, crowded, capped: false };
 }
 
 /** What becomes of one point: placed under its new index, left out for a system, or past the edge. */
@@ -397,8 +474,8 @@ function followLanes({ rowCount, closed, standIn, at, ground, imageOfNew }: Foll
 
 /** How many of `points` sit closer than `LEAST_SPACING` to another of them or to an existing system. */
 function overlapCount(points: readonly Pt[], ground: PlacementGround): number {
-  // Lattice neighbours at the least spacing sit that far apart give or take float noise.
-  const d = LEAST_SPACING * (1 - 1e-9);
+  // Lattice neighbours at the least spacing sit that far apart give or take rounding.
+  const d = LEAST_SPACING - WRITTEN_DRIFT;
   const grid = new PointGrid(d);
   for (const p of points) grid.add(p);
   return points.filter(
@@ -423,17 +500,43 @@ function interleaving(pending: PendingShape, sym: Symmetry, placed: number): num
 }
 
 /**
+ * A star class for each kept point, `from[i]` being where point `i` stood in `all`. Each is
+ * drawn for its base point's place in the layout and its copy, so a point keeps its class when
+ * others are left out or come back. Empty when no class has a weight.
+ */
+function classesOf(
+  seed: number,
+  weights: ReadonlyArray<readonly [string, number]>,
+  all: SymmetricCopies,
+  ordinals: readonly number[],
+  from: readonly number[],
+  sym: Symmetry,
+): string[] {
+  const n = copies(sym);
+  const draws = from.map((j) => {
+    const [i, k] = all.made[j];
+    return ordinals[i] * n + k;
+  });
+  const rolled = rollStars(Math.max(-1, ...draws) + 1, seed, weights);
+  return rolled.length === 0 ? [] : draws.map((d) => rolled[d]);
+}
+
+/**
  * The systems and lanes `pending` would add to `ground`, and the points it leaves out. Pure, so
  * the same pending shape and ground give the same placement in the preview and in the edit.
+ * Every point is as the file keeps it, so the edit sends the points the preview checked.
  */
 export function shapePlacement(pending: PendingShape, ground: ShapeGround): ShapePreview {
-  const { placement, extent, laneDensity } = ground;
+  const { placement, extent, laneDensity, rules } = ground;
   const sym = placement.symmetry;
-  const shown = layout(pending, sym);
-  const blockerOf = (p: Pt) =>
-    pending.skipNear ? placement.grid.nearestSystem(p.x, p.y, shown.skip) : null;
+  const shown = layout(pending, sym, rules);
+  const reach = Math.max(pending.skipNear ? shown.skip : 0, rules.minGap);
+  const blockerOf = (p: Pt) => {
+    const near = reach > 0 ? placement.grid.nearestSystem(p.x, p.y, reach) : null;
+    return near && Math.hypot(near.x - p.x, near.y - p.y) < reach ? near : null;
+  };
   const inside = (p: Pt) => insideExtent(extent, p);
-  const { base, rowCount, rowCut, capped } = basePoints(shown, sym, {
+  const { base, ordinals, rowCount, rowCut, crowded, capped } = basePoints(shown, sym, rules, {
     inside,
     places: (p) => inside(p) && !blockerOf(p),
   });
@@ -445,7 +548,8 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
   const outside: Pt[] = [];
   /** Where each kept point stood in `all.points`. */
   const from: number[] = [];
-  for (const [j, p] of all.points.entries()) {
+  for (const [j, image] of all.points.entries()) {
+    const p = writtenPt(image);
     if (!inside(p)) {
       fates.push({ kind: "outside" });
       outside.push(p);
@@ -505,7 +609,10 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
     left,
     outside,
     overlaps: overlapCount(points, placement),
+    crowded,
     capped,
     interleaved: interleaving(pending, sym, all.points.length),
+    classes:
+      ground.starWeights && classesOf(pending.seed, ground.starWeights, all, ordinals, from, sym),
   };
 }

@@ -4,6 +4,8 @@ import type { MapExtent } from "../guides";
 import type { PlacementGround } from "../placement/ground";
 import type { LaneMode } from "../placement/lanes";
 import type { Placement } from "../placement/placement";
+import type { PlacementRules } from "./rules";
+import type { StarChoice } from "./stars";
 
 /** The figures the Shape tool draws. */
 export type ShapeKind = "line" | "circle" | "polygon" | "rect" | "star";
@@ -109,8 +111,10 @@ export interface PendingShape {
   lanes: ShapeLanes;
   /** Leave out a point within the spacing of an existing system. */
   skipNear: boolean;
-  /** Seeds the scattered fill, so it holds still while the shape is resized. */
+  /** Seeds the scattered fill and the star draw, so they hold still while the shape is resized. */
   seed: number;
+  /** The star classes a rolled shape's systems take. */
+  stars: StarChoice;
 }
 
 /** What the Shape tool remembers of one kind, which the next shape of that kind starts from. */
@@ -125,6 +129,7 @@ export interface ShapeMemory {
   kind: ShapeKind;
   kinds: { [K in ShapeKind]: ShapeSettings<K> };
   skipNear: boolean;
+  stars: StarChoice;
 }
 
 /** A point left out for sitting within the spacing of existing system `blocker`. */
@@ -141,21 +146,29 @@ export type ShapePreview = Placement & {
   outside: readonly Pt[];
   /** How many new systems sit closer than the paint brush's least spacing to another system; allowed, but warned of. */
   overlaps: number;
-  /** Whether points were dropped at the cap of `SAMPLE_CAP` over the symmetry's copies. */
+  /** How many new systems were dropped for standing closer than the rules' least gap to another new one. */
+  crowded: number;
+  /** Whether points were dropped at the rules' cap over the symmetry's copies. */
   capped: boolean;
   /**
    * The symmetry's copies when they land on an outline between its points rather than on
    * them, as for a ring on the pivot whose count they don't divide; null otherwise.
    */
   interleaved: number | null;
+  /** Each point's star class, `classes[i]` for `points[i]`; null where the document rolls none. */
+  classes: readonly string[] | null;
 };
 
 /** The galaxy a shape is placed into, read once per preview. */
 export interface ShapeGround {
   /** The existing systems, their grid and the symmetry. */
   placement: PlacementGround;
-  /** The map's edge: points past it go to `outside`. */
+  /** The map's edge, the rules' edge at the galaxy's radius: points past it go to `outside`. */
   extent: MapExtent;
+  /** The cap, least gap and edge of the path the shape takes into the document. */
+  rules: PlacementRules;
+  /** The star classes a rolled shape draws, each with its weight; null where the document rolls none. */
+  starWeights: Array<[string, number]> | null;
   /** The Lane density slider's value. */
   laneDensity: number;
 }

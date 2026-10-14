@@ -142,3 +142,23 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         generate(gd, 1, "Gen", SPOT, Some("sc_binary_1"), ABUNDANCE).expect_err("no layout");
     assert_eq!(error, GenerateError::NoLayoutFor("sc_binary_1".to_owned()));
 }
+
+/// A pick of no class rolls only what the plain layouts make, so the classes only special
+/// layouts make have odds of their own and none in a random draw.
+#[test]
+fn a_random_pick_weighs_only_the_classes_plain_layouts_make() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let picks = gd.star_class_picks();
+    let pick = |key: &str| picks.iter().find(|p| p.key == key).expect(key);
+    assert!(picks.iter().map(|p| p.random_odds).sum::<f64>() > 0.0);
+    for special in ["sc_black_hole", "sc_neutron_star", "sc_pulsar"] {
+        let pick = pick(special);
+        assert_eq!(pick.random_odds, 0.0, "{special}");
+        assert!(pick.odds > 0.0, "{special}");
+    }
+    let g = pick("sc_g");
+    assert!(g.random_odds > 0.0);
+    assert!((g.odds - g.random_odds).abs() < 1e-9, "{g:?}");
+}

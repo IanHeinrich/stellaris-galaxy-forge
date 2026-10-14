@@ -12,6 +12,7 @@ pub(crate) mod add_habitat;
 pub(crate) mod add_megastructure;
 pub(crate) mod add_ring_world;
 pub(crate) mod add_system;
+pub(crate) mod add_systems;
 pub(crate) mod anomaly;
 pub(crate) mod asteroid_names;
 pub(crate) mod belts;

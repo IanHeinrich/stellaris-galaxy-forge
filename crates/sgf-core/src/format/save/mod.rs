@@ -412,6 +412,7 @@ impl Format for Save {
             precursors: true,
             waylines: true,
             added_systems: whole_entries,
+            bulk_add_systems: whole_entries,
             bodies: true,
             deposits: whole_entries,
             geometry: whole_entries,

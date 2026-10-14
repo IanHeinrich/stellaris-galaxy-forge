@@ -1,5 +1,5 @@
-import { SAMPLE_CAP } from "../placement/limits";
 import { counted, thousands } from "../text";
+import { PLACEMENT_RULES, type PlacementPath } from "./rules";
 import { specOf } from "./specs";
 import type {
   Fill,
@@ -42,6 +42,12 @@ export function fillChoiceOf(fill: Fill): FillChoice {
   return fill.kind === "grid" ? fill.lattice : fill.kind;
 }
 
+/** What the cap warning says the cap is, after "the most one shape adds". */
+const CAP_PLACE: Record<PlacementPath, string> = {
+  statements: "",
+  rolled: " to a save",
+};
+
 /** The status bar's words for a pending shape: what it adds, then each thing it leaves out. */
 export interface ShapeStatus {
   /** "Circle · 22 systems, 22 lanes". */
@@ -80,15 +86,23 @@ export function shapeReadout(
   return `${size} · ${counted(preview.points.length, "system")}`;
 }
 
-/** What the status bar says while `pending` waits. */
-export function shapeStatus(pending: PendingShape, preview: ShapePreview): ShapeStatus {
-  const { points, pairs, left, outside, overlaps, capped, interleaved } = preview;
+/** What the status bar says while `pending` waits to take `path` into the document. */
+export function shapeStatus(
+  pending: PendingShape,
+  preview: ShapePreview,
+  path: PlacementPath,
+): ShapeStatus {
+  const { points, pairs, left, outside, overlaps, crowded, capped, interleaved } = preview;
   const summary = `${specOf(pending.shape).label} · ${counted(points.length, "system")}, ${counted(pairs.length, "lane")}`;
   const warnings: string[] = [];
   if (left.length > 0) warnings.push(`${left.length} left out, too close to existing systems`);
   if (outside.length > 0) warnings.push(`${outside.length} past the edge`);
+  if (crowded > 0) warnings.push(`${crowded} left out, too close to each other`);
   if (overlaps > 0) warnings.push(`${counted(overlaps, "system")} overlap others on the map`);
-  if (capped) warnings.push(`Stopped at ${thousands(SAMPLE_CAP)} systems, the most one shape adds`);
+  if (capped) {
+    const cap = thousands(PLACEMENT_RULES[path].cap);
+    warnings.push(`Stopped at ${cap} systems, the most one shape adds${CAP_PLACE[path]}`);
+  }
   if (interleaved !== null) {
     warnings.push(
       `Symmetry's ${interleaved} copies fall between the points: use a count that divides by ${interleaved}`,

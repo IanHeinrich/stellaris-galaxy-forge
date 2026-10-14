@@ -425,3 +425,95 @@ fn added_with<'r>(result: &'r EditResult, initializer: &str) -> &'r SystemNode {
         .find(|s| s.added && s.initializer == initializer)
         .expect("the delta carries the added system")
 }
+
+#[test]
+fn adding_systems_together_names_them_apart_and_undoes_in_one_step() {
+    let Some((w, opened)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let mut taken = Vec::new();
+    let mut asks = Vec::new();
+    for class in ["sc_g", "sc_m", "sc_k"] {
+        let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &taken);
+        taken.push((x, y));
+        asks.push(json!({ "x": x, "y": y, "star_class": class }));
+    }
+    let (x, y) = taken[0];
+    let (near, _) = opened
+        .galaxy
+        .systems
+        .iter()
+        .map(|s| (s.id, (s.x - x).hypot(s.y - y)))
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .expect("a nearest system");
+    let new = |index| json!({ "kind": "new", "index": index });
+    let args = json!({
+        "seed": 5,
+        "systems": asks,
+        "lanes": [
+            [new(0), new(1)],
+            [{ "kind": "held", "system": near }, new(0)],
+        ],
+        "description": "Added 3 systems",
+    });
+
+    let result: EditResult =
+        invoke(&w, "add_random_systems", args.clone()).expect("add three systems");
+    let systems: Vec<&SystemNode> = result.delta.systems.iter().filter(|s| s.added).collect();
+    assert_eq!(systems.len(), 3, "three systems added");
+    let mut classes: Vec<&str> = systems.iter().map(|s| s.star_class.as_str()).collect();
+    classes.sort_unstable();
+    assert_eq!(classes, ["sc_g", "sc_k", "sc_m"]);
+    let mut names: Vec<&str> = systems.iter().map(|s| s.name.key.as_str()).collect();
+    names.sort_unstable();
+    names.dedup();
+    assert_eq!(names.len(), 3, "no two share a name");
+    assert_eq!(result.entry.description, "Added 3 systems");
+    assert_eq!(result.history.undo.len(), 1, "one step");
+
+    let first = systems.iter().min_by_key(|s| s.id).expect("a system").id;
+    let rolled: EditResult = invoke(
+        &w,
+        "reroll_system",
+        json!({ "system": first, "seed": 9, "starClass": "sc_f" }),
+    )
+    .expect("roll one of the new systems again");
+    assert_eq!(added(&rolled).id, first);
+    assert_eq!(added(&rolled).star_class, "sc_f");
+
+    let undone = history_step(&w, "undo");
+    assert_eq!(undone.history.undo.len(), 1, "the reroll is one step");
+    let undone = history_step(&w, "undo");
+    assert!(undone.history.undo.is_empty(), "one undo takes all three");
+    assert_eq!(undone.delta.removed.len(), 3, "{:?}", undone.delta.removed);
+}
+
+#[test]
+fn adding_systems_together_needs_a_save_and_game_data() {
+    let w = webview();
+    let args = json!({
+        "seed": 1,
+        "systems": [{ "x": 0.0, "y": 0.0, "star_class": "sc_g" }],
+        "lanes": [],
+        "description": "Added a system",
+    });
+    let refused =
+        invoke::<EditResult>(&w, "add_random_systems", args.clone()).expect_err("no game data");
+    assert_eq!(refused.kind, ErrorKind::Op);
+    open(&w, SAMPLE);
+    let refused =
+        invoke::<EditResult>(&w, "add_random_systems", args.clone()).expect_err("no game data");
+    assert!(refused.message.contains("game data"), "{}", refused.message);
+
+    let Some((w, _)) = with_game_data(SAMPLE) else {
+        return;
+    };
+    open(&w, SCENARIO);
+    let refused =
+        invoke::<EditResult>(&w, "add_random_systems", args).expect_err("a scenario is refused");
+    assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
+    assert_eq!(
+        refused.message,
+        "adding systems is not supported for a scenario document"
+    );
+}

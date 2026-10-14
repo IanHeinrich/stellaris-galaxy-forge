@@ -361,6 +361,29 @@ pub fn snapshot(name: &str, value: &str) {
     });
 }
 
+/// The first `n` points, row by row, of a lattice `gap` apart that lie inside the galaxy and
+/// at least `gap` from every system the session holds.
+pub fn free_spots(session: &Session, n: usize, gap: f64) -> Vec<(f64, f64)> {
+    let graph = session.graph();
+    let radius = graph.galaxy_radius;
+    let steps = (radius / gap).floor() as i32;
+    let lattice = (-steps..=steps).flat_map(|row| {
+        (-steps..=steps).map(move |col| (f64::from(col) * gap, f64::from(row) * gap))
+    });
+    let spots: Vec<(f64, f64)> = lattice
+        .filter(|&(x, y)| {
+            x.hypot(y) <= radius
+                && graph
+                    .systems
+                    .values()
+                    .all(|s| (s.x - x).hypot(s.y - y) >= gap)
+        })
+        .take(n)
+        .collect();
+    assert_eq!(spots.len(), n, "{n} free spots {gap} apart");
+    spots
+}
+
 /// The ids of the bodies the details list for system `id`, star first.
 pub fn planet_ids(session: &Session, id: u32) -> Vec<u32> {
     planets(session, id).iter().map(|p| p.id).collect()

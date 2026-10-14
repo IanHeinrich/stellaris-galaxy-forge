@@ -744,6 +744,16 @@ pub struct LanePair {
     pub bridge: bool,
 }
 
+/// One end of a lane a bulk add lays: the `index`th new system, or a system the document
+/// holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LaneEnd {
+    New { index: u32 },
+    Held { system: u32 },
+}
+
 /// One lane's new length in [`Op::SetLaneLengths`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]

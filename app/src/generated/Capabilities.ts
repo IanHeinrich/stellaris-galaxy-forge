@@ -46,6 +46,11 @@ waylines: boolean,
  */
 added_systems: boolean, 
 /**
+ * Systems can be added many at once, a shape's as one step: a scenario's as statements,
+ * a 4.x save's rolled together.
+ */
+bulk_add_systems: boolean, 
+/**
  * A body's star class, planet size and name can be changed.
  */
 bodies: boolean, 

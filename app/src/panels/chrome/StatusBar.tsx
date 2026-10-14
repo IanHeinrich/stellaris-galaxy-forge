@@ -8,6 +8,7 @@ import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
 import { copyCountLabel, cutCountLabel, PASTE_HINT, selectedHint } from "../../lib/planetMove";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
+import { shapePath } from "../../lib/shapes/rules";
 import { shapeStatus } from "../../lib/shapes/shapeCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
@@ -211,8 +212,9 @@ function PendingShapeStatus() {
   const shown = useSceneSystem();
   const pending = useToolStore((s) => s.pendingShape);
   const preview = useShapePreview();
-  if (shown !== null || pending === null || preview === null) return null;
-  const { summary, warnings } = shapeStatus(pending, preview);
+  const path = useFileSessionStore((s) => shapePath(s.capabilities));
+  if (shown !== null || pending === null || preview === null || path === null) return null;
+  const { summary, warnings } = shapeStatus(pending, preview, path);
   return (
     <span className="shape-status">
       <span className="accent">{summary}</span>

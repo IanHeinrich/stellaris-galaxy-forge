@@ -21,9 +21,14 @@ const EXTENTS: Readonly<Record<MapEdge, (radius: number) => MapExtent | null>> =
   scenario_square: () => SCENARIO_SQUARE,
 };
 
+/** The extent `edge` bounds for a galaxy of `radius`: null for the galaxy's circle when it records none. */
+export function extentOf(edge: MapEdge, radius: number): MapExtent | null {
+  return EXTENTS[edge](radius);
+}
+
 /** The edge of the map: a save's galaxy radius, null when it records none, else the scenario square. */
 export function mapExtent(kind: DocumentKind | null, radius: number): MapExtent | null {
-  return kind === null ? SCENARIO_SQUARE : EXTENTS[DOCUMENT_KINDS[kind].mapEdge](radius);
+  return kind === null ? SCENARIO_SQUARE : extentOf(DOCUMENT_KINDS[kind].mapEdge, radius);
 }
 
 /** Whether `p` lies on or inside the map's edge. */

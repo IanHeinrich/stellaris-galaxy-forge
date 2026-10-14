@@ -367,6 +367,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
         Capabilities::of(common::open_3_4().doc()),
         Capabilities {
             added_systems: false,
+            bulk_add_systems: false,
             nebula_turbulence: false,
             deposits: false,
             geometry: false,
