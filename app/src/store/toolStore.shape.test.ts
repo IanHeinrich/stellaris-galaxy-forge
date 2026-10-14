@@ -9,6 +9,8 @@ import { fillSpacing } from "../lib/shapes/placement";
 import { PLACEMENT_RULES } from "../lib/placement/rules";
 import type { StarChoice } from "../lib/shapes/stars";
 import { NO_EXTRAS } from "../lib/shapes/extras";
+import { outlineStep } from "../lib/shapes/outline";
+import { LEAST_SPACING } from "../lib/placement/limits";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
@@ -418,5 +420,33 @@ describe("the memory", () => {
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 40, edge: true });
     expect(pending().lanes).toEqual({ follow: false, mode: "new" });
     expect(tools().shapeMemory.kinds.circle.shape.sweep).toBe(360);
+  });
+});
+
+describe("setting the extras", () => {
+  it("holds each to its range, and sets the pending shape's or else the remembered kind's", () => {
+    tools().setShapeExtras({ band: 9, gaps: 2.4 });
+    expect(tools().shapeMemory.kinds.circle.extras).toEqual({ ...NO_EXTRAS, band: 5, gaps: 2 });
+    expect(tools().pendingShape).toBeNull();
+
+    tools().setTool("shape");
+    expect(pending().extras).toEqual({ ...NO_EXTRAS, band: 5, gaps: 2 });
+    tools().setShapeExtras({ wobble: -10, centre: "spokes" });
+    expect(pending().extras).toEqual({ ...NO_EXTRAS, band: 5, gaps: 2, centre: "spokes" });
+    expect(tools().shapeMemory.kinds.circle.extras).toEqual(pending().extras);
+  });
+
+  it("grows an arranged shape when Wobble rises, as Arrange's start would size it", () => {
+    expect(tools().startArrange([0, 1, 2, 3], { x: 0, y: 0 })).toBe(true);
+    const before = sizeOf(pending().shape);
+    const centre = centreOf(pending().shape);
+    tools().setShapeExtras({ wobble: 80 });
+    const { shape } = pending();
+    expect(pending().extras.wobble).toBe(80);
+    expect(sizeOf(shape)).toBeGreaterThan(before);
+    expect(centreOf(shape)).toEqual(centre);
+    // Neighbours each nudged up to 40% of the step stay a fifth of it apart, past the gap.
+    const step = outlineStep(specOf(shape).outline(shape, 4));
+    expect(0.2 * step).toBeGreaterThanOrEqual(LEAST_SPACING);
   });
 });

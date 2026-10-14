@@ -16,8 +16,8 @@ import { lattice, scatterDensity, scatterPattern } from "./fills";
 import {
   appliedExtras,
   crossesGapAt,
-  gapSteps,
   outlineRow,
+  ownPlaces,
   wobbledFill,
   type Hub,
   type RunPlace,
@@ -262,7 +262,7 @@ function layout(
   const laid = {
     row: edge.points,
     runs: edge.runs,
-    places: edge.runs.map((_, along) => ({ along, shift: 0 })),
+    places: ownPlaces(edge),
     gaps: 0,
     hub: null,
     rowGivesWay: true,
@@ -534,12 +534,6 @@ function chainedLanes(
   return ground.symmetricLanes(wanted, imageOfNew, at, existing, linkable);
 }
 
-/** Whether a step in `opened` lies on the way from point `from` of a run of `count` to point `to`, onward round it. */
-function crossesGap(opened: ReadonlySet<number>, from: number, to: number, count: number): boolean {
-  for (let s = from; s !== to; s = (s + 1) % count) if (opened.has(s)) return true;
-  return false;
-}
-
 /**
  * Lanes joining each run's row points in order, round to its first when the run is closed and
  * the cap took all of it, passing over a point dropped from the base points. A run's `gaps`
@@ -547,25 +541,27 @@ function crossesGap(opened: ReadonlySet<number>, from: number, to: number, count
  * where the shape does. A point left out for a system has that system stand in for it.
  */
 function followLanes(
-  { runs, gaps }: Layout,
+  { runs, places, gaps }: Layout,
   rowEnd: number,
   row: RowStandIns,
   lanes: LaneGround,
 ): Pair[] {
   const wanted: Pair[] = [];
   const opened = new PairSet();
-  for (const run of runs) {
+  for (const [r, run] of runs.entries()) {
+    const place = places[r];
+    const at = (i: number) => i - run.start + place.shift;
+    const laidAlong = { count: place.count, closed: run.closed };
     const kept: number[] = [];
     for (let i = run.start; i < run.start + run.count; i++) if (row.laid(i)) kept.push(i);
     const steps = kept.slice(1).map((j, k): [number, number] => [kept[k], j]);
     const whole = rowEnd >= run.start + run.count;
     if (run.closed && whole && kept.length >= 3) steps.push([kept[kept.length - 1], kept[0]]);
-    const gapAt = gapSteps(run.count, run.closed, gaps);
     for (const [i, j] of steps) {
       const a = row.standIn(i);
       const b = row.standIn(j);
       if (a === null || b === null || a === b) continue;
-      if (crossesGap(gapAt, i - run.start, j - run.start, run.count)) opened.add(a, b);
+      if (crossesGapAt(laidAlong, gaps, at(i), at(j), "onward")) opened.add(a, b);
       else wanted.push([a, b]);
     }
   }
@@ -750,9 +746,9 @@ export function shapePlacement(
     if (r === s) return true;
     const [p, q] = [shown.places[r], shown.places[s]];
     if (p.along !== q.along || shown.gaps === 0) return false;
-    const { count, closed } = shown.runs[r];
+    const laidAlong = { count: p.count, closed: shown.runs[r].closed };
     const at = (k: number, run: number) => k - shown.runs[run].start + shown.places[run].shift;
-    return crossesGapAt(count, closed, shown.gaps, at(i, r), at(j, s));
+    return crossesGapAt(laidAlong, shown.gaps, at(i, r), at(j, s), "shorter");
   };
   const mesh = placedLanes({
     points,

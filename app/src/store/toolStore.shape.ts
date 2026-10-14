@@ -4,6 +4,7 @@ import type { Pt } from "../lib/geometry/pt";
 import type { MapExtent } from "../lib/guides";
 import {
   PLACEMENT_RULES,
+  type PlacementPath,
   placementBounds,
   shapePath,
   type PlacementBounds,
@@ -14,9 +15,9 @@ import { newSeed } from "../lib/random";
 import { spreadOf } from "../lib/shapes/arrange";
 import { galaxyFrame } from "../lib/shapes/drag";
 import {
+  arrangeWobble,
   EXTRA_KEYS,
   EXTRA_ROWS,
-  extraApplies,
   NO_EXTRAS,
   SHAPE_CENTRES,
 } from "../lib/shapes/extras";
@@ -148,9 +149,6 @@ const ADD: ShapePurpose = { kind: "add" };
 
 /** How much farther apart than the least spacing an arranged outline's points start. */
 const ARRANGE_ROOM = 1.2;
-
-/** The least share of an arranged outline's step that Wobble leaves between neighbours, however far it nudges. */
-const WOBBLE_ROOM = 0.2;
 
 /** The lanes a fill starts with: an outline follows itself, a fill meshes among its new systems. */
 function defaultLanes(fill: Fill): ShapeLanes {
@@ -392,23 +390,31 @@ function extentNow(): MapExtent | null {
 }
 
 /**
- * `settings`' shape sized to fit `points`: as far from its centre as they spread from theirs,
- * and large enough that `points.length` systems round its outline sit `least` apart and a
- * little more, after Wobble has nudged two neighbours toward each other.
+ * `settings`' shape grown, if it must be, so that `n` systems round its outline sit the least
+ * gap of `path` apart and a little more, after Wobble has nudged two neighbours toward each
+ * other.
  */
-function fittedShape(settings: ShapeSettings, points: readonly Pt[], least: number): Shape {
-  const { shape, extras } = settings;
-  const n = points.length;
-  const { spread } = spreadOf(points);
+function roomyShape(settings: ShapeSettings, n: number, path: PlacementPath): Shape {
+  const { shape } = settings;
   const spec = specOf(shape);
-  const fits = resizedWithin(shape, Math.max(SHAPE_SIZE_MIN, spread));
-  const step = outlineStep(spec.outline(fits, n));
-  const wobble = extraApplies("wobble", settings, "arrange") ? extras.wobble : 0;
-  // Two neighbours each nudged up to wobble% of half the step come that share of it closer.
-  const left = Math.max(WOBBLE_ROOM, 1 - wobble / 100);
+  const step = outlineStep(spec.outline(shape, n));
+  const least = Math.max(LEAST_SPACING, PLACEMENT_RULES[path].minGap);
+  // Two neighbours each nudged up to wobble% of half the step come that share of it closer;
+  // Arrange's cap on Wobble leaves at least a fifth of the step between them.
+  const left = 1 - arrangeWobble(settings) / 100;
   const want = (least * ARRANGE_ROOM) / left;
-  if (step >= want || step <= 0) return fits;
-  return resizedWithin(fits, (spec.size(fits) * want) / step);
+  if (step >= want || step <= 0) return shape;
+  return resizedWithin(shape, (spec.size(shape) * want) / step);
+}
+
+/**
+ * `settings`' shape sized to fit `points`: as far from its centre as they spread from theirs,
+ * and as `roomyShape` grows it for as many systems.
+ */
+function fittedShape(settings: ShapeSettings, points: readonly Pt[], path: PlacementPath) {
+  const { spread } = spreadOf(points);
+  const fits = resizedWithin(settings.shape, Math.max(SHAPE_SIZE_MIN, spread));
+  return roomyShape({ ...settings, shape: fits }, points.length, path);
 }
 
 /** `p` held inside `extent`. */
@@ -607,7 +613,17 @@ export function shapeSlice(
     },
 
     setShapeExtras(asked) {
-      if (isRecord(asked)) change((s) => ({ ...s, extras: heldExtras(asked, s.extras) }));
+      if (!isRecord(asked)) return;
+      const pending = get().pendingShape;
+      const path = shapePath(useFileSessionStore.getState().capabilities);
+      if (pending?.purpose.kind !== "arrange" || path === null) {
+        change((s) => ({ ...s, extras: heldExtras(asked, s.extras) }));
+        return;
+      }
+      // Arranging, the shape grows as it would have at the start, so Wobble keeps clear of the gap.
+      const settings = { ...settingsOf(pending), extras: heldExtras(asked, pending.extras) };
+      const shape = roomyShape(settings, pending.purpose.ids.length, path);
+      show({ ...pending, ...settings, shape });
     },
 
     setSkipNear(skipNear) {
@@ -693,11 +709,10 @@ export function shapeSlice(
       else if (!wasArranging) arrangedFrom = null;
       const { shapeMemory } = get();
       const { settings, lanes, alsoOuter } = shapeMemory.arrange;
-      const least = Math.max(LEAST_SPACING, PLACEMENT_RULES[path].minGap);
       const fitted = fittedShape(
         settings,
         chosen.map((id) => systems.get(id)!),
-        least,
+        path,
       );
       lastAnchor = null;
       set({

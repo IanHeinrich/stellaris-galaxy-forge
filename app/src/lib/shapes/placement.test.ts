@@ -753,14 +753,18 @@ describe("the outline's extras", () => {
 
   it("thickens a wobbled spiral into a band whose lanes cross nothing", () => {
     const preview = shapePlacement(
-      pending(SHAPE_SPECS.spiral.initial, {
-        fill: { kind: "outline", count: 40 },
-        lanes: { follow: true, mode: "new" },
-        extras: { ...NO_EXTRAS, band: 3, wobble: 50, gaps: 2 },
-      }),
+      pending(
+        { ...SHAPE_SPECS.spiral.initial, inner: 50 },
+        {
+          fill: { kind: "outline", count: 40 },
+          lanes: { follow: true, mode: "new" },
+          extras: { ...NO_EXTRAS, band: 3, wobble: 50, gaps: 2 },
+        },
+      ),
       EMPTY,
     );
-    expect(preview.points).toHaveLength(120);
+    // Each arm's shifted strand stops half a step short of the arm's end.
+    expect(preview.points).toHaveLength(118);
     expect(crossings(preview)).toBe(0);
   });
 

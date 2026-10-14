@@ -105,6 +105,15 @@ export function takesCentre(settings: Laid, purpose: ShapePurpose["kind"]): bool
   );
 }
 
+/** The most Wobble an arrange lays, so a step five times the least gap keeps neighbours clear of it. */
+export const ARRANGE_MOST_WOBBLE = 80;
+
+/** The Wobble `settings` arranges with: none where it doesn't apply, and at most `ARRANGE_MOST_WOBBLE`. */
+export function arrangeWobble(settings: Laid & Pick<ShapeSettings, "extras">): number {
+  if (!extraApplies("wobble", settings, "arrange")) return NO_EXTRAS.wobble;
+  return Math.min(settings.extras.wobble, ARRANGE_MOST_WOBBLE);
+}
+
 /** The extras `pending` is laid with: each that doesn't apply as `NO_EXTRAS` has it. */
 export function appliedExtras(pending: PendingShape): ShapeExtras {
   const purpose = pending.purpose.kind;
@@ -112,6 +121,7 @@ export function appliedExtras(pending: PendingShape): ShapeExtras {
   for (const key of EXTRA_KEYS) {
     if (!extraApplies(key, pending, purpose)) out[key] = NO_EXTRAS[key];
   }
+  if (purpose === "arrange") out.wobble = arrangeWobble(pending);
   if (!takesCentre(pending, purpose)) out.centre = NO_EXTRAS.centre;
   return out;
 }
@@ -129,15 +139,34 @@ const WOBBLE_GRAIN = 1000;
 /** How many points the outline is read at to find how close its sides come to its centre. */
 const INSET_SAMPLES = 256;
 
-/** Where a run lies along the shape: the run it was laid along, which a band's strands share, and how far along it its first point sits, in steps. */
+/**
+ * Where a run lies along the shape: the run it was laid along, which a band's strands share,
+ * that run's count of points, and how far along it the run's first point sits, in steps.
+ */
 export interface RunPlace {
   along: number;
+  count: number;
   shift: number;
 }
 
 /** Each run of `outline` laid along itself, from its start. */
-function ownPlaces(outline: Outline): RunPlace[] {
-  return outline.runs.map((_, along) => ({ along, shift: 0 }));
+export function ownPlaces(outline: Outline): RunPlace[] {
+  return outline.runs.map((run, along) => ({ along, count: run.count, shift: 0 }));
+}
+
+/** The least distance from `c` to the line of a side of the polyline through `points`, round to the first when `closed`. */
+function sideReach(points: readonly Pt[], closed: boolean, c: Pt): number {
+  let least = Infinity;
+  const sides = closed ? points.length : points.length - 1;
+  for (let i = 0; i < sides; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    const length = distance(a, b);
+    if (length === 0) continue;
+    const cross = (b.x - a.x) * (a.y - c.y) - (b.y - a.y) * (a.x - c.x);
+    least = Math.min(least, Math.abs(cross) / length);
+  }
+  return least;
 }
 
 /**
@@ -149,20 +178,7 @@ function ownPlaces(outline: Outline): RunPlace[] {
 function insetReach(shape: Shape): number {
   const { points, runs } = specOf(shape).outline(shape, INSET_SAMPLES);
   const c = centreOf(shape);
-  let least = Infinity;
-  for (const run of runs) {
-    const along = runPoints(points, run);
-    const sides = run.closed ? along.length : along.length - 1;
-    for (let i = 0; i < sides; i++) {
-      const a = along[i];
-      const b = along[(i + 1) % along.length];
-      const length = distance(a, b);
-      if (length === 0) continue;
-      const cross = (b.x - a.x) * (a.y - c.y) - (b.y - a.y) * (a.x - c.x);
-      least = Math.min(least, Math.abs(cross) / length);
-    }
-  }
-  return least;
+  return Math.min(...runs.map((run) => sideReach(runPoints(points, run), run.closed, c)));
 }
 
 /**
@@ -202,16 +218,19 @@ function strayed(p: Pt, reach: number, rand: Rand): Pt {
 }
 
 /**
- * Each run of `outline` as `band` runs side by side across it, a `step` apart and centred on
- * it, every other one half a step along, as bricks are laid. Each point strays at random up to
- * `BAND_SCATTER` of a step, drawn from `seed` point by point in order, so the band looks grown
- * rather than drawn.
+ * Each run of `outline` as up to `band` runs side by side across it, a `step` apart and centred
+ * on it, every other one half a step along, as bricks are laid; an open run's shifted strand
+ * stops half a step short of its end. A strand that would reach as far in as `centre` from the
+ * run's sides is left out, so a band never folds through the centre. Each point strays at
+ * random up to `BAND_SCATTER` of a step, drawn from `seed` point by point in order, so the band
+ * looks grown rather than drawn.
  */
 function banded(
   outline: Outline,
   band: number,
   step: number,
   seed: number,
+  centre: Pt,
 ): { outline: Outline; places: RunPlace[] } {
   const rand = seeded(seed ^ BAND_STREAM);
   const parts: Outline[] = [];
@@ -219,11 +238,22 @@ function banded(
   for (const [along, run] of outline.runs.entries()) {
     const points = runPoints(outline.points, run);
     const normals = points.map((_, i) => across(points, i, run.closed));
+    const reach = sideReach(points, run.closed, centre);
+    // Which way across the run the centre lies, +1 along the normals or -1 against them.
+    const facing = Math.sign(
+      points.reduce((t, p, i) => {
+        const n = normals[i];
+        return t + n.x * (centre.x - p.x) + n.y * (centre.y - p.y);
+      }, 0),
+    );
     for (let j = 0; j < band; j++) {
       const offset = (j - (band - 1) / 2) * step;
-      const strand = points.map((p, i) => {
-        const next = i + 1 < points.length ? points[i + 1] : run.closed ? points[0] : null;
-        const at = j % 2 === 1 && next ? lerp(p, next, 0.5) : p;
+      const inward = offset * facing;
+      if (inward > 0 && inward >= reach) continue;
+      const shifted = j % 2 === 1;
+      const laid = shifted && !run.closed ? points.slice(0, -1) : points;
+      const strand = laid.map((p, i) => {
+        const at = shifted ? lerp(p, points[(i + 1) % points.length], 0.5) : p;
         const n = normals[i];
         return strayed(
           { x: at.x + n.x * offset, y: at.y + n.y * offset },
@@ -232,7 +262,7 @@ function banded(
         );
       });
       parts.push(oneRun(strand, run.closed));
-      places.push({ along, shift: j % 2 === 1 ? 0.5 : 0 });
+      places.push({ along, count: run.count, shift: shifted ? 0.5 : 0 });
     }
   }
   return { outline: joined(parts), places };
@@ -293,26 +323,27 @@ function gapCuts(count: number, closed: boolean, gaps: number): number[] {
 }
 
 /**
- * Whether a lane from place `x` to place `y` along a run of `count` points, in steps from its
- * first, passes one of its `gaps`: the shorter way round a closed run.
+ * Whether a lane from place `from` to place `to` along a run of `count` points, in steps from
+ * its first, passes one of its `gaps`: going on from `from` past the end of a closed run, or
+ * the shorter way round when `way` is "shorter".
  */
 export function crossesGapAt(
-  count: number,
-  closed: boolean,
+  { count, closed }: { count: number; closed: boolean },
   gaps: number,
-  x: number,
-  y: number,
+  from: number,
+  to: number,
+  way: "onward" | "shorter",
 ): boolean {
   const cuts = gapCuts(count, closed, gaps);
-  if (!closed) return cuts.some((c) => c > Math.min(x, y) && c < Math.max(x, y));
+  if (!closed) return cuts.some((c) => c > Math.min(from, to) && c < Math.max(from, to));
   const round = (v: number) => ((v % count) + count) % count;
-  let from = x;
-  let length = round(y - x);
-  if (length > count / 2) {
-    from = y;
+  let start = from;
+  let length = round(to - from);
+  if (way === "shorter" && length > count / 2) {
+    start = to;
     length = count - length;
   }
-  return cuts.some((c) => round(c - from) < length);
+  return cuts.some((c) => round(c - start) < length);
 }
 
 /** The system at the centre: its index in the row, and the row points spokes join it to, none without spokes. */
@@ -371,13 +402,13 @@ export function outlineRow(
   const pitch = extras.band * step;
   let outline = extras.rings > 1 ? withRings(shape, count, first, extras.rings, pitch) : first;
   let places = ownPlaces(outline);
-  if (extras.band > 1) ({ outline, places } = banded(outline, extras.band, step, seed));
+  const centre = centreOf(shape);
+  if (extras.band > 1) ({ outline, places } = banded(outline, extras.band, step, seed, centre));
   if (extras.wobble > 0) outline = wobbled(outline, (step * extras.wobble) / 200, seed);
   if (extras.centre === "none" || spec.spokes === null) return { outline, places, hub: null, step };
-  const centre = centreOf(shape);
   const spokes = extras.centre === "spokes" ? spokeEnds(outline, spec.spokes, centre) : [];
   const hub = { index: outline.points.length, spokes };
-  const hubPlace = { along: outline.runs.length, shift: 0 };
+  const hubPlace = { along: outline.runs.length, count: 1, shift: 0 };
   return {
     outline: joined([outline, oneRun([centre], false)]),
     places: [...places, hubPlace],

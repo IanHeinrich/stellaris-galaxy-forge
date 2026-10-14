@@ -139,15 +139,17 @@ An outline has four more options. Each one starts off, so the outline
 stays a single row of systems until you change them.
 
 - Band makes the outline 1 to 5 systems thick. The systems are scattered
-  within the band, so a ring looks grown rather than drawn.
+  within the band, so a ring looks grown rather than drawn. On a small
+  shape, an inner row that would reach the centre is left out.
 - Rings adds smaller copies of the outline inside it, each at least a
   spacing from the next, for an onion galaxy. With Band, the rings move
   apart to make room for it. The copies keep the same spacing between
   systems, so the inner rings have fewer systems. Circles, polygons,
   rectangles and stars have Rings.
 - Gaps opens breaks in the Follow the shape lanes, spread evenly, to make
-  chokepoints. It shows while Follow the shape is on. Lanes never joins
-  two systems on the same outline, so it doesn't close a gap.
+  chokepoints. It shows while Follow the shape is on. Lanes doesn't add
+  a lane across a gap, so the gap stays open. Lanes can still join one
+  ring to the next.
 - Wobble moves each system at random, up to half the spacing, so the
   shape looks less exact. A square or hex grid can wobble too.
 
@@ -155,7 +157,8 @@ Band and Wobble are random. The pending shape keeps the same layout while
 you adjust it. Shuffle rolls a new one, and so does drawing a new shape.
 
 Arrange hides Band, Rings and A system at the centre, because the number
-of systems is fixed to the selection. Gaps and Wobble still work.
+of systems is fixed to the selection. Gaps and Wobble still work, and
+Arrange wobbles at most 80%, so the systems stay clear of each other.
 
 ## Lanes
 
@@ -175,9 +178,9 @@ of systems is fixed to the selection. Gaps and Wobble still work.
 - A system at the centre adds one system at the centre of a circle,
   polygon or spiral outline.
 - Spokes to the centre joins that system to every system on the outline.
-  It shows once A system at the centre is ticked. With Rings, the spokes
-  go to the innermost ring. On a spiral, they go to the inner end of each
-  arm.
+  It shows once A system at the centre is ticked. With Rings or Band, the
+  spokes go to the innermost ring or row only. On a spiral, they go to the
+  inner end of each arm.
 
 If a system already stands at the centre, the centre point is left out
 and the spokes run to that system instead. A ring round a home system can

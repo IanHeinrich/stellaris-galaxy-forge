@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { distance } from "./frame";
 import {
+  appliedExtras,
+  ARRANGE_MOST_WOBBLE,
   BAND_SCATTER,
   crossesGapAt,
   extraApplies,
@@ -169,14 +171,55 @@ describe("rings", () => {
 });
 
 describe("crossing a gap", () => {
-  it("finds a cut between two places along a run, the short way round a closed one", () => {
+  it("finds a cut between two places along a run, onward or the short way round a closed one", () => {
     // Gaps 3 round 24 points cut the steps from points 0, 8 and 16.
-    expect(crossesGapAt(24, true, 3, 0, 1)).toBe(true);
-    expect(crossesGapAt(24, true, 3, 0.5, 1.5)).toBe(true);
-    expect(crossesGapAt(24, true, 3, 1, 2)).toBe(false);
-    expect(crossesGapAt(24, true, 3, 23, 1)).toBe(true);
-    expect(crossesGapAt(24, true, 3, 22, 23.5)).toBe(false);
-    expect(crossesGapAt(24, true, 0, 0, 1)).toBe(false);
-    expect(crossesGapAt(10, false, 1, 4, 5.5)).toBe(true);
+    const ring = { count: 24, closed: true };
+    expect(crossesGapAt(ring, 3, 0, 1, "shorter")).toBe(true);
+    expect(crossesGapAt(ring, 3, 0.5, 1.5, "shorter")).toBe(true);
+    expect(crossesGapAt(ring, 3, 1, 2, "shorter")).toBe(false);
+    expect(crossesGapAt(ring, 3, 23, 1, "onward")).toBe(true);
+    expect(crossesGapAt(ring, 3, 22, 23.5, "shorter")).toBe(false);
+    expect(crossesGapAt(ring, 3, 2, 1, "onward")).toBe(true);
+    expect(crossesGapAt(ring, 3, 2, 1, "shorter")).toBe(false);
+    expect(crossesGapAt(ring, 0, 0, 1, "onward")).toBe(false);
+    expect(crossesGapAt({ count: 10, closed: false }, 1, 4, 5.5, "onward")).toBe(true);
+  });
+});
+
+describe("a band at its limits", () => {
+  it("leaves out the strands that would reach the centre of a coarse outline", () => {
+    const triangle = { ...SHAPE_SPECS.polygon.initial, sides: 3, radius: 100 };
+    // Six points round a triangle are about 87 apart; its sides are 50 from its centre.
+    const { outline } = outlineRow(triangle, 6, { ...NO_EXTRAS, band: 5 }, SEED);
+    expect(outline.runs).toHaveLength(3);
+    for (const p of outline.points) {
+      expect(distance(p, triangle.centre)).toBeGreaterThan(25);
+    }
+  });
+
+  it("stops an open run's shifted strand half a step short of its end", () => {
+    const line = SHAPE_SPECS.line.initial;
+    const { outline, step } = outlineRow(line, 9, { ...NO_EXTRAS, band: 3 }, SEED);
+    expect(outline.runs.map((run) => run.count)).toEqual([9, 8, 9]);
+    const shifted = runPoints(outline.points, outline.runs[1]);
+    const end = shifted[shifted.length - 1];
+    expect(Math.abs(end.x - (line.b.x - step / 2))).toBeLessThanOrEqual(BAND_SCATTER * step);
+  });
+});
+
+describe("Wobble in an arrange", () => {
+  it("is held to the most an arrange lays", () => {
+    const arranging = {
+      purpose: { kind: "arrange", ids: [1, 2], lanes: "keep", alsoOuter: false },
+      shape: RING,
+      fill: { kind: "outline", count: 2 },
+      lanes: { follow: false, mode: "off" },
+      extras: { ...NO_EXTRAS, wobble: 100 },
+      skipNear: false,
+      seed: SEED,
+      stars: { kind: "random" },
+    } as const;
+    expect(appliedExtras(arranging).wobble).toBe(ARRANGE_MOST_WOBBLE);
+    expect(appliedExtras({ ...arranging, purpose: { kind: "add" } }).wobble).toBe(100);
   });
 });
