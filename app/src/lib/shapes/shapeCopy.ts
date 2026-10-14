@@ -1,4 +1,5 @@
 import { counted, listed, thousands } from "../text";
+import type { OptionCopy } from "../toolCopy";
 import { PLACEMENT_RULES, type PlacementPath } from "../placement/rules";
 import { specOf } from "./specs";
 import type {
@@ -13,12 +14,24 @@ import type {
   ShapePreview,
 } from "./types";
 
-/** Each fill choice in the options panel's row: its name, and the kind of fill it lays. */
-const FILL_CHOICE_ROWS: Record<FillChoice, { label: string; kind: FillKind }> = {
-  outline: { label: "Outline", kind: "outline" },
-  scattered: { label: "Scattered", kind: "scattered" },
-  square: { label: "Square grid", kind: "grid" },
-  hex: { label: "Hex grid", kind: "grid" },
+/** Each fill choice in the options panel's row: its name, what it does, and the kind of fill it lays. */
+const FILL_CHOICE_ROWS: Record<FillChoice, OptionCopy & { kind: FillKind }> = {
+  outline: { label: "Outline", hint: "Put systems along the shape's edge only.", kind: "outline" },
+  scattered: {
+    label: "Scattered",
+    hint: "Fill the shape with systems at random.",
+    kind: "scattered",
+  },
+  square: {
+    label: "Square grid",
+    hint: "Fill the shape with systems in rows and columns.",
+    kind: "grid",
+  },
+  hex: {
+    label: "Hex grid",
+    hint: "Fill the shape with systems in a honeycomb pattern.",
+    kind: "grid",
+  },
 };
 
 /** Every fill choice, in the row's order. */
@@ -33,6 +46,96 @@ export const LATTICES = FILL_CHOICES.filter(
 export function fillChoiceLabel(choice: FillChoice): string {
   return FILL_CHOICE_ROWS[choice].label;
 }
+
+/** What a fill choice does, for its tooltip. */
+export function fillChoiceHint(choice: FillChoice): string {
+  return FILL_CHOICE_ROWS[choice].hint;
+}
+
+/** A section of the Shape tool's options panel. */
+export type ShapeSection = "shape" | "fill" | "form" | "systems" | "lanes";
+
+/** Each section's heading, in the panel's order. */
+export const SHAPE_SECTION_HEADINGS: Record<ShapeSection, string> = {
+  shape: "Shape",
+  fill: "Fill",
+  form: "Size and form",
+  systems: "Systems",
+  lanes: "Lanes",
+};
+
+/** Every section, in the panel's order. */
+export const SHAPE_SECTIONS = Object.keys(SHAPE_SECTION_HEADINGS) as ShapeSection[];
+
+/** The Shape tool's own options, beyond the kind's fields, the extras and the lane options it shares with the brushes. */
+export type ShapeOption =
+  | "size"
+  | "small"
+  | "whole"
+  | "systems"
+  | "selected"
+  | "density"
+  | "spacing"
+  | "edge"
+  | "follow"
+  | "centre"
+  | "spokes"
+  | "skipNear"
+  | "stars"
+  | "shuffle"
+  | "exact"
+  | "centreAt"
+  | "alsoOuter";
+
+export const SHAPE_OPTIONS: Record<ShapeOption, OptionCopy> = {
+  size: { label: "Size", hint: "Make the shape larger or smaller." },
+  small: { label: "Small", hint: "Make the shape a tenth as wide as the galaxy." },
+  whole: { label: "Whole galaxy", hint: "Make the shape as wide as the galaxy." },
+  systems: { label: "How many", hint: "Set how many systems go along the outline." },
+  selected: { label: "Selected", hint: "The systems Arrange moves onto the shape." },
+  density: { label: "System density", hint: "Set how close together the systems are." },
+  spacing: {
+    label: "Spacing",
+    hint: "Set the distance between neighbouring systems, in game units.",
+  },
+  edge: {
+    label: "Line the edge with systems",
+    hint: "Add a row of systems along the shape's edge too.",
+  },
+  follow: {
+    label: "Follow the shape",
+    hint: "Join each system on the edge to the next one along it.",
+  },
+  centre: { label: "A system at the centre", hint: "Add one system at the centre of the shape." },
+  spokes: {
+    label: "Spokes to the centre",
+    hint: "Join the centre system to every system on the outline.",
+  },
+  skipNear: {
+    label: "Don't place on top of existing systems",
+    hint: "Leave out points too close to a system already on the map.",
+  },
+  stars: { label: "Stars", hint: "Choose the star class of the new systems." },
+  shuffle: { label: "Shuffle", hint: "Roll the random layout and stars again." },
+  exact: {
+    label: "Exact values",
+    hint: "Type exact numbers for the shape's position, size and rotation.",
+  },
+  centreAt: { label: "Centre", hint: "Move the shape's centre to these coordinates." },
+  alsoOuter: {
+    label: "Also remove lanes to other systems",
+    hint: "Remove the lanes from the selected systems to the rest of the map too.",
+  },
+};
+
+/** The tooltip on each star class's box under A mix…. */
+export const MIX_CLASS_HINT = "Tick the star classes the mix rolls from.";
+
+/** The tooltip on the Place button while it can place. */
+export const PLACE_HINT = "Add the systems shown on the map.";
+
+/** The tooltip on the Arrange button while it can arrange. */
+export const ARRANGE_HINT = "Move the selected systems to the points shown on the map.";
 
 /** The kind of fill a choice lays. */
 export function fillKindOf(choice: FillChoice): FillKind {
@@ -161,9 +264,15 @@ export function arrangeShortfall(
 
 /** Each choice of what Arrange does with the lanes between selected systems: its name and what it does. */
 const ARRANGE_LANE_ROWS: Record<ArrangeLanes, { label: string; title: string }> = {
-  keep: { label: "Keep", title: "Keep every lane; each stretches to follow" },
-  rebuild: { label: "Rebuild", title: "Take out the lanes between them and lay new ones" },
-  clear: { label: "Clear", title: "Take out the lanes between them" },
+  keep: {
+    label: "Keep",
+    title: "Keep the lanes between the selected systems, stretched to follow.",
+  },
+  rebuild: {
+    label: "Rebuild",
+    title: "Replace the lanes between the selected systems with new ones.",
+  },
+  clear: { label: "Clear", title: "Remove the lanes between the selected systems." },
 };
 
 /** Every lane choice of Arrange, in the row's order. */

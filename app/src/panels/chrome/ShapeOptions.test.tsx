@@ -33,10 +33,21 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useGeneratorStore } from "../../store/generatorStore";
 import { useToolStore } from "../../store/toolStore";
+import { drawnBy, lastDrawn } from "../../test/drawn";
 import { ShapeOptions } from "./ShapeOptions";
 import { ToolOptions } from "./ToolOptions";
 
 const options = () => renderToStaticMarkup(<ShapeOptions />);
+
+/** Each section of `html` by its heading's text, in the panel's order, with the markup under the heading. */
+function sections(html: string): Map<string, string> {
+  return new Map(
+    [...html.matchAll(/<section[^>]*><h3[^>]*>([^<]+).*?<\/h3>(.*?)<\/section>/gs)].map((m) => [
+      m[1],
+      m[2],
+    ]),
+  );
+}
 
 /** A pending shape of `kind` with `fill`, lanes as a new outline starts them. */
 function pend(kind: ShapeKind, fill: Fill, over: Partial<PendingShape> = {}): PendingShape {
@@ -115,11 +126,11 @@ describe("the shape options", () => {
     });
     const html = options();
     expect(html).toContain("Drag on the map to draw a shape");
-    expect(html).toMatch(/aria-checked="true" title="Star"/);
-    expect(html).toMatch(/aria-checked="true">Square grid</);
+    expect(html).toMatch(/aria-checked="true" aria-label="Star"/);
+    expect(html).toMatch(/aria-checked="true" title="[^"]*">Square grid</);
     expect(html).toContain("Points");
     expect(html).toContain("Inner radius");
-    expect(html).toContain("Spacing");
+    expect(html).toContain("System density");
     expect(html).toContain('<option value="new" selected="">Among new</option>');
     expect(html).not.toMatch(/checked=""[^>]*\/>Don&#x27;t place/);
     for (const absent of [">Place", "Size presets", "Shuffle", "Exact values"]) {
@@ -132,29 +143,120 @@ describe("the shape options", () => {
     expect(renderToStaticMarkup(<ToolOptions />)).toContain("Follow the shape");
   });
 
+  it("group the options under Shape, Fill, Size and form, Systems and Lanes, the fill bar and edge row in Fill", () => {
+    useToolStore.setState({
+      pendingShape: pend(
+        "circle",
+        { kind: "scattered", spacing: 25, edge: true },
+        { lanes: { follow: true, mode: "new" } },
+      ),
+    });
+    const parts = sections(options());
+    expect([...parts.keys()]).toEqual(["Shape", "Fill", "Size and form", "Systems", "Lanes"]);
+    expect(parts.get("Shape")).toMatch(/^<div class="segmented shape-tiles" role="radiogroup"/);
+    expect(parts.get("Fill")).toMatch(
+      /^<div class="segmented joined" role="radiogroup" aria-label="Fill">.*<\/div><label[^>]*><input type="checkbox"[^>]*\/>Line the edge with systems<\/label>$/,
+    );
+    for (const label of ["Size", "Arc", "Roundness", "Hollow centre"]) {
+      expect(parts.get("Size and form")).toContain(`aria-label="${label}"`);
+    }
+    expect(parts.get("Systems")).toMatch(/System density.*Don&#x27;t place on top/);
+    expect(parts.get("Lanes")).toMatch(/>Lanes<select.*Lane density.*Follow the shape/);
+  });
+
+  it("show one help link, on the Shape heading", () => {
+    const html = renderToStaticMarkup(<ToolOptions />);
+    expect(html.match(/class="link help-link"/g)).toHaveLength(1);
+    expect(html).toMatch(
+      /<h3[^>]*>Shape<button[^>]*class="link help-link"[^>]*>\?<\/button><\/h3>/,
+    );
+  });
+
+  it("put the outline's extras in Size and form, the centre system in Systems and its spokes in Lanes", () => {
+    const extras = { ...NO_EXTRAS, centre: "spokes" } as const;
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE, { extras }) });
+    const parts = sections(options());
+    for (const label of ["Band", "Rings", "Wobble", "Gaps"]) {
+      expect(parts.get("Size and form")).toContain(`aria-label="${label}"`);
+    }
+    expect(parts.get("Systems")).toContain("A system at the centre");
+    expect(parts.get("Lanes")).toMatch(/Follow the shape.*Spokes to the centre/);
+  });
+
+  it("show Fill with a single choice, and leave out Size and form when nothing is in it", () => {
+    useToolStore.setState({ pendingShape: pend("line", OUTLINE) });
+    const fill = sections(options()).get("Fill")!;
+    expect(fill.match(/role="radio"/g)).toHaveLength(1);
+
+    const memory = useToolStore.getState().shapeMemory;
+    useToolStore.setState({
+      pendingShape: null,
+      shapeMemory: {
+        ...memory,
+        kind: "rect",
+        kinds: {
+          ...memory.kinds,
+          rect: {
+            shape: SHAPE_SPECS.rect.initial,
+            fill: { kind: "scattered", spacing: 25, edge: true },
+            lanes: { follow: true, mode: "new" },
+            extras: NO_EXTRAS,
+          },
+        },
+      },
+    });
+    expect([...sections(options()).keys()]).toEqual(["Shape", "Fill", "Systems", "Lanes"]);
+  });
+
+  it("start Arrange's Lanes with what becomes of the selection's lanes, and show Gaps only under Rebuild", () => {
+    const arrange = (lanes: "keep" | "rebuild") =>
+      pend("circle", OUTLINE, {
+        purpose: { kind: "arrange", ids: [1, 2, 3], lanes, alsoOuter: false },
+      });
+    useToolStore.setState({ pendingShape: arrange("keep") });
+    let parts = sections(options());
+    expect(parts.get("Lanes")).toMatch(
+      /^<div class="segmented joined" role="radiogroup" aria-label="Lanes between the selected systems">.*<\/div>$/,
+    );
+    expect(parts.get("Systems")).toMatch(/title="[^"]+">Selected<span class="muted">3 systems</);
+    expect(parts.get("Size and form")).not.toContain('aria-label="Gaps"');
+
+    useToolStore.setState({ pendingShape: arrange("rebuild") });
+    parts = sections(options());
+    expect(parts.get("Size and form")).toContain('aria-label="Gaps"');
+    expect(parts.get("Lanes")).toMatch(
+      /aria-label="Lanes between the selected systems">.*Follow the shape.*Also remove lanes to other systems/,
+    );
+  });
+
   it("offer every kind of shape in the picker, the pending one checked", () => {
     useToolStore.setState({ pendingShape: pend("polygon", OUTLINE) });
     const html = options();
     for (const label of ["Line", "Circle", "Polygon", "Rectangle", "Star"]) {
-      expect(html).toContain(`title="${label}"`);
+      expect(html).toContain(`aria-label="${label}"`);
     }
-    expect(html).toMatch(/aria-checked="true" title="Polygon"/);
-    expect(html).toMatch(/aria-checked="false" title="Circle"/);
+    expect(html).toMatch(/aria-checked="true" aria-label="Polygon"/);
+    expect(html).toContain(`title="Polygon\n${SHAPE_SPECS.polygon.hint}"`);
+    expect(html).toMatch(/aria-checked="false" aria-label="Circle"/);
   });
 
-  it("show Systems for an outline and Spacing for a fill", () => {
+  it("show Systems for an outline, and System density with an exact Spacing for a fill", () => {
     useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
     const outline = options();
-    expect(outline).toContain("Systems");
+    expect(outline).toMatch(/<label class="tool-option" title="[^"]*">How many<input/);
     expect(outline).toMatch(/min="2" max="1000"[^>]*aria-label="Systems along the outline"/);
-    expect(outline).not.toContain("Spacing");
+    expect(outline).not.toContain("System density");
+    expect(outline).not.toContain(">Spacing<");
 
     useToolStore.setState({
       pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: true }),
     });
     const scattered = options();
-    expect(scattered).toContain("Spacing");
-    expect(scattered).not.toContain("Systems");
+    expect(scattered).toMatch(
+      />System density<span class="shape-density"><span class="muted">sparse<.*>dense</,
+    );
+    expect(scattered).toMatch(/<details.*>Spacing<input[^>]*aria-label="Spacing between/);
+    expect(scattered).not.toContain("Systems along the outline");
   });
 
   it("offer the four fills in one row, and Shuffle only for a scattered fill", () => {
@@ -167,21 +269,25 @@ describe("the shape options", () => {
       "Square grid",
       "Hex grid",
     ]);
-    expect(outline).toMatch(/aria-checked="true">Outline</);
+    expect(outline).toMatch(/aria-checked="true" title="[^"]*">Outline</);
     expect(outline.match(/role="radiogroup"/g)).toHaveLength(2);
     expect(outline).not.toContain("Shuffle");
 
     useToolStore.setState({
       pendingShape: pend("rect", { kind: "scattered", spacing: 25, edge: true }),
     });
-    expect(options()).toMatch(/aria-checked="true">Scattered</);
-    expect(options()).toContain("Shuffle");
+    expect(options()).toMatch(/aria-checked="true" title="[^"]*">Scattered</);
+    expect(options()).toMatch(
+      /<div class="shape-foot">.*>Place<.*title="Shuffle\n[^"]+" aria-label="Shuffle"/s,
+    );
 
     useToolStore.setState({
       pendingShape: pend("rect", { kind: "grid", spacing: 25, lattice: "hex" }),
     });
     const grid = options();
-    expect(grid).toMatch(/aria-checked="false">Square grid<.*aria-checked="true">Hex grid</);
+    expect(grid).toMatch(
+      /aria-checked="false" title="[^"]*">Square grid<.*aria-checked="true" title="[^"]*">Hex grid</,
+    );
     expect(grid).not.toContain("Shuffle");
   });
 
@@ -230,7 +336,7 @@ describe("the shape options", () => {
     expect(options()).not.toContain("Follow the shape");
   });
 
-  it("start Spacing at the closest spacing that fills the whole shape, and show the one used", () => {
+  it("start System density at the closest spacing that fills the whole shape, and show the one used", () => {
     useToolStore.setState({
       pendingShape: pend(
         "circle",
@@ -238,12 +344,16 @@ describe("the shape options", () => {
         { shape: { ...SHAPE_SPECS.circle.initial, radius: 500 } },
       ),
     });
+    const html = options();
     const field =
-      /min="([\d.]+)" max="150" step="0.1" aria-label="Spacing between[^"]*" value="([\d.]+)"/.exec(
-        options(),
+      /min="([\d.]+)" max="150" step="0.1" aria-label="Spacing between[^"]*" style="[^"]*" value="([\d.]+)"/.exec(
+        html,
       );
     expect(Number(field![1])).toBeGreaterThan(5);
     expect(Number(field![2])).toBe(Number(field![1]));
+    // Dense is at the right, and the densest the fill takes is the slider's end.
+    const slider = /min="0" max="(\d+)" aria-label="System density" value="(\d+)"/.exec(html);
+    expect(Number(slider![2])).toBe(Number(slider![1]));
     expect(useToolStore.getState().pendingShape!.fill).toMatchObject({ spacing: 5 });
   });
 
@@ -312,11 +422,61 @@ describe("the shape options", () => {
     const html = options();
     expect(html).toMatch(/checked=""[^>]*\/>Don&#x27;t place on top of existing systems/);
     expect(html).toContain("<details");
-    expect(html).toContain("<summary>Exact values</summary>");
+    expect(html).toMatch(/<summary[^>]*>Exact values<\/summary>/);
     expect(html).toContain('aria-label="Centre x in game units"');
 
     useToolStore.setState({ pendingShape: pend("circle", OUTLINE, { skipNear: false }) });
     expect(options()).not.toMatch(/checked=""[^>]*\/>Don&#x27;t/);
+  });
+
+  it("apply a typed value on Enter even when it reads as the rounded value shown", () => {
+    const shape = { ...SHAPE_SPECS.circle.initial, centre: { x: 0.04, y: 0 } };
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE, { shape }) });
+    drawnBy(options);
+    const field = lastDrawn(
+      ({ type, props }) => type === "input" && props["aria-label"] === "Centre x in game units",
+      "Centre x",
+    ) as { value: string; onChange(e: unknown): void; onKeyDown(e: unknown): void };
+    expect(field.value).toBe("0");
+    const input = { value: "0", blur: () => {} };
+    field.onKeyDown({ key: "Enter", currentTarget: input });
+    expect(useToolStore.getState().pendingShape!.shape).toMatchObject({ centre: { x: 0.04 } });
+
+    field.onChange({ target: input });
+    field.onKeyDown({ key: "Enter", currentTarget: input });
+    expect(useToolStore.getState().pendingShape!.shape).toMatchObject({ centre: { x: 0, y: 0 } });
+  });
+
+  it("show exact values to a decimal place, two for a finer step, in fields wide enough for them", () => {
+    useToolStore.setState({
+      pendingShape: pend("rect", OUTLINE, {
+        shape: {
+          kind: "rect",
+          centre: { x: -1234.5678, y: 1.24 },
+          width: 101.3456,
+          height: 101.84,
+          rotation: 0,
+        },
+      }),
+    });
+    const rect = options();
+    const field = (label: string) =>
+      new RegExp(`aria-label="${label}" style="--chars:(\\d+)" value="([^"]*)"`)
+        .exec(rect)!
+        .slice(1);
+    expect(field("Centre x in game units")).toEqual(["7", "-1234.6"]);
+    expect(field("Centre y in game units")).toEqual(["7", "1.2"]);
+    expect(field("Width in game units")).toEqual(["6", "101.3"]);
+    expect(field("Height in game units")).toEqual(["6", "101.8"]);
+    expect(field("Rotation in degrees")).toEqual(["5", "0"]);
+    expect(useToolStore.getState().pendingShape!.shape).toMatchObject({ width: 101.3456 });
+
+    useToolStore.setState({
+      pendingShape: pend("spiral", OUTLINE, {
+        shape: { ...SHAPE_SPECS.spiral.initial, turns: 2.25 },
+      }),
+    });
+    expect(options()).toMatch(/aria-label="Turns as a number" style="--chars:4" value="2.25"/);
   });
 
   it("label the Place button with what the preview adds, and disable it with nothing to add", () => {

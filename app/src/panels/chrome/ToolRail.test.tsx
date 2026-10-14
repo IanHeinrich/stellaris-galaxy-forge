@@ -212,7 +212,7 @@ describe("the brush options", () => {
     // Dense is small spacing, so the density slider runs against it, log-mapped for fine control.
     expect(html).toMatch(/aria-label="Density" value="592"/);
     expect(html).toContain(
-      'aria-label="Spacing between painted systems in world units" title="Distance between painted systems, in world units" value="20"',
+      'aria-label="Spacing between painted systems in game units" title="Distance between painted systems, in game units" style="--chars:5" value="20"',
     );
     expect(html).toContain('<option value="new" selected="">Among new</option>');
     expect(html).toMatch(/<input type="range"[^>]*aria-label="Lane density"/);
@@ -234,7 +234,7 @@ describe("the brush options", () => {
     useToolStore.setState({ spacing: 10 });
     const cut = options();
     expect(cut).toContain("limited by brush size");
-    expect(cut).toContain('title="Distance between painted systems, in world units" value="38.3"');
+    expect(cut).toMatch(/title="Distance between painted systems, in game units"[^>]*value="38.3"/);
   });
 
   it("give the connect brush its size and lane density, and the cut brush its size", () => {
@@ -285,10 +285,10 @@ describe("the height brush", () => {
     useToolStore.setState({ tool: "height", heightMode: "set", heightValue: 12.5 });
     const set = options();
     expect(set).toMatch(/>Set<.*>Raise<.*>Ripple<.*>Smooth</);
-    expect(set).toContain('role="radio" aria-checked="true">Set<');
+    expect(set).toMatch(/role="radio" aria-checked="true" title="[^"]*">Set</);
     expect(set).toContain('aria-label="Brush size"');
-    expect(set).toContain(
-      'aria-label="Height to set, 0 on the game&#x27;s default plane" value="12.5"',
+    expect(set).toMatch(
+      /aria-label="Height to set, 0 on the game&#x27;s default plane"[^>]*value="12.5"/,
     );
     expect(set).toContain("Click or drag to set every system under the brush to this height.");
 
@@ -306,7 +306,7 @@ describe("the height brush", () => {
     useToolStore.getState().pickRipplePreset("waves");
     const html = options();
     expect(html).toMatch(/>Ripples<.*>Waves<.*>Dome<.*>Crater</);
-    expect(html).toContain('aria-pressed="true">Waves<');
+    expect(html).toMatch(/aria-pressed="true" title="[^"]*">Waves</);
     expect(html).toContain('class="ripple-profile"');
     expect(html).toMatch(/aria-label="Wave spacing" value="90"/);
     expect(html).toMatch(/aria-label="Fade out" value="250"/);

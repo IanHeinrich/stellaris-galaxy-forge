@@ -20,6 +20,8 @@ import type {
 /** One extra's row: how the options panel shows it, and what it changes. */
 export interface ExtraRow {
   label: string;
+  /** What it does to the shape, for its tooltip. */
+  hint: string;
   range: { min: number; max: number };
   step: number;
   /** Shown after the number: "" or "%". */
@@ -36,6 +38,7 @@ export interface ExtraRow {
 export const EXTRA_ROWS: Record<ExtraKey, ExtraRow> = {
   band: {
     label: "Band",
+    hint: "Draw the outline several systems thick.",
     range: { min: 1, max: 5 },
     step: 1,
     unit: "",
@@ -45,6 +48,7 @@ export const EXTRA_ROWS: Record<ExtraKey, ExtraRow> = {
   },
   rings: {
     label: "Rings",
+    hint: "Add smaller copies of the outline inside it.",
     range: { min: 1, max: 10 },
     step: 1,
     unit: "",
@@ -54,6 +58,7 @@ export const EXTRA_ROWS: Record<ExtraKey, ExtraRow> = {
   },
   wobble: {
     label: "Wobble",
+    hint: "Nudge each system a little so the shape looks less exact.",
     range: { min: 0, max: 100 },
     step: 1,
     unit: "%",
@@ -63,6 +68,7 @@ export const EXTRA_ROWS: Record<ExtraKey, ExtraRow> = {
   },
   gaps: {
     label: "Gaps",
+    hint: "Break the outline's lanes in this many places to make chokepoints.",
     range: { min: 0, max: 12 },
     step: 1,
     unit: "",
