@@ -6,14 +6,18 @@ import type { PickSummary } from "../generated/PickSummary";
 import type { SpecialLayout } from "../generated/SpecialLayout";
 import { useGameDataStore } from "./gameDataStore";
 
-/** A star class a rolled system can have, named as the game names it. */
+/** A star class a rolled system can have, named as the game names it, with its odds. */
 export interface GeneratorStarClass {
   key: string;
   label: string;
+  /** How often a pick of this class draws it. */
+  odds: number;
+  /** How often a pick of no class rolls it: zero for a class only special layouts make. */
+  randomOdds: number;
 }
 
 /** A star class row of the add and reroll pickers, with its card once the picks are read. */
-export interface StarClassPick extends GeneratorStarClass {
+export interface StarClassPick extends Pick<GeneratorStarClass, "key" | "label"> {
   summary?: PickSummary;
 }
 
@@ -59,7 +63,14 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
       ipc.getGeneratorStarClasses().then(
         (picks) => {
           if (mine !== generation) return;
-          set({ starClasses: picks.map(({ key, name }) => ({ key, label: name })) });
+          set({
+            starClasses: picks.map(({ key, name, odds, random_odds }) => ({
+              key,
+              label: name,
+              odds,
+              randomOdds: random_odds,
+            })),
+          });
         },
         (e: unknown) => {
           if (mine === generation) asked = false;

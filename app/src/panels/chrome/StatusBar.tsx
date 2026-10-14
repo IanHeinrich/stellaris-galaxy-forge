@@ -22,7 +22,7 @@ import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
-import { useShapePreview } from "../../store/shapePreview";
+import { shapePath, useShapePreview } from "../../store/shapePreview";
 import { useSystemGeometry } from "../../store/systemGeometry";
 import { useToolStore } from "../../store/toolStore";
 import { HelpLink } from "../HelpLink";
@@ -211,8 +211,9 @@ function PendingShapeStatus() {
   const shown = useSceneSystem();
   const pending = useToolStore((s) => s.pendingShape);
   const preview = useShapePreview();
-  if (shown !== null || pending === null || preview === null) return null;
-  const { summary, warnings } = shapeStatus(pending, preview);
+  const path = useFileSessionStore((s) => shapePath(s.capabilities));
+  if (shown !== null || pending === null || preview === null || path === null) return null;
+  const { summary, warnings } = shapeStatus(pending, preview, path);
   return (
     <span className="shape-status">
       <span className="accent">{summary}</span>

@@ -5,7 +5,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
 import type { EditResult } from "../generated/EditResult";
+import type { LaneEnd } from "../generated/LaneEnd";
 import type { StarClassPick } from "../generated/StarClassPick";
+import type { SystemAsk } from "../generated/SystemAsk";
 
 /**
  * Calls `add_random_system`: roll a system at (x, y) from `seed`, around `starClass` when given.
@@ -18,6 +20,27 @@ export function addRandomSystem(
   starClass: string | null,
 ): Promise<EditResult> {
   return invoke<EditResult>("add_random_system", { seed, x, y, starClass });
+}
+
+/** What `addRandomSystems` sends: each system's place and star class, and the lanes between them. */
+export interface RandomSystems {
+  seed: number;
+  systems: SystemAsk[];
+  lanes: Array<[LaneEnd, LaneEnd]>;
+  description: string;
+}
+
+/**
+ * Calls `add_random_systems`: roll a system at each of `systems` around its star class, all from
+ * `seed`, and add them with `lanes` as one edit. The command's doc says what it refuses.
+ */
+export function addRandomSystems({
+  seed,
+  systems,
+  lanes,
+  description,
+}: RandomSystems): Promise<EditResult> {
+  return invoke<EditResult>("add_random_systems", { seed, systems, lanes, description });
 }
 
 /**

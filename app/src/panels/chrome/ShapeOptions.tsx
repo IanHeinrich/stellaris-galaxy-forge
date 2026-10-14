@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { clampTo } from "../../lib/geometry/geometry";
-import { mapExtent, SCENARIO_HALF_EXTENT } from "../../lib/guides";
+import { extentOf, SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
 import { fillSpacing, hasEdgeRow, leastSpacing } from "../../lib/shapes/placement";
+import { PLACEMENT_RULES, type PlacementPath, type PlacementRules } from "../../lib/shapes/rules";
 import {
   FILL_CHOICES,
   fillChoiceLabel,
@@ -11,11 +12,20 @@ import {
   placeLabel,
 } from "../../lib/shapes/shapeCopy";
 import { centreOf, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
+import type { StarChoice } from "../../lib/shapes/stars";
 import type { GalaxyFrame, Shape, ShapeField, ShapeSettings } from "../../lib/shapes/types";
+import type { Choice } from "../../lib/toolCopy";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { useShapePreview } from "../../store/shapePreview";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { useGeneratorStore, type GeneratorStarClass } from "../../store/generatorStore";
+import {
+  SHAPE_NEEDS_GAME_DATA,
+  shapePath,
+  shapeRefusal,
+  useShapePreview,
+} from "../../store/shapePreview";
 import { COUNT_RANGE, rememberedFor, SHAPE_SIZE_MIN } from "../../store/toolStore.shape";
 import {
   SPACING_RANGE,
@@ -25,6 +35,8 @@ import {
   useToolStore,
 } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
+import { Select } from "../Select";
+import { useGeneratorData } from "../useGeneratorData";
 import { DraftNumber, LaneDensityOption, LaneModeSelect, SliderOption } from "./toolFields";
 import "./chrome.css";
 
@@ -36,11 +48,12 @@ function readField(shape: Shape, key: ShapeField<Shape>["key"]): number {
   return (shape as unknown as Record<string, number>)[key as string]!;
 }
 
-/** The circle a shape's size is measured against: the map's edge, or the scenario square when a document gives none. */
-function useGalaxyFrame(): GalaxyFrame {
-  const kind = useFileSessionStore((s) => s.kind);
+/** The circle a shape's size is measured against: the rules' edge, or the scenario square when a document gives none. */
+function useGalaxyFrame(rules: PlacementRules): GalaxyFrame {
   const radius = useGalaxyStore((s) => s.galaxy?.galaxy_radius ?? 0);
-  return galaxyFrame(mapExtent(kind, radius) ?? { shape: "square", half: SCENARIO_HALF_EXTENT });
+  return galaxyFrame(
+    extentOf(rules.edge, radius) ?? { shape: "square", half: SCENARIO_HALF_EXTENT },
+  );
 }
 
 /** A row of buttons of which `value` is the one chosen. */
@@ -123,8 +136,8 @@ function FillPicker({ settings }: { settings: ShapeSettings }) {
   );
 }
 
-function SizeOptions({ shape }: { shape: Shape }) {
-  const frame = useGalaxyFrame();
+function SizeOptions({ shape, rules }: { shape: Shape; rules: PlacementRules }) {
+  const frame = useGalaxyFrame(rules);
   const setShapeSize = useToolStore((s) => s.setShapeSize);
   const size = specOf(shape).size(shape);
   const whole = Math.round(frame.radius);
@@ -187,28 +200,29 @@ function FieldRow({ shape, field }: { shape: Shape; field: ShapeField<Shape> }) 
   );
 }
 
-function CountOrSpacing({ settings }: { settings: ShapeSettings }) {
+function CountOrSpacing({ settings, rules }: { settings: ShapeSettings; rules: PlacementRules }) {
   const setFill = useToolStore((s) => s.setFill);
   const symmetry = useToolStore((s) => s.symmetry);
   const { shape, fill } = settings;
   if (fill.kind === "outline") {
+    const range = { min: COUNT_RANGE.min, max: rules.cap };
     return (
       <label className="tool-option">
         Systems
         <DraftNumber
-          min={COUNT_RANGE.min}
-          max={COUNT_RANGE.max}
+          min={range.min}
+          max={range.max}
           step={1}
           value={fill.count}
-          onApply={(n) => setFill({ ...fill, count: clampTo(Math.round(n), COUNT_RANGE) })}
+          onApply={(n) => setFill({ ...fill, count: clampTo(Math.round(n), range) })}
           aria-label="Systems along the outline"
         />
       </label>
     );
   }
-  const least = leastSpacing(shape, fill, symmetry);
+  const least = leastSpacing(shape, fill, symmetry, rules);
   // Rounded up, so the field never shows a spacing closer than the fill is laid at.
-  const used = Math.ceil(fillSpacing(shape, fill, symmetry) * 10) / 10;
+  const used = Math.ceil(fillSpacing(shape, fill, symmetry, rules) * 10) / 10;
   // The slider runs close (left) to far (right); the brush's log scale runs the other way.
   return (
     <label className="tool-option">
@@ -296,18 +310,102 @@ function ExactValues({ shape }: { shape: Shape }) {
   );
 }
 
-function PlaceButton() {
-  const preview = useShapePreview();
-  const place = useEditorStore((s) => s.placePendingShape);
+/** What the Stars drop-down's value starts with for one star class, before the class's key. */
+const ONE_PREFIX = "one:";
+
+/** The Stars drop-down's choices, each with the stars it sets. */
+function starOptions(
+  classes: readonly GeneratorStarClass[],
+  stars: StarChoice,
+): Array<Choice<string> & { stars: StarChoice }> {
+  const ticked =
+    stars.kind === "one"
+      ? [stars.class]
+      : stars.kind === "mix"
+        ? stars.classes
+        : classes.filter((c) => c.randomOdds > 0).map((c) => c.key);
+  return [
+    { value: "random", label: "Random", stars: { kind: "random" } },
+    ...classes.map((c) => ({
+      value: ONE_PREFIX + c.key,
+      label: c.label,
+      stars: { kind: "one", class: c.key } as const,
+    })),
+    { value: "mix", label: "A mix…", stars: { kind: "mix", classes: ticked } },
+  ];
+}
+
+/**
+ * Which stars a save's shape rolls: the game's usual mix, one class for all, or a mix of the
+ * ticked classes. Shown once the generator's classes are read.
+ */
+function StarsRow({ stars }: { stars: StarChoice }) {
+  useGeneratorData();
+  const classes = useGeneratorStore((s) => s.starClasses);
+  const setShapeStars = useToolStore((s) => s.setShapeStars);
+  if (classes === null) return null;
+  const options = starOptions(classes, stars);
+  const value = stars.kind === "one" ? ONE_PREFIX + stars.class : stars.kind;
   return (
-    <button
-      type="button"
-      className="primary"
-      disabled={preview === null || preview.points.length === 0}
-      onClick={() => void place()}
-    >
-      {preview === null ? "Place" : placeLabel(preview)}
-    </button>
+    <>
+      <label className="tool-option">
+        Stars
+        <Select
+          value={value}
+          choices={options}
+          label="Stars"
+          onChange={(v) => {
+            const picked = options.find((o) => o.value === v);
+            if (picked) setShapeStars(picked.stars);
+          }}
+        />
+      </label>
+      {stars.kind === "mix" &&
+        classes.map((c) => {
+          const on = stars.classes.includes(c.key);
+          return (
+            <label key={c.key} className="tool-option">
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={on && stars.classes.length === 1}
+                onChange={(e) =>
+                  setShapeStars({
+                    kind: "mix",
+                    classes: e.target.checked
+                      ? [...stars.classes, c.key]
+                      : stars.classes.filter((k) => k !== c.key),
+                  })
+                }
+              />
+              {c.label}
+            </label>
+          );
+        })}
+    </>
+  );
+}
+
+function PlaceButton({ path }: { path: PlacementPath }) {
+  const preview = useShapePreview();
+  const gameData = useGameDataStore((s) => s.status === "ready");
+  const place = useEditorStore((s) => s.placePendingShape);
+  const refusal = preview && shapeRefusal(preview, path);
+  // With game data loaded, the star classes are only a moment away.
+  const reason = refusal === SHAPE_NEEDS_GAME_DATA && gameData ? null : refusal;
+  return (
+    <>
+      <button
+        type="button"
+        className="primary"
+        disabled={preview === null || preview.points.length === 0 || refusal !== null}
+        title={reason ?? undefined}
+        onClick={() => void place()}
+      >
+        {preview === null ? "Place" : placeLabel(preview)}
+      </button>
+      {reason && <span className="tool-hint warn">{reason}</span>}
+    </>
   );
 }
 
@@ -325,17 +423,21 @@ export function ShapeOptions() {
   const memory = useToolStore((s) => s.shapeMemory);
   const setSkipNear = useToolStore((s) => s.setSkipNear);
   const shuffle = useToolStore((s) => s.shuffleShape);
+  const path = useFileSessionStore((s) => shapePath(s.capabilities));
+  if (path === null) return null;
+  const rules = PLACEMENT_RULES[path];
   const settings = pending ?? rememberedFor(memory);
   const { shape, fill } = settings;
   return (
     <div className="shape-options">
       <KindPicker shape={shape} />
       <FillPicker settings={settings} />
-      {pending && <SizeOptions shape={shape} />}
+      {pending && <SizeOptions shape={shape} rules={rules} />}
       {bodyFields(shape).map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
-      <CountOrSpacing settings={settings} />
+      <CountOrSpacing settings={settings} rules={rules} />
+      {path === "rolled" && <StarsRow stars={pending?.stars ?? memory.stars} />}
       <LaneOptions settings={settings} />
       <label className="tool-option">
         <input
@@ -354,7 +456,7 @@ export function ShapeOptions() {
       <div className="shape-foot">
         {pending ? (
           <>
-            <PlaceButton />
+            <PlaceButton path={path} />
             <span className="muted">Esc drops it</span>
           </>
         ) : (

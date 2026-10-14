@@ -1,13 +1,14 @@
 ---
 title: Draw shapes of systems
-description: Draw a line, circle, polygon, rectangle or star of new systems on the map of a scenario, with a live preview before you place it.
+description: Draw a line, circle, polygon, rectangle or star of new systems on the map of a save or scenario, with a live preview before you place it.
 aliases: [shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape]
 ---
-# Draw shapes of systems <Badge type="info" text="Scenario" />
+# Draw shapes of systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 The Shape tool (<kbd>O</kbd>, "Draw shapes" on the tool strip) places
 new systems in an exact shape: a ring, a straight row, a star, or a circle
-filled at random or in a grid. Saves don't have the tool.
+filled at random or in a grid. It works in Stellaris 4.x saves and in
+scenarios. A 3.x save doesn't offer the tool.
 
 ## Draw a shape
 
@@ -33,6 +34,40 @@ The readout below the shape gives its size and system count, such as
 Press <kbd>Enter</kbd> or the Place button to add the systems and lanes.
 Placing is one undo step. Press <kbd>Esc</kbd> to drop the pending
 shape, and <kbd>Esc</kbd> again to go back to the Select tool.
+
+## In a save <Badge type="tip" text="Save" />
+
+A shape adds up to 200 systems to a save. It is meant for clusters, not
+whole galaxies. A scenario allows 1,000.
+
+- The game refuses a new system closer than 10 units to any system. In a
+  save, points that close are always left out, whatever "Don't place on top
+  of existing systems" says. Spacing can't go below 10.
+- The status bar also counts points left out because they were too close
+  to each other.
+- The edge of the map is the galaxy's own circle.
+- Each new system gets planets and deposits for its star, as "Add system
+  here" does for one system. Names don't repeat.
+
+Afterwards you can change each new system like any added system: pick a
+different star class or Reroll it on its page, or delete it while the save
+is open. The whole shape is one undo step.
+
+In a scenario, the shape adds plain systems. The game fills them when it
+makes the galaxy.
+
+## Stars <Badge type="tip" text="Save" />
+
+Stars sets the star of each new system in a save:
+
+- Random, the default, uses the game's usual mix.
+- One star class gives every system that class.
+- A mix… uses only the classes you tick, rolled by the game's odds.
+
+Special systems such as Sol are not offered. The preview colours each point
+as its star, and Shuffle rolls the stars again.
+
+For a cluster of black holes, pick One star class and choose Black hole.
 
 ## The shapes
 
@@ -106,7 +141,8 @@ New lanes never cross an existing lane or each other.
 "Don't place on top of existing systems" is on by default. It leaves out
 any point too close to a system that is already there. The status bar
 says how many, such as "3 left out, too close to existing systems".
-Untick it to place every point.
+Untick it to place every point. In a save, points within 10 units of a
+system are left out either way.
 
 ## Use symmetry with a shape
 

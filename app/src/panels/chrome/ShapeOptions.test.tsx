@@ -12,20 +12,25 @@ const PREVIEW = vi.hoisted(() => ({
     left: readonly never[];
     outside: readonly never[];
     overlaps: number;
+    crowded: number;
     capped: boolean;
     interleaved: number | null;
+    classes: readonly string[] | null;
   },
 }));
-vi.mock("../../store/shapePreview", () => ({
+vi.mock("../../store/shapePreview", async (actual) => ({
+  ...(await actual<object>()),
   shapePreview: () => PREVIEW.current,
   useShapePreview: () => PREVIEW.current,
 }));
 
-import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
+import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { SHAPE_SPECS } from "../../lib/shapes/specs";
 import type { Fill, PendingShape, ShapeKind } from "../../lib/shapes/types";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { useGeneratorStore } from "../../store/generatorStore";
 import { useToolStore } from "../../store/toolStore";
 import { ShapeOptions } from "./ShapeOptions";
 import { ToolOptions } from "./ToolOptions";
@@ -39,12 +44,40 @@ function pend(kind: ShapeKind, fill: Fill, over: Partial<PendingShape> = {}): Pe
     fill,
     lanes: { follow: fill.kind === "outline", mode: "off" },
     skipNear: true,
+    stars: { kind: "random" },
     seed: 1,
     ...over,
   };
 }
 
 const OUTLINE: Fill = { kind: "outline", count: 24 };
+
+/** The generator's star classes, as a save with game data reads them. */
+const STAR_CLASSES = [
+  { key: "sc_g", label: "G · yellow", odds: 10, randomOdds: 10 },
+  { key: "sc_m", label: "M · red dwarf", odds: 20, randomOdds: 20 },
+  { key: "sc_pulsar", label: "Pulsar", odds: 1, randomOdds: 0 },
+];
+
+/** A preview of `n` points along a line, `classes` rolled for them. */
+function preview(n: number, classes: readonly string[] | null = null) {
+  return {
+    points: Array.from({ length: n }, (_, i) => ({ x: i, y: 0 })),
+    pairs: [],
+    left: [],
+    outside: [],
+    overlaps: 0,
+    crowded: 0,
+    capped: false,
+    interleaved: null,
+    classes,
+  };
+}
+
+/** The options over a 4.x save. */
+function onSave(): void {
+  useFileSessionStore.setState({ kind: "save", capabilities: SAVE_CAPABILITIES });
+}
 
 beforeEach(() => {
   PREVIEW.current = null;
@@ -258,17 +291,85 @@ describe("the shape options", () => {
     useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
     expect(options()).toMatch(/<button[^>]* disabled=""[^>]*>Place</);
 
-    PREVIEW.current = {
-      points: Array.from({ length: 24 }, (_, i) => ({ x: i, y: 0 })),
-      pairs: [],
-      left: [],
-      outside: [],
-      overlaps: 0,
-      capped: false,
-      interleaved: null,
-    };
+    PREVIEW.current = preview(24);
     const html = options();
     expect(html).toContain(">Place 24 systems<");
     expect(html).not.toMatch(/<button[^>]* disabled=""[^>]*>Place 24/);
+  });
+});
+
+describe("the shape options on a save", () => {
+  beforeEach(() => {
+    onSave();
+    useGeneratorStore.setState({ starClasses: STAR_CLASSES });
+    useGameDataStore.setState({ status: "ready" });
+  });
+
+  it("offer Stars on a save only: Random, each class, and A mix…", () => {
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    const html = options();
+    const row = /aria-label="Stars"[^>]*>(.*?)<\/select>/.exec(html)![1];
+    expect([...row.matchAll(/>([^<]+)<\/option>/g)].map((m) => m[1])).toEqual([
+      "Random",
+      "G · yellow",
+      "M · red dwarf",
+      "Pulsar",
+      "A mix…",
+    ]);
+    expect(row).toContain('<option value="random" selected="">');
+    expect(html).not.toMatch(/\/>Pulsar/);
+
+    useFileSessionStore.setState({ kind: "scenario", capabilities: SCENARIO_CAPABILITIES });
+    expect(options()).not.toContain('aria-label="Stars"');
+  });
+
+  it("show one class chosen, and a mix as a box per class with the ticked ones checked", () => {
+    useToolStore.setState({
+      pendingShape: pend("circle", OUTLINE, { stars: { kind: "one", class: "sc_m" } }),
+    });
+    expect(options()).toContain('<option value="one:sc_m" selected="">M · red dwarf</option>');
+
+    useToolStore.setState({
+      pendingShape: pend("circle", OUTLINE, { stars: { kind: "mix", classes: ["sc_pulsar"] } }),
+    });
+    const mix = options();
+    expect(mix).toContain('<option value="mix" selected="">A mix…</option>');
+    expect(mix).toMatch(/<input type="checkbox"(?![^>]*checked)[^>]*\/>G · yellow/);
+    expect(mix).toContain('<input type="checkbox" disabled="" checked=""/>Pulsar');
+  });
+
+  it("hold the spacing to the game's 10 between systems, and the count to the save's cap", () => {
+    useToolStore.setState({
+      pendingShape: pend(
+        "circle",
+        { kind: "grid", spacing: 5, lattice: "square" },
+        { shape: { ...SHAPE_SPECS.circle.initial, radius: 30 } },
+      ),
+    });
+    const field = /min="([\d.]+)" max="150" step="0.1" aria-label="Spacing between/.exec(options());
+    expect(Number(field![1])).toBe(10);
+
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    expect(options()).toMatch(/min="2" max="200"[^>]*aria-label="Systems along the outline"/);
+  });
+
+  it("disable Place without game data and say why", () => {
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    useGameDataStore.setState({ status: "idle" });
+    PREVIEW.current = preview(24);
+    const html = options();
+    expect(html).toMatch(/<button[^>]* disabled=""[^>]*>Place 24 systems</);
+    expect(html).toContain("Load game data to place a shape in a save.");
+
+    PREVIEW.current = preview(24, Array(24).fill("sc_g"));
+    expect(options()).not.toMatch(/<button[^>]* disabled=""[^>]*>Place 24/);
+  });
+
+  it("disable Place when none of the ticked stars can be rolled", () => {
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    PREVIEW.current = preview(24, []);
+    const html = options();
+    expect(html).toMatch(/<button[^>]* disabled=""[^>]*>Place 24 systems</);
+    expect(html).toContain("None of the ticked stars can be rolled. Tick another.");
   });
 });

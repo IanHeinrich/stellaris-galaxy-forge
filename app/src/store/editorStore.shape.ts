@@ -1,14 +1,44 @@
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
+import type { EditResult } from "../generated/EditResult";
 import { shapePlacement } from "../lib/shapes/placement";
 import { placeLead } from "../lib/shapes/shapeCopy";
-import type { RunEdit } from "./editorEdits";
+import type { PendingShape } from "../lib/shapes/types";
+import { refuseOr, type RunEdit } from "./editorEdits";
 import type { EditorState } from "./editorStore";
-import { placeSystems } from "./placeSystems";
-import { shapeGround, shapePreview } from "./shapePreview";
+import { useFileSessionStore } from "./fileSessionStore";
+import { placeDescription, placeSystems, rolledArgs } from "./placeSystems";
+import { shapeGround, shapePath, shapePreview, shapeRefusal } from "./shapePreview";
 import { useToolStore } from "./toolStore";
 
 type ShapeActions = Pick<EditorState, "placePendingShape">;
+
+/** How the open document takes a shape's systems. */
+function pathNow() {
+  return shapePath(useFileSessionStore.getState().capabilities);
+}
+
+/** Lays `pending` out again on the galaxy as it is now and sends it the way the document takes it. */
+async function sendShape(pending: PendingShape): Promise<EditResult | null> {
+  const ground = shapeGround(pending);
+  const placement = ground && shapePlacement(pending, ground);
+  if (!placement || placement.points.length === 0) return null;
+  const lead = placeLead(pending);
+  const path = pathNow();
+  switch (path) {
+    case null:
+      return null;
+    case "statements":
+      return ipc.applyOp(placeSystems(placement, lead));
+    case "rolled": {
+      const refusal = shapeRefusal(placement, path);
+      if (refusal !== null) throw new Error(refusal);
+      const description = placeDescription(lead, placement.points, placement.pairs);
+      const rolled = { ...placement, classes: placement.classes! };
+      return ipc.addRandomSystems(rolledArgs(rolled, pending.seed, description));
+    }
+  }
+}
 
 export function shapeActions(
   _set: StoreApi<EditorState>["setState"],
@@ -20,26 +50,23 @@ export function shapeActions(
       const pending = useToolStore.getState().pendingShape;
       const shown = shapePreview();
       if (pending === null || shown === null || shown.points.length === 0) return false;
-      // Laid out again in the queue under the same seed, so an edit queued ahead is built on.
-      const applied = runEdit(async () => {
-        const ground = shapeGround();
-        const placement = ground && shapePlacement(pending, ground);
-        if (!placement || placement.points.length === 0) return null;
-        return ipc.applyOp(placeSystems(placement, placeLead(pending)));
-      }).then((result) => result !== null);
-      useToolStore.setState({ pendingShape: null, placingShape: shown });
-      let placed = false;
-      try {
-        placed = await applied;
-        return placed;
-      } finally {
-        const tools = useToolStore.getState();
-        if (tools.placingShape === shown) useToolStore.setState({ placingShape: null });
-        // A refused or failed edit gives the shape back, unless the player has drawn another.
-        if (!placed && tools.tool === "shape" && tools.pendingShape === null) {
-          useToolStore.setState({ pendingShape: pending });
+      return refuseOr(shapeRefusal(shown, pathNow()), async () => {
+        // Laid out again in the queue under the same seed, so an edit queued ahead is built on.
+        const applied = runEdit(() => sendShape(pending)).then((result) => result !== null);
+        useToolStore.setState({ pendingShape: null, placingShape: shown });
+        let placed = false;
+        try {
+          placed = await applied;
+          return placed;
+        } finally {
+          const tools = useToolStore.getState();
+          if (tools.placingShape === shown) useToolStore.setState({ placingShape: null });
+          // A refused or failed edit gives the shape back, unless the player has drawn another.
+          if (!placed && tools.tool === "shape" && tools.pendingShape === null) {
+            useToolStore.setState({ pendingShape: pending });
+          }
         }
-      }
+      });
     },
   };
 }

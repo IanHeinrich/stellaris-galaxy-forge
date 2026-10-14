@@ -4,7 +4,10 @@ import { stubPrefs } from "../test/prefs";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
+import { SAVE_CAPABILITIES } from "../lib/capabilities";
 import { fillSpacing } from "../lib/shapes/placement";
+import { PLACEMENT_RULES } from "../lib/shapes/rules";
+import type { StarChoice } from "../lib/shapes/stars";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
@@ -51,12 +54,19 @@ describe("picking the Shape tool", () => {
       fill: { kind: "outline", count: 24 },
       lanes: { follow: true, mode: "off" },
       skipNear: true,
+      stars: { kind: "random" },
       seed: expect.any(Number),
     });
   });
 
-  it("is refused over a save", async () => {
+  it("is offered over a 4.x save and refused over a 3.x one", async () => {
     await openFixtureSave();
+    expect(tools().setTool("shape")).toBe(true);
+    tools().setTool("select");
+
+    useFileSessionStore.setState({
+      capabilities: { ...SAVE_CAPABILITIES, added_systems: false, bulk_add_systems: false },
+    });
     expect(tools().setTool("shape")).toBe(false);
     expect(tools().pendingShape).toBeNull();
   });
@@ -220,7 +230,9 @@ describe("the pending shape", () => {
     tools().setFill({ kind: "scattered", spacing: 5, edge: true });
     const used = () => {
       const { shape, fill } = pending();
-      return fill.kind === "outline" ? null : fillSpacing(shape, fill, tools().symmetry);
+      return fill.kind === "outline"
+        ? null
+        : fillSpacing(shape, fill, tools().symmetry, PLACEMENT_RULES.statements);
     };
     tools().setShapeSize(30);
     expect(used()).toBe(5);
@@ -332,6 +344,42 @@ describe("the memory", () => {
       spacing: 30,
       edge: true,
     });
+  });
+
+  it("remembers the stars for the pending shape and the next, and refuses a choice that is none", async () => {
+    tools().setTool("shape");
+    const mix: StarChoice = { kind: "mix", classes: ["sc_m", "sc_k", "sc_m"] };
+    tools().setShapeStars(mix);
+    expect(pending().stars).toEqual({ kind: "mix", classes: ["sc_m", "sc_k"] });
+    expect(tools().shapeMemory.stars).toEqual(pending().stars);
+
+    for (const none of [
+      { kind: "mix", classes: [] },
+      { kind: "one", class: "" },
+      { kind: "some" },
+    ] as unknown as StarChoice[]) {
+      tools().setShapeStars(none);
+    }
+    expect(pending().stars).toEqual({ kind: "mix", classes: ["sc_m", "sc_k"] });
+
+    tools().setShapeStars({ kind: "one", class: "sc_pulsar" });
+    tools().setTool("select");
+    tools().setTool("shape");
+    expect(pending().stars).toEqual({ kind: "one", class: "sc_pulsar" });
+
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore.getState();
+    expect(fresh.shapeMemory.stars).toEqual({ kind: "one", class: "sc_pulsar" });
+  });
+
+  it("starts with Random stars when the stored ones are malformed", async () => {
+    stored.set(
+      PREF_KEYS.shapeMemory,
+      JSON.stringify({ kind: "circle", kinds: {}, stars: { kind: "mix", classes: [3] } }),
+    );
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore.getState();
+    expect(fresh.shapeMemory.stars).toEqual({ kind: "random" });
   });
 
   it("falls back to the first settings when what is stored is malformed", async () => {

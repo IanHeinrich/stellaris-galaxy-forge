@@ -442,8 +442,8 @@ describe("a system added this session", () => {
     });
     useGeneratorStore.setState({
       starClasses: [
-        { key: "sc_g", label: "Yellow star" },
-        { key: "sc_m", label: "Red star" },
+        { key: "sc_g", label: "Yellow star", odds: 1, randomOdds: 1 },
+        { key: "sc_m", label: "Red star", odds: 1, randomOdds: 1 },
       ],
     });
   });

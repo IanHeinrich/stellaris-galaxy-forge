@@ -71,9 +71,14 @@ describe("the tool rail", () => {
     expect(button("Erase systems")).toContain('aria-pressed="true"');
   });
 
-  it("offers Shape after Erase, with its key, on a scenario only", () => {
-    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+  it("offers Shape after Erase, with its key, on a 4.x save and a scenario, not on a 3.x save", () => {
+    useFileSessionStore.setState({
+      capabilities: { ...OPEN_RESULT.capabilities, added_systems: false, bulk_add_systems: false },
+    });
     expect(rail()).not.toContain("Draw shapes");
+
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    expect(button("Draw shapes")).toContain('title="Draw shapes (O)"');
 
     useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
     useToolStore.setState({ tool: "shape" });

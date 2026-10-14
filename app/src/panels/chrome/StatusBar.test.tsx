@@ -6,7 +6,8 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 const SHAPE_PREVIEW = vi.hoisted(() => ({ current: null as null | object }));
-vi.mock("../../store/shapePreview", () => ({
+vi.mock("../../store/shapePreview", async (actual) => ({
+  ...(await actual<object>()),
   shapePreview: () => SHAPE_PREVIEW.current,
   useShapePreview: () => SHAPE_PREVIEW.current,
 }));
@@ -211,6 +212,7 @@ describe("the pending shape", () => {
     fill: { kind: "outline" as const, count: 22 },
     lanes: { follow: true, mode: "off" as const },
     skipNear: true,
+    stars: { kind: "random" as const },
     seed: 1,
   });
 
@@ -223,8 +225,10 @@ describe("the pending shape", () => {
       left: [],
       outside: [],
       overlaps: 0,
+      crowded: 0,
       capped: false,
       interleaved: null,
+      classes: null,
     };
     useToolStore.setState({ pendingShape: pending() });
     const html = bar();
@@ -240,8 +244,10 @@ describe("the pending shape", () => {
       left: [{ at: { x: 1, y: 1 }, blocker: 0 }],
       outside: [{ x: 900, y: 0 }],
       overlaps: 0,
+      crowded: 0,
       capped: false,
       interleaved: null,
+      classes: null,
     };
     useToolStore.setState({ pendingShape: pending() });
     const html = bar();

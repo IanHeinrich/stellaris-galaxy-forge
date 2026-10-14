@@ -1,9 +1,9 @@
 //! Rolling a star system from the install's rules and writing it into the open save, and
 //! deleting the systems added this session.
 
-use sgf_core::ops::Op;
+use sgf_core::ops::{LaneEnd, Op};
 use sgf_core::views::{EditResult, ErrorKind, SgfError};
-use sgf_gamedata::generate::{self, Pick};
+use sgf_gamedata::generate::{self, Pick, SystemAsk};
 use sgf_gamedata::picks::StarClassPick;
 use sgf_gamedata::summary::{self, AddSystemPicks};
 use tauri::{AppHandle, Runtime, State};
@@ -27,6 +27,27 @@ pub async fn add_random_system<R: Runtime>(
     star_class: Option<String>,
 ) -> Result<EditResult, SgfError> {
     add(app, seed, (x, y), Pick::Random(star_class)).await
+}
+
+/// Roll a system at each of `systems` around its star class, all from `seed`, named from one
+/// draw so no two share a name, and add them with `lanes` to the open save as one `Batch`
+/// described as `description`.
+#[tauri::command]
+pub async fn add_random_systems<R: Runtime>(
+    app: AppHandle<R>,
+    seed: u64,
+    systems: Vec<SystemAsk>,
+    lanes: Vec<(LaneEnd, LaneEnd)>,
+    description: String,
+) -> Result<EditResult, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
+        let op = generate::systems_op(&gd, session, seed, &systems, &lanes, description)?;
+        let result = session.apply(op)?;
+        Ok(session.edit_result(result))
+    })
+    .await
 }
 
 /// Build a system of the special layout `layout` at (`x`, `y`) from `seed`, and add it to the

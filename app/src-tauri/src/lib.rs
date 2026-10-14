@@ -46,6 +46,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::delete_megastructure,
             commands::delete_ring_world,
             commands::add_random_system,
+            commands::add_random_systems,
             commands::add_special_system,
             commands::reroll_system,
             commands::remove_added_systems,

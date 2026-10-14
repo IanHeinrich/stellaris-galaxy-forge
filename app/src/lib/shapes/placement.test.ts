@@ -4,15 +4,16 @@ import { byId, placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
-import type { Pt } from "../geometry/pt";
+import { dist2, type Pt } from "../geometry/pt";
 import { segmentsCross } from "../geometry/segments";
 import type { Symmetry } from "../geometry/symmetry";
-import { SCENARIO_HALF_EXTENT } from "../guides";
+import { extentOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../guides";
 import { PlacementGround } from "../placement/ground";
 import { laneSegments, provisionalId, provisionalIndex } from "../placement/lanes";
 import { SpatialGrid } from "../spatialGrid";
 import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
 import { fillSpacing, leastSpacing, shapePlacement } from "./placement";
+import { PLACEMENT_RULES, type PlacementRules } from "./rules";
 import { SHAPE_SPECS } from "./specs";
 import type {
   CircleShape,
@@ -27,13 +28,22 @@ import type {
 
 const OFF: Symmetry = { kind: "off" };
 
-function groundOf(systems: SystemNode[], symmetry: Symmetry = OFF): ShapeGround {
+const STATEMENTS = PLACEMENT_RULES.statements;
+const ROLLED = PLACEMENT_RULES.rolled;
+
+function groundOf(
+  systems: SystemNode[],
+  symmetry: Symmetry = OFF,
+  rules: PlacementRules = STATEMENTS,
+): ShapeGround {
   const grid = new SpatialGrid();
   grid.build(systems);
   return {
     placement: new PlacementGround(byId(...systems), grid, symmetry),
-    extent: { shape: "square", half: SCENARIO_HALF_EXTENT },
+    extent: extentOf(rules.edge, 500) as MapExtent,
+    rules,
     laneDensity: DEFAULT_LANE_DENSITY,
+    starWeights: null,
   };
 }
 
@@ -58,6 +68,7 @@ function pending(shape: Shape, over: Partial<PendingShape> = {}): PendingShape {
     lanes: { follow: true, mode: "off" },
     skipNear: true,
     seed: 7,
+    stars: { kind: "random" },
     ...over,
   };
 }
@@ -378,7 +389,7 @@ describe("the closest spacing a fill takes", () => {
         pending(disc, { fill, lanes: { follow: false, mode: "off" } }),
         EMPTY,
       );
-      const used = fillSpacing(disc, fill as SpacedFill, OFF);
+      const used = fillSpacing(disc, fill as SpacedFill, OFF, STATEMENTS);
       expect(used).toBeGreaterThan(5);
       expect(preview.capped).toBe(false);
       const middle = densityBetween(preview.points, 0, 250);
@@ -389,7 +400,7 @@ describe("the closest spacing a fill takes", () => {
 
   it("grows as the shape grows, from the least spacing for a small shape", () => {
     const fill: SpacedFill = { kind: "scattered", spacing: 5, edge: true };
-    const at = (radius: number) => leastSpacing(circle({ radius }), fill, OFF);
+    const at = (radius: number) => leastSpacing(circle({ radius }), fill, OFF, STATEMENTS);
     expect(at(40)).toBe(LEAST_SPACING);
     expect(at(250)).toBeGreaterThan(LEAST_SPACING);
     expect(at(500)).toBeGreaterThan(at(250));
@@ -403,7 +414,10 @@ describe("the closest spacing a fill takes", () => {
     const area = Math.PI * 150 * 150;
     const edge = 2 * Math.PI * 150;
     const perCopy = (2 * area) / (Math.sqrt(edge * edge + area * SAMPLE_CAP) - edge);
-    expect(leastSpacing(off, fill, quarter.placement.symmetry) / perCopy).toBeCloseTo(1, 1);
+    expect(leastSpacing(off, fill, quarter.placement.symmetry, STATEMENTS) / perCopy).toBeCloseTo(
+      1,
+      1,
+    );
     const preview = shapePlacement(pending(off, { fill }), quarter);
     expect(preview.capped).toBe(false);
     expect(preview.points.length).toBeLessThanOrEqual(SAMPLE_CAP);
@@ -417,8 +431,8 @@ describe("the closest spacing a fill takes", () => {
       { kind: "scattered", spacing: 5, edge: true },
       { kind: "grid", spacing: 5, lattice: "hex" },
     ] as const) {
-      const alone = leastSpacing(disc, fill, OFF);
-      const merged = leastSpacing(disc, fill, quarter.placement.symmetry);
+      const alone = leastSpacing(disc, fill, OFF, STATEMENTS);
+      const merged = leastSpacing(disc, fill, quarter.placement.symmetry, STATEMENTS);
       expect(Math.abs(merged / alone - 1)).toBeLessThan(0.1);
       const preview = shapePlacement(pending(disc, { fill }), quarter);
       expect(preview.capped).toBe(false);
@@ -430,10 +444,81 @@ describe("the closest spacing a fill takes", () => {
     const star = { ...SHAPE_SPECS.star.initial, centre: { x: 120, y: 40 }, points: 12 };
     const fill: SpacedFill = { kind: "scattered", spacing: 5, edge: true };
     const sym = { kind: "rotate", n: 8 } as const;
-    leastSpacing(star, fill, sym);
+    leastSpacing(star, fill, sym, STATEMENTS);
     const start = performance.now();
-    for (let i = 0; i < 10; i++) leastSpacing(star, fill, sym);
+    for (let i = 0; i < 10; i++) leastSpacing(star, fill, sym, STATEMENTS);
     // Generous so a slow CI runner does not fail it; locally one call takes a few milliseconds.
     expect((performance.now() - start) / 10).toBeLessThan(50);
+  });
+});
+
+describe("a shape rolled into a save", () => {
+  const minGap = ROLLED.minGap;
+
+  /** The least distance between any two of `points`. */
+  function closest(points: readonly Pt[]): number {
+    let least = Infinity;
+    points.forEach((p, i) => {
+      for (const q of points.slice(i + 1)) least = Math.min(least, Math.sqrt(dist2(p, q)));
+    });
+    return least;
+  }
+
+  it("leaves out a point within the spawn buffer of a system even with Skip near off", () => {
+    // Point 6 of a ring of 24 at radius 200 sits at (0, 200).
+    const blocker = placedNode(9, 0, 200 - minGap + 1);
+    const preview = shapePlacement(
+      pending(circle(), { skipNear: false }),
+      groundOf([blocker], OFF, ROLLED),
+    );
+    expect(preview.left.map((l) => l.blocker)).toEqual([9]);
+    expect(preview.points).toHaveLength(23);
+  });
+
+  it("drops an outline's points that crowd within the spawn buffer of each other, and counts them", () => {
+    const dense = shapePlacement(
+      pending(circle({ radius: 100 }), { fill: { kind: "outline", count: 200 } }),
+      groundOf([], OFF, ROLLED),
+    );
+    expect(dense.crowded).toBeGreaterThan(0);
+    expect(dense.points.length + dense.crowded).toBe(200);
+    expect(closest(dense.points)).toBeGreaterThanOrEqual(minGap - 1e-6);
+    const loose = shapePlacement(pending(circle({ radius: 100 })), groundOf([], OFF, ROLLED));
+    expect(loose.crowded).toBe(0);
+    expect(loose.points).toHaveLength(24);
+  });
+
+  it("stops at the save's cap", () => {
+    const preview = shapePlacement(
+      pending(circle({ radius: 400 }), { fill: { kind: "outline", count: 240 } }),
+      groundOf([], OFF, ROLLED),
+    );
+    expect(preview.points).toHaveLength(ROLLED.cap);
+    expect(ROLLED.cap).toBe(200);
+    expect(preview.capped).toBe(true);
+  });
+
+  it("never fills closer than the spawn buffer", () => {
+    const small = circle({ radius: 60 });
+    for (const fill of [
+      { kind: "scattered", spacing: 5, edge: true },
+      { kind: "grid", spacing: 5, lattice: "square" },
+      { kind: "grid", spacing: 5, lattice: "hex" },
+    ] as const) {
+      expect(fillSpacing(small, fill, OFF, ROLLED)).toBeGreaterThanOrEqual(minGap);
+      const preview = shapePlacement(pending(small, { fill }), groundOf([], OFF, ROLLED));
+      expect(preview.points.length).toBeGreaterThan(10);
+      expect(closest(preview.points)).toBeGreaterThanOrEqual(minGap - 1e-6);
+    }
+  });
+
+  it("gives each point a star class from the ground's weights, and none without them", () => {
+    const ground = {
+      ...groundOf([], OFF, ROLLED),
+      starWeights: [["sc_g", 1]] as Array<[string, number]>,
+    };
+    const preview = shapePlacement(pending(circle()), ground);
+    expect(preview.classes).toEqual(preview.points.map(() => "sc_g"));
+    expect(shapePlacement(pending(circle()), groundOf([])).classes).toBeNull();
   });
 });

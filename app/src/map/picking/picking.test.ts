@@ -363,6 +363,7 @@ const PENDING: PendingShape = {
   fill: { kind: "outline", count: 24 },
   lanes: { follow: true, mode: "off" },
   skipNear: true,
+  stars: { kind: "random" },
   seed: 1,
 };
 

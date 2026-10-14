@@ -8,11 +8,13 @@ import type { Op } from "../generated/Op";
 import { mockedIpc } from "../test/ipc";
 import { flush } from "../test/flush";
 import { run } from "./commands";
-import { editor, openFixtureScenario, sessionError } from "./editorFixture";
+import { editor, openFixtureSave, openFixtureScenario, sessionError } from "./editorFixture";
 import { editResult, node, SYSTEMS } from "./fixture";
+import { loadGameData } from "./gameDataFixture";
 import { useGalaxyStore } from "./galaxyStore";
+import { useGeneratorStore } from "./generatorStore";
 import { useSceneStore } from "./sceneStore";
-import { shapePreview } from "./shapePreview";
+import { SHAPE_NEEDS_GAME_DATA, shapePreview } from "./shapePreview";
 import { useToolStore } from "./toolStore";
 
 const tools = () => useToolStore.getState();
@@ -125,6 +127,66 @@ describe("placing a shape", () => {
     tools().dropShape();
     expect(await editor().placePendingShape()).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("placing a shape in a save", () => {
+  beforeEach(async () => {
+    await openFixtureSave();
+    await loadGameData();
+    useGeneratorStore.setState({
+      starClasses: [
+        { key: "sc_g", label: "G", odds: 10, randomOdds: 10 },
+        { key: "sc_m", label: "M", odds: 20, randomOdds: 20 },
+      ],
+    });
+    mockedIpc.addRandomSystems.mockImplementation(async ({ systems }) =>
+      editResult({
+        delta: {
+          systems: systems.map((s, i) => node(6 + i, "", s.x, s.y, s.star_class, [])),
+        },
+      }),
+    );
+    tools().setTool("shape");
+    tools().drawShape({ x: 0, y: 0 }, { x: 50, y: 0 }, { snap: false, constrain: false });
+  });
+
+  it("rolls the preview's systems with their stars and lanes as one edit, and sends no op", async () => {
+    const pending = tools().pendingShape!;
+    const shown = shapePreview()!;
+    expect(shown.classes).toHaveLength(shown.points.length);
+    expect(await editor().placePendingShape()).toBe(true);
+
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.addRandomSystems).toHaveBeenCalledTimes(1);
+    const [[args]] = mockedIpc.addRandomSystems.mock.calls;
+    const end = (id: number) =>
+      id < 0 ? { kind: "new", index: -id - 1 } : { kind: "held", system: id };
+    expect(args).toEqual({
+      seed: pending.seed,
+      systems: shown.points.map((p, i) => ({ x: p.x, y: p.y, star_class: shown.classes![i] })),
+      lanes: shown.pairs.map(([a, b]) => [end(a), end(b)]),
+      description: `Placed a ring of ${shown.points.length} systems and ${shown.pairs.length} lanes`,
+    });
+    expect(args.lanes.some(([a]) => a.kind === "new")).toBe(true);
+    expect(ids()).toHaveLength(SYSTEMS.length + shown.points.length);
+  });
+
+  it("gives the shape back when the save refuses it", async () => {
+    mockedIpc.addRandomSystems.mockRejectedValueOnce(new Error("Too close"));
+    const before = tools().pendingShape;
+    expect(await editor().placePendingShape()).toBe(false);
+    expect(tools().pendingShape).toBe(before);
+    expect(sessionError()).toBe("Too close");
+  });
+
+  it("is refused without the star classes game data gives, and keeps the shape", async () => {
+    useGeneratorStore.setState({ starClasses: null });
+    const before = tools().pendingShape;
+    expect(await editor().placePendingShape()).toBe(false);
+    expect(mockedIpc.addRandomSystems).not.toHaveBeenCalled();
+    expect(sessionError()).toBe(SHAPE_NEEDS_GAME_DATA);
+    expect(tools().pendingShape).toBe(before);
   });
 });
 

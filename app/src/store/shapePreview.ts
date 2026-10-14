@@ -1,18 +1,36 @@
 import type { Capabilities } from "../generated/Capabilities";
-import type { DocumentKind } from "../generated/DocumentKind";
 import type { SystemNode } from "../generated/SystemNode";
-import { documentCapabilities, supports } from "../lib/capabilities";
+import { documentCapabilities } from "../lib/capabilities";
 import type { Symmetry } from "../lib/geometry/symmetry";
-import { mapExtent } from "../lib/guides";
+import { extentOf } from "../lib/guides";
+import { needsGameData } from "../lib/text";
 import { PlacementGround } from "../lib/placement/ground";
 import { shapePlacement } from "../lib/shapes/placement";
+import { PLACEMENT_RULES, placementPath, type PlacementPath } from "../lib/shapes/rules";
+import { starWeights } from "../lib/shapes/stars";
 import type { PendingShape, ShapeGround, ShapePreview } from "../lib/shapes/types";
 import type { SpatialGrid } from "../lib/spatialGrid";
-import { toolRequires } from "../lib/tools";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
+import { useGeneratorStore, type GeneratorStarClass } from "./generatorStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useToolStore } from "./toolStore";
+
+/** Why a shape cannot be rolled into a save without the generator's star classes. */
+export const SHAPE_NEEDS_GAME_DATA = needsGameData("place a shape in a save");
+
+/** Why a shape cannot be rolled when none of the stars it may take can be rolled. */
+export const SHAPE_NO_STARS = "None of the ticked stars can be rolled. Tick another.";
+
+/**
+ * Why `preview` cannot be placed on `path`, or null when it can: a save's shape needs a star
+ * class rolled for every point.
+ */
+export function shapeRefusal(preview: ShapePreview, path: PlacementPath | null): string | null {
+  if (path !== "rolled") return null;
+  if (preview.classes === null) return SHAPE_NEEDS_GAME_DATA;
+  return preview.classes.length < preview.points.length ? SHAPE_NO_STARS : null;
+}
 
 /** Everything a shape's preview reads, each compared by identity. */
 interface Inputs {
@@ -23,7 +41,8 @@ interface Inputs {
   symmetry: Symmetry;
   laneDensity: number;
   capabilities: Capabilities | null;
-  kind: DocumentKind | null;
+  /** The generator's star classes, which a save's shape rolls its stars among; null until read. */
+  starClasses: readonly GeneratorStarClass[] | null;
 }
 
 function inputsNow(): Inputs {
@@ -38,7 +57,7 @@ function inputsNow(): Inputs {
     symmetry: tools.symmetry,
     laneDensity: useMapChromeStore.getState().laneDensity,
     capabilities: session.capabilities,
-    kind: session.kind,
+    starClasses: useGeneratorStore.getState().starClasses,
   };
 }
 
@@ -57,23 +76,31 @@ function placementGround(
   return placed;
 }
 
-function groundOf(inputs: Inputs): ShapeGround | null {
-  const { grid, kind, radius, capabilities } = inputs;
-  if (grid === null || !supports(documentCapabilities({ capabilities }), toolRequires("shape"))) {
-    return null;
-  }
-  const extent = mapExtent(kind, radius);
+/** How the open document takes a shape's systems; null when it takes none. */
+export function shapePath(capabilities: Capabilities | null): PlacementPath | null {
+  return placementPath(documentCapabilities({ capabilities }));
+}
+
+function groundOf(inputs: Inputs, pending: PendingShape): ShapeGround | null {
+  const { grid, radius, starClasses } = inputs;
+  const path = shapePath(inputs.capabilities);
+  if (grid === null || path === null) return null;
+  const rules = PLACEMENT_RULES[path];
+  const extent = extentOf(rules.edge, radius);
   if (extent === null) return null;
   return {
     placement: placementGround(inputs.systems, grid, inputs.symmetry),
     extent,
     laneDensity: inputs.laneDensity,
+    rules,
+    starWeights:
+      path === "rolled" && starClasses !== null ? starWeights(pending.stars, starClasses) : null,
   };
 }
 
-/** The galaxy a shape is placed into as it stands now; null when the open document takes no shapes. */
-export function shapeGround(): ShapeGround | null {
-  return groundOf(inputsNow());
+/** The galaxy `pending` is placed into as it stands now; null when the open document takes no shapes. */
+export function shapeGround(pending: PendingShape): ShapeGround | null {
+  return groundOf(inputsNow(), pending);
 }
 
 let cached: { inputs: Inputs; preview: ShapePreview | null } | null = null;
@@ -84,7 +111,7 @@ function sameInputs(a: Inputs, b: Inputs): boolean {
 
 function previewOf(inputs: Inputs): ShapePreview | null {
   if (cached && sameInputs(cached.inputs, inputs)) return cached.preview;
-  const ground = inputs.pending && groundOf(inputs);
+  const ground = inputs.pending && groundOf(inputs, inputs.pending);
   const preview = inputs.pending && ground ? shapePlacement(inputs.pending, ground) : null;
   cached = { inputs, preview };
   return preview;
@@ -108,6 +135,6 @@ export function useShapePreview(): ShapePreview | null {
     symmetry: useToolStore((s) => s.symmetry),
     laneDensity: useMapChromeStore((s) => s.laneDensity),
     capabilities: useFileSessionStore((s) => s.capabilities),
-    kind: useFileSessionStore((s) => s.kind),
+    starClasses: useGeneratorStore((s) => s.starClasses),
   });
 }

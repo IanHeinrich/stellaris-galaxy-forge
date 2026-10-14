@@ -242,5 +242,10 @@
   {"q": "too close to existing systems", "expect": "edit/shapes#keep-clear-of-existing-systems"},
   {"q": "symmetry with a shape", "expect": "edit/shapes#use-symmetry-with-a-shape"},
   {"q": "paint fewer lanes", "expect": "edit/brushes#paint-and-erase-systems"},
-  {"q": "lane density", "expect": "edit/brushes"}
+  {"q": "lane density", "expect": "edit/brushes"},
+  {"q": "add many systems to a save", "expect": "edit/shapes#in-a-save"},
+  {"q": "make a cluster of black holes", "expect": "edit/shapes#stars"},
+  {"q": "shape in a save", "expect": "edit/shapes#in-a-save"},
+  {"q": "choose the star class of shape systems", "expect": "edit/shapes#stars"},
+  {"q": "how many systems can a shape add to a save", "expect": "edit/shapes#in-a-save"}
 ]

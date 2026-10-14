@@ -15,10 +15,27 @@ export function drawLanes(g: Graphics, lanes: readonly Segment[]): void {
   if (lanes.length > 0) g.stroke({ ...LANE, pixelLine: true });
 }
 
-/** New systems as accent dots, `px` world units to a screen pixel. */
-export function drawDots(g: Graphics, points: readonly Pt[], px: number): void {
-  for (const s of points) g.circle(s.x, s.y, DOT_PX * px);
-  if (points.length > 0) g.fill({ color: ACCENT_COLOR, alpha: 0.9 });
+/**
+ * New systems as dots, `px` world units to a screen pixel: each in its colour from `tints`, one
+ * per point, or all in the accent without.
+ */
+export function drawDots(
+  g: Graphics,
+  points: readonly Pt[],
+  px: number,
+  tints?: readonly number[],
+): void {
+  const byTint = new Map<number, Pt[]>();
+  points.forEach((p, i) => {
+    const tint = tints?.[i] ?? ACCENT_COLOR;
+    const group = byTint.get(tint);
+    if (group) group.push(p);
+    else byTint.set(tint, [p]);
+  });
+  for (const [color, group] of byTint) {
+    for (const s of group) g.circle(s.x, s.y, DOT_PX * px);
+    g.fill({ color, alpha: 0.9 });
+  }
 }
 
 /** Rings in `color` round existing systems, `px` world units to a screen pixel. */

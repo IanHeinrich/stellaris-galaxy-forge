@@ -10,7 +10,14 @@ function pending(
   shape: Shape,
   fill: PendingShape["fill"] = { kind: "outline", count: 24 },
 ): PendingShape {
-  return { shape, fill, lanes: { follow: true, mode: "off" }, skipNear: true, seed: 1 };
+  return {
+    shape,
+    fill,
+    lanes: { follow: true, mode: "off" },
+    skipNear: true,
+    seed: 1,
+    stars: { kind: "random" },
+  };
 }
 
 function preview(over: Partial<ShapePreview> = {}): ShapePreview {
@@ -21,8 +28,10 @@ function preview(over: Partial<ShapePreview> = {}): ShapePreview {
     left: [],
     outside: [],
     overlaps: 0,
+    crowded: 0,
     capped: false,
     interleaved: null,
+    classes: null,
     ...over,
   };
 }
@@ -42,7 +51,7 @@ describe("the shape's words", () => {
 
   it("sums up the shape, then says what it leaves out", () => {
     const ring = pending(SHAPE_SPECS.circle.initial);
-    expect(shapeStatus(ring, preview())).toEqual({
+    expect(shapeStatus(ring, preview(), "statements")).toEqual({
       summary: "Circle · 22 systems, 22 lanes",
       warnings: [],
     });
@@ -54,15 +63,20 @@ describe("the shape's words", () => {
       ],
       outside: [at, at, at],
       overlaps: 1,
+      crowded: 5,
       capped: true,
       interleaved: 4,
     });
-    expect(shapeStatus(ring, crowded).warnings).toEqual([
+    expect(shapeStatus(ring, crowded, "statements").warnings).toEqual([
       "2 left out, too close to existing systems",
       "3 past the edge",
+      "5 left out, too close to each other",
       "1 system overlap others on the map",
       "Stopped at 1,000 systems, the most one shape adds",
       "Symmetry's 4 copies fall between the points: use a count that divides by 4",
+    ]);
+    expect(shapeStatus(ring, preview({ capped: true }), "rolled").warnings).toEqual([
+      "Stopped at 200 systems, the most one shape adds to a save",
     ]);
   });
 
