@@ -1,6 +1,6 @@
 import type { BrushTool } from "../../lib/brush/brushTools";
 import { flippedShape, rippleRings, type RippleRing } from "../../lib/brush/heightBrush";
-import { provisionalIndex } from "../../lib/brush/lanes";
+import { provisionalIndex } from "../../lib/placement/lanes";
 import type { Pair } from "../../lib/geometry/pairs";
 import { stampsAlong } from "../../lib/brush/stroke";
 import type { Pt } from "../../lib/geometry/pt";

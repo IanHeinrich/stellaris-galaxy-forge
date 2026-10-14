@@ -7,6 +7,8 @@ concept or the screen it serves.
 - `lib/geometry/`: points, meshes and the drawn territory, with no game
   vocabulary.
 - `lib/brush/`: what a brush stroke does, without a canvas.
+- `lib/placement/`: new systems and their lanes, shared by the paint brush and
+  the Shape tool.
 - `lib/initializer/`: how the game's initializers group, search and read.
 - `lib/details/`: one system's and one body's detail, the system view's
   layout, and the pickers and edit adapters a body's page uses.

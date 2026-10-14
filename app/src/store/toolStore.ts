@@ -7,7 +7,7 @@ import {
   type RipplePreset,
   type RippleShape,
 } from "../lib/brush/heightBrush";
-import type { LaneMode } from "../lib/brush/lanes";
+import type { LaneMode } from "../lib/placement/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { roundHeight } from "../lib/height";
 import { toolRequires, type Tool } from "../lib/tools";

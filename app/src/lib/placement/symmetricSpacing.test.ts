@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Pt } from "../geometry/pt";
 import { copies, images, imagesOfStamps, type Symmetry } from "../geometry/symmetry";
-import { blockersOf } from "./grid";
+import { blockersOf } from "./pointGrid";
 import { seeded } from "../random";
 import { SymmetricSpacing } from "./symmetricSpacing";
 

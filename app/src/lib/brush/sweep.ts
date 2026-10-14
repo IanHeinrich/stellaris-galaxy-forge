@@ -4,7 +4,7 @@ import type { MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import type { Segment } from "../geometry/segments";
 import type { SpatialGrid } from "../spatialGrid";
-import { PointGrid } from "./grid";
+import { PointGrid } from "../placement/pointGrid";
 import { PairSet, type Pair } from "../geometry/pairs";
 import { isSpecialSystem } from "./special";
 

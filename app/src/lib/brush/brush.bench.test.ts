@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
-import { laneSegments, strokeLanes, withProvisionalIds } from "./lanes";
+import { laneSegments, strokeLanes, withProvisionalIds } from "../placement/lanes";
 import { seeded } from "../random";
 import { SAMPLE_CAP } from "./sample";
 import { drag, sampleStroke } from "../../test/brush";

@@ -6,15 +6,9 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemMove } from "../generated/SystemMove";
 import type { SystemNode } from "../generated/SystemNode";
 import { pairOf, PairMap, type Pair } from "../lib/geometry/pairs";
-import {
-  copies,
-  COUNTERPART_REACH,
-  counterpartAt,
-  images,
-  imageOf,
-  type Symmetry,
-} from "../lib/geometry/symmetry";
+import { copies, counterpartAt, imageOf, type Symmetry } from "../lib/geometry/symmetry";
 import { enabledScriptFor, nextSystemId } from "../lib/paint";
+import { symmetricCopies } from "../lib/placement/symmetricCopies";
 import { initializersOp, spawnScriptsOp, spawnWeightsOp } from "../lib/systemsBatch";
 import { counted } from "../lib/text";
 import { isPrevented, linked, systemLabelOf, useGalaxyStore } from "./galaxyStore";
@@ -182,12 +176,7 @@ function widened(op: Op, grew: boolean, wide: Op, description: string): Op {
 
 function addSystems(op: Extract<Op, { type: "AddSystem" }>): Op {
   const { systems: all, grid } = useGalaxyStore.getState();
-  const [origin, ...others] = images(op, symmetry());
-  const kept = [origin];
-  for (const p of others) {
-    const apart = kept.every((q) => Math.hypot(p.x - q.x, p.y - q.y) >= COUNTERPART_REACH);
-    if (apart && !grid?.nearestSystem(p.x, p.y, COUNTERPART_REACH)) kept.push(p);
-  }
+  const kept = symmetricCopies([op], symmetry(), grid ?? undefined).points;
   if (kept.length === 1) return op;
   const first = op.system ?? nextSystemId(all.values());
   const { name, initializer, spawn_weight, spawn_script } = op;

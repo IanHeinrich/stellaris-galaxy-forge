@@ -1,8 +1,9 @@
 import type { SystemNode } from "../../generated/SystemNode";
 import { meshPairs, type MeshPoint } from "../geometry/mesh";
-import type { Pair } from "../geometry/pairs";
+import { pairOf, type Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
 import { SegmentIndex, type Segment } from "../geometry/segments";
+import type { ImageOfNew, PlacementGround } from "./ground";
 
 /** Which lanes a paint stroke adds: none, among its new systems, or also to the systems near it. */
 export type LaneMode = "off" | "new" | "nearby";
@@ -36,6 +37,16 @@ export function laneSegments(systems: Iterable<SystemNode>): Array<Segment<MeshP
   }
   return segments;
 }
+
+/** Every lane of `systems`, indexed by where it runs. */
+export function laneIndex(systems: ReadonlyMap<number, SystemNode>): SegmentIndex<MeshPoint> {
+  const index = new SegmentIndex<MeshPoint>();
+  for (const { a, b } of laneSegments(systems.values())) index.add(a, b);
+  return index;
+}
+
+/** A new lane is at most this many spacings long. */
+export const LANE_REACH = 3;
 
 export interface MeshWithinOptions {
   beta: number;
@@ -88,4 +99,44 @@ export function strokeLanes(input: StrokeLanesInput): Pair[] {
     existing,
     keep: (a, b) => fresh.has(a) || fresh.has(b),
   });
+}
+
+export interface PlacedLanesInput {
+  /** The new points, every copy's, in the order `imageOfNew` numbers them. */
+  points: readonly Pt[];
+  /** How many of `points`, from the start, are the first copy's: only they look for nearby systems. */
+  base: number;
+  mode: LaneMode;
+  beta: number;
+  spacing: number;
+  ground: PlacementGround;
+  imageOfNew: ImageOfNew;
+}
+
+/**
+ * The lanes new points add, under their provisional ids: at most `LANE_REACH` spacings long and
+ * crossing no existing lane. Under symmetry a lane goes in with all its images or not at all.
+ */
+export function placedLanes(input: PlacedLanesInput): Pair[] {
+  const { points, base, mode, beta, spacing, ground, imageOfNew } = input;
+  if (mode === "off" || points.length === 0) return [];
+  const maxLength = LANE_REACH * spacing;
+  const existing = ground.lanesNear(points, maxLength);
+  const pairs = strokeLanes({
+    added: withProvisionalIds(points),
+    nearby: mode === "nearby" ? ground.systemsNear(points.slice(0, base), maxLength) : [],
+    existing,
+    beta,
+    mode,
+    maxLength,
+  }).map(([a, b]) => pairOf(a, b));
+  if (!ground.symmetric) return pairs;
+  const inFirst = (id: number) => id < 0 && provisionalIndex(id) < base;
+  const at = (id: number): Pt => (id < 0 ? points[provisionalIndex(id)] : ground.systems.get(id)!);
+  return ground.symmetricLanes(
+    pairs.filter(([a, b]) => inFirst(a) || inFirst(b)),
+    imageOfNew,
+    at,
+    existing,
+  );
 }
