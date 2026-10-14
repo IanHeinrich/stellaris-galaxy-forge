@@ -172,7 +172,7 @@ describe("placing a shape in a save", () => {
     expect(ids()).toHaveLength(SYSTEMS.length + shown.points.length);
   });
 
-  it("rolls a spiral as one edit, and one undo takes it back", async () => {
+  it("rolls a swirl as one edit, and one undo takes it back", async () => {
     tools().setShapeKind("spiral");
     tools().setShapeSize(150);
     const shown = shapePreview()!;
@@ -181,9 +181,7 @@ describe("placing a shape in a save", () => {
     expect(await editor().placePendingShape()).toBe(true);
 
     const [[args]] = mockedIpc.addRandomSystems.mock.calls;
-    expect(args.description).toBe(
-      `Placed a spiral of ${n} systems and ${shown.pairs.length} lanes`,
-    );
+    expect(args.description).toBe(`Placed a swirl of ${n} systems and ${shown.pairs.length} lanes`);
     expect(args.systems.map((s) => s.star_class)).toEqual(shown.classes);
     const added = ids().filter((id) => id >= SYSTEMS.length);
     expect(added).toHaveLength(n);

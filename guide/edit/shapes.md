@@ -1,12 +1,12 @@
 ---
 title: Draw shapes of systems
-description: Draw a line, circle, polygon, rectangle, star, spiral or galaxy of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
-aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, spiral, spiral arm, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape, donut, hollow centre, concentric rings, onion, band, gaps, chokepoints, wobble, spokes, hub, system at the centre, galaxy, galaxy shape, spiral galaxy, barred spiral, elliptical, ring galaxy, starburst, cartwheel, spoked]
+description: Draw a line, circle, polygon, rectangle, star, swirl or galaxy of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
+aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, swirl, swirl arm, spiral, spiral arm, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape, donut, hollow centre, concentric rings, onion, band, gaps, chokepoints, wobble, spokes, hub, system at the centre, galaxy, galaxy shape, spiral galaxy, barred spiral, elliptical, ring galaxy, starburst, cartwheel, spoked]
 ---
 # Draw shapes of systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 The Shape tool (<kbd>O</kbd>, "Draw shapes" on the tool strip) places
-new systems in an exact shape: a ring, a straight row, a star, a spiral, a
+new systems in an exact shape: a ring, a straight row, a star, a swirl, a
 circle filled at random or in a grid, or a galaxy in one of the game's
 galaxy shapes. It works in Stellaris 4.x saves and in
 scenarios. A 3.x save doesn't offer the tool.
@@ -15,7 +15,7 @@ scenarios. A 3.x save doesn't offer the tool.
 
 1. Press <kbd>O</kbd>, or select Draw shapes on the tool strip.
 2. Pick the shape at the top of the options: Line, Circle, Polygon,
-   Rectangle, Star, Spiral or Galaxy.
+   Rectangle, Star, Swirl or Galaxy.
 3. Drag on the map to draw it. Until you do, the tool shows the shape at
    the centre of the galaxy.
 
@@ -86,7 +86,7 @@ To make a cluster of black holes, pick Black hole.
 - Rectangle is a rectangle, or a square with <kbd>Shift</kbd> held.
 - Star has 4 to 12 points. Inner radius sets how far out the dips between
   them sit, as a share of the radius.
-- Spiral has 1 to 6 arms winding out from its centre, each a single line
+- Swirl has 1 to 6 arms that spiral out from its centre, each a single line
   of systems. Turns sets how far round each arm winds. Inner radius sets
   where the arms start, as a share of the radius. Drag from the centre to
   where the first arm should end. The systems are shared evenly among the
@@ -146,7 +146,7 @@ The Fill bar, under the shapes, sets where the systems go:
 - Square grid fills it in rows and columns.
 - Hex grid fills it in a honeycomb pattern.
 
-A line and a spiral have only Outline. A filled arc fills the slice
+A line and a swirl have only Outline. A filled arc fills the slice
 between the arc and its centre, so an arc of 180° fills a half disc.
 
 For a filled circle, polygon or star, Hollow centre leaves the middle
@@ -200,7 +200,7 @@ Arrange wobbles at most 80%, so the systems stay clear of each other.
 ## A system at the centre
 
 A system at the centre, under Systems, adds one system at the centre of a
-circle, polygon or spiral outline. If a system already stands there, the
+circle, polygon or swirl outline. If a system already stands there, the
 centre point is left out.
 
 ## Lanes
@@ -227,7 +227,7 @@ centre point is left out.
 - Spokes to the centre joins the centre system to every system on the
   outline. It shows once A system at the centre is ticked under Systems.
   With Rings or Band, the spokes go to the innermost ring or row only. On
-  a spiral, they go to the inner end of each arm. If a system already
+  a swirl, they go to the inner end of each arm. If a system already
   stands at the centre, the spokes run to that system, so a ring round a
   home system can have spokes to it.
 
@@ -305,7 +305,7 @@ Hold <kbd>Alt</kbd> and drag with the Shape tool to erase every system
 inside the shape you draw, as <kbd>Alt</kbd> turns Paint into Erase. The
 systems to be erased are ringed in orange until you let go. As with the
 Erase brush, special systems stay unless you set the Erase brush to take
-them. A line or a spiral has no inside, so it erases nothing. A galaxy
+them. A line or a swirl has no inside, so it erases nothing. A galaxy
 erases everything inside its circle. A shape with
 a hollow centre leaves the systems in the hole.
 

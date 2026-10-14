@@ -266,6 +266,7 @@
   {"q": "remove lanes to other systems when arranging", "expect": "edit/shapes#arrange-a-selection"},
   {"q": "erase systems inside a circle", "expect": "edit/shapes#erase-with-a-shape"},
   {"q": "spiral arm of systems", "expect": "edit/shapes#the-shapes"},
+  {"q": "swirl shape arms", "expect": "edit/shapes#the-shapes"},
   {"q": "make a spiral galaxy inside my galaxy", "expect": "edit/shapes#lay-out-a-galaxy"},
   {"q": "barred spiral galaxy", "expect": "edit/shapes#lay-out-a-galaxy"},
   {"q": "spoked galaxy", "expect": "edit/shapes#lay-out-a-galaxy"},

@@ -257,7 +257,7 @@ describe("a galaxy's fill", () => {
 describe("a galaxy under symmetry", () => {
   it("fills out as far as without it at the closest spacing, under each mirror and rotation", () => {
     const rules = { ...STATEMENTS, cap: 300 };
-    const lanes = { follow: false, mode: "off" } as const;
+    const lanes = { follow: false, mode: "off", islands: false } as const;
     const symmetries: Symmetry[] = [
       { kind: "mirror", axis: "x" },
       ...ROTATION_ORDERS.map((n): Symmetry => ({ kind: "rotate", n })),

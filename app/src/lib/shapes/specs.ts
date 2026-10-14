@@ -774,10 +774,10 @@ function armCounts(arms: number, n: number): number[] {
 }
 
 const SPIRAL: ShapeSpec<SpiralShape> = {
-  label: "Spiral",
+  label: "Swirl",
   hint: "Lay systems along arms that wind out from the centre.",
   glyph:
-    "M8 8a1.5 1.5 0 1 1 1.5 1.5A3.5 3.5 0 0 1 6 6a5 5 0 0 1 5-5M8 8a1.5 1.5 0 1 0-1.5-1.5A3.5 3.5 0 0 0 10 10a5 5 0 0 0-5 5",
+    "M8.7 6.09C9.33 5.85 10.38 6.28 10.62 7.28C10.86 8.29 10.09 9.68 8.71 9.92C7.34 10.16 5.6 9.05 5.36 7.3C5.12 5.55 6.57 3.47 8.7 3.23C10.82 2.99 13.23 4.78 13.48 7.28C13.72 9.77 11.59 12.53 8.72 12.77C5.85 13.02 2.75 10.55 2.5 7.3",
   initial: {
     kind: "spiral",
     centre: ORIGIN,
@@ -798,7 +798,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
     {
       key: "arms",
       label: "Arms",
-      hint: "Set how many arms the spiral has.",
+      hint: "Set how many arms the swirl has.",
       range: ARMS_RANGE,
       step: 1,
       unit: "",
@@ -818,7 +818,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
     {
       key: "inner",
       label: "Inner radius",
-      hint: "Start the arms further out to leave the middle of the spiral open.",
+      hint: "Start the arms further out to leave the middle of the swirl open.",
       range: SPIRAL_INNER_RANGE,
       step: 1,
       unit: "%",
@@ -856,7 +856,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
       ),
     ),
   edge: (s, n) => SPIRAL.outline(s, n),
-  noun: () => "a spiral",
+  noun: () => "a swirl",
 };
 
 // --- Galaxy ---
