@@ -25,7 +25,7 @@ function arranging(ids: number[], fill: Fill): PendingShape & { purpose: { kind:
     purpose: { kind: "arrange", ids, lanes: "keep", alsoOuter: false },
     shape: { ...SHAPE_SPECS.circle.initial, centre: { x: 0, y: 0 }, radius: 200 },
     fill,
-    lanes: { follow: false, mode: "off" },
+    lanes: { follow: false, mode: "off", islands: false },
     extras: NO_EXTRAS,
     skipNear: false,
     seed: 3,
@@ -119,7 +119,7 @@ describe("arranging into a spiral", () => {
       {
         ...arranging(ids, { kind: "outline", count: 24 }),
         shape: SHAPE_SPECS.spiral.initial,
-        lanes: { follow: true, mode: "off" },
+        lanes: { follow: true, mode: "off", islands: false },
         extras: { ...NO_EXTRAS, band: 3, rings: 2, centre: "spokes" },
       },
       {

@@ -219,6 +219,7 @@ const LINE: ShapeSpec<LineShape> = {
   edgeRow: true,
   connected: false,
   thinning: null,
+  islands: false,
   fields: [],
   fromDrag: (anchor, to, mods, prev) => ({
     ...prev,
@@ -332,6 +333,7 @@ const CIRCLE: ShapeSpec<CircleShape> = {
   edgeRow: true,
   connected: false,
   thinning: null,
+  islands: false,
   fields: [
     {
       key: "sweep",
@@ -471,6 +473,7 @@ const POLYGON: ShapeSpec<PolygonShape> = {
   edgeRow: true,
   connected: false,
   thinning: null,
+  islands: false,
   fields: [
     {
       key: "sides",
@@ -580,6 +583,7 @@ const RECT: ShapeSpec<RectShape> = {
   edgeRow: true,
   connected: false,
   thinning: null,
+  islands: false,
   fields: [
     {
       key: "width",
@@ -675,6 +679,7 @@ const STAR: ShapeSpec<StarShape> = {
   edgeRow: true,
   connected: false,
   thinning: null,
+  islands: false,
   fields: [
     {
       key: "points",
@@ -788,6 +793,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
   edgeRow: true,
   connected: false,
   thinning: null,
+  islands: false,
   fields: [
     {
       key: "arms",
@@ -868,6 +874,7 @@ const GALAXY: ShapeSpec<GalaxyShape> = {
   spokes: null,
   edgeRow: false,
   connected: true,
+  islands: true,
   thinning: {
     at(s, p) {
       const local = toLocal(frameOf(s), p);

@@ -91,7 +91,7 @@ export interface ShapeState {
   setFill(fill: Fill): void;
   /** Changes the fill to the one `choice` lays, keeping the count or spacing it had and starting the rest at their usual values. */
   setFillChoice(choice: FillChoice): void;
-  /** Changes one or both of the pending shape's lane settings, or the remembered kind's. */
+  /** Changes some of the pending shape's lane settings, or the remembered kind's. */
   setShapeLanes(change: Partial<ShapeLanes>): void;
   /** Sets which galaxy shape the pending galaxy lays out, or the remembered galaxy's with none pending; nothing for another kind. */
   setGalaxyForm(form: GalaxyForm): void;
@@ -154,9 +154,15 @@ const ADD: ShapePurpose = { kind: "add" };
 /** How much farther apart than the least spacing an arranged outline's points start. */
 const ARRANGE_ROOM = 1.2;
 
-/** The lanes a fill starts with: an outline follows itself, a fill meshes among its new systems. */
-function defaultLanes(fill: Fill): ShapeLanes {
-  return fill.kind === "outline" ? { follow: true, mode: "off" } : { follow: false, mode: "new" };
+/**
+ * The lanes a fill of `kind` starts with: an outline follows itself, a fill meshes among its new
+ * systems, grouped into islands where the kind starts so.
+ */
+function defaultLanes(kind: ShapeKind, fill: Fill): ShapeLanes {
+  const { islands } = SHAPE_SPECS[kind];
+  return fill.kind === "outline"
+    ? { follow: true, mode: "off", islands }
+    : { follow: false, mode: "new", islands };
 }
 
 /** A kind's starting settings: its initial shape, with the defaults of the first fill it takes, an outline where it takes one. */
@@ -166,7 +172,7 @@ function initialSettings<K extends ShapeKind>(kind: K): ShapeSettings<K> {
   const first = specOf(initial).fills(initial)[0];
   const choice = FILL_CHOICES.find((c) => fillKindOf(c) === first)!;
   const fill = rowless(initial, fillOfChoice(choice, outline));
-  return { shape: initial, fill, lanes: defaultLanes(fill), extras: NO_EXTRAS };
+  return { shape: initial, fill, lanes: defaultLanes(kind, fill), extras: NO_EXTRAS };
 }
 
 /** `fill` with its edge row off where `shape`'s kind has none, so the setting says what is laid. */
@@ -247,8 +253,17 @@ function heldStars(value: unknown): StarChoice | null {
   }
 }
 
-function isLanes(value: unknown): value is ShapeLanes {
+/** Lanes as stored, which before the island setting carried none. */
+type StoredLanes = Omit<ShapeLanes, "islands"> & { islands?: unknown };
+
+function isLanes(value: unknown): value is StoredLanes {
   return isRecord(value) && isBoolean(value.follow) && isLaneMode(value.mode);
+}
+
+/** `lanes` as stored, the island setting `kind` starts with standing in where none was stored. */
+function heldLanes(kind: ShapeKind, lanes: StoredLanes): ShapeLanes {
+  const islands = isBoolean(lanes.islands) ? lanes.islands : SHAPE_SPECS[kind].islands;
+  return { follow: lanes.follow, mode: lanes.mode, islands };
 }
 
 /** Whether `value` has the fields of `kind`'s initial shape, each of its type. */
@@ -323,7 +338,10 @@ function storedSettings(kind: ShapeKind, value: unknown): ShapeSettings {
   const held = heldFill(value.fill as Fill);
   const taken = held && specOf(shape).fills(shape).includes(held.kind) ? held : first.fill;
   const fill = rowless(shape, taken);
-  const lanes = isLanes(value.lanes) && taken === held ? value.lanes : defaultLanes(fill);
+  const lanes =
+    isLanes(value.lanes) && taken === held
+      ? heldLanes(kind, value.lanes)
+      : defaultLanes(kind, fill);
   return { shape, fill, lanes, extras: heldExtras(value.extras) };
 }
 
@@ -380,7 +398,10 @@ function fillOfChoice(choice: FillChoice, from: Fill): Fill {
 /** `settings` with `fill`, its lanes as the fill starts them when the kind changes; null for a fill the shape cannot take. */
 function withFill(settings: ShapeSettings, fill: Fill): ShapeSettings | null {
   if (!specOf(settings.shape).fills(settings.shape).includes(fill.kind)) return null;
-  const lanes = fill.kind === settings.fill.kind ? settings.lanes : defaultLanes(fill);
+  const lanes =
+    fill.kind === settings.fill.kind
+      ? settings.lanes
+      : { ...defaultLanes(settings.shape.kind, fill), islands: settings.lanes.islands };
   return { ...settings, fill: rowless(settings.shape, fill), lanes };
 }
 
@@ -633,12 +654,13 @@ export function shapeSlice(
       if (isFillChoice(choice)) change((s) => withFill(s, fillOfChoice(choice, s.fill)));
     },
 
-    setShapeLanes({ follow, mode }) {
+    setShapeLanes({ follow, mode, islands }) {
       change((s) => ({
         ...s,
         lanes: {
           follow: isBoolean(follow) ? follow : s.lanes.follow,
           mode: isLaneMode(mode) ? mode : s.lanes.mode,
+          islands: isBoolean(islands) ? islands : s.lanes.islands,
         },
       }));
     },

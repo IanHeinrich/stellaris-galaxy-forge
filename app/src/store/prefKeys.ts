@@ -23,6 +23,7 @@ export const PREF_KEYS = {
   /** Read only to carry a setting from before `laneDensity` over. */
   meshBeta: "sgf.mesh.beta",
   laneDensity: "sgf.lanes.density",
+  laneIslands: "sgf.lanes.islands",
   brushSize: "sgf.brush.size",
   brushSpacing: "sgf.brush.spacing",
   brushLaneMode: "sgf.brush.laneMode",

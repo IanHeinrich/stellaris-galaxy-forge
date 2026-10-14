@@ -154,6 +154,8 @@ export type FillChoice = Exclude<FillKind, "grid"> | Lattice;
 export interface ShapeLanes {
   follow: boolean;
   mode: LaneMode;
+  /** Whether `mode`'s lanes are grouped into islands as the game does, rather than an even mesh. */
+  islands: boolean;
 }
 
 /** Whether a shape has a system at its centre, and whether spokes join that system to the outline. */
@@ -397,6 +399,8 @@ export interface ShapeSpec<S extends Shape> {
   connected: boolean;
   /** How the kind's fill thins out; null for a kind filled evenly. */
   thinning: Thinning<S> | null;
+  /** Whether the kind's lanes start grouped into islands as the game does. */
+  islands: boolean;
   /** The kind's own number fields, in the panel's order. */
   fields: readonly ShapeField<S>[];
   /** The shape a drag from `anchor` to `to` draws, taking what a drag doesn't set (sides, sweep) from `prev`. */

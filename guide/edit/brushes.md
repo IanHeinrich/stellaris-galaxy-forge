@@ -16,7 +16,9 @@ The Connect lanes (<kbd>C</kbd>) and Cut lanes (<kbd>X</kbd>) brushes
 add and cut hyperlanes under the brush. Holding <kbd>Alt</kbd> swaps the
 two. The Connect brush has a Lane density option. The left end lays the
 fewest lanes, and the new lanes form no loops of their own. At the right
-end, each system links to every neighbour.
+end, each system links to every neighbour. Tick Generate lanes like the
+game to link the swept systems in small clusters joined by single lanes,
+as the game does, instead of an even mesh.
 
 ![The Connect lanes brush active on the tool strip, with its Size and Lane density options](../images/edit/connect-brush-options.png)
 
@@ -35,6 +37,14 @@ Paint has these options:
 - Lane density sets how many lanes a stroke adds. The left end lays the
   fewest lanes, and the new lanes form no loops of their own. At the right
   end, each system links to every neighbour.
+- Generate lanes like the game links the new systems in small clusters
+  joined by single lanes, as the game does, instead of an even mesh. Lane
+  density still sets how many lanes each cluster keeps. Under New and
+  nearby, the lanes to the systems around the stroke are the usual mesh.
+  The option is hidden while Lanes is Off.
+
+The Connect brush, Paint and Connect as mesh share Lane density and
+Generate lanes like the game.
 
 ![The Paint brush options: Size, Density, Lanes set to New and nearby, and Lane density](../images/edit/paint-brush-options.png)
 

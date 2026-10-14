@@ -4,7 +4,7 @@ import { typedNumber } from "../../lib/text";
 import { LANE_MODE_CHOICES, TOOL_OPTIONS, type OptionCopy } from "../../lib/toolCopy";
 import { useToolStore } from "../../store/toolStore";
 import { ENTER } from "../keys";
-import { LaneDensitySlider } from "../LaneDensitySlider";
+import { LaneDensitySlider, LaneIslandsCheckbox } from "../LaneDensitySlider";
 import { Select } from "../Select";
 import { useDraft } from "../useDraft";
 
@@ -161,6 +161,11 @@ export function LaneDensityOption({ disabled = false }: { disabled?: boolean }) 
       <LaneDensitySlider label={label} disabled={disabled} />
     </label>
   );
+}
+
+/** Whether the lanes a brush adds are grouped into islands as the game does, shared with the selection's mesh. */
+export function LaneIslandsOption() {
+  return <LaneIslandsCheckbox className="tool-option" />;
 }
 
 /** A tool's checkbox with its label and tooltip. */

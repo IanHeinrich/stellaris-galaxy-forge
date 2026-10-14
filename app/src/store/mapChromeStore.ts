@@ -29,6 +29,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { PREF_KEYS, type PrefKey } from "./prefKeys";
 import {
+  isBoolean,
   isBooleanRecord,
   isFiniteNumber,
   isStringArray,
@@ -122,6 +123,8 @@ export interface MapChromeState {
   tooltip: MapTooltip | null;
   /** The Lane density slider's value in [0, 1], shared by the brushes, shapes and the mesh action. */
   laneDensity: number;
+  /** Whether the lanes the brushes and the mesh action add are grouped into islands as the game does. */
+  laneIslands: boolean;
   addSystemPreview: AddSystemPreview | null;
   /** Lanes the map draws as ghosts while the mesh action is being considered. */
   lanePreview: Array<[number, number]> | null;
@@ -159,6 +162,7 @@ export interface MapChromeState {
   showTooltip(tip: MapTooltip): void;
   hideTooltip(): void;
   setLaneDensity(density: number): void;
+  setLaneIslands(on: boolean): void;
   /**
    * Sets a layer without persisting it: for state the app borrows rather than the user sets, or
    * an edit the user must be able to see.
@@ -189,6 +193,7 @@ const NO_OVERLAYS = {
 } satisfies Partial<MapChromeState>;
 
 const LANE_DENSITY_PREF = prefField(PREF_KEYS.laneDensity, DEFAULT_LANE_DENSITY, isFiniteNumber);
+const LANE_ISLANDS_PREF = prefField(PREF_KEYS.laneIslands, false, isBoolean);
 
 /** The stored density, or the one whose cut is a β the slider stored before it kept a density. */
 function storedLaneDensity(): number {
@@ -269,6 +274,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   shownKinds: new Set<SpecialKind>(storedShownKinds()),
   hiddenPrecursors: new Set<string>(),
   laneDensity: storedLaneDensity(),
+  laneIslands: LANE_ISLANDS_PREF.read(),
 
   toggleLayer(id) {
     const changed = coupled({ [id]: !get().layers[id] });
@@ -404,6 +410,11 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   setLaneDensity(density) {
     set({ laneDensity: density });
     LANE_DENSITY_PREF.save(density);
+  },
+
+  setLaneIslands(laneIslands) {
+    set({ laneIslands });
+    LANE_ISLANDS_PREF.save(laneIslands);
   },
 
   setLayerQuietly(id, on) {

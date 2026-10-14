@@ -16,6 +16,7 @@ export const BRUSH_SETTINGS: BrushSettings = {
   eraseSpecials: false,
   symmetry: { kind: "off" },
   laneDensity: DEFAULT_LANE_DENSITY,
+  laneIslands: false,
   height: {
     mode: "raise",
     value: 0,

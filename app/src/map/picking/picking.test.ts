@@ -364,7 +364,7 @@ const PENDING: PendingShape = {
   purpose: { kind: "add" },
   shape: CIRCLE,
   fill: { kind: "outline", count: 24 },
-  lanes: { follow: true, mode: "off" },
+  lanes: { follow: true, mode: "off", islands: false },
   extras: NO_EXTRAS,
   skipNear: true,
   stars: { kind: "random" },

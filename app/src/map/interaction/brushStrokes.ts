@@ -40,6 +40,7 @@ function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
     eraseSpecials: t.eraseSpecials,
     symmetry: t.symmetry,
     laneDensity: useMapChromeStore.getState().laneDensity,
+    laneIslands: useMapChromeStore.getState().laneIslands,
     height: heightBrush(flipped),
     spread: spreadBrush(flipped),
   };

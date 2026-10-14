@@ -36,7 +36,9 @@ It works on up to 5 systems. "Connect as mesh" links each system only to
 its near neighbours, so it suits a large selection. Its Mesh density
 slider sets how many lanes it adds. The left end lays the fewest lanes,
 and the new lanes form no loops of their own. At the right end, each
-system links to every neighbour. Point at the row to preview the new lanes on the map.
+system links to every neighbour. Tick Generate lanes like the game to
+link the selection in small clusters joined by single lanes, as the game
+does, instead of an even mesh. Point at the row to preview the new lanes on the map.
 
 ## Join a split galaxy
 
