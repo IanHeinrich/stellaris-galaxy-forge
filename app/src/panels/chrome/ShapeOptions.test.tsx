@@ -395,6 +395,34 @@ describe("the shape options", () => {
     expect(html).not.toContain("A system at the centre");
   });
 
+  it("show a galaxy's shapes by the game's names and descriptions, with no outline or edge row", () => {
+    useGameDataStore.setState({
+      names: new Map([
+        ["bar", "Barred Spiral"],
+        ["spoked", "Spoked"],
+        ["GALAXY_SHAPE_BAR_DESC", "Barred Spiral: two thick arms."],
+      ]),
+    });
+    const galaxy = { ...SHAPE_SPECS.galaxy.initial, form: "bar" } as const;
+    const scattered = { kind: "scattered", spacing: 25, edge: true } as const;
+    useToolStore.setState({
+      pendingShape: pend("galaxy", scattered, {
+        shape: galaxy,
+        lanes: { follow: false, mode: "new" },
+      }),
+    });
+    const html = options();
+    expect(html).toContain('aria-label="Galaxy shape"');
+    expect(html).toMatch(/<option value="bar" selected="">Barred Spiral<\/option>/);
+    expect(html).toContain('<option value="spoked">Spoked</option>');
+    expect(html).toContain('<option value="cartwheel">cartwheel</option>');
+    expect(html).toContain('title="Barred Spiral: two thick arms."');
+    expect(html).not.toContain(">Outline<");
+    expect(html).not.toContain("Line the edge with systems");
+    expect(html).not.toContain("Follow the shape");
+    expect(html).not.toContain('aria-label="Hollow centre"');
+  });
+
   it("show Lane density only while Lanes is not off", () => {
     useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
     expect(options()).not.toContain("Lane density");

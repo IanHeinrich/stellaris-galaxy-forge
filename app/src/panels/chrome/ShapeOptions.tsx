@@ -35,12 +35,15 @@ import {
   extraApplies,
   takesCentre,
 } from "../../lib/shapes/extras";
+import { GALAXY_FORM_DESCRIPTIONS, GALAXY_FORMS } from "../../lib/shapes/galaxies";
 import { centreOf, fieldShows, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
 import type { StarChoice } from "../../lib/shapes/stars";
 import type {
   ExtraKey,
   Fill,
+  GalaxyForm,
   GalaxyFrame,
+  GalaxyShape,
   PendingShape,
   Shape,
   ShapeExtras,
@@ -69,6 +72,7 @@ import { Glyph } from "../Glyph";
 import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
 import { useGeneratorData } from "../useGeneratorData";
+import { useNamed } from "../useNamed";
 import {
   CheckOption,
   DraftNumber,
@@ -176,7 +180,7 @@ function FillPicker({ settings }: { settings: ShapeSettings }) {
           title: fillChoiceHint(c),
         }))}
       />
-      {fill.kind === "scattered" && (
+      {fill.kind === "scattered" && specOf(settings.shape).edgeRow && (
         <CheckOption
           copy={SHAPE_OPTIONS.edge}
           checked={fill.edge}
@@ -184,6 +188,29 @@ function FillPicker({ settings }: { settings: ShapeSettings }) {
         />
       )}
     </>
+  );
+}
+
+const noText = () => "";
+
+/** Which of the game's galaxy shapes a galaxy lays out, named and described as the game data has them. */
+function GalaxyFormRow({ shape }: { shape: GalaxyShape }) {
+  const setGalaxyForm = useToolStore((s) => s.setGalaxyForm);
+  const name = useNamed(GALAXY_FORMS);
+  const describe = useNamed(Object.values(GALAXY_FORM_DESCRIPTIONS), noText);
+  const { label, hint } = SHAPE_OPTIONS.galaxyForm;
+  return (
+    <label className="tool-option" title={hint}>
+      {label}
+      <span title={describe(GALAXY_FORM_DESCRIPTIONS[shape.form]) || undefined}>
+        <Select<GalaxyForm>
+          value={shape.form}
+          choices={GALAXY_FORMS.map((form) => ({ value: form, label: name(form) }))}
+          label={label}
+          onChange={setGalaxyForm}
+        />
+      </span>
+    </label>
   );
 }
 
@@ -366,7 +393,7 @@ function LaneOptions({
     <>
       <LaneModeSelect value={lanes.mode} onChange={(mode) => setShapeLanes({ mode })} />
       {lanes.mode !== "off" && <LaneDensityOption />}
-      {hasEdgeRow(fill) && (
+      {hasEdgeRow(settings.shape, fill) && (
         <CheckOption
           copy={SHAPE_OPTIONS.follow}
           checked={lanes.follow}
@@ -639,9 +666,11 @@ function FormSection({ section, panel }: SectionProps) {
   const { shape, fill } = settings;
   const fields = bodyFields(shape, fill);
   const extras = formExtras(panel);
-  if (pending === null && fields.length === 0 && extras.length === 0) return null;
+  const galaxy = shape.kind === "galaxy" ? shape : null;
+  if (pending === null && !galaxy && fields.length === 0 && extras.length === 0) return null;
   return (
     <Section section={section}>
+      {galaxy && <GalaxyFormRow shape={galaxy} />}
       {pending && <SizeOptions shape={shape} rules={rules} />}
       {fields.map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />

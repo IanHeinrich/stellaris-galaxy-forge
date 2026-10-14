@@ -1,20 +1,21 @@
 ---
 title: Draw shapes of systems
-description: Draw a line, circle, polygon, rectangle, star or spiral of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
-aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, spiral, spiral arm, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape, donut, hollow centre, concentric rings, onion, band, gaps, chokepoints, wobble, spokes, hub, system at the centre]
+description: Draw a line, circle, polygon, rectangle, star, spiral or galaxy of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
+aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, spiral, spiral arm, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape, donut, hollow centre, concentric rings, onion, band, gaps, chokepoints, wobble, spokes, hub, system at the centre, galaxy, galaxy shape, spiral galaxy, barred spiral, elliptical, ring galaxy, starburst, cartwheel, spoked]
 ---
 # Draw shapes of systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 The Shape tool (<kbd>O</kbd>, "Draw shapes" on the tool strip) places
-new systems in an exact shape: a ring, a straight row, a star, a spiral, or
-a circle filled at random or in a grid. It works in Stellaris 4.x saves and in
+new systems in an exact shape: a ring, a straight row, a star, a spiral, a
+circle filled at random or in a grid, or a galaxy in one of the game's
+galaxy shapes. It works in Stellaris 4.x saves and in
 scenarios. A 3.x save doesn't offer the tool.
 
 ## Draw a shape
 
 1. Press <kbd>O</kbd>, or select Draw shapes on the tool strip.
 2. Pick the shape at the top of the options: Line, Circle, Polygon,
-   Rectangle, Star or Spiral.
+   Rectangle, Star, Spiral or Galaxy.
 3. Drag on the map to draw it. Until you do, the tool shows the shape at
    the centre of the galaxy.
 
@@ -91,6 +92,34 @@ To make a cluster of black holes, pick Black hole.
   where the arms start, as a share of the radius. Drag from the centre to
   where the first arm should end. The systems are shared evenly among the
   arms.
+- Galaxy draws one of the game's galaxy shapes. See
+  [Lay out a galaxy](#lay-out-a-galaxy).
+
+## Lay out a galaxy
+
+Galaxy draws one of Stellaris's galaxy shapes, at any size, like any other
+shape: Elliptical, Spiral with 2, 3, 4 or 6 arms, Ring, Barred Spiral,
+Starburst, Cartwheel or Spoked. Pick one under Galaxy shape, the first
+row of Size and form. The list uses
+the names from your game, and hovering it shows the game's description of
+the shape you picked. Until game data is loaded, the list shows the game's
+own keys, such as spiral_2.
+
+Drag outward from where its middle should be, as for a circle.
+Drag the turn handle, or set Rotation under Exact values, to turn the arms.
+
+A galaxy is always filled at random, and no system lands outside its
+circle. The systems sit closest together in the arms.
+The core, the gaps between arms and the rim are sparser, as in the game.
+Shuffle rolls a new layout.
+
+A galaxy's systems always join up into one network, unless Lanes is Off.
+With New and nearby, a part linked to existing systems counts as joined
+through them. With symmetry on, a part can stay apart where no lane can
+join it in every copy.
+
+The game builds its galaxy shapes itself, so these are look-alikes,
+modelled on galaxies Stellaris 4.5 generated.
 
 ## Move, resize and turn a shape
 
@@ -235,7 +264,8 @@ systems you painted by hand.
 The map shows where each system goes. The count is fixed to the selection.
 Each system goes to the nearest free point, so their order around a ring
 follows where they were. Outline puts them along the edge, and a scattered
-or grid fill spreads them evenly inside the shape.
+or grid fill spreads them evenly inside the shape. A galaxy spreads them
+along its arms.
 
 The whole arrange is one undo step. <kbd>Esc</kbd> moves nothing and puts
 back the tool you had.
@@ -267,7 +297,8 @@ Hold <kbd>Alt</kbd> and drag with the Shape tool to erase every system
 inside the shape you draw, as <kbd>Alt</kbd> turns Paint into Erase. The
 systems to be erased are ringed in orange until you let go. As with the
 Erase brush, special systems stay unless you set the Erase brush to take
-them. A line or a spiral has no inside, so it erases nothing. A shape with
+them. A line or a spiral has no inside, so it erases nothing. A galaxy
+erases everything inside its circle. A shape with
 a hollow centre leaves the systems in the hole.
 
 ## Shapes remember their settings

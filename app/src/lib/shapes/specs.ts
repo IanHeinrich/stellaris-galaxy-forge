@@ -1,4 +1,4 @@
-import { boxOf, inRing } from "../geometry/polygon";
+import { boxOf, inRing, type Rect } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
 import { ANGLE_STEP, draggedRotation, snapAngle } from "./drag";
 import { clamp } from "../geometry/geometry";
@@ -11,12 +11,14 @@ import {
   joined,
   oneRun,
 } from "./outline";
+import { galaxyDensity, meanDensity } from "./galaxies";
 import type {
   CircleShape,
   ExtraKey,
   FieldWhen,
   Fill,
   FillKind,
+  GalaxyShape,
   LineShape,
   Outline,
   PolygonShape,
@@ -108,8 +110,8 @@ const ROTATION_FIELD = {
   when: "always",
 } as const;
 
-/** What the circle, polygon, star and spiral share: a centre, a radius and a rotation. */
-type Radial = CircleShape | PolygonShape | StarShape | SpiralShape;
+/** What the circle, polygon, star, spiral and galaxy share: a centre, a radius and a rotation. */
+type Radial = CircleShape | PolygonShape | StarShape | SpiralShape | GalaxyShape;
 
 /** The extras a closed outline takes, and those an open one takes, which has no rings. */
 const CLOSED_EXTRAS: readonly ExtraKey[] = ["band", "rings", "gaps", "wobble"];
@@ -214,6 +216,9 @@ const LINE: ShapeSpec<LineShape> = {
   fills: () => OUTLINE_ONLY,
   extras: OPEN_EXTRAS,
   spokes: null,
+  edgeRow: true,
+  connected: false,
+  thinning: null,
   fields: [],
   fromDrag: (anchor, to, mods, prev) => ({
     ...prev,
@@ -324,6 +329,9 @@ const CIRCLE: ShapeSpec<CircleShape> = {
   fills: () => ALL_FILLS,
   extras: CLOSED_EXTRAS,
   spokes: "ring",
+  edgeRow: true,
+  connected: false,
+  thinning: null,
   fields: [
     {
       key: "sweep",
@@ -460,6 +468,9 @@ const POLYGON: ShapeSpec<PolygonShape> = {
   fills: () => ALL_FILLS,
   extras: CLOSED_EXTRAS,
   spokes: "ring",
+  edgeRow: true,
+  connected: false,
+  thinning: null,
   fields: [
     {
       key: "sides",
@@ -566,6 +577,9 @@ const RECT: ShapeSpec<RectShape> = {
   fills: () => ALL_FILLS,
   extras: CLOSED_EXTRAS,
   spokes: null,
+  edgeRow: true,
+  connected: false,
+  thinning: null,
   fields: [
     {
       key: "width",
@@ -658,6 +672,9 @@ const STAR: ShapeSpec<StarShape> = {
   fills: () => ALL_FILLS,
   extras: CLOSED_EXTRAS,
   spokes: null,
+  edgeRow: true,
+  connected: false,
+  thinning: null,
   fields: [
     {
       key: "points",
@@ -715,6 +732,16 @@ const STAR: ShapeSpec<StarShape> = {
 
 // --- Spiral ---
 
+/** The square box round the disc `radius` about `centre`, which a spiral's arms and a galaxy stay inside. */
+function discBounds(s: { centre: Pt; radius: number }): Rect {
+  return {
+    x0: s.centre.x - s.radius,
+    y0: s.centre.y - s.radius,
+    x1: s.centre.x + s.radius,
+    y1: s.centre.y + s.radius,
+  };
+}
+
 const ARMS_RANGE = { min: 1, max: 6 };
 const TURNS_RANGE = { min: 0.25, max: 3 };
 const SPIRAL_INNER_RANGE = { min: 5, max: 90 };
@@ -758,6 +785,9 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
   fills: () => OUTLINE_ONLY,
   extras: OPEN_EXTRAS,
   spokes: "arms",
+  edgeRow: true,
+  connected: false,
+  thinning: null,
   fields: [
     {
       key: "arms",
@@ -811,12 +841,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
     return { ...s, inner: clamp(inner, SPIRAL_INNER_RANGE.min, SPIRAL_INNER_RANGE.max) };
   },
   contains: () => false,
-  bounds: (s) => ({
-    x0: s.centre.x - s.radius,
-    y0: s.centre.y - s.radius,
-    x1: s.centre.x + s.radius,
-    y1: s.centre.y + s.radius,
-  }),
+  bounds: discBounds,
   area: () => 0,
   outline: (s, n) =>
     joined(
@@ -828,6 +853,44 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
   noun: () => "a spiral",
 };
 
+// --- Galaxy ---
+
+const SCATTERED_ONLY: readonly FillKind[] = ["scattered"];
+
+const GALAXY: ShapeSpec<GalaxyShape> = {
+  label: "Galaxy",
+  hint: "Lay systems out like one of the game's galaxy shapes, at any size.",
+  glyph:
+    "M6.75 8a1.25 1.25 0 1 0 2.5 0a1.25 1.25 0 1 0-2.5 0M9.25 8C9.25 5 6 4 2.5 5.5M6.75 8C6.75 11 10 12 13.5 10.5",
+  initial: { kind: "galaxy", centre: ORIGIN, radius: 300, rotation: 0, form: "spiral_2" },
+  fills: () => SCATTERED_ONLY,
+  extras: [],
+  spokes: null,
+  edgeRow: false,
+  connected: true,
+  thinning: {
+    at(s, p) {
+      const local = toLocal(frameOf(s), p);
+      return galaxyDensity(s.form, { x: local.x / s.radius, y: local.y / s.radius });
+    },
+    mean: (s) => meanDensity(s.form),
+  },
+  fields: [RADIUS_FIELD, ROTATION_FIELD],
+  ...radialRow<GalaxyShape>(),
+  handles: (s) => [
+    handle(CENTRE_HANDLE, s.centre, "centre"),
+    handle(RIM_HANDLE, toWorld(frameOf(s), { x: s.radius, y: 0 }), "size"),
+    turnHandle(s, s.radius, s.radius),
+  ],
+  dragHandle: (s, id, to, mods) => radialDragged(s, id, to, mods) ?? s,
+  contains: (s, p) => distance(s.centre, p) <= s.radius,
+  bounds: discBounds,
+  area: (s) => Math.PI * s.radius ** 2,
+  outline: (s, n) => oneRun(arcPoints(s.centre, s.radius, s.rotation, 360, n), true),
+  edge: (s, n) => GALAXY.outline(s, n),
+  noun: () => "a galaxy",
+};
+
 /** Every kind of shape, and all that differs between them. */
 export const SHAPE_SPECS: ShapeSpecs = {
   line: LINE,
@@ -836,6 +899,7 @@ export const SHAPE_SPECS: ShapeSpecs = {
   rect: RECT,
   star: STAR,
   spiral: SPIRAL,
+  galaxy: GALAXY,
 };
 
 /** Every shape kind, in the picker's order. */

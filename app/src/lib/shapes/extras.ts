@@ -1,7 +1,7 @@
 import type { Pt } from "../geometry/pt";
 import { seeded, type Rand } from "../random";
-import { tileSeed } from "./fills";
-import { distance, lerp, toLocal, type ShapeFrame } from "./frame";
+import { pointDraws } from "./fills";
+import { distance, lerp, type ShapeFrame } from "./frame";
 import { joined, oneRun, outlineStep, runPoints } from "./outline";
 import { centreOf, specOf } from "./specs";
 import type {
@@ -138,9 +138,6 @@ const WOBBLE_STREAM = 0x574f_4242;
 
 /** How far a band's point strays from its place, along and across, as a share of the step. */
 export const BAND_SCATTER = 0.3;
-
-/** How finely a fill point's place is told apart for its wobble, in parts of the spacing. */
-const WOBBLE_GRAIN = 1000;
 
 /** How many points the outline is read at to find how close its sides come to its centre. */
 const INSET_SAMPLES = 256;
@@ -287,11 +284,7 @@ export function wobbled(outline: Outline, reach: number, seed: number): Outline 
   return { ...outline, points: outline.points.map((p) => nudged(p, reach, rand)) };
 }
 
-/**
- * Each of a fill's `points`, laid `spacing` apart in `frame`, nudged up to `reach`. Each nudge
- * is drawn from `seed` and where the point stands in the frame, so a point keeps its nudge as
- * the fill grows and as the shape moves.
- */
+/** Each of a fill's `points`, laid `spacing` apart in `frame`, nudged up to `reach` by its own draws, as `pointDraws` gives them. */
 export function* wobbledFill(
   points: Iterable<Pt>,
   reach: number,
@@ -299,12 +292,8 @@ export function* wobbledFill(
   frame: ShapeFrame,
   spacing: number,
 ): Generator<Pt> {
-  for (const p of points) {
-    const local = toLocal(frame, p);
-    const i = Math.round((local.x * WOBBLE_GRAIN) / spacing);
-    const j = Math.round((local.y * WOBBLE_GRAIN) / spacing);
-    yield nudged(p, reach, seeded(tileSeed(seed ^ WOBBLE_STREAM, i, j)));
-  }
+  for (const p of points)
+    yield nudged(p, reach, pointDraws(seed, WOBBLE_STREAM, frame, spacing, p));
 }
 
 /**

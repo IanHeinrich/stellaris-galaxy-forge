@@ -85,7 +85,8 @@ export type ShapeOption =
   | "shuffle"
   | "exact"
   | "centreAt"
-  | "alsoOuter";
+  | "alsoOuter"
+  | "galaxyForm";
 
 export const SHAPE_OPTIONS: Record<ShapeOption, OptionCopy> = {
   size: { label: "Size", hint: "Make the shape larger or smaller." },
@@ -125,6 +126,10 @@ export const SHAPE_OPTIONS: Record<ShapeOption, OptionCopy> = {
   alsoOuter: {
     label: "Also remove lanes to other systems",
     hint: "Remove the lanes from the selected systems to the rest of the map too.",
+  },
+  galaxyForm: {
+    label: "Galaxy shape",
+    hint: "Choose which of the game's galaxy shapes to lay the systems out in.",
   },
 };
 

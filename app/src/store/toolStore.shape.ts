@@ -21,8 +21,9 @@ import {
   NO_EXTRAS,
   SHAPE_CENTRES,
 } from "../lib/shapes/extras";
+import { GALAXY_FORMS } from "../lib/shapes/galaxies";
 import { outlineStep } from "../lib/shapes/outline";
-import { ARRANGE_LANE_CHOICES, FILL_CHOICES, LATTICES } from "../lib/shapes/shapeCopy";
+import { ARRANGE_LANE_CHOICES, FILL_CHOICES, fillKindOf, LATTICES } from "../lib/shapes/shapeCopy";
 import type { StarChoice } from "../lib/shapes/stars";
 import {
   centreOf,
@@ -38,6 +39,7 @@ import type {
   ArrangeMemory,
   Fill,
   FillChoice,
+  GalaxyForm,
   PendingShape,
   Shape,
   ShapeDragMods,
@@ -91,6 +93,8 @@ export interface ShapeState {
   setFillChoice(choice: FillChoice): void;
   /** Changes one or both of the pending shape's lane settings, or the remembered kind's. */
   setShapeLanes(change: Partial<ShapeLanes>): void;
+  /** Sets which galaxy shape the pending galaxy lays out, or the remembered galaxy's with none pending; nothing for another kind. */
+  setGalaxyForm(form: GalaxyForm): void;
   /** Changes some of the pending shape's extras, or the remembered kind's, each held to its range. */
   setShapeExtras(change: Partial<ShapeExtras>): void;
   setSkipNear(on: boolean): void;
@@ -155,10 +159,20 @@ function defaultLanes(fill: Fill): ShapeLanes {
   return fill.kind === "outline" ? { follow: true, mode: "off" } : { follow: false, mode: "new" };
 }
 
-/** A kind's starting settings: its initial shape, with the outline's defaults. */
+/** A kind's starting settings: its initial shape, with the defaults of the first fill it takes, an outline where it takes one. */
 function initialSettings<K extends ShapeKind>(kind: K): ShapeSettings<K> {
-  const fill: Fill = { kind: "outline", count: OUTLINE_COUNT };
-  return { shape: SHAPE_SPECS[kind].initial, fill, lanes: defaultLanes(fill), extras: NO_EXTRAS };
+  const { initial } = SHAPE_SPECS[kind];
+  const outline: Fill = { kind: "outline", count: OUTLINE_COUNT };
+  const first = specOf(initial).fills(initial)[0];
+  const choice = FILL_CHOICES.find((c) => fillKindOf(c) === first)!;
+  const fill = rowless(initial, fillOfChoice(choice, outline));
+  return { shape: initial, fill, lanes: defaultLanes(fill), extras: NO_EXTRAS };
+}
+
+/** `fill` with its edge row off where `shape`'s kind has none, so the setting says what is laid. */
+function rowless(shape: Shape, fill: Fill): Fill {
+  if (fill.kind !== "scattered" || !fill.edge || specOf(shape).edgeRow) return fill;
+  return { ...fill, edge: false };
 }
 
 /** The stars a shape rolls until the player picks others: the game's usual mix. */
@@ -195,6 +209,21 @@ const isLattice = isOneOf(LATTICES);
 const isLaneMode = isOneOf(LANE_MODES);
 const isArrangeLanes = isOneOf(ARRANGE_LANE_CHOICES);
 const isCentre = isOneOf(SHAPE_CENTRES);
+const isGalaxyForm = isOneOf(GALAXY_FORMS);
+
+/** The fields of each kind of shape `S` that hold text, other than its kind. */
+type TextKey<S> = S extends unknown
+  ? Exclude<{ [P in keyof S]: S[P] extends string ? P : never }[keyof S], "kind">
+  : never;
+
+/** How each text field of a shape other than its kind is checked: a galaxy's form. */
+const TEXT_FIELDS: Readonly<Record<TextKey<Shape>, (value: unknown) => boolean>> = {
+  form: isGalaxyForm,
+};
+
+function isTextKey(key: string): key is TextKey<Shape> {
+  return key in TEXT_FIELDS;
+}
 
 function isClassKey(value: unknown): value is string {
   return typeof value === "string" && value !== "";
@@ -232,7 +261,8 @@ function isShapeOf<K extends ShapeKind>(kind: K, value: unknown): value is Shape
     const want = initial[key];
     const got = value[key];
     if (typeof want === "number") return isFiniteNumber(got);
-    if (typeof want === "string") return got === want;
+    if (typeof want === "string")
+      return key === "kind" ? got === want : isTextKey(key) && TEXT_FIELDS[key](got);
     return isPt(got);
   });
 }
@@ -291,8 +321,9 @@ function storedSettings(kind: ShapeKind, value: unknown): ShapeSettings {
   if (!isRecord(value)) return first;
   const shape = storedShape(kind, value.shape) ?? first.shape;
   const held = heldFill(value.fill as Fill);
-  const fill = held && specOf(shape).fills(shape).includes(held.kind) ? held : first.fill;
-  const lanes = isLanes(value.lanes) && fill === held ? value.lanes : defaultLanes(fill);
+  const taken = held && specOf(shape).fills(shape).includes(held.kind) ? held : first.fill;
+  const fill = rowless(shape, taken);
+  const lanes = isLanes(value.lanes) && taken === held ? value.lanes : defaultLanes(fill);
   return { shape, fill, lanes, extras: heldExtras(value.extras) };
 }
 
@@ -350,7 +381,7 @@ function fillOfChoice(choice: FillChoice, from: Fill): Fill {
 function withFill(settings: ShapeSettings, fill: Fill): ShapeSettings | null {
   if (!specOf(settings.shape).fills(settings.shape).includes(fill.kind)) return null;
   const lanes = fill.kind === settings.fill.kind ? settings.lanes : defaultLanes(fill);
-  return { ...settings, fill, lanes };
+  return { ...settings, fill: rowless(settings.shape, fill), lanes };
 }
 
 /** Whether each number field `to` changed from `from` is inside its range. */
@@ -610,6 +641,11 @@ export function shapeSlice(
           mode: isLaneMode(mode) ? mode : s.lanes.mode,
         },
       }));
+    },
+
+    setGalaxyForm(form) {
+      if (!isGalaxyForm(form)) return;
+      change((s) => (s.shape.kind === "galaxy" ? { ...s, shape: { ...s.shape, form } } : null));
     },
 
     setShapeExtras(asked) {

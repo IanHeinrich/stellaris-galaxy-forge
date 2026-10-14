@@ -157,6 +157,15 @@ describe("arranging a selection", () => {
     expect(tools().pendingShape!.purpose).toMatchObject({ lanes: "clear", alsoOuter: true });
   });
 
+  it("arranges into a galaxy, one point of its density map per system", () => {
+    arrange();
+    tools().setShapeKind("galaxy");
+    const { points, arranged } = shapePreview()!;
+    expect(tools().pendingShape!.shape.kind).toBe("galaxy");
+    expect(points).toHaveLength(PICKED.length);
+    expect(arranged!.moves.map((m) => m.system).sort()).toEqual(PICKED);
+  });
+
   it("says the lanes are kept under Keep, with no count of none", () => {
     arrange();
     const status = shapeStatus(tools().pendingShape!, shapePreview()!, "statements");

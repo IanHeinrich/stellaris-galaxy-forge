@@ -1,7 +1,7 @@
 import type { Rect } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
 import { PoissonCore } from "../placement/poisson";
-import { seeded } from "../random";
+import { seeded, type Rand } from "../random";
 import { cellKey } from "../spatialGrid";
 import { toLocal, toWorld, type ShapeFrame } from "./frame";
 import type { Lattice } from "./types";
@@ -154,6 +154,43 @@ export function scatterPattern(
   if (!(spacing > 0)) return nearestFirst(1, frame, bounds, () => []);
   const tiles = new ScatterTiles(seed, spacing);
   return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) => tiles.points(i, j));
+}
+
+/** Keeps the thinning's draws apart from the pattern's and the extras', which read the same seed. */
+const THIN_STREAM = 0x5448_494e;
+
+/** How finely a fill point's place is told apart for its draws, in parts of the spacing. */
+const POINT_GRAIN = 1000;
+
+/**
+ * The draws for fill point `p`, laid `spacing` apart in `frame`, from `seed` and `stream` and
+ * where `p` stands in the frame in spacings. A point keeps its draws as the shape moves, turns,
+ * grows and is spaced afresh, so the preview and the placed systems agree.
+ */
+export function pointDraws(
+  seed: number,
+  stream: number,
+  frame: ShapeFrame,
+  spacing: number,
+  p: Pt,
+): Rand {
+  const local = toLocal(frame, p);
+  const i = Math.round((local.x * POINT_GRAIN) / spacing);
+  const j = Math.round((local.y * POINT_GRAIN) / spacing);
+  return seeded(tileSeed(seed ^ stream, i, j));
+}
+
+/** The points of a fill laid `spacing` apart in `frame` whose draw, as `pointDraws` gives it, falls under `share` at them. */
+export function* thinnedFill(
+  points: Iterable<Pt>,
+  share: (p: Pt) => number,
+  seed: number,
+  frame: ShapeFrame,
+  spacing: number,
+): Generator<Pt> {
+  for (const p of points) {
+    if (pointDraws(seed, THIN_STREAM, frame, spacing, p)() < share(p)) yield p;
+  }
 }
 
 /** How many tiles across the block `scatterDensity` measures is. */

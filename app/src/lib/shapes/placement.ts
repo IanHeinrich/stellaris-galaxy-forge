@@ -1,4 +1,5 @@
 import type { SystemNode } from "../../generated/SystemNode";
+import { joinIslands } from "../geometry/joinIslands";
 import type { MeshPoint } from "../geometry/mesh";
 import { boxOf } from "../geometry/polygon";
 import { PairSet, type Pair } from "../geometry/pairs";
@@ -12,7 +13,7 @@ import { LEAST_SPACING, MOST_SPACING, ON_TOP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies, type SymmetricCopies } from "../placement/symmetricCopies";
-import { lattice, scatterDensity, scatterPattern } from "./fills";
+import { lattice, scatterDensity, scatterPattern, thinnedFill } from "./fills";
 import {
   appliedExtras,
   crossesGapAt,
@@ -51,13 +52,13 @@ const HEX_ROW = Math.sqrt(3) / 2;
 /** How many points along each side of the box the area a shape and its images cover is sampled at. */
 const UNION_SAMPLES = 64;
 
-/** Whether `fill` lays a row of systems along the shape's edge, which follow lanes join. */
-export function hasEdgeRow(fill: Fill): boolean {
+/** Whether `fill` lays a row of systems along `shape`'s edge, which follow lanes join. */
+export function hasEdgeRow(shape: Shape, fill: Fill): boolean {
   switch (fill.kind) {
     case "outline":
       return true;
     case "scattered":
-      return fill.edge;
+      return fill.edge && specOf(shape).edgeRow;
     case "grid":
       return false;
   }
@@ -68,13 +69,14 @@ function edgeLength(shape: Shape): number {
   return outlineLength(specOf(shape).edge(shape, PERIMETER_POINTS));
 }
 
-/** How many points `fill` lays per square of its spacing. */
-function pointsPerSquare(fill: SpacedFill): number {
+/** How many points `fill` lays per square of its spacing in `shape`, after the shape thins it. */
+function pointsPerSquare(shape: Shape, fill: SpacedFill): number {
+  const kept = specOf(shape).thinning?.mean(shape) ?? 1;
   switch (fill.kind) {
     case "scattered":
-      return scatterDensity() * SCATTER_MARGIN;
+      return scatterDensity() * SCATTER_MARGIN * kept;
     case "grid":
-      return fill.lattice === "hex" ? 1 / HEX_ROW : 1;
+      return (fill.lattice === "hex" ? 1 / HEX_ROW : 1) * kept;
   }
 }
 
@@ -143,8 +145,8 @@ export function leastSpacing(
   const covered = coveredArea(shape, sym);
   const c = copies(sym);
   const apart = own > 0 ? Math.min(1, covered / (own * c)) : 1;
-  const area = covered * pointsPerSquare(fill);
-  const edge = hasEdgeRow(fill) || fill.kind === "grid" ? edgeLength(shape) * c * apart : 0;
+  const area = covered * pointsPerSquare(shape, fill);
+  const edge = hasEdgeRow(shape, fill) || fill.kind === "grid" ? edgeLength(shape) * c * apart : 0;
   const { cap } = rules;
   // area / d² + edge / d = cap, solved for 1 / d.
   const perUnit =
@@ -258,7 +260,7 @@ function layout(
   );
   const filled = spec.fills(shape).includes(fill.kind);
   const edge: Outline =
-    hasEdgeRow(fill) || !filled ? fillRow(shape, spacing, sym) : { points: [], runs: [] };
+    hasEdgeRow(shape, fill) || !filled ? fillRow(shape, spacing, sym) : { points: [], runs: [] };
   const laid = {
     row: edge.points,
     runs: edge.runs,
@@ -273,10 +275,14 @@ function layout(
   if (!filled) return { ...laid, fill: [] };
   const frame = frameOf(shape);
   const bounds = spec.bounds(shape);
-  const pattern =
+  const even =
     fill.kind === "grid"
       ? lattice(fill.lattice, spacing, frame, bounds)
       : scatterPattern(seed, spacing, frame, bounds);
+  const { thinning } = spec;
+  const pattern = thinning
+    ? thinnedFill(even, (p) => thinning.at(shape, p), seed, frame, spacing)
+    : even;
   const reach = (spacing * extras.wobble) / 200;
   const nudged = reach > 0 ? wobbledFill(pattern, reach, seed, frame, spacing) : pattern;
   return {
@@ -580,6 +586,42 @@ function spokeLanes(hub: Hub, row: RowStandIns, lanes: LaneGround): Pair[] {
   return chainedLanes(wanted, lanes);
 }
 
+/** The existing lanes that come near the box round `points`, which a lane between two of them may cross. */
+function lanesAcross(points: readonly Pt[], ground: PlacementGround): Array<Segment<MeshPoint>> {
+  if (points.length === 0) return [];
+  const box = boxOf(points);
+  const samples: Pt[] = [];
+  for (let x = box.x0; x <= box.x1 + SEGMENT_CELL; x += SEGMENT_CELL) {
+    for (let y = box.y0; y <= box.y1 + SEGMENT_CELL; y += SEGMENT_CELL) samples.push({ x, y });
+  }
+  return ground.lanesNear(samples, SEGMENT_CELL);
+}
+
+/**
+ * Lanes joining every piece of the new systems into one network, shortest first, crossing no
+ * lane: a piece with a lane to an existing system already belongs to the galaxy's network. They
+ * are laid as follow lanes are, so under symmetry a bridge goes in with all its images or not at
+ * all, and a piece no bridge can reach that way stays apart.
+ */
+function bridgeLanes(
+  points: readonly Pt[],
+  laid: readonly Pair[],
+  lanes: LaneGround,
+  around: (fixed: ReadonlyArray<Segment<MeshPoint>>) => PlacementGround,
+): Pair[] {
+  const fresh = points.map((p, i) => ({ id: provisionalId(i), x: p.x, y: p.y }));
+  const among = laid.filter(([a, b]) => a < 0 && b < 0);
+  const outward = laid.filter(([a, b]) => a < 0 !== b < 0);
+  const anchored = [...new Set(outward.map(([a, b]) => Math.min(a, b)))];
+  const joined = anchored.slice(1).map((id): Pair => [anchored[0], id]);
+  const end = (id: number): MeshPoint => ({ id, x: lanes.at(id).x, y: lanes.at(id).y });
+  const segment = ([a, b]: Pair) => ({ a: end(a), b: end(b) });
+  const blocked = [...lanesAcross(points, lanes.ground), ...outward.map(segment)];
+  const wanted = joinIslands(fresh, among, { blocked, joined });
+  if (wanted.length === 0) return [];
+  return chainedLanes(wanted, { ...lanes, ground: around(laid.map(segment)) });
+}
+
 /** How many of `points` sit closer than `LEAST_SPACING` to another of them or to an existing system. */
 function overlapCount(points: readonly Pt[], ground: PlacementGround): number {
   // Lattice neighbours at the least spacing sit that far apart give or take rounding.
@@ -761,6 +803,9 @@ export function shapePlacement(
     keep: pending.lanes.follow ? (a, b) => !alongRun(a, b) : undefined,
   });
   for (const [a, b] of mesh) pairs.add(a, b);
+  if (specOf(pending.shape).connected && pending.lanes.mode !== "off") {
+    for (const [a, b] of bridgeLanes(points, pairs.sorted(), lanes, around)) pairs.add(a, b);
+  }
 
   return {
     points,
