@@ -4,6 +4,7 @@ import { stubPrefs } from "../test/prefs";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
+import { fillSpacing } from "../lib/shapes/placement";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
@@ -180,34 +181,54 @@ describe("the pending shape", () => {
   });
 
   it("takes a fill's lane defaults when the fill changes, and holds its numbers to their ranges", () => {
-    tools().setFill({ kind: "scattered", spacing: 9000 });
-    expect(pending().fill).toEqual({ kind: "scattered", spacing: 150 });
+    tools().setFill({ kind: "scattered", spacing: 9000, edge: true });
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 150, edge: true });
     expect(pending().lanes).toEqual({ follow: false, mode: "new" });
     tools().setShapeLanes({ mode: "nearby" });
-    tools().setFill({ kind: "scattered", spacing: 40 });
+    tools().setFill({ kind: "scattered", spacing: 40, edge: true });
     expect(pending().lanes).toEqual({ follow: false, mode: "nearby" });
     tools().setFill({ kind: "outline", count: 1 });
     expect(pending().fill).toEqual({ kind: "outline", count: 2 });
     expect(pending().lanes).toEqual({ follow: true, mode: "off" });
   });
 
-  it("refuses a fill an arc cannot take, and an arc falls back to an outline", () => {
+  it("keeps an arc's fill, and refuses a line any fill but the outline", () => {
     tools().setFill({ kind: "grid", spacing: 30, lattice: "hex" });
     tools().setShapeField("circle", "sweep", 180);
-    expect(pending().fill).toEqual({ kind: "outline", count: 24 });
-    tools().setFill({ kind: "scattered", spacing: 30 });
+    expect(pending().fill).toEqual({ kind: "grid", spacing: 30, lattice: "hex" });
+    tools().setShapeKind("line");
+    tools().setFill({ kind: "scattered", spacing: 30, edge: true });
     expect(pending().fill.kind).toBe("outline");
   });
 
-  it("keeps the count or spacing when the fill's kind changes, and starts the rest as usual", () => {
-    tools().setFillKind("scattered");
-    expect(pending().fill).toEqual({ kind: "scattered", spacing: 25 });
-    tools().setFill({ kind: "scattered", spacing: 40 });
-    tools().setFillKind("grid");
+  it("keeps the count, spacing or edge when the fill choice changes, and starts the rest as usual", () => {
+    tools().setFillChoice("scattered");
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 25, edge: true });
+    tools().setFill({ kind: "scattered", spacing: 40, edge: false });
+    tools().setFillChoice("scattered");
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 40, edge: false });
+    tools().setFillChoice("square");
+    expect(pending().fill).toEqual({ kind: "grid", spacing: 40, lattice: "square" });
+    tools().setFillChoice("hex");
     expect(pending().fill).toEqual({ kind: "grid", spacing: 40, lattice: "hex" });
-    tools().setFillKind("outline");
+    tools().setFillChoice("outline");
     expect(pending().fill).toEqual({ kind: "outline", count: 24 });
     expect(pending().lanes).toEqual({ follow: true, mode: "off" });
+  });
+
+  it("keeps the spacing chosen when the shape grows past it, so it returns as the shape shrinks", () => {
+    tools().setFill({ kind: "scattered", spacing: 5, edge: true });
+    const used = () => {
+      const { shape, fill } = pending();
+      return fill.kind === "outline" ? null : fillSpacing(shape, fill, tools().symmetry);
+    };
+    tools().setShapeSize(30);
+    expect(used()).toBe(5);
+    tools().setShapeSize(500);
+    expect(used()).toBeGreaterThan(5);
+    expect(pending().fill).toMatchObject({ spacing: 5 });
+    tools().setShapeSize(30);
+    expect(used()).toBe(5);
   });
 
   it("ignores lane settings that are not lane settings", () => {
@@ -290,6 +311,29 @@ describe("the memory", () => {
     expect(kinds.star.shape).toEqual(SHAPE_SPECS.star.initial);
   });
 
+  it("lines a stored scattered fill's edge when it was stored without saying", async () => {
+    stored.set(
+      PREF_KEYS.shapeMemory,
+      JSON.stringify({
+        kind: "circle",
+        kinds: {
+          circle: {
+            shape: SHAPE_SPECS.circle.initial,
+            fill: { kind: "scattered", spacing: 30 },
+            lanes: { follow: false, mode: "new" },
+          },
+        },
+      }),
+    );
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore.getState();
+    expect(fresh.shapeMemory.kinds.circle.fill).toEqual({
+      kind: "scattered",
+      spacing: 30,
+      edge: true,
+    });
+  });
+
   it("falls back to the first settings when what is stored is malformed", async () => {
     const circle: CircleShape = {
       ...SHAPE_SPECS.circle.initial,
@@ -309,11 +353,11 @@ describe("the memory", () => {
     tools().setShapeKind("star");
     tools().setShapeField("star", "points", 7);
     tools().setShapeField("circle", "sweep", 90);
-    tools().setFill({ kind: "scattered", spacing: 40 });
+    tools().setFill({ kind: "scattered", spacing: 40, edge: true });
     tools().setTool("select");
     tools().setTool("shape");
     expect(pending().shape).toMatchObject({ kind: "star", points: 7 });
-    expect(pending().fill).toEqual({ kind: "scattered", spacing: 40 });
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 40, edge: true });
     expect(pending().lanes).toEqual({ follow: false, mode: "new" });
     expect(tools().shapeMemory.kinds.circle.shape.sweep).toBe(360);
   });

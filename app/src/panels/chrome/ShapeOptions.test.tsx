@@ -79,8 +79,7 @@ describe("the shape options", () => {
     const html = options();
     expect(html).toContain("Drag on the map to draw a shape");
     expect(html).toMatch(/aria-checked="true" title="Star"/);
-    expect(html).toMatch(/aria-checked="true">Grid</);
-    expect(html).toMatch(/aria-checked="true">Square</);
+    expect(html).toMatch(/aria-checked="true">Square grid</);
     expect(html).toContain("Points");
     expect(html).toContain("Inner radius");
     expect(html).toContain("Spacing");
@@ -113,42 +112,111 @@ describe("the shape options", () => {
     expect(outline).toMatch(/min="2" max="1000"[^>]*aria-label="Systems along the outline"/);
     expect(outline).not.toContain("Spacing");
 
-    useToolStore.setState({ pendingShape: pend("circle", { kind: "scattered", spacing: 25 }) });
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: true }),
+    });
     const scattered = options();
     expect(scattered).toContain("Spacing");
     expect(scattered).not.toContain("Systems");
   });
 
-  it("show Square and Hex only for a grid, and Shuffle only for a scattered fill", () => {
-    useToolStore.setState({ pendingShape: pend("rect", OUTLINE) });
-    expect(options()).not.toContain("Square");
-    expect(options()).not.toContain("Shuffle");
+  it("offer the four fills in one row, and Shuffle only for a scattered fill", () => {
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    const outline = options();
+    const row = /aria-label="Fill">(.*?)<\/div>/.exec(outline)![1];
+    expect([...row.matchAll(/>([^<]+)<\/button>/g)].map((m) => m[1])).toEqual([
+      "Outline",
+      "Scattered",
+      "Square grid",
+      "Hex grid",
+    ]);
+    expect(outline).toMatch(/aria-checked="true">Outline</);
+    expect(outline.match(/role="radiogroup"/g)).toHaveLength(2);
+    expect(outline).not.toContain("Shuffle");
 
-    useToolStore.setState({ pendingShape: pend("rect", { kind: "scattered", spacing: 25 }) });
-    expect(options()).not.toContain("Hex");
+    useToolStore.setState({
+      pendingShape: pend("rect", { kind: "scattered", spacing: 25, edge: true }),
+    });
+    expect(options()).toMatch(/aria-checked="true">Scattered</);
     expect(options()).toContain("Shuffle");
 
     useToolStore.setState({
       pendingShape: pend("rect", { kind: "grid", spacing: 25, lattice: "hex" }),
     });
     const grid = options();
-    expect(grid).toMatch(/aria-checked="false">Square<.*aria-checked="true">Hex</);
+    expect(grid).toMatch(/aria-checked="false">Square grid<.*aria-checked="true">Hex grid</);
     expect(grid).not.toContain("Shuffle");
   });
 
-  it("offer a line and an arc only the outline", () => {
+  it("offer a line only the outline, and an arc every fill", () => {
     useToolStore.setState({ pendingShape: pend("line", OUTLINE) });
-    const html = options();
-    expect(html).toContain(">Outline<");
-    expect(html).not.toContain(">Scattered<");
-    expect(html).not.toContain(">Grid<");
+    const line = options();
+    expect(line).toContain(">Outline<");
+    for (const absent of [">Scattered<", ">Square grid<", ">Hex grid<"]) {
+      expect(line).not.toContain(absent);
+    }
+
+    useToolStore.setState({
+      pendingShape: pend("circle", OUTLINE, {
+        shape: { ...SHAPE_SPECS.circle.initial, sweep: 180 },
+      }),
+    });
+    const arc = options();
+    for (const label of [">Outline<", ">Scattered<", ">Square grid<", ">Hex grid<"]) {
+      expect(arc).toContain(label);
+    }
+  });
+
+  it("offer the edge row for a scattered fill, and Follow the shape only while there is one", () => {
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    expect(options()).not.toContain("Line the edge with systems");
+
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: true }),
+    });
+    const lined = options();
+    expect(lined).toMatch(/checked=""[^>]*\/>Line the edge with systems/);
+    expect(lined).toContain("Follow the shape");
+
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: false }),
+    });
+    const bare = options();
+    expect(bare).toMatch(
+      /<input type="checkbox"(?![^>]*checked)[^>]*\/>Line the edge with systems/,
+    );
+    expect(bare).not.toContain("Follow the shape");
+
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "grid", spacing: 25, lattice: "square" }),
+    });
+    expect(options()).not.toContain("Follow the shape");
+  });
+
+  it("start Spacing at the closest spacing that fills the whole shape, and show the one used", () => {
+    useToolStore.setState({
+      pendingShape: pend(
+        "circle",
+        { kind: "grid", spacing: 5, lattice: "square" },
+        { shape: { ...SHAPE_SPECS.circle.initial, radius: 500 } },
+      ),
+    });
+    const field =
+      /min="([\d.]+)" max="150" step="0.1" aria-label="Spacing between[^"]*" value="([\d.]+)"/.exec(
+        options(),
+      );
+    expect(Number(field![1])).toBeGreaterThan(5);
+    expect(Number(field![2])).toBe(Number(field![1]));
+    expect(useToolStore.getState().pendingShape!.fill).toMatchObject({ spacing: 5 });
   });
 
   it("tick Follow the shape for an outline and leave it off for a fill", () => {
     useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
     expect(options()).toMatch(/checked=""[^>]*\/>Follow the shape/);
 
-    useToolStore.setState({ pendingShape: pend("circle", { kind: "scattered", spacing: 25 }) });
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: true }),
+    });
     expect(options()).toMatch(/<input type="checkbox"(?![^>]*checked)[^>]*\/>Follow the shape/);
   });
 

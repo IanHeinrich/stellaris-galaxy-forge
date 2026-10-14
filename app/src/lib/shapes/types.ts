@@ -15,7 +15,10 @@ export interface LineShape {
   b: Pt;
 }
 
-/** A ring about `centre`: an arc when `sweep` is under 360, an ellipse when `squash` is under 100. */
+/**
+ * A ring about `centre`: an arc when `sweep` is under 360, an ellipse when `squash` is under 100.
+ * An arc's fill fills the sector between it and the centre.
+ */
 export interface CircleShape {
   kind: "circle";
   centre: Pt;
@@ -76,13 +79,22 @@ export type ShapeOf<K extends ShapeKind> = Extract<Shape, { kind: K }>;
 /** A square lattice or a hexagonal one. */
 export type Lattice = "square" | "hex";
 
-/** Where a shape's systems go: `count` along the outline, or a fill `spacing` apart. */
+/**
+ * Where a shape's systems go: `count` along the outline, or a fill `spacing` apart. A scattered
+ * fill with `edge` also lines the shape's edge with a row of systems.
+ */
 export type Fill =
   | { kind: "outline"; count: number }
-  | { kind: "scattered"; spacing: number }
+  | { kind: "scattered"; spacing: number; edge: boolean }
   | { kind: "grid"; spacing: number; lattice: Lattice };
 
 export type FillKind = Fill["kind"];
+
+/** A fill that fills the shape, `spacing` apart. */
+export type SpacedFill = Exclude<Fill, { kind: "outline" }>;
+
+/** The options panel's four fill choices: a grid is one choice per lattice. */
+export type FillChoice = Exclude<FillKind, "grid"> | Lattice;
 
 /** A shape's lanes: `follow` joins each outline system to the next, `mode` meshes as the paint brush does. */
 export interface ShapeLanes {
@@ -172,7 +184,7 @@ export type ShapePick = { kind: "handle"; id: ShapeHandleId } | { kind: "inside"
 
 /** The keys a shape drag reads: Ctrl at the press turns `snap` off, Shift sets `constrain`. */
 export interface ShapeDragMods {
-  /** Snap the anchor or centre to the galaxy centre and to systems. */
+  /** Snap the anchor or centre to the galaxy centre and to systems, and a rotation near a multiple of 45° onto it. */
   snap: boolean;
   /** Hold angles to 15° steps, and keep a rectangle square. */
   constrain: boolean;
@@ -210,7 +222,7 @@ export interface ShapeSpec<S extends Shape> {
   glyph: string;
   /** The shape a kind starts as before it is ever drawn: about the origin, at a default size. */
   initial: S;
-  /** The fills `s` takes, outline first: a line or an arc takes only the outline. */
+  /** The fills `s` takes, outline first: a line takes only the outline. */
   fills(s: S): readonly FillKind[];
   /** The kind's own number fields, in the panel's order. */
   fields: readonly ShapeField<S>[];
@@ -226,12 +238,16 @@ export interface ShapeSpec<S extends Shape> {
   resized(s: S, size: number): S;
   /** `s` moved by the world offset `by`. */
   moved(s: S, by: Pt): S;
-  /** Whether `p` is inside `s`; never for a line or an arc. */
+  /** Whether `p` is inside what a fill fills, an arc's sector; never for a line. */
   contains(s: S, p: Pt): boolean;
-  /** The world box around `s`. */
+  /** The world box around `s`, an arc's sector included. */
   bounds(s: S): Rect;
+  /** The area a fill fills, in square world units: 0 for a line, an arc's sector. */
+  area(s: S): number;
   /** `n` points in order along the outline, every corner among them when `n` is at least the corner count; follow lanes join them in this order. */
   outline(s: S, n: number): Outline;
+  /** `n` points round the edge of what a fill fills, every corner among them as for `outline`: an arc's closed sector. */
+  edge(s: S, n: number): Outline;
   /** What a placed `s` is called after "Placed ": "a ring", "a disc", "a hexagon". */
   noun(s: S, fill: Fill): string;
 }

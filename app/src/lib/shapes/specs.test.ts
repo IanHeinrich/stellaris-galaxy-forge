@@ -112,6 +112,26 @@ describe("drawing and handles", () => {
     expect(snapAngle(anchor, { x: 0, y: -10 })).toEqual({ x: expect.closeTo(0), y: -10 });
   });
 
+  it("catches a turn within a few degrees of a multiple of 45° on it, unless snapping is off", () => {
+    const star = SHAPE_SPECS.star.initial;
+    const at = (degrees: number) => ({ x: 100 * dir(degrees).x, y: 100 * dir(degrees).y });
+    const turn = (degrees: number, mods: ShapeDragMods) =>
+      SHAPE_SPECS.star.dragHandle(star, "turn", at(degrees), mods).rotation;
+    expect(turn(43, FREE)).toBe(45);
+    expect(turn(30, FREE)).toBe(30);
+    expect(turn(43, { snap: false, constrain: false })).toBe(43);
+    expect(turn(43, SHIFT) % ANGLE_STEP).toBe(0);
+    expect(turn(43, SHIFT)).toBe(45);
+    expect(turn(37, SHIFT)).toBe(30);
+    const drawn = SHAPE_SPECS.circle.fromDrag(
+      { x: 0, y: 0 },
+      at(92),
+      FREE,
+      SHAPE_SPECS.circle.initial,
+    );
+    expect(drawn.rotation).toBe(90);
+  });
+
   it("leaves a shape as it is when any handle is dragged to where it already is", () => {
     for (const shape of ALL) {
       const spec = specOf(shape);
@@ -153,20 +173,35 @@ describe("drawing and handles", () => {
     }
   });
 
-  it("holds its centre inside it and the outline inside its box, except a line or an arc", () => {
+  it("holds its centre inside it and its edge inside its box, and takes every fill, except a line", () => {
     for (const shape of ALL) {
       const spec = specOf(shape);
       const box = spec.bounds(shape);
-      const open = shape.kind === "line" || (shape.kind === "circle" && shape.sweep < 360);
-      expect(spec.contains(shape, centreOf(shape))).toBe(!open);
-      for (const p of spec.outline(shape, 40).points) {
+      const line = shape.kind === "line";
+      expect(spec.contains(shape, centreOf(shape))).toBe(!line);
+      for (const p of [...spec.outline(shape, 40).points, ...spec.edge(shape, 40).points]) {
         expect(p.x).toBeGreaterThanOrEqual(box.x0 - 1e-9);
         expect(p.x).toBeLessThanOrEqual(box.x1 + 1e-9);
         expect(p.y).toBeGreaterThanOrEqual(box.y0 - 1e-9);
         expect(p.y).toBeLessThanOrEqual(box.y1 + 1e-9);
       }
-      expect(spec.fills(shape)).toEqual(open ? ["outline"] : ["outline", "scattered", "grid"]);
+      expect(spec.fills(shape)).toEqual(line ? ["outline"] : ["outline", "scattered", "grid"]);
     }
+  });
+
+  it("fills an arc's sector, its box reaching the ellipse's furthest point within the sweep", () => {
+    const quarter = { ...SHAPE_SPECS.circle.initial, radius: 100, sweep: 90 };
+    expect(SHAPE_SPECS.circle.contains(quarter, { x: 30, y: 30 })).toBe(true);
+    expect(SHAPE_SPECS.circle.contains(quarter, { x: -30, y: 30 })).toBe(false);
+    expect(SHAPE_SPECS.circle.contains(quarter, { x: 80, y: 80 })).toBe(false);
+    const { x0, y0, x1, y1 } = SHAPE_SPECS.circle.bounds(quarter);
+    expect([x0, y0, x1, y1].map((v) => Math.round(v * 1e6) / 1e6 + 0)).toEqual([0, 0, 100, 100]);
+    expect(SHAPE_SPECS.circle.area(quarter)).toBeCloseTo((Math.PI * 100 * 100) / 4);
+    const turned = { ...quarter, rotation: 45, squash: 50 };
+    const box = SHAPE_SPECS.circle.bounds(turned);
+    const along = SHAPE_SPECS.circle.outline(turned, 400).points;
+    expect(Math.max(...along.map((p) => p.x))).toBeCloseTo(box.x1, 3);
+    expect(Math.max(...along.map((p) => p.y))).toBeCloseTo(box.y1, 3);
   });
 });
 

@@ -120,9 +120,14 @@ export class ShapeOverlay {
   private drawOutline(): void {
     const g = this.outline;
     g.clear();
-    const shape = this.drawing?.pending?.shape;
-    if (!shape) return;
-    const { points, closed } = specOf(shape).outline(shape, OUTLINE_POINTS);
+    const pending = this.drawing?.pending;
+    if (!pending) return;
+    const { shape, fill } = pending;
+    const spec = specOf(shape);
+    const { points, closed } =
+      fill.kind === "outline"
+        ? spec.outline(shape, OUTLINE_POINTS)
+        : spec.edge(shape, OUTLINE_POINTS);
     if (points.length < 2) return;
     g.poly(
       points.flatMap((p) => [p.x, p.y]),

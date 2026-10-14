@@ -53,9 +53,10 @@ Handles on the pending shape adjust it:
 - Drag the turn handle to rotate it.
 
 The centre snaps to the middle of the galaxy and to systems, which makes
-a ring around a home system exact. Hold <kbd>Ctrl</kbd> when you press
-the mouse button to turn snapping off. <kbd>Shift</kbd> holds angles to
-15° steps and keeps a rectangle square.
+a ring around a home system exact. A rotation within a few degrees of a
+45° step catches on it. Hold <kbd>Ctrl</kbd> when you press the mouse
+button to turn this snapping off. <kbd>Shift</kbd> holds angles to 15°
+steps and keeps a rectangle square.
 
 <kbd>[</kbd> and <kbd>]</kbd> make the pending shape smaller and larger,
 and can take it past the size of the galaxy.
@@ -66,22 +67,31 @@ The Fill option sets where the systems go:
 
 - Outline puts them along the edge of the shape only.
 - Scattered fills the shape at random, as the Paint brush does.
-- Grid fills it with a square or hex lattice. Pick Square or Hex.
+- Square grid fills it in rows and columns.
+- Hex grid fills it in a honeycomb pattern.
 
-A line and an arc have only Outline.
+A line has only Outline. A filled arc fills the slice between the arc
+and its centre, so an arc of 180° fills a half disc.
+
+For a scattered fill, "Line the edge with systems" also places a row of
+systems along the edge. Untick it to leave only scattered systems
+inside the shape, with lanes as natural as painted ones.
 
 Size is a slider, with Small and Whole galaxy buttons for the two ends.
 For an outline, Systems sets how many systems the edge gets. For a
-scattered or grid fill, Spacing sets how far apart they are. Shuffle
-rolls a scattered fill again.
+scattered or grid fill, Spacing sets how far apart they are. The closest
+spacing is the closest that still fills the whole shape. Shuffle rolls a
+scattered fill again.
 
 Exact values, folded under the options, take typed numbers for the
 centre, the radius or the width and height, and the rotation.
 
 ## Lanes
 
-- Follow the shape joins each outline system to the next, and closes a
-  ring. It is on for an outline.
+- Follow the shape joins each system along the edge to the next, and
+  closes a ring. It is on for an outline. A grid, or a scattered fill
+  without its edge row, has no systems along the edge, so the option is
+  hidden.
 - Lanes works as it does for the Paint brush: Off, Among new, or New and
   nearby, which also links the shape to the systems around it. A scattered
   or grid fill starts on Among new.

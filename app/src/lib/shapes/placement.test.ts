@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { byId, placedNode } from "../../test/builders";
-import { SAMPLE_CAP } from "../placement/limits";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { MESH_BETA } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
@@ -12,7 +11,8 @@ import { SCENARIO_HALF_EXTENT } from "../guides";
 import { PlacementGround } from "../placement/ground";
 import { laneSegments, provisionalId, provisionalIndex } from "../placement/lanes";
 import { SpatialGrid } from "../spatialGrid";
-import { shapePlacement } from "./placement";
+import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
+import { fillSpacing, leastSpacing, shapePlacement } from "./placement";
 import { SHAPE_SPECS } from "./specs";
 import type {
   CircleShape,
@@ -22,6 +22,7 @@ import type {
   Shape,
   ShapeGround,
   ShapePreview,
+  SpacedFill,
 } from "./types";
 
 const OFF: Symmetry = { kind: "off" };
@@ -152,19 +153,6 @@ describe("an outline's points and follow lanes", () => {
     expect(mirrored.capped).toBe(true);
   });
 
-  it("counts only the points it places toward the cap, not those past the edge", () => {
-    const disc = circle({ radius: 700 });
-    const dense = shapePlacement(pending(disc, { fill: { kind: "scattered", spacing: 5 } }), EMPTY);
-    expect(dense.points).toHaveLength(SAMPLE_CAP);
-    expect(dense.capped).toBe(true);
-    const sparse = shapePlacement(
-      pending(disc, { fill: { kind: "scattered", spacing: 30 } }),
-      EMPTY,
-    );
-    expect(sparse.points.length).toBeGreaterThan(130);
-    expect(sparse.capped).toBe(false);
-  });
-
   it("keeps a sparse triangle's corners when systems stand a little way off them", () => {
     const triangle: PolygonShape = {
       kind: "polygon",
@@ -236,7 +224,7 @@ describe("a shape under symmetry", () => {
   });
 
   it("keeps a filled disc on the pivot as one disc rather than four laid over each other", () => {
-    const fill: Fill = { kind: "scattered", spacing: 20 };
+    const fill: Fill = { kind: "scattered", spacing: 20, edge: true };
     const alone = shapePlacement(pending(circle(), { fill }), EMPTY);
     const quarter = shapePlacement(
       pending(circle(), { fill }),
@@ -245,7 +233,7 @@ describe("a shape under symmetry", () => {
     expect(quarter.overlaps).toBe(0);
     expect(quarter.points.length).toBeGreaterThan(alone.points.length * 0.6);
     expect(quarter.points.length).toBeLessThan(alone.points.length * 1.4);
-    const hex: Fill = { kind: "grid", spacing: 20, lattice: "hex" };
+    const hex: Fill = { kind: "grid", spacing: 40, lattice: "hex" };
     const lattice = shapePlacement(
       pending(circle(), { fill: hex }),
       groundOf([], { kind: "rotate", n: 6 }),
@@ -264,7 +252,7 @@ describe("a filled shape", () => {
     const systems = [...galaxy];
     const preview = shapePlacement(
       pending(circle({ centre: { x: 60, y: -40 }, radius: 220 }), {
-        fill: { kind: "scattered", spacing: 25 },
+        fill: { kind: "scattered", spacing: 25, edge: true },
         lanes: { follow: true, mode: "nearby" },
       }),
       groundOf(systems),
@@ -276,7 +264,7 @@ describe("a filled shape", () => {
   });
 
   it("keeps every point of a smaller scattered fill when it grows, under the same seed", () => {
-    const fill: Fill = { kind: "scattered", spacing: 15 };
+    const fill: Fill = { kind: "scattered", spacing: 15, edge: true };
     const small = shapePlacement(pending(circle({ radius: 120 }), { fill }), EMPTY);
     const large = shapePlacement(pending(circle({ radius: 240 }), { fill }), EMPTY);
     const inner = small.points.filter((p) => Math.hypot(p.x, p.y) < 120 - 15);
@@ -287,18 +275,165 @@ describe("a filled shape", () => {
     expect(reseeded.points).not.toEqual(small.points);
   });
 
-  it("places about a thousand systems with lanes within budget", () => {
+  it("places the most systems a fill takes, with lanes, within budget", () => {
     const systems = [...galaxy];
     const shape = circle({ radius: 340 });
-    const fill: Fill = { kind: "scattered", spacing: 15 };
+    const fill: Fill = { kind: "scattered", spacing: 15, edge: true };
     const lanes = { follow: true, mode: "new" } as const;
     const ground = groundOf(systems);
     shapePlacement(pending(shape, { fill, lanes, skipNear: false }), ground);
     const start = performance.now();
     const preview = shapePlacement(pending(shape, { fill, lanes, skipNear: false }), ground);
     const elapsed = performance.now() - start;
-    expect(preview.points.length).toBeGreaterThan(900);
+    expect(preview.points.length).toBeGreaterThan(800);
     // Generous so a slow CI runner does not fail it; locally it takes a fraction of this.
     expect(elapsed).toBeLessThan(500);
+  });
+});
+
+/** The share of `points` per unit of area between `inner` and `outer` from the origin. */
+function densityBetween(points: readonly Pt[], inner: number, outer: number): number {
+  const n = points.filter((p) => {
+    const d = Math.hypot(p.x, p.y);
+    return d >= inner && d < outer;
+  }).length;
+  return n / (Math.PI * (outer * outer - inner * inner));
+}
+
+const onRim = (p: Pt, r: number) => Math.abs(Math.hypot(p.x, p.y) - r) < 1e-6;
+
+describe("a scattered fill's edge row", () => {
+  const disc = circle({ radius: 300 });
+  const lanes = { follow: false, mode: "new" } as const;
+  const lined = shapePlacement(
+    pending(disc, { fill: { kind: "scattered", spacing: 25, edge: true }, lanes }),
+    EMPTY,
+  );
+  const bare = shapePlacement(
+    pending(disc, { fill: { kind: "scattered", spacing: 25, edge: false }, lanes }),
+    EMPTY,
+  );
+
+  it("lines the outline with systems, and leaves none on it without", () => {
+    expect(lined.points.filter((p) => onRim(p, 300)).length).toBeGreaterThan(60);
+    expect(bare.points.filter((p) => onRim(p, 300))).toEqual([]);
+    expect(bare.points.length).toBeGreaterThan(150);
+  });
+
+  it("leaves out the ring of lanes round the outside without the row", () => {
+    const rimLanes = (preview: ShapePreview) => {
+      const at = positions(preview);
+      return preview.pairs.filter(([a, b]) => onRim(at(a), 300) && onRim(at(b), 300)).length;
+    };
+    expect(rimLanes(lined)).toBeGreaterThan(60);
+    const outer = (preview: ShapePreview) => {
+      const at = positions(preview);
+      return preview.pairs.filter(([a, b]) =>
+        [at(a), at(b)].every((p) => Math.hypot(p.x, p.y) > 300 - 25),
+      ).length;
+    };
+    expect(outer(bare)).toBeLessThan(rimLanes(lined) / 2);
+  });
+});
+
+describe("a filled arc", () => {
+  const half = circle({ radius: 250, rotation: 90, sweep: 180 });
+
+  it("fills the half disc of a semicircle and nothing outside it", () => {
+    const preview = shapePlacement(
+      pending(half, { fill: { kind: "scattered", spacing: 20, edge: true } }),
+      EMPTY,
+    );
+    expect(preview.points.length).toBeGreaterThan(150);
+    for (const p of preview.points) {
+      expect(p.x).toBeLessThanOrEqual(1e-6);
+      expect(Math.hypot(p.x, p.y)).toBeLessThanOrEqual(250 + 1e-6);
+    }
+    expect(preview.points.some((p) => p.x < -200)).toBe(true);
+  });
+
+  it("runs its edge row along the arc and both sides, with a point on the centre and each end", () => {
+    const { points, closed } = SHAPE_SPECS.circle.edge(half, 40);
+    expect(closed).toBe(true);
+    expect(points).toHaveLength(40);
+    const has = (q: Pt) => points.some((p) => Math.hypot(p.x - q.x, p.y - q.y) < 1e-6);
+    expect(has({ x: 0, y: 0 })).toBe(true);
+    expect(has({ x: 0, y: 250 })).toBe(true);
+    expect(has({ x: 0, y: -250 })).toBe(true);
+  });
+});
+
+describe("the closest spacing a fill takes", () => {
+  const disc = circle({ radius: 500 });
+  const fills: Fill[] = [
+    { kind: "scattered", spacing: 5, edge: true },
+    { kind: "grid", spacing: 5, lattice: "square" },
+    { kind: "grid", spacing: 5, lattice: "hex" },
+  ];
+
+  it.each(fills)(
+    "fills the whole of a large circle at it, with no gap before the edge: %o",
+    (fill) => {
+      const preview = shapePlacement(
+        pending(disc, { fill, lanes: { follow: false, mode: "off" } }),
+        EMPTY,
+      );
+      const used = fillSpacing(disc, fill as SpacedFill, OFF);
+      expect(used).toBeGreaterThan(5);
+      expect(preview.capped).toBe(false);
+      const middle = densityBetween(preview.points, 0, 250);
+      const band = densityBetween(preview.points, 0.85 * 500, 500 - used);
+      expect(band).toBeGreaterThan(0.8 * middle);
+    },
+  );
+
+  it("grows as the shape grows, from the least spacing for a small shape", () => {
+    const fill: SpacedFill = { kind: "scattered", spacing: 5, edge: true };
+    const at = (radius: number) => leastSpacing(circle({ radius }), fill, OFF);
+    expect(at(40)).toBe(LEAST_SPACING);
+    expect(at(250)).toBeGreaterThan(LEAST_SPACING);
+    expect(at(500)).toBeGreaterThan(at(250));
+  });
+
+  it("holds each copy of a disc off the pivot to a quarter of the cap under four-fold rotation", () => {
+    const fill: SpacedFill = { kind: "grid", spacing: 5, lattice: "square" };
+    const off = circle({ centre: { x: 250, y: 0 }, radius: 150 });
+    const quarter = groundOf([], { kind: "rotate", n: 4 });
+    // A quarter of the cap over the disc's area and edge: area / d² + edge / d = cap / 4.
+    const area = Math.PI * 150 * 150;
+    const edge = 2 * Math.PI * 150;
+    const perCopy = (2 * area) / (Math.sqrt(edge * edge + area * SAMPLE_CAP) - edge);
+    expect(leastSpacing(off, fill, quarter.placement.symmetry) / perCopy).toBeCloseTo(1, 1);
+    const preview = shapePlacement(pending(off, { fill }), quarter);
+    expect(preview.capped).toBe(false);
+    expect(preview.points.length).toBeLessThanOrEqual(SAMPLE_CAP);
+    expect(preview.points.length).toBeGreaterThan(SAMPLE_CAP * 0.6);
+  });
+
+  it("gives a disc on the pivot about its own spacing under symmetry, as its copies merge", () => {
+    const disc = circle({ radius: 200 });
+    const quarter = groundOf([], { kind: "rotate", n: 4 });
+    for (const fill of [
+      { kind: "scattered", spacing: 5, edge: true },
+      { kind: "grid", spacing: 5, lattice: "hex" },
+    ] as const) {
+      const alone = leastSpacing(disc, fill, OFF);
+      const merged = leastSpacing(disc, fill, quarter.placement.symmetry);
+      expect(Math.abs(merged / alone - 1)).toBeLessThan(0.1);
+      const preview = shapePlacement(pending(disc, { fill }), quarter);
+      expect(preview.capped).toBe(false);
+      expect(preview.points.length).toBeGreaterThan(SAMPLE_CAP * 0.6);
+    }
+  });
+
+  it("measures the area a shape's copies cover quickly enough for the live preview", () => {
+    const star = { ...SHAPE_SPECS.star.initial, centre: { x: 120, y: 40 }, points: 12 };
+    const fill: SpacedFill = { kind: "scattered", spacing: 5, edge: true };
+    const sym = { kind: "rotate", n: 8 } as const;
+    leastSpacing(star, fill, sym);
+    const start = performance.now();
+    for (let i = 0; i < 10; i++) leastSpacing(star, fill, sym);
+    // Generous so a slow CI runner does not fail it; locally one call takes a few milliseconds.
+    expect((performance.now() - start) / 10).toBeLessThan(50);
   });
 });

@@ -1,9 +1,9 @@
 import { boxOf, inRing } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
-import { snapAngle } from "./drag";
+import { ANGLE_STEP, draggedRotation, snapAngle } from "./drag";
 import { clamp } from "../geometry/geometry";
 import { angleOf, dir, distance, lerp, norm360, toLocal, toWorld, type ShapeFrame } from "./frame";
-import { alongPolyline, arcPoints, cornersThenSides } from "./outline";
+import { alongPolyline, arcPoints, cornersThenPieces, cornersThenSides } from "./outline";
 import type {
   CircleShape,
   FillKind,
@@ -51,9 +51,9 @@ function heldSize(size: number): number {
   return clamp(size, SIZE_RANGE.min, SIZE_RANGE.max);
 }
 
-/** `to`'s angle about `from` to a whole degree, held to 15° steps under Shift. */
+/** `to`'s angle about `from` as a dragged rotation, to a whole degree. */
 function heldAngle(from: Pt, to: Pt, mods: ShapeDragMods): number {
-  return wholeDegrees(angleOf(from, mods.constrain ? snapAngle(from, to) : to));
+  return wholeDegrees(draggedRotation(angleOf(from, to), mods));
 }
 
 function frameOf(s: { centre: Pt; rotation: number }): ShapeFrame {
@@ -173,7 +173,9 @@ const LINE: ShapeSpec<LineShape> = {
   moved: (s, by) => ({ ...s, a: added(s.a, by), b: added(s.b, by) }),
   contains: () => false,
   bounds: (s) => boxOf([s.a, s.b]),
+  area: () => 0,
   outline: (s, n) => ({ points: alongPolyline([s.a, s.b], false, n), closed: false }),
+  edge: (s, n) => LINE.outline(s, n),
   noun: () => "a line",
 };
 
@@ -194,11 +196,43 @@ function ellipseAngle(s: CircleShape, to: Pt): number {
 const SWEEP_RANGE = { min: 10, max: 360 };
 const SQUASH_RANGE = { min: 10, max: 100 };
 
+function isArc(s: CircleShape): boolean {
+  return s.sweep < 360;
+}
+
+/** The ellipse's half-height. */
+function halfHeight(s: CircleShape): number {
+  return (s.radius * s.squash) / 100;
+}
+
+/** Points close together along the ellipse from its first, enough to spread `n` along; an arc's last is its end. */
+function denseEllipse(s: CircleShape, n: number): Pt[] {
+  const chords = Math.max(ELLIPSE_CHORDS, 4 * n);
+  return Array.from({ length: isArc(s) ? chords + 1 : chords }, (_, i) =>
+    ellipsePoint(s, (i * Math.min(s.sweep, 360)) / chords),
+  );
+}
+
+/** The angles round the ellipse, measured before it is squashed, where it reaches furthest along x and along y. */
+function ellipseExtremes(s: CircleShape): number[] {
+  const { x: c, y: sn } = dir(s.rotation);
+  const b = halfHeight(s);
+  const alongX = angleOf(ORIGIN, { x: s.radius * c, y: -b * sn });
+  const alongY = angleOf(ORIGIN, { x: s.radius * sn, y: b * c });
+  return [alongX, alongX + 180, alongY, alongY + 180].map(norm360);
+}
+
+/** A filled arc's words, round and oval, for each sweep that has its own: any other is a wedge. */
+const SECTOR_NOUNS: Readonly<Record<number, { round: string; oval: string }>> = {
+  180: { round: "a half disc", oval: "a half oval" },
+  90: { round: "a quarter disc", oval: "a quarter oval" },
+};
+
 const CIRCLE: ShapeSpec<CircleShape> = {
   label: "Circle",
   glyph: "M2.5 8a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0Z",
   initial: { kind: "circle", centre: ORIGIN, radius: 200, rotation: 0, sweep: 360, squash: 100 },
-  fills: (s) => (s.sweep < 360 ? OUTLINE_ONLY : ALL_FILLS),
+  fills: () => ALL_FILLS,
   fields: [
     { key: "sweep", label: "Arc", range: SWEEP_RANGE, step: 1, unit: "°", exact: false },
     { key: "squash", label: "Roundness", range: SQUASH_RANGE, step: 1, unit: "%", exact: false },
@@ -226,7 +260,7 @@ const CIRCLE: ShapeSpec<CircleShape> = {
       }
       case "end": {
         const t = ellipseAngle(s, to);
-        const held = mods.constrain ? Math.round(t / 15) * 15 : t;
+        const held = mods.constrain ? Math.round(t / ANGLE_STEP) * ANGLE_STEP : t;
         return { ...s, sweep: clamp(held === 0 ? 360 : held, SWEEP_RANGE.min, SWEEP_RANGE.max) };
       }
       default:
@@ -234,35 +268,46 @@ const CIRCLE: ShapeSpec<CircleShape> = {
     }
   },
   contains(s, p) {
-    if (s.sweep < 360) return false;
     const local = toLocal(frameOf(s), p);
-    const ry = (s.radius * s.squash) / 100;
-    return (local.x / s.radius) ** 2 + (local.y / ry) ** 2 <= 1;
+    if ((local.x / s.radius) ** 2 + (local.y / halfHeight(s)) ** 2 > 1) return false;
+    return !isArc(s) || ellipseAngle(s, p) <= s.sweep;
   },
   bounds(s) {
+    if (isArc(s)) {
+      const reached = ellipseExtremes(s).filter((t) => t <= s.sweep);
+      return boxOf([s.centre, ...[0, s.sweep, ...reached].map((t) => ellipsePoint(s, t))]);
+    }
     const a = s.radius;
-    const b = (s.radius * s.squash) / 100;
+    const b = halfHeight(s);
     const { x: c, y: sn } = dir(s.rotation);
     const hx = Math.hypot(a * c, b * sn);
     const hy = Math.hypot(a * sn, b * c);
     return { x0: s.centre.x - hx, y0: s.centre.y - hy, x1: s.centre.x + hx, y1: s.centre.y + hy };
   },
+  area: (s) => (Math.PI * s.radius * halfHeight(s) * Math.min(s.sweep, 360)) / 360,
   outline(s, n) {
-    const closed = s.sweep >= 360;
+    const closed = !isArc(s);
     if (s.squash >= 100) {
       return { points: arcPoints(s.centre, s.radius, s.rotation, s.sweep, n), closed };
     }
-    const chords = Math.max(ELLIPSE_CHORDS, 4 * n);
-    const dense = Array.from({ length: closed ? chords : chords + 1 }, (_, i) =>
-      ellipsePoint(s, (i * Math.min(s.sweep, 360)) / chords),
-    );
-    return { points: alongPolyline(dense, closed, n), closed };
+    return { points: alongPolyline(denseEllipse(s, n), closed, n), closed };
+  },
+  edge(s, n) {
+    if (!isArc(s)) return CIRCLE.outline(s, n);
+    const arc = denseEllipse(s, n);
+    const pieces = [arc, [arc[arc.length - 1], s.centre], [s.centre, arc[0]]];
+    return { points: cornersThenPieces(pieces, true, n), closed: true };
   },
   noun(s, fill) {
-    if (s.sweep < 360) return "an arc";
     const round = s.squash >= 100;
-    if (fill.kind === "outline") return round ? "a ring" : "an oval ring";
-    return round ? "a disc" : "an oval";
+    if (fill.kind === "outline") {
+      if (isArc(s)) return round ? "an arc" : "an oval arc";
+      return round ? "a ring" : "an oval ring";
+    }
+    if (!isArc(s)) return round ? "a disc" : "an oval";
+    const sector = SECTOR_NOUNS[Math.round(s.sweep)];
+    if (!sector) return "a wedge";
+    return round ? sector.round : sector.oval;
   },
 };
 
@@ -309,7 +354,9 @@ const POLYGON: ShapeSpec<PolygonShape> = {
   dragHandle: (s, id, to, mods) => radialDragged(s, id, to, mods) ?? s,
   contains: (s, p) => inRing(p, polygonCorners(s)),
   bounds: (s) => boxOf(polygonCorners(s)),
+  area: (s) => (s.sides * s.radius ** 2 * Math.sin((2 * Math.PI) / s.sides)) / 2,
   outline: (s, n) => ({ points: cornersThenSides(polygonCorners(s), true, n), closed: true }),
+  edge: (s, n) => POLYGON.outline(s, n),
   noun: (s) => POLYGON_NOUNS[s.sides] ?? `a ${s.sides}-sided polygon`,
 };
 
@@ -425,7 +472,9 @@ const RECT: ShapeSpec<RectShape> = {
     return Math.abs(local.x) <= s.width / 2 && Math.abs(local.y) <= s.height / 2;
   },
   bounds: (s) => boxOf(rectCorners(s)),
+  area: (s) => s.width * s.height,
   outline: (s, n) => ({ points: cornersThenSides(rectCorners(s), true, n), closed: true }),
+  edge: (s, n) => RECT.outline(s, n),
   noun: (s) => (s.width === s.height ? "a square" : "a rectangle"),
 };
 
@@ -472,7 +521,9 @@ const STAR: ShapeSpec<StarShape> = {
   },
   contains: (s, p) => inRing(p, starCorners(s)),
   bounds: (s) => boxOf(starCorners(s)),
+  area: (s) => s.points * s.radius * ((s.radius * s.inner) / 100) * Math.sin(Math.PI / s.points),
   outline: (s, n) => ({ points: cornersThenSides(starCorners(s), true, n), closed: true }),
+  edge: (s, n) => STAR.outline(s, n),
   noun: () => "a star",
 };
 

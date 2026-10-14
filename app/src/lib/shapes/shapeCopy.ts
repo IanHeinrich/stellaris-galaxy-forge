@@ -1,26 +1,46 @@
 import { SAMPLE_CAP } from "../placement/limits";
 import { counted, thousands } from "../text";
 import { specOf } from "./specs";
-import type { FillKind, GalaxyFrame, Lattice, PendingShape, ShapePreview } from "./types";
+import type {
+  Fill,
+  FillChoice,
+  FillKind,
+  GalaxyFrame,
+  Lattice,
+  PendingShape,
+  ShapePreview,
+} from "./types";
 
-/** Each fill's name in the Outline / Scattered / Grid choice. */
-export const FILL_KIND_LABELS: Record<FillKind, string> = {
-  outline: "Outline",
-  scattered: "Scattered",
-  grid: "Grid",
+/** Each fill choice in the options panel's row: its name, and the kind of fill it lays. */
+const FILL_CHOICE_ROWS: Record<FillChoice, { label: string; kind: FillKind }> = {
+  outline: { label: "Outline", kind: "outline" },
+  scattered: { label: "Scattered", kind: "scattered" },
+  square: { label: "Square grid", kind: "grid" },
+  hex: { label: "Hex grid", kind: "grid" },
 };
 
-/** Every fill kind, in the choice's order. */
-export const FILL_KINDS = Object.keys(FILL_KIND_LABELS) as FillKind[];
+/** Every fill choice, in the row's order. */
+export const FILL_CHOICES = Object.keys(FILL_CHOICE_ROWS) as FillChoice[];
 
-/** Each lattice's name in the Square / Hex choice. */
-export const LATTICE_LABELS: Record<Lattice, string> = {
-  square: "Square",
-  hex: "Hex",
-};
+/** Every lattice: the choices that lay a grid, each named for its lattice. */
+export const LATTICES = FILL_CHOICES.filter(
+  (c): c is Lattice => FILL_CHOICE_ROWS[c].kind === "grid",
+);
 
-/** Every lattice, in the choice's order. */
-export const LATTICES = Object.keys(LATTICE_LABELS) as Lattice[];
+/** A fill choice's name: "Hex grid". */
+export function fillChoiceLabel(choice: FillChoice): string {
+  return FILL_CHOICE_ROWS[choice].label;
+}
+
+/** The kind of fill a choice lays. */
+export function fillKindOf(choice: FillChoice): FillKind {
+  return FILL_CHOICE_ROWS[choice].kind;
+}
+
+/** The choice that shows `fill`: its kind, or a grid's lattice. */
+export function fillChoiceOf(fill: Fill): FillChoice {
+  return fill.kind === "grid" ? fill.lattice : fill.kind;
+}
 
 /** The status bar's words for a pending shape: what it adds, then each thing it leaves out. */
 export interface ShapeStatus {

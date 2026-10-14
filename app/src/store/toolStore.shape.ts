@@ -6,7 +6,7 @@ import { LANE_MODES } from "../lib/placement/lanes";
 import { SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
 import { galaxyFrame } from "../lib/shapes/drag";
-import { FILL_KINDS, LATTICES } from "../lib/shapes/shapeCopy";
+import { FILL_CHOICES, LATTICES } from "../lib/shapes/shapeCopy";
 import {
   centreOf,
   heldShape,
@@ -17,7 +17,7 @@ import {
 } from "../lib/shapes/specs";
 import type {
   Fill,
-  FillKind,
+  FillChoice,
   PendingShape,
   Shape,
   ShapeDragMods,
@@ -65,8 +65,8 @@ export interface ShapeState {
   scaleShape(factor: number): void;
   /** Sets the pending shape's fill, or the remembered kind's when none is pending. */
   setFill(fill: Fill): void;
-  /** Changes the fill to `kind`, keeping the count or spacing it had and starting the rest at their usual values. */
-  setFillKind(kind: FillKind): void;
+  /** Changes the fill to the one `choice` lays, keeping the count or spacing it had and starting the rest at their usual values. */
+  setFillChoice(choice: FillChoice): void;
   /** Changes one or both of the pending shape's lane settings, or the remembered kind's. */
   setShapeLanes(change: Partial<ShapeLanes>): void;
   setSkipNear(on: boolean): void;
@@ -126,7 +126,7 @@ function isPt(value: unknown): value is Pt {
 }
 
 const isShapeKind = isOneOf(SHAPE_KINDS);
-const isFillKind = isOneOf(FILL_KINDS);
+const isFillChoice = isOneOf(FILL_CHOICES);
 const isLattice = isOneOf(LATTICES);
 const isLaneMode = isOneOf(LANE_MODES);
 
@@ -158,7 +158,11 @@ function heldFill(fill: Fill): Fill | null {
       return { kind: "outline", count: clampTo(Math.round(fill.count), COUNT_RANGE) };
     case "scattered":
       if (!isFiniteNumber(fill.spacing)) return null;
-      return { kind: "scattered", spacing: clampTo(fill.spacing, SPACING_RANGE) };
+      return {
+        kind: "scattered",
+        spacing: clampTo(fill.spacing, SPACING_RANGE),
+        edge: isBoolean(fill.edge) ? fill.edge : true,
+      };
     case "grid":
       if (!isFiniteNumber(fill.spacing) || !isLattice(fill.lattice)) return null;
       return { kind: "grid", spacing: clampTo(fill.spacing, SPACING_RANGE), lattice: fill.lattice };
@@ -167,24 +171,19 @@ function heldFill(fill: Fill): Fill | null {
   }
 }
 
-/** `settings` with a fill its shape takes: an outline, with the outline's lanes, once it takes no other. */
-function fitted<T extends ShapeSettings>(settings: T): T {
-  if (specOf(settings.shape).fills(settings.shape).includes(settings.fill.kind)) return settings;
-  const fill: Fill = { kind: "outline", count: OUTLINE_COUNT };
-  return { ...settings, fill, lanes: defaultLanes(fill) };
-}
-
 /**
  * The settings stored for `kind`, its shape and fill held to their ranges, since a drag can take a
- * field past its slider's end; a part that is no setting at all starts as it first did.
+ * field past its slider's end; a part that is no setting at all, or a fill the shape doesn't
+ * take, starts as it first did.
  */
 function storedSettings(kind: ShapeKind, value: unknown): ShapeSettings {
   const first = initialSettings(kind);
   if (!isRecord(value)) return first;
   const shape = isShapeOf(kind, value.shape) ? heldShape(value.shape) : first.shape;
-  const fill = heldFill(value.fill as Fill) ?? first.fill;
-  const lanes = isLanes(value.lanes) ? value.lanes : defaultLanes(fill);
-  return fitted({ shape, fill, lanes });
+  const held = heldFill(value.fill as Fill);
+  const fill = held && specOf(shape).fills(shape).includes(held.kind) ? held : first.fill;
+  const lanes = isLanes(value.lanes) && fill === held ? value.lanes : defaultLanes(fill);
+  return { shape, fill, lanes };
 }
 
 /** The remembered settings stored on this machine, the first settings standing in for what is not. */
@@ -208,16 +207,17 @@ function centredOn(shape: Shape, at: Pt): Shape {
   return specOf(shape).moved(shape, { x: at.x - c.x, y: at.y - c.y });
 }
 
-/** `fill` changed to `kind`, keeping the count or the spacing it had and starting the rest at their usual values. */
-function fillOfKind(kind: FillKind, from: Fill): Fill {
+/** The fill `choice` lays, keeping the count, spacing or edge `from` had and starting the rest at their usual values. */
+function fillOfChoice(choice: FillChoice, from: Fill): Fill {
   const spacing = from.kind === "outline" ? SPACING_RANGE.fallback : from.spacing;
-  switch (kind) {
+  switch (choice) {
     case "outline":
-      return { kind, count: from.kind === "outline" ? from.count : OUTLINE_COUNT };
+      return { kind: choice, count: from.kind === "outline" ? from.count : OUTLINE_COUNT };
     case "scattered":
-      return { kind, spacing };
-    case "grid":
-      return { kind, spacing, lattice: from.kind === "grid" ? from.lattice : "hex" };
+      return { kind: choice, spacing, edge: from.kind === "scattered" ? from.edge : true };
+    case "square":
+    case "hex":
+      return { kind: "grid", spacing, lattice: choice };
   }
 }
 
@@ -372,14 +372,12 @@ export function shapeSlice(
       if (from.kind === kind) return;
       const settings = shapeMemory.kinds[kind];
       const sized = specOf(settings.shape).resized(settings.shape, specOf(from).size(from));
-      show(
-        fitted({
-          ...pendingShape,
-          shape: centredOn(sized, centreOf(from)),
-          fill: settings.fill,
-          lanes: settings.lanes,
-        }),
-      );
+      show({
+        ...pendingShape,
+        shape: centredOn(sized, centreOf(from)),
+        fill: settings.fill,
+        lanes: settings.lanes,
+      });
     },
 
     setShapeField(kind, key, value) {
@@ -387,9 +385,7 @@ export function shapeSlice(
       const field = specFor(kind).fields.find((f) => f.key === key);
       const held = field ? heldTo(value, field) : value;
       change((s) =>
-        s.shape.kind === kind
-          ? fitted({ ...s, shape: { ...s.shape, [key]: held } as Shape })
-          : null,
+        s.shape.kind === kind ? { ...s, shape: { ...s.shape, [key]: held } as Shape } : null,
       );
     },
 
@@ -414,8 +410,8 @@ export function shapeSlice(
       if (fill !== null) change((s) => withFill(s, fill));
     },
 
-    setFillKind(kind) {
-      if (isFillKind(kind)) change((s) => withFill(s, fillOfKind(kind, s.fill)));
+    setFillChoice(choice) {
+      if (isFillChoice(choice)) change((s) => withFill(s, fillOfChoice(choice, s.fill)));
     },
 
     setShapeLanes({ follow, mode }) {
@@ -446,15 +442,13 @@ export function shapeSlice(
       const prev = pendingShape?.shape.kind === kind ? pendingShape.shape : settings.shape;
       const sameDrag = pendingShape !== null && lastAnchor !== null && samePt(lastAnchor, anchor);
       lastAnchor = anchor;
-      showDragged(
-        fitted({
-          shape: specOf(prev).fromDrag(anchor, to, mods, prev),
-          fill: settings.fill,
-          lanes: settings.lanes,
-          skipNear: shapeMemory.skipNear,
-          seed: sameDrag ? pendingShape.seed : newSeed(),
-        }),
-      );
+      showDragged({
+        shape: specOf(prev).fromDrag(anchor, to, mods, prev),
+        fill: settings.fill,
+        lanes: settings.lanes,
+        skipNear: shapeMemory.skipNear,
+        seed: sameDrag ? pendingShape.seed : newSeed(),
+      });
     },
 
     moveShape(from, by) {
@@ -468,8 +462,7 @@ export function shapeSlice(
 
     dragShapeHandle(from, id, to, mods) {
       const pending = get().pendingShape;
-      if (pending)
-        showDragged(fitted({ ...pending, shape: specOf(from).dragHandle(from, id, to, mods) }));
+      if (pending) showDragged({ ...pending, shape: specOf(from).dragHandle(from, id, to, mods) });
     },
 
     restoreShape(pending) {

@@ -16,23 +16,50 @@ function sides(vertices: readonly Pt[], closed: boolean): Array<[Pt, Pt]> {
  * points than corners, they are spread evenly along it instead.
  */
 export function cornersThenSides(vertices: readonly Pt[], closed: boolean, n: number): Pt[] {
-  if (n < vertices.length || vertices.length < 2) return alongPolyline(vertices, closed, n);
-  const edges = sides(vertices, closed);
-  const lengths = edges.map(([a, b]) => distance(a, b));
-  /** Points inside each side, its ends left out. */
-  const inner = edges.map(() => 0);
-  for (let left = n - vertices.length; left > 0; left--) {
+  if (vertices.length < 2) return alongPolyline(vertices, closed, n);
+  return cornersThenPieces(sides(vertices, closed), closed, n);
+}
+
+/** The chain of `pieces` as one polyline, each corner once. */
+function chained(pieces: ReadonlyArray<readonly Pt[]>, closed: boolean): Pt[] {
+  const out = pieces.flatMap((piece) => piece.slice(0, -1));
+  const last = pieces[pieces.length - 1];
+  if (!closed && last) out.push(last[last.length - 1]);
+  return out;
+}
+
+/**
+ * `n` points along a chain of `pieces`, each a polyline from one corner to the next, every
+ * corner one of them and the rest shared out so that each piece's points sit as evenly as the
+ * pieces' lengths allow. A closed chain's last piece ends where its first starts. With fewer
+ * points than corners, they are spread evenly along it instead.
+ */
+export function cornersThenPieces(
+  pieces: ReadonlyArray<readonly Pt[]>,
+  closed: boolean,
+  n: number,
+): Pt[] {
+  const corners = closed ? pieces.length : pieces.length + 1;
+  if (n < corners) return alongPolyline(chained(pieces, closed), closed, n);
+  const lengths = pieces.map((piece) => polylineLength(piece, false));
+  /** Points inside each piece, its ends left out. */
+  const inner = pieces.map(() => 0);
+  for (let left = n - corners; left > 0; left--) {
     let widest = 0;
-    for (let i = 1; i < edges.length; i++) {
+    for (let i = 1; i < pieces.length; i++) {
       if (lengths[i] / (inner[i] + 1) > lengths[widest] / (inner[widest] + 1) + 1e-9) widest = i;
     }
     inner[widest]++;
   }
   const out: Pt[] = [];
-  edges.forEach(([a, b], i) => {
-    for (let k = 0; k <= inner[i]; k++) out.push(lerp(a, b, k / (inner[i] + 1)));
+  pieces.forEach((piece, i) => {
+    if (piece.length === 2) {
+      for (let k = 0; k <= inner[i]; k++) out.push(lerp(piece[0], piece[1], k / (inner[i] + 1)));
+    } else {
+      out.push(...alongPolyline(piece, false, inner[i] + 2).slice(0, -1));
+    }
   });
-  if (!closed) out.push(vertices[vertices.length - 1]);
+  if (!closed) out.push(...chained(pieces, false).slice(-1));
   return out;
 }
 

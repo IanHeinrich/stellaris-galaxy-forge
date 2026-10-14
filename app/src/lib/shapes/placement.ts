@@ -1,5 +1,6 @@
 import type { SystemNode } from "../../generated/SystemNode";
 import type { MeshPoint } from "../geometry/mesh";
+import { boxOf } from "../geometry/polygon";
 import { PairSet, type Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
 import { SEGMENT_CELL, type Segment } from "../geometry/segments";
@@ -11,14 +12,134 @@ import { LEAST_SPACING, MOST_SPACING, ON_TOP, SAMPLE_CAP } from "../placement/li
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies } from "../placement/symmetricCopies";
-import { lattice, scatterPattern } from "./fills";
+import { lattice, scatterDensity, scatterPattern } from "./fills";
 import { angleOf, lerp, type ShapeFrame } from "./frame";
 import { polylineLength } from "./outline";
 import { centreOf, specOf } from "./specs";
-import type { LeftOut, PendingShape, Shape, ShapeGround, ShapePreview } from "./types";
+import type {
+  Fill,
+  LeftOut,
+  PendingShape,
+  Shape,
+  ShapeGround,
+  ShapePreview,
+  SpacedFill,
+} from "./types";
 
-/** A fill's outline row is spaced along an outline of this many points' length. */
+/** A fill's edge row is spaced along an edge of this many points' length. */
 const PERIMETER_POINTS = 360;
+
+/** How much denser than measured a scattered fill is taken to be, so its least spacing stays clear of the cap. */
+const SCATTER_MARGIN = 1.1;
+
+/** A hex lattice's rows are this many spacings apart. */
+const HEX_ROW = Math.sqrt(3) / 2;
+
+/** How many points along each side of the box the area a shape and its images cover is sampled at. */
+const UNION_SAMPLES = 64;
+
+/** Whether `fill` lays a row of systems along the shape's edge, which follow lanes join. */
+export function hasEdgeRow(fill: Fill): boolean {
+  switch (fill.kind) {
+    case "outline":
+      return true;
+    case "scattered":
+      return fill.edge;
+    case "grid":
+      return false;
+  }
+}
+
+/** The length of what a fill fills' edge, as its row is spaced along it. */
+function edgeLength(shape: Shape): number {
+  const { points, closed } = specOf(shape).edge(shape, PERIMETER_POINTS);
+  return polylineLength(points, closed);
+}
+
+/** How many points `fill` lays per square of its spacing. */
+function pointsPerSquare(fill: SpacedFill): number {
+  switch (fill.kind) {
+    case "scattered":
+      return scatterDensity() * SCATTER_MARGIN;
+    case "grid":
+      return fill.lattice === "hex" ? 1 / HEX_ROW : 1;
+  }
+}
+
+/**
+ * The area `shape` and its images under `sym` cover together. Without symmetry it is the
+ * shape's own. With it, the shape is drawn once onto a grid of `UNION_SAMPLES` cells a side over
+ * their box, and a cell counts when an image of its centre lands in a cell of the shape: as the
+ * images form a group, that is when the centre is inside one of the shape's images.
+ */
+function coveredArea(shape: Shape, sym: Symmetry): number {
+  const spec = specOf(shape);
+  if (copies(sym) === 1) return spec.area(shape);
+  const own = spec.bounds(shape);
+  const corners = [
+    { x: own.x0, y: own.y0 },
+    { x: own.x1, y: own.y0 },
+    { x: own.x0, y: own.y1 },
+    { x: own.x1, y: own.y1 },
+  ];
+  const box = boxOf(corners.flatMap((p) => images(p, sym)));
+  const n = UNION_SAMPLES;
+  const w = (box.x1 - box.x0) / n;
+  const h = (box.y1 - box.y0) / n;
+  if (!(w > 0 && h > 0)) return 0;
+  const column = (x: number) => Math.floor((x - box.x0) / w);
+  const row = (y: number) => Math.floor((y - box.y0) / h);
+  const centre = (i: number, j: number) => ({
+    x: box.x0 + (i + 0.5) * w,
+    y: box.y0 + (j + 0.5) * h,
+  });
+  const inShape = new Uint8Array(n * n);
+  for (let i = Math.max(0, column(own.x0)); i <= Math.min(n - 1, column(own.x1)); i++) {
+    for (let j = Math.max(0, row(own.y0)); j <= Math.min(n - 1, row(own.y1)); j++) {
+      if (spec.contains(shape, centre(i, j))) inShape[i * n + j] = 1;
+    }
+  }
+  const landsInShape = (p: Pt) => {
+    const i = column(p.x);
+    const j = row(p.y);
+    return i >= 0 && i < n && j >= 0 && j < n && inShape[i * n + j] === 1;
+  };
+  let inside = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (images(centre(i, j), sym).some(landsInShape)) inside++;
+    }
+  }
+  return inside * w * h;
+}
+
+/**
+ * The least spacing at which `fill` fills the whole of `shape` and its images under `sym`
+ * without passing `SAMPLE_CAP`; never under `LEAST_SPACING`. It counts the points the area they
+ * cover together takes, and one per spacing of their edge: the edge row, or for a grid the
+ * lattice points a boundary can add over its area's share. Their edge is the shape's over each
+ * copy, shrunk by the share of the copies' area that overlaps. Points past the map's edge or
+ * left out beside a system only lower the count.
+ */
+export function leastSpacing(shape: Shape, fill: SpacedFill, sym: Symmetry): number {
+  const own = specOf(shape).area(shape);
+  const covered = coveredArea(shape, sym);
+  const c = copies(sym);
+  const apart = own > 0 ? Math.min(1, covered / (own * c)) : 1;
+  const area = covered * pointsPerSquare(fill);
+  const edge = hasEdgeRow(fill) || fill.kind === "grid" ? edgeLength(shape) * c * apart : 0;
+  // area / d² + edge / d = SAMPLE_CAP, solved for 1 / d.
+  const perUnit =
+    area > 0
+      ? (Math.sqrt(edge * edge + 4 * area * SAMPLE_CAP) - edge) / (2 * area)
+      : SAMPLE_CAP / edge;
+  return Math.max(LEAST_SPACING, 1 / perUnit);
+}
+
+/** The spacing `fill` is laid at: its own, loosened to `leastSpacing` when the shape is too large for it. */
+export function fillSpacing(shape: Shape, fill: SpacedFill, sym: Symmetry): number {
+  return Math.max(fill.spacing, leastSpacing(shape, fill, sym));
+}
 
 /** The frame a shape's fill pattern is laid in, so it moves and turns with the shape. */
 function frameOf(shape: Shape): ShapeFrame {
@@ -47,22 +168,20 @@ function mapsOntoItself(points: readonly Pt[], sym: Symmetry): boolean {
 }
 
 /**
- * A fill's outline row, its points no closer than `spacing`. Under symmetry, a closed row that
+ * A fill's edge row, its points no closer than `spacing`. Under symmetry, a closed row that
  * its images would interleave takes the next count down that they land on, where there is one.
  */
 function fillRow(shape: Shape, spacing: number, sym: Symmetry): { row: Pt[]; closed: boolean } {
   const spec = specOf(shape);
-  const around = spec.outline(shape, PERIMETER_POINTS);
-  const closed = around.closed;
+  const closed = spec.edge(shape, PERIMETER_POINTS).closed;
   const least = closed ? 3 : 2;
-  const length = polylineLength(around.points, closed);
-  const n = Math.max(least, Math.floor(length / spacing) + (closed ? 0 : 1));
-  const row = spec.outline(shape, n).points;
+  const n = Math.max(least, Math.floor(edgeLength(shape) / spacing) + (closed ? 0 : 1));
+  const row = spec.edge(shape, n).points;
   const c = copies(sym);
   if (c === 1 || !closed || mapsOntoItself(row, sym)) return { row, closed };
   const even = c * Math.floor(n / c);
   if (even === n || even < least) return { row, closed };
-  const evenRow = spec.outline(shape, even).points;
+  const evenRow = spec.edge(shape, even).points;
   return { row: mapsOntoItself(evenRow, sym) ? evenRow : row, closed };
 }
 
@@ -87,10 +206,10 @@ function layout(pending: PendingShape, sym: Symmetry): Layout {
       skip: Math.min(spacing / 2, ON_TOP),
     };
   }
-  const { spacing } = fill;
+  const spacing = fillSpacing(shape, fill, sym);
   const filled = spec.fills(shape).includes(fill.kind);
   const { row, closed } =
-    fill.kind === "scattered" || !filled ? fillRow(shape, spacing, sym) : { row: [], closed: true };
+    hasEdgeRow(fill) || !filled ? fillRow(shape, spacing, sym) : { row: [], closed: true };
   const laid = { row, closed, rowGivesWay: true, spacing, skip: spacing };
   if (!filled) return { ...laid, fill: [] };
   const frame = frameOf(shape);

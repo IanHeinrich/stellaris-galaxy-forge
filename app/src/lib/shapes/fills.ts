@@ -156,6 +156,22 @@ export function scatterPattern(
   return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) => tiles.points(i, j));
 }
 
+/** How many tiles across the block `scatterDensity` measures is. */
+const DENSITY_TILES = 8;
+
+let measuredDensity: number | null = null;
+
+/** How many points a scattered fill lays per square of its spacing, measured once over a block of tiles. */
+export function scatterDensity(): number {
+  if (measuredDensity === null) {
+    const half = (DENSITY_TILES * TILE_SPACINGS) / 2;
+    const box = { x0: -half, y0: -half, x1: half, y1: half };
+    const frame = { origin: { x: 0, y: 0 }, rotation: 0 };
+    measuredDensity = [...scatterPattern(1, 1, frame, box)].length / (2 * half) ** 2;
+  }
+  return measuredDensity;
+}
+
 /**
  * A square or hexagonal lattice `spacing` apart over the world box `bounds`, with a point on
  * the frame's origin, nearest it first and made as it is read.

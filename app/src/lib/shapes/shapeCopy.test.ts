@@ -68,13 +68,20 @@ describe("the shape's words", () => {
 
   it("names what was placed and what the button places", () => {
     expect(placeLead(pending(SHAPE_SPECS.circle.initial))).toBe("Placed a ring of");
-    expect(placeLead(pending(SHAPE_SPECS.circle.initial, { kind: "scattered", spacing: 20 }))).toBe(
-      "Placed a disc of",
-    );
+    expect(
+      placeLead(
+        pending(SHAPE_SPECS.circle.initial, { kind: "scattered", spacing: 20, edge: true }),
+      ),
+    ).toBe("Placed a disc of");
     expect(placeLead(pending(SHAPE_SPECS.polygon.initial))).toBe("Placed a hexagon of");
-    expect(placeLead(pending({ ...SHAPE_SPECS.circle.initial, sweep: 90 }))).toBe(
-      "Placed an arc of",
-    );
+    const arc = (sweep: number, squash = 100) => ({ ...SHAPE_SPECS.circle.initial, sweep, squash });
+    const scattered = { kind: "scattered", spacing: 20, edge: true } as const;
+    expect(placeLead(pending(arc(90)))).toBe("Placed an arc of");
+    expect(placeLead(pending(arc(90, 50)))).toBe("Placed an oval arc of");
+    expect(placeLead(pending(arc(180), scattered))).toBe("Placed a half disc of");
+    expect(placeLead(pending(arc(90), scattered))).toBe("Placed a quarter disc of");
+    expect(placeLead(pending(arc(180, 50), scattered))).toBe("Placed a half oval of");
+    expect(placeLead(pending(arc(120), scattered))).toBe("Placed a wedge of");
     expect(placeLabel(preview())).toBe("Place 22 systems");
     expect(placeLabel(preview({ points: [{ x: 0, y: 0 }] }))).toBe("Place 1 system");
   });

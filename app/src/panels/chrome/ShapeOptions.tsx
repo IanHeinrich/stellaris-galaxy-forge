@@ -2,15 +2,16 @@ import type { ReactNode } from "react";
 import { clampTo } from "../../lib/geometry/geometry";
 import { mapExtent, SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
+import { fillSpacing, hasEdgeRow, leastSpacing } from "../../lib/shapes/placement";
 import {
-  FILL_KIND_LABELS,
-  FILL_KINDS,
-  LATTICE_LABELS,
-  LATTICES,
+  FILL_CHOICES,
+  fillChoiceLabel,
+  fillChoiceOf,
+  fillKindOf,
   placeLabel,
 } from "../../lib/shapes/shapeCopy";
 import { centreOf, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
-import type { Fill, GalaxyFrame, Shape, ShapeField, ShapeSettings } from "../../lib/shapes/types";
+import type { GalaxyFrame, Shape, ShapeField, ShapeSettings } from "../../lib/shapes/types";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -94,27 +95,29 @@ function KindPicker({ shape }: { shape: Shape }) {
 
 function FillPicker({ settings }: { settings: ShapeSettings }) {
   const setFill = useToolStore((s) => s.setFill);
-  const setFillKind = useToolStore((s) => s.setFillKind);
+  const setFillChoice = useToolStore((s) => s.setFillChoice);
   const fills = specOf(settings.shape).fills(settings.shape);
   const { fill } = settings;
   return (
     <>
       <Choice
         label="Fill"
-        value={fill.kind}
-        onPick={setFillKind}
-        choices={FILL_KINDS.filter((k) => fills.includes(k)).map((k) => ({
-          value: k,
-          label: FILL_KIND_LABELS[k],
+        value={fillChoiceOf(fill)}
+        onPick={setFillChoice}
+        choices={FILL_CHOICES.filter((c) => fills.includes(fillKindOf(c))).map((c) => ({
+          value: c,
+          label: fillChoiceLabel(c),
         }))}
       />
-      {fill.kind === "grid" && (
-        <Choice
-          label="Lattice"
-          value={fill.lattice}
-          onPick={(lattice) => setFill({ ...fill, lattice })}
-          choices={LATTICES.map((l) => ({ value: l, label: LATTICE_LABELS[l] }))}
-        />
+      {fill.kind === "scattered" && (
+        <label className="tool-option">
+          <input
+            type="checkbox"
+            checked={fill.edge}
+            onChange={(e) => setFill({ ...fill, edge: e.target.checked })}
+          />
+          Line the edge with systems
+        </label>
       )}
     </>
   );
@@ -184,8 +187,10 @@ function FieldRow({ shape, field }: { shape: Shape; field: ShapeField<Shape> }) 
   );
 }
 
-function CountOrSpacing({ fill }: { fill: Fill }) {
+function CountOrSpacing({ settings }: { settings: ShapeSettings }) {
   const setFill = useToolStore((s) => s.setFill);
+  const symmetry = useToolStore((s) => s.symmetry);
+  const { shape, fill } = settings;
   if (fill.kind === "outline") {
     return (
       <label className="tool-option">
@@ -201,6 +206,9 @@ function CountOrSpacing({ fill }: { fill: Fill }) {
       </label>
     );
   }
+  const least = leastSpacing(shape, fill, symmetry);
+  // Rounded up, so the field never shows a spacing closer than the fill is laid at.
+  const used = Math.ceil(fillSpacing(shape, fill, symmetry) * 10) / 10;
   // The slider runs close (left) to far (right); the brush's log scale runs the other way.
   return (
     <label className="tool-option">
@@ -208,9 +216,9 @@ function CountOrSpacing({ fill }: { fill: Fill }) {
       <span className="muted">close</span>
       <input
         type="range"
-        min={0}
+        min={SPACING_SLIDER_MAX - sliderOfSpacing(least)}
         max={SPACING_SLIDER_MAX}
-        value={SPACING_SLIDER_MAX - sliderOfSpacing(fill.spacing)}
+        value={SPACING_SLIDER_MAX - sliderOfSpacing(used)}
         onChange={(e) =>
           setFill({
             ...fill,
@@ -221,10 +229,10 @@ function CountOrSpacing({ fill }: { fill: Fill }) {
       />
       <span className="muted">far</span>
       <DraftNumber
-        min={SPACING_RANGE.min}
+        min={Math.ceil(least * 10) / 10}
         max={SPACING_RANGE.max}
         step={0.1}
-        value={fill.spacing}
+        value={used}
         onApply={(spacing) => setFill({ ...fill, spacing })}
         aria-label="Spacing between systems in world units"
       />
@@ -237,7 +245,7 @@ function LaneOptions({ settings }: { settings: ShapeSettings }) {
   const { lanes, fill } = settings;
   return (
     <>
-      {fill.kind !== "grid" && (
+      {hasEdgeRow(fill) && (
         <label className="tool-option">
           <input
             type="checkbox"
@@ -327,7 +335,7 @@ export function ShapeOptions() {
       {bodyFields(shape).map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
-      <CountOrSpacing fill={fill} />
+      <CountOrSpacing settings={settings} />
       <LaneOptions settings={settings} />
       <label className="tool-option">
         <input
