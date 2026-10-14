@@ -37,7 +37,7 @@ shape, and <kbd>Esc</kbd> again to go back to the Select tool.
 
 ## In a save <Badge type="tip" text="Save" />
 
-A shape adds up to 200 systems to a save. It is meant for clusters, not
+A shape can add up to 200 systems to a save. It is meant for clusters, not
 whole galaxies. A scenario allows 1,000.
 
 - Galaxy Forge keeps new systems at least 10 units from every other system,
@@ -69,7 +69,7 @@ Stars chooses the star class of the systems a shape adds to a save:
 Special systems such as Sol are not offered. The preview colours each point
 as its star, and Shuffle rolls the stars again.
 
-For a cluster of black holes, pick Black hole.
+To make a cluster of black holes, pick Black hole.
 
 ## The shapes
 
@@ -157,7 +157,7 @@ circle centred on the pivot isn't doubled.
 Arrange works only with symmetry off, because it moves only the systems
 you selected.
 
-## Arrange systems into a shape
+## Arrange a selection
 
 Arrange moves systems you already have onto a shape, such as a ring of
 systems you painted by hand.
@@ -178,7 +178,8 @@ or grid fill spreads them evenly inside the shape.
 The whole arrange is one undo step. <kbd>Esc</kbd> moves nothing and puts
 back the tool you had.
 
-Lanes chooses what happens to the lanes between the selected systems:
+When arranging, Lanes chooses what happens to the lanes between the
+selected systems:
 
 - Keep, the default, keeps every lane. Each lane stretches to follow the
   move. A lane that would cross another lane, run along one, or pass

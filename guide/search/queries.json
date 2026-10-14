@@ -252,10 +252,10 @@
   {"q": "shape in a save", "expect": "edit/shapes#in-a-save"},
   {"q": "choose the star class of shape systems", "expect": "edit/shapes#stars"},
   {"q": "how many systems can a shape add to a save", "expect": "edit/shapes#in-a-save"},
-  {"q": "arrange systems in a circle", "expect": "edit/shapes#arrange-systems-into-a-shape"},
-  {"q": "move selected systems into a ring", "expect": "edit/shapes#arrange-systems-into-a-shape"},
-  {"q": "tidy my systems into a shape", "expect": "edit/shapes#arrange-systems-into-a-shape"},
-  {"q": "keep lanes when arranging", "expect": "edit/shapes#arrange-systems-into-a-shape"},
-  {"q": "remove lanes to other systems when arranging", "expect": "edit/shapes#arrange-systems-into-a-shape"},
+  {"q": "arrange systems in a circle", "expect": "edit/shapes#arrange-a-selection"},
+  {"q": "move selected systems into a ring", "expect": "edit/shapes#arrange-a-selection"},
+  {"q": "tidy my systems into a shape", "expect": "edit/shapes#arrange-a-selection"},
+  {"q": "keep lanes when arranging", "expect": "edit/shapes#arrange-a-selection"},
+  {"q": "remove lanes to other systems when arranging", "expect": "edit/shapes#arrange-a-selection"},
   {"q": "erase systems inside a circle", "expect": "edit/shapes#erase-with-a-shape"}
 ]
