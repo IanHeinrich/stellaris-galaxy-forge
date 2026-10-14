@@ -1,102 +1,30 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { byId, placedNode } from "../../test/builders";
+import { placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
-import { pairOf, type Pair } from "../geometry/pairs";
+import { pairOf } from "../geometry/pairs";
 import { asWritten, dist2, type Pt, WRITTEN_DRIFT, writtenPt } from "../geometry/pt";
-import { segmentsCross } from "../geometry/segments";
 import type { Symmetry } from "../geometry/symmetry";
-import { extentOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../guides";
-import { PlacementGround } from "../placement/ground";
-import { laneSegments, provisionalId, provisionalIndex } from "../placement/lanes";
-import { SpatialGrid } from "../spatialGrid";
+import { SCENARIO_HALF_EXTENT } from "../guides";
+import { provisionalId } from "../placement/lanes";
 import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
-import { NO_EXTRAS } from "./extras";
 import { fillSpacing, leastSpacing, shapePlacement } from "./placement";
-import { PLACEMENT_RULES, type PlacementRules } from "../placement/rules";
+import {
+  components,
+  crossings,
+  EMPTY,
+  OFF,
+  ROLLED,
+  STATEMENTS,
+  circle,
+  groundOf,
+  key,
+  pending,
+  positions,
+} from "./placement.fixture";
 import { SHAPE_SPECS } from "./specs";
-import type {
-  CircleShape,
-  Fill,
-  PendingShape,
-  PolygonShape,
-  Shape,
-  ShapeGround,
-  ShapePreview,
-  SpacedFill,
-} from "./types";
-
-const OFF: Symmetry = { kind: "off" };
-
-const STATEMENTS = PLACEMENT_RULES.statements;
-const ROLLED = PLACEMENT_RULES.rolled;
-
-function groundOf(
-  systems: SystemNode[],
-  symmetry: Symmetry = OFF,
-  rules: PlacementRules = STATEMENTS,
-): ShapeGround {
-  const grid = new SpatialGrid();
-  grid.build(systems);
-  return {
-    placement: new PlacementGround(byId(...systems), grid, symmetry),
-    extent: extentOf(rules.edge, 500) as MapExtent,
-    rules,
-    laneDensity: DEFAULT_LANE_DENSITY,
-    starWeights: null,
-  };
-}
-
-const EMPTY = groundOf([]);
-
-function circle(over: Partial<CircleShape> = {}): CircleShape {
-  return {
-    kind: "circle",
-    centre: { x: 0, y: 0 },
-    radius: 200,
-    rotation: 0,
-    sweep: 360,
-    squash: 100,
-    hollow: 0,
-    ...over,
-  };
-}
-
-function pending(shape: Shape, over: Partial<PendingShape> = {}): PendingShape {
-  return {
-    purpose: { kind: "add" },
-    shape,
-    fill: { kind: "outline", count: 24 },
-    lanes: { follow: true, mode: "off" },
-    extras: NO_EXTRAS,
-    skipNear: true,
-    seed: 7,
-    stars: { kind: "random" },
-    ...over,
-  };
-}
-
-/** Where each end of the preview's lanes stands. */
-function positions(preview: ShapePreview, systems: SystemNode[] = []): (id: number) => Pt {
-  const byIds = byId(...systems);
-  return (id) => (id < 0 ? preview.points[provisionalIndex(id)] : byIds.get(id)!);
-}
-
-/** How many pairs of lanes cross, among the preview's own and between them and the galaxy's. */
-function crossings(preview: ShapePreview, systems: SystemNode[] = []): number {
-  const at = positions(preview, systems);
-  const existing = laneSegments(systems);
-  const lanes = preview.pairs.map(([a, b]) => [at(a), at(b)]);
-  let n = 0;
-  lanes.forEach(([a, b], i) => {
-    for (const { a: c, b: d } of existing) if (segmentsCross(a, b, c, d)) n++;
-    for (const [c, d] of lanes.slice(i + 1)) if (segmentsCross(a, b, c, d)) n++;
-  });
-  return n;
-}
-
-const key = ([a, b]: Pair) => `${a},${b}`;
+import type { Fill, PolygonShape, ShapeGround, ShapePreview, SpacedFill } from "./types";
 
 describe("an outline's points and follow lanes", () => {
   it("joins a closed ring's n points with n lanes, the last back to the first", () => {
@@ -199,16 +127,6 @@ describe("an outline's points and follow lanes", () => {
     expect(preview.points).toHaveLength(23);
   });
 });
-
-/** How many groups of new points the preview's lanes join. */
-function components(preview: ShapePreview): number {
-  const parent = preview.points.map((_, i) => i);
-  const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i])));
-  for (const [a, b] of preview.pairs) {
-    if (a < 0 && b < 0) parent[root(provisionalIndex(a))] = root(provisionalIndex(b));
-  }
-  return new Set(parent.map((_, i) => root(i))).size;
-}
 
 describe("following the shape", () => {
   const star = { ...SHAPE_SPECS.star.initial, radius: 150 };
@@ -647,164 +565,5 @@ describe("a shape rolled into a save", () => {
     expect(blocked.size).toBe(23);
     expect(new Set(open.values()).size).toBeGreaterThan(1);
     for (const [at, cls] of blocked) expect(cls).toBe(open.get(at));
-  });
-});
-
-describe("the outline's extras", () => {
-  const spokes = { ...NO_EXTRAS, centre: "spokes" } as const;
-  const twelve = { kind: "outline", count: 12 } as const;
-  const touches = (id: number) => (pair: Pair) => pair[0] === id || pair[1] === id;
-
-  it("joins each arm of a spiral along itself, never one arm to the next", () => {
-    const spiral = { ...SHAPE_SPECS.spiral.initial, arms: 3 };
-    const preview = shapePlacement(
-      pending(spiral, { fill: { kind: "outline", count: 30 } }),
-      EMPTY,
-    );
-    expect(preview.points).toHaveLength(30);
-    expect(preview.pairs).toHaveLength(27);
-    for (const end of [9, 19]) {
-      const across = pairOf(provisionalId(end), provisionalId(end + 1));
-      expect(preview.pairs.map(key)).not.toContain(key(across));
-    }
-    expect(crossings(preview)).toBe(0);
-  });
-
-  it("opens exactly the gaps asked for, spread evenly, and the mesh bridges none", () => {
-    const gapped = pending(circle(), { extras: { ...NO_EXTRAS, gaps: 3 } });
-    const preview = shapePlacement(gapped, EMPTY);
-    expect(preview.points).toHaveLength(24);
-    expect(preview.pairs).toHaveLength(21);
-    const joined = new Set(preview.pairs.map(key));
-    const open = Array.from({ length: 24 }, (_, i) => i).filter(
-      (i) => !joined.has(key(pairOf(provisionalId(i), provisionalId((i + 1) % 24)))),
-    );
-    expect(open).toEqual([0, 8, 16]);
-    const meshed = shapePlacement(
-      { ...gapped, lanes: { follow: true, mode: "new" } },
-      { ...EMPTY, laneDensity: 1 },
-    );
-    expect(meshed.pairs.map(key).sort()).toEqual(preview.pairs.map(key).sort());
-  });
-
-  it("copies the gaps with the shape under symmetry, so a count the copies divide keeps them", () => {
-    const quarter = groundOf([], { kind: "rotate", n: 4 });
-    const gapped = pending(circle(), { extras: { ...NO_EXTRAS, gaps: 4 } });
-    const preview = shapePlacement(gapped, quarter);
-    expect(preview.points).toHaveLength(24);
-    expect(preview.pairs).toHaveLength(20);
-  });
-
-  it("lays concentric rings, each joined round itself and none crossing", () => {
-    const rings = pending(circle(), { extras: { ...NO_EXTRAS, rings: 3 } });
-    const onion = shapePlacement(rings, EMPTY);
-    expect(onion.points).toHaveLength(24 + 18 + 11);
-    expect(onion.pairs).toHaveLength(24 + 18 + 11);
-    expect(crossings(onion)).toBe(0);
-  });
-
-  it("leaves a hollow centre empty, and lines the hole's edge as well as the outside", () => {
-    const fill = { kind: "scattered", spacing: 20, edge: true } as const;
-    const lanes = { follow: true, mode: "new" } as const;
-    const r = (p: Pt) => Math.hypot(p.x, p.y);
-    const donut = shapePlacement(pending(circle({ hollow: 50 }), { fill, lanes }), EMPTY);
-    expect(Math.min(...donut.points.map(r))).toBeGreaterThan(99.99);
-    expect(donut.points.filter((p) => Math.abs(r(p) - 100) < 0.01).length).toBeGreaterThan(10);
-    expect(crossings(donut)).toBe(0);
-    const disc = shapePlacement(pending(circle(), { fill, lanes }), EMPTY);
-    expect(disc.points.some((p) => r(p) < 90)).toBe(true);
-  });
-
-  it("puts a system at the centre with a spoke to every point, crossing nothing, under four-fold rotation too", () => {
-    const wheel = pending(circle(), { fill: twelve, extras: spokes });
-    const alone = shapePlacement(wheel, EMPTY);
-    expect(alone.points).toHaveLength(13);
-    expect(alone.points[12]).toEqual({ x: 0, y: 0 });
-    expect(alone.pairs).toHaveLength(24);
-    expect(alone.pairs.filter(touches(provisionalId(12)))).toHaveLength(12);
-    expect(crossings(alone)).toBe(0);
-
-    const quarter = groundOf([], { kind: "rotate", n: 4 });
-    const merged = shapePlacement(wheel, quarter);
-    expect(merged.points).toHaveLength(13);
-    expect(merged.pairs).toHaveLength(24);
-    expect(crossings(merged)).toBe(0);
-
-    const apart = pending(circle({ centre: { x: 250, y: 0 }, radius: 80 }), {
-      fill: twelve,
-      extras: spokes,
-    });
-    const four = shapePlacement(apart, quarter);
-    expect(four.points).toHaveLength(52);
-    expect(four.pairs).toHaveLength(96);
-    expect(crossings(four)).toBe(0);
-  });
-
-  it("runs the spokes to a home system the centre point is left out for", () => {
-    const home = placedNode(1, 0, 0);
-    const preview = shapePlacement(
-      pending(circle(), { fill: twelve, extras: spokes }),
-      groundOf([home]),
-    );
-    expect(preview.points).toHaveLength(12);
-    expect(preview.left.map((l) => l.blocker)).toEqual([1]);
-    expect(preview.pairs.filter(touches(1))).toHaveLength(12);
-  });
-
-  it("thickens a wobbled spiral into a band whose lanes cross nothing", () => {
-    const preview = shapePlacement(
-      pending(
-        { ...SHAPE_SPECS.spiral.initial, inner: 50 },
-        {
-          fill: { kind: "outline", count: 40 },
-          lanes: { follow: true, mode: "new" },
-          extras: { ...NO_EXTRAS, band: 3, wobble: 50, gaps: 2 },
-        },
-      ),
-      EMPTY,
-    );
-    // Each arm's shifted strand stops half a step short of the arm's end.
-    expect(preview.points).toHaveLength(118);
-    expect(crossings(preview)).toBe(0);
-  });
-
-  it("wobbles a grid inside the shape, the same for the same seed", () => {
-    const fill = { kind: "grid", spacing: 25, lattice: "square" } as const;
-    const lanes = { follow: false, mode: "off" } as const;
-    const plain = shapePlacement(pending(circle(), { fill, lanes }), EMPTY);
-    const shaken = pending(circle(), { fill, lanes, extras: { ...NO_EXTRAS, wobble: 60 } });
-    const wobbled = shapePlacement(shaken, EMPTY);
-    expect(wobbled.points.length).toBeGreaterThan(0.9 * plain.points.length);
-    expect(wobbled.points.every((p) => Math.hypot(p.x, p.y) <= 200)).toBe(true);
-    expect(wobbled.points).not.toEqual(plain.points);
-    expect(shapePlacement(shaken, EMPTY).points).toEqual(wobbled.points);
-  });
-});
-
-describe("gaps across a band", () => {
-  it("splits a band in as many parts as it has gaps, the mesh between its strands too", () => {
-    const preview = shapePlacement(
-      pending(circle(), {
-        lanes: { follow: true, mode: "new" },
-        extras: { ...NO_EXTRAS, band: 3, gaps: 2 },
-      }),
-      { ...EMPTY, laneDensity: 1 },
-    );
-    expect(preview.points).toHaveLength(72);
-    const parent = preview.points.map((_, i) => i);
-    const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i])));
-    for (const [a, b] of preview.pairs) {
-      parent[root(provisionalIndex(a))] = root(provisionalIndex(b));
-    }
-    const parts = new Set(preview.points.map((_, i) => root(i)));
-    expect(parts.size).toBe(2);
-  });
-
-  it("splits a donut's edge rows into whole multiples of symmetry's copies", () => {
-    const donut = circle({ hollow: 50 });
-    const { runs } = SHAPE_SPECS.circle.edge(donut, 60, 4);
-    expect(runs).toHaveLength(2);
-    for (const run of runs) expect(run.count % 4).toBe(0);
-    expect(runs[0].count + runs[1].count).toBe(60);
   });
 });
