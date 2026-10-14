@@ -75,3 +75,4 @@ commit. Write them as a sentence saying what changed and why.
 
 Contributions are accepted under the MIT licence in [LICENSE](LICENSE),
 the same terms as the rest of the project.
+
