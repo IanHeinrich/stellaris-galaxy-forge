@@ -9,6 +9,7 @@ import type { Nebula } from "../generated/Nebula";
 import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
+import { islandLanes } from "../lib/geometry/islandLanes";
 import { componentCount } from "../lib/geometry/joinIslands";
 import { PairSet } from "../lib/geometry/pairs";
 import { isLClusterSystem } from "../lib/guides";
@@ -414,18 +415,28 @@ export function unlinkedPairs(systems: Systems, ids: number[]): Array<[number, n
   return pairs;
 }
 
-/** The mesh edges over `ids` at Lane density `density` that are not yet lanes, each as `[min, max]`. */
+/** The seed the mesh action grows islands under, so the count it shows and the lanes it adds agree. */
+const MESH_ISLAND_SEED = 1;
+
+/**
+ * The mesh edges over `ids` at Lane density `density` that are not yet lanes, each as
+ * `[min, max]`; grouped into islands as the game does with `islands`.
+ */
 export function meshLanes(
   systems: Systems,
   ids: number[],
   density: number,
+  islands: boolean,
 ): Array<[number, number]> {
   const points: MeshPoint[] = [];
   for (const id of ids) {
     const s = systems.get(id);
     if (s) points.push({ id, x: s.x, y: s.y });
   }
-  return meshPairs(points, density).filter(([a, b]) => !linked(systems, a, b));
+  const pairs = islands
+    ? islandLanes(points, density, MESH_ISLAND_SEED).pairs
+    : meshPairs(points, density);
+  return pairs.filter(([a, b]) => !linked(systems, a, b));
 }
 
 /** Unordered pairs within `ids` joined by a lane, each as `[min, max]`. */

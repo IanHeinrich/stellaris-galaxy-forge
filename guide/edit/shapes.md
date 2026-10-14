@@ -217,6 +217,13 @@ centre point is left out.
 - Lane density sets how many lanes the shape adds. The left end lays the
   fewest lanes, and the new lanes form no loops of their own. At the right
   end, each system links to every neighbour.
+- Generate lanes like the game groups the new lanes into small clusters
+  joined by single lanes, as the game does, instead of an even mesh. The
+  single lanes between clusters make chokepoints. Under New and nearby,
+  the lanes out to the rest of the map are the usual mesh. Each kind of
+  shape remembers it. It starts on for a galaxy and off for the other
+  shapes. Shuffle draws the clusters again. The option is hidden while
+  Lanes is Off.
 - Spokes to the centre joins the centre system to every system on the
   outline. It shows once A system at the centre is ticked under Systems.
   With Rings or Band, the spokes go to the innermost ring or row only. On
@@ -276,7 +283,8 @@ selected systems:
   move. A lane that would cross another lane, run along one, or pass
   through a system is orange in the preview.
 - Rebuild takes those lanes out and adds new ones, as a new shape would:
-  Follow the shape, Lanes and Lane density work as above. New and nearby
+  Follow the shape, Lanes, Lane density and Generate lanes like the game
+  work as above. New and nearby
   joins the arranged systems back to the systems around them.
 - Clear takes those lanes out and adds none.
 

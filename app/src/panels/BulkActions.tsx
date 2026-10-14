@@ -18,7 +18,7 @@ import {
   useGalaxyStore,
 } from "../store/galaxyStore";
 import { BulkHeight } from "./BulkHeight";
-import { LaneDensitySlider } from "./LaneDensitySlider";
+import { LaneDensitySlider, LaneIslandsCheckbox } from "./LaneDensitySlider";
 import "./panels.css";
 
 /** Above this many selected systems the mesh is worked out only while its row is previewed. */
@@ -249,6 +249,7 @@ export function WormholePairButton({
 function MeshRow({ dismiss, itemRole }: { dismiss?: () => void; itemRole?: "menuitem" }) {
   const selection = useEditorStore((s) => s.selection);
   const laneDensity = useMapChromeStore((s) => s.laneDensity);
+  const laneIslands = useMapChromeStore((s) => s.laneIslands);
   const setLanePreview = useMapChromeStore((s) => s.setLanePreview);
   const connectSelectedMesh = useEditorStore((s) => s.connectSelectedMesh);
   const galaxy = useGalaxyStore(useShallow((s) => ({ systems: s.systems, version: s.version })));
@@ -258,8 +259,8 @@ function MeshRow({ dismiss, itemRole }: { dismiss?: () => void; itemRole?: "menu
   const previewing = hovered || focused;
   const counted = previewing || selection.length <= MESH_COUNT_MAX;
   const pairs = useMemo(
-    () => (counted ? meshLanes(galaxy.systems, selection, laneDensity) : null),
-    [counted, galaxy, selection, laneDensity],
+    () => (counted ? meshLanes(galaxy.systems, selection, laneDensity, laneIslands) : null),
+    [counted, galaxy, selection, laneDensity, laneIslands],
   );
   useEffect(() => {
     if (!previewing || pairs === null) return;
@@ -282,6 +283,7 @@ function MeshRow({ dismiss, itemRole }: { dismiss?: () => void; itemRole?: "menu
         />
         <span className="muted">dense</span>
       </label>
+      <LaneIslandsCheckbox className="mesh-slider" />
       <button
         type="button"
         role={itemRole}

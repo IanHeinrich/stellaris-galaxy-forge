@@ -88,7 +88,7 @@ function pend(kind: ShapeKind, fill: Fill, purpose: ShapePurpose = { kind: "add"
     purpose,
     shape: SHAPE_SPECS[kind].initial,
     fill,
-    lanes: { follow: true, mode: "new" },
+    lanes: { follow: true, mode: "new", islands: false },
     extras: { ...NO_EXTRAS, band: 2, wobble: 10, centre: "spokes" },
     skipNear: true,
     stars: { kind: "mix", classes: ["sc_g"] },

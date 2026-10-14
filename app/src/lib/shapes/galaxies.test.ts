@@ -59,7 +59,7 @@ function pending(
   over: Partial<PendingShape> & { fill?: SpacedFill } = {},
 ): PendingShape & { fill: SpacedFill } {
   const fill = over.fill ?? scattered(spacing);
-  const lanes = { follow: false, mode: "new" } as const;
+  const lanes = { follow: false, mode: "new", islands: true } as const;
   return { ...pendingOf(shape, { lanes, seed: SEED, ...over }), fill };
 }
 
@@ -174,7 +174,7 @@ describe("a galaxy's density map, against galaxies the game generated", () => {
 describe("a galaxy's fill", () => {
   it("lays the cap's worth at the closest spacing that fills it, and the preview places that many", () => {
     const rules = { ...STATEMENTS, cap: 300 };
-    const lanes = { follow: false, mode: "off" } as const;
+    const lanes = { follow: false, mode: "off", islands: false } as const;
     for (const form of GALAXY_FORMS) {
       const shape = galaxy(form);
       const spacing = fillSpacing(shape, scattered(1), OFF, rules);
@@ -211,7 +211,7 @@ describe("a galaxy's fill", () => {
     const existing = ring.flatMap((s) => s.lanes.map((l): [number, number] => [s.id, l.to]));
     const shape = galaxy("bar", { radius: 150 });
     for (const mode of ["new", "nearby"] as const) {
-      const lanes = { follow: false, mode };
+      const lanes = { follow: false, mode, islands: true };
       const preview = shapePlacement(pending(shape, 10, { lanes }), groundOf(ring));
       expect(crossings(preview, ring)).toBe(0);
       if (mode === "new") continue;
@@ -222,7 +222,7 @@ describe("a galaxy's fill", () => {
       expect(componentCount(points, [...preview.pairs, ...existing])).toBe(1);
     }
     const off = shapePlacement(
-      pending(shape, 10, { lanes: { follow: false, mode: "off" } }),
+      pending(shape, 10, { lanes: { follow: false, mode: "off", islands: false } }),
       EMPTY,
     );
     expect(off.pairs).toEqual([]);

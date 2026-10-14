@@ -47,7 +47,7 @@ const DISTANCE_STEPS = 1024;
 const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
 /** Lanes off: what Keep and Clear lay. */
-const NO_LANES: ShapeLanes = { follow: false, mode: "off" };
+const NO_LANES: ShapeLanes = { follow: false, mode: "off", islands: false };
 
 /** A pending shape that arranges systems. */
 export type ArrangingShape = PendingShape & { purpose: { kind: "arrange" } };

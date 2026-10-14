@@ -29,7 +29,8 @@ import type { SystemMove } from "../../generated/SystemMove";
 import { showGhosts } from "./moveDrag";
 import { SettlingPreview } from "./settlingPreview";
 
-function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
+/** The settings a stroke of `tool` takes from the tool options as they stand, `flipped` while Alt is held. */
+export function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
   const t = useToolStore.getState();
   return {
     tool,
@@ -40,6 +41,7 @@ function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
     eraseSpecials: t.eraseSpecials,
     symmetry: t.symmetry,
     laneDensity: useMapChromeStore.getState().laneDensity,
+    laneIslands: useMapChromeStore.getState().laneIslands,
     height: heightBrush(flipped),
     spread: spreadBrush(flipped),
   };

@@ -53,7 +53,7 @@ import type {
   SpacedFill,
 } from "../../lib/shapes/types";
 import { counted } from "../../lib/text";
-import { iconTitle, type Choice } from "../../lib/toolCopy";
+import { iconTitle, TOOL_OPTIONS, type Choice } from "../../lib/toolCopy";
 import { TOOL_ENTRY } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -392,7 +392,16 @@ function LaneOptions({
   return (
     <>
       <LaneModeSelect value={lanes.mode} onChange={(mode) => setShapeLanes({ mode })} />
-      {lanes.mode !== "off" && <LaneDensityOption />}
+      {lanes.mode !== "off" && (
+        <>
+          <LaneDensityOption />
+          <CheckOption
+            copy={TOOL_OPTIONS.laneIslands}
+            checked={lanes.islands}
+            onChange={(islands) => setShapeLanes({ islands })}
+          />
+        </>
+      )}
       {hasEdgeRow(settings.shape, fill) && (
         <CheckOption
           copy={SHAPE_OPTIONS.follow}

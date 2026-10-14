@@ -801,6 +801,7 @@ export function shapePlacement(
     ground: around(segments([...follow, ...spokes])),
     imageOfNew,
     keep: pending.lanes.follow ? (a, b) => !alongRun(a, b) : undefined,
+    islandSeed: pending.lanes.islands ? pending.seed : null,
   });
   for (const [a, b] of mesh) pairs.add(a, b);
   if (specOf(pending.shape).connected && pending.lanes.mode !== "off") {

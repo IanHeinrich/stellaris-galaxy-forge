@@ -212,7 +212,7 @@ describe("the pending shape", () => {
     purpose: { kind: "add" as const },
     shape: SHAPE_SPECS.circle.initial,
     fill: { kind: "outline" as const, count: 22 },
-    lanes: { follow: true, mode: "off" as const },
+    lanes: { follow: true, mode: "off" as const, islands: false },
     extras: NO_EXTRAS,
     skipNear: true,
     stars: { kind: "random" as const },

@@ -71,13 +71,15 @@ export function laneActions(
 
     async connectSelectedMesh() {
       const chrome = useMapChromeStore.getState();
-      const density = chrome.laneDensity;
+      const { laneDensity, laneIslands } = chrome;
       await get().applySymmetric(() => {
-        const lanes = meshLanes(systems(), get().selection, density).map(([a, b]) => ({
-          a,
-          b,
-          bridge: false,
-        }));
+        const lanes = meshLanes(systems(), get().selection, laneDensity, laneIslands).map(
+          ([a, b]) => ({
+            a,
+            b,
+            bridge: false,
+          }),
+        );
         return lanes.length === 0 ? null : { type: "AddLanePairs", lanes };
       });
       chrome.setLanePreview(null);

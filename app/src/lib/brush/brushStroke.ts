@@ -31,6 +31,8 @@ export interface BrushSettings {
   symmetry: Symmetry;
   /** The Lane density of the lanes a paint or connect stroke adds. */
   laneDensity: number;
+  /** Whether a paint or connect stroke groups its lanes into islands as the game does. */
+  laneIslands: boolean;
   /** What a height stroke does. */
   height: HeightBrush;
   /** What a spread stroke does. */
@@ -126,7 +128,7 @@ class PaintStroke implements Strategy {
 
   constructor(
     private readonly ground: StrokeGround,
-    seed: number,
+    private readonly seed: number,
   ) {
     const { r, settings, grid } = ground;
     this.sampler = new StrokeSampler({
@@ -148,6 +150,7 @@ class PaintStroke implements Strategy {
     const base = this.sampler.points;
     if (this.painted?.base === base.length) return this.painted.result;
     const { laneMode: mode, laneDensity: density, spacing, symmetry } = this.ground.settings;
+    const islandSeed = this.ground.settings.laneIslands ? this.seed : null;
     // The sampler keeps every image `spacing` from the rest, so none merges.
     const { points, imageOfNew } = symmetricCopies(base, symmetry);
     const pairs = placedLanes({
@@ -158,6 +161,7 @@ class PaintStroke implements Strategy {
       spacing,
       ground: this.ground.placement,
       imageOfNew,
+      islandSeed,
     });
     const result: StrokeResult = { kind: "paint", points, pairs };
     this.painted = { base: base.length, result };
@@ -189,7 +193,10 @@ class ConnectStroke implements Strategy {
   private readonly swept = new Set<number>();
   private connected: { swept: number; result: StrokeResult } | null = null;
 
-  constructor(private readonly ground: StrokeGround) {}
+  constructor(
+    private readonly ground: StrokeGround,
+    private readonly seed: number,
+  ) {}
 
   add(stamps: readonly Pt[]): void {
     const { r, swept } = this.ground;
@@ -212,18 +219,22 @@ class ConnectStroke implements Strategy {
     });
     // As a paint stroke caps lanes at three spacings, with the swept systems' own spacing.
     const maxLength = LANE_REACH * medianNearest(points);
-    const apart = (a: number, b: number) => {
-      const s = systems.get(a);
-      return !!s && (s.lanes.some((l) => l.to === b) || s.prevented.includes(b));
-    };
+    const prevented = (a: number, b: number) => !!systems.get(a)?.prevented.includes(b);
+    const apart = (a: number, b: number) =>
+      prevented(a, b) || !!systems.get(a)?.lanes.some((l) => l.to === b);
     const existing = placement.lanesNear(points, maxLength);
     const keep = (a: number, b: number) => !apart(a, b) && !apart(b, a);
-    const meshed = meshWithin(points, {
-      density: ground.settings.laneDensity,
-      maxLength,
-      existing,
-      keep,
-    });
+    const { laneDensity: density, laneIslands } = ground.settings;
+    // Islands grow over the lanes already there too, so a stroke over linked systems adds few.
+    const meshed = laneIslands
+      ? meshWithin(points, {
+          density,
+          maxLength,
+          existing,
+          keep: (a, b) => !prevented(a, b) && !prevented(b, a),
+          islandSeed: this.seed,
+        }).filter(([a, b]) => keep(a, b))
+      : meshWithin(points, { density, maxLength, existing, keep });
     const pairs = placement.symmetric
       ? placement.symmetricLanes(
           meshed,
@@ -309,7 +320,7 @@ class SpreadStroke implements Strategy {
 const STRATEGIES: Record<StrokeKind, (ground: StrokeGround, seed: number) => Strategy> = {
   paint: (ground, seed) => new PaintStroke(ground, seed),
   erase: (ground) => new EraseStroke(ground),
-  connect: (ground) => new ConnectStroke(ground),
+  connect: (ground, seed) => new ConnectStroke(ground, seed),
   cut: (ground) => new CutStroke(ground),
   height: (ground) => new HeightStroke(ground),
   spread: (ground) => new SpreadStroke(ground),

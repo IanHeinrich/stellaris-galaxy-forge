@@ -15,7 +15,7 @@ function pending(
     purpose: { kind: "add" },
     shape,
     fill,
-    lanes: { follow: true, mode: "off" },
+    lanes: { follow: true, mode: "off", islands: false },
     extras: NO_EXTRAS,
     skipNear: true,
     seed: 1,

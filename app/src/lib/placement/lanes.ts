@@ -1,6 +1,7 @@
 import type { SystemNode } from "../../generated/SystemNode";
+import { islandLanes } from "../geometry/islandLanes";
 import { meshPairs, type MeshPoint } from "../geometry/mesh";
-import { pairOf, type Pair } from "../geometry/pairs";
+import { comparePairs, pairOf, type Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
 import { SegmentIndex, type Segment } from "../geometry/segments";
 import type { ImageOfNew, PlacementGround } from "./ground";
@@ -71,21 +72,26 @@ export interface MeshWithinOptions {
   existing: readonly Segment[];
   /** Which mesh edges are wanted at all, such as those touching a new point or not yet linked. */
   keep?: (a: number, b: number) => boolean;
+  /** Groups the lanes into islands as the game does, drawn under this seed; null or left out for the even mesh. */
+  islandSeed?: number | null;
 }
 
-/** The mesh edges over `points` that `keep` wants, no longer than `maxLength` and crossing no existing lane. */
+/**
+ * The mesh edges over `points` that `keep` wants, no longer than `maxLength` and crossing no
+ * existing lane. With `islandSeed`, the islands are grown over those edges alone.
+ */
 export function meshWithin(points: readonly MeshPoint[], options: MeshWithinOptions): Pair[] {
-  const { density, maxLength, existing, keep } = options;
-  const at = new Map(points.map((p) => [p.id, p]));
+  const { density, maxLength, existing, keep, islandSeed = null } = options;
   const lanes = new SegmentIndex();
   for (const { a, b } of existing) lanes.add(a, b);
   const max2 = maxLength * maxLength;
-  return meshPairs(points, density).filter(([a, b]) => {
-    if (keep && !keep(a, b)) return false;
-    const p = at.get(a)!;
-    const q = at.get(b)!;
-    return dist2(p, q) <= max2 && !lanes.crosses(p, q);
-  });
+  const usable = (p: MeshPoint, q: MeshPoint) =>
+    (!keep || keep(p.id, q.id)) && dist2(p, q) <= max2 && !lanes.crosses(p, q);
+  if (islandSeed !== null) {
+    return islandLanes(points, density, islandSeed, usable).pairs;
+  }
+  const at = new Map(points.map((p) => [p.id, p]));
+  return meshPairs(points, density).filter(([a, b]) => usable(at.get(a)!, at.get(b)!));
 }
 
 export interface StrokeLanesInput {
@@ -97,23 +103,34 @@ export interface StrokeLanesInput {
   density: number;
   mode: LaneMode;
   maxLength: number;
+  /** Groups the lanes among new points into islands as the game does, under this seed; null or left out for the even mesh. */
+  islandSeed?: number | null;
 }
 
 /**
  * The lanes a paint stroke adds, each touching at least one new point. Meshing is planar, so
- * the new lanes never cross each other.
+ * the new lanes never cross each other. Islands are grown from the new points alone, and the
+ * lanes to nearby systems are the mesh's, less any that would cross an island's lane.
  */
 export function strokeLanes(input: StrokeLanesInput): Pair[] {
-  const { added, nearby, existing, density, mode, maxLength } = input;
+  const { added, nearby, existing, density, mode, maxLength, islandSeed = null } = input;
   if (mode === "off") return [];
-  if (mode === "new") return meshWithin(added, { density, maxLength, existing });
+  const among = mode === "new" || islandSeed !== null;
+  const inner = among ? meshWithin(added, { density, maxLength, existing, islandSeed }) : [];
+  if (mode === "new") return inner;
   const fresh = new Set(added.map((p) => p.id));
-  return meshWithin([...added, ...nearby], {
+  const at = new Map(added.map((p) => [p.id, p]));
+  const laid = inner.map(([a, b]) => ({ a: at.get(a)!, b: at.get(b)! }));
+  const links = meshWithin([...added, ...nearby], {
     density,
     maxLength,
-    existing,
-    keep: (a, b) => fresh.has(a) || fresh.has(b),
+    existing: [...existing, ...laid],
+    keep:
+      islandSeed === null
+        ? (a, b) => fresh.has(a) || fresh.has(b)
+        : (a, b) => fresh.has(a) !== fresh.has(b),
   });
+  return [...inner, ...links].sort(comparePairs);
 }
 
 export interface PlacedLanesInput {
@@ -128,14 +145,17 @@ export interface PlacedLanesInput {
   imageOfNew: ImageOfNew;
   /** Which lanes are wanted at all; under symmetry, every image of a lane must be. */
   keep?: (a: number, b: number) => boolean;
+  /** Groups the lanes among new points into islands as the game does, under this seed; null for the even mesh. */
+  islandSeed: number | null;
 }
 
 /**
  * The lanes new points add, under their provisional ids: at most `LANE_REACH` spacings long and
- * crossing no existing lane. Under symmetry a lane goes in with all its images or not at all.
+ * crossing no existing lane. Under symmetry a lane goes in with all its images or not at all,
+ * so islands are grown over every copy and the first copy's lanes are mirrored onto the rest.
  */
 export function placedLanes(input: PlacedLanesInput): Pair[] {
-  const { points, base, mode, density, spacing, ground, imageOfNew, keep } = input;
+  const { points, base, mode, density, spacing, ground, imageOfNew, keep, islandSeed } = input;
   if (mode === "off" || points.length === 0) return [];
   const maxLength = LANE_REACH * spacing;
   const existing = ground.lanesNear(points, maxLength);
@@ -146,6 +166,7 @@ export function placedLanes(input: PlacedLanesInput): Pair[] {
     density,
     mode,
     maxLength,
+    islandSeed,
   })
     .map(([a, b]) => pairOf(a, b))
     .filter(([a, b]) => !keep || keep(a, b));

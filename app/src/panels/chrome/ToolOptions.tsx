@@ -40,6 +40,7 @@ import {
   CheckOption,
   DraftNumber,
   LaneDensityOption,
+  LaneIslandsOption,
   LaneModeOption,
   SliderOption,
 } from "./toolFields";
@@ -119,6 +120,7 @@ function PaintOptions() {
       </label>
       <LaneModeOption />
       <LaneDensityOption disabled={laneMode === "off"} />
+      {laneMode !== "off" && <LaneIslandsOption />}
     </>
   );
 }
@@ -151,6 +153,7 @@ function ConnectOptions() {
     <>
       <SizeOption />
       <LaneDensityOption />
+      <LaneIslandsOption />
     </>
   );
 }
