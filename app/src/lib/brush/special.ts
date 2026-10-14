@@ -4,16 +4,23 @@ import { isLClusterSystem } from "../guides";
 import { isSpawnPoint } from "../spawn";
 
 /**
- * Whether an eraser should leave `system` alone unless told otherwise. A system is special when
- * it has an initializer (guardians, enclaves, fallen empires, marauders, landmarks, homes), is
- * a spawn point (`isSpawnPoint`: a weight, a weighted modifier or a Paint a Galaxy seat) or
- * names a `spawn_design`, has a marauder role, anchors a fallen empire zone, carries Paint a
- * Galaxy custom connection flags, is one end of a wormhole pair, has bypasses (gateways,
- * wormholes, L-gates), or belongs to the L-Cluster.
+ * Whether an eraser should leave `system` alone unless told otherwise: it has an initializer
+ * (guardians, enclaves, fallen empires, marauders, landmarks, homes), or a role of its own.
  */
 export function isSpecialSystem(system: SystemNode): boolean {
+  return system.initializer !== "" || hasSpecialRole(system);
+}
+
+/**
+ * Whether `system` has a role of its own, whatever initializer it names: it is a spawn point
+ * (`isSpawnPoint`: a weight, a weighted modifier or a Paint a Galaxy seat) or names a
+ * `spawn_design`, has a marauder role, anchors a fallen empire zone, carries Paint a Galaxy
+ * custom connection flags, is one end of a wormhole pair, has bypasses (gateways, wormholes,
+ * L-gates), or belongs to the L-Cluster. A save names an initializer for every system, so this
+ * is what marks one out there.
+ */
+export function hasSpecialRole(system: SystemNode): boolean {
   return (
-    system.initializer !== "" ||
     isSpawnPoint(system) ||
     system.spawn_design !== null ||
     system.marauder !== null ||

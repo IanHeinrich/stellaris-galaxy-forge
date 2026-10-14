@@ -11,7 +11,7 @@ import { LEAST_SPACING } from "../placement/limits";
 import { sharedLaneIndex } from "../placement/lanes";
 import { SpatialGrid } from "../spatialGrid";
 import { taper } from "./heightBrush";
-import { isSpecialSystem } from "./special";
+import { hasSpecialRole } from "./special";
 
 /** One spread stroke's settings, and the bounds of the document it moves systems in. */
 export interface SpreadBrush {
@@ -25,8 +25,11 @@ export interface SpreadBrush {
   edge: MapExtent | null;
   /** The distance no move brings two systems closer than. */
   gap: number;
-  /** The empires' home systems, which stay put with the special ones. */
-  homes: ReadonlySet<number>;
+  /**
+   * Systems that stay put with those of a special role: the empires' homes and the special
+   * systems the game data finds.
+   */
+  kept: ReadonlySet<number>;
 }
 
 /** The moves a spread stroke makes, worked out again over the galaxy an edit finds. */
@@ -252,7 +255,7 @@ class SpreadRun {
   private staysPut(id: number): boolean {
     if (this.brush.specials) return false;
     const s = this.systems.get(id)!;
-    return isSpecialSystem(s) || s.home_system === true || this.brush.homes.has(id);
+    return hasSpecialRole(s) || this.brush.kept.has(id);
   }
 
   /** Moves every member of `orbit` by its share of `d`, or by a half, a quarter… of it where that is blocked. */

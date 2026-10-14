@@ -18,6 +18,9 @@ import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixtur
 import { openPlaced, sent, sym } from "./symmetryFixture";
 import { spreadBrush, useToolStore } from "./toolStore";
 import { placementBoundsNow } from "./toolStore.shape";
+import { useGameDataStore } from "./gameDataStore";
+import type { SpecialSystem } from "../generated/SpecialSystem";
+import { countryNode } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 import { flush } from "../test/flush";
 import type { EditResult } from "../generated/EditResult";
@@ -495,6 +498,15 @@ describe("a spread stroke", () => {
     const bounds = { gap: SPAWN_BUFFER, edge: { shape: "circle", radius } };
     expect(placementBoundsNow()).toEqual(bounds);
     expect(spreadBrush(false)).toMatchObject(bounds);
+  });
+
+  it("keeps the special systems game data finds and the empires' homes in place", async () => {
+    useGameDataStore.setState({ special: new Map([[31, {} as SpecialSystem]]) });
+    useGalaxyStore.getState().applyDelta({
+      countries: [countryNode({ id: 9, capital_system: 30 })],
+      systems: [],
+    });
+    expect([...spreadBrush(false).kept].sort()).toEqual([30, 31]);
   });
 
   it("works its moves out from where a stroke sent before it left the systems", async () => {

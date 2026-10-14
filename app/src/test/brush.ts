@@ -24,7 +24,7 @@ export const BRUSH_SETTINGS: BrushSettings = {
     ripple: { height: 40, spacing: 30, fade: 60 },
     flipped: false,
   },
-  spread: { strength: 0.5, specials: false, gather: false, edge: null, gap: 0, homes: new Set() },
+  spread: { strength: 0.5, specials: false, gather: false, edge: null, gap: 0, kept: new Set() },
 };
 
 /** The stamps of a drag through `path`, one list per pointer move, as the brush lays them. */

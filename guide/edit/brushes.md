@@ -65,9 +65,11 @@ the systems under the brush towards its centre.
 Spread has these options:
 
 - Strength sets how far each pass moves a system.
-- Tick Also move special and home systems to let the brush move systems
-  with an initializer, a spawn point, an empire's home or another special
-  role. Leave it unticked to keep them in place.
+- Tick Also move special and home systems to let the brush move points
+  of interest such as guardians and fallen empires, spawn points,
+  wormhole and gateway systems, and empires' homes. Leave it unticked to
+  keep them in place. With no game data loaded, the brush can't tell
+  which systems are points of interest, so only the others stay.
 
 Lanes stay, and their lengths follow the systems. A move that would make
 two lanes cross stops short, and the brush moves no system further past

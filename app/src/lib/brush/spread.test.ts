@@ -3,6 +3,7 @@ import type { SystemMove } from "../../generated/SystemMove";
 import type { SystemNode } from "../../generated/SystemNode";
 import { BRUSH_SETTINGS, drag } from "../../test/brush";
 import { countryNode, lanesTo, systemNode } from "../../test/builders";
+import { sampleGalaxy } from "../../test/sampleGalaxy";
 import { segmentsCross } from "../geometry/segments";
 import type { Pt } from "../geometry/pt";
 import { seeded } from "../random";
@@ -65,8 +66,8 @@ function settings(spread: Partial<SpreadBrush> = {}, over: Partial<BrushSettings
   } satisfies BrushSettings;
 }
 
-/** `passes` stamps at each point of `path`, as holding still there would lay them. */
-function sculpt(systems: SystemNode[], brush: BrushSettings, path: Pt[], passes = 60) {
+/** `passes` stamps at each point of `path`, as holding still there would lay them, then `hold` more at its end. */
+function sculpt(systems: SystemNode[], brush: BrushSettings, path: Pt[], passes = 60, hold = 0) {
   const galaxy = new Map(systems.map((s) => [s.id, s]));
   const grid = new SpatialGrid();
   grid.build(systems);
@@ -75,6 +76,7 @@ function sculpt(systems: SystemNode[], brush: BrushSettings, path: Pt[], passes 
     for (const stamp of stamps) stroke.add([stamp]);
     for (let i = 1; i < passes; i++) stroke.add([stamps[stamps.length - 1]]);
   }
+  for (let i = 0; i < hold; i++) stroke.add([path[path.length - 1]]);
   const result = stroke.result();
   if (result.kind !== "move") throw new Error(result.kind);
   return { galaxy, moves: result.moves, after: placed(systems, result.moves) };
@@ -189,16 +191,19 @@ describe("a spread stroke", () => {
   });
 
   it("leaves special and home systems where they are unless told to move them", () => {
-    const guardian = { ...CLUMP[0], initializer: "guardians_init_dragon" };
-    const home = CLUMP[1];
-    const systems = [...lattice(), guardian, ...CLUMP.slice(1)];
-    const homes = new Set([home.id]);
-    const kept = sculpt(systems, settings({ homes }), [CENTRE]).moves.map((m) => m.system);
-    expect(kept).not.toContain(guardian.id);
-    expect(kept).not.toContain(home.id);
-    expect(kept).toContain(CLUMP[2].id);
-    const moved = sculpt(systems, settings({ homes, specials: true }), [CENTRE]).moves;
-    expect(moved.map((m) => m.system)).toEqual(expect.arrayContaining([guardian.id, home.id]));
+    const wormhole = { ...CLUMP[0], wormhole_pair: 1 };
+    const [, home, guardian, plain] = CLUMP;
+    // A save names an initializer for every system, so a plain one moves whatever it names.
+    const named = { ...plain, initializer: "basic_init_06" };
+    const systems = [...lattice(), wormhole, home, guardian, named, ...CLUMP.slice(4)];
+    // The homes and the special systems game data finds, as the store passes them.
+    const kept = new Set([home.id, guardian.id]);
+    const still = [wormhole.id, home.id, guardian.id];
+    const moved = sculpt(systems, settings({ kept }), [CENTRE]).moves.map((m) => m.system);
+    for (const id of still) expect(moved).not.toContain(id);
+    expect(moved).toContain(named.id);
+    const all = sculpt(systems, settings({ kept, specials: true }), [CENTRE]).moves;
+    expect(all.map((m) => m.system)).toEqual(expect.arrayContaining(still));
   });
 
   it("moves each system's images with it under symmetry", () => {
@@ -295,3 +300,67 @@ describe("home systems", () => {
     expect([...homeSystems(systems, countries)].sort()).toEqual([2, 7]);
   });
 });
+
+describe("a spread stroke over the sample save's galaxy", () => {
+  const systems = sampleGalaxy();
+  const grid = new SpatialGrid();
+  grid.build(systems);
+  /** The system with the most others within 25 of it: a crowded group of laned systems. */
+  const crowded = systems
+    .map((s) => {
+      let n = 0;
+      grid.forEachWithin(s.x, s.y, 25, () => n++);
+      return { s, n };
+    })
+    .reduce((a, b) => (b.n > a.n ? b : a)).s;
+  const edge = { shape: "circle", radius: 1000 } as const;
+
+  it("evens out a crowded group, as a drag across it and five seconds held still would", () => {
+    const brush = settings({ gap: 10, edge }, { size: 36 });
+    const start = { x: crowded.x - 30, y: crowded.y };
+    const path = Array.from({ length: 31 }, (_, i) => ({ x: start.x + i, y: start.y }));
+    const { moves, after } = sculpt(systems, brush, path, 1, 300);
+    const before = placed(systems, []);
+    const under = systems.filter((s) => dist(s, crowded) <= 18).map((s) => s.id);
+
+    expect(moves.length).toBeGreaterThan(2);
+    const farthest = Math.max(...moves.map((m) => dist(m, before.get(m.system)!)));
+    expect(farthest).toBeGreaterThan(3);
+    const nearest = (at: ReadonlyMap<number, Pt>) =>
+      Math.min(...under.map((id) => nearestOf(id, at)));
+    expect(nearest(after)).toBeGreaterThan(nearest(before));
+
+    expect(crossingPairs(systems, after)).toEqual(crossingPairs(systems, before));
+    for (const m of moves) {
+      expect(nearestOf(m.system, after)).toBeGreaterThanOrEqual(
+        Math.min(10, nearestOf(m.system, before)),
+      );
+    }
+  });
+});
+
+/** The distance from system `id` to the nearest other, where `at` puts them all. */
+function nearestOf(id: number, at: ReadonlyMap<number, Pt>): number {
+  const p = at.get(id)!;
+  let least = Infinity;
+  for (const [other, q] of at) if (other !== id) least = Math.min(least, dist(p, q));
+  return least;
+}
+
+/** Every pair of lanes that cross, where `at` puts the systems, as sorted keys. */
+function crossingPairs(systems: SystemNode[], at: ReadonlyMap<number, Pt>): string[] {
+  const lanes = systems.flatMap((s) =>
+    s.lanes.filter((l) => l.to > s.id).map((l): [number, number] => [s.id, l.to]),
+  );
+  const out: string[] = [];
+  for (let i = 0; i < lanes.length; i++) {
+    for (let j = i + 1; j < lanes.length; j++) {
+      const [a, b] = lanes[i];
+      const [c, d] = lanes[j];
+      if (segmentsCross(at.get(a)!, at.get(b)!, at.get(c)!, at.get(d)!)) {
+        out.push(`${a}-${b}x${c}-${d}`);
+      }
+    }
+  }
+  return out.sort();
+}

@@ -19,6 +19,7 @@ import { barShows, type BarMode } from "../lib/visual/barMode";
 import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
+import { useGameDataStore } from "./gameDataStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, isOneOf, prefField, type PrefField } from "./prefs";
 import { placementBoundsNow, shapeSlice, type ShapeState } from "./toolStore.shape";
@@ -201,7 +202,10 @@ export function spreadBrush(flipped: boolean): SpreadBrush {
     specials: t.spreadSpecials,
     gather: flipped,
     ...placementBoundsNow(),
-    homes: homeSystems(systems.values(), countries.values()),
+    kept: new Set([
+      ...homeSystems(systems.values(), countries.values()),
+      ...useGameDataStore.getState().special.keys(),
+    ]),
   };
 }
 
