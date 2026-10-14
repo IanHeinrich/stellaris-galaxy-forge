@@ -47,6 +47,18 @@ export function laneIndex(systems: ReadonlyMap<number, SystemNode>): SegmentInde
   return index;
 }
 
+const indexed = new WeakMap<ReadonlyMap<number, SystemNode>, SegmentIndex<MeshPoint>>();
+
+/** `laneIndex(systems)`, built once per galaxy and shared; callers only query it. */
+export function sharedLaneIndex(systems: ReadonlyMap<number, SystemNode>): SegmentIndex<MeshPoint> {
+  let index = indexed.get(systems);
+  if (!index) {
+    index = laneIndex(systems);
+    indexed.set(systems, index);
+  }
+  return index;
+}
+
 /** A new lane is at most this many spacings long. */
 export const LANE_REACH = 3;
 

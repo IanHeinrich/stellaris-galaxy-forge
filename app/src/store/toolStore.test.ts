@@ -90,6 +90,7 @@ describe("brush settings", () => {
       laneMode: "nearby",
       eraseTarget: "systems",
       eraseSpecials: false,
+      spreadSpecials: false,
       symmetry: { kind: "off" },
     });
   });
@@ -131,6 +132,7 @@ describe("brush settings", () => {
     tools().setLaneMode("off");
     tools().setEraseTarget("lanes");
     tools().setEraseSpecials(true);
+    tools().setSpreadSpecials(true);
     tools().setSymmetry({ kind: "rotate", n: 6 });
     expect(JSON.parse(stored.get(PREF_KEYS.brushSize)!)).toBe(120);
 
@@ -143,6 +145,7 @@ describe("brush settings", () => {
       laneMode: "off",
       eraseTarget: "lanes",
       eraseSpecials: true,
+      spreadSpecials: true,
       symmetry: { kind: "rotate", n: 6 },
     });
 

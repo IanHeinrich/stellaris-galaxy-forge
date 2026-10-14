@@ -5,7 +5,7 @@ import { segmentsCross } from "../geometry/segments";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { SpatialGrid } from "../spatialGrid";
-import { drag } from "../../test/brush";
+import { BRUSH_SETTINGS, drag } from "../../test/brush";
 import { lanesTo, placedNode, systemNode } from "../../test/builders";
 import { SYSTEMS as SAMPLE } from "../../store/fixture";
 import type { Symmetry } from "../geometry/symmetry";
@@ -30,24 +30,7 @@ const CONNECT_SYSTEMS: SystemNode[] = [
 ];
 const CONNECT_GALAXY = new Map(CONNECT_SYSTEMS.map((s) => [s.id, s]));
 
-const PAINT: BrushSettings = {
-  tool: "paint",
-  size: 40,
-  spacing: 10,
-  laneMode: "nearby",
-  eraseTarget: "systems",
-  eraseSpecials: false,
-  symmetry: { kind: "off" },
-  laneDensity: DEFAULT_LANE_DENSITY,
-  height: {
-    mode: "raise",
-    value: 0,
-    raise: 10,
-    smooth: 0.5,
-    ripple: { height: 40, spacing: 30, fade: 60 },
-    flipped: false,
-  },
-};
+const PAINT: BrushSettings = BRUSH_SETTINGS;
 const ERASE: BrushSettings = { ...PAINT, tool: "erase", size: 20 };
 
 function stroke(settings: BrushSettings, seed = 7): BrushStroke {

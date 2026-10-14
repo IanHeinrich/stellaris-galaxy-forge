@@ -64,6 +64,13 @@ const ICONS: Record<Tool, ReactNode> = {
       <HeightMark />
     </RailGlyph>
   ),
+  spread: (
+    <RailGlyph>
+      <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+      <path d="M8 5.5v-4M8 10.5v4M5.5 8h-4M10.5 8h4" />
+      <path d="m6.5 3 1.5-1.5L9.5 3M6.5 13l1.5 1.5L9.5 13M3 6.5 1.5 8 3 9.5M13 6.5l1.5 1.5-1.5 1.5" />
+    </RailGlyph>
+  ),
 };
 
 /** A button's tooltip: what it does, then its key. */

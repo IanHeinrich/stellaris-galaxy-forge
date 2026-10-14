@@ -13,7 +13,7 @@ import { laneSegments, provisionalId, provisionalIndex } from "../placement/lane
 import { SpatialGrid } from "../spatialGrid";
 import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
 import { fillSpacing, leastSpacing, shapePlacement } from "./placement";
-import { PLACEMENT_RULES, type PlacementRules } from "./rules";
+import { PLACEMENT_RULES, type PlacementRules } from "../placement/rules";
 import { SHAPE_SPECS } from "./specs";
 import type {
   CircleShape,

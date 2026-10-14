@@ -1,8 +1,31 @@
+import type { BrushSettings } from "../lib/brush/brushStroke";
+import { DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
 import { dist2, type Pt } from "../lib/geometry/pt";
 import { SAMPLE_CAP } from "../lib/placement/limits";
 import { StrokeSampler } from "../lib/brush/sample";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Rand } from "../lib/random";
+
+/** A paint brush 40 across with every other option at a plain value, for a test to change what it tests. */
+export const BRUSH_SETTINGS: BrushSettings = {
+  tool: "paint",
+  size: 40,
+  spacing: 10,
+  laneMode: "nearby",
+  eraseTarget: "systems",
+  eraseSpecials: false,
+  symmetry: { kind: "off" },
+  laneDensity: DEFAULT_LANE_DENSITY,
+  height: {
+    mode: "raise",
+    value: 0,
+    raise: 10,
+    smooth: 0.5,
+    ripple: { height: 40, spacing: 30, fade: 60 },
+    flipped: false,
+  },
+  spread: { strength: 0.5, specials: false, gather: false, edge: null, gap: 0, kept: new Set() },
+};
 
 /** The stamps of a drag through `path`, one list per pointer move, as the brush lays them. */
 export function drag(path: readonly Pt[], r: number): Pt[][] {

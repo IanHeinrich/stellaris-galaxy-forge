@@ -31,7 +31,10 @@ export function forEachSegmentCell(a: Pt, b: Pt, cell: number, fn: (key: number)
   );
 }
 
-/** Segments bucketed by the grid cells their bounding boxes cover, for crossing and nearness queries. */
+/**
+ * Segments bucketed by the grid cells their bounding boxes cover, for crossing and nearness
+ * queries. `add` hands back a number that `remove` takes the segment out by.
+ */
 export class SegmentIndex<P extends Pt = Pt> {
   private readonly cell: number;
   private readonly cells = new Map<number, number[]>();
@@ -43,7 +46,7 @@ export class SegmentIndex<P extends Pt = Pt> {
     this.cell = cell;
   }
 
-  add(a: P, b: P): void {
+  add(a: P, b: P): number {
     const i = this.segments.length;
     this.segments.push({ a, b });
     this.seen.push(0);
@@ -52,6 +55,32 @@ export class SegmentIndex<P extends Pt = Pt> {
       if (bucket) bucket.push(i);
       else this.cells.set(k, [i]);
     });
+    return i;
+  }
+
+  /** Takes out the segment `add` numbered `i`, so no query finds it again. */
+  remove(i: number): void {
+    const { a, b } = this.segments[i];
+    forEachSegmentCell(a, b, this.cell, (k) => {
+      const bucket = this.cells.get(k);
+      const at = bucket?.indexOf(i) ?? -1;
+      if (at >= 0) bucket!.splice(at, 1);
+    });
+  }
+
+  /** Every segment crossing ab, each once. */
+  crossing(a: Pt, b: Pt): Array<Segment<P>> {
+    const query = ++this.query;
+    const found: Array<Segment<P>> = [];
+    forEachSegmentCell(a, b, this.cell, (k) => {
+      for (const i of this.cells.get(k) ?? []) {
+        if (this.seen[i] === query) continue;
+        this.seen[i] = query;
+        const segment = this.segments[i];
+        if (segmentsCross(a, b, segment.a, segment.b)) found.push(segment);
+      }
+    });
+    return found;
   }
 
   crosses(a: Pt, b: Pt): boolean {

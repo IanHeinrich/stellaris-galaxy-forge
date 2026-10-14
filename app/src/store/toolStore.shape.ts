@@ -1,8 +1,8 @@
 import type { StoreApi } from "zustand";
 import { clampTo } from "../lib/geometry/geometry";
 import type { Pt } from "../lib/geometry/pt";
-import { extentOf, type MapExtent } from "../lib/guides";
-import { PLACEMENT_RULES, shapePath } from "../lib/shapes/rules";
+import type { MapExtent } from "../lib/guides";
+import { placementBounds, type PlacementBounds } from "../lib/placement/rules";
 import { LANE_MODES } from "../lib/placement/lanes";
 import { SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
@@ -288,11 +288,15 @@ function resizedWithin(shape: Shape, want: number): Shape {
   return at(fits);
 }
 
+/** The open document's edge, null when it records none, and the gap a placed or moved system keeps. */
+export function placementBoundsNow(): PlacementBounds {
+  const radius = useGalaxyStore.getState().galaxy?.galaxy_radius ?? 0;
+  return placementBounds(useFileSessionStore.getState().capabilities, radius);
+}
+
 /** The open document's edge; null when it records none. */
 function extentNow(): MapExtent | null {
-  const radius = useGalaxyStore.getState().galaxy?.galaxy_radius ?? 0;
-  const path = shapePath(useFileSessionStore.getState().capabilities);
-  return path === null ? null : extentOf(PLACEMENT_RULES[path].edge, radius);
+  return placementBoundsNow().edge;
 }
 
 /** `p` held inside `extent`. */

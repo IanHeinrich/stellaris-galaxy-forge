@@ -74,6 +74,7 @@ The Issues, Changes and added-system shots show those edits.
 | `edit/connect-brush-options.png` | `edit/brushes.md` | The Connect lanes brush and its options | Press C with the Size at 40 and hover the tool so its tooltip shows. |
 | `edit/paint-brush-options.png` | `edit/brushes.md` | The Paint brush options | In the Paint a Galaxy scenario, press B with Size 400 and Lanes on New and nearby. Crop the option bar. |
 | `edit/erase-brush-options.png` | `edit/brushes.md` | The Erase brush options | In the same scenario, press E with Size 400. Crop the option bar. |
+| `edit/spread-brush-options.png` | `edit/brushes.md` | The Spread brush options | In the same scenario, press R with Size 400 and Strength 50. Crop the option bar. |
 | `edit/symmetry-control.png` | `edit/brushes.md` | The Symmetry menu | Click the Symmetry button under the tools with symmetry off. |
 | `edit/symmetry-6-fold.png` | `edit/brushes.md` | 6-fold rotation guides over the whole galaxy | In the Paint a Galaxy scenario, pick Rotate 6 and the Paint brush at Size 400. Turn off Names and the Initializers layers, then press Home. |
 | `edit/height-brush-options.png` | `edit/heights.md` | The Height brush in Raise mode | Press H, pick Raise, Size 40, Strength 10. Crop the option bar. |

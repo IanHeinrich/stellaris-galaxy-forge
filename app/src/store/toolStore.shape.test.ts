@@ -6,7 +6,7 @@ vi.mock("../api/events");
 
 import { SAVE_CAPABILITIES } from "../lib/capabilities";
 import { fillSpacing } from "../lib/shapes/placement";
-import { PLACEMENT_RULES } from "../lib/shapes/rules";
+import { PLACEMENT_RULES } from "../lib/placement/rules";
 import type { StarChoice } from "../lib/shapes/stars";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";

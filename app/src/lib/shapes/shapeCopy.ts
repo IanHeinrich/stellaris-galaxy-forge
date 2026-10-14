@@ -1,5 +1,5 @@
 import { counted, thousands } from "../text";
-import { PLACEMENT_RULES, type PlacementPath } from "./rules";
+import { PLACEMENT_RULES, type PlacementPath } from "../placement/rules";
 import { specOf } from "./specs";
 import type {
   Fill,

@@ -53,10 +53,11 @@ for clicks and drags too. <kbd>Option</kbd> is <kbd>Alt</kbd>.
 | <kbd>B</kbd>, <kbd>E</kbd> | Paint systems, Erase systems, in a scenario |
 | <kbd>O</kbd> | Draw shapes, in a scenario. <kbd>Enter</kbd> places the pending shape, and <kbd>Esc</kbd> drops it |
 | <kbd>H</kbd> | Height brush, in a save |
+| <kbd>R</kbd> | Spread systems |
 | <kbd>Shift</kbd>+<kbd>M</kbd> | Symmetry on or off, in a scenario |
 | <kbd>[</kbd> <kbd>]</kbd> | Brush size, the pending shape's size, or nebula radius by 1 |
 | <kbd>Shift</kbd>+<kbd>[</kbd> <kbd>]</kbd> | Nebula radius by 5 |
-| <kbd>Alt</kbd> | While held, switches Connect and Cut, or Paint and Erase. Erase set to lanes becomes Connect. On the Height brush, Raise lowers and Ripple swaps crests and troughs |
+| <kbd>Alt</kbd> | While held, switches Connect and Cut, or Paint and Erase. Erase set to lanes becomes Connect. On the Height brush, Raise lowers and Ripple swaps crests and troughs. Spread systems becomes Gather |
 
 ## Inspector
 

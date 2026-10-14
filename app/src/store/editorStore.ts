@@ -15,6 +15,7 @@ import type { RowChoice } from "../generated/RowChoice";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import type { HeightsOver } from "../lib/brush/heightBrush";
+import type { MovesOver } from "../lib/brush/spread";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SearchResult } from "../generated/SearchResult";
@@ -298,6 +299,12 @@ export interface EditorState {
   cutLanes(pairs: Pair[]): Promise<boolean>;
   /** Adds the lanes a connect stroke found between the systems it swept, in one edit. */
   connectStroke(pairs: readonly Pair[]): Promise<boolean>;
+  /**
+   * Moves the systems a spread stroke moves over the galaxy as it stands when the edit is
+   * queued, symmetric images included, in one edit named for whether it spread them or, with
+   * `gather`, gathered them.
+   */
+  spreadStroke(over: MovesOver, gather: boolean): Promise<boolean>;
   /**
    * Links every separate cluster of systems into one with the shortest lanes that cross none,
    * in one edit; nothing is sent when the galaxy is already one piece.

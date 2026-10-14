@@ -8,7 +8,7 @@ concept or the screen it serves.
   vocabulary.
 - `lib/brush/`: what a brush stroke does, without a canvas.
 - `lib/placement/`: new systems and their lanes, shared by the paint brush and
-  the Shape tool.
+  the Shape tool, and the rules (`rules.ts`) systems placed or moved hold to.
 - `lib/shapes/`: the Shape tool's figures, their handles and fills, what a
   pending shape would place, and its words.
 - `lib/initializer/`: how the game's initializers group, search and read.

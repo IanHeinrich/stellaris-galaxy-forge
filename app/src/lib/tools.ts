@@ -27,6 +27,7 @@ const ENTRIES: Record<Tool, Omit<ToolEntry, "id">> = {
   connect: { key: "c", label: "Connect lanes", help: "laneBrushes", requires: null },
   cut: { key: "x", label: "Cut lanes", help: "laneBrushes", requires: null },
   height: { key: "h", label: "Height brush", help: "heightBrush", requires: "system_heights" },
+  spread: { key: "r", label: "Spread systems", help: "spreadBrush", requires: null },
 };
 
 /** The tools in the rail's order. */

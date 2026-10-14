@@ -6,7 +6,6 @@ vi.mock("../api/events");
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import { BrushStroke, type BrushSettings } from "../lib/brush/brushStroke";
-import { DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
 import type { Pair } from "../lib/geometry/pairs";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Symmetry } from "../lib/geometry/symmetry";
@@ -15,27 +14,25 @@ import type { Pt } from "../lib/geometry/pt";
 import { editor, openFixtureSave, openFixtureScenario, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, SYSTEMS, editResult, placedNode } from "./fixture";
+import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixture";
+import { openPlaced, sent, sym } from "./symmetryFixture";
+import { spreadBrush, useToolStore } from "./toolStore";
+import { placementBoundsNow } from "./toolStore.shape";
+import { useGameDataStore } from "./gameDataStore";
+import type { SpecialSystem } from "../generated/SpecialSystem";
+import { countryNode } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
-import { DEFAULT_SYSTEM_HEIGHT } from "../generated/constants";
+import { flush } from "../test/flush";
+import type { EditResult } from "../generated/EditResult";
+import { BRUSH_SETTINGS } from "../test/brush";
+import { DEFAULT_SYSTEM_HEIGHT, SPAWN_BUFFER } from "../generated/constants";
 
 const ERASE: BrushSettings = {
+  ...BRUSH_SETTINGS,
   tool: "erase",
   size: 6,
   spacing: 25,
   laneMode: "off",
-  eraseTarget: "systems",
-  eraseSpecials: false,
-  symmetry: { kind: "off" },
-  laneDensity: DEFAULT_LANE_DENSITY,
-  height: {
-    mode: "raise",
-    value: 0,
-    raise: 10,
-    smooth: 0.5,
-    ripple: { height: 40, spacing: 30, fade: 60 },
-    flipped: false,
-  },
 };
 
 beforeEach(async () => {
@@ -423,12 +420,151 @@ describe("a height stroke", () => {
   });
 });
 
+describe("a spread stroke", () => {
+  const QUARTER: Symmetry = { kind: "rotate", n: 4 };
+  /** System 20 of the placed fixture with two more beside it, and their quarter turns. */
+  const beside = (k: number): Pt[] => {
+    let pts = [
+      { x: 302, y: 101 },
+      { x: 315, y: 100 },
+    ];
+    for (let i = 0; i < k; i++) pts = pts.map(({ x, y }) => ({ x: -y, y: x }));
+    return pts;
+  };
+
+  beforeEach(async () => {
+    await openPlaced();
+    const clump = [0, 1, 2, 3].flatMap((k) =>
+      beside(k).map((p, i) => node(30 + 10 * k + i, "", p.x, p.y, "sc_g", [], { initializer: "" })),
+    );
+    useGalaxyStore.getState().applyDelta({ systems: clump });
+  });
+
+  /** A stroke held still at (305, 100) for `passes` frames, as the open document and options stand. */
+  function spread(passes = 30) {
+    const { systems, grid } = useGalaxyStore.getState();
+    const settings = { ...ERASE, tool: "spread", size: 40, spread: spreadBrush(false) } as const;
+    const s = new BrushStroke(
+      { ...settings, symmetry: useToolStore.getState().symmetry },
+      systems,
+      grid!,
+      1,
+      {
+        systems,
+        grid: grid!,
+      },
+    );
+    for (let i = 0; i < passes; i++) s.add([{ x: 305, y: 100 }]);
+    const result = s.result();
+    if (result.kind !== "move") throw new Error(result.kind);
+    return result;
+  }
+
+  it("sends every system it moved as one MoveSystems, which one undo takes back", async () => {
+    const before = useGalaxyStore.getState().systems;
+    const result = spread();
+    expect(result.moves.length).toBeGreaterThan(0);
+    await editor().spreadStroke(result.over, result.gather);
+
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: `Spread ${result.moves.length} systems`,
+      ops: [{ type: "MoveSystems", moves: result.moves }],
+    });
+
+    const moved = result.moves.map((m) => ({ ...before.get(m.system)!, x: m.x, y: m.y }));
+    useGalaxyStore.getState().applyDelta({ systems: moved });
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({
+        delta: { systems: result.moves.map((m) => before.get(m.system)!) },
+        history: { undo: [], redo: [] },
+      }),
+    );
+    await editor().undo();
+    for (const m of result.moves) {
+      const s = useGalaxyStore.getState().systems.get(m.system)!;
+      expect({ x: s.x, y: s.y }).toEqual({
+        x: before.get(m.system)!.x,
+        y: before.get(m.system)!.y,
+      });
+    }
+  });
+
+  it("on a save, keeps the spawn buffer between systems and the galaxy's radius as its edge", async () => {
+    await openFixtureSave();
+    const radius = useGalaxyStore.getState().galaxy!.galaxy_radius;
+    expect(radius).toBeGreaterThan(0);
+    const bounds = { gap: SPAWN_BUFFER, edge: { shape: "circle", radius } };
+    expect(placementBoundsNow()).toEqual(bounds);
+    expect(spreadBrush(false)).toMatchObject(bounds);
+  });
+
+  it("keeps the special systems game data finds and the empires' homes in place", async () => {
+    useGameDataStore.setState({ special: new Map([[31, {} as SpecialSystem]]) });
+    useGalaxyStore.getState().applyDelta({
+      countries: [countryNode({ id: 9, capital_system: 30 })],
+      systems: [],
+    });
+    expect([...spreadBrush(false).kept].sort()).toEqual([30, 31]);
+  });
+
+  it("works its moves out from where a stroke sent before it left the systems", async () => {
+    let land: (result: EditResult) => void = () => undefined;
+    mockedIpc.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const first = spread();
+    // Laid over the same galaxy, as a stroke begun before the first lands is.
+    const second = spread();
+    const sending = [
+      editor().spreadStroke(first.over, false),
+      editor().spreadStroke(second.over, false),
+    ];
+    await flush();
+    const before = useGalaxyStore.getState().systems;
+    const moved = first.moves.map((m) => ({ ...before.get(m.system)!, x: m.x, y: m.y }));
+    land(editResult({ delta: { systems: moved } }));
+    await Promise.all(sending);
+
+    const { systems, grid } = useGalaxyStore.getState();
+    for (const m of first.moves) expect(systems.get(m.system)).toMatchObject({ x: m.x, y: m.y });
+    const op = sent() as Extract<Op, { type: "Batch" }>;
+    const moves = op.ops[0].type === "MoveSystems" ? op.ops[0].moves : [];
+    expect(moves).toEqual(second.over(systems, grid!));
+    expect(moves).not.toEqual(second.moves);
+  });
+
+  it("moves each system's images by the same turn of its move under symmetry", async () => {
+    sym(QUARTER);
+    const before = useGalaxyStore.getState().systems;
+    const result = spread();
+    await editor().spreadStroke(result.over, result.gather);
+    const op = sent() as Extract<Op, { type: "Batch" }>;
+    const moves = op.ops[0].type === "MoveSystems" ? op.ops[0].moves : [];
+    const shift = (id: number) => {
+      const m = moves.find((move) => move.system === id);
+      const s = before.get(id)!;
+      return m ? { x: m.x - s.x, y: m.y - s.y } : { x: 0, y: 0 };
+    };
+    expect(moves.map((m) => m.system)).toEqual(expect.arrayContaining([20, 21, 22, 23]));
+    for (const [id, image] of [
+      [20, 21],
+      [30, 40],
+      [31, 41],
+    ]) {
+      const d = shift(id);
+      expect(shift(image).x).toBeCloseTo(-d.y, 9);
+      expect(shift(image).y).toBeCloseTo(d.x, 9);
+    }
+  });
+});
+
 describe("an empty stroke", () => {
   it.each([
     ["paint", () => editor().paintStroke([], [])],
     ["erase", () => editor().eraseStroke([])],
     ["cut", () => editor().cutLanes([])],
     ["connect", () => editor().connectStroke([])],
+    ["spread", () => editor().spreadStroke(() => [], false)],
     [
       "height",
       async () => {

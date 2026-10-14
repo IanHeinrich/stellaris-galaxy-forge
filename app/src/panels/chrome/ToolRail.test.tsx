@@ -102,6 +102,15 @@ describe("the tool rail", () => {
     expect(rail()).toContain("Cut lanes");
   });
 
+  it("offers Spread on R, on a save as on a scenario", () => {
+    for (const capabilities of [OPEN_RESULT.capabilities, SCENARIO_CAPABILITIES]) {
+      useFileSessionStore.setState({ capabilities });
+      useToolStore.setState({ tool: "spread" });
+      expect(button("Spread systems")).toContain('title="Spread systems (R)"');
+      expect(button("Spread systems")).toContain('aria-pressed="true"');
+    }
+  });
+
   it("carries the symmetry button after the tools, showing the setting while it is on", () => {
     useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
     const off = button("Symmetry");

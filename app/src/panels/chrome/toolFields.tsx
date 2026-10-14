@@ -104,3 +104,28 @@ export function LaneDensityOption({ disabled = false }: { disabled?: boolean }) 
     </label>
   );
 }
+
+/** A brush's checkbox for whether it also takes the special systems it otherwise leaves alone. */
+export function SpecialsOption({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  checked: boolean;
+  onChange(on: boolean): void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="tool-option">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}

@@ -1,10 +1,10 @@
-export type BrushTool = "paint" | "erase" | "connect" | "cut" | "height";
+export type BrushTool = "paint" | "erase" | "connect" | "cut" | "height" | "spread";
 
 /** What the erase brush takes: systems with their lanes, or only lanes. */
 export type EraseTarget = "systems" | "lanes";
 
-/** What one stroke does: lays systems, removes them, adds or cuts lanes, or moves heights. */
-export type StrokeKind = "paint" | "erase" | "connect" | "cut" | "height";
+/** What one stroke does: lays systems, removes them, adds or cuts lanes, moves heights, or spreads systems out. */
+export type StrokeKind = "paint" | "erase" | "connect" | "cut" | "height" | "spread";
 
 export interface BrushToolSpec {
   /** What a stroke of the tool does, given the erase target. */
@@ -39,6 +39,11 @@ export const BRUSH_TOOLS: Record<BrushTool, BrushToolSpec> = {
   },
   height: {
     stroke: () => "height",
+    inverse: () => null,
+    adds: true,
+  },
+  spread: {
+    stroke: () => "spread",
     inverse: () => null,
     adds: true,
   },

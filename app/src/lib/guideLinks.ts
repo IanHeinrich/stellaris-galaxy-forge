@@ -15,6 +15,7 @@ export const GUIDE_PLACES = {
   laneBrushes: "edit/brushes#connect-and-cut-lanes-with-a-brush",
   paintBrushes: "edit/brushes#paint-and-erase-systems",
   heightBrush: "edit/heights#shape-heights-with-the-height-brush",
+  spreadBrush: "edit/brushes#spread-and-gather-systems",
   shapes: "edit/shapes",
   symmetry: "edit/brushes#use-symmetry",
   newScenario: "scenario/make-a-scenario",

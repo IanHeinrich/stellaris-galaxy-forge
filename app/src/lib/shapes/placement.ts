@@ -15,7 +15,7 @@ import { symmetricCopies, type SymmetricCopies } from "../placement/symmetricCop
 import { lattice, scatterDensity, scatterPattern } from "./fills";
 import { angleOf, lerp, type ShapeFrame } from "./frame";
 import { polylineLength } from "./outline";
-import type { PlacementRules } from "./rules";
+import type { PlacementRules } from "../placement/rules";
 import { centreOf, specOf } from "./specs";
 import { rollStars } from "./stars";
 import type {

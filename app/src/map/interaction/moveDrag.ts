@@ -24,6 +24,27 @@ function groupGhosts(ids: readonly number[], dx: number, dy: number): SystemMove
 }
 
 /**
+ * Previews `ghosts` on `layers`, each where its system would draw at its destination, with what
+ * they leave behind faded; none ends the preview.
+ */
+export function showGhosts(
+  layers: readonly MapLayer[],
+  drawn: DrawnPositions,
+  ghosts: readonly MoveGhost[],
+): void {
+  let drag: DragState | null = null;
+  if (ghosts.length > 0) {
+    const systems = useGalaxyStore.getState().systems;
+    const placed = ghosts.map((g) => {
+      const s = systems.get(g.id);
+      return s ? { id: g.id, ...drawn.atPoint(s, g) } : g;
+    });
+    drag = { ghosts: placed, byId: new Map(placed.map((g) => [g.id, g])) };
+  }
+  for (const layer of layers) layer.setDragState?.(drag);
+}
+
+/**
  * The move side of `MapIntent`: one system or a group dragged, with the counterparts symmetry
  * carries found once when the drag starts, shown as ghosts on `layers` until the edit it sends
  * settles. A move is a place on the plane; each ghost draws where its system would draw there.
@@ -80,17 +101,6 @@ export class MoveDrag {
   }
 
   private show(ghosts: MoveGhost[]): void {
-    const drag = this.dragState(ghosts);
-    for (const layer of this.layers) layer.setDragState?.(drag);
-  }
-
-  private dragState(moves: MoveGhost[]): DragState | null {
-    if (moves.length === 0) return null;
-    const systems = useGalaxyStore.getState().systems;
-    const ghosts = moves.map((g) => {
-      const s = systems.get(g.id);
-      return s ? { id: g.id, ...this.drawn.atPoint(s, g) } : g;
-    });
-    return { ghosts, byId: new Map(ghosts.map((g) => [g.id, g])) };
+    showGhosts(this.layers, this.drawn, ghosts);
   }
 }

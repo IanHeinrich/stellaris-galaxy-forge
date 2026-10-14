@@ -168,6 +168,7 @@ describe("keys", () => {
       "C",
       "X",
       "H",
+      "R",
     ]);
     for (const t of TOOLS) expect(keyAction(press(t.key), false)).toBe(toolAction(t.id));
   });
