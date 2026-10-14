@@ -1,5 +1,6 @@
 import { delaunayPairs, type MeshPoint } from "./mesh";
 import { comparePairs, pairOf, PairSet } from "./pairs";
+import { boxOf } from "./polygon";
 import { dist2, type Pt } from "./pt";
 import { SegmentIndex } from "./segments";
 import { UnionFind } from "./unionFind";
@@ -37,7 +38,7 @@ export interface JoinOptions {
  *
  * Candidates are the Delaunay edges between different components. When crossings leave some
  * components apart, each point then offers its `FALLBACK_NEIGHBOURS` nearest points in other
- * components (an O(n²) scan, run only in that case). Components that even those cannot reach
+ * components (a grid search, run only in that case). Components that even those cannot reach
  * without a crossing stay apart, so the result can hold fewer than components - 1 edges.
  */
 export function joinIslands(
@@ -91,20 +92,71 @@ export function joinIslands(
   return joins.sort(comparePairs);
 }
 
-/** Each point's nearest points in other components, as deduplicated index pairs. */
+/** About how many points share a cell of the grid `nearestAcross` searches. */
+const POINTS_PER_CELL = 4;
+
+/** A candidate neighbour: its index and squared distance. */
+interface Near {
+  j: number;
+  d: number;
+}
+
+/** Adds `j` to `near`, kept as the `FALLBACK_NEIGHBOURS` nearest, ties to the lower index. */
+function offer(near: Near[], j: number, d: number): void {
+  const after = (n: Near) => n.d > d || (n.d === d && n.j > j);
+  if (near.length === FALLBACK_NEIGHBOURS) {
+    if (!after(near[near.length - 1])) return;
+    near.pop();
+  }
+  let at = near.length;
+  while (at > 0 && after(near[at - 1])) at--;
+  near.splice(at, 0, { j, d });
+}
+
+/**
+ * Each point's nearest points in other components, as deduplicated index pairs. Each point reads
+ * a grid's cells in rings outward, until no cell left can hold a nearer point.
+ */
 function nearestAcross(points: readonly MeshPoint[], uf: UnionFind): Array<[number, number]> {
+  const box = boxOf(points);
+  const w = box.x1 - box.x0;
+  const h = box.y1 - box.y0;
+  const n = points.length;
+  const cell = Math.max(Math.sqrt((POINTS_PER_CELL * w * h) / n), Math.max(w, h) / n) || 1;
+  const columns = Math.floor(w / cell) + 1;
+  const rows = Math.floor(h / cell) + 1;
+  const column = (p: Pt) => Math.min(columns - 1, Math.floor((p.x - box.x0) / cell));
+  const row = (p: Pt) => Math.min(rows - 1, Math.floor((p.y - box.y0) / cell));
+  const cells = Array.from({ length: columns * rows }, (): number[] => []);
+  points.forEach((p, i) => cells[column(p) * rows + row(p)].push(i));
+  const roots = points.map((_, i) => uf.find(i));
+
   const pairs = new PairSet();
-  for (let i = 0; i < points.length; i++) {
-    const root = uf.find(i);
-    const near: Array<{ j: number; d: number }> = [];
-    for (let j = 0; j < points.length; j++) {
-      if (uf.find(j) === root) continue;
-      const d = dist2(points[i], points[j]);
-      if (near.length === FALLBACK_NEIGHBOURS && d >= near[near.length - 1].d) continue;
-      if (near.length === FALLBACK_NEIGHBOURS) near.pop();
-      let at = near.length;
-      while (at > 0 && near[at - 1].d > d) at--;
-      near.splice(at, 0, { j, d });
+  for (let i = 0; i < n; i++) {
+    const p = points[i];
+    const near: Near[] = [];
+    const read = (x: number, y: number) => {
+      for (const j of cells[x * rows + y]) {
+        if (roots[j] !== roots[i]) offer(near, j, dist2(p, points[j]));
+      }
+    };
+    const c = column(p);
+    const r = row(p);
+    const last = Math.max(c, columns - 1 - c, r, rows - 1 - r);
+    for (let k = 0; k <= last; k++) {
+      const [x0, x1] = [Math.max(0, c - k), Math.min(columns - 1, c + k)];
+      const [y0, y1] = [Math.max(0, r - k + 1), Math.min(rows - 1, r + k - 1)];
+      for (let x = x0; x <= x1; x++) {
+        if (r - k >= 0) read(x, r - k);
+        if (k > 0 && r + k < rows) read(x, r + k);
+      }
+      for (let y = y0; y <= y1; y++) {
+        if (c - k >= 0) read(c - k, y);
+        if (c + k < columns) read(c + k, y);
+      }
+      // A cell outside ring k lies at least k cells off; half a cell is kept for rounding.
+      const clear = Math.max(0, k - 0.5) * cell;
+      if (near.length === FALLBACK_NEIGHBOURS && near[near.length - 1].d < clear * clear) break;
     }
     for (const { j } of near) pairs.add(i, j);
   }

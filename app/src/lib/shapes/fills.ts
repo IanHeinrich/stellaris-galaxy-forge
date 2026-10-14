@@ -140,6 +140,24 @@ class ScatterTiles {
   }
 }
 
+/** How many seeds' tiles `scatterPattern` keeps between calls. */
+const KEPT_TILES = 8;
+
+const keptTiles = new Map<number, ScatterTiles>();
+
+/**
+ * The tiles of `seed`, sampled at unit spacing and kept for the seeds read most recently, so a
+ * shape that moves or resizes reuses them; a pattern scales them by its spacing.
+ */
+function tilesOf(seed: number): ScatterTiles {
+  let tiles = keptTiles.get(seed);
+  if (tiles) keptTiles.delete(seed);
+  else tiles = new ScatterTiles(seed, 1);
+  keptTiles.set(seed, tiles);
+  if (keptTiles.size > KEPT_TILES) keptTiles.delete(keptTiles.keys().next().value as number);
+  return tiles;
+}
+
 /**
  * A Poisson-disc pattern `spacing` apart over the world box `bounds`, nearest the frame's
  * origin first and made as it is read. It is tiled in the shape's own frame, each tile drawn
@@ -153,8 +171,10 @@ export function scatterPattern(
   bounds: Rect,
 ): Generator<Pt> {
   if (!(spacing > 0)) return nearestFirst(1, frame, bounds, () => []);
-  const tiles = new ScatterTiles(seed, spacing);
-  return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) => tiles.points(i, j));
+  const tiles = tilesOf(seed);
+  return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) =>
+    tiles.points(i, j).map((p) => ({ x: p.x * spacing, y: p.y * spacing })),
+  );
 }
 
 /** How finely a fill point's place is told apart for its draws, in parts of the spacing. */
