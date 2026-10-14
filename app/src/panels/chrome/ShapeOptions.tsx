@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { clampTo } from "../../lib/geometry/geometry";
-import { extentOf, SCENARIO_HALF_EXTENT } from "../../lib/guides";
+import { extentOf, reachOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
 import { fillSpacing, hasEdgeRow, leastSpacing } from "../../lib/shapes/placement";
 import {
@@ -69,12 +69,18 @@ function readField(shape: Shape, key: ShapeField<Shape>["key"]): number {
   return (shape as unknown as Record<string, number>)[key as string]!;
 }
 
-/** The circle a shape's size is measured against: the rules' edge, or the scenario square when a document gives none. */
-function useGalaxyFrame(rules: PlacementRules): GalaxyFrame {
+const NO_EDGE: MapExtent = { shape: "square", half: SCENARIO_HALF_EXTENT };
+
+/**
+ * The circle a shape's size is measured against, the rules' edge, and the one it may grow to,
+ * how far out its systems may stand; the scenario square when a document gives no edge.
+ */
+function useGalaxyFrames(rules: PlacementRules): { galaxy: GalaxyFrame; reach: GalaxyFrame } {
   const radius = useGalaxyStore((s) => s.galaxy?.galaxy_radius ?? 0);
-  return galaxyFrame(
-    extentOf(rules.edge, radius) ?? { shape: "square", half: SCENARIO_HALF_EXTENT },
-  );
+  return {
+    galaxy: galaxyFrame(extentOf(rules.edge, radius) ?? NO_EDGE),
+    reach: galaxyFrame(reachOf(rules.edge, radius) ?? NO_EDGE),
+  };
 }
 
 /** A row of buttons of which `value` is the one chosen. */
@@ -158,7 +164,7 @@ function FillPicker({ settings }: { settings: ShapeSettings }) {
 }
 
 function SizeOptions({ shape, rules }: { shape: Shape; rules: PlacementRules }) {
-  const frame = useGalaxyFrame(rules);
+  const { galaxy: frame, reach } = useGalaxyFrames(rules);
   const setShapeSize = useToolStore((s) => s.setShapeSize);
   const size = specOf(shape).size(shape);
   const whole = Math.round(frame.radius);
@@ -168,7 +174,7 @@ function SizeOptions({ shape, rules }: { shape: Shape; rules: PlacementRules }) 
     <>
       <SliderOption
         label="Size"
-        range={{ min: SHAPE_SIZE_MIN, max: whole }}
+        range={{ min: SHAPE_SIZE_MIN, max: Math.round(reach.radius) }}
         value={Math.round(size)}
         onChange={setShapeSize}
         field="Shape size in world units"

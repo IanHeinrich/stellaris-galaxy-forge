@@ -7,6 +7,29 @@ use crate::ops::rules::{each_once, named};
 use crate::ops::{Op, OpError, SystemHeight, SystemMove};
 use crate::projections::galaxy::GalaxyGraph;
 
+/// How far from the centre a new system in a save may be placed, as a share of the galaxy's
+/// radius. A move has no such limit: the game takes systems far past the radius.
+pub const GALAXY_REACH: f64 = 1.5;
+
+/// Refuse a new system at (x, y) farther from the centre than [`GALAXY_REACH`] times the
+/// galaxy's radius, when the save records one.
+pub(crate) fn check_reach(graph: &GalaxyGraph, x: f64, y: f64) -> Result<(), OpError> {
+    let radius = graph.galaxy_radius;
+    if radius <= 0.0 {
+        return Ok(());
+    }
+    let limit = radius * GALAXY_REACH;
+    if x.hypot(y) > limit {
+        return Err(OpError::OutsideGalaxy {
+            x,
+            y,
+            radius,
+            limit,
+        });
+    }
+    Ok(())
+}
+
 /// Where a system stands and where it is going, with the name a description calls it by.
 pub(crate) struct Move {
     pub id: u32,

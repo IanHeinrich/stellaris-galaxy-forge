@@ -403,8 +403,9 @@ pub enum Op {
     /// must be the number of systems the save holds; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
     /// names, or failing that of black hole names, when one holds it. A system standing
-    /// in a nebula's radius joins that nebula, as a system moved there does. The inverse
-    /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only.
+    /// in a nebula's radius joins that nebula, as a system moved there does. A point farther
+    /// from the centre than [`crate::ops::rules::GALAXY_REACH`] times the galaxy's radius is
+    /// refused. The inverse is [`Op::RemoveSystem`]. Stellaris 4.x save documents only.
     AddSystemFromSpec {
         spec: SystemSpec,
     },

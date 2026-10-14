@@ -27,6 +27,7 @@ use crate::format::save::write::nebula::{plan_membership, written_literal};
 use crate::format::save::write::shared::write_slot;
 use crate::keys;
 use crate::ops::rules::nebula::{Membership, describe_membership, prospective};
+use crate::ops::rules::systems::check_reach;
 use crate::ops::rules::{Form, check_name, check_text, labelled};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::plural;
@@ -524,13 +525,10 @@ pub(crate) fn check_body(body: &BodySpec) -> Result<(), OpError> {
     Ok(())
 }
 
-/// Inside the galaxy's radius, when the save records one, and no nearer than the game
-/// spawns a system to any other.
+/// Within the galaxy's reach (see [`check_reach`]) and no nearer than the game spawns a
+/// system to any other.
 fn check_place(graph: &GalaxyGraph, x: f64, y: f64) -> Result<(), OpError> {
-    let radius = graph.galaxy_radius;
-    if radius > 0.0 && x.hypot(y) > radius {
-        return Err(OpError::OutsideGalaxy { x, y, radius });
-    }
+    check_reach(graph, x, y)?;
     check_apart(
         x,
         y,

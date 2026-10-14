@@ -44,9 +44,9 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     detail: false,
   },
   out_of_bounds: {
-    title: "System outside the galaxy edge",
-    why: "The system sits further from the centre than the galaxy's own radius, outside the edge the map draws.",
-    fix: "Drag it back inside the galaxy edge.",
+    title: "System far outside the galaxy edge",
+    why: "The system stands more than half again the galaxy's radius out, further than the editor adds a new system.",
+    fix: "Leave it if you meant it, or drag it in towards the galaxy edge.",
     detail: true,
   },
   disconnected: {

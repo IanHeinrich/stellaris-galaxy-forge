@@ -21,7 +21,7 @@ export interface SpreadBrush {
   specials: boolean;
   /** Alt: Gather pulls the systems under the brush towards its centre instead. */
   gather: boolean;
-  /** The map's edge, which no move takes a system further past; null when the document records none. */
+  /** How far out a system may stand, which no move takes one further past; null when the document records no edge. */
   edge: MapExtent | null;
   /** The distance no move brings two systems closer than. */
   gap: number;
@@ -291,7 +291,7 @@ class SpreadRun {
   /** Whether system `id` may go from `from` to `to`. */
   private allowed(id: number, from: Pt, to: Pt): boolean {
     const edge = this.brush.edge;
-    // A system already past the edge may still move, so long as it goes no further out.
+    // A system already past the limit may still move, so long as it goes no further out.
     if (edge && pastEdge(edge, to) > Math.max(0, pastEdge(edge, from))) return false;
     let close = false;
     this.points.within(to, this.gap, (other, q, d) => {
@@ -314,8 +314,9 @@ class SpreadRun {
  * What a spread stroke has done so far to a galaxy fixed at its start. Each pass moves the
  * systems under one stamp and its images towards even spacing, or towards the stamp's centre
  * when gathering. A system's orbit under the symmetry moves with it, and a move that would
- * cross a lane, go further past the map's edge or close on another system inside the gap is cut
- * short. The passes are kept, so `over` lays them again over the galaxy an edit finds.
+ * cross a lane, go further past how far out a system may stand or close on another system
+ * inside the gap is cut short. The passes are kept, so `over` lays them again over the galaxy
+ * an edit finds.
  */
 export class SpreadSculpt {
   private readonly passes: Array<{ centres: readonly Pt[]; amount: number }> = [];

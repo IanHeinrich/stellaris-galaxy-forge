@@ -10,6 +10,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::ops::rules::GALAXY_REACH;
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, Nebula};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -282,11 +283,12 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
             ));
         }
         let distance = system.x.hypot(system.y);
-        if distance > g.galaxy_radius {
+        let limit = g.galaxy_radius * GALAXY_REACH;
+        if distance > limit {
             issues.push(Issue::new(
                 IssueCode::OutOfBounds,
                 format!(
-                    "system {a} is {distance:.2} from the centre, beyond the galaxy radius {:.2}",
+                    "system {a} is {distance:.2} from the centre, beyond the {limit:.2} a system may stand (the galaxy radius is {:.2})",
                     g.galaxy_radius
                 ),
                 vec![a],

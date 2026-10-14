@@ -33,7 +33,10 @@ fn validator_reports_every_rule_on_a_mutated_graph() {
         bridge: false,
         stale: false,
     });
-    g.systems.get_mut(&2).unwrap().x = 600.0;
+    // Past half again the radius of 499.9288; 4 stands past the radius but inside that.
+    g.systems.get_mut(&2).unwrap().x = 800.0;
+    let inside = g.systems.get_mut(&4).unwrap();
+    (inside.x, inside.y) = (0.0, 700.0);
     // Cut system 5 out of the graph on both ends of each of its lanes.
     let neighbours: Vec<u32> = g.systems[&5].lanes.iter().map(|l| l.to).collect();
     for n in neighbours {

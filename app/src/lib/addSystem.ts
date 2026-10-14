@@ -2,7 +2,7 @@ import type { Feature } from "../generated/Feature";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SystemNode } from "../generated/SystemNode";
-import { ADDED_SYSTEMS_FROM_MAJOR, SPAWN_BUFFER } from "../generated/constants";
+import { ADDED_SYSTEMS_FROM_MAJOR, GALAXY_REACH, SPAWN_BUFFER } from "../generated/constants";
 import { counted, listed, needsGameData } from "./text";
 import type { Span } from "../generated/Span";
 import type { SpecialLayout } from "../generated/SpecialLayout";
@@ -27,12 +27,13 @@ export interface PlaceFacts {
 
 /**
  * Why a system cannot be added, and which of the spot's limits the map should draw: another
- * system inside the spawn buffer around it, or the edge of the galaxy's `radius`, which it is past.
+ * system inside the spawn buffer around it, or the circle `reach` from the centre that a system
+ * may stand within, which it is past.
  */
 export type AddRefusal =
   | { reason: string; limit: null }
   | { reason: string; limit: "tooClose" }
-  | { reason: string; limit: "outside"; radius: number };
+  | { reason: string; limit: "outside"; reach: number };
 
 /** Whether the save's version is Stellaris 4 or later, the only saves the core adds a system to. */
 export function isStellaris4(meta: SaveMeta | null): boolean {
@@ -44,10 +45,10 @@ export function isStellaris4(meta: SaveMeta | null): boolean {
 export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
   if (!facts.gameData) return { reason: NEEDS_GAME_DATA, limit: null };
   if (!isStellaris4(facts.meta)) return { reason: NEEDS_STELLARIS_4, limit: null };
-  const radius = facts.radius;
-  if (radius > 0 && Math.hypot(facts.x, facts.y) > radius) {
-    const reason = `Outside the galaxy's edge (radius ${Math.round(radius)})`;
-    return { reason, limit: "outside", radius };
+  const reach = facts.radius * GALAXY_REACH;
+  if (reach > 0 && Math.hypot(facts.x, facts.y) > reach) {
+    const reason = `Too far outside the galaxy: systems can be placed up to ${Math.floor(reach)} from the centre`;
+    return { reason, limit: "outside", reach };
   }
   const near = facts.nearest;
   if (near && near.distance < SPAWN_BUFFER) {

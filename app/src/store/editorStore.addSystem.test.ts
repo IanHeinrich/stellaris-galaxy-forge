@@ -185,6 +185,7 @@ describe("why a system cannot be added", () => {
 
   it.each([
     ["is null on a clear spot of a loaded 4.x save", asIs, [-50, -20], null],
+    ["is null past the galaxy's radius of 60 but within 90", asIs, [85, 0], null],
     [
       "names the system inside the spawn buffer",
       asIs,
@@ -195,10 +196,14 @@ describe("why a system cannot be added", () => {
       },
     ],
     [
-      "names the galaxy's edge past its radius",
+      "names how far out a system may stand, half again past the galaxy's radius",
       asIs,
       [100, 0],
-      { reason: "Outside the galaxy's edge (radius 60)", limit: "outside", radius: 60 },
+      {
+        reason: "Too far outside the galaxy: systems can be placed up to 90 from the centre",
+        limit: "outside",
+        reach: 90,
+      },
     ],
     [
       "asks for game data",

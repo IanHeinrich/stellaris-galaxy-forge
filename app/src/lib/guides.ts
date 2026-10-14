@@ -1,7 +1,7 @@
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { Guide } from "../generated/Guide";
 import type { SystemNode } from "../generated/SystemNode";
-import { L_CLUSTER, LCLUSTER_PREFIX } from "../generated/constants";
+import { GALAXY_REACH, L_CLUSTER, LCLUSTER_PREFIX } from "../generated/constants";
 import { DOCUMENT_KINDS, type LClusterGuide, type MapEdge } from "./documentKinds";
 import type { Pt } from "./geometry/pt";
 
@@ -24,6 +24,19 @@ const EXTENTS: Readonly<Record<MapEdge, (radius: number) => MapExtent | null>> =
 /** The extent `edge` bounds for a galaxy of `radius`: null for the galaxy's circle when it records none. */
 export function extentOf(edge: MapEdge, radius: number): MapExtent | null {
   return EXTENTS[edge](radius);
+}
+
+const REACHES: Readonly<Record<MapEdge, (radius: number) => MapExtent | null>> = {
+  galaxy_radius: (radius) => GALAXY_CIRCLE(radius * GALAXY_REACH),
+  scenario_square: () => SCENARIO_SQUARE,
+};
+
+/**
+ * How far out a system may stand inside `edge` for a galaxy of `radius`: a save's galaxy circle
+ * widened to the core's reach, null when it records no radius, or the scenario square as it is.
+ */
+export function reachOf(edge: MapEdge, radius: number): MapExtent | null {
+  return REACHES[edge](radius);
 }
 
 /** The edge of the map: a save's galaxy radius, null when it records none, else the scenario square. */

@@ -25,4 +25,8 @@ Its planets and fleets move with it.
 
 ![A system's Overview tab in the Inspector, with its Position fields, Height slider, hyperlanes and planets](../images/edit/system-inspector.png)
 
+You can move a system past the galaxy edge, as far out as you like. To
+add new systems out there, see
+[Systems outside the galaxy edge](add-systems.md#systems-outside-the-galaxy-edge).
+
 To remove systems, see [Delete systems](add-systems.md#delete-systems).
