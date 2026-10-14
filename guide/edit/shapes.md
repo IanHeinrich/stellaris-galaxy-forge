@@ -32,10 +32,14 @@ add:
 
 A faint ring marks the edge of the galaxy, so you can judge the size.
 The readout below the shape gives its size and system count, such as
-"40% of the galaxy · 24 systems".
+"20% of the galaxy · 23 systems".
+
+![A pending circle of 23 gold systems joined by lanes in the empty core of a scenario, with one hollow point left out beside an existing system and the readout 20% of the galaxy · 23 systems](../images/edit/shape-pending.png)
 
 The options are grouped under Shape, Fill, Size and form, Systems and
 Lanes, with Place at the bottom.
+
+![The Shape options for a circle outline: the shape buttons, Fill, Size and form with its sliders, Systems, Lanes and the Place 23 systems button](../images/edit/shape-options.png)
 
 Press <kbd>Enter</kbd> or the Place button to add the systems and lanes.
 Placing is one undo step. Press <kbd>Esc</kbd> to drop the pending
@@ -106,6 +110,8 @@ own keys, such as spiral_2.
 
 Drag outward from where its middle should be, as for a circle.
 Drag the turn handle, or set Rotation under Exact values, to turn the arms.
+
+![A pending Starburst galaxy filling a new scenario, its systems joined in small clusters, beside the Shape options with Galaxy shape set to Starburst](../images/edit/shape-galaxy.png)
 
 A galaxy is always filled at random, and no system lands outside its
 circle. The systems sit closest together in the arms.
