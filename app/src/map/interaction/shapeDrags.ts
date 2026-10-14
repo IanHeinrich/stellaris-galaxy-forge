@@ -12,7 +12,7 @@ import { useToolStore } from "../../store/toolStore";
 import type { Camera } from "../Camera";
 import type { DrawnPositions } from "../drawnPositions";
 import type { ShapeDrawing, ShapeErasing } from "../layers/highlights/ShapeOverlay";
-import { centreOf, specOf } from "../../lib/shapes/specs";
+import { centreOf, laidShape, specOf } from "../../lib/shapes/specs";
 import type { ShapeDrag } from "./MapIntent";
 
 /** How near the galaxy centre or a system a snapped point has to come, in screen pixels. */
@@ -113,8 +113,8 @@ export class ShapeDrags {
    */
   private erasingTo(anchor: Pt, to: Pt, mods: ShapeDragMods): Erasing {
     const { pendingShape, shapeMemory, eraseSpecials } = useToolStore.getState();
-    const prev = pendingShape?.shape ?? shapeMemory.kinds[shapeMemory.kind].shape;
-    const shape: Shape = specOf(prev).fromDrag(anchor, to, mods, prev);
+    const { shape: prev, fill } = pendingShape ?? shapeMemory.kinds[shapeMemory.kind];
+    const shape: Shape = laidShape(specOf(prev).fromDrag(anchor, to, mods, prev), fill);
     const systems = this.drawn.sweptSystems()?.systems ?? useGalaxyStore.getState().systems;
     const inside = systemsInside(shape, systems.values(), eraseSpecials);
     return { shape, doomed: inside.map(({ x, y }) => ({ x, y })), ids: inside.map((s) => s.id) };

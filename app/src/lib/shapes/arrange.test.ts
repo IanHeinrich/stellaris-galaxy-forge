@@ -3,6 +3,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { node } from "../../store/fixture";
 import type { Fill, PendingShape } from "./types";
 import { arrangement, nearestFree } from "./arrange";
+import { NO_EXTRAS } from "./extras";
 import { PLACEMENT_RULES } from "../placement/rules";
 import { systemsInside } from "./erase";
 import { SHAPE_SPECS } from "./specs";
@@ -25,6 +26,7 @@ function arranging(ids: number[], fill: Fill): PendingShape & { purpose: { kind:
     shape: { ...SHAPE_SPECS.circle.initial, centre: { x: 0, y: 0 }, radius: 200 },
     fill,
     lanes: { follow: false, mode: "off" },
+    extras: NO_EXTRAS,
     skipNear: false,
     seed: 3,
     stars: { kind: "random" },
@@ -106,5 +108,29 @@ describe("erasing with a shape", () => {
     expect(systemsInside(circle, systems, true).map((s) => s.id)).toEqual([1, 2]);
     const line = { kind: "line" as const, a: { x: -10, y: 0 }, b: { x: 60, y: 0 } };
     expect(systemsInside(line, systems, true)).toEqual([]);
+  });
+});
+
+describe("arranging into a spiral", () => {
+  it("lays one point per system, leaving out the band, rings and centre system an add would lay", () => {
+    const systems = cluster(7);
+    const ids = [...systems.keys()];
+    const preview = arrangement(
+      {
+        ...arranging(ids, { kind: "outline", count: 24 }),
+        shape: SHAPE_SPECS.spiral.initial,
+        lanes: { follow: true, mode: "off" },
+        extras: { ...NO_EXTRAS, band: 3, rings: 2, centre: "spokes" },
+      },
+      {
+        systems,
+        extent: EXTENT,
+        rules: PLACEMENT_RULES.statements,
+        symmetry: { kind: "off" },
+        laneDensity: 0.5,
+      },
+    );
+    expect(preview.arranged!.refusal).toBeNull();
+    expect(preview.points).toHaveLength(7);
   });
 });

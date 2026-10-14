@@ -1,20 +1,20 @@
 ---
 title: Draw shapes of systems
-description: Draw a line, circle, polygon, rectangle or star of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
-aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape]
+description: Draw a line, circle, polygon, rectangle, star or spiral of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
+aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, spiral, spiral arm, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape, donut, hollow centre, concentric rings, onion, band, gaps, chokepoints, wobble, spokes, hub, system at the centre]
 ---
 # Draw shapes of systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 The Shape tool (<kbd>O</kbd>, "Draw shapes" on the tool strip) places
-new systems in an exact shape: a ring, a straight row, a star, or a circle
-filled at random or in a grid. It works in Stellaris 4.x saves and in
+new systems in an exact shape: a ring, a straight row, a star, a spiral, or
+a circle filled at random or in a grid. It works in Stellaris 4.x saves and in
 scenarios. A 3.x save doesn't offer the tool.
 
 ## Draw a shape
 
 1. Press <kbd>O</kbd>, or select Draw shapes on the tool strip.
-2. Pick the shape in the options: Line, Circle, Polygon, Rectangle or
-   Star.
+2. Pick the shape in the options: Line, Circle, Polygon, Rectangle, Star
+   or Spiral.
 3. Drag on the map to draw it. Until you do, the tool shows the shape at
    the centre of the galaxy.
 
@@ -80,6 +80,11 @@ To make a cluster of black holes, pick Black hole.
 - Rectangle is a rectangle, or a square with <kbd>Shift</kbd> held.
 - Star has 4 to 12 points. Inner radius sets how far out the dips between
   them sit, as a share of the radius.
+- Spiral has 1 to 6 arms winding out from its centre, each a single line
+  of systems. Turns sets how far round each arm winds. Inner radius sets
+  where the arms start, as a share of the radius. Drag from the centre to
+  where the first arm should end. The systems are shared evenly among the
+  arms.
 
 ## Move, resize and turn a shape
 
@@ -107,8 +112,13 @@ The Fill option sets where the systems go:
 - Square grid fills it in rows and columns.
 - Hex grid fills it in a honeycomb pattern.
 
-A line has only Outline. A filled arc fills the slice between the arc
-and its centre, so an arc of 180° fills a half disc.
+A line and a spiral have only Outline. A filled arc fills the slice
+between the arc and its centre, so an arc of 180° fills a half disc.
+
+For a filled circle, polygon or star, Hollow centre leaves the middle
+empty, as a share of the radius. A filled circle with a hollow centre is a
+donut. With "Line the edge with systems", the edge of the hole gets a row
+of systems too.
 
 For a scattered fill, "Line the edge with systems" also places a row of
 systems along the edge. Untick it to leave only scattered systems
@@ -122,6 +132,33 @@ scattered fill again.
 
 Exact values, folded under the options, take typed numbers for the
 centre, the radius or the width and height, and the rotation.
+
+## Bands, rings, gaps and wobble
+
+An outline has four more options. Each one starts off, so the outline
+stays a single row of systems until you change them.
+
+- Band makes the outline 1 to 5 systems thick. The systems are scattered
+  within the band, so a ring looks grown rather than drawn. On a small
+  shape, an inner row that would reach the centre is left out.
+- Rings adds smaller copies of the outline inside it, each at least a
+  spacing from the next, for an onion galaxy. With Band, the rings move
+  apart to make room for it. The copies keep the same spacing between
+  systems, so the inner rings have fewer systems. Circles, polygons,
+  rectangles and stars have Rings.
+- Gaps opens breaks in the Follow the shape lanes, spread evenly, to make
+  chokepoints. It shows while Follow the shape is on. Lanes doesn't add
+  a lane across a gap, so the gap stays open. Lanes can still join one
+  ring to the next.
+- Wobble moves each system at random, up to half the spacing, so the
+  shape looks less exact. A square or hex grid can wobble too.
+
+Band and Wobble are random. The pending shape keeps the same layout while
+you adjust it. Shuffle rolls a new one, and so does drawing a new shape.
+
+Arrange hides Band, Rings and A system at the centre, because the number
+of systems is fixed to the selection. Gaps and Wobble still work, and
+Arrange wobbles at most 80%, so the systems stay clear of each other.
 
 ## Lanes
 
@@ -138,6 +175,17 @@ centre, the radius or the width and height, and the rotation.
   fewest lanes, and the new lanes form no loops of their own. At the right
   end, each system links to every neighbour.
 
+- A system at the centre adds one system at the centre of a circle,
+  polygon or spiral outline.
+- Spokes to the centre joins that system to every system on the outline.
+  It shows once A system at the centre is ticked. With Rings or Band, the
+  spokes go to the innermost ring or row only. On a spiral, they go to the
+  inner end of each arm.
+
+If a system already stands at the centre, the centre point is left out
+and the spokes run to that system instead. A ring round a home system can
+have spokes to it.
+
 New lanes never cross an existing lane or each other.
 
 ## Keep clear of existing systems
@@ -153,6 +201,10 @@ system are left out either way.
 [Symmetry](brushes.md#use-symmetry) copies the shape around the centre of
 the galaxy or mirrors it. Copies that land on each other become one, so a
 circle centred on the pivot isn't doubled.
+
+Each copy of the shape gets its own gaps. A ring centred on the pivot
+gets the gaps of every copy, so choose a number of gaps the copies divide.
+With four copies, 4 or 8 gaps stay as you set them.
 
 Arrange works only with symmetry off, because it moves only the systems
 you selected.
@@ -205,7 +257,8 @@ Hold <kbd>Alt</kbd> and drag with the Shape tool to erase every system
 inside the shape you draw, as <kbd>Alt</kbd> turns Paint into Erase. The
 systems to be erased are ringed in orange until you let go. As with the
 Erase brush, special systems stay unless you set the Erase brush to take
-them. A line has no inside, so it erases nothing.
+them. A line or a spiral has no inside, so it erases nothing. A shape with
+a hollow centre leaves the systems in the hole.
 
 ## Shapes remember their settings
 

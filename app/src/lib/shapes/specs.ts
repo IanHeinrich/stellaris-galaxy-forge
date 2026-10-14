@@ -3,20 +3,33 @@ import type { Pt } from "../geometry/pt";
 import { ANGLE_STEP, draggedRotation, snapAngle } from "./drag";
 import { clamp } from "../geometry/geometry";
 import { angleOf, dir, distance, lerp, norm360, toLocal, toWorld, type ShapeFrame } from "./frame";
-import { alongPolyline, arcPoints, cornersThenPieces, cornersThenSides } from "./outline";
+import {
+  alongPolyline,
+  arcPoints,
+  cornersThenPieces,
+  cornersThenSides,
+  joined,
+  oneRun,
+} from "./outline";
 import type {
   CircleShape,
+  ExtraKey,
+  FieldWhen,
+  Fill,
   FillKind,
   LineShape,
+  Outline,
   PolygonShape,
   RectShape,
   Shape,
   ShapeDragMods,
+  ShapeField,
   ShapeHandle,
   ShapeKind,
   ShapeOf,
   ShapeSpec,
   ShapeSpecs,
+  SpiralShape,
   StarShape,
 } from "./types";
 
@@ -81,6 +94,7 @@ const RADIUS_FIELD = {
   step: 1,
   unit: "",
   exact: true,
+  when: "always",
 } as const;
 const ROTATION_FIELD = {
   key: "rotation",
@@ -89,10 +103,70 @@ const ROTATION_FIELD = {
   step: 1,
   unit: "°",
   exact: true,
+  when: "always",
 } as const;
 
-/** What the circle, polygon and star share: a centre, a radius and a rotation. */
-type Radial = CircleShape | PolygonShape | StarShape;
+/** What the circle, polygon, star and spiral share: a centre, a radius and a rotation. */
+type Radial = CircleShape | PolygonShape | StarShape | SpiralShape;
+
+/** The extras a closed outline takes, and those an open one takes, which has no rings. */
+const CLOSED_EXTRAS: readonly ExtraKey[] = ["band", "rings", "gaps", "wobble"];
+const OPEN_EXTRAS: readonly ExtraKey[] = ["band", "gaps", "wobble"];
+
+// --- Hollow centres ---
+
+/** The kinds a fill can leave hollow. */
+type Hollowed = CircleShape | PolygonShape | StarShape;
+
+const HOLLOW_FIELD = {
+  key: "hollow",
+  label: "Hollow centre",
+  range: { min: 0, max: 90 },
+  step: 1,
+  unit: "%",
+  exact: false,
+  when: "filled",
+} as const;
+
+/** The hole a hollow shape leaves: the shape itself, solid and scaled down about its centre. */
+function holeOf<S extends Hollowed>(s: S): S {
+  return { ...s, radius: (s.radius * s.hollow) / 100, hollow: 0 };
+}
+
+/** Whether `p` is inside what a fill fills: inside the solid shape and not in its hole. */
+function hollowContains<S extends Hollowed>(solid: (s: S, p: Pt) => boolean) {
+  return (s: S, p: Pt) => solid(s, p) && !(s.hollow > 0 && solid(holeOf(s), p));
+}
+
+/** The share of the solid shape's area a fill fills. */
+function filledShare(s: Hollowed): number {
+  return 1 - (s.hollow / 100) ** 2;
+}
+
+/**
+ * About `n` points round the edge `outer` gives and round the hole's, each a run, shared by
+ * their lengths in whole multiples of `copies` where `n` is one, so symmetry's copies of each
+ * run land on it.
+ */
+function hollowEdge<S extends Hollowed>(
+  s: S,
+  n: number,
+  copies: number,
+  outer: (s: S, n: number) => Outline,
+): Outline {
+  if (s.hollow <= 0) return outer(s, n);
+  const unit = n % copies === 0 ? copies : 1;
+  const least = unit * Math.ceil(3 / unit);
+  const share = (n * s.hollow) / (100 + s.hollow);
+  const inner = Math.max(least, unit * Math.round(share / unit));
+  return joined([outer(s, Math.max(least, n - inner)), outer(holeOf(s), inner)]);
+}
+
+/** `noun` for a fill that leaves the centre empty: "a hollow hexagon". */
+function hollowed(noun: string, s: Hollowed, fill: Fill): string {
+  if (fill.kind === "outline" || s.hollow <= 0) return noun;
+  return `a hollow ${noun.replace(/^an? /, "")}`;
+}
 
 function radialFromDrag<S extends Radial>(anchor: Pt, to: Pt, mods: ShapeDragMods, prev: S): S {
   return {
@@ -134,6 +208,8 @@ const LINE: ShapeSpec<LineShape> = {
   glyph: "M2.5 13.5 13.5 2.5",
   initial: { kind: "line", a: { x: -200, y: 0 }, b: { x: 200, y: 0 } },
   fills: () => OUTLINE_ONLY,
+  extras: OPEN_EXTRAS,
+  spokes: null,
   fields: [],
   fromDrag: (anchor, to, mods, prev) => ({
     ...prev,
@@ -174,7 +250,7 @@ const LINE: ShapeSpec<LineShape> = {
   contains: () => false,
   bounds: (s) => boxOf([s.a, s.b]),
   area: () => 0,
-  outline: (s, n) => ({ points: alongPolyline([s.a, s.b], false, n), closed: false }),
+  outline: (s, n) => oneRun(alongPolyline([s.a, s.b], false, n), false),
   edge: (s, n) => LINE.outline(s, n),
   noun: () => "a line",
 };
@@ -231,11 +307,38 @@ const SECTOR_NOUNS: Readonly<Record<number, { round: string; oval: string }>> = 
 const CIRCLE: ShapeSpec<CircleShape> = {
   label: "Circle",
   glyph: "M2.5 8a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0Z",
-  initial: { kind: "circle", centre: ORIGIN, radius: 200, rotation: 0, sweep: 360, squash: 100 },
+  initial: {
+    kind: "circle",
+    centre: ORIGIN,
+    radius: 200,
+    rotation: 0,
+    sweep: 360,
+    squash: 100,
+    hollow: 0,
+  },
   fills: () => ALL_FILLS,
+  extras: CLOSED_EXTRAS,
+  spokes: "ring",
   fields: [
-    { key: "sweep", label: "Arc", range: SWEEP_RANGE, step: 1, unit: "°", exact: false },
-    { key: "squash", label: "Roundness", range: SQUASH_RANGE, step: 1, unit: "%", exact: false },
+    {
+      key: "sweep",
+      label: "Arc",
+      range: SWEEP_RANGE,
+      step: 1,
+      unit: "°",
+      exact: false,
+      when: "always",
+    },
+    {
+      key: "squash",
+      label: "Roundness",
+      range: SQUASH_RANGE,
+      step: 1,
+      unit: "%",
+      exact: false,
+      when: "always",
+    },
+    HOLLOW_FIELD,
     RADIUS_FIELD,
     ROTATION_FIELD,
   ],
@@ -267,11 +370,11 @@ const CIRCLE: ShapeSpec<CircleShape> = {
         return s;
     }
   },
-  contains(s, p) {
+  contains: hollowContains((s: CircleShape, p: Pt) => {
     const local = toLocal(frameOf(s), p);
     if ((local.x / s.radius) ** 2 + (local.y / halfHeight(s)) ** 2 > 1) return false;
     return !isArc(s) || ellipseAngle(s, p) <= s.sweep;
-  },
+  }),
   bounds(s) {
     if (isArc(s)) {
       const reached = ellipseExtremes(s).filter((t) => t <= s.sweep);
@@ -284,19 +387,25 @@ const CIRCLE: ShapeSpec<CircleShape> = {
     const hy = Math.hypot(a * sn, b * c);
     return { x0: s.centre.x - hx, y0: s.centre.y - hy, x1: s.centre.x + hx, y1: s.centre.y + hy };
   },
-  area: (s) => (Math.PI * s.radius * halfHeight(s) * Math.min(s.sweep, 360)) / 360,
+  area: (s) => (Math.PI * s.radius * halfHeight(s) * Math.min(s.sweep, 360) * filledShare(s)) / 360,
   outline(s, n) {
     const closed = !isArc(s);
     if (s.squash >= 100) {
-      return { points: arcPoints(s.centre, s.radius, s.rotation, s.sweep, n), closed };
+      return oneRun(arcPoints(s.centre, s.radius, s.rotation, s.sweep, n), closed);
     }
-    return { points: alongPolyline(denseEllipse(s, n), closed, n), closed };
+    return oneRun(alongPolyline(denseEllipse(s, n), closed, n), closed);
   },
-  edge(s, n) {
-    if (!isArc(s)) return CIRCLE.outline(s, n);
+  edge(s, n, copies = 1) {
+    if (!isArc(s)) return hollowEdge(s, n, copies, CIRCLE.outline);
     const arc = denseEllipse(s, n);
-    const pieces = [arc, [arc[arc.length - 1], s.centre], [s.centre, arc[0]]];
-    return { points: cornersThenPieces(pieces, true, n), closed: true };
+    const end = arc[arc.length - 1];
+    if (s.hollow <= 0) {
+      const pieces = [arc, [end, s.centre], [s.centre, arc[0]]];
+      return oneRun(cornersThenPieces(pieces, true, n), true);
+    }
+    const hole = denseEllipse(holeOf(s), n).reverse();
+    const pieces = [arc, [end, hole[0]], hole, [hole[hole.length - 1], arc[0]]];
+    return oneRun(cornersThenPieces(pieces, true, n), true);
   },
   noun(s, fill) {
     const round = s.squash >= 100;
@@ -304,6 +413,7 @@ const CIRCLE: ShapeSpec<CircleShape> = {
       if (isArc(s)) return round ? "an arc" : "an oval arc";
       return round ? "a ring" : "an oval ring";
     }
+    if (!isArc(s) && s.hollow > 0) return round ? "a donut" : "an oval donut";
     if (!isArc(s)) return round ? "a disc" : "an oval";
     const sector = SECTOR_NOUNS[Math.round(s.sweep)];
     if (!sector) return "a wedge";
@@ -338,10 +448,21 @@ const POLYGON_NOUNS: Readonly<Record<number, string>> = {
 const POLYGON: ShapeSpec<PolygonShape> = {
   label: "Polygon",
   glyph: "M8 2.5 13 5.25v5.5L8 13.5 3 10.75v-5.5Z",
-  initial: { kind: "polygon", centre: ORIGIN, radius: 200, rotation: 90, sides: 6 },
+  initial: { kind: "polygon", centre: ORIGIN, radius: 200, rotation: 90, sides: 6, hollow: 0 },
   fills: () => ALL_FILLS,
+  extras: CLOSED_EXTRAS,
+  spokes: "ring",
   fields: [
-    { key: "sides", label: "Sides", range: { min: 3, max: 12 }, step: 1, unit: "", exact: false },
+    {
+      key: "sides",
+      label: "Sides",
+      range: { min: 3, max: 12 },
+      step: 1,
+      unit: "",
+      exact: false,
+      when: "always",
+    },
+    HOLLOW_FIELD,
     RADIUS_FIELD,
     ROTATION_FIELD,
   ],
@@ -352,12 +473,12 @@ const POLYGON: ShapeSpec<PolygonShape> = {
     turnHandle(s, s.radius, s.radius),
   ],
   dragHandle: (s, id, to, mods) => radialDragged(s, id, to, mods) ?? s,
-  contains: (s, p) => inRing(p, polygonCorners(s)),
+  contains: hollowContains((s: PolygonShape, p: Pt) => inRing(p, polygonCorners(s))),
   bounds: (s) => boxOf(polygonCorners(s)),
-  area: (s) => (s.sides * s.radius ** 2 * Math.sin((2 * Math.PI) / s.sides)) / 2,
-  outline: (s, n) => ({ points: cornersThenSides(polygonCorners(s), true, n), closed: true }),
-  edge: (s, n) => POLYGON.outline(s, n),
-  noun: (s) => POLYGON_NOUNS[s.sides] ?? `a ${s.sides}-sided polygon`,
+  area: (s) => (s.sides * s.radius ** 2 * Math.sin((2 * Math.PI) / s.sides) * filledShare(s)) / 2,
+  outline: (s, n) => oneRun(cornersThenSides(polygonCorners(s), true, n), true),
+  edge: (s, n, copies = 1) => hollowEdge(s, n, copies, POLYGON.outline),
+  noun: (s, fill) => hollowed(POLYGON_NOUNS[s.sides] ?? `a ${s.sides}-sided polygon`, s, fill),
 };
 
 // --- Rectangle ---
@@ -433,9 +554,27 @@ const RECT: ShapeSpec<RectShape> = {
   glyph: "M2.5 4.5h11v7h-11Z",
   initial: { kind: "rect", centre: ORIGIN, width: 300, height: 200, rotation: 0 },
   fills: () => ALL_FILLS,
+  extras: CLOSED_EXTRAS,
+  spokes: null,
   fields: [
-    { key: "width", label: "Width", range: SIZE_RANGE, step: 1, unit: "", exact: true },
-    { key: "height", label: "Height", range: SIZE_RANGE, step: 1, unit: "", exact: true },
+    {
+      key: "width",
+      label: "Width",
+      range: SIZE_RANGE,
+      step: 1,
+      unit: "",
+      exact: true,
+      when: "always",
+    },
+    {
+      key: "height",
+      label: "Height",
+      range: SIZE_RANGE,
+      step: 1,
+      unit: "",
+      exact: true,
+      when: "always",
+    },
     ROTATION_FIELD,
   ],
   fromDrag: (anchor, to, mods, prev) => spanned(prev, anchor, to, mods, [1, 1]),
@@ -473,7 +612,7 @@ const RECT: ShapeSpec<RectShape> = {
   },
   bounds: (s) => boxOf(rectCorners(s)),
   area: (s) => s.width * s.height,
-  outline: (s, n) => ({ points: cornersThenSides(rectCorners(s), true, n), closed: true }),
+  outline: (s, n) => oneRun(cornersThenSides(rectCorners(s), true, n), true),
   edge: (s, n) => RECT.outline(s, n),
   noun: (s) => (s.width === s.height ? "a square" : "a rectangle"),
 };
@@ -494,11 +633,38 @@ function starCorners(s: StarShape): Pt[] {
 const STAR: ShapeSpec<StarShape> = {
   label: "Star",
   glyph: "M8 2.5 9.4 6.1 13.2 6.3 10.2 8.7 11.2 12.4 8 10.3 4.8 12.4 5.8 8.7 2.8 6.3 6.6 6.1Z",
-  initial: { kind: "star", centre: ORIGIN, radius: 200, rotation: 90, points: 5, inner: 50 },
+  initial: {
+    kind: "star",
+    centre: ORIGIN,
+    radius: 200,
+    rotation: 90,
+    points: 5,
+    inner: 50,
+    hollow: 0,
+  },
   fills: () => ALL_FILLS,
+  extras: CLOSED_EXTRAS,
+  spokes: null,
   fields: [
-    { key: "points", label: "Points", range: { min: 4, max: 12 }, step: 1, unit: "", exact: false },
-    { key: "inner", label: "Inner radius", range: INNER_RANGE, step: 1, unit: "%", exact: false },
+    {
+      key: "points",
+      label: "Points",
+      range: { min: 4, max: 12 },
+      step: 1,
+      unit: "",
+      exact: false,
+      when: "always",
+    },
+    {
+      key: "inner",
+      label: "Inner radius",
+      range: INNER_RANGE,
+      step: 1,
+      unit: "%",
+      exact: false,
+      when: "always",
+    },
+    HOLLOW_FIELD,
     RADIUS_FIELD,
     ROTATION_FIELD,
   ],
@@ -519,12 +685,124 @@ const STAR: ShapeSpec<StarShape> = {
     const inner = (100 * distance(s.centre, to)) / s.radius;
     return { ...s, inner: clamp(inner, INNER_RANGE.min, INNER_RANGE.max) };
   },
-  contains: (s, p) => inRing(p, starCorners(s)),
+  contains: hollowContains((s: StarShape, p: Pt) => inRing(p, starCorners(s))),
   bounds: (s) => boxOf(starCorners(s)),
-  area: (s) => s.points * s.radius * ((s.radius * s.inner) / 100) * Math.sin(Math.PI / s.points),
-  outline: (s, n) => ({ points: cornersThenSides(starCorners(s), true, n), closed: true }),
-  edge: (s, n) => STAR.outline(s, n),
-  noun: () => "a star",
+  area: (s) =>
+    s.points *
+    s.radius *
+    ((s.radius * s.inner) / 100) *
+    Math.sin(Math.PI / s.points) *
+    filledShare(s),
+  outline: (s, n) => oneRun(cornersThenSides(starCorners(s), true, n), true),
+  edge: (s, n, copies = 1) => hollowEdge(s, n, copies, STAR.outline),
+  noun: (s, fill) => hollowed("a star", s, fill),
+};
+
+// --- Spiral ---
+
+const ARMS_RANGE = { min: 1, max: 6 };
+const TURNS_RANGE = { min: 0.25, max: 3 };
+const SPIRAL_INNER_RANGE = { min: 5, max: 90 };
+/** Every point of an arm is spread along at least this many chords. */
+const ARM_CHORDS = 256;
+
+/** The point `t` of the way along arm `arm`, from its inner end (0) to its outer end (1), its radius growing evenly with its angle. */
+function spiralPoint(s: SpiralShape, arm: number, t: number): Pt {
+  const from = s.inner / 100;
+  const r = s.radius * (from + (1 - from) * t);
+  const d = dir((arm * 360) / s.arms - s.turns * 360 * (1 - t));
+  return toWorld(frameOf(s), { x: r * d.x, y: r * d.y });
+}
+
+/** Points close together along arm `arm` from its inner end to its outer end, enough to spread `n` along. */
+function denseArm(s: SpiralShape, arm: number, n: number): Pt[] {
+  const chords = Math.max(ARM_CHORDS, 4 * n);
+  return Array.from({ length: chords + 1 }, (_, i) => spiralPoint(s, arm, i / chords));
+}
+
+/** How many of `n` points each of `arms` arms takes: an even share, the first arms taking one each of what is left over. */
+function armCounts(arms: number, n: number): number[] {
+  const each = Math.floor(n / arms);
+  return Array.from({ length: arms }, (_, a) => each + (a < n % arms ? 1 : 0));
+}
+
+const SPIRAL: ShapeSpec<SpiralShape> = {
+  label: "Spiral",
+  glyph:
+    "M8 8a1.5 1.5 0 1 1 1.5 1.5A3.5 3.5 0 0 1 6 6a5 5 0 0 1 5-5M8 8a1.5 1.5 0 1 0-1.5-1.5A3.5 3.5 0 0 0 10 10a5 5 0 0 0-5 5",
+  initial: {
+    kind: "spiral",
+    centre: ORIGIN,
+    radius: 250,
+    rotation: 0,
+    arms: 2,
+    turns: 1,
+    inner: 15,
+  },
+  fills: () => OUTLINE_ONLY,
+  extras: OPEN_EXTRAS,
+  spokes: "arms",
+  fields: [
+    {
+      key: "arms",
+      label: "Arms",
+      range: ARMS_RANGE,
+      step: 1,
+      unit: "",
+      exact: false,
+      when: "always",
+    },
+    {
+      key: "turns",
+      label: "Turns",
+      range: TURNS_RANGE,
+      step: 0.25,
+      unit: "",
+      exact: false,
+      when: "always",
+    },
+    {
+      key: "inner",
+      label: "Inner radius",
+      range: SPIRAL_INNER_RANGE,
+      step: 1,
+      unit: "%",
+      exact: false,
+      when: "always",
+    },
+    { ...RADIUS_FIELD, label: "Outer radius" },
+    ROTATION_FIELD,
+  ],
+  ...radialRow<SpiralShape>(),
+  handles: (s) => [
+    handle(CENTRE_HANDLE, s.centre, "centre"),
+    handle(RIM_HANDLE, spiralPoint(s, 0, 1), "size"),
+    handle("inner", spiralPoint(s, 0, 0), "size"),
+    turnHandle(s, s.radius, s.radius),
+  ],
+  dragHandle(s, id, to, mods) {
+    const radial = radialDragged(s, id, to, mods);
+    if (radial) return radial;
+    if (id !== "inner") return s;
+    const inner = (100 * distance(s.centre, to)) / s.radius;
+    return { ...s, inner: clamp(inner, SPIRAL_INNER_RANGE.min, SPIRAL_INNER_RANGE.max) };
+  },
+  contains: () => false,
+  bounds: (s) => ({
+    x0: s.centre.x - s.radius,
+    y0: s.centre.y - s.radius,
+    x1: s.centre.x + s.radius,
+    y1: s.centre.y + s.radius,
+  }),
+  area: () => 0,
+  outline: (s, n) =>
+    joined(
+      armCounts(s.arms, n).map((k, arm) =>
+        oneRun(alongPolyline(denseArm(s, arm, k), false, k), false),
+      ),
+    ),
+  edge: (s, n) => SPIRAL.outline(s, n),
+  noun: () => "a spiral",
 };
 
 /** Every kind of shape, and all that differs between them. */
@@ -534,6 +812,7 @@ export const SHAPE_SPECS: ShapeSpecs = {
   polygon: POLYGON,
   rect: RECT,
   star: STAR,
+  spiral: SPIRAL,
 };
 
 /** Every shape kind, in the picker's order. */
@@ -565,4 +844,34 @@ export function heldShape<S extends Shape>(s: S): S {
     if (want !== v) (held ??= { ...values })[k] = want;
   }
   return (held ?? s) as unknown as S;
+}
+
+/** Which fills each kind of field shows with: any, or one that fills the shape. */
+const FIELD_FILLS: Record<FieldWhen, (fill: Fill) => boolean> = {
+  always: () => true,
+  filled: (fill) => fill.kind !== "outline",
+};
+
+/** Whether `field` shows in the options with `fill`. */
+export function fieldShows(field: ShapeField<Shape>, fill: Fill): boolean {
+  return FIELD_FILLS[field.when](fill);
+}
+
+/**
+ * `shape` as `fill` lays it: each field the fill doesn't show at its kind's initial value, so a
+ * hollow centre set for a fill leaves an outline's inside whole; `shape` itself when none
+ * differs.
+ */
+export function laidShape<S extends Shape>(shape: S, fill: Fill): S {
+  const spec = specOf(shape);
+  const values = shape as unknown as Record<string, number>;
+  const initial = spec.initial as unknown as Record<string, number>;
+  let laid: Record<string, number> | null = null;
+  for (const field of spec.fields as unknown as readonly ShapeField<Shape>[]) {
+    const key = field.key as string;
+    if (!fieldShows(field, fill) && values[key] !== initial[key]) {
+      (laid ??= { ...values })[key] = initial[key];
+    }
+  }
+  return (laid ?? shape) as unknown as S;
 }

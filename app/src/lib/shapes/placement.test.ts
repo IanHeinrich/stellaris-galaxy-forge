@@ -1,99 +1,30 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { byId, placedNode } from "../../test/builders";
+import { placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
-import { pairOf, type Pair } from "../geometry/pairs";
+import { pairOf } from "../geometry/pairs";
 import { asWritten, dist2, type Pt, WRITTEN_DRIFT, writtenPt } from "../geometry/pt";
-import { segmentsCross } from "../geometry/segments";
 import type { Symmetry } from "../geometry/symmetry";
-import { extentOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../guides";
-import { PlacementGround } from "../placement/ground";
-import { laneSegments, provisionalId, provisionalIndex } from "../placement/lanes";
-import { SpatialGrid } from "../spatialGrid";
+import { SCENARIO_HALF_EXTENT } from "../guides";
+import { provisionalId } from "../placement/lanes";
 import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
 import { fillSpacing, leastSpacing, shapePlacement } from "./placement";
-import { PLACEMENT_RULES, type PlacementRules } from "../placement/rules";
+import {
+  components,
+  crossings,
+  EMPTY,
+  OFF,
+  ROLLED,
+  STATEMENTS,
+  circle,
+  groundOf,
+  key,
+  pending,
+  positions,
+} from "./placement.fixture";
 import { SHAPE_SPECS } from "./specs";
-import type {
-  CircleShape,
-  Fill,
-  PendingShape,
-  PolygonShape,
-  Shape,
-  ShapeGround,
-  ShapePreview,
-  SpacedFill,
-} from "./types";
-
-const OFF: Symmetry = { kind: "off" };
-
-const STATEMENTS = PLACEMENT_RULES.statements;
-const ROLLED = PLACEMENT_RULES.rolled;
-
-function groundOf(
-  systems: SystemNode[],
-  symmetry: Symmetry = OFF,
-  rules: PlacementRules = STATEMENTS,
-): ShapeGround {
-  const grid = new SpatialGrid();
-  grid.build(systems);
-  return {
-    placement: new PlacementGround(byId(...systems), grid, symmetry),
-    extent: extentOf(rules.edge, 500) as MapExtent,
-    rules,
-    laneDensity: DEFAULT_LANE_DENSITY,
-    starWeights: null,
-  };
-}
-
-const EMPTY = groundOf([]);
-
-function circle(over: Partial<CircleShape> = {}): CircleShape {
-  return {
-    kind: "circle",
-    centre: { x: 0, y: 0 },
-    radius: 200,
-    rotation: 0,
-    sweep: 360,
-    squash: 100,
-    ...over,
-  };
-}
-
-function pending(shape: Shape, over: Partial<PendingShape> = {}): PendingShape {
-  return {
-    purpose: { kind: "add" },
-    shape,
-    fill: { kind: "outline", count: 24 },
-    lanes: { follow: true, mode: "off" },
-    skipNear: true,
-    seed: 7,
-    stars: { kind: "random" },
-    ...over,
-  };
-}
-
-/** Where each end of the preview's lanes stands. */
-function positions(preview: ShapePreview, systems: SystemNode[] = []): (id: number) => Pt {
-  const byIds = byId(...systems);
-  return (id) => (id < 0 ? preview.points[provisionalIndex(id)] : byIds.get(id)!);
-}
-
-/** How many pairs of lanes cross, among the preview's own and between them and the galaxy's. */
-function crossings(preview: ShapePreview, systems: SystemNode[] = []): number {
-  const at = positions(preview, systems);
-  const existing = laneSegments(systems);
-  const lanes = preview.pairs.map(([a, b]) => [at(a), at(b)]);
-  let n = 0;
-  lanes.forEach(([a, b], i) => {
-    for (const { a: c, b: d } of existing) if (segmentsCross(a, b, c, d)) n++;
-    for (const [c, d] of lanes.slice(i + 1)) if (segmentsCross(a, b, c, d)) n++;
-  });
-  return n;
-}
-
-const key = ([a, b]: Pair) => `${a},${b}`;
+import type { Fill, PolygonShape, ShapeGround, ShapePreview, SpacedFill } from "./types";
 
 describe("an outline's points and follow lanes", () => {
   it("joins a closed ring's n points with n lanes, the last back to the first", () => {
@@ -172,6 +103,7 @@ describe("an outline's points and follow lanes", () => {
       radius: 400,
       rotation: 90,
       sides: 3,
+      hollow: 0,
     };
     const corners = SHAPE_SPECS.polygon.outline(triangle, 3).points;
     const systems = corners.map((c, i) => placedNode(i + 1, c.x + 100, c.y));
@@ -195,16 +127,6 @@ describe("an outline's points and follow lanes", () => {
     expect(preview.points).toHaveLength(23);
   });
 });
-
-/** How many groups of new points the preview's lanes join. */
-function components(preview: ShapePreview): number {
-  const parent = preview.points.map((_, i) => i);
-  const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i])));
-  for (const [a, b] of preview.pairs) {
-    if (a < 0 && b < 0) parent[root(provisionalIndex(a))] = root(provisionalIndex(b));
-  }
-  return new Set(parent.map((_, i) => root(i))).size;
-}
 
 describe("following the shape", () => {
   const star = { ...SHAPE_SPECS.star.initial, radius: 150 };
@@ -433,8 +355,8 @@ describe("a filled arc", () => {
   });
 
   it("runs its edge row along the arc and both sides, with a point on the centre and each end", () => {
-    const { points, closed } = SHAPE_SPECS.circle.edge(half, 40);
-    expect(closed).toBe(true);
+    const { points, runs } = SHAPE_SPECS.circle.edge(half, 40);
+    expect(runs).toEqual([{ start: 0, count: 40, closed: true }]);
     expect(points).toHaveLength(40);
     const has = (q: Pt) => points.some((p) => Math.hypot(p.x - q.x, p.y - q.y) < 1e-6);
     expect(has({ x: 0, y: 0 })).toBe(true);

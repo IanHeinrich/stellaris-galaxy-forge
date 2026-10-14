@@ -4,6 +4,7 @@ import type { Pt } from "../lib/geometry/pt";
 import type { MapExtent } from "../lib/guides";
 import {
   PLACEMENT_RULES,
+  type PlacementPath,
   placementBounds,
   shapePath,
   type PlacementBounds,
@@ -13,7 +14,14 @@ import { LEAST_SPACING, SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
 import { spreadOf } from "../lib/shapes/arrange";
 import { galaxyFrame } from "../lib/shapes/drag";
-import { polylineLength } from "../lib/shapes/outline";
+import {
+  arrangeWobble,
+  EXTRA_KEYS,
+  EXTRA_ROWS,
+  NO_EXTRAS,
+  SHAPE_CENTRES,
+} from "../lib/shapes/extras";
+import { outlineStep } from "../lib/shapes/outline";
 import { ARRANGE_LANE_CHOICES, FILL_CHOICES, LATTICES } from "../lib/shapes/shapeCopy";
 import type { StarChoice } from "../lib/shapes/stars";
 import {
@@ -33,6 +41,7 @@ import type {
   PendingShape,
   Shape,
   ShapeDragMods,
+  ShapeExtras,
   ShapeFieldKey,
   ShapeHandleId,
   ShapeKind,
@@ -82,6 +91,8 @@ export interface ShapeState {
   setFillChoice(choice: FillChoice): void;
   /** Changes one or both of the pending shape's lane settings, or the remembered kind's. */
   setShapeLanes(change: Partial<ShapeLanes>): void;
+  /** Changes some of the pending shape's extras, or the remembered kind's, each held to its range. */
+  setShapeExtras(change: Partial<ShapeExtras>): void;
   setSkipNear(on: boolean): void;
   /** Sets which stars a save's shape rolls, for the pending shape and the next; nothing for a choice that is none. */
   setShapeStars(choice: StarChoice): void;
@@ -147,7 +158,7 @@ function defaultLanes(fill: Fill): ShapeLanes {
 /** A kind's starting settings: its initial shape, with the outline's defaults. */
 function initialSettings<K extends ShapeKind>(kind: K): ShapeSettings<K> {
   const fill: Fill = { kind: "outline", count: OUTLINE_COUNT };
-  return { shape: SHAPE_SPECS[kind].initial, fill, lanes: defaultLanes(fill) };
+  return { shape: SHAPE_SPECS[kind].initial, fill, lanes: defaultLanes(fill), extras: NO_EXTRAS };
 }
 
 /** The stars a shape rolls until the player picks others: the game's usual mix. */
@@ -155,8 +166,8 @@ const RANDOM_STARS: StarChoice = { kind: "random" };
 
 /** What Arrange starts from the first time: a circle, keeping the lanes. */
 function firstArrange(): ArrangeMemory {
-  const { shape, fill, lanes } = initialSettings("circle");
-  return { settings: { shape, fill, lanes }, lanes: "keep", alsoOuter: false };
+  const { shape, fill, lanes, extras } = initialSettings("circle");
+  return { settings: { shape, fill, lanes, extras }, lanes: "keep", alsoOuter: false };
 }
 
 function firstMemory(): ShapeMemory {
@@ -183,6 +194,7 @@ const isFillChoice = isOneOf(FILL_CHOICES);
 const isLattice = isOneOf(LATTICES);
 const isLaneMode = isOneOf(LANE_MODES);
 const isArrangeLanes = isOneOf(ARRANGE_LANE_CHOICES);
+const isCentre = isOneOf(SHAPE_CENTRES);
 
 function isClassKey(value: unknown): value is string {
   return typeof value === "string" && value !== "";
@@ -225,6 +237,28 @@ function isShapeOf<K extends ShapeKind>(kind: K, value: unknown): value is Shape
   });
 }
 
+/**
+ * `value` as a shape of `kind` held to its fields' ranges, a field it lacks, as one a later
+ * version added, taken from the kind's initial shape; null when it is no such shape.
+ */
+function storedShape<K extends ShapeKind>(kind: K, value: unknown): ShapeOf<K> | null {
+  if (!isRecord(value)) return null;
+  const filled: unknown = { ...specFor(kind).initial, ...value };
+  return isShapeOf(kind, filled) ? heldShape(filled) : null;
+}
+
+/** `value` as extras, each held to its range, and `from`'s standing in for what is no extra. */
+function heldExtras(value: unknown, from: ShapeExtras = NO_EXTRAS): ShapeExtras {
+  const stored = isRecord(value) ? value : {};
+  const out = { ...from };
+  for (const key of EXTRA_KEYS) {
+    const v = stored[key];
+    if (isFiniteNumber(v)) out[key] = heldTo(v, EXTRA_ROWS[key]);
+  }
+  if (isCentre(stored.centre)) out.centre = stored.centre;
+  return out;
+}
+
 /** `fill` with its count or spacing held to their ranges; null when it is no fill at all. */
 function heldFill(fill: Fill): Fill | null {
   if (!isRecord(fill)) return null;
@@ -255,11 +289,11 @@ function heldFill(fill: Fill): Fill | null {
 function storedSettings(kind: ShapeKind, value: unknown): ShapeSettings {
   const first = initialSettings(kind);
   if (!isRecord(value)) return first;
-  const shape = isShapeOf(kind, value.shape) ? heldShape(value.shape) : first.shape;
+  const shape = storedShape(kind, value.shape) ?? first.shape;
   const held = heldFill(value.fill as Fill);
   const fill = held && specOf(shape).fills(shape).includes(held.kind) ? held : first.fill;
   const lanes = isLanes(value.lanes) && fill === held ? value.lanes : defaultLanes(fill);
-  return { shape, fill, lanes };
+  return { shape, fill, lanes, extras: heldExtras(value.extras) };
 }
 
 /** What Arrange remembers as stored, starting as it first did where that is no setting. */
@@ -356,20 +390,31 @@ function extentNow(): MapExtent | null {
 }
 
 /**
- * `shape` sized to fit `points`: as far from its centre as they spread from theirs, and large
- * enough that `points.length` systems round its outline sit `least` apart and a little more.
+ * `settings`' shape grown, if it must be, so that `n` systems round its outline sit the least
+ * gap of `path` apart and a little more, after Wobble has nudged two neighbours toward each
+ * other.
  */
-function fittedShape(shape: Shape, points: readonly Pt[], least: number): Shape {
-  const n = points.length;
-  const { spread } = spreadOf(points);
+function roomyShape(settings: ShapeSettings, n: number, path: PlacementPath): Shape {
+  const { shape } = settings;
   const spec = specOf(shape);
-  const fits = resizedWithin(shape, Math.max(SHAPE_SIZE_MIN, spread));
-  const { points: ring, closed } = spec.outline(fits, n);
-  const gaps = closed ? ring.length : ring.length - 1;
-  const step = gaps > 0 ? polylineLength(ring, closed) / gaps : 0;
-  const want = least * ARRANGE_ROOM;
-  if (step >= want || step <= 0) return fits;
-  return resizedWithin(fits, (spec.size(fits) * want) / step);
+  const step = outlineStep(spec.outline(shape, n));
+  const least = Math.max(LEAST_SPACING, PLACEMENT_RULES[path].minGap);
+  // Two neighbours each nudged up to wobble% of half the step come that share of it closer;
+  // Arrange's cap on Wobble leaves at least a fifth of the step between them.
+  const left = 1 - arrangeWobble(settings) / 100;
+  const want = (least * ARRANGE_ROOM) / left;
+  if (step >= want || step <= 0) return shape;
+  return resizedWithin(shape, (spec.size(shape) * want) / step);
+}
+
+/**
+ * `settings`' shape sized to fit `points`: as far from its centre as they spread from theirs,
+ * and as `roomyShape` grows it for as many systems.
+ */
+function fittedShape(settings: ShapeSettings, points: readonly Pt[], path: PlacementPath) {
+  const { spread } = spreadOf(points);
+  const fits = resizedWithin(settings.shape, Math.max(SHAPE_SIZE_MIN, spread));
+  return roomyShape({ ...settings, shape: fits }, points.length, path);
 }
 
 /** `p` held inside `extent`. */
@@ -400,12 +445,12 @@ function remembered(memory: ShapeMemory, settings: ShapeSettings): ShapeMemory {
 
 /** The settings `memory` holds for `kind` (the last kind used when left out), as any kind's. */
 export function rememberedFor(memory: ShapeMemory, kind: ShapeKind = memory.kind): ShapeSettings {
-  const { shape, fill, lanes } = memory.kinds[kind];
-  return { shape, fill, lanes };
+  const { shape, fill, lanes, extras } = memory.kinds[kind];
+  return { shape, fill, lanes, extras };
 }
 
-function settingsOf({ shape, fill, lanes }: PendingShape): ShapeSettings {
-  return { shape, fill, lanes };
+function settingsOf({ shape, fill, lanes, extras }: PendingShape): ShapeSettings {
+  return { shape, fill, lanes, extras };
 }
 
 /** `memory` with `pending`'s settings remembered for the next shape of its purpose. */
@@ -488,7 +533,7 @@ export function shapeSlice(
 
     startShape(at = ORIGIN) {
       const { shapeMemory } = get();
-      const { shape, fill, lanes } = shapeMemory.kinds[shapeMemory.kind];
+      const { shape, fill, lanes, extras } = shapeMemory.kinds[shapeMemory.kind];
       lastAnchor = null;
       set({
         pendingShape: {
@@ -496,6 +541,7 @@ export function shapeSlice(
           shape: centredOn(shape, at),
           fill,
           lanes,
+          extras,
           skipNear: shapeMemory.skipNear,
           stars: shapeMemory.stars,
           seed: newSeed(),
@@ -566,6 +612,20 @@ export function shapeSlice(
       }));
     },
 
+    setShapeExtras(asked) {
+      if (!isRecord(asked)) return;
+      const pending = get().pendingShape;
+      const path = shapePath(useFileSessionStore.getState().capabilities);
+      if (pending?.purpose.kind !== "arrange" || path === null) {
+        change((s) => ({ ...s, extras: heldExtras(asked, s.extras) }));
+        return;
+      }
+      // Arranging, the shape grows as it would have at the start, so Wobble keeps clear of the gap.
+      const settings = { ...settingsOf(pending), extras: heldExtras(asked, pending.extras) };
+      const shape = roomyShape(settings, pending.purpose.ids.length, path);
+      show({ ...pending, ...settings, shape });
+    },
+
     setSkipNear(skipNear) {
       const { pendingShape, shapeMemory } = get();
       if (pendingShape) set({ pendingShape: { ...pendingShape, skipNear } });
@@ -599,6 +659,7 @@ export function shapeSlice(
         shape: specOf(prev).fromDrag(anchor, to, mods, prev),
         fill: settings.fill,
         lanes: settings.lanes,
+        extras: settings.extras,
         skipNear: shapeMemory.skipNear,
         stars: shapeMemory.stars,
         seed: sameDrag ? pendingShape.seed : newSeed(),
@@ -648,11 +709,10 @@ export function shapeSlice(
       else if (!wasArranging) arrangedFrom = null;
       const { shapeMemory } = get();
       const { settings, lanes, alsoOuter } = shapeMemory.arrange;
-      const least = Math.max(LEAST_SPACING, PLACEMENT_RULES[path].minGap);
       const fitted = fittedShape(
-        settings.shape,
+        settings,
         chosen.map((id) => systems.get(id)!),
-        least,
+        path,
       );
       lastAnchor = null;
       set({
@@ -661,6 +721,7 @@ export function shapeSlice(
           shape: centredOn(fitted, at),
           fill: settings.fill,
           lanes: settings.lanes,
+          extras: settings.extras,
           skipNear: false,
           stars: shapeMemory.stars,
           seed: newSeed(),

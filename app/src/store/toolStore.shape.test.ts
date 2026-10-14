@@ -8,6 +8,9 @@ import { SAVE_CAPABILITIES } from "../lib/capabilities";
 import { fillSpacing } from "../lib/shapes/placement";
 import { PLACEMENT_RULES } from "../lib/placement/rules";
 import type { StarChoice } from "../lib/shapes/stars";
+import { NO_EXTRAS } from "../lib/shapes/extras";
+import { outlineStep } from "../lib/shapes/outline";
+import { LEAST_SPACING } from "../lib/placement/limits";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
@@ -54,6 +57,7 @@ describe("picking the Shape tool", () => {
       shape: SHAPE_SPECS.circle.initial,
       fill: { kind: "outline", count: 24 },
       lanes: { follow: true, mode: "off" },
+      extras: NO_EXTRAS,
       skipNear: true,
       stars: { kind: "random" },
       seed: expect.any(Number),
@@ -287,15 +291,19 @@ describe("the memory", () => {
   });
 
   it("holds a stored field past its range, and keeps the kind's other settings", async () => {
+    // Stored before shapes had a hollow centre.
+    const older: Partial<CircleShape> = { ...SHAPE_SPECS.circle.initial };
+    delete older.hollow;
     stored.set(
       PREF_KEYS.shapeMemory,
       JSON.stringify({
         kind: "rect",
         kinds: {
           circle: {
-            shape: { ...SHAPE_SPECS.circle.initial, rotation: 359.7, sweep: 180 },
+            shape: { ...older, rotation: 359.7, sweep: 180 },
             fill: { kind: "outline", count: 30 },
             lanes: { follow: false, mode: "nearby" },
+            extras: { band: 9, gaps: 2.4, wobble: "lots", centre: "middle" },
           },
           rect: {
             shape: { ...SHAPE_SPECS.rect.initial, width: 1020 },
@@ -315,12 +323,15 @@ describe("the memory", () => {
       shape: { ...SHAPE_SPECS.circle.initial, rotation: 0, sweep: 180 },
       fill: { kind: "outline", count: 30 },
       lanes: { follow: false, mode: "nearby" },
+      extras: { ...NO_EXTRAS, band: 5, gaps: 2 },
     });
     expect(kinds.rect).toEqual({
       shape: { ...SHAPE_SPECS.rect.initial, width: 1000 },
       fill: { kind: "grid", spacing: 150, lattice: "square" },
       lanes: { follow: false, mode: "new" },
+      extras: NO_EXTRAS,
     });
+    expect(kinds.spiral.shape).toEqual(SHAPE_SPECS.spiral.initial);
     expect(kinds.star.shape).toEqual(SHAPE_SPECS.star.initial);
   });
 
@@ -409,5 +420,33 @@ describe("the memory", () => {
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 40, edge: true });
     expect(pending().lanes).toEqual({ follow: false, mode: "new" });
     expect(tools().shapeMemory.kinds.circle.shape.sweep).toBe(360);
+  });
+});
+
+describe("setting the extras", () => {
+  it("holds each to its range, and sets the pending shape's or else the remembered kind's", () => {
+    tools().setShapeExtras({ band: 9, gaps: 2.4 });
+    expect(tools().shapeMemory.kinds.circle.extras).toEqual({ ...NO_EXTRAS, band: 5, gaps: 2 });
+    expect(tools().pendingShape).toBeNull();
+
+    tools().setTool("shape");
+    expect(pending().extras).toEqual({ ...NO_EXTRAS, band: 5, gaps: 2 });
+    tools().setShapeExtras({ wobble: -10, centre: "spokes" });
+    expect(pending().extras).toEqual({ ...NO_EXTRAS, band: 5, gaps: 2, centre: "spokes" });
+    expect(tools().shapeMemory.kinds.circle.extras).toEqual(pending().extras);
+  });
+
+  it("grows an arranged shape when Wobble rises, as Arrange's start would size it", () => {
+    expect(tools().startArrange([0, 1, 2, 3], { x: 0, y: 0 })).toBe(true);
+    const before = sizeOf(pending().shape);
+    const centre = centreOf(pending().shape);
+    tools().setShapeExtras({ wobble: 80 });
+    const { shape } = pending();
+    expect(pending().extras.wobble).toBe(80);
+    expect(sizeOf(shape)).toBeGreaterThan(before);
+    expect(centreOf(shape)).toEqual(centre);
+    // Neighbours each nudged up to 40% of the step stay a fifth of it apart, past the gap.
+    const step = outlineStep(specOf(shape).outline(shape, 4));
+    expect(0.2 * step).toBeGreaterThanOrEqual(LEAST_SPACING);
   });
 });

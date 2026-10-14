@@ -257,5 +257,14 @@
   {"q": "tidy my systems into a shape", "expect": "edit/shapes#arrange-a-selection"},
   {"q": "keep lanes when arranging", "expect": "edit/shapes#arrange-a-selection"},
   {"q": "remove lanes to other systems when arranging", "expect": "edit/shapes#arrange-a-selection"},
-  {"q": "erase systems inside a circle", "expect": "edit/shapes#erase-with-a-shape"}
+  {"q": "erase systems inside a circle", "expect": "edit/shapes#erase-with-a-shape"},
+  {"q": "spiral arm of systems", "expect": "edit/shapes#the-shapes"},
+  {"q": "donut of systems", "expect": "edit/shapes"},
+  {"q": "hollow centre", "expect": "edit/shapes#outline-scattered-or-grid"},
+  {"q": "concentric rings", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
+  {"q": "rings of systems inside each other", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
+  {"q": "chokepoints in a ring", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
+  {"q": "thick ring of systems", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
+  {"q": "make a shape less exact", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
+  {"q": "system in the centre with spokes", "expect": "edit/shapes#lanes"}
 ]

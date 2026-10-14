@@ -8,6 +8,7 @@ import { galaxyFrame } from "../../../lib/shapes/drag";
 import { shapeReadout } from "../../../lib/shapes/shapeCopy";
 import type {
   HandleLook,
+  Outline,
   PendingShape,
   Shape,
   ShapeHandle,
@@ -16,6 +17,7 @@ import type {
 import { starGlyph } from "../../../lib/visual/starGlyphs";
 import { ACCENT_COLOR, HANDLE_COLOR, MAP_FONT } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
+import { runPoints } from "../../../lib/shapes/outline";
 import { specOf } from "../../../lib/shapes/specs";
 import { dashedCircle } from "../dashes";
 import { drawDots, drawLanes } from "./placementMarks";
@@ -31,13 +33,25 @@ const EDGE = { color: 0x9ca3af, alpha: 0.3 };
 const EDGE_DASHES = 96;
 /** The pending shape's own line, under its points, so a fill shows where it ends. */
 const OUTLINE = { color: ACCENT_COLOR, alpha: 0.3 };
-/** Points along the outline: enough for a smooth circle, and a polygon's corners are among them. */
-const OUTLINE_POINTS = 96;
+/** Points along the outline: enough for a smooth circle and a spiral's arms, and a polygon's corners are among them. */
+const OUTLINE_POINTS = 360;
 /** Each look's half-size in screen pixels: the centre square's half side, a round handle's radius. */
 const HANDLE_PX: Record<HandleLook, number> = { centre: 5, size: 5.5, turn: 4 };
 const HANDLE_STROKE_PX = 1.4;
 /** Screen pixels from the lowest handle or point's centre down to the readout's top, clear of the largest handle. */
 const READOUT_GAP_PX = 14;
+
+/** Adds each run of `outline` with two or more points to `g`'s path; false when there is none. */
+function polyRuns(g: Graphics, { points, runs }: Outline): boolean {
+  const drawn = runs.filter((run) => run.count >= 2);
+  for (const run of drawn) {
+    g.poly(
+      runPoints(points, run).flatMap((p) => [p.x, p.y]),
+      run.closed,
+    );
+  }
+  return drawn.length > 0;
+}
 
 /** One shared instance: PixiJS keys a dynamic bitmap font by the style object. */
 const READOUT_STYLE = new TextStyle({
@@ -145,12 +159,7 @@ export class ShapeOverlay {
     g.clear();
     const erasing = this.drawing?.erasing;
     if (erasing) {
-      const { points } = specOf(erasing.shape).edge(erasing.shape, OUTLINE_POINTS);
-      if (points.length < 2) return;
-      g.poly(
-        points.flatMap((p) => [p.x, p.y]),
-        true,
-      );
+      if (!polyRuns(g, specOf(erasing.shape).edge(erasing.shape, OUTLINE_POINTS))) return;
       g.stroke({ color: WARN.color, alpha: WARN.alpha, pixelLine: true });
       return;
     }
@@ -158,15 +167,11 @@ export class ShapeOverlay {
     if (!pending) return;
     const { shape, fill } = pending;
     const spec = specOf(shape);
-    const { points, closed } =
+    const outline =
       fill.kind === "outline"
         ? spec.outline(shape, OUTLINE_POINTS)
         : spec.edge(shape, OUTLINE_POINTS);
-    if (points.length < 2) return;
-    g.poly(
-      points.flatMap((p) => [p.x, p.y]),
-      closed,
-    );
+    if (!polyRuns(g, outline)) return;
     g.stroke({ ...OUTLINE, pixelLine: true });
   }
 

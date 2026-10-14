@@ -13,14 +13,25 @@ import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies, type SymmetricCopies } from "../placement/symmetricCopies";
 import { lattice, scatterDensity, scatterPattern } from "./fills";
+import {
+  appliedExtras,
+  crossesGapAt,
+  outlineRow,
+  ownPlaces,
+  wobbledFill,
+  type Hub,
+  type RunPlace,
+} from "./extras";
 import { angleOf, lerp, type ShapeFrame } from "./frame";
-import { polylineLength } from "./outline";
+import { outlineLength } from "./outline";
 import type { PlacementRules } from "../placement/rules";
 import { centreOf, specOf } from "./specs";
 import { rollStars } from "./stars";
 import type {
   Fill,
   LeftOut,
+  Outline,
+  OutlineRun,
   PendingShape,
   Shape,
   ShapeGround,
@@ -54,8 +65,7 @@ export function hasEdgeRow(fill: Fill): boolean {
 
 /** The length of what a fill fills' edge, as its row is spaced along it. */
 function edgeLength(shape: Shape): number {
-  const { points, closed } = specOf(shape).edge(shape, PERIMETER_POINTS);
-  return polylineLength(points, closed);
+  return outlineLength(specOf(shape).edge(shape, PERIMETER_POINTS));
 }
 
 /** How many points `fill` lays per square of its spacing. */
@@ -160,15 +170,24 @@ function frameOf(shape: Shape): ShapeFrame {
 
 /** Where a pending shape puts its points, before the galaxy has a say. */
 interface Layout {
-  /** The points along the outline, in the order follow lanes join them. */
+  /** The points along the outline, every run's, in the order follow lanes join them. */
   row: Pt[];
-  closed: boolean;
+  /** The row's runs, which follow lanes join each in order. */
+  runs: readonly OutlineRun[];
+  /** Where each run lies along the shape, which the gaps cut across a band's strands. */
+  places: readonly RunPlace[];
+  /** How many openings each run's follow lanes have. */
+  gaps: number;
+  /** The system at the centre among the row's points, and those spokes join it to; null without one. */
+  hub: Hub | null;
   /** Whether the row gives way where symmetry's images crowd it, as a fill's does; an outline keeps the player's count. */
   rowGivesWay: boolean;
   /** The fill's points inside the shape, nearest the centre first and made as they are read, before they are kept clear of the row. */
   fill: Iterable<Pt>;
   /** How far apart the points are: the fill's spacing, or the outline's step up to `MOST_SPACING`. */
   spacing: number;
+  /** How close the fill's points may come to each other: the spacing, less what Wobble may nudge two of them by. */
+  least: number;
   /** A point with an existing system this near is left out, when the player asks. */
   skip: number;
 }
@@ -182,18 +201,19 @@ function mapsOntoItself(points: readonly Pt[], sym: Symmetry): boolean {
  * A fill's edge row, its points no closer than `spacing`. Under symmetry, a closed row that
  * its images would interleave takes the next count down that they land on, where there is one.
  */
-function fillRow(shape: Shape, spacing: number, sym: Symmetry): { row: Pt[]; closed: boolean } {
+function fillRow(shape: Shape, spacing: number, sym: Symmetry): Outline {
   const spec = specOf(shape);
-  const closed = spec.edge(shape, PERIMETER_POINTS).closed;
-  const least = closed ? 3 : 2;
-  const n = Math.max(least, Math.floor(edgeLength(shape) / spacing) + (closed ? 0 : 1));
-  const row = spec.edge(shape, n).points;
+  const whole = spec.edge(shape, PERIMETER_POINTS);
+  const closed = whole.runs.every((run) => run.closed);
+  const least = (closed ? 3 : 2) * whole.runs.length;
+  const n = Math.max(least, Math.floor(outlineLength(whole) / spacing) + (closed ? 0 : 1));
   const c = copies(sym);
-  if (c === 1 || !closed || mapsOntoItself(row, sym)) return { row, closed };
+  const row = spec.edge(shape, n, c);
+  if (c === 1 || !closed || mapsOntoItself(row.points, sym)) return row;
   const even = c * Math.floor(n / c);
-  if (even === n || even < least) return { row, closed };
-  const evenRow = spec.edge(shape, even).points;
-  return { row: mapsOntoItself(evenRow, sym) ? evenRow : row, closed };
+  if (even === n || even < least) return row;
+  const evenRow = spec.edge(shape, even, c);
+  return mapsOntoItself(evenRow.points, sym) ? evenRow : row;
 }
 
 function* inside(points: Iterable<Pt>, contains: (p: Pt) => boolean): Generator<Pt> {
@@ -214,17 +234,20 @@ function layout(
 ): Layout {
   const { shape, fill, seed } = pending;
   const spec = specOf(shape);
+  const extras = appliedExtras(pending);
   if (fill.kind === "outline") {
-    const { points, closed } = spec.outline(shape, fill.count);
-    const gaps = closed ? points.length : points.length - 1;
-    const step = gaps > 0 ? polylineLength(points, closed) / gaps : 0;
+    const { outline, places, hub, step } = outlineRow(shape, fill.count, extras, seed);
     const spacing = Math.min(step, MOST_SPACING);
     return {
-      row: points,
-      closed,
+      row: outline.points,
+      runs: outline.runs,
+      places,
+      gaps: extras.gaps,
+      hub,
       rowGivesWay: false,
       fill: [],
       spacing,
+      least: spacing,
       skip: Math.min(spacing / 2, ON_TOP),
     };
   }
@@ -234,9 +257,19 @@ function layout(
     rules.minGap + WRITTEN_DRIFT,
   );
   const filled = spec.fills(shape).includes(fill.kind);
-  const { row, closed } =
-    hasEdgeRow(fill) || !filled ? fillRow(shape, spacing, sym) : { row: [], closed: true };
-  const laid = { row, closed, rowGivesWay: true, spacing, skip: spacing };
+  const edge: Outline =
+    hasEdgeRow(fill) || !filled ? fillRow(shape, spacing, sym) : { points: [], runs: [] };
+  const laid = {
+    row: edge.points,
+    runs: edge.runs,
+    places: ownPlaces(edge),
+    gaps: 0,
+    hub: null,
+    rowGivesWay: true,
+    spacing,
+    least: spacing,
+    skip: spacing,
+  };
   if (!filled) return { ...laid, fill: [] };
   const frame = frameOf(shape);
   const bounds = spec.bounds(shape);
@@ -244,7 +277,13 @@ function layout(
     fill.kind === "grid"
       ? lattice(fill.lattice, spacing, frame, bounds)
       : scatterPattern(seed, spacing, frame, bounds);
-  return { ...laid, fill: inside(pattern, (p) => spec.contains(shape, p)) };
+  const reach = (spacing * extras.wobble) / 200;
+  const nudged = reach > 0 ? wobbledFill(pattern, reach, seed, frame, spacing) : pattern;
+  return {
+    ...laid,
+    least: spacing - 2 * reach,
+    fill: inside(nudged, (p) => spec.contains(shape, p)),
+  };
 }
 
 /**
@@ -266,6 +305,7 @@ class SpacedImages {
   constructor(
     private readonly sym: Symmetry,
     spacing: number,
+    least: number,
     gap: number,
     private readonly places: (q: Pt) => boolean,
   ) {
@@ -274,7 +314,7 @@ class SpacedImages {
     this.others = new PointGrid(cell);
     this.placed = new PointGrid(Math.max(gap, COUNTERPART_REACH));
     // Lattice images land a spacing apart give or take rounding to the file's decimals.
-    this.least = spacing - WRITTEN_DRIFT;
+    this.least = Math.max(0, least - WRITTEN_DRIFT);
     this.gap = gap;
   }
 
@@ -355,7 +395,8 @@ interface Base {
   /** Each base point's place in the layout: its index in the row, or the row's length plus its place among the fill's points. */
   ordinals: number[];
   rowCount: number;
-  rowCut: boolean;
+  /** The row point the cap stopped at; the row's length when it took the whole row. */
+  rowEnd: number;
   /** New systems a row point would have placed, dropped for standing within the gap of another. */
   crowded: number;
   capped: boolean;
@@ -370,12 +411,12 @@ interface Base {
  * the file keeps it.
  */
 function basePoints(
-  { row, rowGivesWay, fill, spacing }: Layout,
+  { row, rowGivesWay, fill, spacing, least }: Layout,
   sym: Symmetry,
   rules: PlacementRules,
   where: Where,
 ): Base {
-  const spaced = new SpacedImages(sym, spacing, rules.minGap, where.places);
+  const spaced = new SpacedImages(sym, spacing, least, rules.minGap, where.places);
   const base: Pt[] = [];
   const ordinals: number[] = [];
   const keep = (p: Pt, ordinal: number) => {
@@ -394,7 +435,7 @@ function basePoints(
     }
     if (rowGivesWay && !fits) continue;
     if (total + adds > rules.cap) {
-      return { base, ordinals, rowCount: base.length, rowCut: true, crowded, capped: true };
+      return { base, ordinals, rowCount: base.length, rowEnd: i, crowded, capped: true };
     }
     keep(p, i);
     total += adds;
@@ -408,12 +449,12 @@ function basePoints(
     const { fits, tooClose, adds } = spaced.check(p, false);
     if (!fits || tooClose) continue;
     if (total + adds > rules.cap) {
-      return { base, ordinals, rowCount, rowCut: false, crowded, capped: true };
+      return { base, ordinals, rowCount, rowEnd: row.length, crowded, capped: true };
     }
     keep(p, ordinal);
     total += adds;
   }
-  return { base, ordinals, rowCount, rowCut: false, crowded, capped: false };
+  return { base, ordinals, rowCount, rowEnd: row.length, crowded, capped: false };
 }
 
 /** What becomes of one point: placed under its new index, left out for a system, or past the edge. */
@@ -454,33 +495,31 @@ function apart(systems: ReadonlyMap<number, SystemNode>, a: number, b: number): 
   return !s || s.lanes.some((l) => l.to === b) || s.prevented.includes(b);
 }
 
-interface FollowInput {
-  rowCount: number;
-  closed: boolean;
-  /** The id standing for row point `i`: a new point, the system it was left out for, or null. */
-  standIn(i: number): number | null;
+/** What laying lanes between new points reads: where each end stands, the galaxy, and the new points' images. */
+interface LaneGround {
   at(id: number): Pt;
   ground: PlacementGround;
   imageOfNew: ImageOfNew;
 }
 
+/** The row's points as the base points took them. */
+interface RowStandIns {
+  /** Whether row point `i` is among the base points; one dropped from them, as for crowding, is passed over. */
+  laid(i: number): boolean;
+  /** The id standing for row point `i`: a new point, the system it was left out for, or null. */
+  standIn(i: number): number | null;
+}
+
 /**
- * Lanes joining each row point to the next, round to the first when the row is closed, each
- * with its images under symmetry. A point left out for a system has that system stand in for
- * it. As with the paint brush, a lane goes in with all its images or not at all: dropped when
- * one would cross an existing lane or one taken before it, or join two systems already linked
- * or kept apart.
+ * `wanted`, each with its images under symmetry. As with the paint brush, a lane goes in with
+ * all its images or not at all: dropped when one would cross an existing lane or one taken
+ * before it, join two systems already linked or kept apart, or is one `keep` refuses.
  */
-function followLanes({ rowCount, closed, standIn, at, ground, imageOfNew }: FollowInput): Pair[] {
-  const steps: Array<[number, number]> = [];
-  for (let i = 0; i + 1 < rowCount; i++) steps.push([i, i + 1]);
-  if (closed && rowCount >= 3) steps.push([rowCount - 1, 0]);
-  const wanted: Pair[] = [];
-  for (const [i, j] of steps) {
-    const a = standIn(i);
-    const b = standIn(j);
-    if (a !== null && b !== null && a !== b) wanted.push([a, b]);
-  }
+function chainedLanes(
+  wanted: readonly Pair[],
+  { at, ground, imageOfNew }: LaneGround,
+  keep: (a: number, b: number) => boolean = () => true,
+): Pair[] {
   const samples: Pt[] = [];
   for (const [a, b] of wanted) {
     const p = at(a);
@@ -491,8 +530,54 @@ function followLanes({ rowCount, closed, standIn, at, ground, imageOfNew }: Foll
   }
   const existing = ground.lanesNear(samples, SEGMENT_CELL / 2 + 1);
   const linkable = (a: number, b: number) =>
-    a < 0 || b < 0 || !(apart(ground.systems, a, b) || apart(ground.systems, b, a));
+    keep(a, b) && (a < 0 || b < 0 || !(apart(ground.systems, a, b) || apart(ground.systems, b, a)));
   return ground.symmetricLanes(wanted, imageOfNew, at, existing, linkable);
+}
+
+/**
+ * Lanes joining each run's row points in order, round to its first when the run is closed and
+ * the cap took all of it, passing over a point dropped from the base points. A run's `gaps`
+ * openings take out the lanes across them, and every image of those, so symmetry's copies open
+ * where the shape does. A point left out for a system has that system stand in for it.
+ */
+function followLanes(
+  { runs, places, gaps }: Layout,
+  rowEnd: number,
+  row: RowStandIns,
+  lanes: LaneGround,
+): Pair[] {
+  const wanted: Pair[] = [];
+  const opened = new PairSet();
+  for (const [r, run] of runs.entries()) {
+    const place = places[r];
+    const at = (i: number) => i - run.start + place.shift;
+    const laidAlong = { count: place.count, closed: run.closed };
+    const kept: number[] = [];
+    for (let i = run.start; i < run.start + run.count; i++) if (row.laid(i)) kept.push(i);
+    const steps = kept.slice(1).map((j, k): [number, number] => [kept[k], j]);
+    const whole = rowEnd >= run.start + run.count;
+    if (run.closed && whole && kept.length >= 3) steps.push([kept[kept.length - 1], kept[0]]);
+    for (const [i, j] of steps) {
+      const a = row.standIn(i);
+      const b = row.standIn(j);
+      if (a === null || b === null || a === b) continue;
+      if (crossesGapAt(laidAlong, gaps, at(i), at(j), "onward")) opened.add(a, b);
+      else wanted.push([a, b]);
+    }
+  }
+  return chainedLanes(wanted, lanes, (a, b) => !opened.has(a, b));
+}
+
+/** Lanes from the system at the centre to each row point its spokes name, laid as follow lanes are. */
+function spokeLanes(hub: Hub, row: RowStandIns, lanes: LaneGround): Pair[] {
+  const centre = row.laid(hub.index) ? row.standIn(hub.index) : null;
+  if (centre === null) return [];
+  const wanted: Pair[] = [];
+  for (const i of hub.spokes) {
+    const end = row.laid(i) ? row.standIn(i) : null;
+    if (end !== null && end !== centre) wanted.push([centre, end]);
+  }
+  return chainedLanes(wanted, lanes);
 }
 
 /** How many of `points` sit closer than `LEAST_SPACING` to another of them or to an existing system. */
@@ -512,14 +597,22 @@ function overlapCount(points: readonly Pt[], ground: PlacementGround): number {
  * The symmetry's copies when an outline's images fall between its points, and a count they
  * divide would have merged them into it.
  */
-function interleaving(pending: PendingShape, sym: Symmetry, placed: number): number | null {
+function interleaving(
+  pending: PendingShape,
+  sym: Symmetry,
+  placed: number,
+  rowLength: number,
+): number | null {
   const n = copies(sym);
   const { shape, fill } = pending;
-  if (n === 1 || fill.kind !== "outline" || placed <= fill.count) return null;
+  if (n === 1 || fill.kind !== "outline" || placed <= rowLength) return null;
+  const { band, rings, wobble } = appliedExtras(pending);
+  if (band > 1 || rings > 1 || wobble > 0) return null;
   const even = n * Math.ceil(fill.count / n);
   if (even === fill.count) return null;
-  const outline = specOf(shape).outline(shape, even);
-  return outline.closed && mapsOntoItself(outline.points, sym) ? n : null;
+  const { points, runs } = specOf(shape).outline(shape, even);
+  const ring = runs.length === 1 && runs[0].closed;
+  return ring && mapsOntoItself(points, sym) ? n : null;
 }
 
 /**
@@ -572,7 +665,7 @@ export function shapePlacement(
     return near && Math.hypot(near.x - p.x, near.y - p.y) < reach ? near : null;
   };
   const inside = (p: Pt) => insideExtent(extent, p);
-  const { base, ordinals, rowCount, rowCut, crowded, capped } = basePoints(shown, sym, rules, {
+  const { base, ordinals, rowCount, rowEnd, crowded, capped } = basePoints(shown, sym, rules, {
     inside,
     places: (p) => inside(p) && !blockerOf(p),
   });
@@ -610,34 +703,62 @@ export function shapePlacement(
   const at = (id: number): Pt =>
     id < 0 ? points[provisionalIndex(id)] : placement.systems.get(id)!;
 
-  const pairs = new PairSet();
-  const follow = pending.lanes.follow
-    ? followLanes({
-        rowCount,
-        closed: shown.closed && !rowCut,
-        standIn(i) {
-          const fate = fates[i];
-          if (fate.kind === "kept") return provisionalId(fate.index);
-          return fate.kind === "left" ? fate.blocker : null;
-        },
-        at,
-        ground: placement,
-        imageOfNew,
-      })
-    : [];
-  for (const [a, b] of follow) pairs.add(a, b);
+  /** The base point each row point became, for those the base points took. */
+  const baseOfRow = new Map<number, number>();
+  for (let k = 0; k < rowCount; k++) baseOfRow.set(ordinals[k], k);
+  const row: RowStandIns = {
+    laid: (i) => baseOfRow.has(i),
+    standIn(i) {
+      const k = baseOfRow.get(i);
+      const fate = k === undefined ? null : fates[k];
+      if (fate?.kind === "kept") return provisionalId(fate.index);
+      return fate?.kind === "left" ? fate.blocker : null;
+    },
+  };
   const meshPoint = (id: number): MeshPoint => ({ id, x: at(id).x, y: at(id).y });
-  const fixed = follow.map(([a, b]) => ({ a: meshPoint(a), b: meshPoint(b) }));
-  const onRow = (id: number) => id < 0 && all.made[from[provisionalIndex(id)]][0] < rowCount;
+  const segments = (lanes: readonly Pair[]) =>
+    lanes.map(([a, b]) => ({ a: meshPoint(a), b: meshPoint(b) }));
+  const around = (fixed: ReadonlyArray<Segment<MeshPoint>>) =>
+    fixed.length > 0 ? new FollowGround(placement, fixed) : placement;
+  const lanes: LaneGround = { at, ground: placement, imageOfNew };
+  const follow = pending.lanes.follow ? followLanes(shown, rowEnd, row, lanes) : [];
+  const spokes = shown.hub
+    ? spokeLanes(shown.hub, row, { ...lanes, ground: around(segments(follow)) })
+    : [];
+  const pairs = new PairSet();
+  for (const [a, b] of [...follow, ...spokes]) pairs.add(a, b);
+  const runOfRow: number[] = [];
+  shown.runs.forEach((run, r) => {
+    for (let i = run.start; i < run.start + run.count; i++) runOfRow[i] = r;
+  });
+  /** The row point a new point's base point is; null for one off the row. */
+  const rowOf = (id: number): number | null => {
+    if (id >= 0) return null;
+    const k = all.made[from[provisionalIndex(id)]][0];
+    return k < rowCount ? ordinals[k] : null;
+  };
+  // Follow lanes are the only lanes along a run, and no lane between a band's strands passes a gap.
+  const alongRun = (a: number, b: number) => {
+    const i = rowOf(a);
+    const j = rowOf(b);
+    if (i === null || j === null) return false;
+    const [r, s] = [runOfRow[i], runOfRow[j]];
+    if (r === s) return true;
+    const [p, q] = [shown.places[r], shown.places[s]];
+    if (p.along !== q.along || shown.gaps === 0) return false;
+    const laidAlong = { count: p.count, closed: shown.runs[r].closed };
+    const at = (k: number, run: number) => k - shown.runs[run].start + shown.places[run].shift;
+    return crossesGapAt(laidAlong, shown.gaps, at(i, r), at(j, s), "shorter");
+  };
   const mesh = placedLanes({
     points,
     base: baseKept,
     mode: pending.lanes.mode,
     density: laneDensity,
     spacing: shown.spacing,
-    ground: fixed.length > 0 ? new FollowGround(placement, fixed) : placement,
+    ground: around(segments([...follow, ...spokes])),
     imageOfNew,
-    keep: pending.lanes.follow ? (a, b) => !(onRow(a) && onRow(b)) : undefined,
+    keep: pending.lanes.follow ? (a, b) => !alongRun(a, b) : undefined,
   });
   for (const [a, b] of mesh) pairs.add(a, b);
 
@@ -649,7 +770,7 @@ export function shapePlacement(
     overlaps: overlapCount(points, placement),
     crowded,
     capped,
-    interleaved: interleaving(pending, sym, all.points.length),
+    interleaved: interleaving(pending, sym, all.points.length, shown.row.length),
     classes:
       ground.starWeights && classesOf(pending.seed, ground.starWeights, all, ordinals, from, sym),
     arranged: null,

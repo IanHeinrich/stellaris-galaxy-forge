@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Pt } from "../geometry/pt";
 import { ANGLE_STEP, galaxyFrame, snapAngle } from "./drag";
 import { dir, distance } from "./frame";
-import { centreOf, heldShape, SHAPE_SPECS, specOf } from "./specs";
+import { centreOf, heldShape, laidShape, SHAPE_SPECS, specOf } from "./specs";
 import type { Shape, ShapeDragMods, StarShape } from "./types";
 
 const FREE: ShapeDragMods = { snap: true, constrain: false };
@@ -10,7 +10,17 @@ const SHIFT: ShapeDragMods = { snap: true, constrain: true };
 
 const ALL: Shape[] = [
   ...Object.values(SHAPE_SPECS).map((spec) => spec.initial),
-  { kind: "circle", centre: { x: 40, y: -30 }, radius: 120, rotation: 30, sweep: 200, squash: 60 },
+  {
+    kind: "circle",
+    centre: { x: 40, y: -30 },
+    radius: 120,
+    rotation: 30,
+    sweep: 200,
+    squash: 60,
+    hollow: 0,
+  },
+  { ...SHAPE_SPECS.polygon.initial, centre: { x: 10, y: 5 }, hollow: 40 },
+  { ...SHAPE_SPECS.spiral.initial, centre: { x: -20, y: 30 }, arms: 3, turns: 1.5, rotation: 70 },
   { kind: "rect", centre: { x: -50, y: 20 }, width: 180, height: 90, rotation: 25 },
 ];
 
@@ -29,13 +39,13 @@ function gaps(points: readonly Pt[], closed: boolean): number[] {
 describe("each kind's outline", () => {
   it("spaces a circle's n points with n equal chords, and puts an arc's at both its ends", () => {
     const ring = specOf(SHAPE_SPECS.circle.initial).outline(SHAPE_SPECS.circle.initial, 24);
-    expect(ring.closed).toBe(true);
+    expect(ring.runs).toEqual([{ start: 0, count: 24, closed: true }]);
     expect(ring.points).toHaveLength(24);
     for (const d of gaps(ring.points, true)) expect(d).toBeCloseTo(gaps(ring.points, true)[0]);
 
     const arc = { ...SHAPE_SPECS.circle.initial, rotation: 90, sweep: 180 };
-    const { points, closed } = SHAPE_SPECS.circle.outline(arc, 7);
-    expect(closed).toBe(false);
+    const { points, runs } = SHAPE_SPECS.circle.outline(arc, 7);
+    expect(runs).toEqual([{ start: 0, count: 7, closed: false }]);
     expect(points[0].x).toBeCloseTo(0);
     expect(points[0].y).toBeCloseTo(200);
     expect(points[6].y).toBeCloseTo(-200);
@@ -49,8 +59,8 @@ describe("each kind's outline", () => {
 
   it("puts a line's points from one end to the other", () => {
     const line = SHAPE_SPECS.line.initial;
-    const { points, closed } = SHAPE_SPECS.line.outline(line, 5);
-    expect(closed).toBe(false);
+    const { points, runs } = SHAPE_SPECS.line.outline(line, 5);
+    expect(runs).toEqual([{ start: 0, count: 5, closed: false }]);
     expect(points).toEqual([-200, -100, 0, 100, 200].map((x) => ({ x, y: 0 })));
   });
 
@@ -173,12 +183,13 @@ describe("drawing and handles", () => {
     }
   });
 
-  it("holds its centre inside it and its edge inside its box, and takes every fill, except a line", () => {
+  it("holds its centre inside it and its edge inside its box, and takes every fill, except a line or a spiral", () => {
     for (const shape of ALL) {
       const spec = specOf(shape);
       const box = spec.bounds(shape);
-      const line = shape.kind === "line";
-      expect(spec.contains(shape, centreOf(shape))).toBe(!line);
+      const line = shape.kind === "line" || shape.kind === "spiral";
+      const hollow = "hollow" in shape && shape.hollow > 0;
+      expect(spec.contains(shape, centreOf(shape))).toBe(!line && !hollow);
       for (const p of [...spec.outline(shape, 40).points, ...spec.edge(shape, 40).points]) {
         expect(p.x).toBeGreaterThanOrEqual(box.x0 - 1e-9);
         expect(p.x).toBeLessThanOrEqual(box.x1 + 1e-9);
@@ -276,5 +287,58 @@ describe("galaxyFrame", () => {
       radius: 500,
     });
     expect(galaxyFrame({ shape: "circle", radius: 700 }).radius).toBe(700);
+  });
+});
+
+describe("a spiral", () => {
+  const spiral = { ...SHAPE_SPECS.spiral.initial, arms: 3, inner: 20, rotation: 30 };
+  const toCentre = (p: Pt) => distance(p, spiral.centre);
+
+  it("shares its points among its arms, each an open run from the inner radius to the rim", () => {
+    const { points, runs } = SHAPE_SPECS.spiral.outline(spiral, 31);
+    expect(runs).toEqual([
+      { start: 0, count: 11, closed: false },
+      { start: 11, count: 10, closed: false },
+      { start: 21, count: 10, closed: false },
+    ]);
+    expect(points).toHaveLength(31);
+    runs.forEach((run, arm) => {
+      const first = points[run.start];
+      const last = points[run.start + run.count - 1];
+      expect(toCentre(first)).toBeCloseTo(50);
+      expect(toCentre(last)).toBeCloseTo(250);
+      const end = dir(30 + arm * 120);
+      expect(last.x).toBeCloseTo(250 * end.x);
+      expect(last.y).toBeCloseTo(250 * end.y);
+    });
+    const arm = points.slice(11, 21);
+    for (let i = 1; i < arm.length; i++) {
+      expect(toCentre(arm[i])).toBeGreaterThan(toCentre(arm[i - 1]));
+    }
+  });
+
+  it("is drawn from its centre to the end of its first arm, and the rim handle keeps its count", () => {
+    const drawn = SHAPE_SPECS.spiral.fromDrag({ x: 10, y: 10 }, { x: 10, y: 110 }, FREE, spiral);
+    expect(drawn.radius).toBe(100);
+    expect(drawn.rotation).toBe(90);
+    const end = SHAPE_SPECS.spiral.outline(drawn, 12).points[3];
+    expect(end.x).toBeCloseTo(10);
+    expect(end.y).toBeCloseTo(110);
+    const wider = SHAPE_SPECS.spiral.dragHandle(spiral, "rim", { x: 0, y: 400 }, FREE);
+    expect(wider.radius).toBe(400);
+    expect(SHAPE_SPECS.spiral.outline(wider, 31).points).toHaveLength(31);
+    const inner = SHAPE_SPECS.spiral.dragHandle(spiral, "inner", { x: 125, y: 0 }, FREE);
+    expect(inner.inner).toBe(50);
+  });
+});
+
+describe("the shape a fill lays", () => {
+  it("keeps a hollow centre for a fill and leaves an outline's inside whole", () => {
+    const donut = { ...SHAPE_SPECS.circle.initial, hollow: 50 };
+    const scattered = { kind: "scattered", spacing: 20, edge: true } as const;
+    expect(laidShape(donut, scattered)).toBe(donut);
+    const ring = laidShape(donut, { kind: "outline", count: 24 });
+    expect(ring).toEqual({ ...donut, hollow: 0 });
+    expect(SHAPE_SPECS.circle.contains(ring, donut.centre)).toBe(true);
   });
 });

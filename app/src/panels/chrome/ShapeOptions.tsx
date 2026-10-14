@@ -19,13 +19,25 @@ import {
   fillKindOf,
   placeLabel,
 } from "../../lib/shapes/shapeCopy";
-import { centreOf, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
+import {
+  appliedExtras,
+  EXTRA_KEYS,
+  EXTRA_ROWS,
+  extraApplies,
+  takesCentre,
+} from "../../lib/shapes/extras";
+import { centreOf, fieldShows, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
 import type { StarChoice } from "../../lib/shapes/stars";
 import type {
   ArrangeLanes,
+  ExtraKey,
+  Fill,
   GalaxyFrame,
+  PendingShape,
   Shape,
+  ShapeExtras,
   ShapeField,
+  ShapePurpose,
   ShapeSettings,
 } from "../../lib/shapes/types";
 import type { Choice } from "../../lib/toolCopy";
@@ -263,7 +275,80 @@ function CountOrSpacing({ settings, rules }: { settings: ShapeSettings; rules: P
   );
 }
 
-function LaneOptions({ settings }: { settings: ShapeSettings }) {
+/** One of the outline's extras as a slider with a field. */
+function ExtraRow({ extra, extras }: { extra: ExtraKey; extras: ShapeExtras }) {
+  const setShapeExtras = useToolStore((s) => s.setShapeExtras);
+  const row = EXTRA_ROWS[extra];
+  return (
+    <SliderOption
+      label={row.label}
+      range={row.range}
+      step={row.step}
+      value={extras[extra]}
+      onChange={(v) => setShapeExtras({ [extra]: clampTo(v, row.range) })}
+      field={`${row.label} as a number`}
+      unit={row.unit}
+    />
+  );
+}
+
+/** The extras that apply to `settings` laid for `purpose`: those that change only follow lanes, or the rest. */
+function ExtraRows({
+  settings,
+  purpose,
+  followOnly,
+}: {
+  settings: ShapeSettings;
+  purpose: ShapePurpose["kind"];
+  followOnly: boolean;
+}) {
+  const shown = EXTRA_KEYS.filter(
+    (k) => EXTRA_ROWS[k].followOnly === followOnly && extraApplies(k, settings, purpose),
+  );
+  return (
+    <>
+      {shown.map((k) => (
+        <ExtraRow key={k} extra={k} extras={settings.extras} />
+      ))}
+    </>
+  );
+}
+
+/** A system at the centre, and once it is on, spokes from it to the outline. */
+function CentreOptions({ extras }: { extras: ShapeExtras }) {
+  const setShapeExtras = useToolStore((s) => s.setShapeExtras);
+  const { centre } = extras;
+  return (
+    <>
+      <label className="tool-option">
+        <input
+          type="checkbox"
+          checked={centre !== "none"}
+          onChange={(e) => setShapeExtras({ centre: e.target.checked ? "system" : "none" })}
+        />
+        A system at the centre
+      </label>
+      {centre !== "none" && (
+        <label className="tool-option">
+          <input
+            type="checkbox"
+            checked={centre === "spokes"}
+            onChange={(e) => setShapeExtras({ centre: e.target.checked ? "spokes" : "system" })}
+          />
+          Spokes to the centre
+        </label>
+      )}
+    </>
+  );
+}
+
+function LaneOptions({
+  settings,
+  purpose,
+}: {
+  settings: ShapeSettings;
+  purpose: ShapePurpose["kind"];
+}) {
   const setShapeLanes = useToolStore((s) => s.setShapeLanes);
   const { lanes, fill } = settings;
   return (
@@ -278,6 +363,8 @@ function LaneOptions({ settings }: { settings: ShapeSettings }) {
           Follow the shape
         </label>
       )}
+      <ExtraRows settings={settings} purpose={purpose} followOnly />
+      {takesCentre(settings, purpose) && <CentreOptions extras={settings.extras} />}
       <LaneModeSelect value={lanes.mode} onChange={(mode) => setShapeLanes({ mode })} />
       {lanes.mode !== "off" && <LaneDensityOption />}
     </>
@@ -305,7 +392,7 @@ function ArrangeLaneOptions({
         onPick={setArrangeLanes}
         choices={ARRANGE_LANE_CHOICES.map((c) => ({ value: c, ...arrangeLaneRow(c) }))}
       />
-      {lanes === "rebuild" && <LaneOptions settings={settings} />}
+      {lanes === "rebuild" && <LaneOptions settings={settings} purpose="arrange" />}
       {lanes !== "keep" && (
         <label className="tool-option">
           <input
@@ -321,11 +408,13 @@ function ArrangeLaneOptions({
 }
 
 /** The centre and the kind's exact fields, folded away until the player wants to type them. */
-function ExactValues({ shape }: { shape: Shape }) {
+function ExactValues({ shape, fill }: { shape: Shape; fill: Fill }) {
   const moveShape = useToolStore((s) => s.moveShape);
   const settleShape = useToolStore((s) => s.settleShape);
   const centre = centreOf(shape);
-  const fields = specOf(shape).fields.filter((f) => f.exact);
+  const fields = (specOf(shape).fields as readonly ShapeField<Shape>[]).filter(
+    (f) => f.exact && fieldShows(f, fill),
+  );
   const centreAt = (axis: "x" | "y") => (v: number) => {
     moveShape(shape, { x: axis === "x" ? v - centre.x : 0, y: axis === "y" ? v - centre.y : 0 });
     settleShape();
@@ -348,7 +437,7 @@ function ExactValues({ shape }: { shape: Shape }) {
           aria-label="Centre y in game units"
         />
       </label>
-      {(fields as readonly ShapeField<Shape>[]).map((f) => (
+      {fields.map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
     </details>
@@ -473,9 +562,17 @@ function PlaceButton({ path }: { path: PlacementPath }) {
   );
 }
 
-/** The kind's number fields the panel's body shows; the rest fold under Exact values. */
-function bodyFields(shape: Shape): readonly ShapeField<Shape>[] {
-  return (specOf(shape).fields as readonly ShapeField<Shape>[]).filter((f) => !f.exact);
+/** Whether Shuffle changes `pending`: a scattered fill, or a band or wobble, draws from its seed. */
+function drawsAtRandom(pending: PendingShape): boolean {
+  const { band, wobble } = appliedExtras(pending);
+  return pending.fill.kind === "scattered" || band > 1 || wobble > 0;
+}
+
+/** The kind's number fields the panel's body shows with `fill`; the rest fold under Exact values. */
+function bodyFields(shape: Shape, fill: Fill): readonly ShapeField<Shape>[] {
+  return (specOf(shape).fields as readonly ShapeField<Shape>[]).filter(
+    (f) => !f.exact && fieldShows(f, fill),
+  );
 }
 
 /**
@@ -494,12 +591,13 @@ export function ShapeOptions() {
   const settings = pending ?? rememberedFor(memory);
   const { shape, fill } = settings;
   const arranging = pending?.purpose.kind === "arrange" ? pending.purpose : null;
+  const purpose = arranging ? "arrange" : "add";
   return (
     <div className="shape-options">
       <KindPicker shape={shape} />
       <FillPicker settings={settings} />
       {pending && <SizeOptions shape={shape} rules={rules} />}
-      {bodyFields(shape).map((f) => (
+      {bodyFields(shape, fill).map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
       {arranging ? (
@@ -510,6 +608,7 @@ export function ShapeOptions() {
       ) : (
         <CountOrSpacing settings={settings} rules={rules} />
       )}
+      <ExtraRows settings={settings} purpose={purpose} followOnly={false} />
       {path === "rolled" && !arranging && <StarsRow stars={pending?.stars ?? memory.stars} />}
       {arranging ? (
         <ArrangeLaneOptions
@@ -519,7 +618,7 @@ export function ShapeOptions() {
         />
       ) : (
         <>
-          <LaneOptions settings={settings} />
+          <LaneOptions settings={settings} purpose={purpose} />
           <label className="tool-option">
             <input
               type="checkbox"
@@ -530,12 +629,12 @@ export function ShapeOptions() {
           </label>
         </>
       )}
-      {pending && fill.kind === "scattered" && (
+      {pending && drawsAtRandom(pending) && (
         <button type="button" onClick={() => shuffle()}>
           Shuffle
         </button>
       )}
-      {pending && <ExactValues shape={shape} />}
+      {pending && <ExactValues shape={shape} fill={fill} />}
       <div className="shape-foot">
         {pending ? (
           <>
