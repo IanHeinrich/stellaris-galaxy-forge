@@ -15,6 +15,10 @@ usage() {
 usage: scripts/changelog.sh <command>
 
   notes <x.y.z>                 print the body of that version's section
+  update-notes <x.y.z> [count]  print the sections of that version and the
+                                releases before it, newest first, up to count
+                                versions (default 5), each under a line
+                                "### Version <x.y.z>", for the updater
   collect                       fold every changelog.d/*.md fragment into
                                 Unreleased, grouped by kind, and delete them
   release <x.y.z> [YYYY-MM-DD]  collect any fragments left, then retitle
@@ -58,6 +62,30 @@ cmd_notes() {
 	fi
 
 	printf '%s\n' "$body"
+}
+
+# Released versions in CHANGELOG.md order, newest first.
+released_versions() {
+	sed -n 's/^## \[\([0-9]*\.[0-9]*\.[0-9]*\)\].*$/\1/p' CHANGELOG.md
+}
+
+cmd_update_notes() {
+	local v="$1" count="$2" version started=0 printed=0
+
+	while IFS= read -r version; do
+		if [ "$version" = "$v" ]; then started=1; fi
+		[ "$started" -eq 1 ] || continue
+		[ "$printed" -lt "$count" ] || break
+		[ "$printed" -eq 0 ] || printf '\n'
+		printf '### Version %s\n\n' "$version"
+		cmd_notes "$version"
+		printed=$((printed + 1))
+	done < <(released_versions)
+
+	if [ "$started" -eq 0 ]; then
+		printf 'CHANGELOG.md has no section for %s\n' "$v" >&2
+		exit 1
+	fi
 }
 
 # Reads entries on stdin and writes one "kind<TAB>bullet" line per top-level
@@ -294,6 +322,12 @@ notes)
 	[ $# -eq 1 ] || usage
 	[[ "$1" =~ $SEMVER ]] || usage
 	cmd_notes "$1"
+	;;
+update-notes)
+	[ $# -ge 1 ] && [ $# -le 2 ] || usage
+	[[ "$1" =~ $SEMVER ]] || usage
+	[[ "${2:-5}" =~ ^[1-9][0-9]*$ ]] || usage
+	cmd_update_notes "$1" "${2:-5}"
 	;;
 release)
 	[ $# -ge 1 ] && [ $# -le 2 ] || usage

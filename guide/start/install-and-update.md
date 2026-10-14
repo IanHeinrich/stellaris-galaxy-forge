@@ -85,7 +85,8 @@ mod.
 ## Update the app
 
 The app checks for a new release when it starts and shows a badge when
-it finds one. Click it for the release notes and "Install and restart".
+it finds one. Click it to read the release notes of every version since
+yours, then choose "Install and restart".
 The no-install zip and the `.deb` and `.rpm` packages send you to the
 releases page instead. The Help menu has "Check for updates…" and turns
 the check at start on or off.

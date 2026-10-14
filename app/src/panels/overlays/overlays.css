@@ -235,14 +235,16 @@
   margin-top: 5px;
 }
 
+/* The notes take the height left over and scroll, so the title and the buttons stay in view. */
 .notice-dialog.update-dialog {
-  width: min(520px, 100%);
-  max-height: min(70vh, 640px);
+  width: min(720px, 100%);
+  max-height: min(86vh, 800px);
   overflow-y: auto;
 }
 
 .update-notes {
-  max-height: 220px;
+  flex: 0 1 auto;
+  min-height: 0;
   padding: 8px 10px;
   overflow-y: auto;
   overflow-wrap: anywhere;
@@ -252,9 +254,17 @@
   border-radius: 4px;
 }
 
-.update-notes h2 {
+.update-notes h2,
+.update-notes h3 {
   font-size: var(--text-control);
   margin: 10px 0 4px;
+}
+
+.update-notes h2.update-version {
+  margin-top: 16px;
+  padding-bottom: 3px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
 }
 
 .update-notes h2:first-child {
