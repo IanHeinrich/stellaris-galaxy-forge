@@ -9,45 +9,85 @@ export interface MeshPoint {
   y: number;
 }
 
-/** About as many lanes as the Gabriel graph keeps over a random spread. */
-export const DEFAULT_LANE_DENSITY = 0.46;
+/** The Gabriel graph, whose β is 1. */
+export const DEFAULT_LANE_DENSITY = 0.47;
 
-/** The ranking orders edges kept past this β by length alone; their β regions are wide by then. */
+/** Critical β is worked out only this far; past it the β regions are wide and every edge ties. */
 const BETA_CAP = 8;
 
-/**
- * Every Delaunay edge of `points` in the order a sparse-to-dense mesh keeps them: the Euclidean
- * minimum spanning tree's `tree` edges first, then the rest by the largest β at which the
- * β-skeleton keeps them, highest first, shorter first on a tie.
- */
-export function rankedMesh(points: readonly MeshPoint[]): { pairs: Pair[]; tree: number } {
-  const edges = delaunayEdges(points);
+/** Which of `edges` the Euclidean minimum spanning tree of `points` takes. */
+function spanningTree(points: readonly MeshPoint[], edges: readonly DelaunayEdge[]): boolean[] {
   const length = edges.map(({ i, j }) => dist2(points[i], points[j]));
   const pair = edges.map(({ i, j }) => pairOf(points[i].id, points[j].id));
-  const shortest = (k: number, l: number) =>
-    length[k] - length[l] || comparePairs(pair[k], pair[l]);
-  const byLength = edges.map((_, k) => k).sort(shortest);
+  const byLength = edges
+    .map((_, k) => k)
+    .sort((k, l) => length[k] - length[l] || comparePairs(pair[k], pair[l]));
   const sets = new UnionFind(points.length);
-  const tree: number[] = [];
-  const rest: number[] = [];
-  for (const k of byLength) (sets.union(edges[k].i, edges[k].j) ? tree : rest).push(k);
-  const index = rest.length === 0 ? null : new PointIndex(points);
-  const kept = new Float64Array(edges.length);
-  for (const k of rest) kept[k] = criticalBeta(points, index!, edges[k]);
-  rest.sort((k, l) => kept[l] - kept[k] || shortest(k, l));
-  return { pairs: [...tree, ...rest].map((k) => pair[k]), tree: tree.length };
+  const inTree = edges.map(() => false);
+  for (const k of byLength) inTree[k] = sets.union(edges[k].i, edges[k].j);
+  return inTree;
 }
 
 /**
  * The lanes a mesh over `points` keeps at `density` in [0, 1], as [id, id] pairs with a < b:
- * 0 keeps the minimum spanning tree, 1 every Delaunay edge, and between them the tree plus
- * that share of the rest of `rankedMesh`, so each step adds about as many lanes.
+ * the Euclidean minimum spanning tree, and every other Delaunay edge the β-skeleton keeps at
+ * `betaOfDensity(density)`. 0 keeps the tree alone and 1 every Delaunay edge.
  */
 export function meshPairs(points: readonly MeshPoint[], density: number): Pair[] {
   if (density >= 1) return delaunayPairs(points);
-  const { pairs, tree } = rankedMesh(points);
-  const count = tree + Math.round(Math.max(0, density) * (pairs.length - tree));
-  return pairs.slice(0, count).sort(comparePairs);
+  const edges = delaunayEdges(points);
+  const inTree = spanningTree(points, edges);
+  const cut = betaOfDensity(density);
+  const index = cut === Infinity || inTree.every(Boolean) ? null : new PointIndex(points);
+  // Lattice edges tie up to rounding, so a tolerance keeps or drops each tied group whole.
+  const kept = (k: number) =>
+    inTree[k] || (index !== null && criticalBeta(points, index, edges[k]) >= cut * (1 - 1e-9));
+  return edges
+    .filter((_, k) => kept(k))
+    .map(({ i, j }) => pairOf(points[i].id, points[j].id))
+    .sort(comparePairs);
+}
+
+/**
+ * The β cut at each Lane density: the share of the edges outside the spanning tree whose
+ * critical β is at least the cut, measured over random spreads, so each step of the slider
+ * adds about as many lanes.
+ */
+const BETA_OF_DENSITY: ReadonlyArray<readonly [number, number]> = [
+  [0, 8],
+  [0.05, 3.4],
+  [0.1, 2.31],
+  [0.2, 1.66],
+  [0.3, 1.34],
+  [0.4, 1.12],
+  [0.47, 1],
+  [0.6, 0.994],
+  [0.7, 0.977],
+  [0.8, 0.942],
+  [0.9, 0.845],
+  [0.95, 0.72],
+  [0.99, 0.29],
+  [1, 0.13],
+];
+
+/** The β-skeleton cut at `density`: Infinity at 0, 0 at 1, log-linear between the table's rows. */
+export function betaOfDensity(density: number): number {
+  if (density <= 0) return Infinity;
+  if (density >= 1) return 0;
+  const at = BETA_OF_DENSITY.findIndex(([d]) => d >= density);
+  const [d0, b0] = BETA_OF_DENSITY[at - 1];
+  const [d1, b1] = BETA_OF_DENSITY[at];
+  return b0 * (b1 / b0) ** ((density - d0) / (d1 - d0));
+}
+
+/** The density whose cut is `beta`, for a β the slider stored before it kept a density. */
+export function densityOfBeta(beta: number): number {
+  if (beta >= BETA_OF_DENSITY[0][1]) return 0;
+  const at = BETA_OF_DENSITY.findIndex(([, b]) => b <= beta);
+  if (at === -1) return 1;
+  const [d0, b0] = BETA_OF_DENSITY[at - 1];
+  const [d1, b1] = BETA_OF_DENSITY[at];
+  return d0 + ((d1 - d0) * Math.log(beta / b0)) / Math.log(b1 / b0);
 }
 
 /** Every Delaunay edge of `points`, as [id, id] pairs with a < b. */
@@ -95,7 +135,8 @@ function delaunayEdges(points: readonly MeshPoint[]): DelaunayEdge[] {
 /**
  * The largest β, up to `BETA_CAP`, at which no other point lies strictly inside the β region of
  * the edge. The regions grow with β, so the edge's own triangle corners bound it and only the
- * points inside the region at that bound can lower it.
+ * points inside the region at that bound can lower it. Below 1 the bound is exact: no point
+ * outside a triangle's empty circumcircle sees the edge at a wider angle than its corner.
  */
 function criticalBeta(points: readonly MeshPoint[], index: PointIndex, edge: DelaunayEdge): number {
   const { i, j, left, right } = edge;
@@ -103,8 +144,9 @@ function criticalBeta(points: readonly MeshPoint[], index: PointIndex, edge: Del
   const b = points[j];
   const corner = (k: number) => (k === -1 ? Infinity : blockingBeta(a, b, points[k]));
   let beta = Math.min(corner(left), corner(right), BETA_CAP);
+  if (beta <= 1) return beta;
   // Within the strip across the edge, as far out as the region reaches at its midpoint.
-  const reach = (Math.sqrt(2 * Math.max(beta, 1) - 1) / 2) * (1 + 1e-9);
+  const reach = (Math.sqrt(2 * beta - 1) / 2) * (1 + 1e-9);
   const rx = reach * Math.abs(b.y - a.y);
   const ry = reach * Math.abs(b.x - a.x);
   index.each(

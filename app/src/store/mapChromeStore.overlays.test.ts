@@ -6,7 +6,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 
 import { mockedIpc } from "../test/ipc";
-import { DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
+import { betaOfDensity, DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
 import { KIND_ORDER } from "../lib/special";
 import { DEFAULT_LAYERS } from "../lib/visual/layerIds";
 import { session } from "./sessionFixture";
@@ -206,18 +206,18 @@ describe("persisted preferences", () => {
     expect(state.laneDensity).toBe(DEFAULT_LANE_DENSITY);
   });
 
-  it("carries a β stored by the old slider over to the density with as many lanes", async () => {
+  it("carries a β stored by the old slider over to the density that cuts at that β", async () => {
     const densityAfter = async (beta: number) => {
       stored.set("sgf.mesh.beta", String(beta));
       vi.resetModules();
       const fresh = await import("./mapChromeStore");
       return fresh.useMapChromeStore.getState().laneDensity;
     };
-    expect(await densityAfter(2)).toBe(0.13);
-    expect(await densityAfter(1)).toBe(DEFAULT_LANE_DENSITY);
+    for (const beta of [2, 1.5, 1.2]) {
+      expect(betaOfDensity(await densityAfter(beta))).toBeCloseTo(beta, 9);
+    }
+    expect(await densityAfter(1)).toBeCloseTo(DEFAULT_LANE_DENSITY, 9);
     expect(await densityAfter(0.1)).toBe(1);
-    expect(await densityAfter(1.2)).toBeGreaterThan(0.26);
-    expect(await densityAfter(1.2)).toBeLessThan(DEFAULT_LANE_DENSITY);
 
     stored.set("sgf.lanes.density", "0.8");
     expect(await densityAfter(2)).toBe(0.8);

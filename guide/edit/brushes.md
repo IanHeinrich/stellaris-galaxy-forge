@@ -14,9 +14,9 @@ resize it too.
 
 The Connect lanes (<kbd>C</kbd>) and Cut lanes (<kbd>X</kbd>) brushes
 add and cut hyperlanes under the brush. Holding <kbd>Alt</kbd> swaps the
-two. The Connect brush has a Lane density option. At the left end, the
-new lanes connect the systems without loops. At the right end, each
-system links to every neighbour.
+two. The Connect brush has a Lane density option. The left end lays the
+fewest lanes, and the new lanes form no loops of their own. At the right
+end, each system links to every neighbour.
 
 ![The Connect lanes brush active on the tool strip, with its Size and Lane density options](../images/edit/connect-brush-options.png)
 
@@ -32,9 +32,9 @@ Paint has these options:
   distance between painted systems.
 - Lanes picks which lanes a stroke adds: Off, Among new, or New and
   nearby, which also links the new systems to the ones around them.
-- Lane density sets how many lanes a stroke adds. At the left end, the
-  lanes connect the systems without loops. At the right end, each system
-  links to every neighbour.
+- Lane density sets how many lanes a stroke adds. The left end lays the
+  fewest lanes, and the new lanes form no loops of their own. At the right
+  end, each system links to every neighbour.
 
 ![The Paint brush options: Size, Density, Lanes set to New and nearby, and Lane density](../images/edit/paint-brush-options.png)
 

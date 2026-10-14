@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { SpecialKind } from "../generated/SpecialKind";
-import { DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
+import { DEFAULT_LANE_DENSITY, densityOfBeta } from "../lib/geometry/mesh";
 import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
@@ -187,26 +187,7 @@ const NO_OVERLAYS = {
 
 const LANE_DENSITY_PREF = prefField(PREF_KEYS.laneDensity, DEFAULT_LANE_DENSITY, isFiniteNumber);
 
-/** The density that keeps as many lanes as the β the slider used to store, measured on random spreads. */
-const DENSITY_OF_BETA: ReadonlyArray<readonly [number, number]> = [
-  [2, 0.13],
-  [1.5, 0.26],
-  [1, 0.46],
-  [0.7, 0.94],
-  [0.5, 0.98],
-  [0.1, 1],
-];
-
-/** The density nearest a β the slider stored before it kept a density. */
-function densityOfBeta(beta: number): number {
-  const below = DENSITY_OF_BETA.findIndex(([b]) => b <= beta);
-  if (below === 0) return DENSITY_OF_BETA[0][1];
-  if (below === -1) return 1;
-  const [b0, d0] = DENSITY_OF_BETA[below - 1];
-  const [b1, d1] = DENSITY_OF_BETA[below];
-  return d0 + ((d1 - d0) * Math.log(b0 / beta)) / Math.log(b0 / b1);
-}
-
+/** The stored density, or the one whose cut is a β the slider stored before it kept a density. */
 function storedLaneDensity(): number {
   const beta = readPref<number | null>(PREF_KEYS.meshBeta, null, isFiniteNumber);
   return LANE_DENSITY_PREF.read(beta === null || beta <= 0 ? undefined : densityOfBeta(beta));

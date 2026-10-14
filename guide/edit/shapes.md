@@ -95,9 +95,9 @@ centre, the radius or the width and height, and the rotation.
 - Lanes works as it does for the Paint brush: Off, Among new, or New and
   nearby, which also links the shape to the systems around it. A scattered
   or grid fill starts on Among new.
-- Lane density sets how many lanes the shape adds. At the left end, the
-  lanes connect the systems without loops. At the right end, each system
-  links to every neighbour.
+- Lane density sets how many lanes the shape adds. The left end lays the
+  fewest lanes, and the new lanes form no loops of their own. At the right
+  end, each system links to every neighbour.
 
 New lanes never cross an existing lane or each other.
 

@@ -240,5 +240,7 @@
   {"q": "snap to galaxy centre", "expect": "edit/shapes#move-resize-and-turn-a-shape"},
   {"q": "lanes along a shape", "expect": "edit/shapes#lanes"},
   {"q": "too close to existing systems", "expect": "edit/shapes#keep-clear-of-existing-systems"},
-  {"q": "symmetry with a shape", "expect": "edit/shapes#use-symmetry-with-a-shape"}
+  {"q": "symmetry with a shape", "expect": "edit/shapes#use-symmetry-with-a-shape"},
+  {"q": "paint fewer lanes", "expect": "edit/brushes#paint-and-erase-systems"},
+  {"q": "lane density", "expect": "edit/brushes"}
 ]

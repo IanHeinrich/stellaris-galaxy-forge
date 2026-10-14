@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { seeded } from "../random";
 import { componentCount } from "./joinIslands";
-import { delaunayPairs, meshPairs, rankedMesh, type MeshPoint } from "./mesh";
+import {
+  betaOfDensity,
+  DEFAULT_LANE_DENSITY,
+  delaunayPairs,
+  densityOfBeta,
+  meshPairs,
+  type MeshPoint,
+} from "./mesh";
 
 function grid(n: number): MeshPoint[] {
   const points: MeshPoint[] = [];
@@ -9,19 +16,31 @@ function grid(n: number): MeshPoint[] {
   return points;
 }
 
-function axisAligned(points: MeshPoint[], pairs: Array<[number, number]>): boolean {
-  const at = new Map(points.map((p) => [p.id, p]));
-  return pairs.every(([a, b]) => at.get(a)!.x === at.get(b)!.x || at.get(a)!.y === at.get(b)!.y);
-}
-
-/** `n` points spread evenly at random over a disc. */
-function disc(n: number, seed: number): MeshPoint[] {
+/** `n` points spread evenly at random over a disc of radius 500 about `centre`, ids from `first`. */
+function disc(n: number, seed: number, centre = { x: 0, y: 0 }, first = 0): MeshPoint[] {
   const rand = seeded(seed);
-  return Array.from({ length: n }, (_, id) => {
+  return Array.from({ length: n }, (_, k) => {
     const r = 500 * Math.sqrt(rand());
     const t = 2 * Math.PI * rand();
-    return { id, x: r * Math.cos(t), y: r * Math.sin(t) };
+    return { id: first + k, x: centre.x + r * Math.cos(t), y: centre.y + r * Math.sin(t) };
   });
+}
+
+/**
+ * An n x n lattice `spacing` apart, square or with every other row shifted half a step into
+ * triangles, off the integers so tied edges come out equal only up to rounding.
+ */
+function lattice(n: number, kind: "square" | "hex", spacing = 20): MeshPoint[] {
+  const rowStep = kind === "square" ? spacing : (spacing * Math.sqrt(3)) / 2;
+  return Array.from({ length: n * n }, (_, id) => {
+    const row = Math.floor(id / n);
+    const shift = kind === "hex" && row % 2 === 1 ? spacing / 2 : 0;
+    return { id, x: (id % n) * spacing + shift + 0.37, y: row * rowStep - 1.1 };
+  });
+}
+
+function keys(pairs: Array<[number, number]>): Set<string> {
+  return new Set(pairs.map(([a, b]) => `${a}-${b}`));
 }
 
 const SQUARE_WITH_CENTRE: MeshPoint[] = [
@@ -31,17 +50,6 @@ const SQUARE_WITH_CENTRE: MeshPoint[] = [
   { id: 13, x: 0, y: 1 },
   { id: 14, x: 0.5, y: 0.5 },
 ];
-
-describe("rankedMesh", () => {
-  it("on a 3x3 grid ranks the spanning tree, then the other axis-aligned edges, then the diagonals", () => {
-    const points = grid(3);
-    const { pairs, tree } = rankedMesh(points);
-    expect(tree).toBe(8);
-    expect(pairs).toHaveLength(16);
-    expect(axisAligned(points, pairs.slice(0, 12))).toBe(true);
-    expect(pairs.slice(12).some((e) => axisAligned(points, [e]))).toBe(false);
-  });
-});
 
 describe("meshPairs", () => {
   it("chains degenerate input: two points give one edge, collinear points a path", () => {
@@ -101,10 +109,66 @@ describe("meshPairs", () => {
     const counts = steps.map((pairs) => pairs.length);
     const total = counts[4] - counts[0];
     for (let k = 1; k < steps.length; k++) {
-      const kept = new Set(steps[k].map(([a, b]) => `${a}-${b}`));
+      const kept = keys(steps[k]);
       expect(steps[k - 1].every(([a, b]) => kept.has(`${a}-${b}`))).toBe(true);
       expect(counts[k]).toBeGreaterThan(counts[k - 1]);
       expect(counts[k] - counts[k - 1]).toBeLessThanOrEqual(total / 2);
+    }
+  });
+
+  it("keeps or drops a lattice's tied edges together", () => {
+    const square = lattice(10, "square");
+    const at = new Map(square.map((p) => [p.id, p]));
+    const sides = (pairs: Array<[number, number]>) =>
+      pairs.filter(
+        ([a, b]) =>
+          Math.abs(at.get(a)!.x - at.get(b)!.x) < 1e-6 ||
+          Math.abs(at.get(a)!.y - at.get(b)!.y) < 1e-6,
+      );
+    const cells = 9 * 9;
+    // The Gabriel graph keeps each cell's diagonal, whose corners lie on its circle.
+    for (const [density, diagonals] of [
+      [0.1, 0],
+      [0.3, 0],
+      [DEFAULT_LANE_DENSITY, cells],
+      [0.8, cells],
+    ]) {
+      const pairs = meshPairs(square, density);
+      expect(sides(pairs)).toHaveLength(2 * 10 * 9);
+      expect(pairs.length - 2 * 10 * 9).toBe(diagonals);
+    }
+
+    const hex = lattice(10, "hex");
+    const near = (a: MeshPoint, b: MeshPoint) => Math.hypot(a.x - b.x, a.y - b.y) < 20 * 1.001;
+    const sidesOfHex = hex.flatMap((a) =>
+      hex.filter((b) => a.id < b.id && near(a, b)).map((b): [number, number] => [a.id, b.id]),
+    );
+    for (const density of [0.3, DEFAULT_LANE_DENSITY]) {
+      const kept = keys(meshPairs(hex, density));
+      expect(sidesOfHex.every(([a, b]) => kept.has(`${a}-${b}`))).toBe(true);
+    }
+    expect(meshPairs(hex, 0.1)).toHaveLength(hex.length - 1);
+  });
+
+  it("keeps the same lanes in one place when points are added far away", () => {
+    const here = disc(200, 2);
+    const there = disc(50, 3, { x: 20000, y: 0 }, 1000);
+    for (const density of [0, 0.25, DEFAULT_LANE_DENSITY, 0.75, 1]) {
+      const alone = meshPairs(here, density);
+      const together = meshPairs([...here, ...there], density).filter(([, b]) => b < 1000);
+      expect(together).toEqual(alone);
+    }
+  });
+});
+
+describe("betaOfDensity", () => {
+  it("cuts at the Gabriel graph by default, falls as density rises and inverts densityOfBeta", () => {
+    expect(betaOfDensity(0)).toBe(Infinity);
+    expect(betaOfDensity(1)).toBe(0);
+    expect(betaOfDensity(DEFAULT_LANE_DENSITY)).toBeCloseTo(1, 12);
+    for (let d = 0.01; d < 1; d += 0.01) {
+      expect(betaOfDensity(d)).toBeLessThan(betaOfDensity(d - 0.01));
+      expect(densityOfBeta(betaOfDensity(d))).toBeCloseTo(d, 9);
     }
   });
 });
