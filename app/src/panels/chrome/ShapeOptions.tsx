@@ -1,29 +1,30 @@
 import type { ReactNode } from "react";
-import { SAMPLE_CAP } from "../../lib/brush/sample";
-import type { Pt } from "../../lib/geometry/pt";
-import { mapExtent } from "../../lib/guides";
+import { clampTo } from "../../lib/geometry/geometry";
+import { mapExtent, SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
 import {
   FILL_KIND_LABELS,
+  FILL_KINDS,
   LATTICE_LABELS,
+  LATTICES,
   placeLabel,
   SHAPE_KIND_LABELS,
+  SHAPE_KINDS,
 } from "../../lib/shapes/shapeCopy";
-import { SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
+import { centreOf, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
 import type {
   Fill,
   FillKind,
   GalaxyFrame,
-  Lattice,
   PendingShape,
   Shape,
   ShapeField,
-  ShapeKind,
 } from "../../lib/shapes/types";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useShapePreview } from "../../store/shapePreview";
+import { COUNT_RANGE, OUTLINE_COUNT, SHAPE_SIZE_MIN } from "../../store/toolStore.shape";
 import {
   SPACING_RANGE,
   SPACING_SLIDER_MAX,
@@ -35,32 +36,15 @@ import { Glyph } from "../Glyph";
 import { DraftNumber, LaneDensityOption, LaneModeSelect, SliderOption } from "./toolFields";
 import "./chrome.css";
 
-const SHAPE_KINDS = Object.keys(SHAPE_SPECS) as ShapeKind[];
-const FILL_KINDS: readonly FillKind[] = ["outline", "scattered", "grid"];
-const LATTICES: readonly Lattice[] = ["square", "hex"];
-
-/** The least a shape's size slider reaches, in world units. */
-const SIZE_MIN = 10;
-
 /** What the Small chip sets, as a fraction of the galaxy's radius. */
 const SMALL_FRACTION = 0.1;
-
-/** The fewest systems an outline holds. */
-const COUNT_MIN = 2;
-
-/** The centre of `shape`: a line's midpoint, else its own centre. */
-function centreOf(shape: Shape): Pt {
-  if (shape.kind === "line")
-    return { x: (shape.a.x + shape.b.x) / 2, y: (shape.a.y + shape.b.y) / 2 };
-  return shape.centre;
-}
 
 /** `fill` changed to `kind`, keeping the count or the spacing it had and starting the rest at their usual values. */
 function fillOfKind(kind: FillKind, from: Fill): Fill {
   const spacing = from.kind === "outline" ? SPACING_RANGE.fallback : from.spacing;
   switch (kind) {
     case "outline":
-      return { kind, count: from.kind === "outline" ? from.count : 24 };
+      return { kind, count: from.kind === "outline" ? from.count : OUTLINE_COUNT };
     case "scattered":
       return { kind, spacing };
     case "grid":
@@ -77,7 +61,7 @@ function readField(shape: Shape, key: ShapeField<Shape>["key"]): number {
 function useGalaxyFrame(): GalaxyFrame {
   const kind = useFileSessionStore((s) => s.kind);
   const radius = useGalaxyStore((s) => s.galaxy?.galaxy_radius ?? 0);
-  return galaxyFrame(mapExtent(kind, radius) ?? { shape: "square", half: 500 });
+  return galaxyFrame(mapExtent(kind, radius) ?? { shape: "square", half: SCENARIO_HALF_EXTENT });
 }
 
 /** A row of buttons of which `value` is the one chosen. */
@@ -162,13 +146,13 @@ function SizeOptions({ shape }: { shape: Shape }) {
   const setShapeSize = useToolStore((s) => s.setShapeSize);
   const size = specOf(shape).size(shape);
   const whole = Math.round(frame.radius);
-  const small = Math.max(SIZE_MIN, Math.round(frame.radius * SMALL_FRACTION));
+  const small = Math.max(SHAPE_SIZE_MIN, Math.round(frame.radius * SMALL_FRACTION));
   const percent = Math.round((size / frame.radius) * 100);
   return (
     <>
       <SliderOption
         label="Size"
-        range={{ min: SIZE_MIN, max: whole }}
+        range={{ min: SHAPE_SIZE_MIN, max: whole }}
         value={Math.round(size)}
         onChange={setShapeSize}
         field="Shape size in world units"
@@ -191,11 +175,7 @@ function FieldRow({ shape, field }: { shape: Shape; field: ShapeField<Shape> }) 
   const setShapeField = useToolStore((s) => s.setShapeField);
   const value = readField(shape, field.key);
   const apply = (v: number) =>
-    setShapeField(
-      shape.kind,
-      field.key as never,
-      Math.min(field.range.max, Math.max(field.range.min, v)),
-    );
+    setShapeField(shape.kind, field.key as never, clampTo(v, field.range));
   if (field.exact) {
     return (
       <label className="tool-option">
@@ -232,13 +212,11 @@ function CountOrSpacing({ fill }: { fill: Fill }) {
       <label className="tool-option">
         Systems
         <DraftNumber
-          min={COUNT_MIN}
-          max={SAMPLE_CAP}
+          min={COUNT_RANGE.min}
+          max={COUNT_RANGE.max}
           step={1}
           value={fill.count}
-          onApply={(n) =>
-            setFill({ ...fill, count: Math.min(SAMPLE_CAP, Math.max(COUNT_MIN, Math.round(n))) })
-          }
+          onApply={(n) => setFill({ ...fill, count: clampTo(Math.round(n), COUNT_RANGE) })}
           aria-label="Systems along the outline"
         />
       </label>

@@ -1,5 +1,6 @@
 import { dist2, type Pt } from "../lib/geometry/pt";
-import { SAMPLE_CAP, StrokeSampler } from "../lib/brush/sample";
+import { SAMPLE_CAP } from "../lib/placement/limits";
+import { StrokeSampler } from "../lib/brush/sample";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Rand } from "../lib/random";
 

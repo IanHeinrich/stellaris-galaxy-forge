@@ -1,12 +1,13 @@
 import type { StoreApi } from "zustand";
-import { SAMPLE_CAP } from "../lib/brush/sample";
+import { clampTo } from "../lib/geometry/geometry";
 import type { Pt } from "../lib/geometry/pt";
 import { mapExtent, type MapExtent } from "../lib/guides";
-import type { LaneMode } from "../lib/placement/lanes";
+import { LANE_MODES } from "../lib/placement/lanes";
+import { SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
 import { galaxyFrame } from "../lib/shapes/drag";
-import { FILL_KIND_LABELS, LATTICE_LABELS, SHAPE_KIND_LABELS } from "../lib/shapes/shapeCopy";
-import { SHAPE_SPECS, specFor, specOf } from "../lib/shapes/specs";
+import { FILL_KINDS, LATTICES, SHAPE_KINDS } from "../lib/shapes/shapeCopy";
+import { centreOf, SHAPE_SPECS, specFor, specOf } from "../lib/shapes/specs";
 import type {
   Fill,
   PendingShape,
@@ -67,10 +68,8 @@ export interface ShapeState {
   dropShape(): boolean;
 }
 
-export const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
-
 /** How many systems an outline starts with, and the fewest and most it takes. */
-const OUTLINE_COUNT = 24;
+export const OUTLINE_COUNT = 24;
 export const COUNT_RANGE = { min: 2, max: SAMPLE_CAP } as const;
 
 /** The least size a shape is resized to, in world units; the most is the galaxy's. */
@@ -111,10 +110,9 @@ function isPt(value: unknown): value is Pt {
   return isRecord(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y);
 }
 
-const SHAPE_KINDS = Object.keys(SHAPE_KIND_LABELS) as ShapeKind[];
 const isShapeKind = isOneOf(SHAPE_KINDS);
-const isFillKind = isOneOf(Object.keys(FILL_KIND_LABELS) as Fill["kind"][]);
-const isLattice = isOneOf(Object.keys(LATTICE_LABELS) as Array<keyof typeof LATTICE_LABELS>);
+const isFillKind = isOneOf(FILL_KINDS);
+const isLattice = isOneOf(LATTICES);
 const isLaneMode = isOneOf(LANE_MODES);
 
 function isCount(value: unknown): value is number {
@@ -183,12 +181,6 @@ function isShapeMemory(value: unknown): value is ShapeMemory {
 
 const MEMORY = prefField(PREF_KEYS.shapeMemory, firstMemory(), isShapeMemory);
 
-/** The point a shape is centred on: a line's midpoint, any other shape's `centre`. */
-function centreOf(shape: Shape): Pt {
-  if (shape.kind !== "line") return shape.centre;
-  return { x: (shape.a.x + shape.b.x) / 2, y: (shape.a.y + shape.b.y) / 2 };
-}
-
 /** `shape` moved so that it is centred on `at`. */
 function centredOn(shape: Shape, at: Pt): Shape {
   const c = centreOf(shape);
@@ -203,23 +195,19 @@ function fitted(pending: PendingShape): PendingShape {
   return { ...pending, fill, lanes: defaultLanes(fill) };
 }
 
-function clamp(value: number, range: { min: number; max: number }): number {
-  return Math.min(range.max, Math.max(range.min, value));
-}
-
 /** `fill` with its count or spacing held to their ranges; null when it is no fill at all. */
 function heldFill(fill: Fill): Fill | null {
   if (!isRecord(fill)) return null;
   switch (fill.kind) {
     case "outline":
       if (!isFiniteNumber(fill.count)) return null;
-      return { kind: "outline", count: clamp(Math.round(fill.count), COUNT_RANGE) };
+      return { kind: "outline", count: clampTo(Math.round(fill.count), COUNT_RANGE) };
     case "scattered":
       if (!isFiniteNumber(fill.spacing)) return null;
-      return { kind: "scattered", spacing: clamp(fill.spacing, SPACING_RANGE) };
+      return { kind: "scattered", spacing: clampTo(fill.spacing, SPACING_RANGE) };
     case "grid":
       if (!isFiniteNumber(fill.spacing) || !isLattice(fill.lattice)) return null;
-      return { kind: "grid", spacing: clamp(fill.spacing, SPACING_RANGE), lattice: fill.lattice };
+      return { kind: "grid", spacing: clampTo(fill.spacing, SPACING_RANGE), lattice: fill.lattice };
     default:
       return null;
   }
@@ -236,7 +224,7 @@ function heldInside(p: Pt, extent: MapExtent | null): Pt {
   if (extent === null) return p;
   if (extent.shape === "square") {
     const range = { min: -extent.half, max: extent.half };
-    return { x: clamp(p.x, range), y: clamp(p.y, range) };
+    return { x: clampTo(p.x, range), y: clampTo(p.y, range) };
   }
   const r = Math.hypot(p.x, p.y);
   return r <= extent.radius ? p : { x: (p.x * extent.radius) / r, y: (p.y * extent.radius) / r };
@@ -244,11 +232,10 @@ function heldInside(p: Pt, extent: MapExtent | null): Pt {
 
 /** `value` held to `field`'s range, and to a whole number of steps when the step is whole. */
 function heldTo(value: number, field: { range: { min: number; max: number }; step: number }) {
-  const { min, max } = field.range;
   const stepped = Number.isInteger(field.step)
     ? Math.round(value / field.step) * field.step
     : value;
-  return Math.min(max, Math.max(min, stepped));
+  return clampTo(stepped, field.range);
 }
 
 /** `memory` with `settings` as their kind's, and that kind as the last used. */
@@ -358,7 +345,7 @@ export function shapeSlice(
       if (pending === null || !Number.isFinite(size)) return;
       const extent = extentNow();
       const most = extent ? galaxyFrame(extent).radius : Infinity;
-      const held = clamp(size, { min: SHAPE_SIZE_MIN, max: Math.max(SHAPE_SIZE_MIN, most) });
+      const held = clampTo(size, { min: SHAPE_SIZE_MIN, max: Math.max(SHAPE_SIZE_MIN, most) });
       show({ ...pending, shape: specOf(pending.shape).resized(pending.shape, held) });
     },
 

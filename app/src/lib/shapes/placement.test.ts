@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { byId, placedNode } from "../../test/builders";
-import { SAMPLE_CAP } from "../brush/sample";
+import { SAMPLE_CAP } from "../placement/limits";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { MESH_BETA } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
@@ -150,7 +150,7 @@ describe("a shape under symmetry", () => {
     const even = shapePlacement(pending(circle()), quarter);
     expect(even.points).toHaveLength(24);
     expect(even.pairs).toHaveLength(24);
-    expect(even.interleaved).toBeUndefined();
+    expect(even.interleaved).toBeNull();
 
     const odd = shapePlacement(
       pending(circle(), { fill: { kind: "outline", count: 21 } }),
@@ -166,7 +166,7 @@ describe("a shape under symmetry", () => {
     expect(preview.points).toHaveLength(48);
     expect(preview.pairs).toHaveLength(48);
     expect(preview.points.slice(24).every((p) => p.y < 0)).toBe(true);
-    expect(preview.interleaved).toBeUndefined();
+    expect(preview.interleaved).toBeNull();
   });
 
   it("keeps a filled disc on the pivot as one disc rather than four laid over each other", () => {

@@ -1,5 +1,4 @@
 import type { SystemNode } from "../../generated/SystemNode";
-import { SAMPLE_CAP } from "../brush/sample";
 import type { MeshPoint } from "../geometry/mesh";
 import { PairSet, type Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
@@ -8,6 +7,7 @@ import { copies, COUNTERPART_REACH, images, type Symmetry } from "../geometry/sy
 import { insideExtent } from "../guides";
 import type { ImageOfNew } from "../placement/ground";
 import { PlacementGround } from "../placement/ground";
+import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies } from "../placement/symmetricCopies";
@@ -16,9 +16,6 @@ import { angleOf, lerp, type ShapeFrame } from "./frame";
 import { polylineLength } from "./outline";
 import { centreOf, specOf } from "./specs";
 import type { LeftOut, PendingShape, Shape, ShapeGround, ShapePreview } from "./types";
-
-/** New systems closer than this to another system are allowed, but the status bar warns of them: the paint brush's least spacing. */
-export const LEAST_SPACING = 5;
 
 /** A fill's outline row is spaced along an outline of this many points' length. */
 const PERIMETER_POINTS = 360;
@@ -288,14 +285,14 @@ function overlapCount(points: readonly Pt[], ground: PlacementGround): number {
  * The symmetry's copies when an outline's images fall between its points, and a count they
  * divide would have merged them into it.
  */
-function interleaving(pending: PendingShape, sym: Symmetry, placed: number): number | undefined {
+function interleaving(pending: PendingShape, sym: Symmetry, placed: number): number | null {
   const n = copies(sym);
   const { shape, fill } = pending;
-  if (n === 1 || fill.kind !== "outline" || placed <= fill.count) return undefined;
+  if (n === 1 || fill.kind !== "outline" || placed <= fill.count) return null;
   const even = n * Math.ceil(fill.count / n);
-  if (even === fill.count) return undefined;
+  if (even === fill.count) return null;
   const outline = specOf(shape).outline(shape, even);
-  return outline.closed && mapsOntoItself(outline.points, sym) ? n : undefined;
+  return outline.closed && mapsOntoItself(outline.points, sym) ? n : null;
 }
 
 /**

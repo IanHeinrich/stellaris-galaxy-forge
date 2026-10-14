@@ -133,9 +133,9 @@ export type ShapePreview = Placement & {
   capped: boolean;
   /**
    * The symmetry's copies when they land on an outline between its points rather than on
-   * them, as for a ring on the pivot whose count they don't divide; absent otherwise.
+   * them, as for a ring on the pivot whose count they don't divide; null otherwise.
    */
-  interleaved?: number;
+  interleaved: number | null;
 };
 
 /** The galaxy a shape is placed into, read once per preview. */

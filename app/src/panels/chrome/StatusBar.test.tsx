@@ -224,6 +224,7 @@ describe("the pending shape", () => {
       outside: [],
       overlaps: 0,
       capped: false,
+      interleaved: null,
     };
     useToolStore.setState({ pendingShape: pending() });
     const html = bar();
@@ -240,6 +241,7 @@ describe("the pending shape", () => {
       outside: [{ x: 900, y: 0 }],
       overlaps: 0,
       capped: false,
+      interleaved: null,
     };
     useToolStore.setState({ pendingShape: pending() });
     const html = bar();

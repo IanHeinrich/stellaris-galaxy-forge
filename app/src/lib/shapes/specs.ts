@@ -1,7 +1,8 @@
 import { boxOf, inRing } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
 import { snapAngle } from "./drag";
-import { angleOf, clamp, dir, distance, lerp, toLocal, toWorld, type ShapeFrame } from "./frame";
+import { clamp } from "../geometry/geometry";
+import { angleOf, dir, distance, lerp, toLocal, toWorld, type ShapeFrame } from "./frame";
 import { alongPolyline, arcPoints, cornersThenSides } from "./outline";
 import type {
   CircleShape,

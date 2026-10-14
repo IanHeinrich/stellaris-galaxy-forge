@@ -1,4 +1,4 @@
-import { SAMPLE_CAP } from "../brush/sample";
+import { SAMPLE_CAP } from "../placement/limits";
 import { counted, thousands } from "../text";
 import { specOf } from "./specs";
 import type {
@@ -19,6 +19,9 @@ export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
   star: "Star",
 };
 
+/** Every shape kind, in the picker's order. */
+export const SHAPE_KINDS = Object.keys(SHAPE_KIND_LABELS) as ShapeKind[];
+
 /** Each fill's name in the Outline / Scattered / Grid choice. */
 export const FILL_KIND_LABELS: Record<FillKind, string> = {
   outline: "Outline",
@@ -26,11 +29,17 @@ export const FILL_KIND_LABELS: Record<FillKind, string> = {
   grid: "Grid",
 };
 
+/** Every fill kind, in the choice's order. */
+export const FILL_KINDS = Object.keys(FILL_KIND_LABELS) as FillKind[];
+
 /** Each lattice's name in the Square / Hex choice. */
 export const LATTICE_LABELS: Record<Lattice, string> = {
   square: "Square",
   hex: "Hex",
 };
+
+/** Every lattice, in the choice's order. */
+export const LATTICES = Object.keys(LATTICE_LABELS) as Lattice[];
 
 /** The status bar's words for a pending shape: what it adds, then each thing it leaves out. */
 export interface ShapeStatus {
@@ -79,7 +88,7 @@ export function shapeStatus(pending: PendingShape, preview: ShapePreview): Shape
   if (outside.length > 0) warnings.push(`${outside.length} past the edge`);
   if (overlaps > 0) warnings.push(`${counted(overlaps, "system")} overlap others on the map`);
   if (capped) warnings.push(`Stopped at ${thousands(SAMPLE_CAP)} systems, the most one shape adds`);
-  if (interleaved !== undefined) {
+  if (interleaved !== null) {
     warnings.push(
       `Symmetry's ${interleaved} copies fall between the points: use a count that divides by ${interleaved}`,
     );

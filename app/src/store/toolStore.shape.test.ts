@@ -4,7 +4,7 @@ import { stubPrefs } from "../test/prefs";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
-import { SHAPE_SPECS, specOf } from "../lib/shapes/specs";
+import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
@@ -19,12 +19,6 @@ const esc = () => run("clearSelection", false, effects);
 const NO_MODS = { snap: false, constrain: false };
 
 const stored = new Map<string, string>();
-
-function centreOf(shape: Shape) {
-  return shape.kind === "line"
-    ? { x: (shape.a.x + shape.b.x) / 2, y: (shape.a.y + shape.b.y) / 2 }
-    : shape.centre;
-}
 
 function sizeOf(shape: Shape): number {
   return specOf(shape).size(shape);

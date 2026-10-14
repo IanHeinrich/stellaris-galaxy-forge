@@ -6,6 +6,11 @@ export function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
 }
 
+/** `v` held to `range`. */
+export function clampTo(v: number, range: { min: number; max: number }): number {
+  return Math.min(range.max, Math.max(range.min, v));
+}
+
 /** Squared distance from (px, py) to the segment (ax, ay)-(bx, by). */
 export function distToSegmentSq(
   px: number,

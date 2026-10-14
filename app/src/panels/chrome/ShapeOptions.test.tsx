@@ -13,6 +13,7 @@ const PREVIEW = vi.hoisted(() => ({
     outside: readonly never[];
     overlaps: number;
     capped: boolean;
+    interleaved: number | null;
   },
 }));
 vi.mock("../../store/shapePreview", () => ({
@@ -170,6 +171,7 @@ describe("the shape options", () => {
       outside: [],
       overlaps: 0,
       capped: false,
+      interleaved: null,
     };
     const html = options();
     expect(html).toContain(">Place 24 systems<");

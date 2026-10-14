@@ -48,7 +48,3 @@ export function distance(a: Pt, b: Pt): number {
 export function lerp(a: Pt, b: Pt, t: number): Pt {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
-
-export function clamp(v: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, v));
-}

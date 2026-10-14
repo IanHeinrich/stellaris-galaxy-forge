@@ -8,6 +8,8 @@ import type { ImageOfNew, PlacementGround } from "./ground";
 /** Which lanes a paint stroke adds: none, among its new systems, or also to the systems near it. */
 export type LaneMode = "off" | "new" | "nearby";
 
+export const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
+
 /** The provisional id of a stroke's new point `index`: -1, -2, …, so it never collides with a system id. */
 export function provisionalId(index: number): number {
   return -(index + 1);

@@ -22,6 +22,7 @@ function preview(over: Partial<ShapePreview> = {}): ShapePreview {
     outside: [],
     overlaps: 0,
     capped: false,
+    interleaved: null,
     ...over,
   };
 }

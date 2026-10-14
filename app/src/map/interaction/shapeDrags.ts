@@ -2,7 +2,7 @@ import type { Pair } from "../../lib/geometry/pairs";
 import { dist2, type Pt } from "../../lib/geometry/pt";
 import type { Segment } from "../../lib/geometry/segments";
 import { provisionalIndex } from "../../lib/placement/lanes";
-import type { PendingShape, Shape, ShapeDragMods, ShapePreview } from "../../lib/shapes/types";
+import type { PendingShape, ShapeDragMods, ShapePreview } from "../../lib/shapes/types";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { shapePreview } from "../../store/shapePreview";
@@ -10,7 +10,7 @@ import { useToolStore } from "../../store/toolStore";
 import type { Camera } from "../Camera";
 import type { DrawnPositions } from "../drawnPositions";
 import type { ShapeDrawing } from "../layers/highlights/ShapeOverlay";
-import { specOf } from "../../lib/shapes/specs";
+import { centreOf, specOf } from "../../lib/shapes/specs";
 import type { ShapeDrag } from "./MapIntent";
 
 /** How near the galaxy centre or a system a snapped point has to come, in screen pixels. */
@@ -20,13 +20,6 @@ const ORIGIN: Pt = { x: 0, y: 0 };
 /** Where the pending shape is drawn. */
 export interface ShapeSink {
   setShape(drawing: ShapeDrawing | null): void;
-}
-
-/** The point a move carries along: a line's midpoint, any other shape's centre. */
-function centreOf(shape: Shape): Pt {
-  return shape.kind === "line"
-    ? { x: (shape.a.x + shape.b.x) / 2, y: (shape.a.y + shape.b.y) / 2 }
-    : shape.centre;
 }
 
 /**
