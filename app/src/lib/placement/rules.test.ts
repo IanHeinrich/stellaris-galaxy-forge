@@ -30,9 +30,9 @@ describe("a document's placement bounds", () => {
     expect(placementBounds(OLD_SAVE, 0).edge).toBeNull();
   });
 
-  it("keep a scenario's moves inside its square, with no gap", () => {
+  it("keep a scenario's moves within half again its square, with no gap", () => {
     expect(placementBounds(SCENARIO_CAPABILITIES, 0)).toEqual({
-      edge: { shape: "square", half: 500 },
+      edge: { shape: "square", half: 500 * GALAXY_REACH },
       gap: 0,
     });
   });

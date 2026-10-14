@@ -25,10 +25,9 @@ add:
   lanes.
 - Hollow dots are points left out because they are too close to an
   existing system.
-- Orange dots are points too far out, and they are left out too. In a
-  save, points can go past the galaxy edge, up to half again the
-  galaxy's radius from the centre. In a scenario, they stay inside the
-  map's square.
+- Orange dots are points too far out, and they are left out too. Points
+  can go past the edge of the map, up to half again as far out: past the
+  galaxy's circle in a save, or past the map's square in a scenario.
 
 A faint ring marks the edge of the galaxy, so you can judge the size.
 The readout below the shape gives its size and system count, such as

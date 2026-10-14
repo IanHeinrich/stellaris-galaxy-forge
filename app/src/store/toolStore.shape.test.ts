@@ -180,9 +180,9 @@ describe("the pending shape", () => {
     expect(pending()).toEqual(before);
   });
 
-  it("stays inside the scenario's square when moved past its edge", () => {
+  it("stays within half again the scenario's square when moved past it", () => {
     tools().moveShape(pending().shape, { x: 900, y: -40 });
-    expect(centreOf(pending().shape)).toEqual({ x: 500, y: -40 });
+    expect(centreOf(pending().shape)).toEqual({ x: 750, y: -40 });
   });
 
   it("holds a field to its range and to whole steps", () => {

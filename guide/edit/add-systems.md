@@ -38,7 +38,7 @@ A special system you add comes without some of what the game gives it:
 
 A system added inside a nebula joins it.
 
-## Systems outside the galaxy edge <Badge type="tip" text="Save" />
+## Systems outside the galaxy edge
 
 In a save, you can add systems past the galaxy edge, out to half again
 the galaxy's radius. The game puts some systems past the edge itself,
@@ -49,6 +49,9 @@ Add system here and the Shape tool both stop at that limit. Further out,
 Add system here is greyed out with the reason under it, and a shape
 leaves those points out. You can still move a system further out once
 it is added.
+
+In a scenario, the Shape tool reaches half again past the map's square,
+out to 750 on every side.
 
 ## Reroll an added system <Badge type="tip" text="Save" />
 
