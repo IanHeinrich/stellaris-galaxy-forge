@@ -22,10 +22,12 @@ export type LaneTarget =
 
 /**
  * What a drag in the Shape tool does: draw a new shape from the press point `anchor`, move the
- * pending shape from the press point `press`, or drag one of its handles.
+ * pending shape from the press point `press`, drag one of its handles, or with Alt draw a shape
+ * from `anchor` and erase the systems inside it.
  */
 export type ShapeDrag =
   | { kind: "draw"; anchor: Pt }
+  | { kind: "erase"; anchor: Pt }
   | { kind: "move"; press: Pt }
   | { kind: "handle"; id: ShapeHandleId };
 

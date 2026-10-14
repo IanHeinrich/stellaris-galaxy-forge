@@ -205,7 +205,13 @@ function writtenImages(p: Pt, sym: Symmetry): Pt[] {
   return images(p, sym).map(writtenPt);
 }
 
-function layout(pending: PendingShape, sym: Symmetry, rules: PlacementRules): Layout {
+/** Where `pending` puts its points; a fill at `spacing` when given, else at `fillSpacing`. */
+function layout(
+  pending: PendingShape,
+  sym: Symmetry,
+  rules: PlacementRules,
+  given?: number,
+): Layout {
   const { shape, fill, seed } = pending;
   const spec = specOf(shape);
   if (fill.kind === "outline") {
@@ -223,7 +229,10 @@ function layout(pending: PendingShape, sym: Symmetry, rules: PlacementRules): La
     };
   }
   // Laid a little past the gap, so rounding to the file's decimals can't bring two points under it.
-  const spacing = Math.max(fillSpacing(shape, fill, sym, rules), rules.minGap + WRITTEN_DRIFT);
+  const spacing = Math.max(
+    given ?? fillSpacing(shape, fill, sym, rules),
+    rules.minGap + WRITTEN_DRIFT,
+  );
   const filled = spec.fills(shape).includes(fill.kind);
   const { row, closed } =
     hasEdgeRow(fill) || !filled ? fillRow(shape, spacing, sym) : { row: [], closed: true };
@@ -411,8 +420,22 @@ function basePoints(
 type Fate =
   { kind: "kept"; index: number } | { kind: "left"; blocker: number } | { kind: "outside" };
 
-/** A placement ground that also counts the follow lanes as lanes, so the mesh never crosses them. */
-class FollowGround extends PlacementGround {
+/**
+ * How many points `pending` lays at `spacing` before the galaxy has a say, up to the rules' cap:
+ * its row, then its fill.
+ */
+export function laidCount(
+  pending: PendingShape,
+  sym: Symmetry,
+  rules: PlacementRules,
+  spacing: number,
+): number {
+  const anywhere: Where = { inside: () => true, places: () => true };
+  return basePoints(layout(pending, sym, rules, spacing), sym, rules, anywhere).base.length;
+}
+
+/** A placement ground that also counts `follow` as lanes, so the mesh never crosses them. */
+export class FollowGround extends PlacementGround {
   constructor(
     private readonly inner: PlacementGround,
     private readonly follow: ReadonlyArray<Segment<MeshPoint>>,
@@ -522,14 +545,19 @@ function classesOf(
 }
 
 /**
- * The systems and lanes `pending` would add to `ground`, and the points it leaves out. Pure, so
- * the same pending shape and ground give the same placement in the preview and in the edit.
- * Every point is as the file keeps it, so the edit sends the points the preview checked.
+ * The systems and lanes `pending` would add to `ground`, and the points it leaves out; a fill is
+ * laid at `spacing` when given. Pure, so the same pending shape and ground give the same
+ * placement in the preview and in the edit. Every point is as the file keeps it, so the edit
+ * sends the points the preview checked.
  */
-export function shapePlacement(pending: PendingShape, ground: ShapeGround): ShapePreview {
+export function shapePlacement(
+  pending: PendingShape,
+  ground: ShapeGround,
+  spacing?: number,
+): ShapePreview {
   const { placement, extent, laneDensity, rules } = ground;
   const sym = placement.symmetry;
-  const shown = layout(pending, sym, rules);
+  const shown = layout(pending, sym, rules, spacing);
   const reach = Math.max(pending.skipNear ? shown.skip : 0, rules.minGap);
   const blockerOf = (p: Pt) => {
     const near = reach > 0 ? placement.grid.nearestSystem(p.x, p.y, reach) : null;
@@ -616,5 +644,6 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
     interleaved: interleaving(pending, sym, all.points.length),
     classes:
       ground.starWeights && classesOf(pending.seed, ground.starWeights, all, ordinals, from, sym),
+    arranged: null,
   };
 }

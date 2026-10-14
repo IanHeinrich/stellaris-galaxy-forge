@@ -10,6 +10,9 @@ import {
   type PlacementRules,
 } from "../../lib/placement/rules";
 import {
+  ARRANGE_LANE_CHOICES,
+  arrangeLabel,
+  arrangeLaneRow,
   FILL_CHOICES,
   fillChoiceLabel,
   fillChoiceOf,
@@ -18,7 +21,13 @@ import {
 } from "../../lib/shapes/shapeCopy";
 import { centreOf, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
 import type { StarChoice } from "../../lib/shapes/stars";
-import type { GalaxyFrame, Shape, ShapeField, ShapeSettings } from "../../lib/shapes/types";
+import type {
+  ArrangeLanes,
+  GalaxyFrame,
+  Shape,
+  ShapeField,
+  ShapeSettings,
+} from "../../lib/shapes/types";
 import type { Choice } from "../../lib/toolCopy";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -275,6 +284,23 @@ function LaneOptions({ settings }: { settings: ShapeSettings }) {
   );
 }
 
+/** Arrange's lane choice about the lanes between the selected systems, and under Rebuild how new ones are laid. */
+function ArrangeLaneOptions({ settings, lanes }: { settings: ShapeSettings; lanes: ArrangeLanes }) {
+  const setArrangeLanes = useToolStore((s) => s.setArrangeLanes);
+  return (
+    <>
+      <span className="tool-option">Lanes</span>
+      <Choice
+        label="Lanes between the selected systems"
+        value={lanes}
+        onPick={setArrangeLanes}
+        choices={ARRANGE_LANE_CHOICES.map((c) => ({ value: c, ...arrangeLaneRow(c) }))}
+      />
+      {lanes === "rebuild" && <LaneOptions settings={settings} />}
+    </>
+  );
+}
+
 /** The centre and the kind's exact fields, folded away until the player wants to type them. */
 function ExactValues({ shape }: { shape: Shape }) {
   const moveShape = useToolStore((s) => s.moveShape);
@@ -406,6 +432,12 @@ function PlaceButton({ path }: { path: PlacementPath }) {
   const refusal = preview && shapeRefusal(preview, path);
   // With game data loaded, the star classes are only a moment away.
   const reason = refusal === SHAPE_NEEDS_GAME_DATA && gameData ? null : refusal;
+  const label =
+    preview === null
+      ? "Place"
+      : preview.arranged
+        ? arrangeLabel(preview.arranged.count)
+        : placeLabel(preview);
   return (
     <>
       <button
@@ -415,7 +447,7 @@ function PlaceButton({ path }: { path: PlacementPath }) {
         title={reason ?? undefined}
         onClick={() => void place()}
       >
-        {preview === null ? "Place" : placeLabel(preview)}
+        {label}
       </button>
       {reason && <span className="tool-hint warn">{reason}</span>}
     </>
@@ -429,7 +461,8 @@ function bodyFields(shape: Shape): readonly ShapeField<Shape>[] {
 
 /**
  * The Shape tool's options: the shape, its fill, its size and spacing, its lanes and Place. With
- * nothing pending they set what the next shape drawn starts from.
+ * nothing pending they set what the next shape drawn starts from. Arranging, the count is the
+ * selection's and the lanes row is about the selection's own lanes.
  */
 export function ShapeOptions() {
   const pending = useToolStore((s) => s.pendingShape);
@@ -441,6 +474,7 @@ export function ShapeOptions() {
   const rules = PLACEMENT_RULES[path];
   const settings = pending ?? rememberedFor(memory);
   const { shape, fill } = settings;
+  const arranging = pending?.purpose.kind === "arrange" ? pending.purpose : null;
   return (
     <div className="shape-options">
       <KindPicker shape={shape} />
@@ -449,17 +483,30 @@ export function ShapeOptions() {
       {bodyFields(shape).map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
-      <CountOrSpacing settings={settings} rules={rules} />
-      {path === "rolled" && <StarsRow stars={pending?.stars ?? memory.stars} />}
-      <LaneOptions settings={settings} />
-      <label className="tool-option">
-        <input
-          type="checkbox"
-          checked={pending?.skipNear ?? memory.skipNear}
-          onChange={(e) => setSkipNear(e.target.checked)}
-        />
-        Don&apos;t place on top of existing systems
-      </label>
+      {arranging ? (
+        <label className="tool-option">
+          Systems
+          <span className="muted">{arranging.ids.length} selected</span>
+        </label>
+      ) : (
+        <CountOrSpacing settings={settings} rules={rules} />
+      )}
+      {path === "rolled" && !arranging && <StarsRow stars={pending?.stars ?? memory.stars} />}
+      {arranging ? (
+        <ArrangeLaneOptions settings={settings} lanes={arranging.lanes} />
+      ) : (
+        <>
+          <LaneOptions settings={settings} />
+          <label className="tool-option">
+            <input
+              type="checkbox"
+              checked={pending?.skipNear ?? memory.skipNear}
+              onChange={(e) => setSkipNear(e.target.checked)}
+            />
+            Don&apos;t place on top of existing systems
+          </label>
+        </>
+      )}
       {pending && fill.kind === "scattered" && (
         <button type="button" onClick={() => shuffle()}>
           Shuffle
@@ -470,7 +517,7 @@ export function ShapeOptions() {
         {pending ? (
           <>
             <PlaceButton path={path} />
-            <span className="muted">Esc drops it</span>
+            <span className="muted">{arranging ? "Esc moves nothing" : "Esc drops it"}</span>
           </>
         ) : (
           <span className="tool-hint muted">Drag on the map to draw a shape</span>

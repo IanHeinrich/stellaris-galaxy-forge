@@ -359,6 +359,7 @@ const CIRCLE: CircleShape = {
 };
 
 const PENDING: PendingShape = {
+  purpose: { kind: "add" },
   shape: CIRCLE,
   fill: { kind: "outline", count: 24 },
   lanes: { follow: true, mode: "off" },

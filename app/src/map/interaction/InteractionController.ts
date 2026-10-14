@@ -4,11 +4,11 @@ import { isEditableTarget, modalDialogOpen } from "../../lib/keys";
 import type { Tool } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
+import { canEnterSystem, currentBarMode, useSceneStore } from "../../store/sceneStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
-import { useToolStore, type ToolState } from "../../store/toolStore";
+import { toolAllowed, useToolStore, type ToolState } from "../../store/toolStore";
 import type { Camera } from "../Camera";
 import type { DrawnPositions } from "../drawnPositions";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
@@ -50,7 +50,10 @@ function expandSection(id: string): void {
   if (inspector.collapsed(id, false)) inspector.toggleSection(id, false);
 }
 
-/** One control model per tool, the brushes each reading the erase target at the press. */
+/**
+ * One control model per tool, the brushes each reading the erase target at the press, and the
+ * Shape tool whether Alt erases, as it does where the Erase brush works.
+ */
 function models(): Record<Tool, MapModel> & { select: GestureModel } {
   const eraseTarget = () => useToolStore.getState().eraseTarget;
   const brush = (tool: BrushTool) => new BrushModel(tool, eraseTarget);
@@ -62,7 +65,7 @@ function models(): Record<Tool, MapModel> & { select: GestureModel } {
     cut: brush("cut"),
     height: brush("height"),
     spread: brush("spread"),
-    shape: new ShapeModel(),
+    shape: new ShapeModel(() => toolAllowed("erase", currentBarMode())),
   };
 }
 
@@ -280,7 +283,8 @@ export class InteractionController {
       },
       contextMenu: (target, x, y) => {
         this.hover(null);
-        useMapChromeStore.getState().openContextMenu({ target, x, y });
+        const at = this.cam.screenToWorld(x, y);
+        useMapChromeStore.getState().openContextMenu({ target, x, y, at });
       },
       hoverBrush: (tool, x, y, flipped) => this.brushes.hover(tool, x, y, flipped),
       beginStroke: (tool, x, y, flipped) => this.brushes.begin(tool, x, y, flipped),

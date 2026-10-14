@@ -1,3 +1,5 @@
+import type { SystemMove } from "../../generated/SystemMove";
+import type { Pair } from "../geometry/pairs";
 import type { Rect } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
 import type { MapExtent } from "../guides";
@@ -104,8 +106,19 @@ export interface ShapeLanes {
   mode: LaneMode;
 }
 
+/** What Arrange does with the lanes between selected systems: keep them, lay new ones, or take them out. */
+export type ArrangeLanes = "keep" | "rebuild" | "clear";
+
+/**
+ * What placing a pending shape does: add new systems at its points, or move the selected
+ * systems `ids` onto them, one to a point, doing `lanes` with the lanes between them.
+ */
+export type ShapePurpose =
+  { kind: "add" } | { kind: "arrange"; ids: readonly number[]; lanes: ArrangeLanes };
+
 /** The shape on the map, waiting for Enter or Place. */
 export interface PendingShape {
+  purpose: ShapePurpose;
   shape: Shape;
   fill: Fill;
   lanes: ShapeLanes;
@@ -124,12 +137,19 @@ export interface ShapeSettings<K extends ShapeKind = ShapeKind> {
   lanes: ShapeLanes;
 }
 
+/** What Arrange remembers: the last shape arranged into, and what it did with the lanes. */
+export interface ArrangeMemory {
+  settings: ShapeSettings;
+  lanes: ArrangeLanes;
+}
+
 /** The Shape tool's remembered settings: the last kind used, and each kind's last settings. */
 export interface ShapeMemory {
   kind: ShapeKind;
   kinds: { [K in ShapeKind]: ShapeSettings<K> };
   skipNear: boolean;
   stars: StarChoice;
+  arrange: ArrangeMemory;
 }
 
 /** A point left out for sitting within the spacing of existing system `blocker`. */
@@ -157,7 +177,29 @@ export type ShapePreview = Placement & {
   interleaved: number | null;
   /** Each point's star class, `classes[i]` for `points[i]`; null where the document rolls none. */
   classes: readonly string[] | null;
+  /** What arranging the selection onto the points does; null when the shape adds systems. */
+  arranged: Arrangement | null;
 };
+
+/**
+ * What arranging a selection onto a shape's points does. The preview's points are where the
+ * systems go, `moves[i]` taking a system to `points[i]`, and its pairs every lane the arranged
+ * systems end up with, a moved system's end under the provisional id of the point it goes to.
+ */
+export interface Arrangement {
+  /** How many systems are arranged. */
+  count: number;
+  /** One per point, in the points' order. */
+  moves: readonly SystemMove[];
+  /** The lanes between selected systems taken out, by system id. */
+  cut: readonly Pair[];
+  /** The lanes laid, by system id. */
+  added: readonly Pair[];
+  /** The lanes kept that would cross another lane once the systems move, as the preview's pairs name them. */
+  crossing: readonly Pair[];
+  /** Why the systems can't be arranged as shown; null when they can. */
+  refusal: string | null;
+}
 
 /** The galaxy a shape is placed into, read once per preview. */
 export interface ShapeGround {

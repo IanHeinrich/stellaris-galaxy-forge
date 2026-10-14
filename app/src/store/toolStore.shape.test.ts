@@ -50,6 +50,7 @@ describe("picking the Shape tool", () => {
   it("starts the remembered circle at the galaxy's centre, with an outline that follows itself", () => {
     expect(tools().setTool("shape")).toBe(true);
     expect(pending()).toEqual({
+      purpose: { kind: "add" },
       shape: SHAPE_SPECS.circle.initial,
       fill: { kind: "outline", count: 24 },
       lanes: { follow: true, mode: "off" },

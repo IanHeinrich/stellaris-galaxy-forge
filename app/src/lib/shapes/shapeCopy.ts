@@ -1,7 +1,9 @@
-import { counted, thousands } from "../text";
+import { counted, listed, thousands } from "../text";
 import { PLACEMENT_RULES, type PlacementPath } from "../placement/rules";
 import { specOf } from "./specs";
 import type {
+  Arrangement,
+  ArrangeLanes,
   Fill,
   FillChoice,
   FillKind,
@@ -92,6 +94,7 @@ export function shapeStatus(
   preview: ShapePreview,
   path: PlacementPath,
 ): ShapeStatus {
+  if (preview.arranged) return arrangeStatus(pending, preview, preview.arranged);
   const { points, pairs, left, outside, overlaps, crowded, capped, interleaved } = preview;
   const summary = `${specOf(pending.shape).label} · ${counted(points.length, "system")}, ${counted(pairs.length, "lane")}`;
   const warnings: string[] = [];
@@ -119,4 +122,89 @@ export function placeLead(pending: PendingShape): string {
 /** The Place button's label: "Place 22 systems". */
 export function placeLabel(preview: ShapePreview): string {
   return `Place ${counted(preview.points.length, "system")}`;
+}
+
+/** Why Arrange is off under symmetry. */
+export const ARRANGE_SYMMETRY =
+  "Arrange moves only the selected systems, so it works with symmetry off.";
+
+/** Why Arrange needs a selection of two or more. */
+export const ARRANGE_NEEDS_TWO = "Select two or more systems to arrange.";
+
+/** Why Arrange refuses a selection past `cap`. */
+export function arrangeOverCap(cap: number): string {
+  return `Arrange moves at most ${thousands(cap)} systems at once.`;
+}
+
+/** Why a fill is refused when even its closest spacing holds fewer than `n` systems. */
+export function arrangeTooSmall(n: number): string {
+  return `The shape is too small for ${counted(n, "system")}. Make it larger.`;
+}
+
+/**
+ * Why `n` systems can't be arranged when only `fit` points fit, naming what kept the rest out:
+ * "Only 5 of 7 systems fit: 2 too close to other systems. Move or resize the shape."
+ */
+export function arrangeShortfall(
+  n: number,
+  fit: number,
+  { left, outside, crowded }: Pick<ShapePreview, "left" | "outside" | "crowded">,
+): string {
+  const why = [
+    left.length > 0 ? `${left.length} too close to other systems` : null,
+    outside.length > 0 ? `${outside.length} past the edge` : null,
+    crowded > 0 ? `${crowded} too close to each other` : null,
+  ].filter((w): w is string => w !== null);
+  if (why.length === 0) return arrangeTooSmall(n);
+  return `Only ${fit} of ${n} systems fit: ${listed(why, "and")}. Move or resize the shape.`;
+}
+
+/** Each choice of what Arrange does with the lanes between selected systems: its name and what it does. */
+const ARRANGE_LANE_ROWS: Record<ArrangeLanes, { label: string; title: string }> = {
+  keep: { label: "Keep", title: "Keep every lane; each stretches to follow" },
+  rebuild: { label: "Rebuild", title: "Take out the lanes between them and lay new ones" },
+  clear: { label: "Clear", title: "Take out the lanes between them" },
+};
+
+/** Every lane choice of Arrange, in the row's order. */
+export const ARRANGE_LANE_CHOICES = Object.keys(ARRANGE_LANE_ROWS) as ArrangeLanes[];
+
+/** A lane choice's name and what it does. */
+export function arrangeLaneRow(choice: ArrangeLanes): { label: string; title: string } {
+  return ARRANGE_LANE_ROWS[choice];
+}
+
+/** The history line of arranging `count` systems into `pending`: "Arranged 7 systems in a ring". */
+export function arrangeDescription(pending: PendingShape, count: number): string {
+  const { shape, fill } = pending;
+  return `Arranged ${counted(count, "system")} in ${specOf(shape).noun(shape, fill)}`;
+}
+
+/** The Place button's label in Arrange: "Arrange 7 systems". */
+export function arrangeLabel(count: number): string {
+  return `Arrange ${counted(count, "system")}`;
+}
+
+/** What the status bar says while `pending` waits to arrange the selection. */
+function arrangeStatus(
+  pending: PendingShape,
+  preview: ShapePreview,
+  { count, cut, added, crossing, refusal }: Arrangement,
+): ShapeStatus {
+  const lanes =
+    cut.length === 0 && added.length === 0
+      ? "lanes kept"
+      : added.length === 0
+        ? `${counted(cut.length, "lane")} out`
+        : `${counted(cut.length, "lane")} out, ${added.length} in`;
+  const summary = `${specOf(pending.shape).label} · ${arrangeLabel(count)} · ${lanes}`;
+  const warnings: string[] = [];
+  if (refusal !== null) warnings.push(refusal);
+  if (crossing.length > 0) {
+    warnings.push(`${counted(crossing.length, "kept lane")} would cross others`);
+  }
+  if (refusal === null && preview.overlaps > 0) {
+    warnings.push(`${counted(preview.overlaps, "system")} overlap others on the map`);
+  }
+  return { summary, warnings };
 }

@@ -4,10 +4,12 @@ import type { Pt } from "../lib/geometry/pt";
 import type { MapExtent } from "../lib/guides";
 import { placementBounds, type PlacementBounds } from "../lib/placement/rules";
 import { LANE_MODES } from "../lib/placement/lanes";
-import { SAMPLE_CAP } from "../lib/placement/limits";
+import { LEAST_SPACING, SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
+import { spreadOf } from "../lib/shapes/arrange";
 import { galaxyFrame } from "../lib/shapes/drag";
-import { FILL_CHOICES, LATTICES } from "../lib/shapes/shapeCopy";
+import { polylineLength } from "../lib/shapes/outline";
+import { ARRANGE_LANE_CHOICES, FILL_CHOICES, LATTICES } from "../lib/shapes/shapeCopy";
 import type { StarChoice } from "../lib/shapes/stars";
 import {
   centreOf,
@@ -17,7 +19,10 @@ import {
   specFor,
   specOf,
 } from "../lib/shapes/specs";
+import type { Tool } from "../lib/tools";
 import type {
+  ArrangeLanes,
+  ArrangeMemory,
   Fill,
   FillChoice,
   PendingShape,
@@ -30,6 +35,7 @@ import type {
   ShapeMemory,
   ShapeOf,
   ShapePreview,
+  ShapePurpose,
   ShapeSettings,
 } from "../lib/shapes/types";
 import { PREF_KEYS } from "./prefKeys";
@@ -92,8 +98,21 @@ export interface ShapeState {
   restoreShape(pending: PendingShape): void;
   /** Saves the settings a drag left remembered but unsaved; the map calls it as each drag ends. */
   settleShape(): void;
-  /** Takes the pending shape off the map; true when there was one. */
+  /**
+   * Takes the pending shape off the map; true when there was one. A shape that was arranging
+   * puts back the tool Arrange was started from.
+   */
   dropShape(): boolean;
+  /**
+   * Arrange: opens the Shape tool with the shape last arranged into pending, centred on `at`
+   * and sized to fit the systems `ids`, to move them onto. False when the document takes no
+   * shapes or fewer than two of `ids` are systems.
+   */
+  startArrange(ids: readonly number[], at: Pt): boolean;
+  /** Sets what arranging does with the lanes between the selected systems; nothing unless arranging. */
+  setArrangeLanes(lanes: ArrangeLanes): void;
+  /** Once an arrange is placed: puts back the tool Arrange was started from. */
+  leaveArrange(): void;
 }
 
 /** How many systems an outline starts with, and the fewest and most it takes. */
@@ -104,6 +123,11 @@ export const COUNT_RANGE = { min: 2, max: SAMPLE_CAP } as const;
 export const SHAPE_SIZE_MIN = 10;
 
 const ORIGIN: Pt = { x: 0, y: 0 };
+
+const ADD: ShapePurpose = { kind: "add" };
+
+/** How much farther apart than the least spacing an arranged outline's points start. */
+const ARRANGE_ROOM = 1.2;
 
 /** The lanes a fill starts with: an outline follows itself, a fill meshes among its new systems. */
 function defaultLanes(fill: Fill): ShapeLanes {
@@ -119,6 +143,12 @@ function initialSettings<K extends ShapeKind>(kind: K): ShapeSettings<K> {
 /** The stars a shape rolls until the player picks others: the game's usual mix. */
 const RANDOM_STARS: StarChoice = { kind: "random" };
 
+/** What Arrange starts from the first time: a circle, keeping the lanes. */
+function firstArrange(): ArrangeMemory {
+  const { shape, fill, lanes } = initialSettings("circle");
+  return { settings: { shape, fill, lanes }, lanes: "keep" };
+}
+
 function firstMemory(): ShapeMemory {
   const kinds = Object.fromEntries(SHAPE_KINDS.map((kind) => [kind, initialSettings(kind)]));
   return {
@@ -126,6 +156,7 @@ function firstMemory(): ShapeMemory {
     kinds: kinds as ShapeMemory["kinds"],
     skipNear: true,
     stars: RANDOM_STARS,
+    arrange: firstArrange(),
   };
 }
 
@@ -141,6 +172,7 @@ const isShapeKind = isOneOf(SHAPE_KINDS);
 const isFillChoice = isOneOf(FILL_CHOICES);
 const isLattice = isOneOf(LATTICES);
 const isLaneMode = isOneOf(LANE_MODES);
+const isArrangeLanes = isOneOf(ARRANGE_LANE_CHOICES);
 
 function isClassKey(value: unknown): value is string {
   return typeof value === "string" && value !== "";
@@ -220,6 +252,18 @@ function storedSettings(kind: ShapeKind, value: unknown): ShapeSettings {
   return { shape, fill, lanes };
 }
 
+/** What Arrange remembers as stored, starting as it first did where that is no setting. */
+function storedArrange(value: unknown): ArrangeMemory {
+  const first = firstArrange();
+  if (!isRecord(value) || !isRecord(value.settings)) return first;
+  const shape = value.settings.shape;
+  const kind = isRecord(shape) && isShapeKind(shape.kind) ? shape.kind : first.settings.shape.kind;
+  return {
+    settings: storedSettings(kind, value.settings),
+    lanes: isArrangeLanes(value.lanes) ? value.lanes : first.lanes,
+  };
+}
+
 /** The remembered settings stored on this machine, the first settings standing in for what is not. */
 function storedMemory(): ShapeMemory {
   const first = firstMemory();
@@ -232,6 +276,7 @@ function storedMemory(): ShapeMemory {
     kinds: Object.fromEntries(held) as ShapeMemory["kinds"],
     skipNear: isBoolean(value.skipNear) ? value.skipNear : first.skipNear,
     stars: heldStars(value.stars) ?? first.stars,
+    arrange: storedArrange(value.arrange),
   };
 }
 
@@ -299,6 +344,23 @@ function extentNow(): MapExtent | null {
   return placementBoundsNow().edge;
 }
 
+/**
+ * `shape` sized to fit `points`: as far from its centre as they spread from theirs, and large
+ * enough that `points.length` systems round its outline sit `least` apart and a little more.
+ */
+function fittedShape(shape: Shape, points: readonly Pt[], least: number): Shape {
+  const n = points.length;
+  const { spread } = spreadOf(points);
+  const spec = specOf(shape);
+  const fits = resizedWithin(shape, Math.max(SHAPE_SIZE_MIN, spread));
+  const { points: ring, closed } = spec.outline(fits, n);
+  const gaps = closed ? ring.length : ring.length - 1;
+  const step = gaps > 0 ? polylineLength(ring, closed) / gaps : 0;
+  const want = least * ARRANGE_ROOM;
+  if (step >= want || step <= 0) return fits;
+  return resizedWithin(fits, (spec.size(fits) * want) / step);
+}
+
 /** `p` held inside `extent`. */
 function heldInside(p: Pt, extent: MapExtent | null): Pt {
   if (extent === null) return p;
@@ -335,6 +397,17 @@ function settingsOf({ shape, fill, lanes }: PendingShape): ShapeSettings {
   return { shape, fill, lanes };
 }
 
+/** `memory` with `pending`'s settings remembered for the next shape of its purpose. */
+function rememberedOf(memory: ShapeMemory, pending: PendingShape): ShapeMemory {
+  const { purpose } = pending;
+  switch (purpose.kind) {
+    case "add":
+      return remembered(memory, settingsOf(pending));
+    case "arrange":
+      return { ...memory, arrange: { settings: settingsOf(pending), lanes: purpose.lanes } };
+  }
+}
+
 function samePt(a: Pt, b: Pt): boolean {
   return a.x === b.x && a.y === b.y;
 }
@@ -348,6 +421,14 @@ export function shapeSlice(
   let lastAnchor: Pt | null = null;
   /** Whether `shapeMemory` holds settings a drag changed that are not saved yet. */
   let unsaved = false;
+  /** The tool Arrange was started from, which it puts back; null when that was the Shape tool. */
+  let arrangedFrom: Tool | null = null;
+
+  function putToolBack(): void {
+    const back = arrangedFrom;
+    arrangedFrom = null;
+    if (back !== null && get().tool === "shape") get().setTool(back);
+  }
 
   function save(memory: ShapeMemory): void {
     writePref(PREF_KEYS.shapeMemory, memory);
@@ -366,7 +447,7 @@ export function shapeSlice(
 
   /** `show` for each step of a drag, which saves the settings only once it ends. */
   function showDragged(pending: PendingShape): ShapeMemory {
-    const memory = remembered(get().shapeMemory, settingsOf(pending));
+    const memory = rememberedOf(get().shapeMemory, pending);
     set({ pendingShape: pending, shapeMemory: memory });
     unsaved = true;
     return memory;
@@ -393,6 +474,7 @@ export function shapeSlice(
       lastAnchor = null;
       set({
         pendingShape: {
+          purpose: ADD,
           shape: centredOn(shape, at),
           fill,
           lanes,
@@ -413,12 +495,13 @@ export function shapeSlice(
       if (from.kind === kind) return;
       const settings = shapeMemory.kinds[kind];
       const sized = specOf(settings.shape).resized(settings.shape, specOf(from).size(from));
-      show({
-        ...pendingShape,
-        shape: centredOn(sized, centreOf(from)),
-        fill: settings.fill,
-        lanes: settings.lanes,
-      });
+      const shape = centredOn(sized, centreOf(from));
+      // Arranging keeps its fill and lanes where the new kind takes them.
+      const kept =
+        pendingShape.purpose.kind === "arrange"
+          ? withFill({ ...settingsOf(pendingShape), shape }, pendingShape.fill)
+          : null;
+      show({ ...pendingShape, ...(kept ?? { ...settings, shape }) });
     },
 
     setShapeField(kind, key, value) {
@@ -486,12 +569,15 @@ export function shapeSlice(
 
     drawShape(anchor, to, mods) {
       const { pendingShape, shapeMemory } = get();
-      const kind = shapeMemory.kind;
-      const settings = shapeMemory.kinds[kind];
+      // A shape drawn while arranging arranges too, of the kind and with the settings it had.
+      const arranging = pendingShape?.purpose.kind === "arrange" ? pendingShape : null;
+      const kind = arranging?.shape.kind ?? shapeMemory.kind;
+      const settings = arranging ? settingsOf(arranging) : shapeMemory.kinds[kind];
       const prev = pendingShape?.shape.kind === kind ? pendingShape.shape : settings.shape;
       const sameDrag = pendingShape !== null && lastAnchor !== null && samePt(lastAnchor, anchor);
       lastAnchor = anchor;
       showDragged({
+        purpose: arranging?.purpose ?? ADD,
         shape: specOf(prev).fromDrag(anchor, to, mods, prev),
         fill: settings.fill,
         lanes: settings.lanes,
@@ -525,9 +611,54 @@ export function shapeSlice(
     },
 
     dropShape() {
-      if (get().pendingShape === null) return false;
+      const pending = get().pendingShape;
+      if (pending === null) return false;
       set({ pendingShape: null });
+      if (pending.purpose.kind === "arrange") putToolBack();
       return true;
+    },
+
+    startArrange(ids, at) {
+      const systems = useGalaxyStore.getState().systems;
+      const chosen = [...new Set(ids)].filter((id) => systems.has(id));
+      const path = shapePath(useFileSessionStore.getState().capabilities);
+      if (chosen.length < 2 || path === null || !isPt(at)) return false;
+      const before = get().tool;
+      const wasArranging = get().pendingShape?.purpose.kind === "arrange";
+      if (!get().setTool("shape")) return false;
+      if (before !== "shape") arrangedFrom = before;
+      else if (!wasArranging) arrangedFrom = null;
+      const { shapeMemory } = get();
+      const { settings, lanes } = shapeMemory.arrange;
+      const least = Math.max(LEAST_SPACING, PLACEMENT_RULES[path].minGap);
+      const fitted = fittedShape(
+        settings.shape,
+        chosen.map((id) => systems.get(id)!),
+        least,
+      );
+      lastAnchor = null;
+      set({
+        pendingShape: {
+          purpose: { kind: "arrange", ids: chosen, lanes },
+          shape: centredOn(fitted, at),
+          fill: settings.fill,
+          lanes: settings.lanes,
+          skipNear: false,
+          stars: shapeMemory.stars,
+          seed: newSeed(),
+        },
+      });
+      return true;
+    },
+
+    setArrangeLanes(lanes) {
+      const pending = get().pendingShape;
+      if (pending?.purpose.kind !== "arrange" || !isArrangeLanes(lanes)) return;
+      show({ ...pending, purpose: { ...pending.purpose, lanes } });
+    },
+
+    leaveArrange() {
+      putToolBack();
     },
   };
 }

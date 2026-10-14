@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { SpecialKind } from "../generated/SpecialKind";
 import { DEFAULT_LANE_DENSITY, densityOfBeta } from "../lib/geometry/mesh";
+import type { Pt } from "../lib/geometry/pt";
 import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
@@ -64,6 +65,8 @@ export interface ContextMenu {
   target: ContextTarget;
   x: number;
   y: number;
+  /** The galaxy map's world point under the right-click; absent for a menu opened elsewhere. */
+  at?: Pt;
 }
 
 /** Tooltip text: plain, or pieces with inline icons named by texture key. */

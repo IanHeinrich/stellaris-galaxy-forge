@@ -4,9 +4,12 @@ import { CONNECT_ALL_MAX, deletableSystems, useEditorStore } from "../store/edit
 import { deleteAddedLabel } from "../lib/addSystem";
 import { documentCapabilities } from "../lib/capabilities";
 import { clanMenuItem, nextFreeClan } from "../lib/marauder";
+import { arrangeRefusal, spreadOf } from "../lib/shapes/arrange";
 import { useWormholePairAction } from "../store/bypassSelectors";
 import { useCanEdit, useFileSessionStore } from "../store/fileSessionStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
+import { useBarMode } from "../store/sceneStore";
+import { toolAllowed, useToolStore } from "../store/toolStore";
 import {
   linkedSystems,
   meshLanes,
@@ -111,6 +114,7 @@ export function BulkActions({
       {canCreate && selection.length === 3 && (
         <MarauderClanButton ids={selection} dismiss={dismiss} itemRole={itemRole} />
       )}
+      <ArrangeButton ids={selection} dismiss={dismiss} itemRole={itemRole} />
       {deletable?.kind === "systems" && selection.length > 1 && (
         <button
           type="button"
@@ -137,6 +141,42 @@ export function BulkActions({
       )}
       {heights && itemRole === undefined && <BulkHeight ids={selection} />}
     </>
+  );
+}
+
+/**
+ * Arrange…: opens the Shape tool to move the selected systems onto a shape, centred where the
+ * menu was opened, or among them from the inspector. Off under symmetry, with the reason.
+ */
+function ArrangeButton({
+  ids,
+  dismiss,
+  itemRole,
+}: {
+  ids: readonly number[];
+  dismiss?: () => void;
+  itemRole?: "menuitem";
+}) {
+  const at = useMapChromeStore((s) => s.contextMenu?.at ?? null);
+  const systems = useGalaxyStore((s) => s.systems);
+  const symmetry = useToolStore((s) => s.symmetry);
+  const startArrange = useToolStore((s) => s.startArrange);
+  const barMode = useBarMode();
+  if (ids.length < 2 || !toolAllowed("shape", barMode)) return null;
+  const refusal = arrangeRefusal(ids.length, symmetry);
+  return (
+    <button
+      type="button"
+      role={itemRole}
+      disabled={refusal !== null}
+      title={refusal ?? undefined}
+      onClick={() => {
+        dismiss?.();
+        startArrange(ids, at ?? spreadOf(ids.flatMap((id) => systems.get(id) ?? [])).mid);
+      }}
+    >
+      Arrange…
+    </button>
   );
 }
 
