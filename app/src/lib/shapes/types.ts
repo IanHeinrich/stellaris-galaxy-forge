@@ -134,13 +134,13 @@ export type ShapeOf<K extends ShapeKind> = Extract<Shape, { kind: K }>;
 export type Lattice = "square" | "hex";
 
 /**
- * Where a shape's systems go: `count` along the outline, or a fill `spacing` apart. A scattered
- * fill with `edge` also lines the shape's edge with a row of systems.
+ * Where a shape's systems go: `count` along the outline, or a fill `spacing` apart. A fill with
+ * `edge` also lines the shape's edge with a row of systems.
  */
 export type Fill =
   | { kind: "outline"; count: number }
   | { kind: "scattered"; spacing: number; edge: boolean }
-  | { kind: "grid"; spacing: number; lattice: Lattice };
+  | { kind: "grid"; spacing: number; edge: boolean; lattice: Lattice };
 
 export type FillKind = Fill["kind"];
 
@@ -393,7 +393,7 @@ export interface ShapeSpec<S extends Shape> {
   extras: readonly ExtraKey[];
   /** Where spokes join the outline to a system at the centre; null for a kind with no centre system. */
   spokes: SpokeEnds | null;
-  /** Whether a scattered fill can line the edge with a row of systems: a galaxy fades out toward its rim, so it has none. */
+  /** Whether a fill can line the edge with a row of systems: a galaxy fades out toward its rim, so it has none. */
   edgeRow: boolean;
   /** Whether the lanes a shape lays always join its systems into one network, as a galaxy's do. */
   connected: boolean;

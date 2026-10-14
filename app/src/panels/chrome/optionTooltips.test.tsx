@@ -78,8 +78,8 @@ const options = () => plain(renderToStaticMarkup(<ToolOptions />));
 const FILLS: Record<FillChoice, Fill> = {
   outline: { kind: "outline", count: 24 },
   scattered: { kind: "scattered", spacing: 25, edge: true },
-  square: { kind: "grid", spacing: 25, lattice: "square" },
-  hex: { kind: "grid", spacing: 25, lattice: "hex" },
+  square: { kind: "grid", spacing: 25, edge: false, lattice: "square" },
+  hex: { kind: "grid", spacing: 25, edge: false, lattice: "hex" },
 };
 
 /** A pending `kind` with `fill` and every option it can show turned on. */

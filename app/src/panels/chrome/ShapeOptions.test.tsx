@@ -116,7 +116,7 @@ describe("the shape options", () => {
           ...memory.kinds,
           star: {
             shape: SHAPE_SPECS.star.initial,
-            fill: { kind: "grid", spacing: 30, lattice: "square" },
+            fill: { kind: "grid", spacing: 30, edge: false, lattice: "square" },
             lanes: { follow: false, mode: "new", islands: false },
             extras: NO_EXTRAS,
           },
@@ -282,7 +282,7 @@ describe("the shape options", () => {
     );
 
     useToolStore.setState({
-      pendingShape: pend("rect", { kind: "grid", spacing: 25, lattice: "hex" }),
+      pendingShape: pend("rect", { kind: "grid", spacing: 25, edge: false, lattice: "hex" }),
     });
     const grid = options();
     expect(grid).toMatch(
@@ -310,7 +310,7 @@ describe("the shape options", () => {
     }
   });
 
-  it("offer the edge row for a scattered fill, and Follow the shape only while there is one", () => {
+  it("offer the edge row for a scattered or grid fill, and Follow the shape only while there is one", () => {
     useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
     expect(options()).not.toContain("Line the edge with systems");
 
@@ -331,16 +331,27 @@ describe("the shape options", () => {
     expect(bare).not.toContain("Follow the shape");
 
     useToolStore.setState({
-      pendingShape: pend("circle", { kind: "grid", spacing: 25, lattice: "square" }),
+      pendingShape: pend("circle", { kind: "grid", spacing: 25, edge: false, lattice: "square" }),
     });
-    expect(options()).not.toContain("Follow the shape");
+    const grid = options();
+    expect(grid).toMatch(
+      /<input type="checkbox"(?![^>]*checked)[^>]*\/>Line the edge with systems/,
+    );
+    expect(grid).not.toContain("Follow the shape");
+
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "grid", spacing: 25, edge: true, lattice: "hex" }),
+    });
+    const linedGrid = options();
+    expect(linedGrid).toMatch(/checked=""[^>]*\/>Line the edge with systems/);
+    expect(linedGrid).toContain("Follow the shape");
   });
 
   it("start System density at the closest spacing that fills the whole shape, and show the one used", () => {
     useToolStore.setState({
       pendingShape: pend(
         "circle",
-        { kind: "grid", spacing: 5, lattice: "square" },
+        { kind: "grid", spacing: 5, edge: false, lattice: "square" },
         { shape: { ...SHAPE_SPECS.circle.initial, radius: 500 } },
       ),
     });
@@ -575,7 +586,7 @@ describe("the shape options on a save", () => {
     useToolStore.setState({
       pendingShape: pend(
         "circle",
-        { kind: "grid", spacing: 5, lattice: "square" },
+        { kind: "grid", spacing: 5, edge: false, lattice: "square" },
         { shape: { ...SHAPE_SPECS.circle.initial, radius: 30 } },
       ),
     });

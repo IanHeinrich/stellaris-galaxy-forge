@@ -58,9 +58,8 @@ export function hasEdgeRow(shape: Shape, fill: Fill): boolean {
     case "outline":
       return true;
     case "scattered":
-      return fill.edge && specOf(shape).edgeRow;
     case "grid":
-      return false;
+      return fill.edge && specOf(shape).edgeRow;
   }
 }
 

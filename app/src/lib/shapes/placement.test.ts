@@ -10,6 +10,7 @@ import type { Symmetry } from "../geometry/symmetry";
 import { SCENARIO_HALF_EXTENT } from "../guides";
 import { provisionalId } from "../placement/lanes";
 import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
+import { lattice } from "./fills";
 import { fillSpacing, leastSpacing, shapePlacement } from "./placement";
 import {
   components,
@@ -26,6 +27,8 @@ import {
 } from "./placement.fixture";
 import { SHAPE_SPECS } from "./specs";
 import type { Fill, PolygonShape, ShapeGround, ShapePreview, SpacedFill } from "./types";
+
+const spot = (p: Pt) => `${Math.round(p.x * 1e3) / 1e3 + 0},${Math.round(p.y * 1e3) / 1e3 + 0}`;
 
 describe("an outline's points and follow lanes", () => {
   it("joins a closed ring's n points with n lanes, the last back to the first", () => {
@@ -216,7 +219,6 @@ describe("a shape under symmetry", () => {
     const ring = circle({ centre: { x: 100, y: 30 }, radius: 80 });
     const preview = shapePlacement(pending(ring), groundOf([], { kind: "mirror", axis: "x" }));
     const at = positions(preview);
-    const spot = (p: Pt) => `${Math.round(p.x * 1e3) / 1e3 + 0},${Math.round(p.y * 1e3) / 1e3 + 0}`;
     const lane = (p: Pt, q: Pt) => [spot(p), spot(q)].sort().join(" ");
     const flip = (p: Pt) => ({ x: p.x, y: -p.y });
     const lanes = preview.pairs.map(([a, b]) => lane(at(a), at(b)));
@@ -236,7 +238,7 @@ describe("a shape under symmetry", () => {
     expect(quarter.overlaps).toBe(0);
     expect(quarter.points.length).toBeGreaterThan(alone.points.length * 0.6);
     expect(quarter.points.length).toBeLessThan(alone.points.length * 1.4);
-    const hex: Fill = { kind: "grid", spacing: 40, lattice: "hex" };
+    const hex: Fill = { kind: "grid", spacing: 40, edge: false, lattice: "hex" };
     const lattice = shapePlacement(
       pending(circle(), { fill: hex }),
       groundOf([], { kind: "rotate", n: 6 }),
@@ -339,6 +341,41 @@ describe("a scattered fill's edge row", () => {
   });
 });
 
+describe("a grid's edge row", () => {
+  const disc = circle({ radius: 290 });
+  const lanes = { follow: false, mode: "new", islands: false } as const;
+
+  it.each(["square", "hex"] as const)(
+    "lines a %s grid's outline and keeps the grid a spacing inside it, the grid as without the row",
+    (kind) => {
+      const fill = (edge: boolean): SpacedFill => ({
+        kind: "grid",
+        spacing: 25,
+        edge,
+        lattice: kind,
+      });
+      const lined = shapePlacement(pending(disc, { fill: fill(true), lanes }), EMPTY);
+      const bare = shapePlacement(pending(disc, { fill: fill(false), lanes }), EMPTY);
+      const spacing = fillSpacing(disc, fill(false), OFF, STATEMENTS);
+      const frame = { origin: { x: 0, y: 0 }, rotation: 0 };
+      const grid = [...lattice(kind, spacing, frame, SHAPE_SPECS.circle.bounds(disc))]
+        .filter((p) => SHAPE_SPECS.circle.contains(disc, p))
+        .map((p) => spot(writtenPt(p)));
+      expect(new Set(bare.points.map(spot))).toEqual(new Set(grid));
+      expect(bare.points.filter((p) => onRim(p, 290))).toEqual([]);
+
+      const row = lined.points.filter((p) => onRim(p, 290));
+      const inner = lined.points.filter((p) => !onRim(p, 290));
+      expect(row.length).toBeGreaterThan(60);
+      const nearest = (p: Pt) => Math.min(...row.map((q) => Math.hypot(p.x - q.x, p.y - q.y)));
+      expect(Math.min(...inner.map(nearest))).toBeGreaterThanOrEqual(spacing - WRITTEN_DRIFT);
+      const kept = new Set(grid);
+      expect(inner.filter((p) => !kept.has(spot(p)))).toEqual([]);
+      expect(inner.length).toBeGreaterThan(grid.length * 0.7);
+    },
+  );
+});
+
 describe("a filled arc", () => {
   const half = circle({ radius: 250, rotation: 90, sweep: 180 });
 
@@ -370,8 +407,10 @@ describe("the closest spacing a fill takes", () => {
   const disc = circle({ radius: 500 });
   const fills: Fill[] = [
     { kind: "scattered", spacing: 5, edge: true },
-    { kind: "grid", spacing: 5, lattice: "square" },
-    { kind: "grid", spacing: 5, lattice: "hex" },
+    { kind: "grid", spacing: 5, edge: false, lattice: "square" },
+    { kind: "grid", spacing: 5, edge: false, lattice: "hex" },
+    { kind: "grid", spacing: 5, edge: true, lattice: "square" },
+    { kind: "grid", spacing: 5, edge: true, lattice: "hex" },
   ];
 
   it.each(fills)(
@@ -399,7 +438,7 @@ describe("the closest spacing a fill takes", () => {
   });
 
   it("holds each copy of a disc off the pivot to a quarter of the cap under four-fold rotation", () => {
-    const fill: SpacedFill = { kind: "grid", spacing: 5, lattice: "square" };
+    const fill: SpacedFill = { kind: "grid", spacing: 5, edge: false, lattice: "square" };
     const off = circle({ centre: { x: 250, y: 0 }, radius: 150 });
     const quarter = groundOf([], { kind: "rotate", n: 4 });
     // A quarter of the cap over the disc's area and edge: area / d² + edge / d = cap / 4.
@@ -421,7 +460,7 @@ describe("the closest spacing a fill takes", () => {
     const quarter = groundOf([], { kind: "rotate", n: 4 });
     for (const fill of [
       { kind: "scattered", spacing: 5, edge: true },
-      { kind: "grid", spacing: 5, lattice: "hex" },
+      { kind: "grid", spacing: 5, edge: false, lattice: "hex" },
     ] as const) {
       const alone = leastSpacing(disc, fill, OFF, STATEMENTS);
       const merged = leastSpacing(disc, fill, quarter.placement.symmetry, STATEMENTS);
@@ -494,8 +533,9 @@ describe("a shape rolled into a save", () => {
     const small = circle({ radius: 60 });
     for (const fill of [
       { kind: "scattered", spacing: 5, edge: true },
-      { kind: "grid", spacing: 5, lattice: "square" },
-      { kind: "grid", spacing: 5, lattice: "hex" },
+      { kind: "grid", spacing: 5, edge: false, lattice: "square" },
+      { kind: "grid", spacing: 5, edge: false, lattice: "hex" },
+      { kind: "grid", spacing: 5, edge: true, lattice: "hex" },
     ] as const) {
       expect(fillSpacing(small, fill, OFF, ROLLED)).toBeGreaterThanOrEqual(minGap);
       const preview = shapePlacement(pending(small, { fill }), groundOf([], OFF, ROLLED));
@@ -527,7 +567,7 @@ describe("a shape rolled into a save", () => {
   it("fills a lattice at a spacing of exactly the spawn buffer off a whole-number centre in full, every point as written", () => {
     const off = circle({ centre: { x: 3.3, y: 7.7 }, radius: 60 });
     for (const lattice of ["square", "hex"] as const) {
-      const fill = { kind: "grid", spacing: minGap, lattice } as const;
+      const fill = { kind: "grid", spacing: minGap, edge: false, lattice } as const;
       const preview = shapePlacement(pending(off, { fill }), groundOf([], OFF, ROLLED));
       expect(preview.points.length).toBeGreaterThan(100);
       expect(preview.points.map(writtenPt)).toEqual(preview.points);

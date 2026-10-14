@@ -160,9 +160,11 @@ empty, as a share of the radius. A filled circle with a hollow centre is a
 donut. With "Line the edge with systems", the edge of the hole gets a row
 of systems too.
 
-For a scattered fill, "Line the edge with systems" also places a row of
-systems along the edge. Untick it to leave only scattered systems
-inside the shape, with lanes as natural as painted ones.
+For a scattered or grid fill, "Line the edge with systems" also places a
+row of systems along the edge. The fill stays about one spacing inside the
+row. It starts ticked for a scattered fill and unticked for a grid. Untick
+it on a scattered fill to leave only scattered systems inside the shape,
+with lanes as natural as painted ones.
 
 Size is a slider, with Small and Whole galaxy buttons for the two ends.
 For an outline, set the number of systems on the edge with "How many"
