@@ -45,6 +45,9 @@ Erase has these options:
 
 ![The Erase brush options: Size, Target set to Systems, and Also erase special systems](../images/edit/erase-brush-options.png)
 
+To lay systems out in a ring, a line or a star, use the Shape tool on
+[Draw shapes of systems](shapes.md).
+
 The Height brush (<kbd>H</kbd>) is on the
 [System heights](heights.md#shape-heights-with-the-height-brush) page.
 

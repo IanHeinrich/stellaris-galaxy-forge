@@ -34,8 +34,9 @@ above it, the tool strip is on the left and the dock is on the right.
 3. The layer buttons switch the main layers on and off. The Layers menu
    at the end lists every layer. See [Layers](../map/layers.md).
 4. The tool strip: Select, Connect lanes and Cut lanes. A save adds the
-   Height brush, and a scenario adds Paint systems and Erase systems.
-   See [Brushes and symmetry](../edit/brushes.md).
+   Height brush, and a scenario adds Paint systems, Erase systems and
+   Draw shapes. See [Brushes and symmetry](../edit/brushes.md) and
+   [Draw shapes of systems](../edit/shapes.md).
 5. The map. See [Move around the map](../map/navigate.md).
 6. The dock tabs: Inspector, Empires, Points of interest, Pinned
    searches, Issues and Changes.

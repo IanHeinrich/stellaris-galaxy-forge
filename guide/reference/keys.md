@@ -51,9 +51,10 @@ for clicks and drags too. <kbd>Option</kbd> is <kbd>Alt</kbd>.
 | --- | --- |
 | <kbd>V</kbd>, <kbd>C</kbd>, <kbd>X</kbd> | Select, Connect lanes, Cut lanes |
 | <kbd>B</kbd>, <kbd>E</kbd> | Paint systems, Erase systems, in a scenario |
+| <kbd>O</kbd> | Draw shapes, in a scenario. <kbd>Enter</kbd> places the pending shape, and <kbd>Esc</kbd> drops it |
 | <kbd>H</kbd> | Height brush, in a save |
 | <kbd>Shift</kbd>+<kbd>M</kbd> | Symmetry on or off, in a scenario |
-| <kbd>[</kbd> <kbd>]</kbd> | Brush size, or nebula radius by 1 |
+| <kbd>[</kbd> <kbd>]</kbd> | Brush size, the pending shape's size, or nebula radius by 1 |
 | <kbd>Shift</kbd>+<kbd>[</kbd> <kbd>]</kbd> | Nebula radius by 5 |
 | <kbd>Alt</kbd> | While held, switches Connect and Cut, or Paint and Erase. Erase set to lanes becomes Connect. On the Height brush, Raise lowers and Ripple swaps crests and troughs |
 
@@ -86,9 +87,10 @@ Each press of <kbd>Esc</kbd> does the first of these that applies:
 3. In a text field, drops what you typed.
 4. Closes the Open screen or a right-click menu.
 5. On the galaxy map, clears the rings of a star type you picked in search.
-6. Switches back to the Select tool.
-7. Forgets the planets you cut or copied.
-8. Clears a selection of several planets in the system view.
-9. Goes back one Inspector page.
-10. Leaves the system view.
-11. Clears the selection.
+6. Drops the pending shape of the Shape tool.
+7. Switches back to the Select tool.
+8. Forgets the planets you cut or copied.
+9. Clears a selection of several planets in the system view.
+10. Goes back one Inspector page.
+11. Leaves the system view.
+12. Clears the selection.

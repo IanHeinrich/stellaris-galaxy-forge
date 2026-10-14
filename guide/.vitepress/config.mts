@@ -38,6 +38,7 @@ const sidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Hyperlanes', link: '/edit/hyperlanes' },
       { text: 'Add and delete systems', link: '/edit/add-systems' },
       { text: 'Brushes and symmetry', link: '/edit/brushes' },
+      { text: 'Draw shapes of systems', link: '/edit/shapes' },
       { text: 'System heights', link: '/edit/heights' },
       { text: 'Nebulae', link: '/edit/nebulae' },
       { text: 'Stars', link: '/edit/stars' },
