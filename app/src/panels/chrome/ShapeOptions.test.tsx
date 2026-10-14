@@ -606,3 +606,26 @@ describe("the shape options on a save", () => {
     expect(html).toContain("None of the ticked stars can be rolled. Tick another.");
   });
 });
+
+describe("the shape options with symmetry", () => {
+  it("say that the shape is copied while symmetry is on, in Place and Arrange, and say nothing with it off", () => {
+    const arrange = pend("circle", OUTLINE, {
+      purpose: { kind: "arrange", ids: [1, 2], lanes: "keep", alsoOuter: false },
+    });
+    for (const pending of [null, pend("circle", OUTLINE), arrange]) {
+      useToolStore.setState({ pendingShape: pending });
+      useToolStore.getState().setSymmetry({ kind: "off" });
+      expect(options()).not.toContain("Symmetry:");
+
+      useToolStore.getState().setSymmetry({ kind: "rotate", n: 4 });
+      const html = options();
+      expect(html).toMatch(
+        /<span class="tool-hint muted" title="[^"]+">Symmetry: 4-fold rotation, 4 copies<\/span>/,
+      );
+      expect(html.indexOf("Symmetry: 4-fold")).toBeLessThan(html.indexOf('class="shape-foot"'));
+
+      useToolStore.getState().setSymmetry({ kind: "mirror", axis: "y" });
+      expect(options()).toContain("Symmetry: Mirror left–right, 2 copies");
+    }
+  });
+});
