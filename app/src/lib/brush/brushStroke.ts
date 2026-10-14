@@ -8,7 +8,7 @@ import { SAMPLE_CAP } from "../placement/limits";
 import { StrokeSampler } from "./sample";
 import { sweptLanes, sweptSystems } from "./sweep";
 import { copies, imagesOfStamps, type Symmetry } from "../geometry/symmetry";
-import { MESH_BETA, meshPairs, type MeshPoint } from "../geometry/mesh";
+import { delaunayPairs, type MeshPoint } from "../geometry/mesh";
 import { PairSet, type Pair } from "../geometry/pairs";
 import type { Pt } from "../geometry/pt";
 import type { SegmentIndex, Segment } from "../geometry/segments";
@@ -27,8 +27,8 @@ export interface BrushSettings {
   eraseTarget: EraseTarget;
   eraseSpecials: boolean;
   symmetry: Symmetry;
-  /** The β of the lanes a paint or connect stroke adds. */
-  beta: number;
+  /** The Lane density of the lanes a paint or connect stroke adds. */
+  laneDensity: number;
   /** What a height stroke does. */
   height: HeightBrush;
 }
@@ -65,7 +65,7 @@ function sorted(ids: Set<number>): number[] {
 function medianNearest(points: readonly MeshPoint[]): number {
   const nearest = new Map<number, number>();
   const at = new Map(points.map((p) => [p.id, p]));
-  for (const [a, b] of meshPairs([...points], MESH_BETA.dense)) {
+  for (const [a, b] of delaunayPairs(points)) {
     const p = at.get(a)!;
     const q = at.get(b)!;
     const d = Math.hypot(p.x - q.x, p.y - q.y);
@@ -137,14 +137,14 @@ class PaintStroke implements Strategy {
   result(): StrokeResult {
     const base = this.sampler.points;
     if (this.painted?.base === base.length) return this.painted.result;
-    const { laneMode: mode, beta, spacing, symmetry } = this.ground.settings;
+    const { laneMode: mode, laneDensity: density, spacing, symmetry } = this.ground.settings;
     // The sampler keeps every image `spacing` from the rest, so none merges.
     const { points, imageOfNew } = symmetricCopies(base, symmetry);
     const pairs = placedLanes({
       points,
       base: base.length,
       mode,
-      beta,
+      density,
       spacing,
       ground: this.ground.placement,
       imageOfNew,
@@ -208,7 +208,12 @@ class ConnectStroke implements Strategy {
     };
     const existing = placement.lanesNear(points, maxLength);
     const keep = (a: number, b: number) => !apart(a, b) && !apart(b, a);
-    const meshed = meshWithin(points, { beta: ground.settings.beta, maxLength, existing, keep });
+    const meshed = meshWithin(points, {
+      density: ground.settings.laneDensity,
+      maxLength,
+      existing,
+      keep,
+    });
     const pairs = placement.symmetric
       ? placement.symmetricLanes(
           meshed,
@@ -223,7 +228,7 @@ class ConnectStroke implements Strategy {
     const sparse =
       meshed.length === 0 &&
       points.length >= 2 &&
-      meshWithin(points, { beta: MESH_BETA.dense, maxLength, existing, keep }).length > 0;
+      meshWithin(points, { density: 1, maxLength, existing, keep }).length > 0;
     const result: StrokeResult = { kind: "connect", swept, pairs, sparse };
     this.connected = { swept: this.swept.size, result };
     return result;

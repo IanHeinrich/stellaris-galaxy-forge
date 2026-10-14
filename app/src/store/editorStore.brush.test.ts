@@ -6,6 +6,7 @@ vi.mock("../api/events");
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import { BrushStroke, type BrushSettings } from "../lib/brush/brushStroke";
+import { DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
 import type { Pair } from "../lib/geometry/pairs";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Symmetry } from "../lib/geometry/symmetry";
@@ -26,7 +27,7 @@ const ERASE: BrushSettings = {
   eraseTarget: "systems",
   eraseSpecials: false,
   symmetry: { kind: "off" },
-  beta: 1,
+  laneDensity: DEFAULT_LANE_DENSITY,
   height: {
     mode: "raise",
     value: 0,

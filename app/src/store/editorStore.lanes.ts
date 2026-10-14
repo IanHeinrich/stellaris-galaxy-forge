@@ -71,9 +71,9 @@ export function laneActions(
 
     async connectSelectedMesh() {
       const chrome = useMapChromeStore.getState();
-      const beta = chrome.meshBeta;
+      const density = chrome.laneDensity;
       await get().applySymmetric(() => {
-        const lanes = meshLanes(systems(), get().selection, beta).map(([a, b]) => ({
+        const lanes = meshLanes(systems(), get().selection, density).map(([a, b]) => ({
           a,
           b,
           bridge: false,

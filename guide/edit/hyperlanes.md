@@ -34,8 +34,9 @@ other", "Connect as mesh" and "Cut hyperlanes between".
 "Connect to each other" links every selected system to every other one.
 It works on up to 5 systems. "Connect as mesh" links each system only to
 its near neighbours, so it suits a large selection. Its Mesh density
-slider goes from sparse to dense. Point at the row to preview the new
-lanes on the map.
+slider sets how many lanes it adds. At the left end, the lanes connect
+the selected systems without loops. At the right end, each system links
+to every neighbour. Point at the row to preview the new lanes on the map.
 
 ## Join a split galaxy
 

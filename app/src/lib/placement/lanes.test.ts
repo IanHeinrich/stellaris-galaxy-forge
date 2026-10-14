@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lanesTo, systemNode } from "../../test/builders";
 import { segmentsCross } from "../geometry/segments";
-import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
+import { DEFAULT_LANE_DENSITY, type MeshPoint } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
 import { laneSegments, strokeLanes, withProvisionalIds } from "./lanes";
 
@@ -53,7 +53,7 @@ describe("strokeLanes", () => {
     added: ADDED,
     nearby: NEARBY,
     existing: EXISTING,
-    beta: MESH_BETA.gabriel,
+    density: DEFAULT_LANE_DENSITY,
     maxLength: MAX,
   };
 

@@ -156,8 +156,8 @@ export interface ShapeGround {
   placement: PlacementGround;
   /** The map's edge: points past it go to `outside`. */
   extent: MapExtent;
-  /** The lane mesh's β, the Lane density slider's value. */
-  beta: number;
+  /** The Lane density slider's value. */
+  laneDensity: number;
 }
 
 /** The circle a shape's size is measured against: "40% of the galaxy". */

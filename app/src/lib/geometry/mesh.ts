@@ -1,5 +1,7 @@
 import Delaunator from "delaunator";
-import { comparePairs, pairOf } from "./pairs";
+import { comparePairs, pairOf, type Pair } from "./pairs";
+import { dist2 } from "./pt";
+import { UnionFind } from "./unionFind";
 
 export interface MeshPoint {
   id: number;
@@ -7,56 +9,135 @@ export interface MeshPoint {
   y: number;
 }
 
-/** Slider range: β=2 is the relative-neighbourhood graph, β=1 the Gabriel graph, smaller is denser. */
-export const MESH_BETA = { sparse: 2, gabriel: 1, dense: 0.1 } as const;
+/** About as many lanes as the Gabriel graph keeps over a random spread. */
+export const DEFAULT_LANE_DENSITY = 0.46;
 
-const LOG_SPARSE = Math.log(MESH_BETA.sparse);
-const LOG_SPAN = Math.log(MESH_BETA.dense) - LOG_SPARSE;
+/** The ranking orders edges kept past this β by length alone; their β regions are wide by then. */
+const BETA_CAP = 8;
 
-/** Slider position in [0, 1] to β, linear in log β so the Gabriel graph sits mid-slider. */
-export function betaOfSlider(v: number): number {
-  if (v <= 0) return MESH_BETA.sparse;
-  if (v >= 1) return MESH_BETA.dense;
-  return Math.exp(LOG_SPARSE + v * LOG_SPAN);
-}
-
-export function sliderOfBeta(beta: number): number {
-  return (Math.log(beta) - LOG_SPARSE) / LOG_SPAN;
-}
-
-/** β-skeleton edges over the Delaunay triangulation of `points`, as [id, id] pairs with id order a < b. */
-export function meshPairs(points: MeshPoint[], beta: number): Array<[number, number]> {
-  const pairs: Array<[number, number]> = [];
+/**
+ * Every Delaunay edge of `points` in the order a sparse-to-dense mesh keeps them: the Euclidean
+ * minimum spanning tree's `tree` edges first, then the rest by the largest β at which the
+ * β-skeleton keeps them, highest first, shorter first on a tie.
+ */
+export function rankedMesh(points: readonly MeshPoint[]): { pairs: Pair[]; tree: number } {
   const edges = delaunayEdges(points);
-  const index = beta <= MESH_BETA.dense || edges.length === 0 ? null : new PointIndex(points);
-  for (const [i, j] of edges) {
-    if (index === null || !blocked(points, index, i, j, beta)) {
-      pairs.push(pairOf(points[i].id, points[j].id));
-    }
-  }
-  return pairs.sort(comparePairs);
+  const length = edges.map(({ i, j }) => dist2(points[i], points[j]));
+  const pair = edges.map(({ i, j }) => pairOf(points[i].id, points[j].id));
+  const shortest = (k: number, l: number) =>
+    length[k] - length[l] || comparePairs(pair[k], pair[l]);
+  const byLength = edges.map((_, k) => k).sort(shortest);
+  const sets = new UnionFind(points.length);
+  const tree: number[] = [];
+  const rest: number[] = [];
+  for (const k of byLength) (sets.union(edges[k].i, edges[k].j) ? tree : rest).push(k);
+  const index = rest.length === 0 ? null : new PointIndex(points);
+  const kept = new Float64Array(edges.length);
+  for (const k of rest) kept[k] = criticalBeta(points, index!, edges[k]);
+  rest.sort((k, l) => kept[l] - kept[k] || shortest(k, l));
+  return { pairs: [...tree, ...rest].map((k) => pair[k]), tree: tree.length };
 }
 
-/** Each undirected triangle edge once, as index pairs; collinear input yields the hull chain. */
-function delaunayEdges(points: MeshPoint[]): Array<[number, number]> {
+/**
+ * The lanes a mesh over `points` keeps at `density` in [0, 1], as [id, id] pairs with a < b:
+ * 0 keeps the minimum spanning tree, 1 every Delaunay edge, and between them the tree plus
+ * that share of the rest of `rankedMesh`, so each step adds about as many lanes.
+ */
+export function meshPairs(points: readonly MeshPoint[], density: number): Pair[] {
+  if (density >= 1) return delaunayPairs(points);
+  const { pairs, tree } = rankedMesh(points);
+  const count = tree + Math.round(Math.max(0, density) * (pairs.length - tree));
+  return pairs.slice(0, count).sort(comparePairs);
+}
+
+/** Every Delaunay edge of `points`, as [id, id] pairs with a < b. */
+export function delaunayPairs(points: readonly MeshPoint[]): Pair[] {
+  return delaunayEdges(points)
+    .map(({ i, j }) => pairOf(points[i].id, points[j].id))
+    .sort(comparePairs);
+}
+
+/** A Delaunay edge as indices into the points, with the third corner of each triangle on it, or -1. */
+interface DelaunayEdge {
+  i: number;
+  j: number;
+  left: number;
+  right: number;
+}
+
+/** Each undirected triangle edge once; collinear input yields the hull chain. */
+function delaunayEdges(points: readonly MeshPoint[]): DelaunayEdge[] {
   if (points.length < 2) return [];
-  const delaunay = Delaunator.from(
-    points,
-    (p) => p.x,
-    (p) => p.y,
-  );
+  const delaunay = new Delaunator(points.flatMap((p) => [p.x, p.y]));
   const { triangles, halfedges, hull } = delaunay;
-  const edges: Array<[number, number]> = [];
+  const edges: DelaunayEdge[] = [];
   if (triangles.length === 0) {
-    for (let k = 1; k < hull.length; k++) edges.push([hull[k - 1], hull[k]]);
+    for (let k = 1; k < hull.length; k++) {
+      edges.push({ i: hull[k - 1], j: hull[k], left: -1, right: -1 });
+    }
     return edges;
   }
+  const opposite = (e: number) => triangles[e % 3 === 0 ? e + 2 : e - 1];
   for (let e = 0; e < triangles.length; e++) {
-    if (halfedges[e] !== -1 && halfedges[e] < e) continue;
+    const twin = halfedges[e];
+    if (twin !== -1 && twin < e) continue;
     const next = e % 3 === 2 ? e - 2 : e + 1;
-    edges.push([triangles[e], triangles[next]]);
+    edges.push({
+      i: triangles[e],
+      j: triangles[next],
+      left: opposite(e),
+      right: twin === -1 ? -1 : opposite(twin),
+    });
   }
   return edges;
+}
+
+/**
+ * The largest β, up to `BETA_CAP`, at which no other point lies strictly inside the β region of
+ * the edge. The regions grow with β, so the edge's own triangle corners bound it and only the
+ * points inside the region at that bound can lower it.
+ */
+function criticalBeta(points: readonly MeshPoint[], index: PointIndex, edge: DelaunayEdge): number {
+  const { i, j, left, right } = edge;
+  const a = points[i];
+  const b = points[j];
+  const corner = (k: number) => (k === -1 ? Infinity : blockingBeta(a, b, points[k]));
+  let beta = Math.min(corner(left), corner(right), BETA_CAP);
+  // Within the strip across the edge, as far out as the region reaches at its midpoint.
+  const reach = (Math.sqrt(2 * Math.max(beta, 1) - 1) / 2) * (1 + 1e-9);
+  const rx = reach * Math.abs(b.y - a.y);
+  const ry = reach * Math.abs(b.x - a.x);
+  index.each(
+    Math.min(a.x, b.x) - rx,
+    Math.min(a.y, b.y) - ry,
+    Math.max(a.x, b.x) + rx,
+    Math.max(a.y, b.y) + ry,
+    (k) => {
+      if (k !== i && k !== j) beta = Math.min(beta, blockingBeta(a, b, points[k]));
+    },
+  );
+  return beta;
+}
+
+/**
+ * The β above which `p` lies strictly inside the β region of edge ab: below 1, the lens of two
+ * discs through both ends, which holds `p` once β exceeds the sine of the angle apb; from 1,
+ * the lune of two discs through one end each. Infinity when `p` is outside the strip across ab.
+ */
+function blockingBeta(a: MeshPoint, b: MeshPoint, p: MeshPoint): number {
+  const vx = b.x - a.x;
+  const vy = b.y - a.y;
+  const ux = p.x - a.x;
+  const uy = p.y - a.y;
+  const wx = p.x - b.x;
+  const wy = p.y - b.y;
+  const along = ux * vx + uy * vy;
+  const back = -(wx * vx + wy * vy);
+  if (along <= 0 || back <= 0) return Infinity;
+  const uu = ux * ux + uy * uy;
+  const ww = wx * wx + wy * wy;
+  if (ux * wx + uy * wy < 0) return Math.abs(ux * wy - uy * wx) / Math.sqrt(uu * ww);
+  return Math.max(uu / along, ww / back);
 }
 
 /** Caps the cells along the grid's longer side, so a thin spread of points still gets a small grid. */
@@ -102,14 +183,8 @@ class PointIndex {
     });
   }
 
-  /** Whether `test` holds for some point in the cells the box touches. */
-  some(
-    minX: number,
-    minY: number,
-    maxX: number,
-    maxY: number,
-    test: (i: number) => boolean,
-  ): boolean {
+  /** Calls `visit` with every point in the cells the box touches. */
+  each(minX: number, minY: number, maxX: number, maxY: number, visit: (i: number) => void): void {
     const c0 = Math.max(0, this.col(minX));
     const c1 = Math.min(this.cols - 1, this.col(maxX));
     const r0 = Math.max(0, this.row(minY));
@@ -118,11 +193,10 @@ class PointIndex {
       for (let r = r0; r <= r1; r++) {
         const cell = c * this.rows + r;
         for (let k = this.start[cell]; k < this.start[cell + 1]; k++) {
-          if (test(this.items[k])) return true;
+          visit(this.items[k]);
         }
       }
     }
-    return false;
   }
 
   private col(x: number): number {
@@ -132,60 +206,4 @@ class PointIndex {
   private row(y: number): number {
     return Math.floor((y - this.y0) / this.cell);
   }
-}
-
-/** True when some other point lies strictly inside both discs of the β region of edge (i, j). */
-function blocked(
-  points: readonly MeshPoint[],
-  index: PointIndex,
-  i: number,
-  j: number,
-  beta: number,
-): boolean {
-  const a = points[i];
-  const b = points[j];
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const d2 = dx * dx + dy * dy;
-  let c1x: number;
-  let c1y: number;
-  let c2x: number;
-  let c2y: number;
-  let r2: number;
-  // β ≥ 1: the lune of two discs through one endpoint each; below 1: two discs through both.
-  if (beta >= 1) {
-    const h = beta / 2;
-    c1x = a.x + h * dx;
-    c1y = a.y + h * dy;
-    c2x = b.x - h * dx;
-    c2y = b.y - h * dy;
-    r2 = h * h * d2;
-  } else {
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-    const k = Math.sqrt(1 / (4 * beta * beta) - 1 / 4);
-    c1x = mx - k * dy;
-    c1y = my + k * dx;
-    c2x = mx + k * dy;
-    c2y = my - k * dx;
-    r2 = d2 / (4 * beta * beta);
-  }
-  // Padded so rounding in the root never shrinks the box inside the discs it bounds.
-  const r = Math.sqrt(r2) * (1 + 1e-9);
-  return index.some(
-    Math.max(c1x, c2x) - r,
-    Math.max(c1y, c2y) - r,
-    Math.min(c1x, c2x) + r,
-    Math.min(c1y, c2y) + r,
-    (p) => {
-      if (p === i || p === j) return false;
-      const { x, y } = points[p];
-      const e1x = x - c1x;
-      const e1y = y - c1y;
-      if (e1x * e1x + e1y * e1y >= r2) return false;
-      const e2x = x - c2x;
-      const e2y = y - c2y;
-      return e2x * e2x + e2y * e2y < r2;
-    },
-  );
 }

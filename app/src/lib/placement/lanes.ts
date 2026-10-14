@@ -51,7 +51,8 @@ export function laneIndex(systems: ReadonlyMap<number, SystemNode>): SegmentInde
 export const LANE_REACH = 3;
 
 export interface MeshWithinOptions {
-  beta: number;
+  /** The Lane density slider's value, as `meshPairs` takes it. */
+  density: number;
   /** Longer edges are dropped; callers pass three times the stroke's spacing. */
   maxLength: number;
   /** Lanes no new edge may cross; sharing an endpoint is not a crossing. */
@@ -60,14 +61,14 @@ export interface MeshWithinOptions {
   keep?: (a: number, b: number) => boolean;
 }
 
-/** The β-skeleton edges over `points` that `keep` wants, no longer than `maxLength` and crossing no existing lane. */
+/** The mesh edges over `points` that `keep` wants, no longer than `maxLength` and crossing no existing lane. */
 export function meshWithin(points: readonly MeshPoint[], options: MeshWithinOptions): Pair[] {
-  const { beta, maxLength, existing, keep } = options;
+  const { density, maxLength, existing, keep } = options;
   const at = new Map(points.map((p) => [p.id, p]));
   const lanes = new SegmentIndex();
   for (const { a, b } of existing) lanes.add(a, b);
   const max2 = maxLength * maxLength;
-  return meshPairs([...points], beta).filter(([a, b]) => {
+  return meshPairs(points, density).filter(([a, b]) => {
     if (keep && !keep(a, b)) return false;
     const p = at.get(a)!;
     const q = at.get(b)!;
@@ -81,7 +82,7 @@ export interface StrokeLanesInput {
   /** Existing systems near the stroke, meshed with the new points in "nearby" mode. */
   nearby: readonly MeshPoint[];
   existing: readonly Segment[];
-  beta: number;
+  density: number;
   mode: LaneMode;
   maxLength: number;
 }
@@ -91,12 +92,12 @@ export interface StrokeLanesInput {
  * the new lanes never cross each other.
  */
 export function strokeLanes(input: StrokeLanesInput): Pair[] {
-  const { added, nearby, existing, beta, mode, maxLength } = input;
+  const { added, nearby, existing, density, mode, maxLength } = input;
   if (mode === "off") return [];
-  if (mode === "new") return meshWithin(added, { beta, maxLength, existing });
+  if (mode === "new") return meshWithin(added, { density, maxLength, existing });
   const fresh = new Set(added.map((p) => p.id));
   return meshWithin([...added, ...nearby], {
-    beta,
+    density,
     maxLength,
     existing,
     keep: (a, b) => fresh.has(a) || fresh.has(b),
@@ -109,7 +110,7 @@ export interface PlacedLanesInput {
   /** How many of `points`, from the start, are the first copy's: only they look for nearby systems. */
   base: number;
   mode: LaneMode;
-  beta: number;
+  density: number;
   spacing: number;
   ground: PlacementGround;
   imageOfNew: ImageOfNew;
@@ -120,7 +121,7 @@ export interface PlacedLanesInput {
  * crossing no existing lane. Under symmetry a lane goes in with all its images or not at all.
  */
 export function placedLanes(input: PlacedLanesInput): Pair[] {
-  const { points, base, mode, beta, spacing, ground, imageOfNew } = input;
+  const { points, base, mode, density, spacing, ground, imageOfNew } = input;
   if (mode === "off" || points.length === 0) return [];
   const maxLength = LANE_REACH * spacing;
   const existing = ground.lanesNear(points, maxLength);
@@ -128,7 +129,7 @@ export function placedLanes(input: PlacedLanesInput): Pair[] {
     added: withProvisionalIds(points),
     nearby: mode === "nearby" ? ground.systemsNear(points.slice(0, base), maxLength) : [],
     existing,
-    beta,
+    density,
     mode,
     maxLength,
   }).map(([a, b]) => pairOf(a, b));

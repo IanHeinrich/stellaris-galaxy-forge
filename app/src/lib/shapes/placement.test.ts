@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { byId, placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
-import { MESH_BETA } from "../geometry/mesh";
+import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
 import type { Pt } from "../geometry/pt";
 import { segmentsCross } from "../geometry/segments";
@@ -33,7 +33,7 @@ function groundOf(systems: SystemNode[], symmetry: Symmetry = OFF): ShapeGround 
   return {
     placement: new PlacementGround(byId(...systems), grid, symmetry),
     extent: { shape: "square", half: SCENARIO_HALF_EXTENT },
-    beta: MESH_BETA.gabriel,
+    laneDensity: DEFAULT_LANE_DENSITY,
   };
 }
 

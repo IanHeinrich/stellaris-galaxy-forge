@@ -7,7 +7,7 @@ vi.mock("../api/events");
 import { editor, joinBoth, openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useMapChromeStore } from "./mapChromeStore";
 import { CONNECT_ALL_MAX, type EditorState } from "./editorStore";
-import { MESH_BETA } from "../lib/geometry/mesh";
+import { DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
 import { linkedPairs, meshLanes, useGalaxyStore } from "./galaxyStore";
 import { editResult, withLaneLength } from "./fixture";
 import { mockedIpc } from "../test/ipc";
@@ -94,13 +94,13 @@ describe("bulk lane actions", () => {
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 
-  it("connectSelectedMesh sends the skeleton's missing lanes and clears the preview", async () => {
+  it("connectSelectedMesh sends the mesh's missing lanes and clears the preview", async () => {
     await editor().selectAll();
     const { selection } = editor();
-    const meshBeta = useMapChromeStore.getState().meshBeta;
-    expect(meshBeta).toBe(MESH_BETA.gabriel);
+    const laneDensity = useMapChromeStore.getState().laneDensity;
+    expect(laneDensity).toBe(DEFAULT_LANE_DENSITY);
     const systems = useGalaxyStore.getState().systems;
-    const expected = meshLanes(systems, selection, meshBeta);
+    const expected = meshLanes(systems, selection, laneDensity);
     expect(expected.length).toBeGreaterThan(0);
     const existing = linkedPairs(systems, selection).map(([a, b]) => `${a}-${b}`);
     for (const [a, b] of expected) expect(existing).not.toContain(`${a}-${b}`);
@@ -114,11 +114,11 @@ describe("bulk lane actions", () => {
     expect(useMapChromeStore.getState().lanePreview).toBeNull();
   });
 
-  it("setMeshBeta densifies the mesh monotonically", async () => {
+  it("setLaneDensity densifies the mesh monotonically", async () => {
     await editor().selectAll();
     const counts: number[] = [];
-    for (const beta of [MESH_BETA.sparse, MESH_BETA.gabriel, MESH_BETA.dense]) {
-      useMapChromeStore.getState().setMeshBeta(beta);
+    for (const density of [0, DEFAULT_LANE_DENSITY, 1]) {
+      useMapChromeStore.getState().setLaneDensity(density);
       mockedIpc.applyOp.mockClear();
       await editor().connectSelectedMesh();
       expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);

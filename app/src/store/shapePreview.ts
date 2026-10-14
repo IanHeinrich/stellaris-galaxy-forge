@@ -21,7 +21,7 @@ interface Inputs {
   grid: SpatialGrid | null;
   radius: number;
   symmetry: Symmetry;
-  beta: number;
+  laneDensity: number;
   capabilities: Capabilities | null;
   kind: DocumentKind | null;
 }
@@ -36,7 +36,7 @@ function inputsNow(): Inputs {
     grid: galaxy.grid,
     radius: galaxy.galaxy?.galaxy_radius ?? 0,
     symmetry: tools.symmetry,
-    beta: useMapChromeStore.getState().meshBeta,
+    laneDensity: useMapChromeStore.getState().laneDensity,
     capabilities: session.capabilities,
     kind: session.kind,
   };
@@ -67,7 +67,7 @@ function groundOf(inputs: Inputs): ShapeGround | null {
   return {
     placement: placementGround(inputs.systems, grid, inputs.symmetry),
     extent,
-    beta: inputs.beta,
+    laneDensity: inputs.laneDensity,
   };
 }
 
@@ -106,7 +106,7 @@ export function useShapePreview(): ShapePreview | null {
     grid: useGalaxyStore((s) => s.grid),
     radius: useGalaxyStore((s) => s.galaxy?.galaxy_radius ?? 0),
     symmetry: useToolStore((s) => s.symmetry),
-    beta: useMapChromeStore((s) => s.meshBeta),
+    laneDensity: useMapChromeStore((s) => s.laneDensity),
     capabilities: useFileSessionStore((s) => s.capabilities),
     kind: useFileSessionStore((s) => s.kind),
   });

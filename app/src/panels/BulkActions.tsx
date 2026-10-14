@@ -208,7 +208,7 @@ export function WormholePairButton({
 
 function MeshRow({ dismiss, itemRole }: { dismiss?: () => void; itemRole?: "menuitem" }) {
   const selection = useEditorStore((s) => s.selection);
-  const meshBeta = useMapChromeStore((s) => s.meshBeta);
+  const laneDensity = useMapChromeStore((s) => s.laneDensity);
   const setLanePreview = useMapChromeStore((s) => s.setLanePreview);
   const connectSelectedMesh = useEditorStore((s) => s.connectSelectedMesh);
   const galaxy = useGalaxyStore(useShallow((s) => ({ systems: s.systems, version: s.version })));
@@ -218,8 +218,8 @@ function MeshRow({ dismiss, itemRole }: { dismiss?: () => void; itemRole?: "menu
   const previewing = hovered || focused;
   const counted = previewing || selection.length <= MESH_COUNT_MAX;
   const pairs = useMemo(
-    () => (counted ? meshLanes(galaxy.systems, selection, meshBeta) : null),
-    [counted, galaxy, selection, meshBeta],
+    () => (counted ? meshLanes(galaxy.systems, selection, laneDensity) : null),
+    [counted, galaxy, selection, laneDensity],
   );
   useEffect(() => {
     if (!previewing || pairs === null) return;
