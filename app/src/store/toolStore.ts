@@ -8,11 +8,10 @@ import {
   type RippleShape,
 } from "../lib/brush/heightBrush";
 import { LANE_MODES, type LaneMode } from "../lib/placement/lanes";
-import { LEAST_SPACING } from "../lib/placement/limits";
+import { LEAST_SPACING, MOST_SPACING } from "../lib/placement/limits";
 import { clampTo } from "../lib/geometry/geometry";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { roundHeight } from "../lib/height";
-import { specOf } from "../lib/shapes/specs";
 import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
 import { clampTilt } from "../lib/visual/tilt";
@@ -27,7 +26,7 @@ export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
 /** Brush diameter, in world units. */
 export const SIZE_RANGE = { min: 5, max: 400, fallback: 40 } as const;
 /** Distance between the systems a paint stroke lays down, in world units. */
-export const SPACING_RANGE = { min: LEAST_SPACING, max: 150, fallback: 25 } as const;
+export const SPACING_RANGE = { min: LEAST_SPACING, max: MOST_SPACING, fallback: 25 } as const;
 /** What one `[` or `]` multiplies or divides the brush size by. */
 const SIZE_STEP = 1.2;
 
@@ -222,8 +221,9 @@ export const useToolStore = create<ToolState>((set, get) => ({
     if (!documentTakes(tool)) return false;
     const was = get().tool;
     if (was === tool) return true;
-    if (was === "shape") get().dropShape();
+    // The tool goes first: a drag the swap cancels puts its shape back only in the Shape tool.
     set({ tool });
+    if (was === "shape") get().dropShape();
     if (tool === "shape") get().startShape();
     return true;
   },
@@ -239,11 +239,8 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   stepSize(dir) {
-    const { tool, pendingShape } = get();
-    if (tool === "shape") {
-      if (pendingShape === null) return;
-      const now = specOf(pendingShape.shape).size(pendingShape.shape);
-      get().setShapeSize(dir > 0 ? now * SIZE_STEP : now / SIZE_STEP);
+    if (get().tool === "shape") {
+      get().scaleShape(dir > 0 ? SIZE_STEP : 1 / SIZE_STEP);
       return;
     }
     const size = get().size;

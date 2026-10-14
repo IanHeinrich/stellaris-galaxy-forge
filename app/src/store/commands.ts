@@ -3,7 +3,6 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import { documentCapabilities } from "../lib/capabilities";
 import {
   isEditableTarget,
-  isMenuTarget,
   isToolAction,
   keyAction,
   layerKeyOf,
@@ -92,11 +91,13 @@ function enterSelectedSystem(): boolean {
   return sceneSystem() === selection[0];
 }
 
-/** Enter in the Shape tool: places the pending shape, unless a menu has focus. True when it did. */
+/**
+ * Enter in the Shape tool: places the pending shape while the map or the shape's options have
+ * focus, so Enter after Shuffle still places. True when it did.
+ */
 function placePendingShape(): boolean {
-  if (useToolStore.getState().pendingShape === null || isMenuTarget(document.activeElement)) {
-    return false;
-  }
+  if (useToolStore.getState().pendingShape === null) return false;
+  if (!mapHasFocus() && !shapeOptionsHaveFocus()) return false;
   void useEditorStore.getState().placePendingShape();
   return true;
 }
@@ -321,6 +322,11 @@ function mapHasFocus(): boolean {
   const active = document.activeElement;
   if (active === null || active === document.body) return true;
   return active instanceof HTMLCanvasElement && active.closest(".map-host") !== null;
+}
+
+function shapeOptionsHaveFocus(): boolean {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && active.closest(".shape-options") !== null;
 }
 
 /** Whether a document of `kind` has a master over `source`'s group for its key to switch. */

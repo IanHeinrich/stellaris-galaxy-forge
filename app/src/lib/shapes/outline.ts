@@ -85,17 +85,3 @@ export function alongPolyline(points: readonly Pt[], closed: boolean, n: number)
 export function polylineLength(points: readonly Pt[], closed: boolean): number {
   return sides(points, closed).reduce((sum, [a, b]) => sum + distance(a, b), 0);
 }
-
-/** How near `p` comes to the polyline through `points`. */
-export function distanceToPolyline(p: Pt, points: readonly Pt[], closed: boolean): number {
-  let best = points.length > 0 ? distance(p, points[0]) : Infinity;
-  for (const [a, b] of sides(points, closed)) {
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len2 = dx * dx + dy * dy;
-    const t =
-      len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
-    best = Math.min(best, distance(p, { x: a.x + t * dx, y: a.y + t * dy }));
-  }
-  return best;
-}

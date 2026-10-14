@@ -80,10 +80,12 @@ export class ShapeDrags {
     const from = this.from;
     this.dragging = false;
     this.from = null;
-    if (!cancelled) return;
     const tools = useToolStore.getState();
-    if (from) tools.restoreShape(from);
-    else tools.dropShape();
+    if (cancelled) {
+      if (from) tools.restoreShape(from);
+      else tools.dropShape();
+    }
+    tools.settleShape();
   }
 
   /** Redraws the pending shape whenever what it is drawn from may have changed; returns the unsubscribe. */

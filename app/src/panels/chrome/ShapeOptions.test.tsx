@@ -59,10 +59,36 @@ beforeEach(() => {
 });
 
 describe("the shape options", () => {
-  it("say how to start while nothing is pending", () => {
+  it("say how to start while nothing is pending, and show what the next shape starts from", () => {
+    const memory = useToolStore.getState().shapeMemory;
+    useToolStore.setState({
+      shapeMemory: {
+        ...memory,
+        kind: "star",
+        kinds: {
+          ...memory.kinds,
+          star: {
+            shape: SHAPE_SPECS.star.initial,
+            fill: { kind: "grid", spacing: 30, lattice: "square" },
+            lanes: { follow: false, mode: "new" },
+          },
+        },
+        skipNear: false,
+      },
+    });
     const html = options();
     expect(html).toContain("Drag on the map to draw a shape");
-    expect(html).not.toContain("Place");
+    expect(html).toMatch(/aria-checked="true" title="Star"/);
+    expect(html).toMatch(/aria-checked="true">Grid</);
+    expect(html).toMatch(/aria-checked="true">Square</);
+    expect(html).toContain("Points");
+    expect(html).toContain("Inner radius");
+    expect(html).toContain("Spacing");
+    expect(html).toContain('<option value="new" selected="">Among new</option>');
+    expect(html).not.toMatch(/checked=""[^>]*\/>Don&#x27;t place/);
+    for (const absent of [">Place", "Size presets", "Shuffle", "Exact values"]) {
+      expect(html).not.toContain(absent);
+    }
   });
 
   it("are the Shape tool's row of ToolOptions", () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Pt } from "../geometry/pt";
 import { ANGLE_STEP, galaxyFrame, snapAngle } from "./drag";
-import { distance } from "./frame";
-import { centreOf, SHAPE_SPECS, specOf } from "./specs";
+import { dir, distance } from "./frame";
+import { centreOf, heldShape, SHAPE_SPECS, specOf } from "./specs";
 import type { Shape, ShapeDragMods, StarShape } from "./types";
 
 const FREE: ShapeDragMods = { snap: true, constrain: false };
@@ -167,6 +167,70 @@ describe("drawing and handles", () => {
       }
       expect(spec.fills(shape)).toEqual(open ? ["outline"] : ["outline", "scattered", "grid"]);
     }
+  });
+});
+
+describe("held to the fields' ranges", () => {
+  /** Whether every field of `s` is inside its range. */
+  function inRange(s: Shape): boolean {
+    const values = s as unknown as Record<string, number>;
+    return specOf(s).fields.every(
+      ({ key, range }) => values[key] >= range.min && values[key] <= range.max,
+    );
+  }
+
+  it("holds a drawn or turned angle just short of a full turn, and a size past the most", () => {
+    const anchor = { x: 0, y: 0 };
+    const nearlyRound = { x: 100 * dir(359.7).x, y: 100 * dir(359.7).y };
+    const drawn = SHAPE_SPECS.polygon.fromDrag(
+      anchor,
+      nearlyRound,
+      FREE,
+      SHAPE_SPECS.polygon.initial,
+    );
+    expect(drawn.rotation).toBe(0);
+    const turned = SHAPE_SPECS.star.dragHandle(SHAPE_SPECS.star.initial, "turn", nearlyRound, FREE);
+    expect(turned.rotation).toBe(0);
+
+    const wide = SHAPE_SPECS.rect.fromDrag(
+      anchor,
+      { x: 1020, y: 50 },
+      FREE,
+      SHAPE_SPECS.rect.initial,
+    );
+    expect([wide.width, wide.height]).toEqual([1000, 50]);
+    expect(wide.centre).toEqual({ x: 500, y: 25 });
+    const side = SHAPE_SPECS.rect.dragHandle(
+      SHAPE_SPECS.rect.initial,
+      "side3",
+      { x: 1100, y: 0 },
+      FREE,
+    );
+    expect(inRange(side)).toBe(true);
+    const rim = SHAPE_SPECS.circle.dragHandle(
+      SHAPE_SPECS.circle.initial,
+      "rim",
+      { x: 0, y: 1500 },
+      FREE,
+    );
+    expect(rim.radius).toBe(1000);
+    for (const shape of ALL) {
+      const spec = specOf(shape);
+      for (const h of spec.handles(shape)) {
+        const far = { x: h.at.x * 9 + 0.3, y: h.at.y * 9 - 0.2 };
+        expect(inRange(spec.dragHandle(shape, h.id, far, FREE)), `${shape.kind} ${h.id}`).toBe(
+          true,
+        );
+      }
+      expect(inRange(spec.fromDrag(anchor, { x: -2000, y: -1 }, FREE, shape))).toBe(true);
+    }
+  });
+
+  it("holds a remembered shape to its fields' ranges, its rotation to a whole degree", () => {
+    const circle = { ...SHAPE_SPECS.circle.initial, radius: 5000, rotation: -30.4, squash: 0 };
+    expect(heldShape(circle)).toEqual({ ...circle, radius: 1000, rotation: 330, squash: 10 });
+    const polygon = SHAPE_SPECS.polygon.initial;
+    expect(heldShape(polygon)).toBe(polygon);
   });
 });
 

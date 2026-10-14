@@ -1,26 +1,7 @@
 import { SAMPLE_CAP } from "../placement/limits";
 import { counted, thousands } from "../text";
 import { specOf } from "./specs";
-import type {
-  FillKind,
-  GalaxyFrame,
-  Lattice,
-  PendingShape,
-  ShapeKind,
-  ShapePreview,
-} from "./types";
-
-/** Each kind's name in the picker and the status bar. */
-export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
-  line: "Line",
-  circle: "Circle",
-  polygon: "Polygon",
-  rect: "Rectangle",
-  star: "Star",
-};
-
-/** Every shape kind, in the picker's order. */
-export const SHAPE_KINDS = Object.keys(SHAPE_KIND_LABELS) as ShapeKind[];
+import type { FillKind, GalaxyFrame, Lattice, PendingShape, ShapePreview } from "./types";
 
 /** Each fill's name in the Outline / Scattered / Grid choice. */
 export const FILL_KIND_LABELS: Record<FillKind, string> = {
@@ -82,7 +63,7 @@ export function shapeReadout(
 /** What the status bar says while `pending` waits. */
 export function shapeStatus(pending: PendingShape, preview: ShapePreview): ShapeStatus {
   const { points, pairs, left, outside, overlaps, capped, interleaved } = preview;
-  const summary = `${SHAPE_KIND_LABELS[pending.shape.kind]} · ${counted(points.length, "system")}, ${counted(pairs.length, "lane")}`;
+  const summary = `${specOf(pending.shape).label} · ${counted(points.length, "system")}, ${counted(pairs.length, "lane")}`;
   const warnings: string[] = [];
   if (left.length > 0) warnings.push(`${left.length} left out, too close to existing systems`);
   if (outside.length > 0) warnings.push(`${outside.length} past the edge`);

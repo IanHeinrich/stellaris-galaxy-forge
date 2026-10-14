@@ -28,11 +28,16 @@ export function shapeActions(
         return ipc.applyOp(placeSystems(placement, placeLead(pending)));
       }).then((result) => result !== null);
       useToolStore.setState({ pendingShape: null, placingShape: shown });
+      let placed = false;
       try {
-        return await applied;
+        placed = await applied;
+        return placed;
       } finally {
-        if (useToolStore.getState().placingShape === shown) {
-          useToolStore.setState({ placingShape: null });
+        const tools = useToolStore.getState();
+        if (tools.placingShape === shown) useToolStore.setState({ placingShape: null });
+        // A refused or failed edit gives the shape back, unless the player has drawn another.
+        if (!placed && tools.tool === "shape" && tools.pendingShape === null) {
+          useToolStore.setState({ pendingShape: pending });
         }
       }
     },

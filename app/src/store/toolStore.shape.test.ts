@@ -24,6 +24,15 @@ function sizeOf(shape: Shape): number {
   return specOf(shape).size(shape);
 }
 
+/** Starts a move of the pending shape as the map does, which the map cancels when the tool changes. */
+function moveUntilToolChanges(): () => void {
+  const from = pending();
+  tools().moveShape(from.shape, { x: 40, y: 0 });
+  return useToolStore.subscribe((state, previous) => {
+    if (state.tool !== previous.tool) tools().restoreShape(from);
+  });
+}
+
 beforeEach(async () => {
   await openFixtureScenario();
   stubPrefs(stored);
@@ -63,6 +72,23 @@ describe("picking the Shape tool", () => {
     expect(tools().pendingShape).toBeNull();
     expect(tools().tool).toBe("select");
   });
+
+  it("keeps the shape dropped when another tool cancels a drag that would put it back", () => {
+    tools().setTool("shape");
+    const off = moveUntilToolChanges();
+    tools().setTool("paint");
+    off();
+    expect(tools().pendingShape).toBeNull();
+  });
+
+  it("keeps the shape dropped when closing the document cancels a drag", async () => {
+    tools().setTool("shape");
+    const off = moveUntilToolChanges();
+    await useFileSessionStore.getState().close();
+    off();
+    expect(tools().pendingShape).toBeNull();
+    expect(tools().tool).toBe("select");
+  });
 });
 
 describe("Esc", () => {
@@ -87,6 +113,17 @@ describe("[ and ]", () => {
     resizeBrush(-1);
     expect(sizeOf(pending().shape)).toBeCloseTo(before / 1.2);
     expect(tools().size).toBe(brush);
+  });
+
+  it("grow a shape larger than the galaxy, up to its fields' end", () => {
+    tools().setTool("shape");
+    tools().setShapeField("circle", "radius", 900);
+    resizeBrush(1);
+    const grown = sizeOf(pending().shape);
+    expect(grown).toBeGreaterThan(999);
+    expect(grown).toBeLessThanOrEqual(1000);
+    resizeBrush(1);
+    expect(sizeOf(pending().shape)).toBe(grown);
   });
 });
 
@@ -162,6 +199,17 @@ describe("the pending shape", () => {
     expect(pending().fill.kind).toBe("outline");
   });
 
+  it("keeps the count or spacing when the fill's kind changes, and starts the rest as usual", () => {
+    tools().setFillKind("scattered");
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 25 });
+    tools().setFill({ kind: "scattered", spacing: 40 });
+    tools().setFillKind("grid");
+    expect(pending().fill).toEqual({ kind: "grid", spacing: 40, lattice: "hex" });
+    tools().setFillKind("outline");
+    expect(pending().fill).toEqual({ kind: "outline", count: 24 });
+    expect(pending().lanes).toEqual({ follow: true, mode: "off" });
+  });
+
   it("ignores lane settings that are not lane settings", () => {
     tools().setShapeLanes({ follow: "yes" as unknown as boolean, mode: "new" });
     expect(pending().lanes).toEqual({ follow: true, mode: "new" });
@@ -195,6 +243,53 @@ describe("the memory", () => {
     });
   });
 
+  it("keeps a drag's settings in memory and saves them as the drag ends", () => {
+    tools().setTool("shape");
+    tools().drawShape({ x: 0, y: 0 }, { x: 120, y: 0 }, NO_MODS);
+    expect(tools().shapeMemory.kinds.circle.shape).toMatchObject({ radius: 120 });
+    expect(stored.has(PREF_KEYS.shapeMemory)).toBe(false);
+    tools().settleShape();
+    expect(JSON.parse(stored.get(PREF_KEYS.shapeMemory)!)).toEqual(tools().shapeMemory);
+  });
+
+  it("holds a stored field past its range, and keeps the kind's other settings", async () => {
+    stored.set(
+      PREF_KEYS.shapeMemory,
+      JSON.stringify({
+        kind: "rect",
+        kinds: {
+          circle: {
+            shape: { ...SHAPE_SPECS.circle.initial, rotation: 359.7, sweep: 180 },
+            fill: { kind: "outline", count: 30 },
+            lanes: { follow: false, mode: "nearby" },
+          },
+          rect: {
+            shape: { ...SHAPE_SPECS.rect.initial, width: 1020 },
+            fill: { kind: "grid", spacing: 400, lattice: "square" },
+            lanes: { follow: false, mode: "new" },
+          },
+        },
+        skipNear: false,
+      }),
+    );
+    vi.resetModules();
+    const { kind, kinds, skipNear } = (await import("./toolStore")).useToolStore.getState()
+      .shapeMemory;
+    expect(kind).toBe("rect");
+    expect(skipNear).toBe(false);
+    expect(kinds.circle).toEqual({
+      shape: { ...SHAPE_SPECS.circle.initial, rotation: 0, sweep: 180 },
+      fill: { kind: "outline", count: 30 },
+      lanes: { follow: false, mode: "nearby" },
+    });
+    expect(kinds.rect).toEqual({
+      shape: { ...SHAPE_SPECS.rect.initial, width: 1000 },
+      fill: { kind: "grid", spacing: 150, lattice: "square" },
+      lanes: { follow: false, mode: "new" },
+    });
+    expect(kinds.star.shape).toEqual(SHAPE_SPECS.star.initial);
+  });
+
   it("falls back to the first settings when what is stored is malformed", async () => {
     const circle: CircleShape = {
       ...SHAPE_SPECS.circle.initial,
@@ -211,10 +306,15 @@ describe("the memory", () => {
   it("changes the remembered kind's settings while nothing is pending", () => {
     tools().setTool("shape");
     tools().dropShape();
+    tools().setShapeKind("star");
+    tools().setShapeField("star", "points", 7);
+    tools().setShapeField("circle", "sweep", 90);
     tools().setFill({ kind: "scattered", spacing: 40 });
     tools().setTool("select");
     tools().setTool("shape");
+    expect(pending().shape).toMatchObject({ kind: "star", points: 7 });
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 40 });
     expect(pending().lanes).toEqual({ follow: false, mode: "new" });
+    expect(tools().shapeMemory.kinds.circle.shape.sweep).toBe(360);
   });
 });

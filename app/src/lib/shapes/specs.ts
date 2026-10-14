@@ -2,7 +2,7 @@ import { boxOf, inRing } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
 import { snapAngle } from "./drag";
 import { clamp } from "../geometry/geometry";
-import { angleOf, dir, distance, lerp, toLocal, toWorld, type ShapeFrame } from "./frame";
+import { angleOf, dir, distance, lerp, norm360, toLocal, toWorld, type ShapeFrame } from "./frame";
 import { alongPolyline, arcPoints, cornersThenSides } from "./outline";
 import type {
   CircleShape,
@@ -21,11 +21,11 @@ import type {
 } from "./types";
 
 /** The handle that moves a shape, which every kind has. */
-export const CENTRE_HANDLE = "centre";
+const CENTRE_HANDLE = "centre";
 /** The round handle that sizes a shape about its centre: a circle's rim, a polygon's or star's first corner. */
-export const RIM_HANDLE = "rim";
+const RIM_HANDLE = "rim";
 /** The small handle that turns a shape. */
-export const TURN_HANDLE = "turn";
+const TURN_HANDLE = "turn";
 
 /** How far past its rim handle a shape's turn handle sits, as a share of the shape's size. */
 const TURN_GAP = 0.15;
@@ -41,9 +41,19 @@ const OUTLINE_ONLY: readonly FillKind[] = ["outline"];
 const SIZE_RANGE = { min: LEAST_SIZE, max: 1000 };
 const ROTATION_RANGE = { min: 0, max: 359 };
 
-/** `to`'s angle about `from`, held to 15° steps under Shift. */
+/** `degrees` rounded to a whole degree in [0, 360), so 359.6 turns to 0 rather than past the field's 359. */
+function wholeDegrees(degrees: number): number {
+  return norm360(Math.round(degrees));
+}
+
+/** A drawn size held to the size fields' range. */
+function heldSize(size: number): number {
+  return clamp(size, SIZE_RANGE.min, SIZE_RANGE.max);
+}
+
+/** `to`'s angle about `from` to a whole degree, held to 15° steps under Shift. */
 function heldAngle(from: Pt, to: Pt, mods: ShapeDragMods): number {
-  return angleOf(from, mods.constrain ? snapAngle(from, to) : to);
+  return wholeDegrees(angleOf(from, mods.constrain ? snapAngle(from, to) : to));
 }
 
 function frameOf(s: { centre: Pt; rotation: number }): ShapeFrame {
@@ -88,7 +98,7 @@ function radialFromDrag<S extends Radial>(anchor: Pt, to: Pt, mods: ShapeDragMod
   return {
     ...prev,
     centre: anchor,
-    radius: Math.max(LEAST_SIZE, distance(anchor, to)),
+    radius: heldSize(distance(anchor, to)),
     rotation: heldAngle(anchor, to, mods),
   };
 }
@@ -99,7 +109,7 @@ function radialDragged<S extends Radial>(s: S, id: string, to: Pt, mods: ShapeDr
     case CENTRE_HANDLE:
       return { ...s, centre: to };
     case RIM_HANDLE:
-      return { ...s, radius: Math.max(LEAST_SIZE, distance(s.centre, to)) };
+      return { ...s, radius: heldSize(distance(s.centre, to)) };
     case TURN_HANDLE:
       return { ...s, rotation: heldAngle(s.centre, to, mods) };
     default:
@@ -120,6 +130,7 @@ function radialRow<S extends Radial>() {
 // --- Line ---
 
 const LINE: ShapeSpec<LineShape> = {
+  label: "Line",
   glyph: "M2.5 13.5 13.5 2.5",
   initial: { kind: "line", a: { x: -200, y: 0 }, b: { x: 200, y: 0 } },
   fills: () => OUTLINE_ONLY,
@@ -184,6 +195,7 @@ const SWEEP_RANGE = { min: 10, max: 360 };
 const SQUASH_RANGE = { min: 10, max: 100 };
 
 const CIRCLE: ShapeSpec<CircleShape> = {
+  label: "Circle",
   glyph: "M2.5 8a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0Z",
   initial: { kind: "circle", centre: ORIGIN, radius: 200, rotation: 0, sweep: 360, squash: 100 },
   fills: (s) => (s.sweep < 360 ? OUTLINE_ONLY : ALL_FILLS),
@@ -279,6 +291,7 @@ const POLYGON_NOUNS: Readonly<Record<number, string>> = {
 };
 
 const POLYGON: ShapeSpec<PolygonShape> = {
+  label: "Polygon",
   glyph: "M8 2.5 13 5.25v5.5L8 13.5 3 10.75v-5.5Z",
   initial: { kind: "polygon", centre: ORIGIN, radius: 200, rotation: 90, sides: 6 },
   fills: () => ALL_FILLS,
@@ -339,6 +352,8 @@ function spanned(
     dx = (Math.sign(dx) || signs[0]) * side;
     dy = (Math.sign(dy) || signs[1]) * side;
   }
+  dx = clamp(dx, -SIZE_RANGE.max, SIZE_RANGE.max);
+  dy = clamp(dy, -SIZE_RANGE.max, SIZE_RANGE.max);
   return {
     ...s,
     centre: toWorld(frame, { x: dx / 2, y: dy / 2 }),
@@ -351,8 +366,12 @@ function spanned(
 function sideDragged(s: RectShape, index: number, to: Pt, mods: ShapeDragMods): RectShape {
   const { axis, sign } = SIDES[index];
   const local = toLocal(frameOf(s), to);
-  const along = axis === "x" ? local.x : local.y;
   const fixed = (-sign * (axis === "x" ? s.width : s.height)) / 2;
+  const along = clamp(
+    axis === "x" ? local.x : local.y,
+    fixed - SIZE_RANGE.max,
+    fixed + SIZE_RANGE.max,
+  );
   const extent = Math.max(LEAST_SIZE, Math.abs(along - fixed));
   const mid = (along + fixed) / 2;
   const centre = toWorld(frameOf(s), axis === "x" ? { x: mid, y: 0 } : { x: 0, y: mid });
@@ -363,6 +382,7 @@ function sideDragged(s: RectShape, index: number, to: Pt, mods: ShapeDragMods): 
 }
 
 const RECT: ShapeSpec<RectShape> = {
+  label: "Rectangle",
   glyph: "M2.5 4.5h11v7h-11Z",
   initial: { kind: "rect", centre: ORIGIN, width: 300, height: 200, rotation: 0 },
   fills: () => ALL_FILLS,
@@ -423,6 +443,7 @@ function starCorners(s: StarShape): Pt[] {
 }
 
 const STAR: ShapeSpec<StarShape> = {
+  label: "Star",
   glyph: "M8 2.5 9.4 6.1 13.2 6.3 10.2 8.7 11.2 12.4 8 10.3 4.8 12.4 5.8 8.7 2.8 6.3 6.6 6.1Z",
   initial: { kind: "star", centre: ORIGIN, radius: 200, rotation: 90, points: 5, inner: 50 },
   fills: () => ALL_FILLS,
@@ -464,6 +485,9 @@ export const SHAPE_SPECS: ShapeSpecs = {
   star: STAR,
 };
 
+/** Every shape kind, in the picker's order. */
+export const SHAPE_KINDS = Object.keys(SHAPE_SPECS) as ShapeKind[];
+
 /** The row for `shape`'s kind, typed so that it takes `shape` itself. */
 export function specOf<S extends Shape>(shape: S): ShapeSpec<S> {
   return SHAPE_SPECS[shape.kind] as unknown as ShapeSpec<S>;
@@ -477,4 +501,17 @@ export function specFor<K extends ShapeKind>(kind: K): ShapeSpec<ShapeOf<K>> {
 /** Where `shape` is centred: a line's midpoint, or the centre the other kinds hold. */
 export function centreOf(shape: Shape): Pt {
   return shape.kind === "line" ? lerp(shape.a, shape.b, 0.5) : shape.centre;
+}
+
+/** `s` with each of its kind's fields held to its range, and its rotation to a whole degree in [0, 360); `s` itself when all are. */
+export function heldShape<S extends Shape>(s: S): S {
+  const values = s as unknown as Record<string, number>;
+  let held: Record<string, number> | null = null;
+  for (const { key, range } of specOf(s).fields) {
+    const k = key as string;
+    const v = values[k];
+    const want = k === ROTATION_FIELD.key ? wholeDegrees(v) : clamp(v, range.min, range.max);
+    if (want !== v) (held ??= { ...values })[k] = want;
+  }
+  return (held ?? s) as unknown as S;
 }

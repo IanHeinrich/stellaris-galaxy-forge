@@ -42,6 +42,21 @@ function inputsNow(): Inputs {
   };
 }
 
+/** The last `PlacementGround` built, kept while the galaxy and the symmetry stay the same objects. */
+let placed: PlacementGround | null = null;
+
+/** The galaxy to place into, built again only when the systems, the grid or the symmetry change. */
+function placementGround(
+  systems: Inputs["systems"],
+  grid: SpatialGrid,
+  symmetry: Symmetry,
+): PlacementGround {
+  if (placed?.systems !== systems || placed.grid !== grid || placed.symmetry !== symmetry) {
+    placed = new PlacementGround(systems, grid, symmetry);
+  }
+  return placed;
+}
+
 function groundOf(inputs: Inputs): ShapeGround | null {
   const { grid, kind, radius, capabilities } = inputs;
   if (grid === null || !supports(documentCapabilities({ capabilities }), toolRequires("shape"))) {
@@ -50,7 +65,7 @@ function groundOf(inputs: Inputs): ShapeGround | null {
   const extent = mapExtent(kind, radius);
   if (extent === null) return null;
   return {
-    placement: new PlacementGround(inputs.systems, grid, inputs.symmetry),
+    placement: placementGround(inputs.systems, grid, inputs.symmetry),
     extent,
     beta: inputs.beta,
   };

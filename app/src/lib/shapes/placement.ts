@@ -2,12 +2,12 @@ import type { SystemNode } from "../../generated/SystemNode";
 import type { MeshPoint } from "../geometry/mesh";
 import { PairSet, type Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
-import { SEGMENT_CELL, SegmentIndex, type Segment } from "../geometry/segments";
+import { SEGMENT_CELL, type Segment } from "../geometry/segments";
 import { copies, COUNTERPART_REACH, images, type Symmetry } from "../geometry/symmetry";
 import { insideExtent } from "../guides";
 import type { ImageOfNew } from "../placement/ground";
 import { PlacementGround } from "../placement/ground";
-import { LEAST_SPACING, SAMPLE_CAP } from "../placement/limits";
+import { LEAST_SPACING, MOST_SPACING, SAMPLE_CAP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies } from "../placement/symmetricCopies";
@@ -35,7 +35,7 @@ interface Layout {
   rowGivesWay: boolean;
   /** The fill's points inside the shape, nearest the centre first and made as they are read, before they are kept clear of the row. */
   fill: Iterable<Pt>;
-  /** How far apart the points are: the fill's spacing, or the outline's step. */
+  /** How far apart the points are: the fill's spacing, or the outline's step up to `MOST_SPACING`. */
   spacing: number;
   /** A point with an existing system this near is left out, when the player asks. */
   skip: number;
@@ -77,7 +77,8 @@ function layout(pending: PendingShape, sym: Symmetry): Layout {
     const { points, closed } = spec.outline(shape, fill.count);
     const gaps = closed ? points.length : points.length - 1;
     const step = gaps > 0 ? polylineLength(points, closed) / gaps : 0;
-    return { row: points, closed, rowGivesWay: false, fill: [], spacing: step, skip: step / 2 };
+    const spacing = Math.min(step, MOST_SPACING);
+    return { row: points, closed, rowGivesWay: false, fill: [], spacing, skip: spacing / 2 };
   }
   const { spacing } = fill;
   const filled = spec.fills(shape).includes(fill.kind);
@@ -118,11 +119,11 @@ class SpacedImages {
 
   /**
    * Whether `p` and its images each merge into a point taken or keep their distance from every
-   * one, and how many new points they add. A row point is only held apart from images, since
-   * the row keeps its own spacing; a fill point that is itself an image already taken adds
-   * nothing, so it does not fit.
+   * one, and how many new points `places` would place. A row point is only held apart from
+   * images, since the row keeps its own spacing; a fill point that is itself an image already
+   * taken adds nothing, so it does not fit.
    */
-  check(p: Pt, row: boolean): { fits: boolean; adds: number } {
+  check(p: Pt, row: boolean, places: (q: Pt) => boolean): { fits: boolean; adds: number } {
     const reach2 = COUNTERPART_REACH * COUNTERPART_REACH;
     const least2 = this.least * this.least;
     const imgs = images(p, this.sym);
@@ -150,7 +151,7 @@ class SpacedImages {
       this.own.someInBox(q.x - s, q.y - s, q.x + s, q.y + s, near);
       if (crowded && !(k === 0 && row)) fits = false;
       if (k === 0 && merges && !row) fits = false;
-      if (!merges) adds++;
+      if (!merges && places(q)) adds++;
     }
     return { fits, adds };
   }
@@ -160,20 +161,28 @@ class SpacedImages {
   }
 }
 
+/** Where a point can go: inside the extent, and placed rather than left out for a system. */
+interface Where {
+  inside(p: Pt): boolean;
+  places(p: Pt): boolean;
+}
+
 /**
  * The points a shape places before the galaxy has a say: the row, then the fill, until they
- * and their images would pass `SAMPLE_CAP`. Under symmetry that is the cap over the copies,
- * less what merges.
+ * and their images would place more than `SAMPLE_CAP`. Under symmetry that is the cap over
+ * the copies, less what merges. A point past the edge or left out for a system doesn't count,
+ * and a fill point with no image inside the extent is dropped.
  */
 function basePoints(
   { row, rowGivesWay, fill, spacing }: Layout,
   sym: Symmetry,
+  where: Where,
 ): { base: Pt[]; rowCount: number; rowCut: boolean; capped: boolean } {
   const spaced = new SpacedImages(sym, spacing);
   const base: Pt[] = [];
   let total = 0;
   for (const p of row) {
-    const { fits, adds } = spaced.check(p, true);
+    const { fits, adds } = spaced.check(p, true, where.places);
     if (rowGivesWay && !fits) continue;
     if (total + adds > SAMPLE_CAP) {
       return { base, rowCount: base.length, rowCut: true, capped: true };
@@ -184,7 +193,8 @@ function basePoints(
   }
   const rowCount = base.length;
   for (const p of fill) {
-    const { fits, adds } = spaced.check(p, false);
+    if (!images(p, sym).some(where.inside)) continue;
+    const { fits, adds } = spaced.check(p, false, where.places);
     if (!fits) continue;
     if (total + adds > SAMPLE_CAP) return { base, rowCount, rowCut: false, capped: true };
     base.push(p);
@@ -221,51 +231,42 @@ function apart(systems: ReadonlyMap<number, SystemNode>, a: number, b: number): 
 interface FollowInput {
   rowCount: number;
   closed: boolean;
-  copies: number;
-  /** The id standing for image `m` of row point `i`: a new point, the system it was left out for, or null. */
-  standIn(i: number, m: number): number | null;
+  /** The id standing for row point `i`: a new point, the system it was left out for, or null. */
+  standIn(i: number): number | null;
   at(id: number): Pt;
   ground: PlacementGround;
+  imageOfNew: ImageOfNew;
 }
 
 /**
- * Lanes joining each row point to the next in every copy, round to the first when the row is
- * closed. A point left out for a system has that system stand in for it. A lane that would
- * cross an existing lane or one taken before it is dropped, as is one between two systems
- * already linked or kept apart.
+ * Lanes joining each row point to the next, round to the first when the row is closed, each
+ * with its images under symmetry. A point left out for a system has that system stand in for
+ * it. As with the paint brush, a lane goes in with all its images or not at all: dropped when
+ * one would cross an existing lane or one taken before it, or join two systems already linked
+ * or kept apart.
  */
-function followLanes({ rowCount, closed, copies, standIn, at, ground }: FollowInput): Pair[] {
+function followLanes({ rowCount, closed, standIn, at, ground, imageOfNew }: FollowInput): Pair[] {
   const steps: Array<[number, number]> = [];
   for (let i = 0; i + 1 < rowCount; i++) steps.push([i, i + 1]);
   if (closed && rowCount >= 3) steps.push([rowCount - 1, 0]);
-  const wanted: Array<[number, number]> = [];
-  for (let m = 0; m < copies; m++) {
-    for (const [i, j] of steps) {
-      const a = standIn(i, m);
-      const b = standIn(j, m);
-      if (a === null || b === null || a === b) continue;
-      if (a >= 0 && b >= 0 && (apart(ground.systems, a, b) || apart(ground.systems, b, a))) {
-        continue;
-      }
-      wanted.push([a, b]);
-    }
+  const wanted: Pair[] = [];
+  for (const [i, j] of steps) {
+    const a = standIn(i);
+    const b = standIn(j);
+    if (a !== null && b !== null && a !== b) wanted.push([a, b]);
   }
   const samples: Pt[] = [];
   for (const [a, b] of wanted) {
     const p = at(a);
     const q = at(b);
     const n = Math.ceil(Math.sqrt(dist2(p, q)) / SEGMENT_CELL);
-    for (let k = 0; k <= n; k++) samples.push(lerp(p, q, k / Math.max(1, n)));
+    for (let k = 0; k <= n; k++)
+      samples.push(...images(lerp(p, q, k / Math.max(1, n)), ground.symmetry));
   }
-  const lanes = new SegmentIndex();
-  for (const { a, b } of ground.lanesNear(samples, SEGMENT_CELL / 2 + 1)) lanes.add(a, b);
-  const taken = new PairSet();
-  for (const [a, b] of wanted) {
-    if (taken.has(a, b) || lanes.crosses(at(a), at(b))) continue;
-    taken.add(a, b);
-    lanes.add(at(a), at(b));
-  }
-  return taken.sorted();
+  const existing = ground.lanesNear(samples, SEGMENT_CELL / 2 + 1);
+  const linkable = (a: number, b: number) =>
+    a < 0 || b < 0 || !(apart(ground.systems, a, b) || apart(ground.systems, b, a));
+  return ground.symmetricLanes(wanted, imageOfNew, at, existing, linkable);
 }
 
 /** How many of `points` sit closer than `LEAST_SPACING` to another of them or to an existing system. */
@@ -303,7 +304,13 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
   const { placement, extent, beta } = ground;
   const sym = placement.symmetry;
   const shown = layout(pending, sym);
-  const { base, rowCount, rowCut, capped } = basePoints(shown, sym);
+  const blockerOf = (p: Pt) =>
+    pending.skipNear ? placement.grid.nearestSystem(p.x, p.y, shown.skip) : null;
+  const inside = (p: Pt) => insideExtent(extent, p);
+  const { base, rowCount, rowCut, capped } = basePoints(shown, sym, {
+    inside,
+    places: (p) => inside(p) && !blockerOf(p),
+  });
   const all = symmetricCopies(base, sym);
 
   const fates: Fate[] = [];
@@ -313,12 +320,12 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
   /** Where each kept point stood in `all.points`. */
   const from: number[] = [];
   for (const [j, p] of all.points.entries()) {
-    if (!insideExtent(extent, p)) {
+    if (!inside(p)) {
       fates.push({ kind: "outside" });
       outside.push(p);
       continue;
     }
-    const near = pending.skipNear ? placement.grid.nearestSystem(p.x, p.y, shown.skip) : null;
+    const near = blockerOf(p);
     if (near) {
       fates.push({ kind: "left", blocker: near.id });
       left.push({ at: p, blocker: near.id });
@@ -342,15 +349,14 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
     ? followLanes({
         rowCount,
         closed: shown.closed && !rowCut,
-        copies: copies(sym),
-        standIn(i, m) {
-          const j = m === 0 ? i : all.imageOfNew(i, m);
-          const fate = j === null ? null : fates[j];
-          if (fate?.kind === "kept") return provisionalId(fate.index);
-          return fate?.kind === "left" ? fate.blocker : null;
+        standIn(i) {
+          const fate = fates[i];
+          if (fate.kind === "kept") return provisionalId(fate.index);
+          return fate.kind === "left" ? fate.blocker : null;
         },
         at,
         ground: placement,
+        imageOfNew,
       })
     : [];
   for (const [a, b] of follow) pairs.add(a, b);

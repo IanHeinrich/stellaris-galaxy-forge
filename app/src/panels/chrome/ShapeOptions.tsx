@@ -8,23 +8,14 @@ import {
   LATTICE_LABELS,
   LATTICES,
   placeLabel,
-  SHAPE_KIND_LABELS,
-  SHAPE_KINDS,
 } from "../../lib/shapes/shapeCopy";
-import { centreOf, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
-import type {
-  Fill,
-  FillKind,
-  GalaxyFrame,
-  PendingShape,
-  Shape,
-  ShapeField,
-} from "../../lib/shapes/types";
+import { centreOf, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
+import type { Fill, GalaxyFrame, Shape, ShapeField, ShapeSettings } from "../../lib/shapes/types";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useShapePreview } from "../../store/shapePreview";
-import { COUNT_RANGE, OUTLINE_COUNT, SHAPE_SIZE_MIN } from "../../store/toolStore.shape";
+import { COUNT_RANGE, rememberedFor, SHAPE_SIZE_MIN } from "../../store/toolStore.shape";
 import {
   SPACING_RANGE,
   SPACING_SLIDER_MAX,
@@ -38,19 +29,6 @@ import "./chrome.css";
 
 /** What the Small chip sets, as a fraction of the galaxy's radius. */
 const SMALL_FRACTION = 0.1;
-
-/** `fill` changed to `kind`, keeping the count or the spacing it had and starting the rest at their usual values. */
-function fillOfKind(kind: FillKind, from: Fill): Fill {
-  const spacing = from.kind === "outline" ? SPACING_RANGE.fallback : from.spacing;
-  switch (kind) {
-    case "outline":
-      return { kind, count: from.kind === "outline" ? from.count : OUTLINE_COUNT };
-    case "scattered":
-      return { kind, spacing };
-    case "grid":
-      return { kind, spacing, lattice: from.kind === "grid" ? from.lattice : "hex" };
-  }
-}
 
 /** The number `key` holds in `shape`; the field rows only ask for number keys. */
 function readField(shape: Shape, key: ShapeField<Shape>["key"]): number {
@@ -103,7 +81,7 @@ function KindPicker({ shape }: { shape: Shape }) {
       onPick={setShapeKind}
       choices={SHAPE_KINDS.map((kind) => ({
         value: kind,
-        title: SHAPE_KIND_LABELS[kind],
+        title: SHAPE_SPECS[kind].label,
         label: (
           <Glyph className="shape-glyph">
             <path d={SHAPE_SPECS[kind].glyph} />
@@ -114,16 +92,17 @@ function KindPicker({ shape }: { shape: Shape }) {
   );
 }
 
-function FillPicker({ pending }: { pending: PendingShape }) {
+function FillPicker({ settings }: { settings: ShapeSettings }) {
   const setFill = useToolStore((s) => s.setFill);
-  const fills = specOf(pending.shape).fills(pending.shape);
-  const { fill } = pending;
+  const setFillKind = useToolStore((s) => s.setFillKind);
+  const fills = specOf(settings.shape).fills(settings.shape);
+  const { fill } = settings;
   return (
     <>
       <Choice
         label="Fill"
         value={fill.kind}
-        onPick={(kind) => setFill(fillOfKind(kind, fill))}
+        onPick={setFillKind}
         choices={FILL_KINDS.filter((k) => fills.includes(k)).map((k) => ({
           value: k,
           label: FILL_KIND_LABELS[k],
@@ -253,9 +232,9 @@ function CountOrSpacing({ fill }: { fill: Fill }) {
   );
 }
 
-function LaneOptions({ pending }: { pending: PendingShape }) {
+function LaneOptions({ settings }: { settings: ShapeSettings }) {
   const setShapeLanes = useToolStore((s) => s.setShapeLanes);
-  const { lanes, fill } = pending;
+  const { lanes, fill } = settings;
   return (
     <>
       {fill.kind !== "grid" && (
@@ -277,10 +256,13 @@ function LaneOptions({ pending }: { pending: PendingShape }) {
 /** The centre and the kind's exact fields, folded away until the player wants to type them. */
 function ExactValues({ shape }: { shape: Shape }) {
   const moveShape = useToolStore((s) => s.moveShape);
+  const settleShape = useToolStore((s) => s.settleShape);
   const centre = centreOf(shape);
   const fields = specOf(shape).fields.filter((f) => f.exact);
-  const centreAt = (axis: "x" | "y") => (v: number) =>
+  const centreAt = (axis: "x" | "y") => (v: number) => {
     moveShape(shape, { x: axis === "x" ? v - centre.x : 0, y: axis === "y" ? v - centre.y : 0 });
+    settleShape();
+  };
   return (
     <details className="shape-exact">
       <summary>Exact values</summary>
@@ -321,43 +303,55 @@ function PlaceButton() {
   );
 }
 
-/** The Shape tool's options: the shape, its fill, its size and spacing, its lanes and Place. */
+/** The kind's number fields the panel's body shows; the rest fold under Exact values. */
+function bodyFields(shape: Shape): readonly ShapeField<Shape>[] {
+  return (specOf(shape).fields as readonly ShapeField<Shape>[]).filter((f) => !f.exact);
+}
+
+/**
+ * The Shape tool's options: the shape, its fill, its size and spacing, its lanes and Place. With
+ * nothing pending they set what the next shape drawn starts from.
+ */
 export function ShapeOptions() {
   const pending = useToolStore((s) => s.pendingShape);
+  const memory = useToolStore((s) => s.shapeMemory);
   const setSkipNear = useToolStore((s) => s.setSkipNear);
   const shuffle = useToolStore((s) => s.shuffleShape);
-  if (pending === null) {
-    return <span className="tool-hint muted">Drag on the map to draw a shape</span>;
-  }
-  const { shape, fill } = pending;
-  const body = (specOf(shape).fields as readonly ShapeField<Shape>[]).filter((f) => !f.exact);
+  const settings = pending ?? rememberedFor(memory);
+  const { shape, fill } = settings;
   return (
     <div className="shape-options">
       <KindPicker shape={shape} />
-      <FillPicker pending={pending} />
-      <SizeOptions shape={shape} />
-      {body.map((f) => (
+      <FillPicker settings={settings} />
+      {pending && <SizeOptions shape={shape} />}
+      {bodyFields(shape).map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
       <CountOrSpacing fill={fill} />
-      <LaneOptions pending={pending} />
+      <LaneOptions settings={settings} />
       <label className="tool-option">
         <input
           type="checkbox"
-          checked={pending.skipNear}
+          checked={pending?.skipNear ?? memory.skipNear}
           onChange={(e) => setSkipNear(e.target.checked)}
         />
         Don&apos;t place on top of existing systems
       </label>
-      {fill.kind === "scattered" && (
+      {pending && fill.kind === "scattered" && (
         <button type="button" onClick={() => shuffle()}>
           Shuffle
         </button>
       )}
-      <ExactValues shape={shape} />
+      {pending && <ExactValues shape={shape} />}
       <div className="shape-foot">
-        <PlaceButton />
-        <span className="muted">Esc drops it</span>
+        {pending ? (
+          <>
+            <PlaceButton />
+            <span className="muted">Esc drops it</span>
+          </>
+        ) : (
+          <span className="tool-hint muted">Drag on the map to draw a shape</span>
+        )}
       </div>
     </div>
   );

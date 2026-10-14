@@ -204,6 +204,8 @@ export interface ShapeField<S extends Shape> {
 
 /** Everything that differs between kinds of shape: one row of `SHAPE_SPECS`. */
 export interface ShapeSpec<S extends Shape> {
+  /** The kind's name in the picker and the status bar: "Rectangle". */
+  label: string;
   /** The picker's icon: SVG path data on `Glyph`'s 16-unit grid, stroked. */
   glyph: string;
   /** The shape a kind starts as before it is ever drawn: about the origin, at a default size. */

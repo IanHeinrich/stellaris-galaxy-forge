@@ -101,6 +101,26 @@ describe("placing a shape", () => {
     expect(ids()).toEqual(SYSTEMS.map((s) => s.id));
   });
 
+  it("gives the shape back when the edit is refused", async () => {
+    mockedIpc.applyOp.mockRejectedValueOnce(new Error("refused"));
+    const before = tools().pendingShape;
+    expect(await editor().placePendingShape()).toBe(false);
+    expect(tools().pendingShape).toBe(before);
+    expect(tools().placingShape).toBeNull();
+  });
+
+  it("keeps a shape drawn while a refused edit waited", async () => {
+    let refuse: (e: Error) => void = () => undefined;
+    mockedIpc.applyOp.mockReturnValueOnce(new Promise((_, reject) => (refuse = reject)));
+    const placing = editor().placePendingShape();
+    tools().drawShape({ x: 0, y: 0 }, { x: 50, y: 0 }, { snap: false, constrain: false });
+    const drawn = tools().pendingShape;
+    await flush();
+    refuse(new Error("refused"));
+    expect(await placing).toBe(false);
+    expect(tools().pendingShape).toBe(drawn);
+  });
+
   it("sends nothing with no shape pending", async () => {
     tools().dropShape();
     expect(await editor().placePendingShape()).toBe(false);
@@ -109,27 +129,49 @@ describe("placing a shape", () => {
 });
 
 describe("Enter", () => {
+  /** A focused element inside whatever `selector` names, and nothing else. */
   class Element {
+    constructor(private readonly inside: string | null = null) {}
     closest(selector: string) {
-      return selector === '[role="menu"]' ? this : null;
+      return selector === this.inside ? this : null;
     }
   }
+  class Canvas extends Element {}
   const BODY = {};
+  const focus = (active: object) =>
+    vi.stubGlobal("document", { activeElement: active, body: BODY });
 
   beforeEach(() => {
     vi.stubGlobal("HTMLElement", Element);
-    vi.stubGlobal("HTMLCanvasElement", class {});
-    vi.stubGlobal("document", { activeElement: BODY, body: BODY });
+    vi.stubGlobal("HTMLCanvasElement", Canvas);
+    focus(BODY);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("leaves a focused menu its own", () => {
-    vi.stubGlobal("document", { activeElement: new Element(), body: BODY });
+  it("leaves a focused menu or another control its own", () => {
+    focus(new Element('[role="menu"]'));
+    expect(run("enterSystem", false, effects)).toBe(false);
+    focus(new Element(".top-bar"));
     expect(run("enterSystem", false, effects)).toBe(false);
     expect(tools().pendingShape).not.toBeNull();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("places from the shape's options, so Enter after Shuffle still places", async () => {
+    focus(new Element(".shape-options"));
+    expect(run("enterSystem", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+  });
+
+  it("places from the map's canvas", async () => {
+    focus(new Canvas(".map-host"));
+    expect(run("enterSystem", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
   });
 
   it("places the pending shape, and with none pending shows the selected system", async () => {

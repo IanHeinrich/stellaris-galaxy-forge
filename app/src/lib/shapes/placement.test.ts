@@ -13,7 +13,16 @@ import { PlacementGround } from "../placement/ground";
 import { laneSegments, provisionalId, provisionalIndex } from "../placement/lanes";
 import { SpatialGrid } from "../spatialGrid";
 import { shapePlacement } from "./placement";
-import type { CircleShape, Fill, PendingShape, Shape, ShapeGround, ShapePreview } from "./types";
+import { SHAPE_SPECS } from "./specs";
+import type {
+  CircleShape,
+  Fill,
+  PendingShape,
+  PolygonShape,
+  Shape,
+  ShapeGround,
+  ShapePreview,
+} from "./types";
 
 const OFF: Symmetry = { kind: "off" };
 
@@ -142,6 +151,37 @@ describe("an outline's points and follow lanes", () => {
     expect(mirrored.points).toHaveLength(SAMPLE_CAP);
     expect(mirrored.capped).toBe(true);
   });
+
+  it("counts only the points it places toward the cap, not those past the edge", () => {
+    const disc = circle({ radius: 700 });
+    const dense = shapePlacement(pending(disc, { fill: { kind: "scattered", spacing: 5 } }), EMPTY);
+    expect(dense.points).toHaveLength(SAMPLE_CAP);
+    expect(dense.capped).toBe(true);
+    const sparse = shapePlacement(
+      pending(disc, { fill: { kind: "scattered", spacing: 30 } }),
+      EMPTY,
+    );
+    expect(sparse.points.length).toBeGreaterThan(130);
+    expect(sparse.capped).toBe(false);
+  });
+
+  it("keeps a sparse triangle's corners when systems stand a little way off them", () => {
+    const triangle: PolygonShape = {
+      kind: "polygon",
+      centre: { x: 0, y: 0 },
+      radius: 400,
+      rotation: 90,
+      sides: 3,
+    };
+    const corners = SHAPE_SPECS.polygon.outline(triangle, 3).points;
+    const systems = corners.map((c, i) => placedNode(i + 1, c.x + 100, c.y));
+    const preview = shapePlacement(
+      pending(triangle, { fill: { kind: "outline", count: 3 } }),
+      groundOf(systems),
+    );
+    expect(preview.left).toEqual([]);
+    expect(preview.points).toHaveLength(3);
+  });
 });
 
 describe("a shape under symmetry", () => {
@@ -167,6 +207,20 @@ describe("a shape under symmetry", () => {
     expect(preview.pairs).toHaveLength(48);
     expect(preview.points.slice(24).every((p) => p.y < 0)).toBe(true);
     expect(preview.interleaved).toBeNull();
+  });
+
+  it("gives a mirrored ring that overlaps its own image mirror-symmetric follow lanes", () => {
+    const ring = circle({ centre: { x: 100, y: 30 }, radius: 80 });
+    const preview = shapePlacement(pending(ring), groundOf([], { kind: "mirror", axis: "x" }));
+    const at = positions(preview);
+    const spot = (p: Pt) => `${Math.round(p.x * 1e3) / 1e3 + 0},${Math.round(p.y * 1e3) / 1e3 + 0}`;
+    const lane = (p: Pt, q: Pt) => [spot(p), spot(q)].sort().join(" ");
+    const flip = (p: Pt) => ({ x: p.x, y: -p.y });
+    const lanes = preview.pairs.map(([a, b]) => lane(at(a), at(b)));
+    const flipped = preview.pairs.map(([a, b]) => lane(flip(at(a)), flip(at(b))));
+    expect(new Set(flipped)).toEqual(new Set(lanes));
+    expect(lanes.length).toBeGreaterThan(24);
+    expect(crossings(preview)).toBe(0);
   });
 
   it("keeps a filled disc on the pivot as one disc rather than four laid over each other", () => {

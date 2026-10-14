@@ -1,5 +1,7 @@
 import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
 import type { MapExtent } from "../../../lib/guides";
+import { SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
+import type { Rect } from "../../../lib/geometry/polygon";
 import type { Pt } from "../../../lib/geometry/pt";
 import type { Segment } from "../../../lib/geometry/segments";
 import { galaxyFrame } from "../../../lib/shapes/drag";
@@ -30,8 +32,8 @@ const OUTLINE_POINTS = 96;
 /** Each look's half-size in screen pixels: the centre square's half side, a round handle's radius. */
 const HANDLE_PX: Record<HandleLook, number> = { centre: 5, size: 5.5, turn: 4 };
 const HANDLE_STROKE_PX = 1.4;
-/** Screen pixels from the rim handle down to the readout's top. */
-const READOUT_GAP_PX = 12;
+/** Screen pixels from the lowest handle or point's centre down to the readout's top, clear of the largest handle. */
+const READOUT_GAP_PX = 14;
 
 /** One shared instance: PixiJS keys a dynamic bitmap font by the style object. */
 const READOUT_STYLE = new TextStyle({
@@ -54,8 +56,8 @@ export interface ShapeDrawing {
 /**
  * The Shape tool's pending shape: the systems it would add as gold points, the points it leaves
  * out hollow beside existing systems and orange past the edge, its lanes, its handles at a fixed
- * size on screen, its own line and the galaxy's edge faintly, and the readout beside the rim
- * handle. A placed shape's points and lanes stay until its edit lands, without the rest.
+ * size on screen, its own line and the galaxy's edge faintly, and the readout centred below all
+ * of it. A placed shape's points and lanes stay until its edit lands, without the rest.
  */
 export class ShapeOverlay {
   readonly container = new Container({ label: "shape" });
@@ -67,14 +69,14 @@ export class ShapeOverlay {
   private readonly readout = new BitmapText({ text: "", style: READOUT_STYLE });
   private drawing: ShapeDrawing | null = null;
   private extent: MapExtent | null = null;
-  /** The rim handle the readout hangs below. */
-  private rim: Pt = { x: 0, y: 0 };
+  /** Where the readout hangs: below the lowest handle or point on screen, centred across the shape. */
+  private below: Pt = { x: 0, y: 0 };
   private camScale = 1;
   private readonly scale = { x: 1, y: 1 };
 
   constructor() {
     this.container.eventMode = "none";
-    this.readout.anchor.set(1, 0);
+    this.readout.anchor.set(0.5, 0);
     this.readout.visible = false;
     this.container.addChild(
       this.edge,
@@ -167,19 +169,23 @@ export class ShapeOverlay {
 
   private drawReadout(handles: readonly ShapeHandle[]): void {
     const d = this.drawing;
-    const rim = handles.find((h) => h.look === "size") ?? handles[0];
-    if (!d?.pending || !d.preview || !this.extent || !rim) {
+    if (!d?.pending || !d.preview || !this.extent) {
       this.readout.visible = false;
       return;
     }
     this.readout.text = shapeReadout(d.pending, d.preview, galaxyFrame(this.extent));
-    this.rim = rim.at;
+    this.below = belowAll(specOf(d.pending.shape).bounds(d.pending.shape), [
+      ...handles.map((h) => h.at),
+      ...d.preview.points,
+      ...d.preview.left.map((l) => l.at),
+      ...d.preview.outside,
+    ]);
     this.readout.visible = true;
     this.placeReadout();
   }
 
   private placeReadout(): void {
-    this.readout.position.set(this.rim.x, this.rim.y + READOUT_GAP_PX * this.scale.y);
+    this.readout.position.set(this.below.x, this.below.y + READOUT_GAP_PX * this.scale.y);
   }
 }
 
@@ -196,6 +202,16 @@ function drawHandle(g: Graphics, h: ShapeHandle, px: number): void {
       break;
   }
   g.fill({ color: HANDLE_COLOR }).stroke({ color: ACCENT_COLOR, width: HANDLE_STROKE_PX * px });
+}
+
+/**
+ * The middle of `box` across, at the lowest of its edges and `marks` on screen: world y runs down
+ * the screen or up it with `SAVE_Y_SIGN`.
+ */
+function belowAll(box: Rect, marks: readonly Pt[]): Pt {
+  let low = SAVE_Y_SIGN > 0 ? box.y1 : box.y0;
+  for (const p of marks) low = SAVE_Y_SIGN > 0 ? Math.max(low, p.y) : Math.min(low, p.y);
+  return { x: (box.x0 + box.x1) / 2, y: low };
 }
 
 function sameExtent(a: MapExtent | null, b: MapExtent | null): boolean {
