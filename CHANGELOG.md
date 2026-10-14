@@ -8,6 +8,16 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-10-14
+
+### Added
+
+- Square and hex grids can line the shape's edge with systems too.
+
+### Fixed
+
+- Moving or resizing a large shape before you place it is much smoother.
+
 ## [0.26.0] - 2026-10-14
 
 ### Added
