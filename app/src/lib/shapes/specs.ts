@@ -11,7 +11,7 @@ import {
   joined,
   oneRun,
 } from "./outline";
-import { galaxyDensity, meanDensity } from "./galaxies";
+import { galaxyDensity, keptShare } from "./galaxies";
 import type {
   CircleShape,
   ExtraKey,
@@ -873,7 +873,7 @@ const GALAXY: ShapeSpec<GalaxyShape> = {
       const local = toLocal(frameOf(s), p);
       return galaxyDensity(s.form, { x: local.x / s.radius, y: local.y / s.radius });
     },
-    mean: (s) => meanDensity(s.form),
+    mean: (s) => keptShare(s.form),
   },
   fields: [RADIUS_FIELD, ROTATION_FIELD],
   ...radialRow<GalaxyShape>(),

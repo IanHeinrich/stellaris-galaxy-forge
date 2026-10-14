@@ -13,7 +13,7 @@ import { LEAST_SPACING, MOST_SPACING, ON_TOP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies, type SymmetricCopies } from "../placement/symmetricCopies";
-import { lattice, scatterDensity, scatterPattern, thinnedFill } from "./fills";
+import { lattice, scatterDensity, scatterPattern, THINNED_ROOM, thinnedPattern } from "./fills";
 import {
   appliedExtras,
   crossesGapAt,
@@ -275,19 +275,19 @@ function layout(
   if (!filled) return { ...laid, fill: [] };
   const frame = frameOf(shape);
   const bounds = spec.bounds(shape);
-  const even =
+  const { thinning } = spec;
+  const share = thinning && ((p: Pt) => thinning.at(shape, p));
+  const pattern =
     fill.kind === "grid"
       ? lattice(fill.lattice, spacing, frame, bounds)
-      : scatterPattern(seed, spacing, frame, bounds);
-  const { thinning } = spec;
-  const pattern = thinning
-    ? thinnedFill(even, (p) => thinning.at(shape, p), seed, frame, spacing)
-    : even;
+      : share
+        ? thinnedPattern(seed, spacing, frame, bounds, share)
+        : scatterPattern(seed, spacing, frame, bounds);
   const reach = (spacing * extras.wobble) / 200;
   const nudged = reach > 0 ? wobbledFill(pattern, reach, seed, frame, spacing) : pattern;
   return {
     ...laid,
-    least: spacing - 2 * reach,
+    least: (share ? spacing * THINNED_ROOM.least : spacing) - 2 * reach,
     fill: inside(nudged, (p) => spec.contains(shape, p)),
   };
 }

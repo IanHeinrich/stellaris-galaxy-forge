@@ -1,5 +1,6 @@
 import { clamp } from "../geometry/geometry";
 import type { Pt } from "../geometry/pt";
+import { scatterDensity, thinnedPattern } from "./fills";
 import type { GalaxyForm } from "./types";
 
 /** How the density runs across an arm and the gap beside it, over one turn of its phase. */
@@ -25,7 +26,7 @@ interface Arms extends Band {
  * One galaxy shape as a density over the unit disc, from 0 where a fill keeps no points to 1
  * where it keeps them all. The game builds its shapes in the engine, so nothing in the install
  * describes them: these are look-alikes fitted to galaxies the game generated, whose figures
- * `galaxyStats.json` keeps.
+ * `galaxyStats.json` keeps, with the arms then matched by eye against the same galaxies.
  */
 export interface GalaxyMap {
   /** The empty core: the density rises from nothing at `core[0]` to full at `core[1]`, as shares of the radius. */
@@ -46,21 +47,21 @@ export const GALAXY_MAPS: Record<GalaxyForm, GalaxyMap> = {
     core: [0.25, 0.27],
     rim: [0.77, 0.94],
     falloff: 0.85,
-    arms: { count: 2, wind: 8.7, duty: 0.46, soft: 1, floor: 0.17 },
+    arms: { count: 2, wind: 8.7, duty: 0.45, soft: 0.9, floor: 0.12 },
     side: null,
   },
   spiral_3: {
     core: [0.21, 0.23],
     rim: [0.65, 0.86],
     falloff: 0.92,
-    arms: { count: 3, wind: 7.55, duty: 0.51, soft: 1, floor: 0.25 },
+    arms: { count: 3, wind: 7.55, duty: 0.46, soft: 1, floor: 0.15 },
     side: null,
   },
   spiral_4: {
     core: [0.22, 0.3],
     rim: [0.85, 0.94],
     falloff: 0.95,
-    arms: { count: 4, wind: 5.4, duty: 0.51, soft: 1, floor: 0.21 },
+    arms: { count: 4, wind: 5.4, duty: 0.48, soft: 1, floor: 0.15 },
     side: null,
   },
   spiral_6: {
@@ -72,31 +73,31 @@ export const GALAXY_MAPS: Record<GalaxyForm, GalaxyMap> = {
   },
   ring: { core: [0.34, 0.64], rim: [0.93, 0.99], falloff: 0, arms: null, side: null },
   bar: {
-    core: [0, 0.27],
+    core: [0.15, 0.19],
     rim: [0.7, 0.87],
-    falloff: 1.32,
-    arms: { count: 2, wind: 2.4, duty: 0.51, soft: 1, floor: 0.13 },
+    falloff: 1.3,
+    arms: { count: 2, wind: 2.4, duty: 0.5, soft: 0.9, floor: 0.09 },
     side: null,
   },
   starburst: {
     core: [0.17, 0.19],
     rim: [0.74, 0.76],
     falloff: 0.75,
-    arms: { count: 4, wind: 5.5, duty: 0.46, soft: 0.96, floor: 0.22 },
+    arms: { count: 4, wind: 5.5, duty: 0.46, soft: 0.7, floor: 0.12 },
     side: { wind: 4.4, duty: 0.65, soft: 0.6, floor: 0 },
   },
   cartwheel: {
     core: [0.36, 0.58],
     rim: [0.8, 1],
     falloff: 0,
-    arms: { count: 3, wind: 8, duty: 0.41, soft: 1, floor: 0.26 },
+    arms: { count: 3, wind: 8, duty: 0.41, soft: 0.9, floor: 0.18 },
     side: null,
   },
   spoked: {
     core: [0, 0.31],
     rim: [0.9, 1],
     falloff: 0.92,
-    arms: { count: 7, wind: 0, duty: 0.45, soft: 1, floor: 0.19 },
+    arms: { count: 7, wind: 0, duty: 0.5, soft: 0.9, floor: 0.13 },
     side: null,
   },
 };
@@ -150,28 +151,26 @@ export function galaxyDensity(form: GalaxyForm, local: Pt): number {
   return mapDensity(GALAXY_MAPS[form], Math.hypot(local.x, local.y), Math.atan2(local.y, local.x));
 }
 
-/** How many rings and spokes of the polar grid `meanDensity` averages over. */
-const MEAN_RINGS = 200;
-const MEAN_SPOKES = 360;
+/** The radius, in spacings, of the galaxy `keptShare` lays to measure it. */
+const MEASURED_RADIUS = 30;
 
-const means = new Map<GalaxyForm, number>();
+const kept = new Map<GalaxyForm, number>();
 
-/** The mean of `form`'s density over the unit disc: the share of a fill a galaxy keeps. */
-export function meanDensity(form: GalaxyForm): number {
-  let mean = means.get(form);
-  if (mean === undefined) {
-    const map = GALAXY_MAPS[form];
-    let sum = 0;
-    let weight = 0;
-    for (let i = 0; i < MEAN_RINGS; i++) {
-      const r = (i + 0.5) / MEAN_RINGS;
-      for (let j = 0; j < MEAN_SPOKES; j++) {
-        sum += r * mapDensity(map, r, ((j + 0.5) / MEAN_SPOKES) * 2 * Math.PI);
-      }
-      weight += r * MEAN_SPOKES;
-    }
-    mean = sum / weight;
-    means.set(form, mean);
+/**
+ * The share of a scattered fill's points a galaxy of `form` keeps, measured once by laying one
+ * `MEASURED_RADIUS` spacings across: about the mean of its density, less what keeping the points
+ * apart costs where the density falls.
+ */
+export function keptShare(form: GalaxyForm): number {
+  let share = kept.get(form);
+  if (share === undefined) {
+    const r = MEASURED_RADIUS;
+    const frame = { origin: { x: 0, y: 0 }, rotation: 0 };
+    const at = (p: Pt) =>
+      Math.hypot(p.x, p.y) <= r ? galaxyDensity(form, { x: p.x / r, y: p.y / r }) : 0;
+    const laid = thinnedPattern(1, 1, frame, { x0: -r, y0: -r, x1: r, y1: r }, at);
+    share = [...laid].length / (scatterDensity() * Math.PI * r * r);
+    kept.set(form, share);
   }
-  return mean;
+  return share;
 }

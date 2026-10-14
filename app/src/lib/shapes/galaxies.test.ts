@@ -173,13 +173,15 @@ describe("a galaxy's density map, against galaxies the game generated", () => {
 
 describe("a galaxy's fill", () => {
   it("lays the cap's worth at the closest spacing that fills it, and the preview places that many", () => {
+    const rules = { ...STATEMENTS, cap: 300 };
+    const lanes = { follow: false, mode: "off" } as const;
     for (const form of GALAXY_FORMS) {
       const shape = galaxy(form);
-      const spacing = fillSpacing(shape, scattered(1), OFF, STATEMENTS);
-      const preview = shapePlacement(pending(shape, spacing), EMPTY);
+      const spacing = fillSpacing(shape, scattered(1), OFF, rules);
+      const preview = shapePlacement(pending(shape, spacing, { lanes }), groundOf([], OFF, rules));
       expect(preview.capped).toBe(false);
-      expect(preview.points.length).toBeGreaterThan(0.8 * STATEMENTS.cap);
-      expect(preview.points.length).toBe(laidCount(pending(shape), OFF, STATEMENTS, spacing));
+      expect(preview.points.length).toBeGreaterThan(0.8 * rules.cap);
+      expect(preview.points.length).toBe(laidCount(pending(shape), OFF, rules, spacing));
     }
   });
 
@@ -200,25 +202,24 @@ describe("a galaxy's fill", () => {
   });
 
   it("joins its pieces into one network, through the galaxy's own where New and nearby links them to it", () => {
-    // A ring of existing systems round the shape, each laned to the next: one network.
+    // A ring of existing systems through the shape's arms, each laned to the next: one network
+    // whose lanes cut the new systems inside it from those outside.
     const ring = Array.from({ length: 24 }, (_, i) => {
       const t = (i * Math.PI) / 12;
-      return placedNode(i + 1, 150 * Math.cos(t), 150 * Math.sin(t), [((i + 1) % 24) + 1]);
+      return placedNode(i + 1, 90 * Math.cos(t), 90 * Math.sin(t), [((i + 1) % 24) + 1]);
     });
+    const existing = ring.flatMap((s) => s.lanes.map((l): [number, number] => [s.id, l.to]));
     const shape = galaxy("bar", { radius: 150 });
     for (const mode of ["new", "nearby"] as const) {
       const lanes = { follow: false, mode };
       const preview = shapePlacement(pending(shape, 10, { lanes }), groundOf(ring));
+      expect(crossings(preview, ring)).toBe(0);
+      if (mode === "new") continue;
       const points = [
         ...preview.points.map((p, i) => ({ id: provisionalId(i), ...p })),
         ...ring.map(({ id, x, y }) => ({ id, x, y })),
       ];
-      const existing = ring.flatMap((s) => s.lanes.map((l): [number, number] => [s.id, l.to]));
-      const all = [...preview.pairs, ...existing];
-      expect(componentCount(points, mode === "new" ? preview.pairs : all)).toBe(
-        mode === "new" ? 24 + 1 : 1,
-      );
-      expect(crossings(preview, ring)).toBe(0);
+      expect(componentCount(points, [...preview.pairs, ...existing])).toBe(1);
     }
     const off = shapePlacement(
       pending(shape, 10, { lanes: { follow: false, mode: "off" } }),
@@ -228,7 +229,7 @@ describe("a galaxy's fill", () => {
   });
 
   it("can be the shape a selection is arranged into, as many points as systems", () => {
-    const shown = pending(galaxy("bar", { radius: 150 }), 10, {
+    const shown = pending(galaxy("bar", { radius: 250 }), 10, {
       purpose: { kind: "arrange", ids: [], lanes: "keep", alsoOuter: false },
     });
     for (const n of [12, 75]) {

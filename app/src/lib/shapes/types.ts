@@ -368,7 +368,7 @@ export interface ShapeField<S extends Shape> {
   when: FieldWhen;
 }
 
-/** How a kind's fill thins out: the share of its points kept at a point, and that share's mean over what a fill fills. */
+/** How a kind's fill thins out: the share of its points kept about a point, and the share kept over what a fill fills. */
 export interface Thinning<S extends Shape> {
   /** In [0, 1]. */
   at(s: S, p: Pt): number;
