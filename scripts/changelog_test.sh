@@ -165,6 +165,28 @@ if run notes 2.0.0; then
 else
 	fail "notes reads the released section"
 fi
+if run update-notes 2.0.0 &&
+	[ "$(grep '^### Version' "$root/out")" = "$(printf '### Version 2.0.0\n### Version 1.0.0')" ] &&
+	[ "$(tail -n 1 "$root/out")" = "- First release." ]; then
+	pass "update-notes prints each version newest first under its Version line"
+else
+	fail "update-notes prints each version newest first under its Version line"
+	cat "$root/out" "$root/err"
+fi
+if run update-notes 2.0.0 1 && [ "$(grep -c '^### Version' "$root/out")" -eq 1 ] &&
+	! grep -q 'First release' "$root/out"; then
+	pass "update-notes stops at the count"
+else
+	fail "update-notes stops at the count"
+	cat "$root/out" "$root/err"
+fi
+if run update-notes 3.0.0; then
+	fail "update-notes fails for a version with no section"
+elif grep -q 'no section for 3.0.0' "$root/err"; then
+	pass "update-notes fails for a version with no section"
+else
+	fail "update-notes fails for a version with no section"
+fi
 
 # release after collect keeps a hand-rewritten Unreleased
 new_repo rewrite

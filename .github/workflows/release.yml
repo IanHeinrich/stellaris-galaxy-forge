@@ -321,7 +321,7 @@ jobs:
         run: |
           v=$(tr -d '[:space:]' < VERSION)
           base="https://github.com/$REPO/releases/download/$TAG"
-          notes=$(bash scripts/changelog.sh notes "$v")
+          notes=$(bash scripts/changelog.sh update-notes "$v")
 
           pick() {
             local f

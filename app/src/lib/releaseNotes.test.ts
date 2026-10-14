@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import changelog from "../../../CHANGELOG.md?raw";
-import { parseReleaseNotes, releaseHeadline } from "./releaseNotes";
+import { notesSince, parseReleaseNotes, releaseHeadline } from "./releaseNotes";
 
 describe("the headline of a release's notes", () => {
   it("is the first entry, on one line and without its markup", () => {
@@ -13,6 +13,71 @@ describe("the headline of a release's notes", () => {
       "Lanes keep their length Nebulae move",
     );
     expect(releaseHeadline("")).toBe("");
+  });
+
+  it("comes from the newest version's section of notes that carry several", () => {
+    const notes = ["### Version 0.9.0", "### Added", "- Older.", "### Version 0.10.0", "- Newest."];
+    expect(releaseHeadline(notes.join("\n"))).toBe("Newest.");
+  });
+});
+
+/** The updater's notes: each release's section under its `### Version` line, newest first. */
+const MULTI = [
+  "### Version 0.26.0",
+  "",
+  "### Added",
+  "",
+  "- The Shape tool.",
+  "",
+  "### Version 0.25.1",
+  "",
+  "### Fixed",
+  "",
+  "- Gateways go where you click.",
+  "",
+  "### Version 0.25.0",
+  "",
+  "### Added",
+  "",
+  "- Megastructures.",
+].join("\n");
+
+const versions = (blocks: ReturnType<typeof parseReleaseNotes>) =>
+  blocks.flatMap((b) => (b.kind === "version" ? [b.version] : []));
+
+describe("the notes shown to a player who skipped releases", () => {
+  it("reads a Version line as a version block, not a heading", () => {
+    expect(parseReleaseNotes(MULTI).slice(0, 2)).toEqual([
+      { kind: "version", version: "0.26.0" },
+      { kind: "heading", spans: [{ kind: "text", text: "Added" }] },
+    ]);
+  });
+
+  it("keeps each version newer than the running one, with its own entries", () => {
+    const blocks = notesSince(MULTI, "0.25.0");
+    expect(versions(blocks)).toEqual(["0.26.0", "0.25.1"]);
+    expect(JSON.stringify(blocks)).toContain("Gateways go where you click.");
+    expect(JSON.stringify(blocks)).not.toContain("Megastructures.");
+  });
+
+  it("orders versions newest first by number, whatever order the notes give", () => {
+    const notes = ["### Version 0.9.0", "- Nine.", "### Version 0.10.0", "- Ten."];
+    notes.push("### Version 0.8.2", "- Eight.");
+    expect(versions(notesSince(notes.join("\n"), "0.8.2"))).toEqual(["0.10.0", "0.9.0"]);
+  });
+
+  it("shows every version when the running one is unknown", () => {
+    expect(versions(notesSince(MULTI, null))).toEqual(["0.26.0", "0.25.1", "0.25.0"]);
+    expect(versions(notesSince(MULTI, "unknown"))).toEqual(["0.26.0", "0.25.1", "0.25.0"]);
+  });
+
+  it("falls back to the newest version when none is newer than the running one", () => {
+    expect(versions(notesSince(MULTI, "0.26.0"))).toEqual(["0.26.0"]);
+  });
+
+  it("leaves notes with no Version lines as they are", () => {
+    const notes = ["### Added", "", "- A thing.", "", "### Fixed", "", "- Another."].join("\n");
+    expect(notesSince(notes, "0.1.0")).toEqual(parseReleaseNotes(notes));
   });
 });
 

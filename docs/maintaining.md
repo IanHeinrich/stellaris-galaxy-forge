@@ -171,7 +171,10 @@ push as the Workshop change note, with any description or image changes.
 - `createUpdaterArtifacts` lives in `app/src-tauri/tauri.release.conf.json`
   and only the release workflow merges it in with `--config`, so a local
   `npm run tauri build` needs no key and writes no `.sig` files.
-- The `publish` job writes `latest.json` from the merged assets and the
-  changelog section. The app reads it from
+- The `publish` job writes `latest.json` from the merged assets and
+  `bash scripts/changelog.sh update-notes <x.y.z>`: the sections of the
+  last five releases, newest first, each under a `### Version x.y.z`
+  line. The update dialog shows the versions newer than the running app,
+  so a player who skipped releases sees them all. The app reads it from
   `releases/latest/download/latest.json`, so a release must be the latest
   to be offered. A future prerelease would need `--latest=false`.

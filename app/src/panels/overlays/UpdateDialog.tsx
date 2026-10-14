@@ -1,6 +1,6 @@
 import type { UpdateProgress } from "../../generated/UpdateProgress";
 import type { UpdateView } from "../../generated/UpdateView";
-import { parseReleaseNotes, type NoteSpan } from "../../lib/releaseNotes";
+import { notesSince, type NoteSpan } from "../../lib/releaseNotes";
 import { useUpdateStore, type UpdateStatus } from "../../store/updateStore";
 import { formatSize, formatWhen } from "../../lib/text";
 import { Dialog } from "../Dialog";
@@ -46,14 +46,21 @@ function Spans({ spans }: { spans: NoteSpan[] }) {
   );
 }
 
-function ReleaseNotes({ notes }: { notes: string }) {
+/** The notes of each version since `running`, with Added, Changed and Fixed under its number. */
+function ReleaseNotes({ notes, running }: { notes: string; running: string | null }) {
+  const blocks = notesSince(notes, running);
+  const Heading = blocks.some((b) => b.kind === "version") ? "h3" : "h2";
   return (
     <div className="update-notes">
-      {parseReleaseNotes(notes).map((block, i) =>
-        block.kind === "heading" ? (
-          <h2 key={i}>
-            <Spans spans={block.spans} />
+      {blocks.map((block, i) =>
+        block.kind === "version" ? (
+          <h2 key={i} className="update-version">
+            Version {block.version}
           </h2>
+        ) : block.kind === "heading" ? (
+          <Heading key={i}>
+            <Spans spans={block.spans} />
+          </Heading>
         ) : block.kind === "list" ? (
           <ul key={i}>
             {block.items.map((item, j) => (
@@ -155,7 +162,7 @@ export function UpdateBody({
         You are running {version ?? "an unknown version"}
         {update.date !== null && ` · published ${published(update.date)}`}
       </p>
-      {update.notes !== "" && <ReleaseNotes notes={update.notes} />}
+      {update.notes !== "" && <ReleaseNotes notes={update.notes} running={version} />}
       {update.install === "manual" && (
         <p>This copy is replaced by hand: download the new version from the releases page.</p>
       )}

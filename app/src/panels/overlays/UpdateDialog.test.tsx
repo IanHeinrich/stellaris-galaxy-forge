@@ -73,6 +73,39 @@ describe("an update the app can install itself", () => {
     expect(html).not.toContain("###");
   });
 
+  it("shows each version since the running one, newest first, over its own headings", () => {
+    const notes = [
+      "### Version 0.5.1",
+      "",
+      "### Fixed",
+      "",
+      "- Already installed.",
+      "",
+      "### Version 0.6.0",
+      "",
+      "### Added",
+      "",
+      "- Newest entry.",
+      "",
+      "### Version 0.5.2",
+      "",
+      "### Fixed",
+      "",
+      "- Skipped entry.",
+    ].join("\n");
+    const html = renderToStaticMarkup(body({ update: { ...UPDATE, notes } }));
+
+    const newest = html.indexOf('<h2 class="update-version">Version 0.6.0</h2>');
+    const skipped = html.indexOf('<h2 class="update-version">Version 0.5.2</h2>');
+    expect(newest).toBeGreaterThan(-1);
+    expect(skipped).toBeGreaterThan(newest);
+    expect(html).toContain("<h3>Added</h3>");
+    expect(html).toContain("<li>Skipped entry.</li>");
+    expect(html).not.toContain("Version 0.5.1");
+    expect(html).not.toContain("Already installed.");
+    expect(html).not.toContain("<h2>Added</h2>");
+  });
+
   it("says why an install failed over the buttons that try it again", () => {
     const tree = body({ error: "signature mismatch" });
 
