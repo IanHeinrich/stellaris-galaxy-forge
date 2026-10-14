@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
+import type { EditResult } from "../generated/EditResult";
 import type { Op } from "../generated/Op";
 import { PairSet } from "../lib/geometry/pairs";
-import { ARRANGE_SYMMETRY } from "../lib/shapes/shapeCopy";
+import { provisionalIndex } from "../lib/placement/lanes";
+import { ARRANGE_SYMMETRY, shapeStatus } from "../lib/shapes/shapeCopy";
 import { specOf } from "../lib/shapes/specs";
+import { flush } from "../test/flush";
 import { mockedIpc } from "../test/ipc";
 import { run } from "./commands";
-import { editor, openFixtureSave, openFixtureScenario } from "./editorFixture";
+import { deferred, editor, openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { editResult, SYSTEMS } from "./fixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { shapePreview } from "./shapePreview";
@@ -56,7 +59,12 @@ describe("arranging a selection", () => {
     arrange();
     const pending = tools().pendingShape!;
     expect(tools().tool).toBe("shape");
-    expect(pending.purpose).toEqual({ kind: "arrange", ids: PICKED, lanes: "keep" });
+    expect(pending.purpose).toEqual({
+      kind: "arrange",
+      ids: PICKED,
+      lanes: "keep",
+      alsoOuter: false,
+    });
     expect(pending.shape).toMatchObject({ kind: "circle", centre: { x: 200, y: 200 } });
     const preview = shapePreview()!;
     expect(preview.points).toHaveLength(PICKED.length);
@@ -122,11 +130,104 @@ describe("arranging a selection", () => {
   it("clears the lanes between them, leaving the lane out to Vega", async () => {
     arrange();
     tools().setArrangeLanes("clear");
+    const status = shapeStatus(tools().pendingShape!, shapePreview()!, "statements");
+    expect(status.summary).toBe("Circle · Arrange 4 systems · 3 lanes out");
     await editor().placePendingShape();
     const batch = sentBatch();
     expect(batch.ops.map((o) => o.type)).toEqual(["RemoveLanePairs", "MoveSystems"]);
     expect(opOf(batch, "RemoveLanePairs")!.lanes).toEqual(INNER);
     expect(shapePreview()).toBeNull();
+  });
+
+  it("also cuts the lanes out to other systems when asked, and says so", async () => {
+    arrange();
+    tools().setArrangeLanes("clear");
+    tools().setArrangeAlsoOuter(true);
+    const status = shapeStatus(tools().pendingShape!, shapePreview()!, "statements");
+    expect(status.summary).toBe("Circle · Arrange 4 systems · 4 lanes out (1 to other systems)");
+    await editor().placePendingShape();
+    const batch = sentBatch();
+    expect(batch.description).toBe(
+      "Arranged 4 systems in a ring and cut 4 lanes (1 to other systems)",
+    );
+    expect(opOf(batch, "RemoveLanePairs")!.lanes).toEqual([...INNER, [1, 4]]);
+    arrange();
+    expect(tools().pendingShape!.purpose).toMatchObject({ lanes: "clear", alsoOuter: true });
+  });
+
+  it("says the lanes are kept under Keep, with no count of none", () => {
+    arrange();
+    const status = shapeStatus(tools().pendingShape!, shapePreview()!, "statements");
+    expect(status.summary).toBe("Circle · Arrange 4 systems · lanes kept");
+  });
+
+  it("names the kept lanes that would lie along another or pass through a system on a line", () => {
+    arrange();
+    tools().setShapeKind("line");
+    const { points, arranged } = shapePreview()!;
+    expect(points.every((p) => Math.abs(p.y - points[0].y) < 1e-6)).toBe(true);
+    const systemOf = (id: number) => (id < 0 ? arranged!.moves[provisionalIndex(id)].system : id);
+    const named = arranged!.crossing.map(([a, b]) => [systemOf(a), systemOf(b)].sort());
+    // Alpha's lanes to Barnard and Sirius lie along each other, and the one to Sirius passes Barnard.
+    expect(named).toEqual(
+      expect.arrayContaining([
+        [1, 2],
+        [1, 3],
+      ]),
+    );
+    expect(named).not.toContainEqual([0, 1]);
+  });
+
+  it("is refused while a point lands on a system left where it is", async () => {
+    arrange({ x: 0, y: 0 });
+    const { shape } = tools().pendingShape!;
+    const first = specOf(shape).outline(shape, 4).points[0];
+    const vega = useGalaxyStore.getState().systems.get(4)!;
+    tools().moveShape(shape, { x: vega.x - first.x, y: vega.y - first.y });
+    expect(shapePreview()!.arranged!.refusal).toBe(
+      "Only 3 of 4 systems fit: 1 too close to other systems. Move or resize the shape.",
+    );
+    expect(await editor().placePendingShape()).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("is built on the galaxy as it is when its turn comes, after an edit queued ahead", async () => {
+    arrange();
+    const ahead = deferred<EditResult>();
+    mockedIpc.applyOp.mockReturnValueOnce(ahead.promise);
+    const deleting = editor().applyOp({ type: "RemoveSystems", systems: [3] });
+    const placing = editor().placePendingShape();
+    await flush();
+    ahead.resolve(editResult({ delta: { systems: [], removed: [3] } }));
+    await deleting;
+    expect(await placing).toBe(true);
+    const [, [op]] = mockedIpc.applyOp.mock.calls;
+    if (op.type !== "Batch") throw new Error(`sent ${op.type}`);
+    expect(op.description).toBe("Arranged 3 systems in a ring");
+    const moved = opOf(op, "MoveSystems")!.moves.map((m) => m.system);
+    expect(moved.sort()).toEqual([0, 1, 2]);
+  });
+
+  it("keeps a shape drawn while the arrange was landing, and the Shape tool", async () => {
+    arrange();
+    const landing = deferred<EditResult>();
+    mockedIpc.applyOp.mockReturnValueOnce(landing.promise);
+    const placing = editor().placePendingShape();
+    tools().drawShape({ x: 0, y: 0 }, { x: 50, y: 0 }, { snap: false, constrain: false });
+    const drawn = tools().pendingShape;
+    expect(drawn!.purpose).toEqual({ kind: "add" });
+    await flush();
+    landing.resolve(editResult());
+    expect(await placing).toBe(true);
+    expect(tools().pendingShape).toBe(drawn);
+    expect(tools().tool).toBe("shape");
+  });
+
+  it("is dropped when another document opens, and the tool put back", async () => {
+    arrange();
+    await openFixtureScenario();
+    expect(tools().pendingShape).toBeNull();
+    expect(tools().tool).toBe("select");
   });
 
   it("is one undo step", async () => {

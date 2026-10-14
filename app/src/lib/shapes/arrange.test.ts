@@ -21,7 +21,7 @@ function cluster(n: number): Map<number, SystemNode> {
 
 function arranging(ids: number[], fill: Fill): PendingShape & { purpose: { kind: "arrange" } } {
   return {
-    purpose: { kind: "arrange", ids, lanes: "keep" },
+    purpose: { kind: "arrange", ids, lanes: "keep", alsoOuter: false },
     shape: { ...SHAPE_SPECS.circle.initial, centre: { x: 0, y: 0 }, radius: 200 },
     fill,
     lanes: { follow: false, mode: "off" },
@@ -55,6 +55,29 @@ describe("arranging", () => {
         expect(preview.points, `${fill.kind} of ${n}`).toHaveLength(n);
         expect(new Set(preview.arranged!.moves.map((m) => m.system)).size).toBe(n);
       }
+    }
+  });
+
+  it("takes pairs in the order a full sort of every pair gives, without sorting them all", () => {
+    let seed = 3;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const cloud = (n: number) =>
+      Array.from({ length: n }, () => ({ x: rnd() * 100, y: rnd() * 100 }));
+    for (const n of [5, 60, 300]) {
+      const from = cloud(n);
+      const to = cloud(n);
+      const pairs = from.flatMap((p, i) =>
+        to.map((q, j) => [Math.round(Math.hypot(p.x - q.x, p.y - q.y) * 1024), j, i]),
+      );
+      pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+      const want = new Array<number>(n).fill(-1);
+      const taken = new Set<number>();
+      for (const [, j, i] of pairs) {
+        if (want[i] !== -1 || taken.has(j)) continue;
+        want[i] = j;
+        taken.add(j);
+      }
+      expect(nearestFree(from, to)).toEqual(want);
     }
   });
 

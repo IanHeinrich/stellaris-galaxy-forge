@@ -544,21 +544,29 @@ function classesOf(
   return rolled.length === 0 ? [] : draws.map((d) => rolled[d]);
 }
 
+/** What a caller sets of how a shape is placed, beyond its own settings. */
+export interface PlacementOptions {
+  /** The spacing a fill is laid at, in place of its own. */
+  spacing?: number;
+  /** A point closer than this to an existing system is left out, whatever the shape skips. */
+  clear?: number;
+}
+
 /**
- * The systems and lanes `pending` would add to `ground`, and the points it leaves out; a fill is
- * laid at `spacing` when given. Pure, so the same pending shape and ground give the same
+ * The systems and lanes `pending` would add to `ground`, and the points it leaves out, placed as
+ * `options` say. Pure, so the same pending shape and ground give the same
  * placement in the preview and in the edit. Every point is as the file keeps it, so the edit
  * sends the points the preview checked.
  */
 export function shapePlacement(
   pending: PendingShape,
   ground: ShapeGround,
-  spacing?: number,
+  { spacing, clear = 0 }: PlacementOptions = {},
 ): ShapePreview {
   const { placement, extent, laneDensity, rules } = ground;
   const sym = placement.symmetry;
   const shown = layout(pending, sym, rules, spacing);
-  const reach = Math.max(pending.skipNear ? shown.skip : 0, rules.minGap);
+  const reach = Math.max(pending.skipNear ? shown.skip : 0, rules.minGap, clear);
   const blockerOf = (p: Pt) => {
     const near = reach > 0 ? placement.grid.nearestSystem(p.x, p.y, reach) : null;
     return near && Math.hypot(near.x - p.x, near.y - p.y) < reach ? near : null;

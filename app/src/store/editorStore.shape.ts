@@ -24,7 +24,7 @@ async function sendArrange(pending: PendingShape): Promise<EditResult | null> {
   const arranged = placementNow(pending)?.arranged;
   if (!arranged) return null;
   if (arranged.refusal !== null) throw new Error(arranged.refusal);
-  return ipc.applyOp(arrangeSystems(arranged, arrangeDescription(pending, arranged.count)));
+  return ipc.applyOp(arrangeSystems(arranged, arrangeDescription(pending, arranged)));
 }
 
 /** Lays `pending` out again on the galaxy as it is now and sends it the way the document takes it. */

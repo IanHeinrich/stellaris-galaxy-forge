@@ -174,10 +174,34 @@ export function arrangeLaneRow(choice: ArrangeLanes): { label: string; title: st
   return ARRANGE_LANE_ROWS[choice];
 }
 
-/** The history line of arranging `count` systems into `pending`: "Arranged 7 systems in a ring". */
-export function arrangeDescription(pending: PendingShape, count: number): string {
+/**
+ * The history line of an arrangement into `pending`, with the lanes it cut and added where there
+ * are any: "Arranged 7 systems in a ring, cut 3 lanes and added 7 lanes".
+ */
+export function arrangeDescription(
+  pending: PendingShape,
+  { count, cut, added }: Arrangement,
+): string {
   const { shape, fill } = pending;
-  return `Arranged ${counted(count, "system")} in ${specOf(shape).noun(shape, fill)}`;
+  const lead = `Arranged ${counted(count, "system")} in ${specOf(shape).noun(shape, fill)}`;
+  const outer = outerCuts(pending, cut);
+  const parts = [
+    cut.length > 0 ? `cut ${counted(cut.length, "lane")}${outerNote(outer)}` : null,
+    added.length > 0 ? `added ${counted(added.length, "lane")}` : null,
+  ].filter((p): p is string => p !== null);
+  return listed([lead, ...parts], "and");
+}
+
+/** " (2 to other systems)" after a count of lanes cut, when some ran out of the selection. */
+function outerNote(outer: number): string {
+  return outer > 0 ? ` (${outer} to other systems)` : "";
+}
+
+/** How many of `cut` run from an arranged system out to one `pending` doesn't arrange. */
+function outerCuts(pending: PendingShape, cut: Arrangement["cut"]): number {
+  if (pending.purpose.kind !== "arrange") return 0;
+  const ids = new Set(pending.purpose.ids);
+  return cut.filter(([a, b]) => !ids.has(a) || !ids.has(b)).length;
 }
 
 /** The Place button's label in Arrange: "Arrange 7 systems". */
@@ -191,12 +215,12 @@ function arrangeStatus(
   preview: ShapePreview,
   { count, cut, added, crossing, refusal }: Arrangement,
 ): ShapeStatus {
-  const lanes =
-    cut.length === 0 && added.length === 0
-      ? "lanes kept"
-      : added.length === 0
-        ? `${counted(cut.length, "lane")} out`
-        : `${counted(cut.length, "lane")} out, ${added.length} in`;
+  const outer = outerCuts(pending, cut);
+  const parts = [
+    cut.length > 0 ? `${counted(cut.length, "lane")} out${outerNote(outer)}` : null,
+    added.length > 0 ? `${counted(added.length, "lane")} in` : null,
+  ].filter((p): p is string => p !== null);
+  const lanes = parts.length > 0 ? parts.join(", ") : "lanes kept";
   const summary = `${specOf(pending.shape).label} · ${arrangeLabel(count)} · ${lanes}`;
   const warnings: string[] = [];
   if (refusal !== null) warnings.push(refusal);

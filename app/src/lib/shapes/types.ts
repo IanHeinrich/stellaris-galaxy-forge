@@ -114,7 +114,14 @@ export type ArrangeLanes = "keep" | "rebuild" | "clear";
  * systems `ids` onto them, one to a point, doing `lanes` with the lanes between them.
  */
 export type ShapePurpose =
-  { kind: "add" } | { kind: "arrange"; ids: readonly number[]; lanes: ArrangeLanes };
+  | { kind: "add" }
+  | {
+      kind: "arrange";
+      ids: readonly number[];
+      lanes: ArrangeLanes;
+      /** Under Rebuild and Clear, also take out the lanes from the selected systems to others. */
+      alsoOuter: boolean;
+    };
 
 /** The shape on the map, waiting for Enter or Place. */
 export interface PendingShape {
@@ -141,6 +148,7 @@ export interface ShapeSettings<K extends ShapeKind = ShapeKind> {
 export interface ArrangeMemory {
   settings: ShapeSettings;
   lanes: ArrangeLanes;
+  alsoOuter: boolean;
 }
 
 /** The Shape tool's remembered settings: the last kind used, and each kind's last settings. */

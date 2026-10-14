@@ -285,8 +285,17 @@ function LaneOptions({ settings }: { settings: ShapeSettings }) {
 }
 
 /** Arrange's lane choice about the lanes between the selected systems, and under Rebuild how new ones are laid. */
-function ArrangeLaneOptions({ settings, lanes }: { settings: ShapeSettings; lanes: ArrangeLanes }) {
+function ArrangeLaneOptions({
+  settings,
+  lanes,
+  alsoOuter,
+}: {
+  settings: ShapeSettings;
+  lanes: ArrangeLanes;
+  alsoOuter: boolean;
+}) {
   const setArrangeLanes = useToolStore((s) => s.setArrangeLanes);
+  const setArrangeAlsoOuter = useToolStore((s) => s.setArrangeAlsoOuter);
   return (
     <>
       <span className="tool-option">Lanes</span>
@@ -297,6 +306,16 @@ function ArrangeLaneOptions({ settings, lanes }: { settings: ShapeSettings; lane
         choices={ARRANGE_LANE_CHOICES.map((c) => ({ value: c, ...arrangeLaneRow(c) }))}
       />
       {lanes === "rebuild" && <LaneOptions settings={settings} />}
+      {lanes !== "keep" && (
+        <label className="tool-option">
+          <input
+            type="checkbox"
+            checked={alsoOuter}
+            onChange={(e) => setArrangeAlsoOuter(e.target.checked)}
+          />
+          Also remove lanes to other systems
+        </label>
+      )}
     </>
   );
 }
@@ -493,7 +512,11 @@ export function ShapeOptions() {
       )}
       {path === "rolled" && !arranging && <StarsRow stars={pending?.stars ?? memory.stars} />}
       {arranging ? (
-        <ArrangeLaneOptions settings={settings} lanes={arranging.lanes} />
+        <ArrangeLaneOptions
+          settings={settings}
+          lanes={arranging.lanes}
+          alsoOuter={arranging.alsoOuter}
+        />
       ) : (
         <>
           <LaneOptions settings={settings} />

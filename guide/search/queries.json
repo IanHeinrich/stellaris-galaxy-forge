@@ -256,5 +256,6 @@
   {"q": "move selected systems into a ring", "expect": "edit/shapes#arrange-systems-into-a-shape"},
   {"q": "tidy my systems into a shape", "expect": "edit/shapes#arrange-systems-into-a-shape"},
   {"q": "keep lanes when arranging", "expect": "edit/shapes#arrange-systems-into-a-shape"},
+  {"q": "remove lanes to other systems when arranging", "expect": "edit/shapes#arrange-systems-into-a-shape"},
   {"q": "erase systems inside a circle", "expect": "edit/shapes#erase-with-a-shape"}
 ]

@@ -181,18 +181,22 @@ back the tool you had.
 Lanes chooses what happens to the lanes between the selected systems:
 
 - Keep, the default, keeps every lane. Each lane stretches to follow the
-  move. A lane that would cross another is orange in the preview.
+  move. A lane that would cross another lane, run along one, or pass
+  through a system is orange in the preview.
 - Rebuild takes those lanes out and adds new ones, as a new shape would:
   Follow the shape, Lanes and Lane density work as above. New and nearby
   joins the arranged systems back to the systems around them.
 - Clear takes those lanes out and adds none.
 
-Lanes to systems outside the selection always stay.
+Lanes to systems outside the selection stay and stretch to follow. Under
+Rebuild and Clear, tick "Also remove lanes to other systems" to take those
+out too. With Rebuild, New and nearby can join the arranged systems back
+in.
 
 Arrange won't place a system on top of another. If points of the shape
-land too close to other systems or past the edge, the Arrange button is
-off and says why. Move or resize the shape until they fit. In a save,
-"too close" means within 10 units.
+land within 10 units of a system you didn't select, or past the edge, the
+Arrange button is off and says why. Move or resize the shape until they
+fit.
 
 ## Erase with a shape <Badge type="info" text="Scenario" />
 

@@ -111,7 +111,12 @@ export interface ShapeState {
   startArrange(ids: readonly number[], at: Pt): boolean;
   /** Sets what arranging does with the lanes between the selected systems; nothing unless arranging. */
   setArrangeLanes(lanes: ArrangeLanes): void;
-  /** Once an arrange is placed: puts back the tool Arrange was started from. */
+  /** Sets whether Rebuild and Clear also take out the lanes to other systems; nothing unless arranging. */
+  setArrangeAlsoOuter(on: boolean): void;
+  /**
+   * Once an arrange is placed: puts back the tool Arrange was started from, unless the player
+   * has drawn another shape since.
+   */
   leaveArrange(): void;
 }
 
@@ -146,7 +151,7 @@ const RANDOM_STARS: StarChoice = { kind: "random" };
 /** What Arrange starts from the first time: a circle, keeping the lanes. */
 function firstArrange(): ArrangeMemory {
   const { shape, fill, lanes } = initialSettings("circle");
-  return { settings: { shape, fill, lanes }, lanes: "keep" };
+  return { settings: { shape, fill, lanes }, lanes: "keep", alsoOuter: false };
 }
 
 function firstMemory(): ShapeMemory {
@@ -261,6 +266,7 @@ function storedArrange(value: unknown): ArrangeMemory {
   return {
     settings: storedSettings(kind, value.settings),
     lanes: isArrangeLanes(value.lanes) ? value.lanes : first.lanes,
+    alsoOuter: isBoolean(value.alsoOuter) ? value.alsoOuter : first.alsoOuter,
   };
 }
 
@@ -404,7 +410,14 @@ function rememberedOf(memory: ShapeMemory, pending: PendingShape): ShapeMemory {
     case "add":
       return remembered(memory, settingsOf(pending));
     case "arrange":
-      return { ...memory, arrange: { settings: settingsOf(pending), lanes: purpose.lanes } };
+      return {
+        ...memory,
+        arrange: {
+          settings: settingsOf(pending),
+          lanes: purpose.lanes,
+          alsoOuter: purpose.alsoOuter,
+        },
+      };
   }
 }
 
@@ -629,7 +642,7 @@ export function shapeSlice(
       if (before !== "shape") arrangedFrom = before;
       else if (!wasArranging) arrangedFrom = null;
       const { shapeMemory } = get();
-      const { settings, lanes } = shapeMemory.arrange;
+      const { settings, lanes, alsoOuter } = shapeMemory.arrange;
       const least = Math.max(LEAST_SPACING, PLACEMENT_RULES[path].minGap);
       const fitted = fittedShape(
         settings.shape,
@@ -639,7 +652,7 @@ export function shapeSlice(
       lastAnchor = null;
       set({
         pendingShape: {
-          purpose: { kind: "arrange", ids: chosen, lanes },
+          purpose: { kind: "arrange", ids: chosen, lanes, alsoOuter },
           shape: centredOn(fitted, at),
           fill: settings.fill,
           lanes: settings.lanes,
@@ -657,8 +670,16 @@ export function shapeSlice(
       show({ ...pending, purpose: { ...pending.purpose, lanes } });
     },
 
+    setArrangeAlsoOuter(alsoOuter) {
+      const pending = get().pendingShape;
+      if (pending?.purpose.kind !== "arrange" || !isBoolean(alsoOuter)) return;
+      show({ ...pending, purpose: { ...pending.purpose, alsoOuter } });
+    },
+
     leaveArrange() {
-      putToolBack();
+      // A shape drawn while the arrange was landing is the player's, so it and the tool stay.
+      if (get().pendingShape === null) putToolBack();
+      else arrangedFrom = null;
     },
   };
 }
