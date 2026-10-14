@@ -4,6 +4,7 @@
   {"q": "smartscreen", "expect": "start/install-and-update"},
   {"q": "linux", "expect": "start/install-and-update"},
   {"q": "update", "expect": "start/install-and-update#update-the-app"},
+  {"q": "release notes for versions I skipped", "expect": "start/install-and-update#update-the-app"},
   {"q": "ironman", "expect": "safety/back-to-campaign#ironman"},
   {"q": "achievements", "expect": "reference/faq#does-it-break-ironman-or-achievements"},
   {"q": "paint a galaxy", "expect": "scenario/paint-a-galaxy"},
