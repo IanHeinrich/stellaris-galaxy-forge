@@ -1,6 +1,6 @@
 import type { EraseTarget } from "./brush/brushTools";
 import type { HeightMode, RipplePreset } from "./brush/heightBrush";
-import type { LaneMode } from "./brush/lanes";
+import type { LaneMode } from "./placement/lanes";
 
 /** One entry of a drop-down the tool options offer, and the words it reads as. */
 export interface Choice<T extends string> {

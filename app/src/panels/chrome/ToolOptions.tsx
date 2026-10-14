@@ -1,4 +1,4 @@
-import type { ComponentType, CSSProperties, InputHTMLAttributes } from "react";
+import type { ComponentType, CSSProperties } from "react";
 import {
   HEIGHT_MODES,
   RIPPLE_PRESETS,
@@ -7,14 +7,12 @@ import {
   type RippleShape,
 } from "../../lib/brush/heightBrush";
 import { heightTint } from "../../lib/height";
-import { typedNumber } from "../../lib/text";
 import { TOOL_ENTRY, type Tool } from "../../lib/tools";
 import {
   densityLimit,
   ERASE_TARGET_CHOICES,
   HEIGHT_MODE_HINTS,
   HEIGHT_MODE_LABELS,
-  LANE_MODE_CHOICES,
   RIPPLE_PRESET_LABELS,
 } from "../../lib/toolCopy";
 import { toCss } from "../../lib/visual/color";
@@ -35,29 +33,9 @@ import {
 } from "../../store/toolStore";
 import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
-import { LaneDensitySlider } from "../LaneDensitySlider";
-import { useDraft } from "../useDraft";
+import { DraftNumber, LaneDensityOption, LaneModeOption, SliderOption } from "./toolFields";
 import "./chrome.css";
 import "../panels.css";
-
-/** A number field that applies on Enter or when it loses focus, and drops what Escape abandons. */
-function DraftNumber({
-  value,
-  onApply,
-  ...input
-}: { value: number; onApply(value: number): void } & Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  "type" | "value" | "onChange" | "onBlur" | "onKeyDown"
->) {
-  const { draft, inputProps } = useDraft({
-    shown: String(value),
-    onCommit: (text) => {
-      const n = typedNumber(text);
-      if (n !== null) onApply(n);
-    },
-  });
-  return <input type="number" {...input} value={draft ?? value} {...inputProps} />;
-}
 
 /** The brush diameter as a slider and a number. */
 function SizeOption() {
@@ -85,16 +63,6 @@ function SizeOption() {
   );
 }
 
-/** The β of the lanes a brush adds, shared with the selection's mesh. */
-function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
-  return (
-    <label className="tool-option">
-      Lane density
-      <LaneDensitySlider label="Lane density" disabled={disabled} />
-    </label>
-  );
-}
-
 function PaintOptions() {
   const size = useToolStore((s) => s.size);
   const chosen = useToolStore((s) => s.spacing);
@@ -105,7 +73,6 @@ function PaintOptions() {
   const why = densityLimit(MAX_SYSTEMS_PER_BRUSH, least);
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
-  const setLaneMode = useToolStore((s) => s.setLaneMode);
   return (
     <>
       <SizeOption />
@@ -139,10 +106,7 @@ function PaintOptions() {
           </span>
         )}
       </label>
-      <label className="tool-option">
-        Lanes
-        <Select value={laneMode} choices={LANE_MODE_CHOICES} onChange={setLaneMode} />
-      </label>
+      <LaneModeOption />
       <LaneDensityOption disabled={laneMode === "off"} />
     </>
   );
@@ -179,52 +143,6 @@ function ConnectOptions() {
       <SizeOption />
       <LaneDensityOption />
     </>
-  );
-}
-
-/** A labelled slider over `range` and its value, typed into a field when `field` names one. */
-function SliderOption({
-  label,
-  range,
-  value,
-  onChange,
-  step = 1,
-  field,
-  unit = "",
-}: {
-  label: string;
-  range: { min: number; max: number };
-  value: number;
-  onChange(value: number): void;
-  step?: number;
-  field?: string;
-  unit?: string;
-}) {
-  return (
-    <label className="tool-option">
-      {label}
-      <input
-        type="range"
-        min={range.min}
-        max={range.max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        aria-label={label}
-      />
-      {field === undefined ? (
-        <span className="tool-value">{`${value}${unit}`}</span>
-      ) : (
-        <DraftNumber
-          min={range.min}
-          max={range.max}
-          step={step}
-          value={value}
-          onApply={onChange}
-          aria-label={field}
-        />
-      )}
-    </label>
   );
 }
 

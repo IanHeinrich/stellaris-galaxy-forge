@@ -1,6 +1,6 @@
 import { images, type Symmetry } from "../geometry/symmetry";
 import { dist2, type Pt } from "../geometry/pt";
-import { PointGrid, type Blockers } from "./grid";
+import { PointGrid, type Blockers } from "./pointGrid";
 
 /**
  * Keeps a growing symmetric set of points spaced. A point fits when its images sit at least

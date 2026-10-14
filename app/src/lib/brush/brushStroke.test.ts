@@ -9,7 +9,7 @@ import { drag } from "../../test/brush";
 import { lanesTo, placedNode, systemNode } from "../../test/builders";
 import { SYSTEMS as SAMPLE } from "../../store/fixture";
 import type { Symmetry } from "../geometry/symmetry";
-import { provisionalId, provisionalIndex } from "./lanes";
+import { provisionalId, provisionalIndex } from "../placement/lanes";
 import { stampsAlong } from "./stroke";
 import { BrushStroke, strokeLabel, type BrushSettings, type StrokeResult } from "./brushStroke";
 

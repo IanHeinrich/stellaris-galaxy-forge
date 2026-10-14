@@ -1,27 +1,16 @@
 import { BRUSH_TOOLS, type BrushTool, type EraseTarget, type StrokeKind } from "./brushTools";
 import { HeightSculpt, type HeightBrush, type HeightsOver } from "./heightBrush";
-import {
-  laneSegments,
-  meshWithin,
-  provisionalId,
-  provisionalIndex,
-  strokeLanes,
-  withProvisionalIds,
-  type LaneMode,
-} from "./lanes";
+import { LANE_REACH, laneIndex, meshWithin, placedLanes, type LaneMode } from "../placement/lanes";
+import { PlacementGround } from "../placement/ground";
+import type { Placement } from "../placement/placement";
+import { symmetricCopies } from "../placement/symmetricCopies";
 import { SAMPLE_CAP, StrokeSampler } from "./sample";
 import { sweptLanes, sweptSystems } from "./sweep";
-import {
-  composed,
-  copies,
-  counterpartAt,
-  imagesOfStamps,
-  type Symmetry,
-} from "../geometry/symmetry";
+import { copies, imagesOfStamps, type Symmetry } from "../geometry/symmetry";
 import { MESH_BETA, meshPairs, type MeshPoint } from "../geometry/mesh";
-import { comparePairs, pairOf, PairSet, type Pair } from "../geometry/pairs";
+import { PairSet, type Pair } from "../geometry/pairs";
 import type { Pt } from "../geometry/pt";
-import { SegmentIndex, segmentsCross, type Segment } from "../geometry/segments";
+import type { SegmentIndex, Segment } from "../geometry/segments";
 import { seeded } from "../random";
 import type { SpatialGrid } from "../spatialGrid";
 import { counted } from "../text";
@@ -51,7 +40,7 @@ export interface BrushSettings {
  * galaxy it began on, and `over` works them out again from the heights an edit finds.
  */
 export type StrokeResult =
-  | { kind: "paint"; points: Pt[]; pairs: Pair[] }
+  | ({ kind: "paint" } & Placement)
   | { kind: "erase"; doomed: number[]; kept: number[] }
   | { kind: "cut"; lanes: Pair[] }
   | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean }
@@ -66,9 +55,6 @@ export interface SweptGround {
   readonly systems: ReadonlyMap<number, SystemNode>;
   readonly grid: SpatialGrid;
 }
-
-/** A new lane is at most this many spacings long. */
-const LANE_REACH = 3;
 
 function sorted(ids: Set<number>): number[] {
   return [...ids].sort((a, b) => a - b);
@@ -92,7 +78,7 @@ function medianNearest(points: readonly MeshPoint[]): number {
 /** The galaxy a stroke is laid over, fixed at its start, and what each kind of stroke asks of it. */
 class StrokeGround {
   readonly r: number;
-  private laneIndex: SegmentIndex<MeshPoint> | null = null;
+  readonly placement: PlacementGround;
   private sweptLaneIndex: SegmentIndex<MeshPoint> | null = null;
 
   constructor(
@@ -102,10 +88,7 @@ class StrokeGround {
     readonly swept: SweptGround,
   ) {
     this.r = settings.size / 2;
-  }
-
-  get symmetric(): boolean {
-    return copies(this.settings.symmetry) > 1;
+    this.placement = new PlacementGround(systems, grid, settings.symmetry);
   }
 
   /** The stamps and every image of them. */
@@ -113,94 +96,11 @@ class StrokeGround {
     return imagesOfStamps(stamps, this.settings.symmetry).flat();
   }
 
-  /** The existing lanes whose bounding box comes within `d` of some point. */
-  lanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
-    this.laneIndex ??= segmentIndex(this.systems);
-    return this.laneIndex.near(points, d);
-  }
-
-  /** The same, between where the map draws their ends. */
+  /** As `PlacementGround.lanesNear`, between where the map draws the lanes' ends. */
   sweptLanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
-    this.sweptLaneIndex ??= segmentIndex(this.swept.systems);
+    this.sweptLaneIndex ??= laneIndex(this.swept.systems);
     return this.sweptLaneIndex.near(points, d);
   }
-
-  /** The existing systems within `d` of some point. */
-  systemsNear(points: readonly Pt[], d: number): MeshPoint[] {
-    const found = new Map<number, MeshPoint>();
-    for (const p of points) {
-      this.grid.forEachWithin(p.x, p.y, d, (s) => {
-        if (!found.has(s.id)) found.set(s.id, { id: s.id, x: s.x, y: s.y });
-      });
-    }
-    return [...found.values()];
-  }
-
-  /**
-   * `pairs`, each mapped onto every copy, where a painted point's copies are `count` apart. A
-   * lane goes in with all its images or not at all: dropped when an image would cross a lane,
-   * would end at a system the galaxy lacks at that image, or is one `keep` refuses. Shortest
-   * first, so a long lane gives way to a short one.
-   */
-  symmetricLanes(
-    pairs: readonly Pair[],
-    count: number,
-    at: (id: number) => Pt,
-    existing: readonly Segment[],
-    keep: (a: number, b: number) => boolean = () => true,
-  ): Pair[] {
-    const length = ([a, b]: Pair) => Math.hypot(at(a).x - at(b).x, at(a).y - at(b).y);
-    const lanes = new SegmentIndex();
-    for (const { a, b } of existing) lanes.add(a, b);
-    const seen = new PairSet();
-    const out: Pair[] = [];
-    for (const pair of [...pairs].sort((p, q) => length(p) - length(q))) {
-      if (seen.has(...pair)) continue;
-      const orbit = this.orbit(pair, count);
-      if (!orbit) continue;
-      for (const [a, b] of orbit) seen.add(a, b);
-      if (!orbit.every(([a, b]) => keep(a, b))) continue;
-      const crossing = orbit.some(
-        ([a, b], i) =>
-          lanes.crosses(at(a), at(b)) ||
-          orbit.slice(0, i).some(([c, d]) => segmentsCross(at(a), at(b), at(c), at(d))),
-      );
-      if (crossing) continue;
-      for (const [a, b] of orbit) lanes.add(at(a), at(b));
-      out.push(...orbit);
-    }
-    return out.sort(comparePairs);
-  }
-
-  /** `pair` and its images, each once; null when some image has no system at one end. */
-  private orbit(pair: Pair, count: number): Pair[] | null {
-    const found = new PairSet();
-    for (let m = 0; m < copies(this.settings.symmetry); m++) {
-      const a = this.imageEnd(pair[0], m, count);
-      const b = this.imageEnd(pair[1], m, count);
-      if (a === null || b === null || a === b) return null;
-      found.add(a, b);
-    }
-    return [...found.values()];
-  }
-
-  /** Image `m` of a lane end: a new point's id in the copy it lands in, or the existing system there. */
-  private imageEnd(id: number, m: number, count: number): number | null {
-    if (m === 0) return id;
-    const sym = this.settings.symmetry;
-    if (id < 0) {
-      const i = provisionalIndex(id);
-      return provisionalId(composed(sym, m, Math.floor(i / count)) * count + (i % count));
-    }
-    const s = this.systems.get(id);
-    return s ? counterpartAt(this.grid, s, sym, m) : null;
-  }
-}
-
-function segmentIndex(systems: ReadonlyMap<number, SystemNode>): SegmentIndex<MeshPoint> {
-  const index = new SegmentIndex<MeshPoint>();
-  for (const { a, b } of laneSegments(systems.values())) index.add(a, b);
-  return index;
 }
 
 /** One kind of stroke: what its stamps take in, and what it would do so far. */
@@ -236,37 +136,21 @@ class PaintStroke implements Strategy {
   result(): StrokeResult {
     const base = this.sampler.points;
     if (this.painted?.base === base.length) return this.painted.result;
-    const points = this.ground.images(base);
-    const result: StrokeResult = { kind: "paint", points, pairs: this.lanes(base.length, points) };
+    const { laneMode: mode, beta, spacing, symmetry } = this.ground.settings;
+    // The sampler keeps every image `spacing` from the rest, so none merges.
+    const { points, imageOfNew } = symmetricCopies(base, symmetry);
+    const pairs = placedLanes({
+      points,
+      base: base.length,
+      mode,
+      beta,
+      spacing,
+      ground: this.ground.placement,
+      imageOfNew,
+    });
+    const result: StrokeResult = { kind: "paint", points, pairs };
     this.painted = { base: base.length, result };
     return result;
-  }
-
-  /** The stroke's lanes, where copy k of base point i is `points[k * count + i]`. */
-  private lanes(count: number, points: readonly Pt[]): Pair[] {
-    const ground = this.ground;
-    const { laneMode: mode, beta, spacing } = ground.settings;
-    if (mode === "off" || points.length === 0) return [];
-    const maxLength = LANE_REACH * spacing;
-    const existing = ground.lanesNear(points, maxLength);
-    const pairs = strokeLanes({
-      added: withProvisionalIds(points),
-      nearby: mode === "nearby" ? ground.systemsNear(points.slice(0, count), maxLength) : [],
-      existing,
-      beta,
-      mode,
-      maxLength,
-    }).map(([a, b]) => pairOf(a, b));
-    if (!ground.symmetric) return pairs;
-    const inFirst = (id: number) => id < 0 && provisionalIndex(id) < count;
-    const at = (id: number): Pt =>
-      id < 0 ? points[provisionalIndex(id)] : ground.systems.get(id)!;
-    return ground.symmetricLanes(
-      pairs.filter(([a, b]) => inFirst(a) || inFirst(b)),
-      count,
-      at,
-      existing,
-    );
   }
 }
 
@@ -309,7 +193,7 @@ class ConnectStroke implements Strategy {
   result(): StrokeResult {
     if (this.connected?.swept === this.swept.size) return this.connected.result;
     const ground = this.ground;
-    const systems = ground.systems;
+    const { systems, placement } = ground;
     const swept = sorted(this.swept);
     const points = swept.flatMap((id): MeshPoint[] => {
       const s = systems.get(id);
@@ -321,11 +205,17 @@ class ConnectStroke implements Strategy {
       const s = systems.get(a);
       return !!s && (s.lanes.some((l) => l.to === b) || s.prevented.includes(b));
     };
-    const existing = ground.lanesNear(points, maxLength);
+    const existing = placement.lanesNear(points, maxLength);
     const keep = (a: number, b: number) => !apart(a, b) && !apart(b, a);
     const meshed = meshWithin(points, { beta: ground.settings.beta, maxLength, existing, keep });
-    const pairs = ground.symmetric
-      ? ground.symmetricLanes(meshed, 0, (id) => systems.get(id)!, existing, keep)
+    const pairs = placement.symmetric
+      ? placement.symmetricLanes(
+          meshed,
+          () => null,
+          (id) => systems.get(id)!,
+          existing,
+          keep,
+        )
       : meshed;
     // Nothing to add at the chosen density: true only when the densest mesh would add one, so an
     // already-linked or crossing pair still reads as a plain zero.

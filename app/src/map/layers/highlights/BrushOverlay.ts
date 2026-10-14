@@ -7,11 +7,9 @@ import { images, type Symmetry } from "../../../lib/geometry/symmetry";
 import { heightTint } from "../../../lib/height";
 import { ACCENT_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../../lib/visual/style";
 import { dashedCircle } from "../dashes";
+import { drawDots, drawLanes, drawRings } from "./placementMarks";
 
-const LANE = { color: ACCENT_COLOR, alpha: 0.9 };
 const DASHES = 48;
-const DOT_PX = 3;
-const RING_PX = 7;
 const CUT_PX = 3;
 /** The copies of the brush circle a symmetric stroke also lays, fainter than the one at the pointer. */
 const IMAGE_ALPHA = 0.45;
@@ -63,7 +61,7 @@ export class BrushOverlay {
   setCursor(cursor: BrushCursor | null): void {
     const g = this.circle;
     g.clear();
-    this.drawRings(cursor);
+    this.drawRipple(cursor);
     if (!cursor) return;
     dashedCircle(g, cursor.x, cursor.y, cursor.r, DASHES);
     const color = BRUSH_TOOLS[cursor.tool].adds ? ACCENT_COLOR : REFUSED_COLOR;
@@ -74,7 +72,7 @@ export class BrushOverlay {
   }
 
   /** A ripple's crests as solid amber rings and its troughs as dashed blue ones, as strong as they rise or sink. */
-  private drawRings(cursor: BrushCursor | null): void {
+  private drawRipple(cursor: BrushCursor | null): void {
     const g = this.rings;
     g.clear();
     if (!cursor) return;
@@ -88,12 +86,8 @@ export class BrushOverlay {
 
   setPreview(preview: BrushPreview | null): void {
     this.preview = preview;
-    const g = this.lines;
-    g.clear();
-    if (preview) {
-      for (const { a, b } of preview.lanes) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
-      if (preview.lanes.length > 0) g.stroke({ ...LANE, pixelLine: true });
-    }
+    this.lines.clear();
+    if (preview) drawLanes(this.lines, preview.lanes);
     this.drawMarks();
   }
 
@@ -113,13 +107,9 @@ export class BrushOverlay {
     const px = 1 / this.camScale;
     for (const { a, b } of p.cut) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
     if (p.cut.length > 0) g.stroke({ color: REFUSED_COLOR, alpha: 0.9, width: CUT_PX * px });
-    for (const s of p.points) g.circle(s.x, s.y, DOT_PX * px);
-    if (p.points.length > 0) g.fill({ color: ACCENT_COLOR, alpha: 0.9 });
-    for (const s of p.doomed) g.circle(s.x, s.y, RING_PX * px);
-    if (p.doomed.length > 0) g.stroke({ color: REFUSED_COLOR, alpha: 0.9, width: 2 * px });
-    for (const s of p.kept) g.circle(s.x, s.y, RING_PX * px);
-    if (p.kept.length > 0) g.stroke({ color: CAUTION_COLOR, alpha: 0.9, width: 2 * px });
-    for (const s of p.swept) g.circle(s.x, s.y, RING_PX * px);
-    if (p.swept.length > 0) g.stroke({ color: ACCENT_COLOR, alpha: 0.9, width: 2 * px });
+    drawDots(g, p.points, px);
+    drawRings(g, p.doomed, REFUSED_COLOR, px);
+    drawRings(g, p.kept, CAUTION_COLOR, px);
+    drawRings(g, p.swept, ACCENT_COLOR, px);
   }
 }

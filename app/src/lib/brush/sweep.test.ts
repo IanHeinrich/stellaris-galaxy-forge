@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { lanesTo, systemNode } from "../../test/builders";
 import { SpatialGrid } from "../spatialGrid";
-import { laneSegments } from "./lanes";
+import { laneSegments } from "../placement/lanes";
 import { isSpecialSystem } from "./special";
 import { stampsAlong } from "./stroke";
 import { sweptLanes, sweptSystems } from "./sweep";
