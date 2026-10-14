@@ -7,7 +7,7 @@ import { copies, COUNTERPART_REACH, images, type Symmetry } from "../geometry/sy
 import { insideExtent } from "../guides";
 import type { ImageOfNew } from "../placement/ground";
 import { PlacementGround } from "../placement/ground";
-import { LEAST_SPACING, MOST_SPACING, SAMPLE_CAP } from "../placement/limits";
+import { LEAST_SPACING, MOST_SPACING, ON_TOP, SAMPLE_CAP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
 import { symmetricCopies } from "../placement/symmetricCopies";
@@ -78,7 +78,14 @@ function layout(pending: PendingShape, sym: Symmetry): Layout {
     const gaps = closed ? points.length : points.length - 1;
     const step = gaps > 0 ? polylineLength(points, closed) / gaps : 0;
     const spacing = Math.min(step, MOST_SPACING);
-    return { row: points, closed, rowGivesWay: false, fill: [], spacing, skip: spacing / 2 };
+    return {
+      row: points,
+      closed,
+      rowGivesWay: false,
+      fill: [],
+      spacing,
+      skip: Math.min(spacing / 2, ON_TOP),
+    };
   }
   const { spacing } = fill;
   const filled = spec.fills(shape).includes(fill.kind);

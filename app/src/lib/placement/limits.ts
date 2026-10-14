@@ -6,3 +6,6 @@ export const LEAST_SPACING = 5;
 
 /** The widest spacing the panel offers, which also caps an outline's skip distance and lane reach. */
 export const MOST_SPACING = 150;
+
+/** A new outline point this near an existing system sits on top of it. */
+export const ON_TOP = 10;

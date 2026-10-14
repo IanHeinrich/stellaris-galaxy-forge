@@ -182,6 +182,18 @@ describe("an outline's points and follow lanes", () => {
     expect(preview.left).toEqual([]);
     expect(preview.points).toHaveLength(3);
   });
+
+  it("leaves out only the outline points that sit on top of a system", () => {
+    const ring = circle();
+    const points = SHAPE_SPECS.circle.outline(ring, 24).points;
+    const systems = [
+      placedNode(1, points[0].x + 15, points[0].y),
+      placedNode(2, points[5].x + 6, points[5].y),
+    ];
+    const preview = shapePlacement(pending(ring), groundOf(systems));
+    expect(preview.left.map((l) => l.blocker)).toEqual([2]);
+    expect(preview.points).toHaveLength(23);
+  });
 });
 
 describe("a shape under symmetry", () => {
