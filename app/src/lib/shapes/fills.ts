@@ -91,19 +91,13 @@ function tileSet(i: number, j: number): number {
   return (i & 1) + 2 * (j & 1);
 }
 
-/** The Poisson tiles of one seed and spacing, each sampled once, in the frame's own coordinates. */
+/** The Poisson tiles of one seed at unit spacing, each sampled once, in the frame's own coordinates. */
 class ScatterTiles {
-  private readonly side: number;
   private readonly tiles = new Map<number, Pt[]>();
 
-  constructor(
-    private readonly seed: number,
-    private readonly spacing: number,
-  ) {
-    this.side = TILE_SPACINGS * spacing;
-  }
+  constructor(private readonly seed: number) {}
 
-  /** The points of tile (i, j), which depend only on the seed, the spacing and the tile. */
+  /** The points of tile (i, j), which depend only on the seed and the tile. */
   points(i: number, j: number): Pt[] {
     const key = cellKey(i, j);
     let found = this.tiles.get(key);
@@ -124,12 +118,12 @@ class ScatterTiles {
         }
       }
     }
-    const t = this.side;
+    const t = TILE_SPACINGS;
     const x0 = i * t;
     const y0 = j * t;
     const rand = seeded(tileSeed(this.seed, i, j));
     const core = new PoissonCore({
-      spacing: this.spacing,
+      spacing: 1,
       blockers,
       rand,
       cap: Infinity,
@@ -138,6 +132,24 @@ class ScatterTiles {
     core.seed(() => ({ x: x0 + rand() * t, y: y0 + rand() * t }));
     return core.points.map(({ x, y }) => ({ x, y }));
   }
+}
+
+/** How many seeds' tiles `scatterPattern` keeps between calls. */
+const KEPT_TILES = 8;
+
+const keptTiles = new Map<number, ScatterTiles>();
+
+/**
+ * The tiles of `seed`, sampled at unit spacing and kept for the seeds read most recently, so a
+ * shape that moves or resizes reuses them; a pattern scales them by its spacing.
+ */
+function tilesOf(seed: number): ScatterTiles {
+  let tiles = keptTiles.get(seed);
+  if (tiles) keptTiles.delete(seed);
+  else tiles = new ScatterTiles(seed);
+  keptTiles.set(seed, tiles);
+  if (keptTiles.size > KEPT_TILES) keptTiles.delete(keptTiles.keys().next().value as number);
+  return tiles;
 }
 
 /**
@@ -153,8 +165,10 @@ export function scatterPattern(
   bounds: Rect,
 ): Generator<Pt> {
   if (!(spacing > 0)) return nearestFirst(1, frame, bounds, () => []);
-  const tiles = new ScatterTiles(seed, spacing);
-  return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) => tiles.points(i, j));
+  const tiles = tilesOf(seed);
+  return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) =>
+    tiles.points(i, j).map((p) => ({ x: p.x * spacing, y: p.y * spacing })),
+  );
 }
 
 /** How finely a fill point's place is told apart for its draws, in parts of the spacing. */

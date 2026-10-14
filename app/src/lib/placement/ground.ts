@@ -64,17 +64,42 @@ export class PlacementGround {
       const orbit = this.orbit(pair, imageOfNew);
       if (!orbit) continue;
       for (const [a, b] of orbit) seen.add(a, b);
-      if (!orbit.every(([a, b]) => keep(a, b))) continue;
-      const crossing = orbit.some(
-        ([a, b], i) =>
-          lanes.crosses(at(a), at(b)) ||
-          orbit.slice(0, i).some(([c, d]) => segmentsCross(at(a), at(b), at(c), at(d))),
-      );
-      if (crossing) continue;
-      for (const [a, b] of orbit) lanes.add(at(a), at(b));
-      out.push(...orbit);
+      if (this.takes(orbit, at, lanes, keep)) out.push(...orbit);
     }
     return out.sort(comparePairs);
+  }
+
+  /**
+   * `pair` with all its images, as `symmetricLanes` lays a lane alone against `lanes`, which
+   * takes them; empty when they don't go in.
+   */
+  symmetricLane(
+    pair: Pair,
+    imageOfNew: ImageOfNew,
+    at: (id: number) => Pt,
+    lanes: SegmentIndex,
+    keep: (a: number, b: number) => boolean = () => true,
+  ): Pair[] {
+    const orbit = this.orbit(pair, imageOfNew);
+    return orbit && this.takes(orbit, at, lanes, keep) ? orbit.sort(comparePairs) : [];
+  }
+
+  /** Whether `orbit` goes in, crossing no lane of `lanes` nor itself, and adds it to `lanes` when it does. */
+  private takes(
+    orbit: readonly Pair[],
+    at: (id: number) => Pt,
+    lanes: SegmentIndex,
+    keep: (a: number, b: number) => boolean,
+  ): boolean {
+    if (!orbit.every(([a, b]) => keep(a, b))) return false;
+    const crossing = orbit.some(
+      ([a, b], i) =>
+        lanes.crosses(at(a), at(b)) ||
+        orbit.slice(0, i).some(([c, d]) => segmentsCross(at(a), at(b), at(c), at(d))),
+    );
+    if (crossing) return false;
+    for (const [a, b] of orbit) lanes.add(at(a), at(b));
+    return true;
   }
 
   /** `pair` and its images, each once; null when some image has no system at one end. */

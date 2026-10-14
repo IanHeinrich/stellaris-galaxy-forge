@@ -99,7 +99,7 @@ describe("an outline's extras", () => {
 
 describe("where each extra applies", () => {
   const outline: Fill = { kind: "outline", count: 24 };
-  const grid: Fill = { kind: "grid", spacing: 20, lattice: "hex" };
+  const grid: Fill = { kind: "grid", spacing: 20, edge: false, lattice: "hex" };
   const follow: ShapeLanes = { follow: true, mode: "off", islands: false };
   const at = (shape = RING as typeof RING | typeof SHAPE_SPECS.spiral.initial) => ({
     shape,

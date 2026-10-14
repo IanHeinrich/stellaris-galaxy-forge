@@ -127,7 +127,7 @@ describe("the outline's extras", () => {
   });
 
   it("wobbles a grid inside the shape, the same for the same seed", () => {
-    const fill = { kind: "grid", spacing: 25, lattice: "square" } as const;
+    const fill = { kind: "grid", spacing: 25, edge: false, lattice: "square" } as const;
     const lanes = { follow: false, mode: "off", islands: false } as const;
     const plain = shapePlacement(pending(circle(), { fill, lanes }), EMPTY);
     const shaken = pending(circle(), { fill, lanes, extras: { ...NO_EXTRAS, wobble: 60 } });

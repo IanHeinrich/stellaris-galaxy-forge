@@ -248,15 +248,14 @@ function seamJoins(laid: readonly Pair[], seams: SeamGround): Pair[] {
     .filter((pair) => length(pair) <= max2)
     .sort((p, q) => length(p) - length(q) || comparePairs(p, q));
 
-  const lanes = [...existing, ...laid.map(([a, b]) => ({ a: at(a), b: at(b) }))];
+  const lanes = new SegmentIndex();
+  for (const { a, b } of existing) lanes.add(a, b);
+  for (const [a, b] of laid) lanes.add(at(a), at(b));
   const joins: Pair[] = [];
   for (const pair of ordered) {
     if (!apart(pair)) continue;
-    const orbit = ground.symmetricLanes([pair], imageOfNew, at, lanes, keep);
-    for (const [a, b] of orbit) {
-      sets.union(slot(a), slot(b));
-      lanes.push({ a: at(a), b: at(b) });
-    }
+    const orbit = ground.symmetricLane(pair, imageOfNew, at, lanes, keep);
+    for (const [a, b] of orbit) sets.union(slot(a), slot(b));
     joins.push(...orbit);
   }
   return joins;

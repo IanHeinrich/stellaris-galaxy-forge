@@ -181,7 +181,7 @@ function FillPicker({ settings }: { settings: ShapeSettings }) {
           title: fillChoiceHint(c),
         }))}
       />
-      {fill.kind === "scattered" && specOf(settings.shape).edgeRow && (
+      {fill.kind !== "outline" && specOf(settings.shape).edgeRow && (
         <CheckOption
           copy={SHAPE_OPTIONS.edge}
           checked={fill.edge}

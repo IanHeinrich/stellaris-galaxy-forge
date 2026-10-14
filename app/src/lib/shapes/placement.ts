@@ -58,9 +58,8 @@ export function hasEdgeRow(shape: Shape, fill: Fill): boolean {
     case "outline":
       return true;
     case "scattered":
-      return fill.edge && specOf(shape).edgeRow;
     case "grid":
-      return false;
+      return fill.edge && specOf(shape).edgeRow;
   }
 }
 
@@ -230,9 +229,9 @@ function* inside(points: Iterable<Pt>, contains: (p: Pt) => boolean): Generator<
   for (const p of points) if (contains(p)) yield p;
 }
 
-/** `p`'s images under `sym`, each as the file keeps it. */
+/** `p`'s images under `sym`, each as the file keeps it; `p` must already be, and is its own first image. */
 function writtenImages(p: Pt, sym: Symmetry): Pt[] {
-  return images(p, sym).map(writtenPt);
+  return images(p, sym).map((q, k) => (k === 0 ? q : writtenPt(q)));
 }
 
 /** Where `pending` puts its points; a fill at `spacing` when given, else at `fillSpacing`. */
@@ -317,7 +316,6 @@ class SpacedImages {
   private readonly gap: number;
 
   constructor(
-    private readonly sym: Symmetry,
     spacing: number,
     least: number,
     gap: number,
@@ -333,16 +331,16 @@ class SpacedImages {
   }
 
   /**
-   * Whether `p` and its images each merge into a point taken or keep their distance from every
-   * one, whether one that places a system comes within the gap of another that does, and how
-   * many new points they would place. A row point is only held its spacing from images, since
-   * the row keeps its own spacing, but the gap from its own row too; a fill point that is
-   * itself an image already taken adds nothing, so it does not fit.
+   * Whether a point and its images `imgs`, as `writtenImages` gives them, each merge into a
+   * point taken or keep their distance from every one, whether one that places a system comes
+   * within the gap of another that does, and how many new points they would place. A row point
+   * is only held its spacing from images, since the row keeps its own spacing, but the gap from
+   * its own row too; a fill point that is itself an image already taken adds nothing, so it
+   * does not fit.
    */
-  check(p: Pt, row: boolean): { fits: boolean; tooClose: boolean; adds: number } {
+  check(imgs: readonly Pt[], row: boolean): { fits: boolean; tooClose: boolean; adds: number } {
     const reach2 = COUNTERPART_REACH * COUNTERPART_REACH;
     const least2 = this.least * this.least;
-    const imgs = writtenImages(p, this.sym);
     let fits = true;
     let adds = 0;
     for (let k = 0; k < imgs.length; k++) {
@@ -388,8 +386,9 @@ class SpacedImages {
     );
   }
 
-  take(p: Pt): void {
-    writtenImages(p, this.sym).forEach((q, k) => {
+  /** Takes a point and its images `imgs`, as `writtenImages` gives them. */
+  take(imgs: readonly Pt[]): void {
+    imgs.forEach((q, k) => {
       (k === 0 ? this.own : this.others).add(q);
       if (this.gap > 0 && this.places(q)) this.placed.add(q);
     });
@@ -430,19 +429,20 @@ function basePoints(
   rules: PlacementRules,
   where: Where,
 ): Base {
-  const spaced = new SpacedImages(sym, spacing, least, rules.minGap, where.places);
+  const spaced = new SpacedImages(spacing, least, rules.minGap, where.places);
   const base: Pt[] = [];
   const ordinals: number[] = [];
-  const keep = (p: Pt, ordinal: number) => {
+  const keep = (p: Pt, imgs: readonly Pt[], ordinal: number) => {
     base.push(p);
     ordinals.push(ordinal);
-    spaced.take(p);
+    spaced.take(imgs);
   };
   let total = 0;
   let crowded = 0;
   for (const [i, laid] of row.entries()) {
     const p = writtenPt(laid);
-    const { fits, tooClose, adds } = spaced.check(p, true);
+    const imgs = writtenImages(p, sym);
+    const { fits, tooClose, adds } = spaced.check(imgs, true);
     if (tooClose) {
       crowded += adds;
       continue;
@@ -451,7 +451,7 @@ function basePoints(
     if (total + adds > rules.cap) {
       return { base, ordinals, rowCount: base.length, rowEnd: i, crowded, capped: true };
     }
-    keep(p, i);
+    keep(p, imgs, i);
     total += adds;
   }
   const rowCount = base.length;
@@ -459,13 +459,14 @@ function basePoints(
   for (const laid of fill) {
     const ordinal = next++;
     const p = writtenPt(laid);
-    if (!writtenImages(p, sym).some(where.inside)) continue;
-    const { fits, tooClose, adds } = spaced.check(p, false);
+    const imgs = writtenImages(p, sym);
+    if (!imgs.some(where.inside)) continue;
+    const { fits, tooClose, adds } = spaced.check(imgs, false);
     if (!fits || tooClose) continue;
     if (total + adds > rules.cap) {
       return { base, ordinals, rowCount, rowEnd: row.length, crowded, capped: true };
     }
-    keep(p, ordinal);
+    keep(p, imgs, ordinal);
     total += adds;
   }
   return { base, ordinals, rowCount, rowEnd: row.length, crowded, capped: false };
@@ -728,7 +729,8 @@ export function shapePlacement(
   /** Where each kept point stood in `all.points`. */
   const from: number[] = [];
   for (const [j, image] of all.points.entries()) {
-    const p = writtenPt(image);
+    // The base points come first, as the file keeps them already.
+    const p = j < base.length ? image : writtenPt(image);
     if (!inside(p)) {
       fates.push({ kind: "outside" });
       outside.push(p);

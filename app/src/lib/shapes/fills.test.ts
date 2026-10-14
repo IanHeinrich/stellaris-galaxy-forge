@@ -42,6 +42,14 @@ describe("scatterPattern", () => {
     expect(near(first)).toBe(Math.min(...small.map(near)));
   });
 
+  it("gives the same pattern each time it is read, whatever was read in between", () => {
+    const read = () => [...scatterPattern(4, SPACING, FRAME, box(120))];
+    const first = read();
+    expect(read()).toEqual(first);
+    for (let k = 1; k <= 12; k++) scatterPattern(4 + k, SPACING + k, FRAME, box(30)).next();
+    expect(read()).toEqual(first);
+  });
+
   it("moves with its frame", () => {
     const by = { x: 31, y: -12 };
     const moved = { ...FRAME, origin: { x: FRAME.origin.x + by.x, y: FRAME.origin.y + by.y } };

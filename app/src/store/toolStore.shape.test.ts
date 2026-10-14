@@ -208,9 +208,9 @@ describe("the pending shape", () => {
   });
 
   it("keeps an arc's fill, and refuses a line any fill but the outline", () => {
-    tools().setFill({ kind: "grid", spacing: 30, lattice: "hex" });
+    tools().setFill({ kind: "grid", spacing: 30, edge: false, lattice: "hex" });
     tools().setShapeField("circle", "sweep", 180);
-    expect(pending().fill).toEqual({ kind: "grid", spacing: 30, lattice: "hex" });
+    expect(pending().fill).toEqual({ kind: "grid", spacing: 30, edge: false, lattice: "hex" });
     tools().setShapeKind("line");
     tools().setFill({ kind: "scattered", spacing: 30, edge: true });
     expect(pending().fill.kind).toBe("outline");
@@ -222,10 +222,12 @@ describe("the pending shape", () => {
     tools().setFill({ kind: "scattered", spacing: 40, edge: false });
     tools().setFillChoice("scattered");
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 40, edge: false });
+    tools().setFill({ kind: "scattered", spacing: 40, edge: true });
     tools().setFillChoice("square");
-    expect(pending().fill).toEqual({ kind: "grid", spacing: 40, lattice: "square" });
+    expect(pending().fill).toEqual({ kind: "grid", spacing: 40, edge: false, lattice: "square" });
+    tools().setFill({ kind: "grid", spacing: 40, edge: true, lattice: "square" });
     tools().setFillChoice("hex");
-    expect(pending().fill).toEqual({ kind: "grid", spacing: 40, lattice: "hex" });
+    expect(pending().fill).toEqual({ kind: "grid", spacing: 40, edge: true, lattice: "hex" });
     tools().setFillChoice("outline");
     expect(pending().fill).toEqual({ kind: "outline", count: 24 });
     expect(pending().lanes).toEqual({ follow: true, mode: "off", islands: false });
@@ -265,7 +267,7 @@ describe("the memory", () => {
   it("starts the next shape from the last kind and its settings, on the next run too", async () => {
     tools().setTool("shape");
     tools().setShapeKind("star");
-    tools().setFill({ kind: "grid", spacing: 30, lattice: "square" });
+    tools().setFill({ kind: "grid", spacing: 30, edge: false, lattice: "square" });
     tools().setSkipNear(false);
     const remembered = tools().shapeMemory;
     expect(JSON.parse(stored.get(PREF_KEYS.shapeMemory)!)).toEqual(remembered);
@@ -277,6 +279,7 @@ describe("the memory", () => {
     expect(fresh.shapeMemory.kinds.star.fill).toEqual({
       kind: "grid",
       spacing: 30,
+      edge: false,
       lattice: "square",
     });
   });
@@ -327,7 +330,7 @@ describe("the memory", () => {
     });
     expect(kinds.rect).toEqual({
       shape: { ...SHAPE_SPECS.rect.initial, width: 1000 },
-      fill: { kind: "grid", spacing: 150, lattice: "square" },
+      fill: { kind: "grid", spacing: 150, edge: false, lattice: "square" },
       lanes: { follow: false, mode: "new", islands: false },
       extras: NO_EXTRAS,
     });

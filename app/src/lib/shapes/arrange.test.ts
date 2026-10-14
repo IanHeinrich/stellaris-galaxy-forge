@@ -39,8 +39,8 @@ describe("arranging", () => {
       { kind: "outline", count: 24 },
       { kind: "scattered", spacing: 25, edge: true },
       { kind: "scattered", spacing: 25, edge: false },
-      { kind: "grid", spacing: 25, lattice: "square" },
-      { kind: "grid", spacing: 25, lattice: "hex" },
+      { kind: "grid", spacing: 25, edge: false, lattice: "square" },
+      { kind: "grid", spacing: 25, edge: false, lattice: "hex" },
     ];
     for (const n of [2, 7, 30, 97]) {
       const systems = cluster(n);

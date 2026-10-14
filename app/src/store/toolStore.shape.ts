@@ -177,7 +177,7 @@ function initialSettings<K extends ShapeKind>(kind: K): ShapeSettings<K> {
 
 /** `fill` with its edge row off where `shape`'s kind has none, so the setting says what is laid. */
 function rowless(shape: Shape, fill: Fill): Fill {
-  if (fill.kind !== "scattered" || !fill.edge || specOf(shape).edgeRow) return fill;
+  if (fill.kind === "outline" || !fill.edge || specOf(shape).edgeRow) return fill;
   return { ...fill, edge: false };
 }
 
@@ -320,7 +320,12 @@ function heldFill(fill: Fill): Fill | null {
       };
     case "grid":
       if (!isFiniteNumber(fill.spacing) || !isLattice(fill.lattice)) return null;
-      return { kind: "grid", spacing: clampTo(fill.spacing, SPACING_RANGE), lattice: fill.lattice };
+      return {
+        kind: "grid",
+        spacing: clampTo(fill.spacing, SPACING_RANGE),
+        edge: isBoolean(fill.edge) ? fill.edge : false,
+        lattice: fill.lattice,
+      };
     default:
       return null;
   }
@@ -391,7 +396,7 @@ function fillOfChoice(choice: FillChoice, from: Fill): Fill {
       return { kind: choice, spacing, edge: from.kind === "scattered" ? from.edge : true };
     case "square":
     case "hex":
-      return { kind: "grid", spacing, lattice: choice };
+      return { kind: "grid", spacing, edge: from.kind === "grid" && from.edge, lattice: choice };
   }
 }
 
