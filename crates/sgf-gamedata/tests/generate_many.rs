@@ -159,6 +159,74 @@ fn a_shape_too_close_together_is_refused_and_the_save_is_untouched() {
     assert!(session.graph().systems.values().all(|system| !system.added));
 }
 
+#[test]
+fn more_asks_than_the_cap_are_refused_before_any_is_rolled() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let session = common::open_4_5();
+    let class = &star_classes(gd)[0];
+    let asks = vec![ask(0.0, 0.0, class); BULK_ADD_CAP + 1];
+
+    let refused = systems_op(gd, &session, 1, &asks, &[], "Added a shape".into());
+
+    assert!(
+        matches!(
+            refused,
+            Err(ForSaveError::Refused(OpError::TooManySystems { count, cap }))
+                if count == BULK_ADD_CAP + 1 && cap == BULK_ADD_CAP
+        ),
+        "{refused:?}"
+    );
+}
+
+/// A hex lattice off a whole-number centre, laid as the Shape tool lays a grid at its least
+/// spacing: the spawn buffer plus the most that rounding to five decimals takes off a
+/// distance, then rounded as the app sends it.
+#[test]
+fn a_hex_lattice_at_the_spawn_buffer_off_a_whole_number_centre_is_added() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = common::open_4_5();
+    let graph = session.graph();
+    let reach = 2.0 * SPAWN_BUFFER + SPAWN_BUFFER * 1.5;
+    let (cx, cy) = free_spots(&session, 400)
+        .into_iter()
+        .map(|(x, y)| (x + 3.3, y + 7.7))
+        .find(|&(x, y)| {
+            x.hypot(y) + reach < graph.galaxy_radius
+                && graph
+                    .systems
+                    .values()
+                    .all(|s| (s.x - x).hypot(s.y - y) > reach)
+        })
+        .expect("a clear patch");
+    let spacing = SPAWN_BUFFER + 2e-5;
+    let class = &star_classes(gd)[0];
+    let asks: Vec<SystemAsk> = (-2i32..=2)
+        .flat_map(|j| (-2i32..=2).map(move |i| (i, j)))
+        .filter(|&(i, j)| (i + j).abs() <= 2)
+        .map(|(i, j)| {
+            let x = cx + spacing * (f64::from(i) + f64::from(j) / 2.0);
+            let y = cy + spacing * f64::from(j) * 3f64.sqrt() / 2.0;
+            ask(
+                sgf_core::emit::rounded(x),
+                sgf_core::emit::rounded(y),
+                class,
+            )
+        })
+        .collect();
+    assert_eq!(asks.len(), 19);
+
+    let op =
+        systems_op(gd, &session, 5, &asks, &[], "Added a shape".into()).expect("the lattice's op");
+    session.apply(op).expect("the save takes the lattice");
+
+    let added = session.graph().systems.values().filter(|s| s.added).count();
+    assert_eq!(added, 19);
+}
+
 fn ask(x: f64, y: f64, class: &str) -> SystemAsk {
     SystemAsk {
         x,

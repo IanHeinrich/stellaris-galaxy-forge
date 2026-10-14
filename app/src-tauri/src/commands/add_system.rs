@@ -13,6 +13,7 @@ use crate::state::GameDataState;
 
 const ADD_A_SYSTEM: &str = "add a system";
 const NO_ROLLS: &str = "this document takes no rolled system";
+const NO_BULK_ADD: &str = "this document takes no systems added together";
 const NO_ADDED: &str = "this document has no systems added this session";
 const NONE_ADDED: &str = "none of these systems was added this session";
 
@@ -42,7 +43,7 @@ pub async fn add_random_systems<R: Runtime>(
 ) -> Result<EditResult, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
+        let session = require(guard.as_mut(), |c| c.bulk_add_systems, NO_BULK_ADD)?;
         let op = generate::systems_op(&gd, session, seed, &systems, &lanes, description)?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))

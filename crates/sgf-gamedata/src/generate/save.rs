@@ -4,7 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 use sgf_core::ops::{
-    BodyName, BodyNaming, GivenName, LaneEnd, NewBody, Op, OpError, PlanetClassRule, SystemSpec,
+    BULK_ADD_CAP, BodyName, BodyNaming, GivenName, LaneEnd, NewBody, Op, OpError, PlanetClassRule,
+    SystemSpec,
 };
 use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
@@ -179,7 +180,8 @@ pub fn for_save_many(
 
 /// The op that adds the systems [`for_save_many`] rolls for `asks` to `session`'s save, with
 /// `lanes` between them and the systems it holds, as one step described as `description`.
-/// Refused with nothing applied as [`SaveQueries::add_systems_op`] refuses.
+/// Refused with nothing applied as [`SaveQueries::add_systems_op`] refuses, and over its cap
+/// before any system is rolled.
 ///
 /// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
 pub fn systems_op(
@@ -191,12 +193,20 @@ pub fn systems_op(
     description: String,
 ) -> Result<Op, ForSaveError> {
     let save = session.save("adding systems")?;
+    if asks.len() > BULK_ADD_CAP {
+        return Err(OpError::TooManySystems {
+            count: asks.len(),
+            cap: BULK_ADD_CAP,
+        }
+        .into());
+    }
     let specs = for_save_many(gd, session, seed, asks)?;
     Ok(save.add_systems_op(specs, lanes, description)?)
 }
 
 /// A system for `session`'s save at `at` from `seed`, as `pick` gives it, named from `draw`
-/// and then as [`settle_in`] settles it.
+/// and then as [`settle_in`] settles it. A drawn name the settled one replaces goes back to
+/// `draw`.
 fn roll(
     gd: &GameData,
     session: &Session,
@@ -208,6 +218,9 @@ fn roll(
     let name = draw.system(gd, seed).ok_or(ForSaveError::NoNames)?;
     let mut spec = pick.spec(gd, session, seed, &name, at)?;
     settle_in(draw, gd, &mut spec, &name, seed);
+    if spec.name != name {
+        draw.give_back(&name);
+    }
     Ok(spec)
 }
 

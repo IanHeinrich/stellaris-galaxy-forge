@@ -30,6 +30,13 @@ describe("a rolled shape's star classes", () => {
     expect(drawn).toEqual(new Set(["sc_neutron", "sc_black_hole"]));
   });
 
+  it("gives no weight to a class the install lacks, as one remembered from another install", () => {
+    expect(starWeights({ kind: "one", class: "sc_gone" }, CLASSES)).toEqual([]);
+    expect(starWeights({ kind: "mix", classes: ["sc_gone", "sc_m"] }, CLASSES)).toEqual([
+      ["sc_m", 20],
+    ]);
+  });
+
   it("never draws at random a class only special layouts make", () => {
     const drawn = rollStars(2000, 11, starWeights({ kind: "random" }, CLASSES));
     expect(drawn).not.toContain("sc_black_hole");

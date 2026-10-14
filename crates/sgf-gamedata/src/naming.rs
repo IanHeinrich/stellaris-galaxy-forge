@@ -95,6 +95,11 @@ impl<'s> NameDraw<'s> {
     pub fn take(&mut self, name: &str) {
         self.drawn.insert(name.to_owned());
     }
+
+    /// Let this draw give out `name` again, once it has given it out unused.
+    pub fn give_back(&mut self, name: &str) {
+        self.drawn.remove(name);
+    }
 }
 
 /// A name for a new system in `session`'s save, drawn from `seed`: one left in the save's

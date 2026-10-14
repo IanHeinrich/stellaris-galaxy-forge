@@ -512,5 +512,8 @@ fn adding_systems_together_needs_a_save_and_game_data() {
     let refused =
         invoke::<EditResult>(&w, "add_random_systems", args).expect_err("a scenario is refused");
     assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
-    assert_eq!(refused.message, "this document takes no rolled system");
+    assert_eq!(
+        refused.message,
+        "adding systems is not supported for a scenario document"
+    );
 }

@@ -338,6 +338,15 @@ describe("the shape options on a save", () => {
     expect(mix).toContain('<input type="checkbox" disabled="" checked=""/>Pulsar');
   });
 
+  it("show one class the game data lacks as chosen", () => {
+    useToolStore.setState({
+      pendingShape: pend("circle", OUTLINE, { stars: { kind: "one", class: "sc_gone" } }),
+    });
+    expect(options()).toContain(
+      '<option value="one:sc_gone" selected="">sc_gone (not in the game data)</option>',
+    );
+  });
+
   it("hold the spacing to the game's 10 between systems, and the count to the save's cap", () => {
     useToolStore.setState({
       pendingShape: pend(

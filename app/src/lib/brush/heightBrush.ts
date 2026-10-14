@@ -1,5 +1,5 @@
 import type { SystemNode } from "../../generated/SystemNode";
-import type { Pt } from "../geometry/pt";
+import { asWritten, type Pt } from "../geometry/pt";
 import { isFlat, relativeHeight } from "../height";
 import type { SpatialGrid } from "../spatialGrid";
 
@@ -122,11 +122,6 @@ function reachOf(brush: HeightBrush, d: number, r: number): number {
 /** The heights a stroke gives the systems it moves, worked out from the heights in `systems`. */
 export type HeightsOver = (systems: ReadonlyMap<number, SystemNode>) => Map<number, number>;
 
-/** A height to the five decimals the save writes. */
-function written(relative: number): number {
-  return Math.round(relative * 1e5) / 1e5 || 0;
-}
-
 /**
  * One height stroke, which finds the systems under it in a galaxy fixed at its start. Each system
  * counts once however often the stroke passes it, at the strongest reach it met, so dragging back
@@ -169,7 +164,7 @@ export class HeightSculpt {
       const s = systems.get(id);
       if (!s) continue;
       const from = relativeHeight(s.height);
-      const to = written(this.applied(s, from, w, systems));
+      const to = asWritten(this.applied(s, from, w, systems));
       if (!isFlat(to - from)) out.set(id, to);
     }
     return out;

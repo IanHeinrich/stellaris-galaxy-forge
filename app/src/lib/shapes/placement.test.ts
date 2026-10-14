@@ -4,7 +4,7 @@ import { byId, placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
-import { dist2, type Pt } from "../geometry/pt";
+import { asWritten, dist2, type Pt, WRITTEN_DRIFT, writtenPt } from "../geometry/pt";
 import { segmentsCross } from "../geometry/segments";
 import type { Symmetry } from "../geometry/symmetry";
 import { extentOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../guides";
@@ -311,7 +311,7 @@ function densityBetween(points: readonly Pt[], inner: number, outer: number): nu
   return n / (Math.PI * (outer * outer - inner * inner));
 }
 
-const onRim = (p: Pt, r: number) => Math.abs(Math.hypot(p.x, p.y) - r) < 1e-6;
+const onRim = (p: Pt, r: number) => Math.abs(Math.hypot(p.x, p.y) - r) < WRITTEN_DRIFT;
 
 describe("a scattered fill's edge row", () => {
   const disc = circle({ radius: 300 });
@@ -520,5 +520,59 @@ describe("a shape rolled into a save", () => {
     const preview = shapePlacement(pending(circle()), ground);
     expect(preview.classes).toEqual(preview.points.map(() => "sc_g"));
     expect(shapePlacement(pending(circle()), groundOf([])).classes).toBeNull();
+  });
+
+  /** The least distance between any two of `points`, as the core measures it. */
+  function closestHypot(points: readonly Pt[]): number {
+    let least = Infinity;
+    points.forEach((p, i) => {
+      for (const q of points.slice(i + 1))
+        least = Math.min(least, Math.hypot(p.x - q.x, p.y - q.y));
+    });
+    return least;
+  }
+
+  it("fills a lattice at a spacing of exactly the spawn buffer off a whole-number centre in full, every point as written", () => {
+    const off = circle({ centre: { x: 3.3, y: 7.7 }, radius: 60 });
+    for (const lattice of ["square", "hex"] as const) {
+      const fill = { kind: "grid", spacing: minGap, lattice } as const;
+      const preview = shapePlacement(pending(off, { fill }), groundOf([], OFF, ROLLED));
+      expect(preview.points.length).toBeGreaterThan(100);
+      expect(preview.points.map(writtenPt)).toEqual(preview.points);
+      expect(closestHypot(preview.points)).toBeGreaterThanOrEqual(minGap);
+    }
+  });
+
+  it("places no point on a circle the galaxy's size that is outside the galaxy once written", () => {
+    const rim = circle({ radius: 500 });
+    const preview = shapePlacement(
+      pending(rim, { fill: { kind: "outline", count: 200 } }),
+      groundOf([], OFF, ROLLED),
+    );
+    expect(preview.points.length).toBeGreaterThan(0);
+    for (const p of preview.points) {
+      expect(Math.hypot(asWritten(p.x), asWritten(p.y))).toBeLessThanOrEqual(500);
+    }
+  });
+
+  it("keeps the other points' star classes when a system leaves one out", () => {
+    const weights: Array<[string, number]> = [
+      ["sc_g", 1],
+      ["sc_m", 1],
+      ["sc_k", 1],
+    ];
+    const classesAt = (systems: SystemNode[]) => {
+      const preview = shapePlacement(pending(circle()), {
+        ...groundOf(systems, OFF, ROLLED),
+        starWeights: weights,
+      });
+      return new Map(preview.points.map((p, i) => [`${p.x},${p.y}`, preview.classes![i]]));
+    };
+    const open = classesAt([]);
+    // Point 6 of a ring of 24 at radius 200 sits at (0, 200).
+    const blocked = classesAt([placedNode(9, 0, 200 - minGap + 1)]);
+    expect(blocked.size).toBe(23);
+    expect(new Set(open.values()).size).toBeGreaterThan(1);
+    for (const [at, cls] of blocked) expect(cls).toBe(open.get(at));
   });
 });

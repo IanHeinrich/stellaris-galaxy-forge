@@ -1,5 +1,6 @@
 import type { Capabilities } from "../../generated/Capabilities";
 import { SAVE_SHAPE_CAP, SPAWN_BUFFER } from "../../generated/constants";
+import { documentCapabilities } from "../capabilities";
 import type { MapEdge } from "../documentKinds";
 import { SAMPLE_CAP } from "../placement/limits";
 
@@ -26,4 +27,9 @@ export function placementPath(c: Capabilities): PlacementPath | null {
   if (!c.bulk_add_systems) return null;
   if (c.create_systems) return "statements";
   return c.added_systems ? "rolled" : null;
+}
+
+/** How the open document, with `capabilities`, takes a shape's systems; null when it takes none. */
+export function shapePath(capabilities: Capabilities | null): PlacementPath | null {
+  return placementPath(documentCapabilities({ capabilities }));
 }

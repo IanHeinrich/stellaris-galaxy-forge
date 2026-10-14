@@ -2,13 +2,14 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import { shapePlacement } from "../lib/shapes/placement";
+import { shapePath } from "../lib/shapes/rules";
 import { placeLead } from "../lib/shapes/shapeCopy";
 import type { PendingShape } from "../lib/shapes/types";
 import { refuseOr, type RunEdit } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { placeDescription, placeSystems, rolledArgs } from "./placeSystems";
-import { shapeGround, shapePath, shapePreview, shapeRefusal } from "./shapePreview";
+import { shapeGround, shapePreview, shapeRefusal } from "./shapePreview";
 import { useToolStore } from "./toolStore";
 
 type ShapeActions = Pick<EditorState, "placePendingShape">;

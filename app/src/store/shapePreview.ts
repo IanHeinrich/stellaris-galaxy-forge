@@ -1,12 +1,11 @@
 import type { Capabilities } from "../generated/Capabilities";
 import type { SystemNode } from "../generated/SystemNode";
-import { documentCapabilities } from "../lib/capabilities";
 import type { Symmetry } from "../lib/geometry/symmetry";
 import { extentOf } from "../lib/guides";
 import { needsGameData } from "../lib/text";
 import { PlacementGround } from "../lib/placement/ground";
 import { shapePlacement } from "../lib/shapes/placement";
-import { PLACEMENT_RULES, placementPath, type PlacementPath } from "../lib/shapes/rules";
+import { PLACEMENT_RULES, shapePath, type PlacementPath } from "../lib/shapes/rules";
 import { starWeights } from "../lib/shapes/stars";
 import type { PendingShape, ShapeGround, ShapePreview } from "../lib/shapes/types";
 import type { SpatialGrid } from "../lib/spatialGrid";
@@ -74,11 +73,6 @@ function placementGround(
     placed = new PlacementGround(systems, grid, symmetry);
   }
   return placed;
-}
-
-/** How the open document takes a shape's systems; null when it takes none. */
-export function shapePath(capabilities: Capabilities | null): PlacementPath | null {
-  return placementPath(documentCapabilities({ capabilities }));
 }
 
 function groundOf(inputs: Inputs, pending: PendingShape): ShapeGround | null {

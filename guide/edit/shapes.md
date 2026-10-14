@@ -40,9 +40,10 @@ shape, and <kbd>Esc</kbd> again to go back to the Select tool.
 A shape adds up to 200 systems to a save. It is meant for clusters, not
 whole galaxies. A scenario allows 1,000.
 
-- The game refuses a new system closer than 10 units to any system. In a
-  save, points that close are always left out, whatever "Don't place on top
-  of existing systems" says. Spacing can't go below 10.
+- Galaxy Forge keeps new systems at least 10 units from every other system,
+  the spacing the game spawns systems at. Points closer than that are always left out,
+  whatever "Don't place on top of existing systems" says. Spacing can't go
+  below 10.
 - The status bar also counts points left out because they were too close
   to each other.
 - The edge of the map is the galaxy's own circle.
@@ -58,16 +59,17 @@ makes the galaxy.
 
 ## Stars <Badge type="tip" text="Save" />
 
-Stars sets the star of each new system in a save:
+Stars chooses the star class of the systems a shape adds to a save:
 
 - Random, the default, uses the game's usual mix.
-- One star class gives every system that class.
+- A star class, listed between Random and A mix…, gives every system that
+  class.
 - A mix… uses only the classes you tick, rolled by the game's odds.
 
 Special systems such as Sol are not offered. The preview colours each point
 as its star, and Shuffle rolls the stars again.
 
-For a cluster of black holes, pick One star class and choose Black hole.
+For a cluster of black holes, pick Black hole.
 
 ## The shapes
 

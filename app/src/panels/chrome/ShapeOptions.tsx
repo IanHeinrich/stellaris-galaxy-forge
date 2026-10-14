@@ -3,7 +3,12 @@ import { clampTo } from "../../lib/geometry/geometry";
 import { extentOf, SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
 import { fillSpacing, hasEdgeRow, leastSpacing } from "../../lib/shapes/placement";
-import { PLACEMENT_RULES, type PlacementPath, type PlacementRules } from "../../lib/shapes/rules";
+import {
+  PLACEMENT_RULES,
+  shapePath,
+  type PlacementPath,
+  type PlacementRules,
+} from "../../lib/shapes/rules";
 import {
   FILL_CHOICES,
   fillChoiceLabel,
@@ -20,12 +25,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useGeneratorStore, type GeneratorStarClass } from "../../store/generatorStore";
-import {
-  SHAPE_NEEDS_GAME_DATA,
-  shapePath,
-  shapeRefusal,
-  useShapePreview,
-} from "../../store/shapePreview";
+import { SHAPE_NEEDS_GAME_DATA, shapeRefusal, useShapePreview } from "../../store/shapePreview";
 import { COUNT_RANGE, rememberedFor, SHAPE_SIZE_MIN } from "../../store/toolStore.shape";
 import {
   SPACING_RANGE,
@@ -313,16 +313,20 @@ function ExactValues({ shape }: { shape: Shape }) {
 /** What the Stars drop-down's value starts with for one star class, before the class's key. */
 const ONE_PREFIX = "one:";
 
-/** The Stars drop-down's choices, each with the stars it sets. */
+/**
+ * The Stars drop-down's choices, each with the stars it sets. One class the game data lacks,
+ * as one remembered from another install, is listed as chosen so the drop-down shows it.
+ */
 function starOptions(
   classes: readonly GeneratorStarClass[],
   stars: StarChoice,
 ): Array<Choice<string> & { stars: StarChoice }> {
+  const lacked = stars.kind === "one" && !classes.some((c) => c.key === stars.class) ? stars : null;
   const ticked =
-    stars.kind === "one"
-      ? [stars.class]
-      : stars.kind === "mix"
-        ? stars.classes
+    stars.kind === "mix"
+      ? stars.classes
+      : stars.kind === "one" && lacked === null
+        ? [stars.class]
         : classes.filter((c) => c.randomOdds > 0).map((c) => c.key);
   return [
     { value: "random", label: "Random", stars: { kind: "random" } },
@@ -331,6 +335,15 @@ function starOptions(
       label: c.label,
       stars: { kind: "one", class: c.key } as const,
     })),
+    ...(lacked
+      ? [
+          {
+            value: ONE_PREFIX + lacked.class,
+            label: `${lacked.class} (not in the game data)`,
+            stars: lacked,
+          },
+        ]
+      : []),
     { value: "mix", label: "A mix…", stars: { kind: "mix", classes: ticked } },
   ];
 }
