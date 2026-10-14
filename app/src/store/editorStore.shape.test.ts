@@ -172,6 +172,29 @@ describe("placing a shape in a save", () => {
     expect(ids()).toHaveLength(SYSTEMS.length + shown.points.length);
   });
 
+  it("rolls a spiral as one edit, and one undo takes it back", async () => {
+    tools().setShapeKind("spiral");
+    tools().setShapeSize(150);
+    const shown = shapePreview()!;
+    const n = shown.points.length;
+    expect(n).toBeGreaterThan(10);
+    expect(await editor().placePendingShape()).toBe(true);
+
+    const [[args]] = mockedIpc.addRandomSystems.mock.calls;
+    expect(args.description).toBe(
+      `Placed a spiral of ${n} systems and ${shown.pairs.length} lanes`,
+    );
+    expect(args.systems.map((s) => s.star_class)).toEqual(shown.classes);
+    const added = ids().filter((id) => id >= SYSTEMS.length);
+    expect(added).toHaveLength(n);
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], removed: added }, history: { undo: [], redo: [] } }),
+    );
+    await editor().undo();
+    expect(ids()).toEqual(SYSTEMS.map((s) => s.id));
+  });
+
   it("gives the shape back when the save refuses it", async () => {
     mockedIpc.addRandomSystems.mockRejectedValueOnce(new Error("Too close"));
     const before = tools().pendingShape;

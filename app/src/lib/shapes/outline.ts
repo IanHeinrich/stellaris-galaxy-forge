@@ -1,5 +1,6 @@
 import type { Pt } from "../geometry/pt";
 import { dir, distance, lerp } from "./frame";
+import type { Outline, OutlineRun } from "./types";
 
 /** The sides of a polyline, each as its two ends; a closed one's last side returns to the first. */
 function sides(vertices: readonly Pt[], closed: boolean): Array<[Pt, Pt]> {
@@ -111,4 +112,41 @@ export function alongPolyline(points: readonly Pt[], closed: boolean, n: number)
 /** The length of the polyline through `points`, round to the first again when `closed`. */
 export function polylineLength(points: readonly Pt[], closed: boolean): number {
   return sides(points, closed).reduce((sum, [a, b]) => sum + distance(a, b), 0);
+}
+
+/** `points` as an outline of one run. */
+export function oneRun(points: Pt[], closed: boolean): Outline {
+  return { points, runs: [{ start: 0, count: points.length, closed }] };
+}
+
+/** `parts` one after another as one outline, each run moved to where its points now stand; a run of no points is left out. */
+export function joined(parts: readonly Outline[]): Outline {
+  const points: Pt[] = [];
+  const runs: OutlineRun[] = [];
+  for (const part of parts) {
+    for (const run of part.runs) {
+      if (run.count > 0) runs.push({ ...run, start: run.start + points.length });
+    }
+    points.push(...part.points);
+  }
+  return { points, runs };
+}
+
+/** The points of `run`, in order. */
+export function runPoints(points: readonly Pt[], run: OutlineRun): Pt[] {
+  return points.slice(run.start, run.start + run.count);
+}
+
+/** The length of an outline's runs together. */
+export function outlineLength({ points, runs }: Outline): number {
+  return runs.reduce((sum, run) => sum + polylineLength(runPoints(points, run), run.closed), 0);
+}
+
+/** How far apart neighbouring points sit along `outline` on average: its length over its steps; 0 with no steps. */
+export function outlineStep(outline: Outline): number {
+  const steps = outline.runs.reduce(
+    (n, run) => n + Math.max(0, run.closed ? run.count : run.count - 1),
+    0,
+  );
+  return steps > 0 ? outlineLength(outline) / steps : 0;
 }

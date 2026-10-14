@@ -25,6 +25,7 @@ vi.mock("../../store/shapePreview", async (actual) => ({
 }));
 
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
+import { NO_EXTRAS } from "../../lib/shapes/extras";
 import { SHAPE_SPECS } from "../../lib/shapes/specs";
 import type { Fill, PendingShape, ShapeKind } from "../../lib/shapes/types";
 import { useEditorStore } from "../../store/editorStore";
@@ -44,6 +45,7 @@ function pend(kind: ShapeKind, fill: Fill, over: Partial<PendingShape> = {}): Pe
     shape: SHAPE_SPECS[kind].initial,
     fill,
     lanes: { follow: fill.kind === "outline", mode: "off" },
+    extras: NO_EXTRAS,
     skipNear: true,
     stars: { kind: "random" },
     seed: 1,
@@ -105,6 +107,7 @@ describe("the shape options", () => {
             shape: SHAPE_SPECS.star.initial,
             fill: { kind: "grid", spacing: 30, lattice: "square" },
             lanes: { follow: false, mode: "new" },
+            extras: NO_EXTRAS,
           },
         },
         skipNear: false,
@@ -252,6 +255,34 @@ describe("the shape options", () => {
       pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: true }),
     });
     expect(options()).toMatch(/<input type="checkbox"(?![^>]*checked)[^>]*\/>Follow the shape/);
+  });
+
+  it("show each extra only where it changes the shape, and spokes once there is a centre system", () => {
+    useToolStore.setState({ pendingShape: pend("circle", OUTLINE) });
+    let html = options();
+    for (const label of ["Band", "Rings", "Wobble", "Gaps"]) {
+      expect(html).toContain(`aria-label="${label}"`);
+    }
+    expect(html).toContain("A system at the centre");
+    expect(html).not.toContain('aria-label="Hollow centre"');
+    expect(html).not.toContain("Spokes to the centre");
+
+    const spokes = { ...NO_EXTRAS, centre: "spokes" } as const;
+    useToolStore.setState({ pendingShape: pend("spiral", OUTLINE, { extras: spokes }) });
+    html = options();
+    for (const label of ["Arms", "Turns", "Band", "Gaps"]) expect(html).toContain(`"${label}"`);
+    expect(html).not.toContain('aria-label="Rings"');
+    expect(html).toMatch(/checked=""[^>]*\/>Spokes to the centre/);
+
+    useToolStore.setState({
+      pendingShape: pend("circle", { kind: "scattered", spacing: 25, edge: true }),
+    });
+    html = options();
+    expect(html).toContain('aria-label="Hollow centre"');
+    for (const label of ["Band", "Rings", "Wobble", "Gaps"]) {
+      expect(html).not.toContain(`aria-label="${label}"`);
+    }
+    expect(html).not.toContain("A system at the centre");
   });
 
   it("show Lane density only while Lanes is not off", () => {

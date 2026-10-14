@@ -24,6 +24,7 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { useToolStore } from "../../store/toolStore";
+import { NO_EXTRAS } from "../../lib/shapes/extras";
 import { SHAPE_SPECS } from "../../lib/shapes/specs";
 import { armSession, resetStores } from "../../store/storeFixture";
 import {
@@ -212,6 +213,7 @@ describe("the pending shape", () => {
     shape: SHAPE_SPECS.circle.initial,
     fill: { kind: "outline" as const, count: 22 },
     lanes: { follow: true, mode: "off" as const },
+    extras: NO_EXTRAS,
     skipNear: true,
     stars: { kind: "random" as const },
     seed: 1,

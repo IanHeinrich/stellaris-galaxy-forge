@@ -10,7 +10,7 @@ import type { PlacementRules } from "../placement/rules";
 import type { StarChoice } from "./stars";
 
 /** The figures the Shape tool draws. */
-export type ShapeKind = "line" | "circle" | "polygon" | "rect" | "star";
+export type ShapeKind = "line" | "circle" | "polygon" | "rect" | "star" | "spiral";
 
 /** Systems from `a` to `b`, both ends included. */
 export interface LineShape {
@@ -34,6 +34,8 @@ export interface CircleShape {
   sweep: number;
   /** The ellipse's half-height as a percentage of `radius`, in (0, 100]. */
   squash: number;
+  /** How much of the radius a fill leaves empty about the centre, as a percentage: a donut. */
+  hollow: number;
 }
 
 /** A regular polygon with a corner at `rotation`. */
@@ -46,6 +48,8 @@ export interface PolygonShape {
   rotation: number;
   /** A whole number from 3 to 12. */
   sides: number;
+  /** How much of the radius a fill leaves empty about the centre, as a percentage. */
+  hollow: number;
 }
 
 /** A rectangle about `centre`, `width` along `rotation`. */
@@ -72,10 +76,31 @@ export interface StarShape {
   points: number;
   /** The notches' radius as a percentage of `radius`, in (0, 100). */
   inner: number;
+  /** How much of the radius a fill leaves empty about the centre, as a percentage. */
+  hollow: number;
+}
+
+/**
+ * Arms of systems winding out from `centre`, spread evenly round it, each a single line from
+ * `inner` percent of `radius` out to `radius`.
+ */
+export interface SpiralShape {
+  kind: "spiral";
+  centre: Pt;
+  /** World units, centre to each arm's outer end. */
+  radius: number;
+  /** Degrees, as `CircleShape.rotation`; the first arm ends here. */
+  rotation: number;
+  /** A whole number from 1 to 6. */
+  arms: number;
+  /** How far round each arm winds from its inner end to its outer end, in turns. */
+  turns: number;
+  /** Where each arm starts, as a percentage of `radius`. */
+  inner: number;
 }
 
 /** One pending figure, one case per kind. */
-export type Shape = LineShape | CircleShape | PolygonShape | RectShape | StarShape;
+export type Shape = LineShape | CircleShape | PolygonShape | RectShape | StarShape | SpiralShape;
 
 /** The `Shape` case of `kind`. */
 export type ShapeOf<K extends ShapeKind> = Extract<Shape, { kind: K }>;
@@ -106,6 +131,29 @@ export interface ShapeLanes {
   mode: LaneMode;
 }
 
+/** Whether a shape has a system at its centre, and whether spokes join that system to the outline. */
+export type ShapeCentre = "none" | "system" | "spokes";
+
+/**
+ * What changes an outline after it is laid: how thick it is, its rings, the openings in its
+ * follow lanes, how far its points wobble, and a system at the centre. Each is laid only where
+ * `extraApplies` or `takesCentre` says it applies, and is otherwise as in `NO_EXTRAS`.
+ */
+export interface ShapeExtras {
+  /** How many systems thick the outline is, scattered within a band about it. */
+  band: number;
+  /** How many concentric copies of the outline there are, a spacing apart, the outline the outermost. */
+  rings: number;
+  /** How many openings each run of follow lanes has, spread evenly along it. */
+  gaps: number;
+  /** How far each point is nudged at random, as a percentage of half the spacing. */
+  wobble: number;
+  centre: ShapeCentre;
+}
+
+/** A number field of `ShapeExtras`. */
+export type ExtraKey = NumberKey<ShapeExtras>;
+
 /** What Arrange does with the lanes between selected systems: keep them, lay new ones, or take them out. */
 export type ArrangeLanes = "keep" | "rebuild" | "clear";
 
@@ -129,6 +177,7 @@ export interface PendingShape {
   shape: Shape;
   fill: Fill;
   lanes: ShapeLanes;
+  extras: ShapeExtras;
   /** Leave out a point within the spacing of an existing system. */
   skipNear: boolean;
   /** Seeds the scattered fill and the star draw, so they hold still while the shape is resized. */
@@ -142,6 +191,7 @@ export interface ShapeSettings<K extends ShapeKind = ShapeKind> {
   shape: ShapeOf<K>;
   fill: Fill;
   lanes: ShapeLanes;
+  extras: ShapeExtras;
 }
 
 /** What Arrange remembers: the last shape arranged into, and what it did with the lanes. */
@@ -253,11 +303,24 @@ export interface ShapeDragMods {
   constrain: boolean;
 }
 
-/** A shape's outline as points in order, `closed` when the last joins the first. */
-export interface Outline {
-  points: Pt[];
+/** A stretch of an outline that follow lanes join in order: `count` points from `start`, the last back to the first when `closed`. */
+export interface OutlineRun {
+  start: number;
+  count: number;
   closed: boolean;
 }
+
+/** A shape's outline as points in order, in runs: one for most shapes, one per arm of a spiral. */
+export interface Outline {
+  points: Pt[];
+  runs: OutlineRun[];
+}
+
+/** Where Spokes to the centre joins an outline: every point of the run nearest the centre, or each run's first point. */
+export type SpokeEnds = "ring" | "arms";
+
+/** Whether a field shows whatever the fill, or only when the shape is filled. */
+export type FieldWhen = "always" | "filled";
 
 /** The keys of `S` that hold a number. */
 type NumberKey<S> = { [P in keyof S]: S[P] extends number ? P : never }[keyof S];
@@ -275,6 +338,7 @@ export interface ShapeField<S extends Shape> {
   unit: string;
   /** Folded under "Exact values" rather than shown in the panel's body. */
   exact: boolean;
+  when: FieldWhen;
 }
 
 /** Everything that differs between kinds of shape: one row of `SHAPE_SPECS`. */
@@ -287,6 +351,10 @@ export interface ShapeSpec<S extends Shape> {
   initial: S;
   /** The fills `s` takes, outline first: a line takes only the outline. */
   fills(s: S): readonly FillKind[];
+  /** The extras the kind takes, where its fill takes them too. */
+  extras: readonly ExtraKey[];
+  /** Where spokes join the outline to a system at the centre; null for a kind with no centre system. */
+  spokes: SpokeEnds | null;
   /** The kind's own number fields, in the panel's order. */
   fields: readonly ShapeField<S>[];
   /** The shape a drag from `anchor` to `to` draws, taking what a drag doesn't set (sides, sweep) from `prev`. */
@@ -307,10 +375,10 @@ export interface ShapeSpec<S extends Shape> {
   bounds(s: S): Rect;
   /** The area a fill fills, in square world units: 0 for a line, an arc's sector. */
   area(s: S): number;
-  /** `n` points in order along the outline, every corner among them when `n` is at least the corner count; follow lanes join them in this order. */
+  /** `n` points in order along the outline, every corner among them when `n` is at least the corner count; follow lanes join each run's in order. */
   outline(s: S, n: number): Outline;
-  /** `n` points round the edge of what a fill fills, every corner among them as for `outline`: an arc's closed sector. */
-  edge(s: S, n: number): Outline;
+  /** About `n` points round the edge of what a fill fills, every corner among them as for `outline`: an arc's closed sector, and a hollow centre's edge as a run of its own. */
+  edge(s: S, n: number, copies?: number): Outline;
   /** What a placed `s` is called after "Placed ": "a ring", "a disc", "a hexagon". */
   noun(s: S, fill: Fill): string;
 }

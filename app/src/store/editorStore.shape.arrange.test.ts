@@ -7,6 +7,8 @@ import type { EditResult } from "../generated/EditResult";
 import type { Op } from "../generated/Op";
 import { PairSet } from "../lib/geometry/pairs";
 import { provisionalIndex } from "../lib/placement/lanes";
+import { NO_EXTRAS } from "../lib/shapes/extras";
+import { outlineStep } from "../lib/shapes/outline";
 import { ARRANGE_SYMMETRY, shapeStatus } from "../lib/shapes/shapeCopy";
 import { specOf } from "../lib/shapes/specs";
 import { flush } from "../test/flush";
@@ -279,6 +281,23 @@ describe("arranging in a save", () => {
   beforeEach(async () => {
     await openFixtureSave();
     mockedIpc.applyOp.mockImplementation(async () => editResult());
+  });
+
+  it("sizes the shape so a remembered Wobble keeps neighbours out of the spawn gap", () => {
+    const memory = tools().shapeMemory;
+    const { settings } = memory.arrange;
+    const extras = { ...NO_EXTRAS, wobble: 60 };
+    useToolStore.setState({
+      shapeMemory: { ...memory, arrange: { ...memory.arrange, settings: { ...settings, extras } } },
+    });
+    for (let tries = 0; tries < 8; tries++) {
+      arrange({ x: 0, y: 0 });
+      const { shape } = tools().pendingShape!;
+      // Neighbours each nudged up to 30% of the step stay at least 40% of it apart.
+      expect(0.4 * outlineStep(specOf(shape).outline(shape, PICKED.length))).toBeGreaterThan(10);
+      expect(shapePreview()!.arranged!.refusal ?? "").not.toContain("too close to each other");
+      expect(tools().dropShape()).toBe(true);
+    }
   });
 
   it("moves the systems with an op, as a scenario does", async () => {

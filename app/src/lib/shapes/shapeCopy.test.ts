@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Pt } from "../geometry/pt";
 import { placeLabel, placeLead, shapeReadout, shapeStatus } from "./shapeCopy";
+import { NO_EXTRAS } from "./extras";
 import { SHAPE_SPECS } from "./specs";
 import type { PendingShape, Shape, ShapePreview } from "./types";
 
@@ -15,6 +16,7 @@ function pending(
     shape,
     fill,
     lanes: { follow: true, mode: "off" },
+    extras: NO_EXTRAS,
     skipNear: true,
     seed: 1,
     stars: { kind: "random" },

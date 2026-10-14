@@ -8,6 +8,7 @@ import { SAVE_CAPABILITIES } from "../lib/capabilities";
 import { fillSpacing } from "../lib/shapes/placement";
 import { PLACEMENT_RULES } from "../lib/placement/rules";
 import type { StarChoice } from "../lib/shapes/stars";
+import { NO_EXTRAS } from "../lib/shapes/extras";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
 import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
@@ -54,6 +55,7 @@ describe("picking the Shape tool", () => {
       shape: SHAPE_SPECS.circle.initial,
       fill: { kind: "outline", count: 24 },
       lanes: { follow: true, mode: "off" },
+      extras: NO_EXTRAS,
       skipNear: true,
       stars: { kind: "random" },
       seed: expect.any(Number),
@@ -287,15 +289,19 @@ describe("the memory", () => {
   });
 
   it("holds a stored field past its range, and keeps the kind's other settings", async () => {
+    // Stored before shapes had a hollow centre.
+    const older: Partial<CircleShape> = { ...SHAPE_SPECS.circle.initial };
+    delete older.hollow;
     stored.set(
       PREF_KEYS.shapeMemory,
       JSON.stringify({
         kind: "rect",
         kinds: {
           circle: {
-            shape: { ...SHAPE_SPECS.circle.initial, rotation: 359.7, sweep: 180 },
+            shape: { ...older, rotation: 359.7, sweep: 180 },
             fill: { kind: "outline", count: 30 },
             lanes: { follow: false, mode: "nearby" },
+            extras: { band: 9, gaps: 2.4, wobble: "lots", centre: "middle" },
           },
           rect: {
             shape: { ...SHAPE_SPECS.rect.initial, width: 1020 },
@@ -315,12 +321,15 @@ describe("the memory", () => {
       shape: { ...SHAPE_SPECS.circle.initial, rotation: 0, sweep: 180 },
       fill: { kind: "outline", count: 30 },
       lanes: { follow: false, mode: "nearby" },
+      extras: { ...NO_EXTRAS, band: 5, gaps: 2 },
     });
     expect(kinds.rect).toEqual({
       shape: { ...SHAPE_SPECS.rect.initial, width: 1000 },
       fill: { kind: "grid", spacing: 150, lattice: "square" },
       lanes: { follow: false, mode: "new" },
+      extras: NO_EXTRAS,
     });
+    expect(kinds.spiral.shape).toEqual(SHAPE_SPECS.spiral.initial);
     expect(kinds.star.shape).toEqual(SHAPE_SPECS.star.initial);
   });
 

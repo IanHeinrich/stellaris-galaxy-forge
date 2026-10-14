@@ -10,7 +10,7 @@ import type { Lattice } from "./types";
 export const TILE_SPACINGS = 8;
 
 /** One number for the seed and a tile, mixed so that neighbouring tiles share no run of draws. */
-function tileSeed(seed: number, i: number, j: number): number {
+export function tileSeed(seed: number, i: number, j: number): number {
   let h = Math.imul((seed >>> 0) ^ 0x9e3779b9, 0x85ebca6b);
   h = Math.imul(h ^ Math.floor(seed / 0x100000000), 0xc2b2ae35);
   h = Math.imul(h ^ (i | 0), 0x27d4eb2f);

@@ -132,9 +132,9 @@ function spacingFor(
   rules: PlacementRules,
   n: number,
 ): number | null {
-  const { shape, fill, seed } = pending;
+  const { shape, fill, extras, seed } = pending;
   const placeless = shape.kind === "line" ? shape : { ...shape, centre: { x: 0, y: 0 } };
-  const key = JSON.stringify([placeless, fill, seed, n, rules.minGap]);
+  const key = JSON.stringify([placeless, fill, extras, seed, n, rules.minGap]);
   if (spacingCache?.key !== key) {
     spacingCache = { key, spacing: arrangeSpacing(pending, rules, n) };
   }

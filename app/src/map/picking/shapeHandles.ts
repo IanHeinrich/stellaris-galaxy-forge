@@ -1,5 +1,5 @@
 import type { Pt } from "../../lib/geometry/pt";
-import { specOf } from "../../lib/shapes/specs";
+import { laidShape, specOf } from "../../lib/shapes/specs";
 import type { PendingShape, ShapePick } from "../../lib/shapes/types";
 import type { Camera } from "../Camera";
 
@@ -23,5 +23,5 @@ export function pickShape(pending: PendingShape | null, cam: Camera, at: Pt): Sh
     }
   }
   if (best) return best;
-  return spec.contains(pending.shape, at) ? { kind: "inside" } : null;
+  return spec.contains(laidShape(pending.shape, pending.fill), at) ? { kind: "inside" } : null;
 }

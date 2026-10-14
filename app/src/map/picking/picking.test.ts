@@ -11,6 +11,7 @@ import { SpatialGrid } from "../../lib/spatialGrid";
 import { DrawnPositions } from "../drawnPositions";
 import { PickIndex } from "./pickIndex";
 import { zoneOf } from "./zones";
+import { NO_EXTRAS } from "../../lib/shapes/extras";
 import { SHAPE_SPECS } from "../../lib/shapes/specs";
 import type { CircleShape, PendingShape } from "../../lib/shapes/types";
 import { pickShape } from "./shapeHandles";
@@ -356,6 +357,7 @@ const CIRCLE: CircleShape = {
   rotation: 0,
   sweep: 360,
   squash: 100,
+  hollow: 0,
 };
 
 const PENDING: PendingShape = {
@@ -363,6 +365,7 @@ const PENDING: PendingShape = {
   shape: CIRCLE,
   fill: { kind: "outline", count: 24 },
   lanes: { follow: true, mode: "off" },
+  extras: NO_EXTRAS,
   skipNear: true,
   stars: { kind: "random" },
   seed: 1,
