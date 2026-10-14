@@ -14,6 +14,7 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::address;
 use crate::entity::views::EntityKind;
+use crate::format::save::alloc::{Appended, read_appended};
 use crate::format::save::{entity_at, entity_in};
 use crate::keys;
 use crate::ops::{MegastructureConstruction, Op};
@@ -107,6 +108,9 @@ pub(crate) struct Added {
     /// or redo puts the same row back in the same slot, and no later row takes that slot: a
     /// megastructure is only ever appended, and an inserted slot is never reused.
     written: BTreeMap<Anchor, Written>,
+    /// Each inserted slot of a slot table holding an entry, with its id and whether it is
+    /// a tombstone, so the allocator does not parse every added entry on each read.
+    appended: BTreeMap<Anchor, (u32, bool)>,
 }
 
 impl Added {
@@ -115,7 +119,16 @@ impl Added {
             by_slot: BTreeMap::new(),
             by_id: BTreeMap::new(),
             written: BTreeMap::new(),
+            appended: BTreeMap::new(),
         }
+    }
+
+    /// The entries inserted at `at`, in file order.
+    pub fn appended_at(&self, at: usize) -> impl Iterator<Item = Appended> + '_ {
+        let slots = Anchor::Inserted { at, seq: 1 }..=Anchor::Inserted { at, seq: u32::MAX };
+        self.appended
+            .range(slots)
+            .map(|(&anchor, &(id, dead))| Appended { anchor, id, dead })
     }
 
     /// What the add that wrote megastructure row `id` gave it; `None` for a row no add of
@@ -172,16 +185,22 @@ impl Added {
             {
                 self.by_id.remove(&old);
             }
+            self.appended.remove(&slot);
             let Some(table) = table_at(original, index, slot.start()) else {
                 continue;
             };
+            let Ok(bytes) = overlay.current(slot, original) else {
+                continue;
+            };
+            if slot.is_inserted()
+                && let Some(entry) = read_appended(bytes)
+            {
+                self.appended.insert(slot, entry);
+            }
             // A system is only ever inserted: none is written over another's slot.
             if table == Table::Entity(EntityKind::System) && !slot.is_inserted() {
                 continue;
             }
-            let Ok(bytes) = overlay.current(slot, original) else {
-                continue;
-            };
             let Some(id) = entity_id(bytes) else {
                 continue;
             };

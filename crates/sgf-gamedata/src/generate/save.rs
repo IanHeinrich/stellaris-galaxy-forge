@@ -2,9 +2,11 @@
 //! rolled again, is built from, named after its pool and given its Resource Abundance. And
 //! the planet class rules a class change in a save takes from the install.
 
+use serde::{Deserialize, Serialize};
 use sgf_core::ops::{BodyName, BodyNaming, GivenName, NewBody, Op, PlanetClassRule, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
+use ts_rs::TS;
 
 use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, generate_layout_for, roll_body};
 use crate::GameData;
@@ -136,6 +138,15 @@ pub fn for_save(
     let mut spec = pick.spec(gd, session, seed, &name, at)?;
     settle_name(session, gd, &mut spec, &name, seed);
     Ok(spec)
+}
+
+/// A system asked of a bulk add to a save: where it stands and its star class.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemAsk {
+    pub x: f64,
+    pub y: f64,
+    pub star_class: String,
 }
 
 /// A body asked of a save's system: what is fixed of it, the rest drawn by the roll.

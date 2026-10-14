@@ -455,21 +455,19 @@ pub(crate) struct Appended {
 /// The entries ops appended to the table whose new entries go at `at`, in file order; a
 /// slot an erasure emptied is left out.
 pub(crate) fn appended(doc: &Document, at: usize) -> Vec<Appended> {
-    doc.overlay()
-        .slots()
-        .filter(|(anchor, _)| matches!(anchor, Anchor::Inserted { at: here, .. } if *here == at))
-        .filter_map(|(anchor, bytes)| {
-            let root = cst::parse(bytes, 0).ok()?;
-            let node = root.children().first()?;
-            Some(Appended {
-                anchor,
-                id: node.key_str(bytes)?.parse().ok()?,
-                dead: node
-                    .scalar_span()
-                    .is_some_and(|value| is_tombstone(value.slice(bytes))),
-            })
-        })
-        .collect()
+    doc.added().appended_at(at).collect()
+}
+
+/// The id of the entry an appended slot's `bytes` hold, and whether it is a tombstone;
+/// `None` for an emptied slot or anything else.
+pub(crate) fn read_appended(bytes: &[u8]) -> Option<(u32, bool)> {
+    let root = cst::parse(bytes, 0).ok()?;
+    let node = root.children().first()?;
+    let id = node.key_str(bytes)?.parse().ok()?;
+    let dead = node
+        .scalar_span()
+        .is_some_and(|value| is_tombstone(value.slice(bytes)));
+    Some((id, dead))
 }
 
 /// The id the tombstone of entity `id`'s slot holds once it dies there: the one the slot

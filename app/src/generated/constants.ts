@@ -15,6 +15,9 @@ export const LCLUSTER_PREFIX = "lcluster";
 /** How close the game lets a system it spawns stand to another. */
 export const SPAWN_BUFFER = 10;
 
+/** The most systems one shape adds to a save. */
+export const SAVE_SHAPE_CAP = 200;
+
 /** The id a save writes where an entity names none. */
 export const NULL_ID = 4294967295;
 
@@ -123,6 +126,7 @@ export const SAVE_CAPABILITIES: Capabilities = {
   create_systems: false,
   waylines: true,
   added_systems: true,
+  bulk_add_systems: true,
   bodies: true,
   deposits: true,
   geometry: true,
@@ -165,6 +169,7 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   create_systems: true,
   waylines: false,
   added_systems: false,
+  bulk_add_systems: true,
   bodies: false,
   deposits: false,
   geometry: false,

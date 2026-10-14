@@ -1,9 +1,9 @@
 use super::Session;
 use crate::format::save::site;
 use crate::format::save::write::{
-    add_megastructure, add_ring_world, copy_bodies, megastructure_links, move_planet,
+    add_megastructure, add_ring_world, add_systems, copy_bodies, megastructure_links, move_planet,
 };
-use crate::ops::{NewBody, NewRingWorld, Op, OpError};
+use crate::ops::{LaneEnd, NewBody, NewRingWorld, Op, OpError, SystemSpec};
 use crate::views::details::ConstructionSite;
 use crate::views::{OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, RingWorldClearing};
 
@@ -75,6 +75,22 @@ impl SaveQueries<'_> {
         clear: bool,
     ) -> Result<Op, OpError> {
         add_ring_world::add_op(self.session, system, owner, ring, clear)
+    }
+
+    /// The op that adds `specs` to the save as one [`Op::Batch`] described as
+    /// `description`: an [`Op::AddSystemFromSpec`] per spec, the `j`th taking the next
+    /// system id plus `j` and its spec's own lanes dropped, then one [`Op::AddLanePairs`]
+    /// laying `lanes` between new and held systems. Refused before any op is built when
+    /// there are none or more than [`crate::ops::BULK_ADD_CAP`], when one stands nearer
+    /// than the game spawns a system to another or to a new one before it, and when a
+    /// lane end names no system.
+    pub fn add_systems_op(
+        &self,
+        specs: Vec<SystemSpec>,
+        lanes: &[(LaneEnd, LaneEnd)],
+        description: String,
+    ) -> Result<Op, OpError> {
+        add_systems::add_op(self.session, specs, lanes, description)
     }
 
     /// Where the save planets `planets` may move together, and which of them cannot move.

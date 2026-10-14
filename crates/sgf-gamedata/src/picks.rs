@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::generate::{body_classes, star_classes};
+use crate::generate::{body_classes, star_class_odds, star_classes};
 
 /// A class a body added to a save may take, named as the game names it, with the sizes a
 /// random one of it is drawn from.
@@ -17,12 +17,17 @@ pub struct BodyClassPick {
     pub max_size: u32,
 }
 
-/// A star class a rolled system may have, named as the game names it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// A star class a rolled system may have, named as the game names it, with the weights
+/// [`star_class_odds`] gives it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct StarClassPick {
     pub key: String,
     pub name: String,
+    /// How often a pick of this class draws it: the weights of the layouts that make it.
+    pub odds: f64,
+    /// How often a pick of no class rolls it: zero for a class only special layouts make.
+    pub random_odds: f64,
 }
 
 impl GameData {
@@ -50,9 +55,14 @@ impl GameData {
     pub fn star_class_picks(&self) -> Vec<StarClassPick> {
         let mut picks: Vec<StarClassPick> = star_classes(self)
             .into_iter()
-            .map(|key| StarClassPick {
-                name: self.class_name(&key),
-                key,
+            .map(|key| {
+                let (odds, random_odds) = star_class_odds(self, &key);
+                StarClassPick {
+                    name: self.class_name(&key),
+                    key,
+                    odds,
+                    random_odds,
+                }
             })
             .collect();
         tell_apart(&mut picks, |p| (&p.key, &mut p.name));

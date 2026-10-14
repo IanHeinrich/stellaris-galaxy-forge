@@ -28,8 +28,8 @@ pub use megastructure::{
     megastructure_fits, megastructure_op, ring_world_op,
 };
 pub use save::{
-    BodyAsk, ClassRulesError, ForSaveError, Pick, added_among, body_for_save, for_save, reroll,
-    settle_name,
+    BodyAsk, ClassRulesError, ForSaveError, Pick, SystemAsk, added_among, body_for_save, for_save,
+    reroll, settle_name,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.
@@ -87,6 +87,21 @@ pub fn star_classes(gd: &GameData) -> Vec<String> {
         }
     }
     classes
+}
+
+/// How often [`generate`] gives `class`: first as each layout that makes it is drawn for a
+/// pick of that class, then as a pick of no class rolls it, which only the plain layouts
+/// make. Both are weights, comparable among classes and not shares.
+pub fn star_class_odds(gd: &GameData, class: &str) -> (f64, f64) {
+    let odds = layouts_for(gd, Some(class))
+        .iter()
+        .map(|(_, weight)| weight)
+        .sum();
+    let random_odds = layouts_for(gd, None)
+        .iter()
+        .map(|(init, weight)| weight * share(gd, init, class))
+        .sum();
+    (odds, random_odds)
 }
 
 /// Every layout a star-class pick of [`generate`] can draw, for any class of

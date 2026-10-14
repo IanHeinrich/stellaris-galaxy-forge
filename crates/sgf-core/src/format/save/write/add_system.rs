@@ -531,10 +531,46 @@ fn check_place(graph: &GalaxyGraph, x: f64, y: f64) -> Result<(), OpError> {
     if radius > 0.0 && x.hypot(y) > radius {
         return Err(OpError::OutsideGalaxy { x, y, radius });
     }
-    let nearest = graph
-        .systems
-        .values()
-        .map(|other| (other.id, (other.x - x).hypot(other.y - y)))
+    check_apart(
+        x,
+        y,
+        graph
+            .systems
+            .values()
+            .map(|other| (other.id, other.x, other.y)),
+    )
+}
+
+/// [`check_place`] for each of several new systems, rounded as the op writes them, and each
+/// no nearer than the game spawns a system to the new ones before it, the `j`th taking id
+/// `first + j`. Nothing is written.
+pub(crate) fn check_places(
+    graph: &GalaxyGraph,
+    first: u32,
+    points: &[(f64, f64)],
+) -> Result<(), OpError> {
+    let points: Vec<(f64, f64)> = points
+        .iter()
+        .map(|&(x, y)| (rounded(x), rounded(y)))
+        .collect();
+    for (i, &(x, y)) in points.iter().enumerate() {
+        check_place(graph, x, y)?;
+        let earlier = (first..)
+            .zip(&points[..i])
+            .map(|(id, &(ox, oy))| (id, ox, oy));
+        check_apart(x, y, earlier)?;
+    }
+    Ok(())
+}
+
+/// No nearer to any of `others`, each an id and a position, than the game spawns a system.
+fn check_apart(
+    x: f64,
+    y: f64,
+    others: impl Iterator<Item = (u32, f64, f64)>,
+) -> Result<(), OpError> {
+    let nearest = others
+        .map(|(id, ox, oy)| (id, (ox - x).hypot(oy - y)))
         .min_by(|a, b| a.1.total_cmp(&b.1));
     match nearest {
         Some((id, distance)) if distance < SPAWN_BUFFER => Err(OpError::TooClose { id, distance }),

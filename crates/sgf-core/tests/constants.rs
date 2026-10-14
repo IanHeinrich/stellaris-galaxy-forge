@@ -16,7 +16,7 @@ use sgf_core::format::scenario::paint::RESERVED_SEAT_NAMES;
 use sgf_core::guides::L_CLUSTER;
 use sgf_core::ops::rules::{FURNACE_ENTITY, RELAY_RADIUS_FACTOR};
 use sgf_core::ops::{
-    BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, SPAWN_BUFFER,
+    BELT_SCATTER, BULK_ADD_CAP, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, SPAWN_BUFFER,
     STORED_ORBIT_SLACK, SystemRadii,
 };
 use sgf_core::prepare::{PrepareChoice, PreparePreset, PrepareRow};
@@ -74,6 +74,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How close the game lets a system it spawns stand to another.",
         "SPAWN_BUFFER",
         SPAWN_BUFFER.to_string(),
+    );
+    constant(
+        "The most systems one shape adds to a save.",
+        "SAVE_SHAPE_CAP",
+        BULK_ADD_CAP.to_string(),
     );
     constant(
         "The id a save writes where an entity names none.",
