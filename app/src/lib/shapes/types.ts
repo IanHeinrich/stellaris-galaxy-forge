@@ -10,7 +10,7 @@ import type { PlacementRules } from "../placement/rules";
 import type { StarChoice } from "./stars";
 
 /** The figures the Shape tool draws. */
-export type ShapeKind = "line" | "circle" | "polygon" | "rect" | "star" | "spiral";
+export type ShapeKind = "line" | "circle" | "polygon" | "rect" | "star" | "spiral" | "galaxy";
 
 /** Systems from `a` to `b`, both ends included. */
 export interface LineShape {
@@ -99,8 +99,33 @@ export interface SpiralShape {
   inner: number;
 }
 
+/** One of Stellaris's galaxy shapes, by the key the game names it with. */
+export type GalaxyForm =
+  | "elliptical"
+  | "spiral_2"
+  | "spiral_3"
+  | "spiral_4"
+  | "spiral_6"
+  | "ring"
+  | "bar"
+  | "starburst"
+  | "cartwheel"
+  | "spoked";
+
+/** A galaxy of systems about `centre` in one of the game's galaxy shapes, its fill thinned to the shape's arms and core. */
+export interface GalaxyShape {
+  kind: "galaxy";
+  centre: Pt;
+  /** World units, centre to the rim. */
+  radius: number;
+  /** Degrees, as `CircleShape.rotation`. */
+  rotation: number;
+  form: GalaxyForm;
+}
+
 /** One pending figure, one case per kind. */
-export type Shape = LineShape | CircleShape | PolygonShape | RectShape | StarShape | SpiralShape;
+export type Shape =
+  LineShape | CircleShape | PolygonShape | RectShape | StarShape | SpiralShape | GalaxyShape;
 
 /** The `Shape` case of `kind`. */
 export type ShapeOf<K extends ShapeKind> = Extract<Shape, { kind: K }>;
@@ -343,6 +368,13 @@ export interface ShapeField<S extends Shape> {
   when: FieldWhen;
 }
 
+/** How a kind's fill thins out: the share of its points kept about a point, and the share kept over what a fill fills. */
+export interface Thinning<S extends Shape> {
+  /** In [0, 1]. */
+  at(s: S, p: Pt): number;
+  mean(s: S): number;
+}
+
 /** Everything that differs between kinds of shape: one row of `SHAPE_SPECS`. */
 export interface ShapeSpec<S extends Shape> {
   /** The kind's name in the picker and the status bar: "Rectangle". */
@@ -359,6 +391,12 @@ export interface ShapeSpec<S extends Shape> {
   extras: readonly ExtraKey[];
   /** Where spokes join the outline to a system at the centre; null for a kind with no centre system. */
   spokes: SpokeEnds | null;
+  /** Whether a scattered fill can line the edge with a row of systems: a galaxy fades out toward its rim, so it has none. */
+  edgeRow: boolean;
+  /** Whether the lanes a shape lays always join its systems into one network, as a galaxy's do. */
+  connected: boolean;
+  /** How the kind's fill thins out; null for a kind filled evenly. */
+  thinning: Thinning<S> | null;
   /** The kind's own number fields, in the panel's order. */
   fields: readonly ShapeField<S>[];
   /** The shape a drag from `anchor` to `to` draws, taking what a drag doesn't set (sides, sweep) from `prev`. */

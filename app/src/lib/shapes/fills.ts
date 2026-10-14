@@ -1,7 +1,8 @@
 import type { Rect } from "../geometry/polygon";
 import type { Pt } from "../geometry/pt";
+import { PointGrid } from "../placement/pointGrid";
 import { PoissonCore } from "../placement/poisson";
-import { seeded } from "../random";
+import { seeded, type Rand } from "../random";
 import { cellKey } from "../spatialGrid";
 import { toLocal, toWorld, type ShapeFrame } from "./frame";
 import type { Lattice } from "./types";
@@ -154,6 +155,84 @@ export function scatterPattern(
   if (!(spacing > 0)) return nearestFirst(1, frame, bounds, () => []);
   const tiles = new ScatterTiles(seed, spacing);
   return nearestFirst(TILE_SPACINGS * spacing, frame, bounds, (i, j) => tiles.points(i, j));
+}
+
+/** How finely a fill point's place is told apart for its draws, in parts of the spacing. */
+const POINT_GRAIN = 1000;
+
+/**
+ * The draws for fill point `p`, laid `spacing` apart in `frame`, from `seed` and `stream` and
+ * where `p` stands in the frame in spacings. A point keeps its draws as the shape moves, turns,
+ * grows and is spaced afresh, so the preview and the placed systems agree.
+ */
+export function pointDraws(
+  seed: number,
+  stream: number,
+  frame: ShapeFrame,
+  spacing: number,
+  p: Pt,
+): Rand {
+  const local = toLocal(frame, p);
+  const i = Math.round((local.x * POINT_GRAIN) / spacing);
+  const j = Math.round((local.y * POINT_GRAIN) / spacing);
+  return seeded(tileSeed(seed ^ stream, i, j));
+}
+
+/** The least share of a fill a point is laid at; below it none is, as it would stand alone. */
+const LEAST_SHARE = 0.02;
+
+/**
+ * The least and most a thinned pattern's point keeps clear of the others, as shares of what its
+ * share asks, drawn at random so the pattern reads as scattered rather than packed.
+ */
+export const THINNED_ROOM = { least: 0.75, most: 1.5 } as const;
+
+/** Keeps the room's draws apart from the pattern's and the extras', which read the same seed. */
+const ROOM_STREAM = 0x524f_4f4d;
+
+/**
+ * Each of `points` in turn that no point kept before it lies within `room` of. A point is kept or
+ * not by the points before it alone, so a reader that stops early keeps the same ones.
+ */
+function* keptApart(points: Iterable<Pt>, room: (p: Pt) => number, cell: number): Generator<Pt> {
+  const kept = new PointGrid(cell);
+  for (const p of points) {
+    const r = room(p);
+    if (!Number.isFinite(r)) continue;
+    const near = (q: Pt) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < r * r;
+    if (kept.someInBox(p.x - r, p.y - r, p.x + r, p.y + r, near)) continue;
+    kept.add(p);
+    yield p;
+  }
+}
+
+/** How many times closer than its spacing a thinned pattern's candidates are laid. */
+const CANDIDATES_PER_SPACING = 1.5;
+
+/**
+ * A scattered pattern over the world box `bounds` thinned by `share`: candidates laid closer
+ * than `spacing`, each kept when no point kept before it lies within `spacing / sqrt(share)` of
+ * it, scaled at random within `THINNED_ROOM`. Where the share is 1 the points keep about
+ * the spacing, and where it is a quarter about twice that, so an area holds about the share of
+ * the points it says, spread evenly rather than in clumps. Like `scatterPattern`, it moves and
+ * turns with the frame, and a point's draw comes from where it stands in it.
+ */
+export function thinnedPattern(
+  seed: number,
+  spacing: number,
+  frame: ShapeFrame,
+  bounds: Rect,
+  share: (p: Pt) => number,
+): Generator<Pt> {
+  const step = spacing / CANDIDATES_PER_SPACING;
+  const room = (p: Pt) => {
+    const s = Math.min(1, share(p));
+    if (!(s >= LEAST_SHARE)) return Infinity;
+    const { least, most } = THINNED_ROOM;
+    const stretch = least + (most - least) * pointDraws(seed, ROOM_STREAM, frame, step, p)();
+    return (spacing * stretch) / Math.sqrt(s);
+  };
+  return keptApart(scatterPattern(seed, step, frame, bounds), room, 2 * spacing);
 }
 
 /** How many tiles across the block `scatterDensity` measures is. */

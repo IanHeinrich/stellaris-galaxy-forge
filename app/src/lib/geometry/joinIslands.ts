@@ -1,6 +1,6 @@
 import { delaunayPairs, type MeshPoint } from "./mesh";
 import { comparePairs, pairOf, PairSet } from "./pairs";
-import { dist2 } from "./pt";
+import { dist2, type Pt } from "./pt";
 import { SegmentIndex } from "./segments";
 import { UnionFind } from "./unionFind";
 
@@ -22,10 +22,18 @@ export function componentCount(
   return uf.components;
 }
 
+/** What else `joinIslands` takes into account beside the points' own edges. */
+export interface JoinOptions {
+  /** Lanes no new edge may cross, beside `edges`, such as existing lanes near the points. */
+  blocked?: ReadonlyArray<{ a: Pt; b: Pt }>;
+  /** Pairs of ids counted as joined already without being lanes: they join components but block nothing. */
+  joined?: readonly (readonly [number, number])[];
+}
+
 /**
  * The fewest new edges, shortest first, that join every connected component of `points` under
- * `edges` into one, as [id, id] pairs with a < b. No new edge crosses an existing edge or another
- * new one.
+ * `edges` and `options.joined` into one, as [id, id] pairs with a < b. No new edge crosses an
+ * existing edge, a blocked lane or another new one.
  *
  * Candidates are the Delaunay edges between different components. When crossings leave some
  * components apart, each point then offers its `FALLBACK_NEIGHBOURS` nearest points in other
@@ -35,16 +43,23 @@ export function componentCount(
 export function joinIslands(
   points: readonly MeshPoint[],
   edges: readonly (readonly [number, number])[],
+  { blocked = [], joined = [] }: JoinOptions = {},
 ): Array<[number, number]> {
   const indexOf = new Map(points.map((p, i) => [p.id, i]));
   const uf = new UnionFind(points.length);
   const existing = new SegmentIndex();
+  for (const { a, b } of blocked) existing.add(a, b);
   for (const [a, b] of edges) {
     const i = indexOf.get(a);
     const j = indexOf.get(b);
     if (i === undefined || j === undefined) continue;
     uf.union(i, j);
     existing.add(points[i], points[j]);
+  }
+  for (const [a, b] of joined) {
+    const i = indexOf.get(a);
+    const j = indexOf.get(b);
+    if (i !== undefined && j !== undefined) uf.union(i, j);
   }
   if (uf.components <= 1) return [];
 

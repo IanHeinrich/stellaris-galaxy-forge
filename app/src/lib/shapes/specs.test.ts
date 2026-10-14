@@ -183,7 +183,7 @@ describe("drawing and handles", () => {
     }
   });
 
-  it("holds its centre inside it and its edge inside its box, and takes every fill, except a line or a spiral", () => {
+  it("holds its centre inside it and its edge inside its box, and takes every fill, except a line, a spiral or a galaxy", () => {
     for (const shape of ALL) {
       const spec = specOf(shape);
       const box = spec.bounds(shape);
@@ -196,7 +196,13 @@ describe("drawing and handles", () => {
         expect(p.y).toBeGreaterThanOrEqual(box.y0 - 1e-9);
         expect(p.y).toBeLessThanOrEqual(box.y1 + 1e-9);
       }
-      expect(spec.fills(shape)).toEqual(line ? ["outline"] : ["outline", "scattered", "grid"]);
+      const fills =
+        shape.kind === "galaxy"
+          ? ["scattered"]
+          : line
+            ? ["outline"]
+            : ["outline", "scattered", "grid"];
+      expect(spec.fills(shape)).toEqual(fills);
     }
   });
 

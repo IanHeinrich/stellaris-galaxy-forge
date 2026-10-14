@@ -76,4 +76,36 @@ describe("joinIslands", () => {
     expect(components(points, [...edges, ...joins])).toBe(1);
     expect(crossings(points, [...edges, ...joins])).toBe(0);
   });
+
+  it("goes around a blocked lane it was not given as an edge", () => {
+    const points: MeshPoint[] = [
+      { id: 1, x: 0, y: 0 },
+      { id: 2, x: 10, y: 0 },
+      { id: 3, x: 5, y: -30 },
+    ];
+    const blocked = [{ a: { x: 5, y: -10 }, b: { x: 5, y: 10 } }];
+    const joins = joinIslands(points, [], { blocked });
+    expect(joins).toHaveLength(2);
+    expect(joins).not.toContainEqual([1, 2]);
+    expect(components(points, joins)).toBe(1);
+  });
+
+  it("counts joined pairs as one island, without letting them block a lane", () => {
+    const joined: [number, number][] = [
+      [3, 4],
+      [8, 9],
+    ];
+    const joins = joinIslands(POINTS, EDGES, { joined });
+    expect(joins).toHaveLength(1);
+    expect(components(POINTS, [...EDGES, ...joined, ...joins])).toBe(1);
+
+    const apart: MeshPoint[] = [
+      { id: 1, x: 0, y: 0 },
+      { id: 2, x: 10, y: 0 },
+      { id: 3, x: 5, y: -50 },
+      { id: 4, x: 5, y: 50 },
+    ];
+    // 1–2 crosses the line from 3 to 4, which is joined but is no lane.
+    expect(joinIslands(apart, [], { joined: [[3, 4]] })).toContainEqual([1, 2]);
+  });
 });

@@ -12,7 +12,7 @@ import { NO_EXTRAS } from "../lib/shapes/extras";
 import { outlineStep } from "../lib/shapes/outline";
 import { LEAST_SPACING } from "../lib/placement/limits";
 import { centreOf, SHAPE_SPECS, specOf } from "../lib/shapes/specs";
-import type { CircleShape, PendingShape, Shape } from "../lib/shapes/types";
+import type { CircleShape, GalaxyForm, PendingShape, Shape } from "../lib/shapes/types";
 import { resizeBrush, run } from "./commands";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -448,5 +448,47 @@ describe("setting the extras", () => {
     // Neighbours each nudged up to 40% of the step stay a fifth of it apart, past the gap.
     const step = outlineStep(specOf(shape).outline(shape, 4));
     expect(0.2 * step).toBeGreaterThanOrEqual(LEAST_SPACING);
+  });
+});
+
+describe("a galaxy", () => {
+  it("starts scattered with lanes among its systems, and takes no outline", () => {
+    tools().setTool("shape");
+    tools().setShapeKind("galaxy");
+    expect(pending().shape).toMatchObject({ kind: "galaxy", form: "spiral_2" });
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 25, edge: false });
+    expect(pending().lanes).toEqual({ follow: false, mode: "new" });
+    tools().setFill({ kind: "scattered", spacing: 30, edge: true });
+    expect(pending().fill).toEqual({ kind: "scattered", spacing: 30, edge: false });
+    tools().setFillChoice("outline");
+    tools().setFillChoice("hex");
+    expect(pending().fill.kind).toBe("scattered");
+  });
+
+  it("sets its galaxy shape for the pending galaxy and the next, on the next run too", async () => {
+    tools().setTool("shape");
+    tools().setShapeKind("galaxy");
+    tools().setGalaxyForm("bar");
+    tools().setGalaxyForm("lens" as GalaxyForm);
+    expect(pending().shape).toMatchObject({ kind: "galaxy", form: "bar" });
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore.getState();
+    expect(fresh.shapeMemory.kinds.galaxy.shape.form).toBe("bar");
+  });
+
+  it("leaves another kind alone, and drops a stored galaxy shape the game has no name for", async () => {
+    tools().setTool("shape");
+    tools().setGalaxyForm("ring");
+    expect(pending().shape.kind).toBe("circle");
+    expect(tools().shapeMemory.kinds.galaxy.shape.form).toBe("spiral_2");
+
+    const galaxy = { ...SHAPE_SPECS.galaxy.initial, radius: 120, form: "lens" };
+    stored.set(
+      PREF_KEYS.shapeMemory,
+      JSON.stringify({ kind: "galaxy", kinds: { galaxy: { shape: galaxy } } }),
+    );
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore.getState();
+    expect(fresh.shapeMemory.kinds.galaxy.shape).toEqual(SHAPE_SPECS.galaxy.initial);
   });
 });
