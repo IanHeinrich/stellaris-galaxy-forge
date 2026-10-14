@@ -33,6 +33,7 @@ import {
 } from "../../store/toolStore";
 import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
+import { ShapeOptions } from "./ShapeOptions";
 import { DraftNumber, LaneDensityOption, LaneModeOption, SliderOption } from "./toolFields";
 import "./chrome.css";
 import "../panels.css";
@@ -295,6 +296,7 @@ const OPTIONS: Record<Tool, ComponentType | null> = {
   select: null,
   paint: PaintOptions,
   erase: EraseOptions,
+  shape: ShapeOptions,
   connect: ConnectOptions,
   cut: SizeOption,
   height: HeightOptions,

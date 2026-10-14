@@ -35,6 +35,7 @@ import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
 import { PointerBridge } from "./pointerBridge";
 import { groupOf } from "./press";
+import { ShapeModel } from "./ShapeModel";
 
 const editor = () => useEditorStore.getState();
 
@@ -58,6 +59,7 @@ function models(): Record<Tool, MapModel> & { select: GestureModel } {
     connect: brush("connect"),
     cut: brush("cut"),
     height: brush("height"),
+    shape: new ShapeModel(),
   };
 }
 
@@ -261,6 +263,9 @@ export class InteractionController {
       commitStroke: () => this.brushes.commit(),
       cancelStroke: () => this.brushes.cancel(),
       endBrush: () => this.brushes.end(),
+      // stub: W3 fills these from shapeDrags
+      shapeDrag: () => {},
+      endShapeDrag: () => {},
     };
   }
 
@@ -331,6 +336,7 @@ export class InteractionController {
       feZone: null,
       snap: null,
       nebula: null,
+      shape: null,
       prevented: null,
     });
   }

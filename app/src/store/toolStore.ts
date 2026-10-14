@@ -16,6 +16,7 @@ import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
+import { shapeSlice, type ShapeState } from "./toolStore.shape";
 
 /** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -90,7 +91,7 @@ const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
 export const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
-export interface ToolState {
+export interface ToolState extends ShapeState {
   tool: Tool;
   size: number;
   spacing: number;
@@ -221,6 +222,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   smoothStrength: 50,
   ripple: presetShape("ripples", SIZE_RANGE.fallback),
   ripplePreset: "ripples",
+  ...shapeSlice(set, get),
 
   setTool(tool) {
     if (!documentTakes(tool)) return false;

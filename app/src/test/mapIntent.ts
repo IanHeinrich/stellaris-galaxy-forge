@@ -52,6 +52,8 @@ export function recorder(): Recorder<MapIntent> {
     commitStroke: true,
     cancelStroke: true,
     endBrush: true,
+    shapeDrag: true,
+    endShapeDrag: true,
   });
 }
 
@@ -115,6 +117,7 @@ export function at(
     snap: null,
     feZone: null,
     nebula: null,
+    shape: null,
     prevented: null,
     ...extra,
   };

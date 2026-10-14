@@ -33,6 +33,7 @@ import { marauderActions } from "./editorStore.marauders";
 import { nebulaActions } from "./editorStore.nebulae";
 import { deletableSelection, removeActions } from "./editorStore.remove";
 import { searchActions } from "./editorStore.search";
+import { shapeActions } from "./editorStore.shape";
 import { canEdit, getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
@@ -302,6 +303,11 @@ export interface EditorState {
    * in one edit; nothing is sent when the galaxy is already one piece.
    */
   joinIslands(): Promise<boolean>;
+  /**
+   * Places the pending shape's systems and lanes as one edit, built in the queue from the same
+   * seed, and clears it. Resolves true when the edit applied.
+   */
+  placePendingShape(): Promise<boolean>;
   /** Writes the fallen empire zone `id` anchors, or removes it with null. */
   setFeZone(id: number, zone: FeZone | null): Promise<boolean>;
   /** Gives `id` a zone in the first clear direction at the default distance, and selects it. */
@@ -424,6 +430,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...feZoneActions(set, get, edits.runEdit),
     ...marauderActions(set, get),
     ...brushActions(set, get, edits.runEdit),
+    ...shapeActions(set, get, edits.runEdit),
     ...searchActions(set, get),
     ...addSystemActions(set, get, edits.runEdit),
     ...removeActions(set, get, edits.runEdit),
