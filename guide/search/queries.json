@@ -240,7 +240,7 @@
   {"q": "polygon", "expect": "edit/shapes#the-shapes"},
   {"q": "grid of systems", "expect": "edit/shapes#outline-scattered-or-grid"},
   {"q": "hex grid", "expect": "edit/shapes#outline-scattered-or-grid"},
-  {"q": "system density of a fill", "expect": "edit/shapes#outline-scattered-or-grid"},
+  {"q": "system density of a scattered fill", "expect": "edit/shapes#outline-scattered-or-grid"},
   {"q": "shape spacing between systems", "expect": "edit/shapes#outline-scattered-or-grid"},
   {"q": "fill a shape with systems", "expect": "edit/shapes"},
   {"q": "rotate a shape", "expect": "edit/shapes#move-resize-and-turn-a-shape"},
