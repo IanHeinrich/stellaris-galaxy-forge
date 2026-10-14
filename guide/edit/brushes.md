@@ -20,7 +20,7 @@ end, each system links to every neighbour. Tick Generate lanes like the
 game to link the swept systems in small clusters joined by single lanes,
 as the game does, instead of an even mesh.
 
-![The Connect lanes brush active on the tool strip, with its Size and Lane density options](../images/edit/connect-brush-options.png)
+![The Connect lanes brush active on the tool strip, with its Size, Lane density and Generate lanes like the game options](../images/edit/connect-brush-options.png)
 
 ## Paint and erase systems <Badge type="info" text="Scenario" />
 
@@ -46,7 +46,7 @@ Paint has these options:
 The Connect brush, Paint and Connect as mesh share Lane density and
 Generate lanes like the game.
 
-![The Paint brush options: Size, Density, Lanes set to New and nearby, and Lane density](../images/edit/paint-brush-options.png)
+![The Paint brush options: Size, Density, Lanes set to New and nearby, Lane density and Generate lanes like the game](../images/edit/paint-brush-options.png)
 
 Erase has these options:
 

@@ -8,6 +8,34 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-14
+
+### Added
+
+- The Shape tool (O) places a whole shape of systems at once, in saves and
+  scenarios. It has circles, lines, polygons, rectangles, stars, swirls and
+  the game's galaxy shapes.
+- Arrange selected systems into a shape, such as a ring or a grid.
+  Right-click a selection and choose Arrange.
+- The Spread brush (R) evens out the spacing of systems. Hold Alt to pull
+  them together instead.
+- Generate lanes like the game: new lanes form small clusters of systems
+  with a few lanes between them, like the game's galaxies.
+- Every option on the brushes and the Shape tool has a tooltip.
+
+### Changed
+
+- You can add systems past the edge of the galaxy, out to half again its
+  size.
+- Lane density now changes the number of lanes evenly along the whole
+  slider.
+- Systems you've added are marked with a small, faint plus.
+
+### Fixed
+
+- Adding systems to a save no longer gets slower as you add more.
+- The Add megastructure dialog opens faster with big mods.
+
 ## [0.25.1] - 2026-10-13
 
 ### Added

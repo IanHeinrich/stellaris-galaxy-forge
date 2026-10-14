@@ -19,7 +19,8 @@ pages don't need editing.
 - A change not yet released is shot from `npm run tauri dev` with the
   same window, and with the game data the developer has installed.
   `system/planet-page.png`, `scenario/scenario-system-inspector.png`,
-  `system/system-view.png` and `system/megastructures.png` were taken
+  `system/system-view.png`, `system/megastructures.png`, the three
+  `edit/shape-*.png` shots and the Paint and Connect brush options were taken
   that way, on Stellaris 4.5.2 game data.
 - The dock is 340 pixels wide. Drag its left edge to set it.
 - Saved as PNG at 1x, cropped to the part of the window the page talks
@@ -79,8 +80,9 @@ The Issues, Changes and added-system shots show those edits.
 | `edit/symmetry-6-fold.png` | `edit/brushes.md` | 6-fold rotation guides over the whole galaxy | In the Paint a Galaxy scenario, pick Rotate 6 and the Paint brush at Size 400. Turn off Names and the Initializers layers, then press Home. |
 | `edit/height-brush-options.png` | `edit/heights.md` | The Height brush in Raise mode | Press H, pick Raise, Size 40, Strength 10. Crop the option bar. |
 | `edit/height-ripple-options.png` | `edit/heights.md` | The Height brush in Ripple mode | Pick Ripple with the Ripples preset, Size 40. Crop the option bar. |
-| `edit/shape-pending.png` | `edit/shapes.md` | A pending circle on the scenario map: gold new systems, a hollow point left out, the galaxy edge ring, the handles, the size readout and the status bar | In the Paint a Galaxy scenario, press O and drag out a Circle at 40% of the galaxy, Outline with 24 systems. Centre it so one point lands beside an existing system. Crop the map and status bar. Not taken yet, so the page has no image. |
-| `edit/shape-options.png` | `edit/shapes.md` | The Shape options: shape picker, Fill, Size with its buttons, Systems, Lanes and Place | With the same circle pending, crop the option bar. Open "Exact values" in a second shot only if the layout needs it. Not taken yet, so the page has no image. |
+| `edit/shape-pending.png` | `edit/shapes.md` | A pending circle in the scenario's empty core: gold new systems and lanes, one hollow point left out, the centre and turn handles, the size readout and the status bar | In the Paint a Galaxy scenario, press O, pick Circle and Outline, tick Don't place on top of existing systems, and set Size to 100 (20% of the galaxy) with 24 systems and Lanes Off. One point lands beside an existing system. Zoom in on the circle and crop the map right of the options with the status bar. |
+| `edit/shape-options.png` | `edit/shapes.md` | The Shape options for a circle outline: shape buttons, Fill, Size and form, Systems, Lanes and Place | With the same circle pending, crop the options panel. |
+| `edit/shape-galaxy.png` | `edit/shapes.md` | A pending Starburst galaxy beside the Shape options | Make a new blank scenario (Medium), press O, pick Galaxy, set Galaxy shape to Starburst, press Whole galaxy and drag System density to dense, with Lanes New and nearby and Generate lanes like the game ticked. Crop the map with the options. |
 | `edit/heights-ripple-tilted.png` | `edit/heights.md` | A ripple of raised and sunk systems, tilted | Drop a Ripple at Size 400 around the core, then set Tilt to 37°. |
 | `edit/empires-tab.png` | `edit/empires.md` | The Empires tab | Open the Empires tab in the dock. |
 | `edit/empire-page.png` | `edit/empires.md` | The player empire's page | Open Test Empire #0 from the Empires tab. Independent map colour is on in this save. |
