@@ -69,9 +69,17 @@ function edgeLength(shape: Shape): number {
   return outlineLength(specOf(shape).edge(shape, PERIMETER_POINTS));
 }
 
-/** How many points `fill` lays per square of its spacing in `shape`, after the shape thins it. */
-function pointsPerSquare(shape: Shape, fill: SpacedFill): number {
-  const kept = specOf(shape).thinning?.mean(shape) ?? 1;
+/**
+ * How many points `fill` lays per square of its spacing in `shape` and its images under `sym`,
+ * after the shape thins it. Each copy of a thinned fill keeps its own share and its images need
+ * only keep its least room from the others', so the copies together lay their shares added up,
+ * as far as that room lets them.
+ */
+function pointsPerSquare(shape: Shape, fill: SpacedFill, sym: Symmetry): number {
+  const { thinning } = specOf(shape);
+  const own = thinning?.mean(shape) ?? 1;
+  const c = copies(sym);
+  const kept = thinning && c > 1 ? Math.min(1 / THINNED_ROOM.least ** 2, c * own) : own;
   switch (fill.kind) {
     case "scattered":
       return scatterDensity() * SCATTER_MARGIN * kept;
@@ -145,7 +153,7 @@ export function leastSpacing(
   const covered = coveredArea(shape, sym);
   const c = copies(sym);
   const apart = own > 0 ? Math.min(1, covered / (own * c)) : 1;
-  const area = covered * pointsPerSquare(shape, fill);
+  const area = covered * pointsPerSquare(shape, fill, sym);
   const edge = hasEdgeRow(shape, fill) || fill.kind === "grid" ? edgeLength(shape) * c * apart : 0;
   const { cap } = rules;
   // area / d² + edge / d = cap, solved for 1 / d.
@@ -801,6 +809,7 @@ export function shapePlacement(
     ground: around(segments([...follow, ...spokes])),
     imageOfNew,
     keep: pending.lanes.follow ? (a, b) => !alongRun(a, b) : undefined,
+    islandSeed: pending.lanes.islands ? pending.seed : null,
   });
   for (const [a, b] of mesh) pairs.add(a, b);
   if (specOf(pending.shape).connected && pending.lanes.mode !== "off") {

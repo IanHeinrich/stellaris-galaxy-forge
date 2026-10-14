@@ -33,6 +33,9 @@
   {"q": "height", "expect": "edit/heights"},
   {"q": "brush", "expect": "edit/brushes"},
   {"q": "symmetry", "expect": "edit/brushes#use-symmetry"},
+  {"q": "generate lanes like the game", "expect": "edit/shapes#lanes"},
+  {"q": "hyperlanes in clusters like the game", "expect": "edit/hyperlanes#connect-or-cut-several-systems-at-once"},
+  {"q": "make chokepoints between groups of systems", "expect": "edit/shapes#lanes"},
   {"q": "spread systems out", "expect": "edit/brushes#spread-and-gather-systems"},
   {"q": "even out spacing between systems", "expect": "edit/brushes#spread-and-gather-systems"},
   {"q": "systems too close together", "expect": "edit/brushes#spread-and-gather-systems"},
@@ -277,5 +280,6 @@
   {"q": "chokepoints in a ring", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
   {"q": "thick ring of systems", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
   {"q": "make a shape less exact", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
-  {"q": "system in the centre with spokes", "expect": "edit/shapes#a-system-at-the-centre"}
+  {"q": "system in the centre with spokes", "expect": "edit/shapes#a-system-at-the-centre"},
+  {"q": "why is my shape copied several times", "expect": "edit/shapes#use-symmetry-with-a-shape"}
 ]

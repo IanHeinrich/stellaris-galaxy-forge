@@ -39,7 +39,7 @@ describe("the outline's extras", () => {
     );
     expect(open).toEqual([0, 8, 16]);
     const meshed = shapePlacement(
-      { ...gapped, lanes: { follow: true, mode: "new" } },
+      { ...gapped, lanes: { follow: true, mode: "new", islands: false } },
       { ...EMPTY, laneDensity: 1 },
     );
     expect(meshed.pairs.map(key).sort()).toEqual(preview.pairs.map(key).sort());
@@ -63,7 +63,7 @@ describe("the outline's extras", () => {
 
   it("leaves a hollow centre empty, and lines the hole's edge as well as the outside", () => {
     const fill = { kind: "scattered", spacing: 20, edge: true } as const;
-    const lanes = { follow: true, mode: "new" } as const;
+    const lanes = { follow: true, mode: "new", islands: false } as const;
     const r = (p: Pt) => Math.hypot(p.x, p.y);
     const donut = shapePlacement(pending(circle({ hollow: 50 }), { fill, lanes }), EMPTY);
     expect(Math.min(...donut.points.map(r))).toBeGreaterThan(99.99);
@@ -115,7 +115,7 @@ describe("the outline's extras", () => {
         { ...SHAPE_SPECS.spiral.initial, inner: 50 },
         {
           fill: { kind: "outline", count: 40 },
-          lanes: { follow: true, mode: "new" },
+          lanes: { follow: true, mode: "new", islands: false },
           extras: { ...NO_EXTRAS, band: 3, wobble: 50, gaps: 2 },
         },
       ),
@@ -128,7 +128,7 @@ describe("the outline's extras", () => {
 
   it("wobbles a grid inside the shape, the same for the same seed", () => {
     const fill = { kind: "grid", spacing: 25, lattice: "square" } as const;
-    const lanes = { follow: false, mode: "off" } as const;
+    const lanes = { follow: false, mode: "off", islands: false } as const;
     const plain = shapePlacement(pending(circle(), { fill, lanes }), EMPTY);
     const shaken = pending(circle(), { fill, lanes, extras: { ...NO_EXTRAS, wobble: 60 } });
     const wobbled = shapePlacement(shaken, EMPTY);
@@ -143,7 +143,7 @@ describe("gaps across a band", () => {
   it("splits a band in as many parts as it has gaps, the mesh between its strands too", () => {
     const preview = shapePlacement(
       pending(circle(), {
-        lanes: { follow: true, mode: "new" },
+        lanes: { follow: true, mode: "new", islands: false },
         extras: { ...NO_EXTRAS, band: 3, gaps: 2 },
       }),
       { ...EMPTY, laneDensity: 1 },

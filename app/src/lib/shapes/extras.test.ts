@@ -100,7 +100,7 @@ describe("an outline's extras", () => {
 describe("where each extra applies", () => {
   const outline: Fill = { kind: "outline", count: 24 };
   const grid: Fill = { kind: "grid", spacing: 20, lattice: "hex" };
-  const follow: ShapeLanes = { follow: true, mode: "off" };
+  const follow: ShapeLanes = { follow: true, mode: "off", islands: false };
   const at = (shape = RING as typeof RING | typeof SHAPE_SPECS.spiral.initial) => ({
     shape,
     fill: outline,
@@ -213,7 +213,7 @@ describe("Wobble in an arrange", () => {
       purpose: { kind: "arrange", ids: [1, 2], lanes: "keep", alsoOuter: false },
       shape: RING,
       fill: { kind: "outline", count: 2 },
-      lanes: { follow: false, mode: "off" },
+      lanes: { follow: false, mode: "off", islands: false },
       extras: { ...NO_EXTRAS, wobble: 100 },
       skipNear: false,
       seed: SEED,

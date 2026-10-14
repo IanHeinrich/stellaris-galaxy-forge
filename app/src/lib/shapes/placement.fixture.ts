@@ -54,7 +54,7 @@ export function pending(shape: Shape, over: Partial<PendingShape> = {}): Pending
     purpose: { kind: "add" },
     shape,
     fill: { kind: "outline", count: 24 },
-    lanes: { follow: true, mode: "off" },
+    lanes: { follow: true, mode: "off", islands: false },
     extras: NO_EXTRAS,
     skipNear: true,
     seed: 7,

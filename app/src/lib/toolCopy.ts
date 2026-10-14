@@ -82,6 +82,7 @@ export type ToolOption =
   | "density"
   | "lanes"
   | "laneDensity"
+  | "laneIslands"
   | "eraseTarget"
   | "eraseSpecials"
   | "height"
@@ -103,6 +104,10 @@ export const TOOL_OPTIONS: Record<ToolOption, OptionCopy> = {
   laneDensity: {
     label: "Lane density",
     hint: "Set how many lanes are added, from a few with no loops to one to every neighbour.",
+  },
+  laneIslands: {
+    label: "Generate lanes like the game",
+    hint: "Link systems in small clusters joined by single lanes, as the game does, instead of an even mesh.",
   },
   eraseTarget: {
     label: "Target",

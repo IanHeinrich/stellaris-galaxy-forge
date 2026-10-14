@@ -56,7 +56,7 @@ describe("picking the Shape tool", () => {
       purpose: { kind: "add" },
       shape: SHAPE_SPECS.circle.initial,
       fill: { kind: "outline", count: 24 },
-      lanes: { follow: true, mode: "off" },
+      lanes: { follow: true, mode: "off", islands: false },
       extras: NO_EXTRAS,
       skipNear: true,
       stars: { kind: "random" },
@@ -198,13 +198,13 @@ describe("the pending shape", () => {
   it("takes a fill's lane defaults when the fill changes, and holds its numbers to their ranges", () => {
     tools().setFill({ kind: "scattered", spacing: 9000, edge: true });
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 150, edge: true });
-    expect(pending().lanes).toEqual({ follow: false, mode: "new" });
+    expect(pending().lanes).toEqual({ follow: false, mode: "new", islands: false });
     tools().setShapeLanes({ mode: "nearby" });
     tools().setFill({ kind: "scattered", spacing: 40, edge: true });
-    expect(pending().lanes).toEqual({ follow: false, mode: "nearby" });
+    expect(pending().lanes).toEqual({ follow: false, mode: "nearby", islands: false });
     tools().setFill({ kind: "outline", count: 1 });
     expect(pending().fill).toEqual({ kind: "outline", count: 2 });
-    expect(pending().lanes).toEqual({ follow: true, mode: "off" });
+    expect(pending().lanes).toEqual({ follow: true, mode: "off", islands: false });
   });
 
   it("keeps an arc's fill, and refuses a line any fill but the outline", () => {
@@ -228,7 +228,7 @@ describe("the pending shape", () => {
     expect(pending().fill).toEqual({ kind: "grid", spacing: 40, lattice: "hex" });
     tools().setFillChoice("outline");
     expect(pending().fill).toEqual({ kind: "outline", count: 24 });
-    expect(pending().lanes).toEqual({ follow: true, mode: "off" });
+    expect(pending().lanes).toEqual({ follow: true, mode: "off", islands: false });
   });
 
   it("keeps the spacing chosen when the shape grows past it, so it returns as the shape shrinks", () => {
@@ -250,7 +250,7 @@ describe("the pending shape", () => {
 
   it("ignores lane settings that are not lane settings", () => {
     tools().setShapeLanes({ follow: "yes" as unknown as boolean, mode: "new" });
-    expect(pending().lanes).toEqual({ follow: true, mode: "new" });
+    expect(pending().lanes).toEqual({ follow: true, mode: "new", islands: false });
   });
 
   it("rolls a new seed on Shuffle and keeps the shape", () => {
@@ -302,13 +302,13 @@ describe("the memory", () => {
           circle: {
             shape: { ...older, rotation: 359.7, sweep: 180 },
             fill: { kind: "outline", count: 30 },
-            lanes: { follow: false, mode: "nearby" },
+            lanes: { follow: false, mode: "nearby", islands: false },
             extras: { band: 9, gaps: 2.4, wobble: "lots", centre: "middle" },
           },
           rect: {
             shape: { ...SHAPE_SPECS.rect.initial, width: 1020 },
             fill: { kind: "grid", spacing: 400, lattice: "square" },
-            lanes: { follow: false, mode: "new" },
+            lanes: { follow: false, mode: "new", islands: false },
           },
         },
         skipNear: false,
@@ -322,13 +322,13 @@ describe("the memory", () => {
     expect(kinds.circle).toEqual({
       shape: { ...SHAPE_SPECS.circle.initial, rotation: 0, sweep: 180 },
       fill: { kind: "outline", count: 30 },
-      lanes: { follow: false, mode: "nearby" },
+      lanes: { follow: false, mode: "nearby", islands: false },
       extras: { ...NO_EXTRAS, band: 5, gaps: 2 },
     });
     expect(kinds.rect).toEqual({
       shape: { ...SHAPE_SPECS.rect.initial, width: 1000 },
       fill: { kind: "grid", spacing: 150, lattice: "square" },
-      lanes: { follow: false, mode: "new" },
+      lanes: { follow: false, mode: "new", islands: false },
       extras: NO_EXTRAS,
     });
     expect(kinds.spiral.shape).toEqual(SHAPE_SPECS.spiral.initial);
@@ -344,7 +344,7 @@ describe("the memory", () => {
           circle: {
             shape: SHAPE_SPECS.circle.initial,
             fill: { kind: "scattered", spacing: 30 },
-            lanes: { follow: false, mode: "new" },
+            lanes: { follow: false, mode: "new", islands: false },
           },
         },
       }),
@@ -418,7 +418,7 @@ describe("the memory", () => {
     tools().setTool("shape");
     expect(pending().shape).toMatchObject({ kind: "star", points: 7 });
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 40, edge: true });
-    expect(pending().lanes).toEqual({ follow: false, mode: "new" });
+    expect(pending().lanes).toEqual({ follow: false, mode: "new", islands: false });
     expect(tools().shapeMemory.kinds.circle.shape.sweep).toBe(360);
   });
 });
@@ -452,12 +452,12 @@ describe("setting the extras", () => {
 });
 
 describe("a galaxy", () => {
-  it("starts scattered with lanes among its systems, and takes no outline", () => {
+  it("starts scattered with lanes like the game among its systems, and takes no outline", () => {
     tools().setTool("shape");
     tools().setShapeKind("galaxy");
     expect(pending().shape).toMatchObject({ kind: "galaxy", form: "spiral_2" });
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 25, edge: false });
-    expect(pending().lanes).toEqual({ follow: false, mode: "new" });
+    expect(pending().lanes).toEqual({ follow: false, mode: "new", islands: true });
     tools().setFill({ kind: "scattered", spacing: 30, edge: true });
     expect(pending().fill).toEqual({ kind: "scattered", spacing: 30, edge: false });
     tools().setFillChoice("outline");

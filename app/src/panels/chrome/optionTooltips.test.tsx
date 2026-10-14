@@ -88,7 +88,7 @@ function pend(kind: ShapeKind, fill: Fill, purpose: ShapePurpose = { kind: "add"
     purpose,
     shape: SHAPE_SPECS[kind].initial,
     fill,
-    lanes: { follow: true, mode: "new" },
+    lanes: { follow: true, mode: "new", islands: false },
     extras: { ...NO_EXTRAS, band: 2, wobble: 10, centre: "spokes" },
     skipNear: true,
     stars: { kind: "mix", classes: ["sc_g"] },
@@ -134,11 +134,13 @@ describe("the Shape tool's options", () => {
       ["save", SAVE_CAPABILITIES],
     ] as const) {
       useFileSessionStore.setState({ kind, capabilities });
-      useToolStore.setState({ tool: "shape", pendingShape: null });
-      seen.push(options());
-      for (const pending of shapeStates()) {
-        useToolStore.setState({ pendingShape: pending });
+      for (const symmetry of [{ kind: "off" }, { kind: "rotate", n: 4 }] as const) {
+        useToolStore.setState({ tool: "shape", pendingShape: null, symmetry });
         seen.push(options());
+        for (const pending of shapeStates()) {
+          useToolStore.setState({ pendingShape: pending });
+          seen.push(options());
+        }
       }
     }
     for (const html of seen) expect(untitled(html)).toEqual([]);

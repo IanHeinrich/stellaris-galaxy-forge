@@ -55,7 +55,7 @@ function pend(kind: ShapeKind, fill: Fill, over: Partial<PendingShape> = {}): Pe
     purpose: { kind: "add" },
     shape: SHAPE_SPECS[kind].initial,
     fill,
-    lanes: { follow: fill.kind === "outline", mode: "off" },
+    lanes: { follow: fill.kind === "outline", mode: "off", islands: false },
     extras: NO_EXTRAS,
     skipNear: true,
     stars: { kind: "random" },
@@ -117,7 +117,7 @@ describe("the shape options", () => {
           star: {
             shape: SHAPE_SPECS.star.initial,
             fill: { kind: "grid", spacing: 30, lattice: "square" },
-            lanes: { follow: false, mode: "new" },
+            lanes: { follow: false, mode: "new", islands: false },
             extras: NO_EXTRAS,
           },
         },
@@ -148,7 +148,7 @@ describe("the shape options", () => {
       pendingShape: pend(
         "circle",
         { kind: "scattered", spacing: 25, edge: true },
-        { lanes: { follow: true, mode: "new" } },
+        { lanes: { follow: true, mode: "new", islands: false } },
       ),
     });
     const parts = sections(options());
@@ -199,7 +199,7 @@ describe("the shape options", () => {
           rect: {
             shape: SHAPE_SPECS.rect.initial,
             fill: { kind: "scattered", spacing: 25, edge: true },
-            lanes: { follow: true, mode: "new" },
+            lanes: { follow: true, mode: "new", islands: false },
             extras: NO_EXTRAS,
           },
         },
@@ -408,7 +408,7 @@ describe("the shape options", () => {
     useToolStore.setState({
       pendingShape: pend("galaxy", scattered, {
         shape: galaxy,
-        lanes: { follow: false, mode: "new" },
+        lanes: { follow: false, mode: "new", islands: false },
       }),
     });
     const html = options();
@@ -428,7 +428,9 @@ describe("the shape options", () => {
     expect(options()).not.toContain("Lane density");
 
     useToolStore.setState({
-      pendingShape: pend("circle", OUTLINE, { lanes: { follow: true, mode: "new" } }),
+      pendingShape: pend("circle", OUTLINE, {
+        lanes: { follow: true, mode: "new", islands: false },
+      }),
     });
     const html = options();
     expect(html).toContain('<option value="new" selected="">Among new</option>');
@@ -437,7 +439,9 @@ describe("the shape options", () => {
 
   it("show the shape's own Lanes choice, not the paint brush's", () => {
     useToolStore.setState({
-      pendingShape: pend("circle", OUTLINE, { lanes: { follow: true, mode: "new" } }),
+      pendingShape: pend("circle", OUTLINE, {
+        lanes: { follow: true, mode: "new", islands: false },
+      }),
       laneMode: "nearby",
     });
     const html = options();
@@ -600,5 +604,28 @@ describe("the shape options on a save", () => {
     const html = options();
     expect(html).toMatch(/<button[^>]* disabled=""[^>]*>Place 24 systems</);
     expect(html).toContain("None of the ticked stars can be rolled. Tick another.");
+  });
+});
+
+describe("the shape options with symmetry", () => {
+  it("say that the shape is copied while symmetry is on, in Place and Arrange, and say nothing with it off", () => {
+    const arrange = pend("circle", OUTLINE, {
+      purpose: { kind: "arrange", ids: [1, 2], lanes: "keep", alsoOuter: false },
+    });
+    for (const pending of [null, pend("circle", OUTLINE), arrange]) {
+      useToolStore.setState({ pendingShape: pending });
+      useToolStore.getState().setSymmetry({ kind: "off" });
+      expect(options()).not.toContain("Symmetry:");
+
+      useToolStore.getState().setSymmetry({ kind: "rotate", n: 4 });
+      const html = options();
+      expect(html).toMatch(
+        /<span class="tool-hint muted" title="[^"]+">Symmetry: 4-fold rotation, 4 copies<\/span>/,
+      );
+      expect(html.indexOf("Symmetry: 4-fold")).toBeLessThan(html.indexOf('class="shape-foot"'));
+
+      useToolStore.getState().setSymmetry({ kind: "mirror", axis: "y" });
+      expect(options()).toContain("Symmetry: Mirror left–right, 2 copies");
+    }
   });
 });

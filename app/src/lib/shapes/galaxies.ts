@@ -23,13 +23,14 @@ interface Arms extends Band {
 }
 
 /**
- * One galaxy shape as a density over the unit disc, from 0 where a fill keeps no points to 1
- * where it keeps them all. The game builds its shapes in the engine, so nothing in the install
- * describes them: these are look-alikes fitted to galaxies the game generated, whose figures
- * `galaxyStats.json` keeps, with the arms then matched by eye against the same galaxies.
+ * One galaxy shape as a density over the disc of the game's galaxy radius, from 0 where a fill
+ * keeps no points to 1 where it keeps them all. The game builds its shapes in the engine, so
+ * nothing in the install describes them: these are look-alikes fitted to galaxies the game
+ * generated, whose figures `galaxyStats.json` keeps, with the arms then matched by eye against
+ * the same galaxies. A shape lays the map scaled by `galaxyScale`, so it fills its own circle.
  */
 export interface GalaxyMap {
-  /** The empty core: the density rises from nothing at `core[0]` to full at `core[1]`, as shares of the radius. */
+  /** The empty core: the density rises from nothing at `core[0]` to full at `core[1]`, as shares of the game's galaxy radius. */
   core: readonly [number, number];
   /** The rim: the density falls from full at `rim[0]` to nothing at `rim[1]`. */
   rim: readonly [number, number];
@@ -146,9 +147,54 @@ export function mapDensity(map: GalaxyMap, r: number, angle: number): number {
   return radial * armed * sided;
 }
 
-/** The density of galaxy shape `form` at `local`, a point in the shape's own frame in radii. */
+/** How far out a galaxy fills its shape, as a share of the shape's radius: the margin a scattered fill leaves at its edge. */
+const FILLED_TO = 0.98;
+
+/** The share of a map's density inside the radius taken as its outer extent. */
+const EXTENT_SHARE = 0.98;
+
+/** How many rings `galaxyScale` sums a map's density over, out to the game's galaxy radius. */
+const EXTENT_RINGS = 400;
+
+/** How many angles round each ring `galaxyScale` sums. */
+const EXTENT_ANGLES = 180;
+
+const scales = new Map<GalaxyForm, number>();
+
+/**
+ * How many of the game's galaxy radii one radius of a galaxy shape spans: the map's outer extent,
+ * the radius inside which `EXTENT_SHARE` of its density lies, over `FILLED_TO`. The game's
+ * systems never reach its galaxy radius, so a shape scaled by this reaches its own edge, and its
+ * arms wind as far round as the game's do.
+ */
+export function galaxyScale(form: GalaxyForm): number {
+  let scale = scales.get(form);
+  if (scale === undefined) {
+    const map = GALAXY_MAPS[form];
+    const mass = Array.from({ length: EXTENT_RINGS }, (_, i) => {
+      const r = (i + 0.5) / EXTENT_RINGS;
+      let sum = 0;
+      for (let j = 0; j < EXTENT_ANGLES; j++) {
+        sum += mapDensity(map, r, ((j + 0.5) / EXTENT_ANGLES) * 2 * Math.PI);
+      }
+      return r * sum;
+    });
+    const total = mass.reduce((a, b) => a + b, 0);
+    let inside = 0;
+    let ring = 0;
+    while (ring < EXTENT_RINGS - 1 && inside + mass[ring] < EXTENT_SHARE * total)
+      inside += mass[ring++];
+    const extent = (ring + (EXTENT_SHARE * total - inside) / mass[ring]) / EXTENT_RINGS;
+    scale = extent / FILLED_TO;
+    scales.set(form, scale);
+  }
+  return scale;
+}
+
+/** The density of galaxy shape `form` at `local`, a point in the shape's own frame in its radii. */
 export function galaxyDensity(form: GalaxyForm, local: Pt): number {
-  return mapDensity(GALAXY_MAPS[form], Math.hypot(local.x, local.y), Math.atan2(local.y, local.x));
+  const r = Math.hypot(local.x, local.y) * galaxyScale(form);
+  return mapDensity(GALAXY_MAPS[form], r, Math.atan2(local.y, local.x));
 }
 
 /** The radius, in spacings, of the galaxy `keptShare` lays to measure it. */

@@ -100,7 +100,7 @@ describe("bulk lane actions", () => {
     const laneDensity = useMapChromeStore.getState().laneDensity;
     expect(laneDensity).toBe(DEFAULT_LANE_DENSITY);
     const systems = useGalaxyStore.getState().systems;
-    const expected = meshLanes(systems, selection, laneDensity);
+    const expected = meshLanes(systems, selection, laneDensity, false);
     expect(expected.length).toBeGreaterThan(0);
     const existing = linkedPairs(systems, selection).map(([a, b]) => `${a}-${b}`);
     for (const [a, b] of expected) expect(existing).not.toContain(`${a}-${b}`);
@@ -112,6 +112,23 @@ describe("bulk lane actions", () => {
       lanes: expected.map(([a, b]) => ({ a, b, bridge: false })),
     });
     expect(useMapChromeStore.getState().lanePreview).toBeNull();
+  });
+
+  it("connectSelectedMesh lays the island lanes the row counts once the island setting is on", async () => {
+    await editor().selectAll();
+    const { selection } = editor();
+    const systems = useGalaxyStore.getState().systems;
+    const chrome = useMapChromeStore.getState();
+    chrome.setLaneIslands(true);
+    const islands = meshLanes(systems, selection, chrome.laneDensity, true);
+    expect(islands).not.toEqual(meshLanes(systems, selection, chrome.laneDensity, false));
+
+    await editor().connectSelectedMesh();
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "AddLanePairs",
+      lanes: islands.map(([a, b]) => ({ a, b, bridge: false })),
+    });
+    chrome.setLaneIslands(false);
   });
 
   it("setLaneDensity densifies the mesh monotonically", async () => {

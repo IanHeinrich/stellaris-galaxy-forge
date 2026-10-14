@@ -144,7 +144,7 @@ describe("following the shape", () => {
 
   it("joins a star's outline only point to point at the highest Lane density", () => {
     const preview = shapePlacement(
-      pending(star, { fill: outline, lanes: { follow: true, mode: "new" } }),
+      pending(star, { fill: outline, lanes: { follow: true, mode: "new", islands: false } }),
       dense(),
     );
     expect(preview.points).toHaveLength(30);
@@ -153,7 +153,7 @@ describe("following the shape", () => {
 
   it("lets the mesh join a star's outline across its corners without Follow", () => {
     const preview = shapePlacement(
-      pending(star, { fill: outline, lanes: { follow: false, mode: "new" } }),
+      pending(star, { fill: outline, lanes: { follow: false, mode: "new", islands: false } }),
       dense(),
     );
     expect(preview.pairs.length).toBeGreaterThan(30);
@@ -165,7 +165,7 @@ describe("following the shape", () => {
       const preview = shapePlacement(
         pending(circle(), {
           fill: { kind: "scattered", spacing: 25, edge: true },
-          lanes: { follow: true, mode: "new" },
+          lanes: { follow: true, mode: "new", islands: false },
         }),
         { ...dense(), laneDensity },
       );
@@ -177,7 +177,7 @@ describe("following the shape", () => {
   it("keeps every copy's outline to point-to-point lanes under symmetry", () => {
     const off = { ...star, centre: { x: 250, y: 0 }, radius: 100 };
     const preview = shapePlacement(
-      pending(off, { fill: outline, lanes: { follow: true, mode: "new" } }),
+      pending(off, { fill: outline, lanes: { follow: true, mode: "new", islands: false } }),
       dense({ kind: "rotate", n: 3 }),
     );
     expect(preview.points).toHaveLength(90);
@@ -256,7 +256,7 @@ describe("a filled shape", () => {
     const preview = shapePlacement(
       pending(circle({ centre: { x: 60, y: -40 }, radius: 220 }), {
         fill: { kind: "scattered", spacing: 25, edge: true },
-        lanes: { follow: true, mode: "nearby" },
+        lanes: { follow: true, mode: "nearby", islands: false },
       }),
       groundOf(systems),
     );
@@ -282,7 +282,7 @@ describe("a filled shape", () => {
     const systems = [...galaxy];
     const shape = circle({ radius: 340 });
     const fill: Fill = { kind: "scattered", spacing: 15, edge: true };
-    const lanes = { follow: true, mode: "new" } as const;
+    const lanes = { follow: true, mode: "new", islands: false } as const;
     const ground = groundOf(systems);
     shapePlacement(pending(shape, { fill, lanes, skipNear: false }), ground);
     const start = performance.now();
@@ -307,7 +307,7 @@ const onRim = (p: Pt, r: number) => Math.abs(Math.hypot(p.x, p.y) - r) < WRITTEN
 
 describe("a scattered fill's edge row", () => {
   const disc = circle({ radius: 300 });
-  const lanes = { follow: false, mode: "new" } as const;
+  const lanes = { follow: false, mode: "new", islands: false } as const;
   const lined = shapePlacement(
     pending(disc, { fill: { kind: "scattered", spacing: 25, edge: true }, lanes }),
     EMPTY,
@@ -378,7 +378,7 @@ describe("the closest spacing a fill takes", () => {
     "fills the whole of a large circle at it, with no gap before the edge: %o",
     (fill) => {
       const preview = shapePlacement(
-        pending(disc, { fill, lanes: { follow: false, mode: "off" } }),
+        pending(disc, { fill, lanes: { follow: false, mode: "off", islands: false } }),
         EMPTY,
       );
       const used = fillSpacing(disc, fill as SpacedFill, OFF, STATEMENTS);

@@ -1,6 +1,6 @@
 import { useId, type ComponentType, type ReactNode } from "react";
 import { clampTo } from "../../lib/geometry/geometry";
-import type { Symmetry } from "../../lib/geometry/symmetry";
+import { copies, type Symmetry } from "../../lib/geometry/symmetry";
 import { extentOf, reachOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
 import { fillSpacing, hasEdgeRow, leastSpacing } from "../../lib/shapes/placement";
@@ -53,7 +53,7 @@ import type {
   SpacedFill,
 } from "../../lib/shapes/types";
 import { counted } from "../../lib/text";
-import { iconTitle, type Choice } from "../../lib/toolCopy";
+import { iconTitle, TOOL_OPTIONS, type Choice } from "../../lib/toolCopy";
 import { TOOL_ENTRY } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -73,6 +73,7 @@ import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
 import { useGeneratorData } from "../useGeneratorData";
 import { useNamed } from "../useNamed";
+import { choiceOf } from "./symmetryChoices";
 import {
   CheckOption,
   DraftNumber,
@@ -392,7 +393,16 @@ function LaneOptions({
   return (
     <>
       <LaneModeSelect value={lanes.mode} onChange={(mode) => setShapeLanes({ mode })} />
-      {lanes.mode !== "off" && <LaneDensityOption />}
+      {lanes.mode !== "off" && (
+        <>
+          <LaneDensityOption />
+          <CheckOption
+            copy={TOOL_OPTIONS.laneIslands}
+            checked={lanes.islands}
+            onChange={(islands) => setShapeLanes({ islands })}
+          />
+        </>
+      )}
       {hasEdgeRow(settings.shape, fill) && (
         <CheckOption
           copy={SHAPE_OPTIONS.follow}
@@ -749,6 +759,18 @@ const SECTION_BODIES: Record<ShapeSection, ComponentType<SectionProps>> = {
   lanes: LanesSection,
 };
 
+/** Says the shape is being copied, while the global symmetry is on. */
+function SymmetryNote() {
+  const symmetry = useToolStore((s) => s.symmetry);
+  if (symmetry.kind === "off") return null;
+  const { label, hint } = SHAPE_OPTIONS.symmetry;
+  return (
+    <span className="tool-hint muted" title={hint}>
+      {`${label}: ${choiceOf(symmetry).label}, ${counted(copies(symmetry), "copy", "copies")}`}
+    </span>
+  );
+}
+
 /** Two crossing arrows: Shuffle. */
 const SHUFFLE_GLYPH =
   "M2 5h2.2c3.6 0 4 6 7.6 6H14M2 11h2.2c1.4 0 2.3-.9 3-2M8.8 7c.7-1.1 1.6-2 3-2H14M12 3l2 2-2 2M12 9l2 2-2 2";
@@ -783,6 +805,7 @@ export function ShapeOptions() {
         return <Body key={section} section={section} panel={panel} />;
       })}
       {pending && <ExactValues settings={settings} rules={rules} arranging={arranging !== null} />}
+      <SymmetryNote />
       <div className="shape-foot">
         {pending ? (
           <PlaceButton path={path} arranging={arranging !== null}>
