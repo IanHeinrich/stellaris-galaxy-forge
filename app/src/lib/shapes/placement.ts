@@ -592,6 +592,7 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
   for (const [a, b] of follow) pairs.add(a, b);
   const meshPoint = (id: number): MeshPoint => ({ id, x: at(id).x, y: at(id).y });
   const fixed = follow.map(([a, b]) => ({ a: meshPoint(a), b: meshPoint(b) }));
+  const onRow = (id: number) => id < 0 && all.made[from[provisionalIndex(id)]][0] < rowCount;
   const mesh = placedLanes({
     points,
     base: baseKept,
@@ -600,6 +601,7 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
     spacing: shown.spacing,
     ground: fixed.length > 0 ? new FollowGround(placement, fixed) : placement,
     imageOfNew,
+    keep: pending.lanes.follow ? (a, b) => !(onRow(a) && onRow(b)) : undefined,
   });
   for (const [a, b] of mesh) pairs.add(a, b);
 

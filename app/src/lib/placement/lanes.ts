@@ -114,6 +114,8 @@ export interface PlacedLanesInput {
   spacing: number;
   ground: PlacementGround;
   imageOfNew: ImageOfNew;
+  /** Which lanes are wanted at all; under symmetry, every image of a lane must be. */
+  keep?: (a: number, b: number) => boolean;
 }
 
 /**
@@ -121,7 +123,7 @@ export interface PlacedLanesInput {
  * crossing no existing lane. Under symmetry a lane goes in with all its images or not at all.
  */
 export function placedLanes(input: PlacedLanesInput): Pair[] {
-  const { points, base, mode, density, spacing, ground, imageOfNew } = input;
+  const { points, base, mode, density, spacing, ground, imageOfNew, keep } = input;
   if (mode === "off" || points.length === 0) return [];
   const maxLength = LANE_REACH * spacing;
   const existing = ground.lanesNear(points, maxLength);
@@ -132,7 +134,9 @@ export function placedLanes(input: PlacedLanesInput): Pair[] {
     density,
     mode,
     maxLength,
-  }).map(([a, b]) => pairOf(a, b));
+  })
+    .map(([a, b]) => pairOf(a, b))
+    .filter(([a, b]) => !keep || keep(a, b));
   if (!ground.symmetric) return pairs;
   const inFirst = (id: number) => id < 0 && provisionalIndex(id) < base;
   const at = (id: number): Pt => (id < 0 ? points[provisionalIndex(id)] : ground.systems.get(id)!);
@@ -141,5 +145,6 @@ export function placedLanes(input: PlacedLanesInput): Pair[] {
     imageOfNew,
     at,
     existing,
+    keep,
   );
 }

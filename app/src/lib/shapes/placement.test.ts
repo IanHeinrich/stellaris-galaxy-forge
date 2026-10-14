@@ -3,7 +3,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { byId, placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
-import type { Pair } from "../geometry/pairs";
+import { pairOf, type Pair } from "../geometry/pairs";
 import { asWritten, dist2, type Pt, WRITTEN_DRIFT, writtenPt } from "../geometry/pt";
 import { segmentsCross } from "../geometry/segments";
 import type { Symmetry } from "../geometry/symmetry";
@@ -192,6 +192,74 @@ describe("an outline's points and follow lanes", () => {
     const preview = shapePlacement(pending(ring), groundOf(systems));
     expect(preview.left.map((l) => l.blocker)).toEqual([2]);
     expect(preview.points).toHaveLength(23);
+  });
+});
+
+/** How many groups of new points the preview's lanes join. */
+function components(preview: ShapePreview): number {
+  const parent = preview.points.map((_, i) => i);
+  const root = (i: number): number => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+  for (const [a, b] of preview.pairs) {
+    if (a < 0 && b < 0) parent[root(provisionalIndex(a))] = root(provisionalIndex(b));
+  }
+  return new Set(parent.map((_, i) => root(i))).size;
+}
+
+describe("following the shape", () => {
+  const star = { ...SHAPE_SPECS.star.initial, radius: 150 };
+  const outline: Fill = { kind: "outline", count: 30 };
+  const dense = (symmetry: Symmetry = OFF): ShapeGround => ({
+    ...groundOf([], symmetry),
+    laneDensity: 1,
+  });
+  /** The lanes joining each point of a ring of `n` to the next, starting at new point `from`. */
+  const ring = (n: number, from = 0): string[] =>
+    Array.from({ length: n }, (_, i) =>
+      key(pairOf(provisionalId(from + i), provisionalId(from + ((i + 1) % n)))),
+    );
+
+  it("joins a star's outline only point to point at the highest Lane density", () => {
+    const preview = shapePlacement(
+      pending(star, { fill: outline, lanes: { follow: true, mode: "new" } }),
+      dense(),
+    );
+    expect(preview.points).toHaveLength(30);
+    expect(new Set(preview.pairs.map(key))).toEqual(new Set(ring(30)));
+  });
+
+  it("lets the mesh join a star's outline across its corners without Follow", () => {
+    const preview = shapePlacement(
+      pending(star, { fill: outline, lanes: { follow: false, mode: "new" } }),
+      dense(),
+    );
+    expect(preview.pairs.length).toBeGreaterThan(30);
+  });
+
+  it.each([0, DEFAULT_LANE_DENSITY, 1])(
+    "still joins a filled circle's systems to its edge at Lane density %s",
+    (laneDensity) => {
+      const preview = shapePlacement(
+        pending(circle(), {
+          fill: { kind: "scattered", spacing: 25, edge: true },
+          lanes: { follow: true, mode: "new" },
+        }),
+        { ...dense(), laneDensity },
+      );
+      expect(preview.points.length).toBeGreaterThan(100);
+      expect(components(preview)).toBe(1);
+    },
+  );
+
+  it("keeps every copy's outline to point-to-point lanes under symmetry", () => {
+    const off = { ...star, centre: { x: 250, y: 0 }, radius: 100 };
+    const preview = shapePlacement(
+      pending(off, { fill: outline, lanes: { follow: true, mode: "new" } }),
+      dense({ kind: "rotate", n: 3 }),
+    );
+    expect(preview.points).toHaveLength(90);
+    expect(new Set(preview.pairs.map(key))).toEqual(
+      new Set([...ring(30), ...ring(30, 30), ...ring(30, 60)]),
+    );
   });
 });
 
