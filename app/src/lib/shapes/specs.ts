@@ -861,7 +861,7 @@ const GALAXY: ShapeSpec<GalaxyShape> = {
   label: "Galaxy",
   hint: "Lay systems out like one of the game's galaxy shapes, at any size.",
   glyph:
-    "M12.75 4.67C13.76 6.12 12.46 8.78 9.84 10.62C7.21 12.46 4.26 12.77 3.25 11.33C2.24 9.88 3.54 7.22 6.16 5.38C8.79 3.54 11.74 3.23 12.75 4.67M8 8h.01",
+    "M6.75 8a1.25 1.25 0 1 0 2.5 0a1.25 1.25 0 1 0-2.5 0M9.25 8C9.25 5 6 4 2.5 5.5M6.75 8C6.75 11 10 12 13.5 10.5",
   initial: { kind: "galaxy", centre: ORIGIN, radius: 300, rotation: 0, form: "spiral_2" },
   fills: () => SCATTERED_ONLY,
   extras: [],
