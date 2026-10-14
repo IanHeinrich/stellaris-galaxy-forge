@@ -1,6 +1,7 @@
 import type { Capabilities } from "../generated/Capabilities";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { SaveMeta } from "../generated/SaveMeta";
+import { SPAWN_BUFFER } from "../generated/constants";
 import { documentCapabilities, SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "./capabilities";
 import { fileName } from "./paths";
 import { counted } from "./text";
@@ -42,6 +43,8 @@ export interface DocumentKindInfo {
   layers: GalaxyLayers;
   groups: GroupLayout;
   mapEdge: MapEdge;
+  /** The least distance a moved system keeps from another: a save keeps the game's spawn buffer. */
+  systemGap: number;
   lCluster: LClusterGuide;
   /**
    * The kind's static table. Code that needs the open document's capabilities reads the
@@ -129,6 +132,7 @@ export const DOCUMENT_KINDS: Readonly<Record<DocumentKind, DocumentKindInfo>> = 
     layers: SAVE_LAYERS,
     groups: "single",
     mapEdge: "galaxy_radius",
+    systemGap: SPAWN_BUFFER,
     lCluster: "marked_systems",
     capabilities: SAVE_CAPABILITIES,
     paintTarget: false,
@@ -150,6 +154,7 @@ export const DOCUMENT_KINDS: Readonly<Record<DocumentKind, DocumentKindInfo>> = 
     layers: SCENARIO_LAYERS,
     groups: "by_source",
     mapEdge: "scenario_square",
+    systemGap: 0,
     lCluster: "fixed",
     capabilities: SCENARIO_CAPABILITIES,
     paintTarget: true,
@@ -164,6 +169,11 @@ export function kindCapabilities(kind: DocumentKind | null): Capabilities {
   return documentCapabilities({
     capabilities: kind === null ? null : DOCUMENT_KINDS[kind].capabilities,
   });
+}
+
+/** The least distance a moved system keeps from another in a document of `kind`; none with none open. */
+export function systemGap(kind: DocumentKind | null): number {
+  return kind === null ? 0 : DOCUMENT_KINDS[kind].systemGap;
 }
 
 /** Whether a document of `kind` can be written for the Paint a Galaxy mod; never with none open. */

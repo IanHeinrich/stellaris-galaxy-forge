@@ -1,5 +1,6 @@
 import { BRUSH_TOOLS, type BrushTool, type EraseTarget, type StrokeKind } from "./brushTools";
 import { HeightSculpt, type HeightBrush, type HeightsOver } from "./heightBrush";
+import { SpreadSculpt, type MovesOver, type SpreadBrush } from "./spread";
 import { LANE_REACH, laneIndex, meshWithin, placedLanes, type LaneMode } from "../placement/lanes";
 import { PlacementGround } from "../placement/ground";
 import type { Placement } from "../placement/placement";
@@ -16,6 +17,7 @@ import { seeded } from "../random";
 import type { SpatialGrid } from "../spatialGrid";
 import { counted } from "../text";
 import type { HeightPreview } from "../height";
+import type { SystemMove } from "../../generated/SystemMove";
 import type { SystemNode } from "../../generated/SystemNode";
 
 export interface BrushSettings {
@@ -31,6 +33,8 @@ export interface BrushSettings {
   laneDensity: number;
   /** What a height stroke does. */
   height: HeightBrush;
+  /** What a spread stroke does. */
+  spread: SpreadBrush;
 }
 
 /**
@@ -38,14 +42,17 @@ export interface BrushSettings {
  * `points` order, and its lanes may join them to existing systems by their real ids. A
  * connect stroke's pairs join systems it swept; `sparse` is true when the lane density is the
  * only reason it added none. A height stroke's heights are the shown heights it would give the
- * galaxy it began on, and `over` works them out again from the heights an edit finds.
+ * galaxy it began on, and `over` works them out again from the heights an edit finds. A spread
+ * stroke's moves place every system it has moved on the galaxy it began on, symmetric images
+ * included, and `over` lays its passes again over the galaxy an edit finds.
  */
 export type StrokeResult =
   | ({ kind: "paint" } & Placement)
   | { kind: "erase"; doomed: number[]; kept: number[] }
   | { kind: "cut"; lanes: Pair[] }
   | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean }
-  | { kind: "height"; heights: HeightPreview; over: HeightsOver };
+  | { kind: "height"; heights: HeightPreview; over: HeightsOver }
+  | { kind: "move"; moves: SystemMove[]; over: MovesOver; gather: boolean };
 
 /**
  * Where the map draws each system and a grid over those points: where an erase, connect or cut
@@ -104,9 +111,12 @@ class StrokeGround {
   }
 }
 
-/** One kind of stroke: what its stamps take in, and what it would do so far. */
+/**
+ * One kind of stroke: what its stamps take in, and what it would do so far. `amount` is how many
+ * frames the stamps stand for together, which only a stroke that keeps working while held reads.
+ */
 interface Strategy {
-  add(stamps: readonly Pt[]): void;
+  add(stamps: readonly Pt[], amount: number): void;
   result(): StrokeResult;
 }
 
@@ -275,12 +285,34 @@ class HeightStroke implements Strategy {
   }
 }
 
+class SpreadStroke implements Strategy {
+  private readonly sculpt: SpreadSculpt;
+
+  constructor(private readonly ground: StrokeGround) {
+    const { settings, r, systems, grid } = ground;
+    this.sculpt = new SpreadSculpt(settings.spread, r, systems, grid, settings.symmetry);
+  }
+
+  /** One pass per stamp, over the stamp and its images, sharing `amount` between them. */
+  add(stamps: readonly Pt[], amount: number): void {
+    for (const stamp of stamps) {
+      this.sculpt.add(this.ground.images([stamp]), amount / stamps.length);
+    }
+  }
+
+  result(): StrokeResult {
+    const { gather } = this.ground.settings.spread;
+    return { kind: "move", moves: this.sculpt.moves(), over: this.sculpt.over, gather };
+  }
+}
+
 const STRATEGIES: Record<StrokeKind, (ground: StrokeGround, seed: number) => Strategy> = {
   paint: (ground, seed) => new PaintStroke(ground, seed),
   erase: (ground) => new EraseStroke(ground),
   connect: (ground) => new ConnectStroke(ground),
   cut: (ground) => new CutStroke(ground),
   height: (ground) => new HeightStroke(ground),
+  spread: (ground) => new SpreadStroke(ground),
 };
 
 /**
@@ -305,8 +337,9 @@ export class BrushStroke {
     this.strategy = STRATEGIES[kind](ground, seed);
   }
 
-  add(stamps: readonly Pt[]): void {
-    this.strategy.add(stamps);
+  /** `amount`: how many frames the stamps stand for together, for a stroke that works while held. */
+  add(stamps: readonly Pt[], amount = 1): void {
+    this.strategy.add(stamps, amount);
   }
 
   /** What the stroke does so far. */
@@ -332,5 +365,7 @@ export function strokeLabel(result: StrokeResult): string {
         : `+${counted(result.pairs.length, "lane")}`;
     case "height":
       return `↕ ${counted(result.heights.size, "system")}`;
+    case "move":
+      return `${result.gather ? "→←" : "↔"} ${counted(result.moves.length, "system")}`;
   }
 }

@@ -7,13 +7,13 @@ import { counted } from "../lib/text";
 import { systems, type RunEdit } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { islandCount, laneGraph } from "./galaxyStore";
+import { islandCount, laneGraph, useGalaxyStore } from "./galaxyStore";
 import { removeAll } from "./editorStore.remove";
 import { placeSystems } from "./placeSystems";
 
 type BrushActions = Pick<
   EditorState,
-  "paintStroke" | "eraseStroke" | "cutLanes" | "connectStroke" | "joinIslands"
+  "paintStroke" | "eraseStroke" | "cutLanes" | "connectStroke" | "spreadStroke" | "joinIslands"
 >;
 
 export function brushActions(
@@ -46,6 +46,19 @@ export function brushActions(
     async connectStroke(pairs) {
       if (pairs.length === 0) return false;
       return get().applyOp(addLanes(pairs, `Connected ${counted(pairs.length, "lane")}`));
+    },
+
+    async spreadStroke(over, gather) {
+      return get().applyOp(() => {
+        const grid = useGalaxyStore.getState().grid;
+        const moves = grid ? over(systems(), grid) : [];
+        if (moves.length === 0) return null;
+        return {
+          type: "Batch",
+          description: `${gather ? "Gathered" : "Spread"} ${counted(moves.length, "system")}`,
+          ops: [{ type: "MoveSystems", moves }],
+        };
+      });
     },
 
     async joinIslands() {

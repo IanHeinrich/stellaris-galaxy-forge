@@ -12,7 +12,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useHeightPreviewStore } from "../../store/heightPreviewStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { effectiveSpacing, heightBrush, useToolStore } from "../../store/toolStore";
+import { effectiveSpacing, heightBrush, spreadBrush, useToolStore } from "../../store/toolStore";
 import {
   BrushStroke,
   strokeLabel,
@@ -21,9 +21,12 @@ import {
 } from "../../lib/brush/brushStroke";
 import type { Camera } from "../Camera";
 import type { DrawnPositions } from "../drawnPositions";
+import type { MapLayer } from "../layers/MapLayer";
 import type { BrushOverlay, BrushPreview } from "../layers/highlights/BrushOverlay";
 import type { SymmetryGuide } from "../layers/highlights/SymmetryGuide";
 import type { Systems } from "../RenderContext";
+import type { SystemMove } from "../../generated/SystemMove";
+import { showGhosts } from "./moveDrag";
 import { SettlingPreview } from "./settlingPreview";
 
 function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
@@ -38,6 +41,7 @@ function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
     symmetry: t.symmetry,
     laneDensity: useMapChromeStore.getState().laneDensity,
     height: heightBrush(flipped),
+    spread: spreadBrush(flipped),
   };
 }
 
@@ -59,6 +63,16 @@ function ringsAt(at: BrushAt, r: number): RippleRing[] {
 /** Whether a stroke of `settings` drops once, where the button is let go: a ripple does. */
 function dropsOnce(settings: BrushSettings): boolean {
   return settings.tool === "height" && settings.height.mode === "ripple";
+}
+
+/** One frame at 60 Hz, the unit a held stroke's work is measured in, so it runs as fast at any refresh rate. */
+const FRAME_MS = 1000 / 60;
+/** The most frames one stamp stands for, so a stalled tab doesn't jump the stroke on. */
+const MOST_FRAMES = 4;
+
+/** Whether a stroke of `settings` stamps once a frame while held, so holding still keeps working: a spread does. */
+function flows(settings: BrushSettings): boolean {
+  return settings.tool === "spread";
 }
 
 /** Where what a stroke would do draws, `systems` where they draw; a negative id is the stroke's own point. */
@@ -85,6 +99,7 @@ function previewOf(result: StrokeResult, systems: Systems): BrushPreview {
     case "connect":
       return { ...empty, swept: at(result.swept), lanes: segments(result.pairs, existing) };
     case "height":
+    case "move":
       return empty;
   }
 }
@@ -102,6 +117,8 @@ function send(result: StrokeResult): Promise<boolean> {
       return editor.connectStroke(result.pairs);
     case "height":
       return editor.sculptHeights(result.over);
+    case "move":
+      return editor.spreadStroke(result.over, result.gather);
   }
 }
 
@@ -109,7 +126,9 @@ function send(result: StrokeResult): Promise<boolean> {
  * The brush's side of `MapIntent`: the circle at the pointer, one stroke at a time previewed at
  * most once per frame, and the edit it sends on release, whose preview stays until it settles.
  * The height brush previews through the map's height preview, under the resting pointer as well
- * as during a stroke, and a held ripple follows the pointer until it is let go.
+ * as during a stroke, and a held ripple follows the pointer until it is let go. A spread stroke
+ * stamps once a frame, along the way the pointer went or where it rests, and previews the systems
+ * it moves where they would stand.
  */
 export class BrushStrokes {
   private stroke: BrushStroke | null = null;
@@ -119,6 +138,8 @@ export class BrushStrokes {
   private flipped = false;
   /** Lays the held ripple afresh where the pointer is now; null for any other stroke. */
   private redrop: (() => BrushStroke) | null = null;
+  /** Where and when the held flowing stroke last stamped; null for any other stroke. */
+  private flowed: { at: Pt; time: number } | null = null;
   private last: Pt | null = null;
   private at: BrushAt | null = null;
   private frame = 0;
@@ -126,6 +147,8 @@ export class BrushStrokes {
   private settling = false;
   /** The latest height edit sent, so only its landing takes the preview down. */
   private sent = 0;
+  /** Whether moved systems are previewed on the map's layers. */
+  private ghosted = false;
   private readonly preview: SettlingPreview;
 
   constructor(
@@ -133,8 +156,12 @@ export class BrushStrokes {
     private readonly overlay: BrushOverlay,
     private readonly guide: SymmetryGuide,
     private readonly drawn: DrawnPositions,
+    private readonly layers: readonly MapLayer[],
   ) {
-    this.preview = new SettlingPreview(() => overlay.setPreview(null));
+    this.preview = new SettlingPreview(() => {
+      overlay.setPreview(null);
+      this.showMoves([]);
+    });
   }
 
   hover(tool: BrushTool, x: number, y: number, flipped: boolean): void {
@@ -190,8 +217,10 @@ export class BrushStrokes {
     const stroke = () => new BrushStroke(settings, systems, grid, seed, swept);
     this.stroke = stroke();
     this.redrop = dropsOnce(settings) ? stroke : null;
+    this.flowed = null;
     this.hold(settings.symmetry);
     this.last = null;
+    if (flows(settings)) this.flowed = { at: { x, y }, time: performance.now() };
     this.extend(x, y);
   }
 
@@ -202,7 +231,7 @@ export class BrushStrokes {
     if (this.redrop) {
       this.stroke = this.redrop();
       this.stroke.add([next]);
-    } else {
+    } else if (!this.flowed) {
       this.stroke.add(stampsAlong(this.last, next, this.stroke.r));
     }
     this.last = next;
@@ -213,8 +242,10 @@ export class BrushStrokes {
     const stroke = this.stroke;
     if (!stroke) return;
     this.stopFrame();
+    if (this.flowed) this.flow(stroke);
     this.stroke = null;
     this.redrop = null;
+    this.flowed = null;
     this.hold(null);
     const result = stroke.result();
     this.draw(result);
@@ -226,6 +257,7 @@ export class BrushStrokes {
   cancel(): void {
     this.stroke = null;
     this.redrop = null;
+    this.flowed = null;
     this.hold(null);
     this.stopFrame();
     this.preview.drop();
@@ -238,14 +270,39 @@ export class BrushStrokes {
     if (!this.stroke && !this.settling) this.clearHeights();
   }
 
-  /** Draws the held stroke, or the height brush's preview under the pointer, on the next frame. */
+  /**
+   * Draws the held stroke, or the height brush's preview under the pointer, on the next frame. A
+   * flowing stroke stamps first, and asks for the frame after.
+   */
   private requestFrame(): void {
     if (this.frame !== 0) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
-      if (this.stroke) this.draw(this.stroke.result());
-      else this.previewHover();
+      const stroke = this.stroke;
+      if (!stroke) {
+        this.previewHover();
+        return;
+      }
+      if (this.flowed) this.flow(stroke);
+      this.draw(stroke.result());
+      if (this.flowed) this.requestFrame();
     });
+  }
+
+  /**
+   * Stamps the held flowing stroke along the way the pointer went since it last stamped, or
+   * where it rests, as much as the time since then is worth.
+   */
+  private flow(stroke: BrushStroke): void {
+    const from = this.flowed;
+    const to = this.last;
+    if (!from || !to) return;
+    const now = performance.now();
+    const frames = Math.min((now - from.time) / FRAME_MS, MOST_FRAMES);
+    if (frames <= 0) return;
+    const stamps = stampsAlong(from.at, to, stroke.r);
+    stroke.add(stamps.length > 0 ? stamps : [to], frames);
+    this.flowed = { at: to, time: now };
   }
 
   private stopFrame(): void {
@@ -291,8 +348,17 @@ export class BrushStrokes {
     });
   }
 
+  /** Previews moved systems where they would stand; none takes the preview down. */
+  private showMoves(moves: readonly SystemMove[]): void {
+    if (moves.length === 0 && !this.ghosted) return;
+    this.ghosted = moves.length > 0;
+    const ghosts = moves.map((m) => ({ id: m.system, x: m.x, y: m.y }));
+    showGhosts(this.layers, this.drawn, ghosts);
+  }
+
   private draw(result: StrokeResult): void {
     if (result.kind === "height") this.showHeights(result.heights);
+    if (result.kind === "move") this.showMoves(result.moves);
     const drawn = this.drawn.sweptSystems()?.systems ?? useGalaxyStore.getState().systems;
     this.overlay.setPreview(previewOf(result, drawn));
     const at = this.at;

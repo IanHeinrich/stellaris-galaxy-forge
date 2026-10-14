@@ -61,6 +61,7 @@ function models(): Record<Tool, MapModel> & { select: GestureModel } {
     connect: brush("connect"),
     cut: brush("cut"),
     height: brush("height"),
+    spread: brush("spread"),
     shape: new ShapeModel(),
   };
 }
@@ -78,6 +79,7 @@ const PICKS: Record<Tool, Picks> = {
   connect: "nothing",
   cut: "nothing",
   height: "nothing",
+  spread: "nothing",
   shape: "shape",
 };
 
@@ -133,7 +135,7 @@ export class InteractionController {
     private readonly drawn: DrawnPositions,
   ) {
     this.index = new PickIndex(drawn);
-    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide, drawn);
+    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide, drawn, layers);
     this.nebulae = new NebulaDrag(cam, highlights);
     this.feZones = new FeZoneDrag(cam, highlights);
     this.moves = new MoveDrag(layers, drawn);

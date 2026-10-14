@@ -6,6 +6,7 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemMove } from "../generated/SystemMove";
 import type { SystemNode } from "../generated/SystemNode";
 import { pairOf, PairMap, type Pair } from "../lib/geometry/pairs";
+import { orbitsOf, type Orbit } from "../lib/geometry/orbits";
 import { copies, counterpartAt, imageOf, type Symmetry } from "../lib/geometry/symmetry";
 import { enabledScriptFor, nextSystemId } from "../lib/paint";
 import { symmetricCopies } from "../lib/placement/symmetricCopies";
@@ -38,20 +39,6 @@ export function symmetricIds(ids: readonly number[]): number[] {
   return [...out];
 }
 
-interface OrbitMember {
-  id: number;
-  x: number;
-  y: number;
-  /** The copy this member is of its orbit's lead. */
-  k: number;
-}
-
-/** A moved system and its counterparts, where they stood when the move began. */
-interface Orbit {
-  lead: OrbitMember;
-  members: OrbitMember[];
-}
-
 /** Which systems a move carries, and by which image of whose displacement. */
 export interface MovePlan {
   readonly symmetry: Symmetry;
@@ -64,25 +51,8 @@ export interface MovePlan {
  */
 export function movePlan(ids: readonly number[]): MovePlan {
   const sym = symmetry();
-  const all = useGalaxyStore.getState().systems;
-  const placed = new Set<number>();
-  const orbits: Orbit[] = [];
-  for (const id of ids) {
-    const s = all.get(id);
-    if (!s || placed.has(id)) continue;
-    const lead = { id, x: s.x, y: s.y, k: 0 };
-    const members = [lead];
-    placed.add(id);
-    for (let k = 1; k < copies(sym); k++) {
-      const c = imageId(id, k);
-      if (c === null || placed.has(c)) continue;
-      const at = all.get(c)!;
-      members.push({ id: c, x: at.x, y: at.y, k });
-      placed.add(c);
-    }
-    orbits.push({ lead, members });
-  }
-  return { symmetry: sym, orbits };
+  const { systems, grid } = useGalaxyStore.getState();
+  return { symmetry: sym, orbits: orbitsOf(ids, systems, grid, sym) };
 }
 
 /** Every system `plan` carries, each moved by its copy's image of its lead's move in `moves`. */

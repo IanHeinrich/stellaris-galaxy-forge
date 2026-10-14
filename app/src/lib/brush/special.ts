@@ -1,3 +1,4 @@
+import type { CountryNode } from "../../generated/CountryNode";
 import type { SystemNode } from "../../generated/SystemNode";
 import { isLClusterSystem } from "../guides";
 import { isSpawnPoint } from "../spawn";
@@ -23,4 +24,15 @@ export function isSpecialSystem(system: SystemNode): boolean {
     system.bypass_ids.length > 0 ||
     isLClusterSystem(system)
   );
+}
+
+/** The systems empires call home: each country's capital, and a scenario's marked home systems. */
+export function homeSystems(
+  systems: Iterable<SystemNode>,
+  countries: Iterable<CountryNode>,
+): Set<number> {
+  const homes = new Set<number>();
+  for (const c of countries) if (c.capital_system !== null) homes.add(c.capital_system);
+  for (const s of systems) if (s.home_system === true) homes.add(s.id);
+  return homes;
 }

@@ -28,6 +28,7 @@ export const PREF_KEYS = {
   brushLaneMode: "sgf.brush.laneMode",
   eraseTarget: "sgf.brush.eraseTarget",
   eraseSpecials: "sgf.brush.eraseSpecials",
+  spreadSpecials: "sgf.brush.spreadSpecials",
   symmetry: "sgf.brush.symmetry",
   symmetryLast: "sgf.brush.symmetryLast",
   shapeMemory: "sgf.shape.memory",

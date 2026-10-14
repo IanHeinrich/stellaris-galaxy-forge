@@ -1,7 +1,7 @@
 ---
 title: Brushes and symmetry
 description: Connect, cut, paint and erase in broad strokes with the brushes, and mirror or repeat your edits with symmetry.
-aliases: [brush, paint, erase, scatter systems, bulk, symmetry, mirror, rotate, rotation, radial, tool strip]
+aliases: [brush, paint, erase, spread, gather, even spacing, relax, scatter systems, bulk, symmetry, mirror, rotate, rotation, radial, tool strip]
 ---
 # Brushes and symmetry <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -53,6 +53,30 @@ To lay systems out in a ring, a line or a star, use the Shape tool on
 
 The Height brush (<kbd>H</kbd>) is on the
 [System heights](heights.md#shape-heights-with-the-height-brush) page.
+
+## Spread and gather systems
+
+Spread systems (<kbd>R</kbd>) moves the systems under the brush towards
+even spacing. Drag it over a clump to spread the systems out, or over a
+hole to close it up. It adds and removes nothing. Hold the brush still to
+keep spreading. Holding <kbd>Alt</kbd> turns it into Gather, which pulls
+the systems under the brush towards its centre.
+
+Spread has these options:
+
+- Strength sets how far each pass moves a system.
+- Tick Also move special and home systems to let the brush move systems
+  with an initializer, a spawn point, an empire's home or another special
+  role. Leave it unticked to keep them in place.
+
+Lanes stay, and their lengths follow the systems. A move that would make
+two lanes cross stops short, and the brush moves no system further past
+the edge of the map. In a save, the brush stops a system short rather than
+bring it closer than 10 units to another, the gap the game keeps between
+systems it places. Two systems already closer than that can still move
+apart. Under symmetry, each system's copies move with it, and a system on
+a mirror line or at the centre of a rotation stays on it. Each stroke is
+one undo step.
 
 ## Use symmetry <Badge type="info" text="Scenario" />
 

@@ -39,6 +39,9 @@ export const HEIGHT_MODE_HINTS: Record<HeightMode, string> = {
   smooth: "Drag to even out bumps between neighbours.",
 };
 
+export const SPREAD_HINT =
+  "Drag to even out the spacing. Hold still to keep spreading. Alt gathers systems to the centre.";
+
 export const RIPPLE_PRESET_LABELS: Record<RipplePreset, string> = {
   ripples: "Ripples",
   waves: "Waves",

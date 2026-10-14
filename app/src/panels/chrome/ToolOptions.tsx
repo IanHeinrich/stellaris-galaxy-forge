@@ -14,6 +14,7 @@ import {
   HEIGHT_MODE_HINTS,
   HEIGHT_MODE_LABELS,
   RIPPLE_PRESET_LABELS,
+  SPREAD_HINT,
 } from "../../lib/toolCopy";
 import { toCss } from "../../lib/visual/color";
 import {
@@ -27,6 +28,7 @@ import {
   SMOOTH_RANGE,
   SPACING_RANGE,
   SPACING_SLIDER_MAX,
+  SPREAD_RANGE,
   sliderOfSpacing,
   spacingOfSlider,
   useToolStore,
@@ -34,7 +36,13 @@ import {
 import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
 import { ShapeOptions } from "./ShapeOptions";
-import { DraftNumber, LaneDensityOption, LaneModeOption, SliderOption } from "./toolFields";
+import {
+  DraftNumber,
+  LaneDensityOption,
+  LaneModeOption,
+  SliderOption,
+  SpecialsOption,
+} from "./toolFields";
 import "./chrome.css";
 import "../panels.css";
 
@@ -125,15 +133,12 @@ function EraseOptions() {
         Target
         <Select value={eraseTarget} choices={ERASE_TARGET_CHOICES} onChange={setEraseTarget} />
       </label>
-      <label className="tool-option">
-        <input
-          type="checkbox"
-          checked={eraseSpecials}
-          disabled={eraseTarget === "lanes"}
-          onChange={(e) => setEraseSpecials(e.target.checked)}
-        />
-        Also erase special systems
-      </label>
+      <SpecialsOption
+        label="Also erase special systems"
+        checked={eraseSpecials}
+        disabled={eraseTarget === "lanes"}
+        onChange={setEraseSpecials}
+      />
     </>
   );
 }
@@ -291,6 +296,32 @@ function HeightOptions() {
   );
 }
 
+/** The spread brush: its size, how far each pass moves a system, and whether special and home systems move. */
+function SpreadOptions() {
+  const strength = useToolStore((s) => s.spreadStrength);
+  const setStrength = useToolStore((s) => s.setSpreadStrength);
+  const specials = useToolStore((s) => s.spreadSpecials);
+  const setSpecials = useToolStore((s) => s.setSpreadSpecials);
+  return (
+    <>
+      <SizeOption />
+      <SliderOption
+        label="Strength"
+        range={SPREAD_RANGE}
+        value={strength}
+        onChange={setStrength}
+        unit="%"
+      />
+      <SpecialsOption
+        label="Also move special and home systems"
+        checked={specials}
+        onChange={setSpecials}
+      />
+      <span className="tool-hint muted">{SPREAD_HINT}</span>
+    </>
+  );
+}
+
 /** The controls a tool shows while active; null for none. */
 const OPTIONS: Record<Tool, ComponentType | null> = {
   select: null,
@@ -300,6 +331,7 @@ const OPTIONS: Record<Tool, ComponentType | null> = {
   connect: ConnectOptions,
   cut: SizeOption,
   height: HeightOptions,
+  spread: SpreadOptions,
 };
 
 /** The active brush's options, floating over the map's top-left corner beside the tool rail. */

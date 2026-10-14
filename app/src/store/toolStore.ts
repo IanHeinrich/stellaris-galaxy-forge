@@ -7,6 +7,10 @@ import {
   type RipplePreset,
   type RippleShape,
 } from "../lib/brush/heightBrush";
+import { homeSystems } from "../lib/brush/special";
+import type { SpreadBrush } from "../lib/brush/spread";
+import { systemGap } from "../lib/documentKinds";
+import { mapExtent } from "../lib/guides";
 import { LANE_MODES, type LaneMode } from "../lib/placement/lanes";
 import { LEAST_SPACING, MOST_SPACING } from "../lib/placement/limits";
 import { clampTo } from "../lib/geometry/geometry";
@@ -16,6 +20,7 @@ import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
 import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, isOneOf, prefField, type PrefField } from "./prefs";
 import { shapeSlice, type ShapeState } from "./toolStore.shape";
@@ -45,6 +50,8 @@ function roundSpacing(value: number): number {
 export const HEIGHT_SET_RANGE = { min: -200, max: 200, step: 0.1 } as const;
 export const RAISE_RANGE = { min: 1, max: 50 } as const;
 export const SMOOTH_RANGE = { min: 1, max: 100 } as const;
+/** The spread brush's Strength, in percent. */
+export const SPREAD_RANGE = { min: 1, max: 100 } as const;
 /** The ripple's sliders, wide enough for a Dome or Crater at the largest brush. */
 export const RIPPLE_RANGES: Record<keyof RippleShape, { min: number; max: number }> = {
   height: { min: -100, max: 100 },
@@ -117,6 +124,10 @@ export interface ToolState extends ShapeState {
   ripple: RippleShape;
   /** The preset the ripple is, or null once a slider has moved it off one. */
   ripplePreset: RipplePreset | null;
+  /** The spread brush's Strength, in percent. */
+  spreadStrength: number;
+  /** Whether the spread brush moves special and home systems too. */
+  spreadSpecials: boolean;
   /**
    * Switches tool, refusing one the open document cannot take; true when `tool` is now current.
    * Callers check `toolAllowed` first: this does not know which bar is shown.
@@ -141,6 +152,8 @@ export interface ToolState extends ShapeState {
   /** Moves one or more of the ripple's sliders, which leaves any preset. */
   setRipple(change: Partial<RippleShape>): void;
   pickRipplePreset(preset: RipplePreset): void;
+  setSpreadStrength(strength: number): void;
+  setSpreadSpecials(on: boolean): void;
 }
 
 function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
@@ -152,6 +165,7 @@ const SPACING = prefField(PREF_KEYS.brushSpacing, SPACING_RANGE.fallback, isFini
 const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", isOneOf(LANE_MODES));
 const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", isOneOf(ERASE_TARGETS));
 const ERASE_SPECIALS = prefField(PREF_KEYS.eraseSpecials, false, isBoolean);
+const SPREAD_SPECIALS = prefField(PREF_KEYS.spreadSpecials, false, isBoolean);
 const SYMMETRY = prefField(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
 const LAST_SYMMETRY = prefField(PREF_KEYS.symmetryLast, DEFAULT_SYMMETRY, isActiveSymmetry);
 
@@ -177,6 +191,21 @@ export function heightBrush(flipped: boolean): HeightBrush {
     smooth: t.smoothStrength / 100,
     ripple: t.ripple,
     flipped,
+  };
+}
+
+/** The spread brush as the options and the open document stand, Gather while Alt is held. */
+export function spreadBrush(flipped: boolean): SpreadBrush {
+  const t = useToolStore.getState();
+  const { systems, countries, galaxy } = useGalaxyStore.getState();
+  const kind = useFileSessionStore.getState().kind;
+  return {
+    strength: t.spreadStrength / 100,
+    specials: t.spreadSpecials,
+    gather: flipped,
+    edge: mapExtent(kind, galaxy?.galaxy_radius ?? 0),
+    gap: systemGap(kind),
+    homes: homeSystems(systems.values(), countries.values()),
   };
 }
 
@@ -215,6 +244,8 @@ export const useToolStore = create<ToolState>((set, get) => ({
   smoothStrength: 50,
   ripple: presetShape("ripples", SIZE_RANGE.fallback),
   ripplePreset: "ripples",
+  spreadStrength: 50,
+  spreadSpecials: SPREAD_SPECIALS.read(),
   ...shapeSlice(set, get),
 
   setTool(tool) {
@@ -313,6 +344,15 @@ export const useToolStore = create<ToolState>((set, get) => ({
 
   pickRipplePreset(preset) {
     set({ ripple: presetShape(preset, get().size), ripplePreset: preset });
+  },
+
+  setSpreadStrength(strength) {
+    set({ spreadStrength: clampTo(Math.round(strength), SPREAD_RANGE) });
+  },
+
+  setSpreadSpecials(spreadSpecials) {
+    set({ spreadSpecials });
+    SPREAD_SPECIALS.save(spreadSpecials);
   },
 
   toggleSymmetry() {
