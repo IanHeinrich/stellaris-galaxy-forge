@@ -63,7 +63,7 @@ export function AddSystemItems({ x, y }: { x: number; y: number }) {
   const setPreview = useMapChromeStore((s) => s.setAddSystemPreview);
   const refusal = useAddSystemRefusal(x, y);
   const tooClose = refusal?.limit === "tooClose";
-  const edge = refusal?.limit === "outside" ? refusal.radius : null;
+  const edge = refusal?.limit === "outside" ? refusal.reach : null;
 
   useEffect(() => {
     setPreview({ x, y, tooClose, edge });

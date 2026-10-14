@@ -2,7 +2,7 @@ import type { Capabilities } from "../../generated/Capabilities";
 import { SAVE_SHAPE_CAP, SPAWN_BUFFER } from "../../generated/constants";
 import { documentCapabilities } from "../capabilities";
 import type { MapEdge } from "../documentKinds";
-import { extentOf, type MapExtent } from "../guides";
+import { reachOf, type MapExtent } from "../guides";
 import { SAMPLE_CAP } from "./limits";
 
 /** How a document's systems are written: a scenario's as statements, a save's rolled by the generator. */
@@ -14,7 +14,7 @@ export interface PlacementRules {
   cap: number;
   /** The least distance between a new or moved system and any other. */
   minGap: number;
-  /** The edge points past which are left out. */
+  /** The map's edge, which `reachOf` widens to how far out points may stand before they are left out. */
   edge: MapEdge;
 }
 
@@ -26,7 +26,7 @@ export const PLACEMENT_RULES: Record<PlacementPath, PlacementRules> = {
 /**
  * The path a document with `c` writes its systems by, which holds a move as much as a placement:
  * a save that takes no added systems, such as a 3.x save, still keeps the spawn buffer and the
- * galaxy's edge when its systems move.
+ * galaxy's reach when its systems move.
  */
 export function systemsPath(c: Capabilities): PlacementPath {
   return c.create_systems ? "statements" : "rolled";
@@ -43,7 +43,7 @@ export function shapePath(capabilities: Capabilities | null): PlacementPath | nu
   return placementPath(documentCapabilities({ capabilities }));
 }
 
-/** What a moved system stays within in a document: the map's edge, null when it records none, and the gap to others. */
+/** What a moved system stays within in a document: how far out it may stand, null when the document records no edge, and the gap to others. */
 export interface PlacementBounds {
   edge: MapExtent | null;
   gap: number;
@@ -55,5 +55,5 @@ export function placementBounds(
   radius: number,
 ): PlacementBounds {
   const rules = PLACEMENT_RULES[systemsPath(documentCapabilities({ capabilities }))];
-  return { edge: extentOf(rules.edge, radius), gap: rules.minGap };
+  return { edge: reachOf(rules.edge, radius), gap: rules.minGap };
 }

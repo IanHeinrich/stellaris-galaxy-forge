@@ -1,7 +1,7 @@
 import type { Capabilities } from "../generated/Capabilities";
 import type { SystemNode } from "../generated/SystemNode";
 import type { Symmetry } from "../lib/geometry/symmetry";
-import { extentOf } from "../lib/guides";
+import { reachOf } from "../lib/guides";
 import { needsGameData } from "../lib/text";
 import { PlacementGround } from "../lib/placement/ground";
 import { arrangement } from "../lib/shapes/arrange";
@@ -82,7 +82,7 @@ function groundOf(inputs: Inputs, pending: PendingShape): ShapeGround | null {
   const path = shapePath(inputs.capabilities);
   if (grid === null || path === null) return null;
   const rules = PLACEMENT_RULES[path];
-  const extent = extentOf(rules.edge, radius);
+  const extent = reachOf(rules.edge, radius);
   if (extent === null) return null;
   return {
     placement: placementGround(inputs.systems, grid, inputs.symmetry),

@@ -74,10 +74,11 @@ cross any others. Or undo the edit that split them.
 
 ## Positions and space
 
-### System outside the galaxy edge
+### System far outside the galaxy edge
 
-The system is further from the centre than the galaxy's own radius,
-outside the edge the map draws. Drag it back inside the galaxy edge.
+The system stands more than half again the galaxy's radius out. The
+editor places and moves systems only that far. Drag it in towards the
+galaxy edge.
 
 ### Positions shifted before the game reads them
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../capabilities";
 import { DOCUMENT_KINDS } from "../documentKinds";
-import { SPAWN_BUFFER } from "../../generated/constants";
+import { GALAXY_REACH, SPAWN_BUFFER } from "../../generated/constants";
 import { PLACEMENT_RULES, placementBounds, placementPath } from "./rules";
 
 /** A 3.x save's capabilities: the 4.x set with everything that writes whole entries off. */
@@ -23,8 +23,8 @@ describe("a shape's placement rules", () => {
 });
 
 describe("a document's placement bounds", () => {
-  it("keep a save's moves inside the galaxy's radius and the spawn buffer apart, 3.x as 4.x", () => {
-    const save = { edge: { shape: "circle", radius: 600 }, gap: SPAWN_BUFFER };
+  it("keep a save's moves within half again the galaxy's radius and the spawn buffer apart, 3.x as 4.x", () => {
+    const save = { edge: { shape: "circle", radius: 600 * GALAXY_REACH }, gap: SPAWN_BUFFER };
     expect(placementBounds(SAVE_CAPABILITIES, 600)).toEqual(save);
     expect(placementBounds(OLD_SAVE, 600)).toEqual(save);
     expect(placementBounds(OLD_SAVE, 0).edge).toBeNull();

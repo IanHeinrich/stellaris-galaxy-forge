@@ -195,6 +195,21 @@ describe("placing a shape in a save", () => {
     expect(ids()).toEqual(SYSTEMS.map((s) => s.id));
   });
 
+  it("previews and places the points out to half again the galaxy's radius, and leaves out those beyond", async () => {
+    // The fixture's radius is 60, so a system may stand up to 90 out; this ring reaches 100.
+    tools().drawShape({ x: 60, y: 0 }, { x: 100, y: 0 }, { snap: false, constrain: false });
+    const shown = shapePreview()!;
+    const out = (p: { x: number; y: number }) => Math.hypot(p.x, p.y);
+    expect(shown.points.some((p) => out(p) > 60)).toBe(true);
+    expect(shown.points.every((p) => out(p) <= 90)).toBe(true);
+    expect(shown.outside.length).toBeGreaterThan(0);
+    expect(shown.outside.every((p) => out(p) > 90)).toBe(true);
+
+    expect(await editor().placePendingShape()).toBe(true);
+    const [[args]] = mockedIpc.addRandomSystems.mock.calls;
+    expect(args.systems.map(({ x, y }) => ({ x, y }))).toEqual(shown.points);
+  });
+
   it("gives the shape back when the save refuses it", async () => {
     mockedIpc.addRandomSystems.mockRejectedValueOnce(new Error("Too close"));
     const before = tools().pendingShape;

@@ -1,7 +1,7 @@
 ---
 title: Select and move systems
 description: Select one or many systems and move them to a new place on the galaxy map.
-aliases: [move system, drag star, relocate, reposition, nudge, position, coordinates, selection box, multi select]
+aliases: [move system, drag star, relocate, reposition, nudge, position, coordinates, selection box, multi select, galaxy edge, outside the galaxy]
 ---
 # Select and move systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -24,5 +24,16 @@ Inspector's Overview tab. A moved system keeps its hyperlanes and their lengths 
 Its planets and fleets move with it.
 
 ![A system's Overview tab in the Inspector, with its Position fields, Height slider, hyperlanes and planets](../images/edit/system-inspector.png)
+
+## Place systems outside the galaxy edge
+
+In a save, you can place and move systems past the galaxy edge, out to
+half again the galaxy's radius. The game puts some systems past the edge
+itself, such as the L-Cluster's. The map still draws the edge at the
+galaxy's radius.
+
+A move further out than that is refused. A system that already stands
+further out can still move, as long as it moves no further out. In a
+scenario, systems stay inside the square the map draws.
 
 To remove systems, see [Delete systems](add-systems.md#delete-systems).

@@ -38,6 +38,8 @@ A special system you add comes without some of what the game gives it:
 
 A system added inside a nebula joins it.
 
+A system can stand past the edge, out to half again the galaxy's radius. See [Place systems outside the galaxy edge](select-and-move.md#place-systems-outside-the-galaxy-edge).
+
 ## Reroll an added system <Badge type="tip" text="Save" />
 
 Reroll on an added system's page rolls new planets around the same

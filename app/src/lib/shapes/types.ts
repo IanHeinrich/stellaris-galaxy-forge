@@ -263,7 +263,7 @@ export interface Arrangement {
 export interface ShapeGround {
   /** The existing systems, their grid and the symmetry. */
   placement: PlacementGround;
-  /** The map's edge, the rules' edge at the galaxy's radius: points past it go to `outside`. */
+  /** How far out a point may stand, the rules' edge widened to the galaxy's reach: points past it go to `outside`. */
   extent: MapExtent;
   /** The cap, least gap and edge of the path the shape takes into the document. */
   rules: PlacementRules;

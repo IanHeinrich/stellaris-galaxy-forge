@@ -5,8 +5,8 @@
 use sgf_core::ops::{LaneLength, LanePair, Op, OpError, SystemMove};
 
 use crate::common;
-use common::diff::{report, snapshot};
-use common::{current, open};
+use common::diff::{report, round_trip, snapshot};
+use common::{current, open, open_edited};
 
 #[test]
 fn a_move_rewrites_every_lane_length_on_both_ends() {
@@ -19,6 +19,108 @@ fn a_move_rewrites_every_lane_length_on_both_ends() {
             y: 60.0,
         },
     );
+}
+
+/// The 4.4 sample's galaxy radius is 499.9288, so a system may stand up to 749.89 out.
+#[test]
+fn a_move_goes_up_to_half_again_past_the_galaxy_radius() {
+    let to = |x: f64| Op::MoveSystem {
+        system: 0,
+        x,
+        y: 0.0,
+    };
+    round_trip(open(), to(700.0));
+    round_trip(
+        open(),
+        Op::MoveSystems {
+            moves: vec![
+                SystemMove {
+                    system: 0,
+                    x: 0.0,
+                    y: -700.0,
+                },
+                SystemMove {
+                    system: 1,
+                    x: 0.0,
+                    y: 700.0,
+                },
+            ],
+        },
+    );
+
+    let mut session = open();
+    let error = session.apply(to(800.0)).expect_err("past the reach");
+    assert!(
+        matches!(error, OpError::OutsideGalaxy { radius, limit, .. }
+            if radius == 499.9288 && (limit - 749.8932).abs() < 1e-9),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.to_string(),
+        "(800, 0) is too far outside the galaxy: a system may stand up to 749.89 from the centre, and the galaxy's radius is 499.93"
+    );
+    let error = session
+        .apply(Op::MoveSystems {
+            moves: vec![
+                SystemMove {
+                    system: 1,
+                    x: 0.0,
+                    y: 700.0,
+                },
+                SystemMove {
+                    system: 0,
+                    x: 0.0,
+                    y: -800.0,
+                },
+            ],
+        })
+        .expect_err("one past the reach");
+    assert!(matches!(error, OpError::OutsideGalaxy { .. }), "{error:?}");
+    assert!(!session.doc().is_dirty(), "a refusal wrote bytes");
+}
+
+#[test]
+fn a_system_already_past_the_reach_moves_so_long_as_it_goes_no_further_out() {
+    let far = || {
+        open_edited(|text| {
+            *text = text.replacen(
+                "
+	0=
+	{
+		coordinate=
+		{
+			x=-144.22
+			y=57.36
+",
+                "
+	0=
+	{
+		coordinate=
+		{
+			x=-850
+			y=0
+",
+                1,
+            );
+        })
+    };
+    assert_eq!(far().graph().systems[&0].x, -850.0);
+    round_trip(
+        far(),
+        Op::MoveSystem {
+            system: 0,
+            x: -800.0,
+            y: 0.0,
+        },
+    );
+    let error = far()
+        .apply(Op::MoveSystem {
+            system: 0,
+            x: -860.0,
+            y: 0.0,
+        })
+        .expect_err("further out");
+    assert!(matches!(error, OpError::OutsideGalaxy { .. }), "{error:?}");
 }
 
 #[test]

@@ -63,7 +63,7 @@ const MARQUEE = { color: ACCENT_COLOR, strokeAlpha: 0.9, fillAlpha: 0.08 };
 const GHOST_RING = { color: NEBULA_COLOR, alpha: 0.9 };
 const GHOST_RING_DASHES = 48;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
-/** Where a system is being added: the spawn buffer, clear or not, and the galaxy's edge it is past. */
+/** Where a system is being added: the spawn buffer, clear or not, and how far out a system may stand when it is past it. */
 const ADD_CLEAR = { color: ALLOWED_COLOR, alpha: 0.9 };
 const ADD_REFUSED = { color: REFUSED_COLOR, alpha: 0.9 };
 const ADD_BUFFER_DASHES = 24;

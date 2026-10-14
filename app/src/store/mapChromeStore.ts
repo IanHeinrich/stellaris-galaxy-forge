@@ -84,14 +84,14 @@ export type MapTooltipLine =
 
 /**
  * What the map draws while the menu on empty space offers to add a system there: the game's spawn
- * buffer around the point, and the galaxy's edge when the point is past it.
+ * buffer around the point, and how far out a system may stand when the point is past it.
  */
 export interface AddSystemPreview {
   x: number;
   y: number;
   /** Another system is inside the buffer. */
   tooClose: boolean;
-  /** The galaxy's radius, set only when the point is past the edge. */
+  /** How far from the centre a system may stand, set only when the point is past it. */
   edge: number | null;
 }
 

@@ -157,8 +157,15 @@ pub enum OpError {
     TooClose { id: u32, distance: f64 },
     #[error("{count} systems are more than the {cap} one add writes into a save")]
     TooManySystems { count: usize, cap: usize },
-    #[error("({x}, {y}) is outside the galaxy's radius of {radius}")]
-    OutsideGalaxy { x: f64, y: f64, radius: f64 },
+    #[error(
+        "({x}, {y}) is too far outside the galaxy: a system may stand up to {limit:.2} from the centre, and the galaxy's radius is {radius:.2}"
+    )]
+    OutsideGalaxy {
+        x: f64,
+        y: f64,
+        radius: f64,
+        limit: f64,
+    },
     #[error("{0} cannot have moons")]
     MoonsNotAllowed(&'static str),
     #[error("{0} cannot be an asteroid")]

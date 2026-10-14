@@ -378,13 +378,13 @@ function resizedWithin(shape: Shape, want: number): Shape {
   return at(fits);
 }
 
-/** The open document's edge, null when it records none, and the gap a placed or moved system keeps. */
+/** How far out a placed or moved system may stand in the open document, null when it records no edge, and the gap it keeps. */
 export function placementBoundsNow(): PlacementBounds {
   const radius = useGalaxyStore.getState().galaxy?.galaxy_radius ?? 0;
   return placementBounds(useFileSessionStore.getState().capabilities, radius);
 }
 
-/** The open document's edge; null when it records none. */
+/** How far out a system may stand in the open document; null when it records no edge. */
 function extentNow(): MapExtent | null {
   return placementBoundsNow().edge;
 }

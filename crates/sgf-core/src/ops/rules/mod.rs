@@ -13,6 +13,8 @@ pub(crate) mod modifiers;
 pub(crate) mod nebula;
 pub(crate) mod systems;
 
+pub use systems::GALAXY_REACH;
+
 use std::collections::BTreeSet;
 
 use crate::cst::{self, Node};

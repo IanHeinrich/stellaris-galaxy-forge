@@ -15,6 +15,9 @@ use crate::views::{DocumentKind, OrbitPlacement};
 #[ts(export)]
 #[serde(tag = "type")]
 pub enum Op {
+    /// A system put at (x, y). In a save, a point farther from the centre than
+    /// [`crate::ops::rules::GALAXY_REACH`] times the galaxy's radius is refused, unless the
+    /// system already stands past that and goes no further out. Its own inverse.
     MoveSystem {
         system: u32,
         x: f64,
@@ -52,7 +55,8 @@ pub enum Op {
         system: u32,
     },
     /// Several systems moved as one; every lane touching any of them gets its length
-    /// recomputed from the new positions of both ends.
+    /// recomputed from the new positions of both ends. A save refuses the whole move when one
+    /// system would go past the galaxy's reach, as [`Op::MoveSystem`] does.
     MoveSystems {
         moves: Vec<SystemMove>,
     },
@@ -403,7 +407,9 @@ pub enum Op {
     /// must be the number of systems the save holds; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
     /// names, or failing that of black hole names, when one holds it. A system standing
-    /// in a nebula's radius joins that nebula, as a system moved there does. The inverse
+    /// in a nebula's radius joins that nebula, as a system moved there does. A point farther
+    /// from the centre than [`crate::ops::rules::GALAXY_REACH`] times the galaxy's radius is
+    /// refused. The inverse
     /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only.
     AddSystemFromSpec {
         spec: SystemSpec,

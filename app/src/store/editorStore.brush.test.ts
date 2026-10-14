@@ -25,7 +25,7 @@ import { mockedIpc } from "../test/ipc";
 import { flush } from "../test/flush";
 import type { EditResult } from "../generated/EditResult";
 import { BRUSH_SETTINGS } from "../test/brush";
-import { DEFAULT_SYSTEM_HEIGHT, SPAWN_BUFFER } from "../generated/constants";
+import { DEFAULT_SYSTEM_HEIGHT, GALAXY_REACH, SPAWN_BUFFER } from "../generated/constants";
 
 const ERASE: BrushSettings = {
   ...BRUSH_SETTINGS,
@@ -491,11 +491,11 @@ describe("a spread stroke", () => {
     }
   });
 
-  it("on a save, keeps the spawn buffer between systems and the galaxy's radius as its edge", async () => {
+  it("on a save, keeps the spawn buffer between systems and half again the galaxy's radius as its edge", async () => {
     await openFixtureSave();
     const radius = useGalaxyStore.getState().galaxy!.galaxy_radius;
     expect(radius).toBeGreaterThan(0);
-    const bounds = { gap: SPAWN_BUFFER, edge: { shape: "circle", radius } };
+    const bounds = { gap: SPAWN_BUFFER, edge: { shape: "circle", radius: radius * GALAXY_REACH } };
     expect(placementBoundsNow()).toEqual(bounds);
     expect(spreadBrush(false)).toMatchObject(bounds);
   });

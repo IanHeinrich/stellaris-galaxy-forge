@@ -49,7 +49,7 @@ fn what_the_op_refuses() {
     let cases: Vec<Case> = vec![
         (|s| s.x = f64::NAN, |e| matches!(e, OpError::NotFinite)),
         (
-            |s| s.x = 700.0,
+            |s| (s.x, s.y) = (800.0, 0.0),
             |e| matches!(e, OpError::OutsideGalaxy { .. }),
         ),
         (
@@ -179,6 +179,20 @@ fn what_the_op_refuses() {
     }
     assert!(!session.doc().is_dirty(), "a refusal wrote bytes");
     assert!(session.history().undo.is_empty(), "a refusal made history");
+}
+
+/// The 4.4 sample's galaxy radius is 499.9288, so a system may stand up to 749.89 out.
+#[test]
+fn a_system_is_added_up_to_half_again_past_the_galaxy_radius() {
+    let at = |x: f64| SystemSpec {
+        x,
+        y: 0.0,
+        lanes: vec![],
+        ..dorellion()
+    };
+    round_trip(open(), add(at(700.0)));
+    let error = refused(open(), at(800.0));
+    assert!(matches!(error, OpError::OutsideGalaxy { .. }), "{error:?}");
 }
 
 #[test]
