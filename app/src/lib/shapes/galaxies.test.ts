@@ -3,9 +3,11 @@ import { placedNode } from "../../test/builders";
 import { componentCount } from "../geometry/joinIslands";
 import type { Pt } from "../geometry/pt";
 import { provisionalId, provisionalIndex } from "../placement/lanes";
+import type { Symmetry } from "../geometry/symmetry";
+import { ROTATION_ORDERS } from "../geometry/symmetry";
 import { arrangeSpacing } from "./arrange";
 import { toLocal } from "./frame";
-import { GALAXY_FORMS } from "./galaxies";
+import { GALAXY_FORMS, galaxyScale } from "./galaxies";
 import STATS from "./galaxyStats.json";
 import { fillSpacing, laidCount, shapePlacement } from "./placement";
 import {
@@ -70,9 +72,15 @@ function laidLikeTheSave(form: GalaxyForm): ShapePreview {
   return shapePlacement(pending(galaxy(form), spacing), groundOf([], OFF, rules));
 }
 
-/** Each point's distance from the centre and angle round it, in radii and radians. */
-function polar(points: readonly Pt[]): Array<{ r: number; t: number }> {
-  return points.map((p) => ({ r: Math.hypot(p.x, p.y) / RADIUS, t: Math.atan2(p.y, p.x) }));
+/**
+ * Each point's distance from the centre and angle round it, in radians and in the shape's radii,
+ * or with `scale`, as `galaxyScale` gives it, in the game's galaxy radii as the saves measure them.
+ */
+function polar(points: readonly Pt[], scale = 1): Array<{ r: number; t: number }> {
+  return points.map((p) => ({
+    r: (Math.hypot(p.x, p.y) / RADIUS) * scale,
+    t: Math.atan2(p.y, p.x),
+  }));
 }
 
 function radial(at: ReadonlyArray<{ r: number }>): number[] {
@@ -114,15 +122,15 @@ function windingOf(at: ReadonlyArray<{ r: number; t: number }>, m: number): numb
   return best;
 }
 
-/** The share of `preview`'s lanes whose middle lies in the quarter of a turn between arms. */
-function gapLanes(preview: ShapePreview, m: number, wind: number): number {
-  const at = polar(preview.points);
+/** The share of `preview`'s lanes whose middle lies in the quarter of a turn between arms, the arms measured in the game's galaxy radii. */
+function gapLanes(preview: ShapePreview, m: number, wind: number, scale: number): number {
+  const at = polar(preview.points, scale);
   const { re, im } = harmonic(at, m, wind);
   const phase = Math.atan2(im, re);
   const between = preview.pairs.filter(([a, b]) => {
     const p = preview.points[provisionalIndex(a)];
     const q = preview.points[provisionalIndex(b)];
-    const [mid] = polar([{ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }]);
+    const [mid] = polar([{ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }], scale);
     const d = m * (mid.t - wind * mid.r) - phase;
     return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > 0.75 * Math.PI;
   });
@@ -144,9 +152,13 @@ describe("a galaxy's density map, against galaxies the game generated", () => {
   it.each(GALAXY_FORMS)("lays %s as the game does", (form) => {
     const save = SAVES[form];
     const preview = laidLikeTheSave(form);
-    const at = polar(preview.points);
+    // Measured in the game's galaxy radii, as the saves are.
+    const scale = galaxyScale(form);
+    const at = polar(preview.points, scale);
     expect(Math.abs(at.length - save.systems)).toBeLessThan(save.systems * 0.15);
-    expect(at.every(({ r }) => r <= 1)).toBe(true);
+    const furthest = Math.max(...polar(preview.points).map(({ r }) => r));
+    expect(furthest).toBeGreaterThanOrEqual(0.95);
+    expect(furthest).toBeLessThanOrEqual(1);
     expect(components(preview)).toBe(1);
     radial(at).forEach((share, i) =>
       expect(Math.abs(share - save.radial[i])).toBeLessThan(RADIAL_GAP),
@@ -160,7 +172,9 @@ describe("a galaxy's density map, against galaxies the game generated", () => {
       expect(Math.abs(amplitude(at, arms.count, arms.wind) - arms.amplitude)).toBeLessThan(
         AMPLITUDE_GAP,
       );
-      expect(gapLanes(preview, arms.count, arms.wind)).toBeLessThan(arms.gapLanes + GAP_LANES_OVER);
+      expect(gapLanes(preview, arms.count, arms.wind, scale)).toBeLessThan(
+        arms.gapLanes + GAP_LANES_OVER,
+      );
     } else {
       for (const m of [1, 2, 3, 4, 6]) expect(amplitude(at, m, 0)).toBeLessThan(AMPLITUDE_GAP);
     }
@@ -191,7 +205,7 @@ describe("a galaxy's fill", () => {
     const here = shapePlacement(pending(shape, 15, { fill: lined }), EMPTY);
     const turned = { ...shape, centre: { x: 40, y: -25 }, rotation: 90 };
     const there = shapePlacement(pending(turned, 15, { fill: lined }), EMPTY);
-    expect(here.points.every((p) => Math.hypot(p.x, p.y) < 0.95 * 200)).toBe(true);
+    expect(here.points).toEqual(shapePlacement(pending(shape, 15), EMPTY).points);
     expect(there.points).toHaveLength(here.points.length);
     const own = (s: GalaxyShape) => (p: Pt) =>
       toLocal({ origin: s.centre, rotation: s.rotation }, p);
@@ -236,6 +250,37 @@ describe("a galaxy's fill", () => {
       const spacing = arrangeSpacing(shown, ROLLED, n);
       expect(spacing).not.toBeNull();
       expect(laidCount(shown, OFF, { ...ROLLED, cap: n }, spacing!)).toBe(n);
+    }
+  });
+});
+
+describe("a galaxy under symmetry", () => {
+  it("fills out as far as without it at the closest spacing, under each mirror and rotation", () => {
+    const rules = { ...STATEMENTS, cap: 300 };
+    const lanes = { follow: false, mode: "off" } as const;
+    const symmetries: Symmetry[] = [
+      { kind: "mirror", axis: "x" },
+      ...ROTATION_ORDERS.map((n): Symmetry => ({ kind: "rotate", n })),
+    ];
+    const reach = (form: GalaxyForm, sym: Symmetry) => {
+      const shape = galaxy(form);
+      const spacing = fillSpacing(shape, scattered(1), sym, rules);
+      const preview = shapePlacement(pending(shape, spacing, { lanes }), groundOf([], sym, rules));
+      return {
+        capped: preview.capped,
+        rim: percentile(
+          polar(preview.points).map((p) => p.r),
+          0.95,
+        ),
+      };
+    };
+    for (const form of GALAXY_FORMS) {
+      const off = reach(form, OFF).rim;
+      for (const sym of symmetries) {
+        const { capped, rim } = reach(form, sym);
+        expect({ form, sym, capped }).toEqual({ form, sym, capped: false });
+        expect(Math.abs(rim - off)).toBeLessThan(CORE_GAP);
+      }
     }
   });
 });
