@@ -1,3 +1,4 @@
+import { shortcutLabel } from "../keys";
 import { counted, listed, thousands } from "../text";
 import type { OptionCopy } from "../toolCopy";
 import { PLACEMENT_RULES, type PlacementPath } from "../placement/rules";
@@ -86,7 +87,8 @@ export type ShapeOption =
   | "exact"
   | "centreAt"
   | "alsoOuter"
-  | "galaxyForm";
+  | "galaxyForm"
+  | "symmetry";
 
 export const SHAPE_OPTIONS: Record<ShapeOption, OptionCopy> = {
   size: { label: "Size", hint: "Make the shape larger or smaller." },
@@ -130,6 +132,10 @@ export const SHAPE_OPTIONS: Record<ShapeOption, OptionCopy> = {
   galaxyForm: {
     label: "Galaxy shape",
     hint: "Choose which of the game's galaxy shapes to lay the systems out in.",
+  },
+  symmetry: {
+    label: "Symmetry",
+    hint: `Every system in the shape is copied this way. Turn symmetry off with ${shortcutLabel("toggleSymmetry")} or the Symmetry button under the tools.`,
   },
 };
 

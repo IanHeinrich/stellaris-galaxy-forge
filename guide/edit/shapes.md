@@ -238,7 +238,8 @@ system are left out either way.
 
 [Symmetry](brushes.md#use-symmetry) copies the shape around the centre of
 the galaxy or mirrors it. Copies that land on each other become one, so a
-circle centred on the pivot isn't doubled.
+circle centred on the pivot isn't doubled. While symmetry is on, the
+options show a Symmetry line with the choice and how many copies it makes.
 
 Each copy of the shape gets its own gaps. A ring centred on the pivot
 gets the gaps of every copy, so choose a number of gaps the copies divide.

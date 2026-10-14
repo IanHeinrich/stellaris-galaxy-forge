@@ -276,5 +276,6 @@
   {"q": "chokepoints in a ring", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
   {"q": "thick ring of systems", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
   {"q": "make a shape less exact", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
-  {"q": "system in the centre with spokes", "expect": "edit/shapes#a-system-at-the-centre"}
+  {"q": "system in the centre with spokes", "expect": "edit/shapes#a-system-at-the-centre"},
+  {"q": "why is my shape copied several times", "expect": "edit/shapes#use-symmetry-with-a-shape"}
 ]

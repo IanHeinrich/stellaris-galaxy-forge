@@ -134,11 +134,13 @@ describe("the Shape tool's options", () => {
       ["save", SAVE_CAPABILITIES],
     ] as const) {
       useFileSessionStore.setState({ kind, capabilities });
-      useToolStore.setState({ tool: "shape", pendingShape: null });
-      seen.push(options());
-      for (const pending of shapeStates()) {
-        useToolStore.setState({ pendingShape: pending });
+      for (const symmetry of [{ kind: "off" }, { kind: "rotate", n: 4 }] as const) {
+        useToolStore.setState({ tool: "shape", pendingShape: null, symmetry });
         seen.push(options());
+        for (const pending of shapeStates()) {
+          useToolStore.setState({ pendingShape: pending });
+          seen.push(options());
+        }
       }
     }
     for (const html of seen) expect(untitled(html)).toEqual([]);
