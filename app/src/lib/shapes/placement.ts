@@ -229,7 +229,7 @@ function* inside(points: Iterable<Pt>, contains: (p: Pt) => boolean): Generator<
   for (const p of points) if (contains(p)) yield p;
 }
 
-/** `p`'s images under `sym`, each as the file keeps it; `p` is already, and is its own first image. */
+/** `p`'s images under `sym`, each as the file keeps it; `p` must already be, and is its own first image. */
 function writtenImages(p: Pt, sym: Symmetry): Pt[] {
   return images(p, sym).map((q, k) => (k === 0 ? q : writtenPt(q)));
 }

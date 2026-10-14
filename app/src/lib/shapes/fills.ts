@@ -91,19 +91,13 @@ function tileSet(i: number, j: number): number {
   return (i & 1) + 2 * (j & 1);
 }
 
-/** The Poisson tiles of one seed and spacing, each sampled once, in the frame's own coordinates. */
+/** The Poisson tiles of one seed at unit spacing, each sampled once, in the frame's own coordinates. */
 class ScatterTiles {
-  private readonly side: number;
   private readonly tiles = new Map<number, Pt[]>();
 
-  constructor(
-    private readonly seed: number,
-    private readonly spacing: number,
-  ) {
-    this.side = TILE_SPACINGS * spacing;
-  }
+  constructor(private readonly seed: number) {}
 
-  /** The points of tile (i, j), which depend only on the seed, the spacing and the tile. */
+  /** The points of tile (i, j), which depend only on the seed and the tile. */
   points(i: number, j: number): Pt[] {
     const key = cellKey(i, j);
     let found = this.tiles.get(key);
@@ -124,12 +118,12 @@ class ScatterTiles {
         }
       }
     }
-    const t = this.side;
+    const t = TILE_SPACINGS;
     const x0 = i * t;
     const y0 = j * t;
     const rand = seeded(tileSeed(this.seed, i, j));
     const core = new PoissonCore({
-      spacing: this.spacing,
+      spacing: 1,
       blockers,
       rand,
       cap: Infinity,
@@ -152,7 +146,7 @@ const keptTiles = new Map<number, ScatterTiles>();
 function tilesOf(seed: number): ScatterTiles {
   let tiles = keptTiles.get(seed);
   if (tiles) keptTiles.delete(seed);
-  else tiles = new ScatterTiles(seed, 1);
+  else tiles = new ScatterTiles(seed);
   keptTiles.set(seed, tiles);
   if (keptTiles.size > KEPT_TILES) keptTiles.delete(keptTiles.keys().next().value as number);
   return tiles;

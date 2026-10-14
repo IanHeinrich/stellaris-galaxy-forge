@@ -216,9 +216,8 @@ centre point is left out.
 - Follow the shape joins each system along the edge to the next, and
   closes a ring. No other lanes run between two systems on the edge, so a
   star or ring keeps a clean outline. Systems inside the shape and nearby
-  still link to the edge. It is on for an outline. A grid, or a scattered
-  fill without its edge row, has no systems along the edge, so the option
-  is hidden.
+  still link to the edge. It is on for an outline. A fill without its edge
+  row has no systems along the edge, so the option is hidden.
 - Lanes works as it does for the Paint brush: Off, Among new, or New and
   nearby, which also links the shape to the systems around it. A scattered
   or grid fill starts on Among new.
