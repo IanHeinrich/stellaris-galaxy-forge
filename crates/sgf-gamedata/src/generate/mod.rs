@@ -29,7 +29,7 @@ pub use megastructure::{
 };
 pub use save::{
     BodyAsk, ClassRulesError, ForSaveError, Pick, SystemAsk, added_among, body_for_save, for_save,
-    reroll, settle_name,
+    for_save_many, reroll, settle_name, systems_op,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.

@@ -3,7 +3,9 @@
 //! the planet class rules a class change in a save takes from the install.
 
 use serde::{Deserialize, Serialize};
-use sgf_core::ops::{BodyName, BodyNaming, GivenName, NewBody, Op, PlanetClassRule, SystemSpec};
+use sgf_core::ops::{
+    BodyName, BodyNaming, GivenName, LaneEnd, NewBody, Op, OpError, PlanetClassRule, SystemSpec,
+};
 use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
 use ts_rs::TS;
@@ -12,7 +14,11 @@ use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, generate_layout_for, 
 use crate::GameData;
 use crate::layouts::SaveFacts;
 use crate::menu::menu_initializers;
-use crate::naming;
+use crate::naming::NameDraw;
+use crate::rng::Rng;
+
+/// Separates the seeds of the systems added together from the seed they are rolled from.
+const SHAPE_STREAM: u64 = 0x7368_6170;
 
 /// Settle the name of a system rolled from `seed` for `session`'s save. A layout's fixed
 /// system name gives way to `fallback`, a name from the pool, when a system of the save
@@ -26,23 +32,28 @@ pub fn settle_name(
     fallback: &str,
     seed: u64,
 ) {
+    settle_in(&mut NameDraw::new(session), gd, spec, fallback, seed);
+}
+
+/// [`settle_name`] with the names `draw` has given out held as well, and the settled name
+/// taken from it.
+fn settle_in(draw: &mut NameDraw, gd: &GameData, spec: &mut SystemSpec, fallback: &str, seed: u64) {
     let fixed = gd
         .initializers
         .get(&spec.initializer)
         .and_then(|init| init.display_name.as_deref());
-    if fixed == Some(spec.name.as_str()) {
-        if naming::system_names(session).contains(spec.name.as_str()) {
-            spec.name = fallback.to_owned();
-        }
-        return;
-    }
     let black_hole = gd
         .star_classes
         .get(&spec.star_class)
         .is_some_and(|class| class.class == BLACK_HOLE);
-    if black_hole && let Some(name) = naming::pick_black_hole_name(session, gd, seed) {
+    if fixed == Some(spec.name.as_str()) {
+        if draw.holds(&spec.name) {
+            spec.name = fallback.to_owned();
+        }
+    } else if black_hole && let Some(name) = draw.black_hole(gd, seed) {
         spec.name = name;
     }
+    draw.take(&spec.name);
 }
 
 /// What a system added to a save is built from.
@@ -55,7 +66,7 @@ pub enum Pick {
 }
 
 /// Why no system could be built for a save.
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ForSaveError {
     #[error("the save and the install have no unused star names left")]
     NoNames,
@@ -63,12 +74,15 @@ pub enum ForSaveError {
     NoSystem(u32),
     #[error(transparent)]
     Generate(#[from] GenerateError),
+    #[error(transparent)]
+    Refused(#[from] OpError),
 }
 
 impl From<ForSaveError> for SgfError {
     fn from(e: ForSaveError) -> Self {
         match e {
             ForSaveError::NoSystem(id) => Self::not_found(format!("system {id}")),
+            ForSaveError::Refused(e) => e.into(),
             e => Self::new(ErrorKind::Op, e.to_string()),
         }
     }
@@ -134,9 +148,66 @@ pub fn for_save(
     at: (f64, f64),
     pick: &Pick,
 ) -> Result<SystemSpec, ForSaveError> {
-    let name = naming::pick_system_name(session, gd, seed).ok_or(ForSaveError::NoNames)?;
+    roll(gd, session, &mut NameDraw::new(session), seed, at, pick)
+}
+
+/// A system for `session`'s save at each of `asks`, rolled around its star class from a seed
+/// of its own drawn from `seed`, and named from one draw so that no two share a name. Refused
+/// with [`ForSaveError::NoNames`] when the names run out before the asks do.
+pub fn for_save_many(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    asks: &[SystemAsk],
+) -> Result<Vec<SystemSpec>, ForSaveError> {
+    let mut seeds = Rng::new(seed ^ SHAPE_STREAM);
+    let mut draw = NameDraw::new(session);
+    asks.iter()
+        .map(|ask| {
+            let pick = Pick::Random(Some(ask.star_class.clone()));
+            roll(
+                gd,
+                session,
+                &mut draw,
+                seeds.next_u64(),
+                (ask.x, ask.y),
+                &pick,
+            )
+        })
+        .collect()
+}
+
+/// The op that adds the systems [`for_save_many`] rolls for `asks` to `session`'s save, with
+/// `lanes` between them and the systems it holds, as one step described as `description`.
+/// Refused with nothing applied as [`SaveQueries::add_systems_op`] refuses.
+///
+/// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
+pub fn systems_op(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    asks: &[SystemAsk],
+    lanes: &[(LaneEnd, LaneEnd)],
+    description: String,
+) -> Result<Op, ForSaveError> {
+    let save = session.save("adding systems")?;
+    let specs = for_save_many(gd, session, seed, asks)?;
+    Ok(save.add_systems_op(specs, lanes, description)?)
+}
+
+/// A system for `session`'s save at `at` from `seed`, as `pick` gives it, named from `draw`
+/// and then as [`settle_in`] settles it.
+fn roll(
+    gd: &GameData,
+    session: &Session,
+    draw: &mut NameDraw,
+    seed: u64,
+    at: (f64, f64),
+    pick: &Pick,
+) -> Result<SystemSpec, ForSaveError> {
+    let name = draw.system(gd, seed).ok_or(ForSaveError::NoNames)?;
     let mut spec = pick.spec(gd, session, seed, &name, at)?;
-    settle_name(session, gd, &mut spec, &name, seed);
+    settle_in(draw, gd, &mut spec, &name, seed);
     Ok(spec)
 }
 
