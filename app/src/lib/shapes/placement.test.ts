@@ -74,11 +74,11 @@ describe("an outline's points and follow lanes", () => {
 
   it("leaves points past the edge out with no lanes", () => {
     const preview = shapePlacement(
-      pending(circle({ centre: { x: 450, y: 0 }, radius: 100 })),
+      pending(circle({ centre: { x: 700, y: 0 }, radius: 100 })),
       EMPTY,
     );
     expect(preview.outside.length).toBeGreaterThan(0);
-    expect(preview.outside.every((p) => p.x > SCENARIO_HALF_EXTENT)).toBe(true);
+    expect(preview.outside.every((p) => p.x > SCENARIO_HALF_EXTENT * GALAXY_REACH)).toBe(true);
     expect(preview.points.length + preview.outside.length).toBe(24);
     // The ring is broken where it leaves the map: one lane fewer than points.
     expect(preview.pairs).toHaveLength(preview.points.length - 1);

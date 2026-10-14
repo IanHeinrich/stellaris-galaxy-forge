@@ -74,7 +74,7 @@ Spread has these options:
 Lanes stay, and their lengths follow the systems. A move that would make
 two lanes cross stops short, and the brush moves no system further out
 than a new system can be added: half again the galaxy's radius in a save,
-the map's square in a scenario. In a save, the brush stops a system short rather than
+or half again past the map's square in a scenario. In a save, the brush stops a system short rather than
 bring it closer than 10 units to another, the gap the game keeps between
 systems it places. Two systems already closer than that can still move
 apart. Under symmetry, each system's copies move with it, and a system on

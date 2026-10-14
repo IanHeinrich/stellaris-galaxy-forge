@@ -5,7 +5,7 @@ import { GALAXY_REACH, L_CLUSTER, LCLUSTER_PREFIX } from "../generated/constants
 import { DOCUMENT_KINDS, type LClusterGuide, type MapEdge } from "./documentKinds";
 import type { Pt } from "./geometry/pt";
 
-/** Half the side of the square a scenario's coordinates must fall in, in world units. */
+/** Half the side of the square a scenario's map is drawn to, in world units. */
 export const SCENARIO_HALF_EXTENT = 500;
 
 /** The edge a document's systems stay inside: a save's galaxy circle or a scenario's square. */
@@ -28,12 +28,12 @@ export function extentOf(edge: MapEdge, radius: number): MapExtent | null {
 
 const REACHES: Readonly<Record<MapEdge, (radius: number) => MapExtent | null>> = {
   galaxy_radius: (radius) => GALAXY_CIRCLE(radius * GALAXY_REACH),
-  scenario_square: () => SCENARIO_SQUARE,
+  scenario_square: () => ({ shape: "square", half: SCENARIO_HALF_EXTENT * GALAXY_REACH }),
 };
 
 /**
- * How far out a system may stand inside `edge` for a galaxy of `radius`: a save's galaxy circle
- * widened to the core's reach, null when it records no radius, or the scenario square as it is.
+ * How far out a new system may stand for a galaxy of `radius`: `edge`'s circle or square widened by
+ * the core's reach, or null for a save that records no radius.
  */
 export function reachOf(edge: MapEdge, radius: number): MapExtent | null {
   return REACHES[edge](radius);
