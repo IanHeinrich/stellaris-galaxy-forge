@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGalaxy } from "../geometry/territory.fixture";
-import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
+import { DEFAULT_LANE_DENSITY, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { laneSegments, strokeLanes, withProvisionalIds } from "../placement/lanes";
 import { seeded } from "../random";
@@ -29,7 +29,7 @@ describe("a paint stroke at the sample cap", () => {
       added: withProvisionalIds(points),
       nearby: blockers,
       existing,
-      beta: MESH_BETA.gabriel,
+      density: DEFAULT_LANE_DENSITY,
       mode: "nearby",
       maxLength: 3 * SPACING,
     });

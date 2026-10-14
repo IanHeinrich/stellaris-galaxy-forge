@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { PairSet } from "../geometry/pairs";
 import { segmentsCross } from "../geometry/segments";
-import { MESH_BETA } from "../geometry/mesh";
+import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { SpatialGrid } from "../spatialGrid";
 import { drag } from "../../test/brush";
@@ -38,7 +38,7 @@ const PAINT: BrushSettings = {
   eraseTarget: "systems",
   eraseSpecials: false,
   symmetry: { kind: "off" },
-  beta: MESH_BETA.gabriel,
+  laneDensity: DEFAULT_LANE_DENSITY,
   height: {
     mode: "raise",
     value: 0,
@@ -401,14 +401,14 @@ describe("a connect stroke", () => {
       { x: 5, y: 1 },
     ];
     const gabriel = connectPoints(
-      { beta: MESH_BETA.gabriel },
+      { laneDensity: DEFAULT_LANE_DENSITY },
       CONNECT_SYSTEMS,
       CONNECT_GALAXY,
       points,
     );
     expect(gabriel).toEqual({ kind: "connect", swept: [11, 12, 13], pairs: [], sparse: true });
 
-    const dense = connectPoints({ beta: MESH_BETA.dense }, CONNECT_SYSTEMS, CONNECT_GALAXY, points);
+    const dense = connectPoints({ laneDensity: 1 }, CONNECT_SYSTEMS, CONNECT_GALAXY, points);
     expect(dense).toEqual({
       kind: "connect",
       swept: [11, 12, 13],
@@ -450,7 +450,7 @@ describe("the stroke's count", () => {
 });
 
 describe("a stroke over the sample galaxy", () => {
-  const SAMPLE_ERASE: BrushSettings = { ...ERASE, size: 6, spacing: 25, laneMode: "off", beta: 1 };
+  const SAMPLE_ERASE: BrushSettings = { ...ERASE, size: 6, spacing: 25, laneMode: "off" };
   const MIRROR_X: Symmetry = { kind: "mirror", axis: "x" };
   const QUARTER: Symmetry = { kind: "rotate", n: 4 };
   // Sol, Alpha Centauri, Barnard and Sirius, whose chain already links Alpha Centauri to the others.
@@ -506,7 +506,7 @@ describe("a stroke over the sample galaxy", () => {
   });
 
   it("meshes the systems a connect stroke passes over, leaving out pairs already linked", () => {
-    expect(sampleStroke({ tool: "connect", size: 30, beta: 0.1 }, CHAIN)).toEqual({
+    expect(sampleStroke({ tool: "connect", size: 30, laneDensity: 1 }, CHAIN)).toEqual({
       kind: "connect",
       swept: [0, 1, 2, 3],
       pairs: [
@@ -515,10 +515,9 @@ describe("a stroke over the sample galaxy", () => {
       ],
       sparse: false,
     });
-    // The Gabriel graph drops Sol–Barnard, whose circle holds Alpha Centauri.
-    expect(sampleStroke({ tool: "connect", size: 30, beta: 1 }, CHAIN)).toMatchObject({
-      pairs: [[2, 3]],
-    });
+    // Sol–Barnard ranks last, with Alpha Centauri inside its Gabriel circle.
+    const middling = { tool: "connect", size: 30, laneDensity: DEFAULT_LANE_DENSITY } as const;
+    expect(sampleStroke(middling, CHAIN)).toMatchObject({ pairs: [[2, 3]] });
   });
 
   it("connects no pair the scenario keeps apart", () => {
@@ -526,7 +525,7 @@ describe("a stroke over the sample galaxy", () => {
       { ...SAMPLE[2], prevented: [3] },
       { ...SAMPLE[3], prevented: [2] },
     ];
-    expect(sampleStroke({ tool: "connect", size: 30, beta: 0.1 }, CHAIN, kept)).toMatchObject({
+    expect(sampleStroke({ tool: "connect", size: 30, laneDensity: 1 }, CHAIN, kept)).toMatchObject({
       pairs: [[0, 2]],
     });
   });
@@ -594,7 +593,7 @@ describe("a stroke over the sample galaxy", () => {
       placedNode(12, -300, 0),
       placedNode(13, 0, -300),
     ];
-    const settings = { tool: "connect", size: 10, beta: 0.1, symmetry: QUARTER } as const;
+    const settings = { tool: "connect", size: 10, laneDensity: 1, symmetry: QUARTER } as const;
     expect(sampleStroke(settings, [{ x: 300, y: 0 }], square)).toEqual({
       kind: "connect",
       swept: [10, 11, 12, 13],

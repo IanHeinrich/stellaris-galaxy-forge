@@ -427,7 +427,7 @@ function interleaving(pending: PendingShape, sym: Symmetry, placed: number): num
  * the same pending shape and ground give the same placement in the preview and in the edit.
  */
 export function shapePlacement(pending: PendingShape, ground: ShapeGround): ShapePreview {
-  const { placement, extent, beta } = ground;
+  const { placement, extent, laneDensity } = ground;
   const sym = placement.symmetry;
   const shown = layout(pending, sym);
   const blockerOf = (p: Pt) =>
@@ -492,7 +492,7 @@ export function shapePlacement(pending: PendingShape, ground: ShapeGround): Shap
     points,
     base: baseKept,
     mode: pending.lanes.mode,
-    beta,
+    density: laneDensity,
     spacing: shown.spacing,
     ground: fixed.length > 0 ? new FollowGround(placement, fixed) : placement,
     imageOfNew,

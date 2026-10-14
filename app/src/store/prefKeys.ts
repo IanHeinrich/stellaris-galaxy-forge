@@ -20,7 +20,9 @@ export const PREF_KEYS = {
   initializerRecent: "sgf.initializers.recent",
   initializerDefault: "sgf.initializers.default",
   nebulaRadius: "sgf.nebula.radius",
+  /** Read only to carry a setting from before `laneDensity` over. */
   meshBeta: "sgf.mesh.beta",
+  laneDensity: "sgf.lanes.density",
   brushSize: "sgf.brush.size",
   brushSpacing: "sgf.brush.spacing",
   brushLaneMode: "sgf.brush.laneMode",

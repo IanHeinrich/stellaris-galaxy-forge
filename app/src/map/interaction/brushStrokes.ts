@@ -36,7 +36,7 @@ function settingsFor(tool: BrushTool, flipped: boolean): BrushSettings {
     eraseTarget: t.eraseTarget,
     eraseSpecials: t.eraseSpecials,
     symmetry: t.symmetry,
-    beta: useMapChromeStore.getState().meshBeta,
+    laneDensity: useMapChromeStore.getState().laneDensity,
     height: heightBrush(flipped),
   };
 }

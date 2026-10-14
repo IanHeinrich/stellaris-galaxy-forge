@@ -414,14 +414,18 @@ export function unlinkedPairs(systems: Systems, ids: number[]): Array<[number, n
   return pairs;
 }
 
-/** The β-skeleton edges over `ids` that are not yet lanes, each as `[min, max]`. */
-export function meshLanes(systems: Systems, ids: number[], beta: number): Array<[number, number]> {
+/** The mesh edges over `ids` at Lane density `density` that are not yet lanes, each as `[min, max]`. */
+export function meshLanes(
+  systems: Systems,
+  ids: number[],
+  density: number,
+): Array<[number, number]> {
   const points: MeshPoint[] = [];
   for (const id of ids) {
     const s = systems.get(id);
     if (s) points.push({ id, x: s.x, y: s.y });
   }
-  return meshPairs(points, beta).filter(([a, b]) => !linked(systems, a, b));
+  return meshPairs(points, density).filter(([a, b]) => !linked(systems, a, b));
 }
 
 /** Unordered pairs within `ids` joined by a lane, each as `[min, max]`. */

@@ -95,7 +95,7 @@ export function LaneModeOption() {
   return <LaneModeSelect value={laneMode} onChange={setLaneMode} />;
 }
 
-/** The β of the lanes a brush adds, shared with the selection's mesh. */
+/** The Lane density of the lanes a brush adds, shared with the selection's mesh. */
 export function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
   return (
     <label className="tool-option">

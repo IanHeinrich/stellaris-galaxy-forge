@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { SpecialKind } from "../generated/SpecialKind";
-import { MESH_BETA } from "../lib/geometry/mesh";
+import { DEFAULT_LANE_DENSITY, densityOfBeta } from "../lib/geometry/mesh";
 import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
@@ -117,8 +117,8 @@ export interface MapChromeState {
   hiddenPrecursors: Set<string>;
   contextMenu: ContextMenu | null;
   tooltip: MapTooltip | null;
-  /** β of the mesh action's skeleton. */
-  meshBeta: number;
+  /** The Lane density slider's value in [0, 1], shared by the brushes, shapes and the mesh action. */
+  laneDensity: number;
   addSystemPreview: AddSystemPreview | null;
   /** Lanes the map draws as ghosts while the mesh action is being considered. */
   lanePreview: Array<[number, number]> | null;
@@ -155,7 +155,7 @@ export interface MapChromeState {
   closeContextMenu(): void;
   showTooltip(tip: MapTooltip): void;
   hideTooltip(): void;
-  setMeshBeta(beta: number): void;
+  setLaneDensity(density: number): void;
   /**
    * Sets a layer without persisting it: for state the app borrows rather than the user sets, or
    * an edit the user must be able to see.
@@ -185,7 +185,13 @@ const NO_OVERLAYS = {
   hiddenInitializers: new Set<string>(),
 } satisfies Partial<MapChromeState>;
 
-const MESH_BETA_PREF = prefField(PREF_KEYS.meshBeta, MESH_BETA.gabriel, isFiniteNumber);
+const LANE_DENSITY_PREF = prefField(PREF_KEYS.laneDensity, DEFAULT_LANE_DENSITY, isFiniteNumber);
+
+/** The stored density, or the one whose cut is a β the slider stored before it kept a density. */
+function storedLaneDensity(): number {
+  const beta = readPref<number | null>(PREF_KEYS.meshBeta, null, isFiniteNumber);
+  return LANE_DENSITY_PREF.read(beta === null || beta <= 0 ? undefined : densityOfBeta(beta));
+}
 
 /**
  * `changed` with the layers it drags along: the day-one claims draw only inside the empire
@@ -259,7 +265,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   sceneLayers: storedSceneLayers(),
   shownKinds: new Set<SpecialKind>(storedShownKinds()),
   hiddenPrecursors: new Set<string>(),
-  meshBeta: MESH_BETA_PREF.read(),
+  laneDensity: storedLaneDensity(),
 
   toggleLayer(id) {
     const changed = coupled({ [id]: !get().layers[id] });
@@ -392,9 +398,9 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     if (get().tooltip) set({ tooltip: null });
   },
 
-  setMeshBeta(beta) {
-    set({ meshBeta: beta });
-    MESH_BETA_PREF.save(beta);
+  setLaneDensity(density) {
+    set({ laneDensity: density });
+    LANE_DENSITY_PREF.save(density);
   },
 
   setLayerQuietly(id, on) {

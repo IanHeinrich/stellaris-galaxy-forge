@@ -6,7 +6,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 
 import { mockedIpc } from "../test/ipc";
-import { MESH_BETA } from "../lib/geometry/mesh";
+import { betaOfDensity, DEFAULT_LANE_DENSITY } from "../lib/geometry/mesh";
 import { KIND_ORDER } from "../lib/special";
 import { DEFAULT_LAYERS } from "../lib/visual/layerIds";
 import { session } from "./sessionFixture";
@@ -136,15 +136,15 @@ describe("overlays", () => {
     expect(chrome().highlightInitializer).toBeNull();
   });
 
-  it("a session change leaves the mesh β alone", async () => {
-    chrome().setMeshBeta(2);
+  it("a session change leaves the lane density alone", async () => {
+    chrome().setLaneDensity(0.2);
     await session().openSave(OPEN_RESULT.path);
-    expect(chrome().meshBeta).toBe(2);
+    expect(chrome().laneDensity).toBe(0.2);
   });
 });
 
 describe("persisted preferences", () => {
-  it("writes the shown kinds, the layers and the mesh β on change", () => {
+  it("writes the shown kinds, the layers and the lane density on change", () => {
     chrome().toggleKind("landmark");
     expect(JSON.parse(stored.get("sgf.layers.shownKinds") ?? "[]")).toContain("landmark");
     chrome().toggleAllKinds();
@@ -155,8 +155,8 @@ describe("persisted preferences", () => {
       bypasses: false,
     });
 
-    chrome().setMeshBeta(2);
-    expect(stored.get("sgf.mesh.beta")).toBe("2");
+    chrome().setLaneDensity(0.2);
+    expect(stored.get("sgf.lanes.density")).toBe("0.2");
   });
 
   it("writes only the keys the toggle changed, over the record already stored", () => {
@@ -181,29 +181,46 @@ describe("persisted preferences", () => {
     expect(stored.has("sgf.layers.visible")).toBe(false);
   });
 
-  it("reads the shown kinds, the layers and the mesh β back on init", async () => {
+  it("reads the shown kinds, the layers and the lane density back on init", async () => {
     stored.set("sgf.layers.shownKinds", JSON.stringify(["landmark"]));
     stored.set("sgf.layers.visible", JSON.stringify({ bypasses: false }));
-    stored.set("sgf.mesh.beta", "2.5");
+    stored.set("sgf.lanes.density", "0.8");
     vi.resetModules();
     const fresh = await import("./mapChromeStore");
     const state = fresh.useMapChromeStore.getState();
     expect([...state.shownKinds]).toEqual(["landmark"]);
     expect(state.layers.bypasses).toBe(false);
     expect(state.layers.lanes).toBe(true);
-    expect(state.meshBeta).toBe(2.5);
+    expect(state.laneDensity).toBe(0.8);
   });
 
   it("falls back to the defaults when a stored value is missing, corrupt or the wrong shape", async () => {
     stored.set("sgf.layers.shownKinds", "not json");
     stored.set("sgf.layers.visible", JSON.stringify(["not", "a", "record"]));
-    stored.set("sgf.mesh.beta", JSON.stringify("wide"));
+    stored.set("sgf.lanes.density", JSON.stringify("wide"));
     vi.resetModules();
     const fresh = await import("./mapChromeStore");
     const state = fresh.useMapChromeStore.getState();
     expect([...state.shownKinds]).toEqual(["leviathan", "enclave"]);
     expect(state.layers).toEqual(DEFAULT_LAYERS);
-    expect(state.meshBeta).toBe(MESH_BETA.gabriel);
+    expect(state.laneDensity).toBe(DEFAULT_LANE_DENSITY);
+  });
+
+  it("carries a β stored by the old slider over to the density that cuts at that β", async () => {
+    const densityAfter = async (beta: number) => {
+      stored.set("sgf.mesh.beta", String(beta));
+      vi.resetModules();
+      const fresh = await import("./mapChromeStore");
+      return fresh.useMapChromeStore.getState().laneDensity;
+    };
+    for (const beta of [2, 1.5, 1.2]) {
+      expect(betaOfDensity(await densityAfter(beta))).toBeCloseTo(beta, 9);
+    }
+    expect(await densityAfter(1)).toBeCloseTo(DEFAULT_LANE_DENSITY, 9);
+    expect(await densityAfter(0.1)).toBe(1);
+
+    stored.set("sgf.lanes.density", "0.8");
+    expect(await densityAfter(2)).toBe(0.8);
   });
 });
 

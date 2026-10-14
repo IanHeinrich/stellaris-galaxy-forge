@@ -1,37 +1,11 @@
-import { MESH_BETA, meshPairs, type MeshPoint } from "./mesh";
+import { delaunayPairs, type MeshPoint } from "./mesh";
 import { comparePairs, pairOf, PairSet } from "./pairs";
 import { dist2 } from "./pt";
 import { SegmentIndex } from "./segments";
+import { UnionFind } from "./unionFind";
 
 /** How many nearest points in other components each point offers once the triangulation runs out. */
 const FALLBACK_NEIGHBOURS = 8;
-
-class UnionFind {
-  private readonly parent: number[];
-  components: number;
-
-  constructor(n: number) {
-    this.parent = Array.from({ length: n }, (_, i) => i);
-    this.components = n;
-  }
-
-  find(i: number): number {
-    while (this.parent[i] !== i) {
-      this.parent[i] = this.parent[this.parent[i]];
-      i = this.parent[i];
-    }
-    return i;
-  }
-
-  union(i: number, j: number): boolean {
-    const a = this.find(i);
-    const b = this.find(j);
-    if (a === b) return false;
-    this.parent[a] = b;
-    this.components--;
-    return true;
-  }
-}
 
 /** How many connected components `edges` leave `points` in; an edge to a point not listed is skipped. */
 export function componentCount(
@@ -94,7 +68,7 @@ export function joinIslands(
     }
   };
 
-  const delaunay = meshPairs([...points], MESH_BETA.dense).map(
+  const delaunay = delaunayPairs(points).map(
     ([a, b]) => [indexOf.get(a)!, indexOf.get(b)!] as [number, number],
   );
   consider(delaunay.filter(([i, j]) => uf.find(i) !== uf.find(j)));

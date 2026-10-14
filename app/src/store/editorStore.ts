@@ -353,7 +353,7 @@ export interface EditorState {
   dropDanglingFeLinks(system: number): Promise<boolean>;
   /** Adds a lane between every unlinked pair of selected systems, up to `CONNECT_ALL_MAX` of them. */
   connectSelected(): Promise<void>;
-  /** Adds the missing lanes of the β-skeleton over the selected systems at the chrome's `meshBeta`. */
+  /** Adds the missing lanes of the mesh over the selected systems at the chrome's `laneDensity`. */
   connectSelectedMesh(): Promise<void>;
   /** Adds a lane from `target` to every selected system not yet linked to it. */
   connectSelectedTo(target: number): Promise<void>;
