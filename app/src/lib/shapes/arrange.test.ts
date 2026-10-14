@@ -3,7 +3,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { node } from "../../store/fixture";
 import type { Fill, PendingShape } from "./types";
 import { arrangement, nearestFree } from "./arrange";
-import { PLACEMENT_RULES } from "./rules";
+import { PLACEMENT_RULES } from "../placement/rules";
 import { systemsInside } from "./erase";
 import { SHAPE_SPECS } from "./specs";
 

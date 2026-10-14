@@ -11,7 +11,7 @@ import { ON_TOP, SAMPLE_CAP } from "../placement/limits";
 import { PointGrid } from "../placement/pointGrid";
 import { SpatialGrid } from "../spatialGrid";
 import { FollowGround, laidCount, leastSpacing, shapePlacement } from "./placement";
-import type { PlacementRules } from "./rules";
+import type { PlacementRules } from "../placement/rules";
 import {
   ARRANGE_NEEDS_TWO,
   ARRANGE_SYMMETRY,

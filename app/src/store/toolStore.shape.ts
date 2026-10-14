@@ -2,7 +2,12 @@ import type { StoreApi } from "zustand";
 import { clampTo } from "../lib/geometry/geometry";
 import type { Pt } from "../lib/geometry/pt";
 import type { MapExtent } from "../lib/guides";
-import { placementBounds, type PlacementBounds } from "../lib/placement/rules";
+import {
+  PLACEMENT_RULES,
+  placementBounds,
+  shapePath,
+  type PlacementBounds,
+} from "../lib/placement/rules";
 import { LANE_MODES } from "../lib/placement/lanes";
 import { LEAST_SPACING, SAMPLE_CAP } from "../lib/placement/limits";
 import { newSeed } from "../lib/random";
