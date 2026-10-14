@@ -132,6 +132,242 @@ describe("a paint stroke", () => {
   });
 });
 
+describe("a paint stroke's exact output", () => {
+  /** Points as "x,y" and pairs as "a b", rounded so only a change in placement shows. */
+  function pinned(settings: Partial<BrushSettings>, systems: SystemNode[], path: Pt[]) {
+    const galaxy = new Map(systems.map((s) => [s.id, s]));
+    const grid = new SpatialGrid();
+    grid.build(systems);
+    const s = new BrushStroke({ ...PAINT, spacing: 20, ...settings }, galaxy, grid, 7, {
+      systems: galaxy,
+      grid,
+    });
+    for (const stamps of drag(path, s.r)) s.add(stamps);
+    const result = s.result();
+    if (result.kind !== "paint") throw new Error(result.kind);
+    const round = (v: number) => Math.round(v * 1000) / 1000;
+    return {
+      points: result.points.map((p) => `${round(p.x)},${round(p.y)}`),
+      pairs: result.pairs.map(([a, b]) => `${a} ${b}`),
+    };
+  }
+
+  it("places the same systems and lanes as before, without symmetry", () => {
+    expect(pinned({ laneMode: "new" }, SYSTEMS, ALONG_LANE)).toMatchInlineSnapshot(`
+      {
+        "pairs": [
+          "-12 -11",
+          "-12 -9",
+          "-11 -10",
+          "-11 -9",
+          "-10 -9",
+          "-10 -8",
+          "-9 -8",
+          "-8 -7",
+          "-8 -6",
+          "-7 -6",
+          "-6 -4",
+          "-5 -4",
+          "-5 -3",
+          "-5 -1",
+          "-4 -1",
+          "-3 -2",
+          "-3 -1",
+          "-2 -1",
+        ],
+        "points": [
+          "4.965,30.366",
+          "-15.83,26.988",
+          "-5.048,48.116",
+          "25.995,28.348",
+          "18.962,48.627",
+          "46.013,32.449",
+          "58.766,48.284",
+          "65.885,28.097",
+          "86.077,35.157",
+          "78.907,11.118",
+          "103.198,23.118",
+          "109.735,46.617",
+        ],
+      }
+    `);
+  });
+
+  it("places the same systems and lanes as before, in three turns beside existing lanes", () => {
+    // Each third has a lane under the stroke, a system above it and one past the lane.
+    const third = [
+      placedNode(1, 100, 0, [2]),
+      placedNode(2, 160, 0, [1]),
+      placedNode(3, 130, 45),
+      placedNode(4, 130, -25),
+    ];
+    const turned = [0, 1, 2].flatMap((k) => {
+      const [c, s] = [Math.cos((2 * Math.PI * k) / 3), Math.sin((2 * Math.PI * k) / 3)];
+      return third.map((n) => ({
+        ...n,
+        id: n.id + 10 * k,
+        x: n.x * c - n.y * s,
+        y: n.x * s + n.y * c,
+        lanes: n.lanes.map((l) => ({ ...l, to: l.to + 10 * k })),
+      }));
+    });
+    const path = [
+      { x: 100, y: 22 },
+      { x: 130, y: 25 },
+      { x: 160, y: 22 },
+    ];
+    const rotate = { laneMode: "nearby", symmetry: { kind: "rotate", n: 3 } } as const;
+    expect(pinned(rotate, turned, path)).toMatchInlineSnapshot(`
+      {
+        "pairs": [
+          "-21 -19",
+          "-21 22",
+          "-20 -19",
+          "-20 -18",
+          "-20 22",
+          "-19 -18",
+          "-19 22",
+          "-19 23",
+          "-18 -15",
+          "-18 23",
+          "-17 -16",
+          "-17 -15",
+          "-17 23",
+          "-16 -15",
+          "-16 21",
+          "-15 21",
+          "-14 -12",
+          "-14 12",
+          "-13 -12",
+          "-13 -11",
+          "-13 12",
+          "-12 -11",
+          "-12 12",
+          "-12 13",
+          "-11 -8",
+          "-11 13",
+          "-10 -9",
+          "-10 -8",
+          "-10 13",
+          "-9 -8",
+          "-9 11",
+          "-8 11",
+          "-7 -5",
+          "-7 2",
+          "-6 -5",
+          "-6 -4",
+          "-6 2",
+          "-5 -4",
+          "-5 2",
+          "-5 3",
+          "-4 -1",
+          "-4 3",
+          "-3 -2",
+          "-3 -1",
+          "-3 3",
+          "-2 -1",
+          "-2 1",
+          "-1 1",
+        ],
+        "points": [
+          "104.965,22.366",
+          "84.17,18.988",
+          "94.952,40.116",
+          "125.995,20.348",
+          "145.85,27.484",
+          "139.139,4.884",
+          "165.151,35.143",
+          "-71.852,79.719",
+          "-58.529,63.4",
+          "-82.217,62.172",
+          "-80.619,98.941",
+          "-96.726,112.568",
+          "-73.8,118.056",
+          "-113.01,125.453",
+          "-33.113,-102.085",
+          "-25.641,-82.387",
+          "-12.734,-102.288",
+          "-45.375,-119.289",
+          "-49.123,-140.051",
+          "-65.34,-122.94",
+          "-52.141,-160.596",
+        ],
+      }
+    `);
+  });
+
+  it("places the same systems and lanes as before, mirrored", () => {
+    const path = [
+      { x: 200, y: 100 },
+      { x: 230, y: 110 },
+      { x: 260, y: 100 },
+    ];
+    const mirror = { laneMode: "new", symmetry: { kind: "mirror", axis: "y" } } as const;
+    expect(pinned(mirror, SYSTEMS, path)).toMatchInlineSnapshot(`
+      {
+        "pairs": [
+          "-20 -19",
+          "-20 -17",
+          "-19 -17",
+          "-19 -16",
+          "-18 -12",
+          "-18 -11",
+          "-17 -16",
+          "-17 -14",
+          "-16 -15",
+          "-16 -14",
+          "-15 -14",
+          "-15 -13",
+          "-15 -11",
+          "-14 -11",
+          "-13 -12",
+          "-13 -11",
+          "-12 -11",
+          "-10 -9",
+          "-10 -7",
+          "-9 -7",
+          "-9 -6",
+          "-8 -2",
+          "-8 -1",
+          "-7 -6",
+          "-7 -4",
+          "-6 -5",
+          "-6 -4",
+          "-5 -4",
+          "-5 -3",
+          "-5 -1",
+          "-4 -1",
+          "-3 -2",
+          "-3 -1",
+          "-2 -1",
+        ],
+        "points": [
+          "204.965,100.366",
+          "184.17,96.988",
+          "194.952,118.116",
+          "225.995,98.348",
+          "215.851,120.696",
+          "237.136,120.023",
+          "247.202,93.373",
+          "198.703,80.419",
+          "258.649,117.945",
+          "267.213,95.706",
+          "-204.965,100.366",
+          "-184.17,96.988",
+          "-194.952,118.116",
+          "-225.995,98.348",
+          "-215.851,120.696",
+          "-237.136,120.023",
+          "-247.202,93.373",
+          "-198.703,80.419",
+          "-258.649,117.945",
+          "-267.213,95.706",
+        ],
+      }
+    `);
+  });
+});
+
 /** A connect stroke that only touches the two points named, without sweeping what lies between them. */
 function connectPoints(
   settings: Partial<BrushSettings>,
