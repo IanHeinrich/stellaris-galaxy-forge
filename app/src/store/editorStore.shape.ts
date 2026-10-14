@@ -3,13 +3,13 @@ import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import { shapePlacement } from "../lib/shapes/placement";
 import { shapePath } from "../lib/placement/rules";
-import { placeLead } from "../lib/shapes/shapeCopy";
+import { arrangeDescription, placeLead } from "../lib/shapes/shapeCopy";
 import type { PendingShape } from "../lib/shapes/types";
 import { refuseOr, type RunEdit } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { placeDescription, placeSystems, rolledArgs } from "./placeSystems";
-import { shapeGround, shapePreview, shapeRefusal } from "./shapePreview";
+import { arrangeSystems, placeDescription, placeSystems, rolledArgs } from "./placeSystems";
+import { placementNow, shapeGround, shapePreview, shapeRefusal } from "./shapePreview";
 import { useToolStore } from "./toolStore";
 
 type ShapeActions = Pick<EditorState, "placePendingShape">;
@@ -19,8 +19,17 @@ function pathNow() {
   return shapePath(useFileSessionStore.getState().capabilities);
 }
 
+/** Arranges `pending`'s selection again on the galaxy as it is now, as one Batch; refused as the preview would be. */
+async function sendArrange(pending: PendingShape): Promise<EditResult | null> {
+  const arranged = placementNow(pending)?.arranged;
+  if (!arranged) return null;
+  if (arranged.refusal !== null) throw new Error(arranged.refusal);
+  return ipc.applyOp(arrangeSystems(arranged, arrangeDescription(pending, arranged)));
+}
+
 /** Lays `pending` out again on the galaxy as it is now and sends it the way the document takes it. */
 async function sendShape(pending: PendingShape): Promise<EditResult | null> {
+  if (pending.purpose.kind === "arrange") return sendArrange(pending);
   const ground = shapeGround(pending);
   const placement = ground && shapePlacement(pending, ground);
   if (!placement || placement.points.length === 0) return null;
@@ -58,6 +67,7 @@ export function shapeActions(
         let placed = false;
         try {
           placed = await applied;
+          if (placed && pending.purpose.kind === "arrange") useToolStore.getState().leaveArrange();
           return placed;
         } finally {
           const tools = useToolStore.getState();

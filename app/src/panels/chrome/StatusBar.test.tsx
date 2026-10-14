@@ -208,6 +208,7 @@ describe("the held rings", () => {
 
 describe("the pending shape", () => {
   const pending = () => ({
+    purpose: { kind: "add" as const },
     shape: SHAPE_SPECS.circle.initial,
     fill: { kind: "outline" as const, count: 22 },
     lanes: { follow: true, mode: "off" as const },
@@ -229,6 +230,7 @@ describe("the pending shape", () => {
       capped: false,
       interleaved: null,
       classes: null,
+      arranged: null,
     };
     useToolStore.setState({ pendingShape: pending() });
     const html = bar();
@@ -248,6 +250,7 @@ describe("the pending shape", () => {
       capped: false,
       interleaved: null,
       classes: null,
+      arranged: null,
     };
     useToolStore.setState({ pendingShape: pending() });
     const html = bar();

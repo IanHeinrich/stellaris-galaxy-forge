@@ -7,6 +7,7 @@ import type { Pt } from "../lib/geometry/pt";
 import { provisionalIndex } from "../lib/placement/lanes";
 import type { Placement } from "../lib/placement/placement";
 import { nextSystemId } from "../lib/paint";
+import type { Arrangement } from "../lib/shapes/types";
 import { counted } from "../lib/text";
 import { systems } from "./editorEdits";
 
@@ -37,6 +38,20 @@ export function placeSystems({ points, pairs }: Placement, lead: string): Op {
     });
   }
   return { type: "Batch", description: placeDescription(lead, points, pairs), ops };
+}
+
+/**
+ * An arrangement as one Batch named `description`: the lanes between selected systems it takes
+ * out, the moves, then the lanes it lays, so each new lane is measured where its ends now are.
+ */
+export function arrangeSystems({ moves, cut, added }: Arrangement, description: string): Op {
+  const ops: Op[] = [];
+  if (cut.length > 0) ops.push({ type: "RemoveLanePairs", lanes: [...cut] });
+  ops.push({ type: "MoveSystems", moves: [...moves] });
+  if (added.length > 0) {
+    ops.push({ type: "AddLanePairs", lanes: added.map(([a, b]) => ({ a, b, bridge: false })) });
+  }
+  return { type: "Batch", description, ops };
 }
 
 /** A lane end of a placement: a new point by its index, or a system the galaxy holds. */

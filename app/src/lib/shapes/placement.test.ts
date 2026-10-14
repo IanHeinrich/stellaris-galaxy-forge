@@ -63,6 +63,7 @@ function circle(over: Partial<CircleShape> = {}): CircleShape {
 
 function pending(shape: Shape, over: Partial<PendingShape> = {}): PendingShape {
   return {
+    purpose: { kind: "add" },
     shape,
     fill: { kind: "outline", count: 24 },
     lanes: { follow: true, mode: "off" },

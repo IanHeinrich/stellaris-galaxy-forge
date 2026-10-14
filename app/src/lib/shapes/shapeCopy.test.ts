@@ -11,6 +11,7 @@ function pending(
   fill: PendingShape["fill"] = { kind: "outline", count: 24 },
 ): PendingShape {
   return {
+    purpose: { kind: "add" },
     shape,
     fill,
     lanes: { follow: true, mode: "off" },
@@ -32,6 +33,7 @@ function preview(over: Partial<ShapePreview> = {}): ShapePreview {
     capped: false,
     interleaved: null,
     classes: null,
+    arranged: null,
     ...over,
   };
 }

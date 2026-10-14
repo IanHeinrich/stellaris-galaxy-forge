@@ -4,6 +4,7 @@ import type { Symmetry } from "../lib/geometry/symmetry";
 import { extentOf } from "../lib/guides";
 import { needsGameData } from "../lib/text";
 import { PlacementGround } from "../lib/placement/ground";
+import { arrangement } from "../lib/shapes/arrange";
 import { shapePlacement } from "../lib/shapes/placement";
 import { PLACEMENT_RULES, shapePath, type PlacementPath } from "../lib/placement/rules";
 import { starWeights } from "../lib/shapes/stars";
@@ -22,10 +23,11 @@ export const SHAPE_NEEDS_GAME_DATA = needsGameData("place a shape in a save");
 export const SHAPE_NO_STARS = "None of the ticked stars can be rolled. Tick another.";
 
 /**
- * Why `preview` cannot be placed on `path`, or null when it can: a save's shape needs a star
- * class rolled for every point.
+ * Why `preview` cannot be placed on `path`, or null when it can: an arrange as it says, and a
+ * save's shape needs a star class rolled for every point.
  */
 export function shapeRefusal(preview: ShapePreview, path: PlacementPath | null): string | null {
+  if (preview.arranged) return preview.arranged.refusal;
   if (path !== "rolled") return null;
   if (preview.classes === null) return SHAPE_NEEDS_GAME_DATA;
   return preview.classes.length < preview.points.length ? SHAPE_NO_STARS : null;
@@ -97,16 +99,37 @@ export function shapeGround(pending: PendingShape): ShapeGround | null {
   return groundOf(inputsNow(), pending);
 }
 
+/** What placing `pending` would do to the galaxy as it stands now, worked out afresh; null when the document takes no shapes. */
+export function placementNow(pending: PendingShape): ShapePreview | null {
+  return placementOf(inputsNow(), pending);
+}
+
 let cached: { inputs: Inputs; preview: ShapePreview | null } | null = null;
 
 function sameInputs(a: Inputs, b: Inputs): boolean {
   return (Object.keys(a) as Array<keyof Inputs>).every((key) => a[key] === b[key]);
 }
 
+/** What placing `pending` does to the galaxy `inputs` read: the systems it adds or the arrange it makes. */
+function placementOf(inputs: Inputs, pending: PendingShape): ShapePreview | null {
+  const ground = groundOf(inputs, pending);
+  if (ground === null) return null;
+  if (pending.purpose.kind === "add") return shapePlacement(pending, ground);
+  return arrangement(
+    { ...pending, purpose: pending.purpose },
+    {
+      systems: inputs.systems,
+      extent: ground.extent,
+      rules: ground.rules,
+      symmetry: inputs.symmetry,
+      laneDensity: inputs.laneDensity,
+    },
+  );
+}
+
 function previewOf(inputs: Inputs): ShapePreview | null {
   if (cached && sameInputs(cached.inputs, inputs)) return cached.preview;
-  const ground = inputs.pending && groundOf(inputs, inputs.pending);
-  const preview = inputs.pending && ground ? shapePlacement(inputs.pending, ground) : null;
+  const preview = inputs.pending && placementOf(inputs, inputs.pending);
   cached = { inputs, preview };
   return preview;
 }

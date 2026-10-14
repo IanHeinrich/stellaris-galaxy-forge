@@ -40,6 +40,7 @@ const options = () => renderToStaticMarkup(<ShapeOptions />);
 /** A pending shape of `kind` with `fill`, lanes as a new outline starts them. */
 function pend(kind: ShapeKind, fill: Fill, over: Partial<PendingShape> = {}): PendingShape {
   return {
+    purpose: { kind: "add" },
     shape: SHAPE_SPECS[kind].initial,
     fill,
     lanes: { follow: fill.kind === "outline", mode: "off" },

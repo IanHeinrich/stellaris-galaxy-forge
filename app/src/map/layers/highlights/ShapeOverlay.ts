@@ -9,6 +9,7 @@ import { shapeReadout } from "../../../lib/shapes/shapeCopy";
 import type {
   HandleLook,
   PendingShape,
+  Shape,
   ShapeHandle,
   ShapePreview,
 } from "../../../lib/shapes/types";
@@ -23,6 +24,8 @@ import { drawDots, drawLanes } from "./placementMarks";
 const LEFT_OUT = { color: 0x7f8ca3, alpha: 0.9, radiusPx: 3.4, widthPx: 1.2 };
 /** A point past the map's edge, left out. */
 const OUTSIDE = { color: 0xff8c66, alpha: 0.9, radiusPx: 3 };
+/** An Alt-drag's shape, the rings round the systems it erases, and a kept lane that would cross another. */
+const WARN = { color: OUTSIDE.color, alpha: 0.9, radiusPx: 5, widthPx: 1.4 };
 /** The galaxy's edge a shape's size is measured against, faint under everything. */
 const EDGE = { color: 0x9ca3af, alpha: 0.3 };
 const EDGE_DASHES = 96;
@@ -43,23 +46,35 @@ const READOUT_STYLE = new TextStyle({
   fill: 0xd6dde8,
 });
 
+/** An Alt-drag's shape, and where the systems inside it that it erases draw. */
+export interface ShapeErasing {
+  shape: Shape;
+  doomed: readonly Pt[];
+}
+
 /**
  * The pending shape and what placing it would add, `preview` null until it is worked out; or,
- * with `pending` null, a placed shape's preview held until its edit lands.
+ * with `pending` null, a placed shape's preview held until its edit lands; or an Alt-drag's
+ * shape alone.
  */
 export interface ShapeDrawing {
   pending: PendingShape | null;
   preview: ShapePreview | null;
   /** The preview's lanes, each end where it draws. */
   lanes: readonly Segment[];
+  /** The lanes an arrange keeps that would cross another, drawn over `lanes` in orange. */
+  crossing: readonly Segment[];
+  erasing: ShapeErasing | null;
 }
 
 /**
  * The Shape tool's pending shape: the systems it would add as points, each in its star's colour
  * where the preview rolled stars and gold otherwise, the points it leaves out hollow beside
  * existing systems and orange past the edge, its lanes, its handles at a fixed size on screen,
- * its own line and the galaxy's edge faintly, and the readout centred below all of it. A placed
- * shape's points and lanes stay until its edit lands, without the rest.
+ * its own line and the galaxy's edge faintly, and the readout centred below all of it. Arranging,
+ * a kept lane that would cross another is orange. A placed shape's points and lanes stay until
+ * its edit lands, without the rest. An Alt-drag draws its shape's edge in orange, with an
+ * orange ring round each system it erases.
  */
 export class ShapeOverlay {
   readonly container = new Container({ label: "shape" });
@@ -93,7 +108,13 @@ export class ShapeOverlay {
   setShape(drawing: ShapeDrawing | null): void {
     this.drawing = drawing;
     this.lines.clear();
-    if (drawing) drawLanes(this.lines, drawing.lanes);
+    if (drawing) {
+      drawLanes(this.lines, drawing.lanes);
+      for (const { a, b } of drawing.crossing) this.lines.moveTo(a.x, a.y).lineTo(b.x, b.y);
+      if (drawing.crossing.length > 0) {
+        this.lines.stroke({ color: WARN.color, alpha: WARN.alpha, pixelLine: true });
+      }
+    }
     this.drawOutline();
     this.drawEdge();
     this.drawMarks();
@@ -122,6 +143,17 @@ export class ShapeOverlay {
   private drawOutline(): void {
     const g = this.outline;
     g.clear();
+    const erasing = this.drawing?.erasing;
+    if (erasing) {
+      const { points } = specOf(erasing.shape).edge(erasing.shape, OUTLINE_POINTS);
+      if (points.length < 2) return;
+      g.poly(
+        points.flatMap((p) => [p.x, p.y]),
+        true,
+      );
+      g.stroke({ color: WARN.color, alpha: WARN.alpha, pixelLine: true });
+      return;
+    }
     const pending = this.drawing?.pending;
     if (!pending) return;
     const { shape, fill } = pending;
@@ -158,6 +190,10 @@ export class ShapeOverlay {
       return;
     }
     const px = 1 / this.camScale;
+    for (const at of d.erasing?.doomed ?? []) g.circle(at.x, at.y, WARN.radiusPx * px);
+    if (d.erasing && d.erasing.doomed.length > 0) {
+      g.stroke({ color: WARN.color, alpha: WARN.alpha, width: WARN.widthPx * px });
+    }
     const p = d.preview;
     if (p) {
       for (const { at } of p.left) g.circle(at.x, at.y, LEFT_OUT.radiusPx * px);

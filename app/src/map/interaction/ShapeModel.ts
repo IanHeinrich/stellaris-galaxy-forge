@@ -18,6 +18,13 @@ function dragFor(pick: ShapePick | null, input: MapInput): ShapeDrag {
   return { kind: "draw", anchor: at };
 }
 
+/** The drag a press makes: with Alt where systems can be erased, an erase whatever is under it. */
+function pressDrag(pick: ShapePick | null, input: MapInput, erases: boolean): ShapeDrag {
+  return input.alt && erases
+    ? { kind: "erase", anchor: { x: input.wx, y: input.wy } }
+    : dragFor(pick, input);
+}
+
 function idleCursor(pick: ShapePick | null): string {
   switch (pick?.kind) {
     case "handle":
@@ -31,13 +38,16 @@ function idleCursor(pick: ShapePick | null): string {
 
 /**
  * The Shape tool: a press on a handle drags it, inside the pending shape moves it, and elsewhere
- * draws a new one; the middle button pans. A press that never travels past the drag threshold
- * leaves the shape as it was.
+ * draws a new one; with Alt, where `erases` says the document erases systems, a drag draws a
+ * shape that erases what is inside it. The middle button pans. A press that never travels past
+ * the drag threshold leaves the shape as it was.
  */
 export class ShapeModel implements MapModel {
   private held: Held | null = null;
   private panning = false;
   private idle = "crosshair";
+
+  constructor(private readonly erases: () => boolean = () => false) {}
 
   handle(input: MapInput, intent: MapIntent): "consumed" | "pan" {
     if (!this.held) this.idle = idleCursor(input.shape);
@@ -60,7 +70,10 @@ export class ShapeModel implements MapModel {
 
   cursor(): string {
     if (this.panning) return "grabbing";
-    if (this.held?.started) return this.held.drag.kind === "draw" ? "crosshair" : "grabbing";
+    if (this.held?.started) {
+      const drawing = this.held.drag.kind === "draw" || this.held.drag.kind === "erase";
+      return drawing ? "crosshair" : "grabbing";
+    }
     return this.idle;
   }
 
@@ -78,7 +91,7 @@ export class ShapeModel implements MapModel {
     if (this.busy()) return;
     if (input.button === 0) {
       this.held = {
-        drag: dragFor(input.shape, input),
+        drag: pressDrag(input.shape, input, this.erases()),
         tap: { sx: input.sx, sy: input.sy, time: input.time },
         snap: !input.ctrl,
         started: false,

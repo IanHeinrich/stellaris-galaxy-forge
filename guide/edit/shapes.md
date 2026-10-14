@@ -1,7 +1,7 @@
 ---
 title: Draw shapes of systems
-description: Draw a line, circle, polygon, rectangle or star of new systems on the map of a save or scenario, with a live preview before you place it.
-aliases: [shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape]
+description: Draw a line, circle, polygon, rectangle or star of new systems on the map of a save or scenario, or arrange systems you already have into one, with a live preview before you place it.
+aliases: [arrange, arrange systems, tidy systems, erase with a shape, shape, shapes tool, draw shapes, circle, ring, perfect circle, ellipse, arc, line, polygon, triangle, hexagon, rectangle, square, star shape, grid, hex grid, outline, scattered, fill, pending shape, place systems in a shape]
 ---
 # Draw shapes of systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -37,7 +37,7 @@ shape, and <kbd>Esc</kbd> again to go back to the Select tool.
 
 ## In a save <Badge type="tip" text="Save" />
 
-A shape adds up to 200 systems to a save. It is meant for clusters, not
+A shape can add up to 200 systems to a save. It is meant for clusters, not
 whole galaxies. A scenario allows 1,000.
 
 - Galaxy Forge keeps new systems at least 10 units from every other system,
@@ -69,7 +69,7 @@ Stars chooses the star class of the systems a shape adds to a save:
 Special systems such as Sol are not offered. The preview colours each point
 as its star, and Shuffle rolls the stars again.
 
-For a cluster of black holes, pick Black hole.
+To make a cluster of black holes, pick Black hole.
 
 ## The shapes
 
@@ -153,6 +153,59 @@ system are left out either way.
 [Symmetry](brushes.md#use-symmetry) copies the shape around the centre of
 the galaxy or mirrors it. Copies that land on each other become one, so a
 circle centred on the pivot isn't doubled.
+
+Arrange works only with symmetry off, because it moves only the systems
+you selected.
+
+## Arrange a selection
+
+Arrange moves systems you already have onto a shape, such as a ring of
+systems you painted by hand.
+
+1. Select the systems.
+2. Right-click one of them and pick Arrange…. The button is also with the
+   other selection actions in the inspector.
+3. Adjust the shape. It starts centred where you right-clicked and sized
+   to fit the selection. The first time it is a circle. After that it is
+   the last shape you arranged into.
+4. Press <kbd>Enter</kbd> or Arrange 7 systems.
+
+The map shows where each system goes. The count is fixed to the selection.
+Each system goes to the nearest free point, so their order around a ring
+follows where they were. Outline puts them along the edge, and a scattered
+or grid fill spreads them evenly inside the shape.
+
+The whole arrange is one undo step. <kbd>Esc</kbd> moves nothing and puts
+back the tool you had.
+
+When arranging, Lanes chooses what happens to the lanes between the
+selected systems:
+
+- Keep, the default, keeps every lane. Each lane stretches to follow the
+  move. A lane that would cross another lane, run along one, or pass
+  through a system is orange in the preview.
+- Rebuild takes those lanes out and adds new ones, as a new shape would:
+  Follow the shape, Lanes and Lane density work as above. New and nearby
+  joins the arranged systems back to the systems around them.
+- Clear takes those lanes out and adds none.
+
+Lanes to systems outside the selection stay and stretch to follow. Under
+Rebuild and Clear, tick "Also remove lanes to other systems" to take those
+out too. With Rebuild, New and nearby can join the arranged systems back
+in.
+
+Arrange won't place a system on top of another. If points of the shape
+land within 10 units of a system you didn't select, or past the edge, the
+Arrange button is off and says why. Move or resize the shape until they
+fit.
+
+## Erase with a shape <Badge type="info" text="Scenario" />
+
+Hold <kbd>Alt</kbd> and drag with the Shape tool to erase every system
+inside the shape you draw, as <kbd>Alt</kbd> turns Paint into Erase. The
+systems to be erased are ringed in orange until you let go. As with the
+Erase brush, special systems stay unless you set the Erase brush to take
+them. A line has no inside, so it erases nothing.
 
 ## Shapes remember their settings
 

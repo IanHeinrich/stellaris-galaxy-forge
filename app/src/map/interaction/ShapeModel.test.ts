@@ -43,6 +43,22 @@ describe("ShapeModel", () => {
     ]);
   });
 
+  it("Alt at the press draws a shape to erase inside, where systems can be erased, even on a handle", () => {
+    const intent = recorder();
+    const erasing = new ShapeModel(() => true);
+    erasing.handle(at("down", 10, 10, { alt: true, shape: { kind: "handle", id: "rim" } }), intent);
+    erasing.handle(at("move", 30, 30), intent);
+    erasing.handle(at("up", 30, 30), intent);
+    const keeping = new ShapeModel(() => false);
+    keeping.handle(at("down", 10, 10, { alt: true }), intent);
+    keeping.handle(at("move", 30, 30), intent);
+    expect(intent.calls).toEqual([
+      ["shapeDrag", { kind: "erase", anchor: { x: 10, y: 10 } }, 30, 30, SNAP],
+      ["endShapeDrag", false],
+      ["shapeDrag", { kind: "draw", anchor: { x: 10, y: 10 } }, 30, 30, SNAP],
+    ]);
+  });
+
   it("Ctrl at the press turns snapping off for the whole drag", () => {
     const model = new ShapeModel();
     const intent = recorder();

@@ -43,6 +43,7 @@ const IDLE_HINT =
 const DELETE_KEY = shortcutLabel("deleteSelection");
 
 const SHAPE_HINT = "Enter places · Esc drops · drag a handle to adjust";
+const ARRANGE_HINT = "Enter arranges · Esc moves nothing · drag a handle to adjust";
 
 const LEAVE_HINT = `${shortcutLabel("clearSelection")} back to galaxy`;
 
@@ -293,12 +294,15 @@ function Hint() {
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
   const gesture = useMapChromeStore((s) => s.gesture);
   const clipboard = useClipboard();
-  const shapePending = useToolStore((s) => s.pendingShape !== null);
+  const shapePending = useToolStore((s) => s.pendingShape?.purpose.kind ?? null);
   if (gesture === "connecting") {
     return <span className="muted">release on a system to connect</span>;
   }
   if (shown !== null && gesture === null) return <SceneHint system={shown} />;
-  if (shapePending && gesture === null) return <span className="muted">{SHAPE_HINT}</span>;
+  if (shapePending !== null && gesture === null) {
+    const hint = shapePending === "arrange" ? ARRANGE_HINT : SHAPE_HINT;
+    return <span className="muted">{hint}</span>;
+  }
   if (clipboard !== null && gesture === null) return <ClipboardHint clipboard={clipboard} />;
   if (hover !== null) {
     return <span className="muted">drag to move · drag ring to connect · Shift+click to add</span>;
