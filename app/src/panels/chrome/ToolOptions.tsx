@@ -11,10 +11,10 @@ import { TOOL_ENTRY, type Tool } from "../../lib/tools";
 import {
   densityLimit,
   ERASE_TARGET_CHOICES,
-  HEIGHT_MODE_HINTS,
-  HEIGHT_MODE_LABELS,
-  RIPPLE_PRESET_LABELS,
+  HEIGHT_MODE_ROWS,
+  RIPPLE_PRESET_ROWS,
   SPREAD_HINT,
+  TOOL_OPTIONS,
 } from "../../lib/toolCopy";
 import { toCss } from "../../lib/visual/color";
 import {
@@ -37,11 +37,11 @@ import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
 import { ShapeOptions } from "./ShapeOptions";
 import {
+  CheckOption,
   DraftNumber,
   LaneDensityOption,
   LaneModeOption,
   SliderOption,
-  SpecialsOption,
 } from "./toolFields";
 import "./chrome.css";
 import "../panels.css";
@@ -50,9 +50,10 @@ import "../panels.css";
 function SizeOption() {
   const size = useToolStore((s) => s.size);
   const setSize = useToolStore((s) => s.setSize);
+  const { label, hint } = TOOL_OPTIONS.size;
   return (
-    <label className="tool-option">
-      Size
+    <label className="tool-option" title={hint}>
+      {label}
       <input
         type="range"
         min={SIZE_RANGE.min}
@@ -66,7 +67,7 @@ function SizeOption() {
         max={SIZE_RANGE.max}
         value={size}
         onApply={setSize}
-        aria-label="Brush size in world units"
+        aria-label="Brush size in game units"
       />
     </label>
   );
@@ -82,11 +83,12 @@ function PaintOptions() {
   const why = densityLimit(MAX_SYSTEMS_PER_BRUSH, least);
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
+  const { label, hint } = TOOL_OPTIONS.density;
   return (
     <>
       <SizeOption />
-      <label className="tool-option">
-        Density
+      <label className="tool-option" title={hint}>
+        {label}
         <span className="muted">sparse</span>
         <span className="density-track" style={{ "--reach": `${reach * 100}%` } as CSSProperties}>
           <input
@@ -106,8 +108,8 @@ function PaintOptions() {
           step={0.1}
           value={spacing}
           onApply={setSpacing}
-          aria-label="Spacing between painted systems in world units"
-          title="Distance between painted systems, in world units"
+          aria-label="Spacing between painted systems in game units"
+          title="Distance between painted systems, in game units"
         />
         {limited && (
           <span className="density-limit" title={why}>
@@ -126,15 +128,16 @@ function EraseOptions() {
   const setEraseTarget = useToolStore((s) => s.setEraseTarget);
   const eraseSpecials = useToolStore((s) => s.eraseSpecials);
   const setEraseSpecials = useToolStore((s) => s.setEraseSpecials);
+  const target = TOOL_OPTIONS.eraseTarget;
   return (
     <>
       <SizeOption />
-      <label className="tool-option">
-        Target
+      <label className="tool-option" title={target.hint}>
+        {target.label}
         <Select value={eraseTarget} choices={ERASE_TARGET_CHOICES} onChange={setEraseTarget} />
       </label>
-      <SpecialsOption
-        label="Also erase special systems"
+      <CheckOption
+        copy={TOOL_OPTIONS.eraseSpecials}
         checked={eraseSpecials}
         disabled={eraseTarget === "lanes"}
         onChange={setEraseSpecials}
@@ -163,9 +166,10 @@ function HeightModeOption() {
           type="button"
           role="radio"
           aria-checked={mode === m}
+          title={HEIGHT_MODE_ROWS[m].title}
           onClick={() => setMode(m)}
         >
-          {HEIGHT_MODE_LABELS[m]}
+          {HEIGHT_MODE_ROWS[m].label}
         </button>
       ))}
     </div>
@@ -227,26 +231,32 @@ function RippleOptions() {
     <>
       <div className="segmented" role="group" aria-label="Ripple presets">
         {RIPPLE_PRESETS.map((p) => (
-          <button key={p} type="button" aria-pressed={preset === p} onClick={() => pick(p)}>
-            {RIPPLE_PRESET_LABELS[p]}
+          <button
+            key={p}
+            type="button"
+            aria-pressed={preset === p}
+            title={RIPPLE_PRESET_ROWS[p].title}
+            onClick={() => pick(p)}
+          >
+            {RIPPLE_PRESET_ROWS[p].label}
           </button>
         ))}
       </div>
       <RippleProfile shape={shape} r={size / 2} />
       <SliderOption
-        label="Height"
+        {...TOOL_OPTIONS.rippleHeight}
         range={RIPPLE_RANGES.height}
         value={shape.height}
         onChange={(height) => setRipple({ height })}
       />
       <SliderOption
-        label="Wave spacing"
+        {...TOOL_OPTIONS.waveSpacing}
         range={RIPPLE_RANGES.spacing}
         value={shape.spacing}
         onChange={(spacing) => setRipple({ spacing })}
       />
       <SliderOption
-        label="Fade out"
+        {...TOOL_OPTIONS.fade}
         range={RIPPLE_RANGES.fade}
         value={shape.fade}
         onChange={(fade) => setRipple({ fade })}
@@ -270,7 +280,7 @@ function HeightOptions() {
       <SizeOption />
       {mode === "set" && (
         <SliderOption
-          label="Height"
+          {...TOOL_OPTIONS.height}
           range={HEIGHT_SET_RANGE}
           step={HEIGHT_SET_RANGE.step}
           value={value}
@@ -279,19 +289,24 @@ function HeightOptions() {
         />
       )}
       {mode === "raise" && (
-        <SliderOption label="Strength" range={RAISE_RANGE} value={raise} onChange={setRaise} />
+        <SliderOption
+          {...TOOL_OPTIONS.raise}
+          range={RAISE_RANGE}
+          value={raise}
+          onChange={setRaise}
+        />
       )}
       {mode === "ripple" && <RippleOptions />}
       {mode === "smooth" && (
         <SliderOption
-          label="Strength"
+          {...TOOL_OPTIONS.smooth}
           range={SMOOTH_RANGE}
           value={smooth}
           onChange={setSmooth}
           unit="%"
         />
       )}
-      <span className="tool-hint muted">{HEIGHT_MODE_HINTS[mode]}</span>
+      <span className="tool-hint muted">{HEIGHT_MODE_ROWS[mode].hint}</span>
     </>
   );
 }
@@ -306,17 +321,13 @@ function SpreadOptions() {
     <>
       <SizeOption />
       <SliderOption
-        label="Strength"
+        {...TOOL_OPTIONS.spread}
         range={SPREAD_RANGE}
         value={strength}
         onChange={setStrength}
         unit="%"
       />
-      <SpecialsOption
-        label="Also move special and home systems"
-        checked={specials}
-        onChange={setSpecials}
-      />
+      <CheckOption copy={TOOL_OPTIONS.spreadSpecials} checked={specials} onChange={setSpecials} />
       <span className="tool-hint muted">{SPREAD_HINT}</span>
     </>
   );
@@ -343,7 +354,7 @@ export function ToolOptions() {
   return (
     <div className="tool-options pop-surface" role="toolbar" aria-label="Brush options">
       <Options />
-      {help !== null && <HelpLink place={help} topic={label} />}
+      {help !== null && !help.onHeading && <HelpLink place={help.place} topic={label} />}
     </div>
   );
 }

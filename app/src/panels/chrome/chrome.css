@@ -602,8 +602,10 @@ button.master.init[aria-pressed="true"] {
   color: var(--warn);
 }
 
+/* --chars is the widest value the field takes; the rest is the spin buttons and padding. */
 .tool-option input[type="number"] {
-  width: 52px;
+  width: calc(var(--chars, 4) * 1ch + 24px);
+  font-variant-numeric: tabular-nums;
 }
 
 .tool-value {
@@ -948,12 +950,82 @@ button.badge.paint-badge:hover {
   box-sizing: border-box;
 }
 
+/* One grid for the whole panel, so labels, sliders and values line up across the sections. */
 .shape-options {
+  display: grid;
+  grid-template-columns: max-content minmax(80px, 1fr) max-content;
+  column-gap: 8px;
+  row-gap: 8px;
+  align-items: center;
+  min-width: 240px;
+}
+
+.shape-options > *,
+.shape-section > * {
+  grid-column: 1 / -1;
+}
+
+.shape-section {
+  display: grid;
+  grid-template-columns: subgrid;
+  column-gap: 8px;
+  row-gap: 4px;
+  align-items: center;
+}
+
+.shape-section + .shape-section {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.shape-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+
+/* A labelled row takes the panel's columns: label | slider or field | value. A box spans its row. */
+.shape-section > .tool-option:not(:has(> input[type="checkbox"])) {
+  display: grid;
+  grid-template-columns: subgrid;
+  column-gap: 8px;
+}
+
+.shape-section > .tool-option > input[type="range"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.shape-section > .tool-option > :is(input[type="number"], select, .tool-value, .muted) {
+  justify-self: start;
+}
+
+.shape-density {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shape-density input[type="range"] {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+/* The size presets and the mix's boxes sit under the slider column. */
+.shape-section > :is(.shape-chips, .shape-mix) {
+  grid-column: 2 / -1;
+}
+
+.shape-mix {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 240px;
+  gap: 2px;
 }
 
 .shape-glyph {
@@ -962,6 +1034,54 @@ button.badge.paint-badge:hover {
 
 .shape-chips {
   align-items: center;
+}
+
+.segmented.shape-tiles {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.segmented.shape-tiles button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+/* A joined bar: the buttons share their borders, and the chosen one is filled. */
+.segmented.joined {
+  gap: 0;
+}
+
+.segmented.joined button {
+  flex: 1 1 auto;
+  border-radius: 0;
+}
+
+.segmented.joined button + button {
+  margin-left: -1px;
+}
+
+.segmented.joined button:first-child {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.segmented.joined button:last-child {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.segmented.joined button:hover:not(:disabled) {
+  position: relative;
+  z-index: 2;
+}
+
+.segmented.joined button[aria-checked="true"] {
+  position: relative;
+  z-index: 1;
+  background: var(--accent-bg-strong);
 }
 
 .shape-exact {
@@ -978,8 +1098,16 @@ button.badge.paint-badge:hover {
 
 .shape-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.shape-shuffle {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  padding: 0 6px;
 }
 
 .shape-status {

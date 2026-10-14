@@ -240,6 +240,8 @@
   {"q": "polygon", "expect": "edit/shapes#the-shapes"},
   {"q": "grid of systems", "expect": "edit/shapes#outline-scattered-or-grid"},
   {"q": "hex grid", "expect": "edit/shapes#outline-scattered-or-grid"},
+  {"q": "system density of a fill", "expect": "edit/shapes#outline-scattered-or-grid"},
+  {"q": "shape spacing between systems", "expect": "edit/shapes#outline-scattered-or-grid"},
   {"q": "fill a shape with systems", "expect": "edit/shapes"},
   {"q": "rotate a shape", "expect": "edit/shapes#move-resize-and-turn-a-shape"},
   {"q": "resize a shape", "expect": "edit/shapes#move-resize-and-turn-a-shape"},
@@ -268,5 +270,5 @@
   {"q": "chokepoints in a ring", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
   {"q": "thick ring of systems", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
   {"q": "make a shape less exact", "expect": "edit/shapes#bands-rings-gaps-and-wobble"},
-  {"q": "system in the centre with spokes", "expect": "edit/shapes#lanes"}
+  {"q": "system in the centre with spokes", "expect": "edit/shapes#a-system-at-the-centre"}
 ]

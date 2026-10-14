@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useId, type ComponentType, type ReactNode } from "react";
 import { clampTo } from "../../lib/geometry/geometry";
+import type { Symmetry } from "../../lib/geometry/symmetry";
 import { extentOf, reachOf, SCENARIO_HALF_EXTENT, type MapExtent } from "../../lib/guides";
 import { galaxyFrame } from "../../lib/shapes/drag";
 import { fillSpacing, hasEdgeRow, leastSpacing } from "../../lib/shapes/placement";
@@ -10,14 +11,22 @@ import {
   type PlacementRules,
 } from "../../lib/placement/rules";
 import {
+  ARRANGE_HINT,
   ARRANGE_LANE_CHOICES,
   arrangeLabel,
   arrangeLaneRow,
   FILL_CHOICES,
+  fillChoiceHint,
   fillChoiceLabel,
   fillChoiceOf,
   fillKindOf,
+  MIX_CLASS_HINT,
+  PLACE_HINT,
   placeLabel,
+  SHAPE_OPTIONS,
+  SHAPE_SECTION_HEADINGS,
+  SHAPE_SECTIONS,
+  type ShapeSection,
 } from "../../lib/shapes/shapeCopy";
 import {
   appliedExtras,
@@ -29,7 +38,6 @@ import {
 import { centreOf, fieldShows, SHAPE_KINDS, SHAPE_SPECS, specOf } from "../../lib/shapes/specs";
 import type { StarChoice } from "../../lib/shapes/stars";
 import type {
-  ArrangeLanes,
   ExtraKey,
   Fill,
   GalaxyFrame,
@@ -39,8 +47,11 @@ import type {
   ShapeField,
   ShapePurpose,
   ShapeSettings,
+  SpacedFill,
 } from "../../lib/shapes/types";
-import type { Choice } from "../../lib/toolCopy";
+import { counted } from "../../lib/text";
+import { iconTitle, type Choice } from "../../lib/toolCopy";
+import { TOOL_ENTRY } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -50,15 +61,21 @@ import { SHAPE_NEEDS_GAME_DATA, shapeRefusal, useShapePreview } from "../../stor
 import { COUNT_RANGE, rememberedFor, SHAPE_SIZE_MIN } from "../../store/toolStore.shape";
 import {
   SPACING_RANGE,
-  SPACING_SLIDER_MAX,
   sliderOfSpacing,
   spacingOfSlider,
   useToolStore,
 } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
+import { HelpLink } from "../HelpLink";
 import { Select } from "../Select";
 import { useGeneratorData } from "../useGeneratorData";
-import { DraftNumber, LaneDensityOption, LaneModeSelect, SliderOption } from "./toolFields";
+import {
+  CheckOption,
+  DraftNumber,
+  LaneDensityOption,
+  LaneModeSelect,
+  SliderOption,
+} from "./toolFields";
 import "./chrome.css";
 
 /** What the Small chip sets, as a fraction of the galaxy's radius. */
@@ -83,26 +100,33 @@ function useGalaxyFrames(rules: PlacementRules): { galaxy: GalaxyFrame; reach: G
   };
 }
 
-/** A row of buttons of which `value` is the one chosen. */
+/** A row of buttons of which `value` is the one chosen: a joined bar, or `tiles` that wrap. */
 function Choice<T extends string>({
   label,
   choices,
   value,
   onPick,
+  tiles = false,
 }: {
   label: string;
-  choices: readonly { value: T; label: ReactNode; title?: string }[];
+  choices: readonly { value: T; label: ReactNode; title: string; name?: string }[];
   value: T;
   onPick(value: T): void;
+  tiles?: boolean;
 }) {
   return (
-    <div className="segmented" role="radiogroup" aria-label={label}>
+    <div
+      className={tiles ? "segmented shape-tiles" : "segmented joined"}
+      role="radiogroup"
+      aria-label={label}
+    >
       {choices.map((c) => (
         <button
           key={c.value}
           type="button"
           role="radio"
           aria-checked={value === c.value}
+          aria-label={c.name}
           title={c.title}
           onClick={() => onPick(c.value)}
         >
@@ -120,9 +144,11 @@ function KindPicker({ shape }: { shape: Shape }) {
       label="Shape"
       value={shape.kind}
       onPick={setShapeKind}
+      tiles
       choices={SHAPE_KINDS.map((kind) => ({
         value: kind,
-        title: SHAPE_SPECS[kind].label,
+        name: SHAPE_SPECS[kind].label,
+        title: iconTitle(SHAPE_SPECS[kind].label, SHAPE_SPECS[kind].hint),
         label: (
           <Glyph className="shape-glyph">
             <path d={SHAPE_SPECS[kind].glyph} />
@@ -147,17 +173,15 @@ function FillPicker({ settings }: { settings: ShapeSettings }) {
         choices={FILL_CHOICES.filter((c) => fills.includes(fillKindOf(c))).map((c) => ({
           value: c,
           label: fillChoiceLabel(c),
+          title: fillChoiceHint(c),
         }))}
       />
       {fill.kind === "scattered" && (
-        <label className="tool-option">
-          <input
-            type="checkbox"
-            checked={fill.edge}
-            onChange={(e) => setFill({ ...fill, edge: e.target.checked })}
-          />
-          Line the edge with systems
-        </label>
+        <CheckOption
+          copy={SHAPE_OPTIONS.edge}
+          checked={fill.edge}
+          onChange={(edge) => setFill({ ...fill, edge })}
+        />
       )}
     </>
   );
@@ -173,19 +197,19 @@ function SizeOptions({ shape, rules }: { shape: Shape; rules: PlacementRules }) 
   return (
     <>
       <SliderOption
-        label="Size"
+        {...SHAPE_OPTIONS.size}
         range={{ min: SHAPE_SIZE_MIN, max: Math.round(reach.radius) }}
         value={Math.round(size)}
         onChange={setShapeSize}
-        field="Shape size in world units"
+        field="Shape size in game units"
       />
       <div className="segmented shape-chips" role="group" aria-label="Size presets">
-        <button type="button" onClick={() => setShapeSize(small)}>
-          Small
+        <button type="button" title={SHAPE_OPTIONS.small.hint} onClick={() => setShapeSize(small)}>
+          {SHAPE_OPTIONS.small.label}
         </button>
         <span className="muted">{percent}% of the galaxy</span>
-        <button type="button" onClick={() => setShapeSize(whole)}>
-          Whole galaxy
+        <button type="button" title={SHAPE_OPTIONS.whole.hint} onClick={() => setShapeSize(whole)}>
+          {SHAPE_OPTIONS.whole.label}
         </button>
       </div>
     </>
@@ -200,7 +224,7 @@ function FieldRow({ shape, field }: { shape: Shape; field: ShapeField<Shape> }) 
     setShapeField(shape.kind, field.key as never, clampTo(v, field.range));
   if (field.exact) {
     return (
-      <label className="tool-option">
+      <label className="tool-option" title={field.hint}>
         {field.label}
         <DraftNumber
           min={field.range.min}
@@ -217,6 +241,7 @@ function FieldRow({ shape, field }: { shape: Shape; field: ShapeField<Shape> }) 
   return (
     <SliderOption
       label={field.label}
+      hint={field.hint}
       range={field.range}
       step={field.step}
       value={value}
@@ -227,15 +252,31 @@ function FieldRow({ shape, field }: { shape: Shape; field: ShapeField<Shape> }) 
   );
 }
 
-function CountOrSpacing({ settings, rules }: { settings: ShapeSettings; rules: PlacementRules }) {
+/** The least spacing `fill` can lay `shape` at, and the spacing it is laid at, each to a tenth. */
+function spacingOf(
+  shape: Shape,
+  fill: SpacedFill,
+  symmetry: Symmetry,
+  rules: PlacementRules,
+): { least: number; used: number } {
+  // Rounded up, so neither shows a spacing closer than the fill is laid at.
+  const tenth = (v: number) => Math.ceil(v * 10) / 10;
+  return {
+    least: tenth(leastSpacing(shape, fill, symmetry, rules)),
+    used: tenth(fillSpacing(shape, fill, symmetry, rules)),
+  };
+}
+
+function CountOrDensity({ settings, rules }: { settings: ShapeSettings; rules: PlacementRules }) {
   const setFill = useToolStore((s) => s.setFill);
   const symmetry = useToolStore((s) => s.symmetry);
   const { shape, fill } = settings;
   if (fill.kind === "outline") {
     const range = { min: COUNT_RANGE.min, max: rules.cap };
+    const { label, hint } = SHAPE_OPTIONS.systems;
     return (
-      <label className="tool-option">
-        Systems
+      <label className="tool-option" title={hint}>
+        {label}
         <DraftNumber
           min={range.min}
           max={range.max}
@@ -247,35 +288,46 @@ function CountOrSpacing({ settings, rules }: { settings: ShapeSettings; rules: P
       </label>
     );
   }
-  const least = leastSpacing(shape, fill, symmetry, rules);
-  // Rounded up, so the field never shows a spacing closer than the fill is laid at.
-  const used = Math.ceil(fillSpacing(shape, fill, symmetry, rules) * 10) / 10;
-  // The slider runs close (left) to far (right); the brush's log scale runs the other way.
+  const { least, used } = spacingOf(shape, fill, symmetry, rules);
+  const { label, hint } = SHAPE_OPTIONS.density;
+  // Sparse (left) to dense (right), as the brushes' Density and Lane density run.
   return (
-    <label className="tool-option">
-      Spacing
-      <span className="muted">close</span>
-      <input
-        type="range"
-        min={SPACING_SLIDER_MAX - sliderOfSpacing(least)}
-        max={SPACING_SLIDER_MAX}
-        value={SPACING_SLIDER_MAX - sliderOfSpacing(used)}
-        onChange={(e) =>
-          setFill({
-            ...fill,
-            spacing: spacingOfSlider(SPACING_SLIDER_MAX - Number(e.target.value)),
-          })
-        }
-        aria-label="Spacing"
-      />
-      <span className="muted">far</span>
+    <label className="tool-option" title={hint}>
+      {label}
+      <span className="shape-density">
+        <span className="muted">sparse</span>
+        <input
+          type="range"
+          min={0}
+          max={sliderOfSpacing(least)}
+          value={sliderOfSpacing(used)}
+          onChange={(e) => setFill({ ...fill, spacing: spacingOfSlider(Number(e.target.value)) })}
+          aria-label={label}
+        />
+        <span className="muted">dense</span>
+      </span>
+    </label>
+  );
+}
+
+/** The spacing a scattered or grid fill is laid at, typed in game units. */
+function SpacingField({ settings, rules }: { settings: ShapeSettings; rules: PlacementRules }) {
+  const setFill = useToolStore((s) => s.setFill);
+  const symmetry = useToolStore((s) => s.symmetry);
+  const { shape, fill } = settings;
+  if (fill.kind === "outline") return null;
+  const { least, used } = spacingOf(shape, fill, symmetry, rules);
+  const { label, hint } = SHAPE_OPTIONS.spacing;
+  return (
+    <label className="tool-option" title={hint}>
+      {label}
       <DraftNumber
-        min={Math.ceil(least * 10) / 10}
+        min={least}
         max={SPACING_RANGE.max}
         step={0.1}
         value={used}
         onApply={(spacing) => setFill({ ...fill, spacing })}
-        aria-label="Spacing between systems in world units"
+        aria-label="Spacing between systems in game units"
       />
     </label>
   );
@@ -293,61 +345,13 @@ function ExtraRow({ extra, extras }: { extra: ExtraKey; extras: ShapeExtras }) {
       value={extras[extra]}
       onChange={(v) => setShapeExtras({ [extra]: clampTo(v, row.range) })}
       field={`${row.label} as a number`}
+      hint={row.hint}
       unit={row.unit}
     />
   );
 }
 
-/** The extras that apply to `settings` laid for `purpose`: those that change only follow lanes, or the rest. */
-function ExtraRows({
-  settings,
-  purpose,
-  followOnly,
-}: {
-  settings: ShapeSettings;
-  purpose: ShapePurpose["kind"];
-  followOnly: boolean;
-}) {
-  const shown = EXTRA_KEYS.filter(
-    (k) => EXTRA_ROWS[k].followOnly === followOnly && extraApplies(k, settings, purpose),
-  );
-  return (
-    <>
-      {shown.map((k) => (
-        <ExtraRow key={k} extra={k} extras={settings.extras} />
-      ))}
-    </>
-  );
-}
-
-/** A system at the centre, and once it is on, spokes from it to the outline. */
-function CentreOptions({ extras }: { extras: ShapeExtras }) {
-  const setShapeExtras = useToolStore((s) => s.setShapeExtras);
-  const { centre } = extras;
-  return (
-    <>
-      <label className="tool-option">
-        <input
-          type="checkbox"
-          checked={centre !== "none"}
-          onChange={(e) => setShapeExtras({ centre: e.target.checked ? "system" : "none" })}
-        />
-        A system at the centre
-      </label>
-      {centre !== "none" && (
-        <label className="tool-option">
-          <input
-            type="checkbox"
-            checked={centre === "spokes"}
-            onChange={(e) => setShapeExtras({ centre: e.target.checked ? "spokes" : "system" })}
-          />
-          Spokes to the centre
-        </label>
-      )}
-    </>
-  );
-}
-
+/** The new lanes' options: which lanes, how many, along the edge, and spokes once there is a centre system. */
 function LaneOptions({
   settings,
   purpose,
@@ -356,67 +360,43 @@ function LaneOptions({
   purpose: ShapePurpose["kind"];
 }) {
   const setShapeLanes = useToolStore((s) => s.setShapeLanes);
-  const { lanes, fill } = settings;
+  const setShapeExtras = useToolStore((s) => s.setShapeExtras);
+  const { lanes, fill, extras } = settings;
   return (
     <>
-      {hasEdgeRow(fill) && (
-        <label className="tool-option">
-          <input
-            type="checkbox"
-            checked={lanes.follow}
-            onChange={(e) => setShapeLanes({ follow: e.target.checked })}
-          />
-          Follow the shape
-        </label>
-      )}
-      <ExtraRows settings={settings} purpose={purpose} followOnly />
-      {takesCentre(settings, purpose) && <CentreOptions extras={settings.extras} />}
       <LaneModeSelect value={lanes.mode} onChange={(mode) => setShapeLanes({ mode })} />
       {lanes.mode !== "off" && <LaneDensityOption />}
-    </>
-  );
-}
-
-/** Arrange's lane choice about the lanes between the selected systems, and under Rebuild how new ones are laid. */
-function ArrangeLaneOptions({
-  settings,
-  lanes,
-  alsoOuter,
-}: {
-  settings: ShapeSettings;
-  lanes: ArrangeLanes;
-  alsoOuter: boolean;
-}) {
-  const setArrangeLanes = useToolStore((s) => s.setArrangeLanes);
-  const setArrangeAlsoOuter = useToolStore((s) => s.setArrangeAlsoOuter);
-  return (
-    <>
-      <span className="tool-option">Lanes</span>
-      <Choice
-        label="Lanes between the selected systems"
-        value={lanes}
-        onPick={setArrangeLanes}
-        choices={ARRANGE_LANE_CHOICES.map((c) => ({ value: c, ...arrangeLaneRow(c) }))}
-      />
-      {lanes === "rebuild" && <LaneOptions settings={settings} purpose="arrange" />}
-      {lanes !== "keep" && (
-        <label className="tool-option">
-          <input
-            type="checkbox"
-            checked={alsoOuter}
-            onChange={(e) => setArrangeAlsoOuter(e.target.checked)}
-          />
-          Also remove lanes to other systems
-        </label>
+      {hasEdgeRow(fill) && (
+        <CheckOption
+          copy={SHAPE_OPTIONS.follow}
+          checked={lanes.follow}
+          onChange={(follow) => setShapeLanes({ follow })}
+        />
+      )}
+      {takesCentre(settings, purpose) && extras.centre !== "none" && (
+        <CheckOption
+          copy={SHAPE_OPTIONS.spokes}
+          checked={extras.centre === "spokes"}
+          onChange={(on) => setShapeExtras({ centre: on ? "spokes" : "system" })}
+        />
       )}
     </>
   );
 }
 
-/** The centre and the kind's exact fields, folded away until the player wants to type them. */
-function ExactValues({ shape, fill }: { shape: Shape; fill: Fill }) {
+/** The centre, the kind's exact fields and a fill's spacing, folded away until the player wants to type them. */
+function ExactValues({
+  settings,
+  rules,
+  arranging,
+}: {
+  settings: ShapeSettings;
+  rules: PlacementRules;
+  arranging: boolean;
+}) {
   const moveShape = useToolStore((s) => s.moveShape);
   const settleShape = useToolStore((s) => s.settleShape);
+  const { shape, fill } = settings;
   const centre = centreOf(shape);
   const fields = (specOf(shape).fields as readonly ShapeField<Shape>[]).filter(
     (f) => f.exact && fieldShows(f, fill),
@@ -427,18 +407,18 @@ function ExactValues({ shape, fill }: { shape: Shape; fill: Fill }) {
   };
   return (
     <details className="shape-exact">
-      <summary>Exact values</summary>
-      <label className="tool-option">
-        Centre
+      <summary title={SHAPE_OPTIONS.exact.hint}>{SHAPE_OPTIONS.exact.label}</summary>
+      <label className="tool-option" title={SHAPE_OPTIONS.centreAt.hint}>
+        {SHAPE_OPTIONS.centreAt.label}
         <DraftNumber
           step={1}
-          value={Math.round(centre.x * 100) / 100}
+          value={centre.x}
           onApply={centreAt("x")}
           aria-label="Centre x in game units"
         />
         <DraftNumber
           step={1}
-          value={Math.round(centre.y * 100) / 100}
+          value={centre.y}
           onApply={centreAt("y")}
           aria-label="Centre y in game units"
         />
@@ -446,6 +426,7 @@ function ExactValues({ shape, fill }: { shape: Shape; fill: Fill }) {
       {fields.map((f) => (
         <FieldRow key={String(f.key)} shape={shape} field={f} />
       ))}
+      {!arranging && <SpacingField settings={settings} rules={rules} />}
     </details>
   );
 }
@@ -501,45 +482,55 @@ function StarsRow({ stars }: { stars: StarChoice }) {
   const value = stars.kind === "one" ? ONE_PREFIX + stars.class : stars.kind;
   return (
     <>
-      <label className="tool-option">
-        Stars
+      <label className="tool-option" title={SHAPE_OPTIONS.stars.hint}>
+        {SHAPE_OPTIONS.stars.label}
         <Select
           value={value}
           choices={options}
-          label="Stars"
+          label={SHAPE_OPTIONS.stars.label}
           onChange={(v) => {
             const picked = options.find((o) => o.value === v);
             if (picked) setShapeStars(picked.stars);
           }}
         />
       </label>
-      {stars.kind === "mix" &&
-        classes.map((c) => {
-          const on = stars.classes.includes(c.key);
-          return (
-            <label key={c.key} className="tool-option">
-              <input
-                type="checkbox"
+      {stars.kind === "mix" && (
+        <div className="shape-mix">
+          {classes.map((c) => {
+            const on = stars.classes.includes(c.key);
+            return (
+              <CheckOption
+                key={c.key}
+                copy={{ label: c.label, hint: MIX_CLASS_HINT }}
                 checked={on}
                 disabled={on && stars.classes.length === 1}
-                onChange={(e) =>
+                onChange={(tick) =>
                   setShapeStars({
                     kind: "mix",
-                    classes: e.target.checked
+                    classes: tick
                       ? [...stars.classes, c.key]
                       : stars.classes.filter((k) => k !== c.key),
                   })
                 }
               />
-              {c.label}
-            </label>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }
 
-function PlaceButton({ path }: { path: PlacementPath }) {
+/** Place, or Arrange, with `children` beside it, and why it is off on a line below. */
+function PlaceButton({
+  path,
+  arranging,
+  children,
+}: {
+  path: PlacementPath;
+  arranging: boolean;
+  children: ReactNode;
+}) {
   const preview = useShapePreview();
   const gameData = useGameDataStore((s) => s.status === "ready");
   const place = useEditorStore((s) => s.placePendingShape);
@@ -558,11 +549,12 @@ function PlaceButton({ path }: { path: PlacementPath }) {
         type="button"
         className="primary"
         disabled={preview === null || preview.points.length === 0 || refusal !== null}
-        title={reason ?? undefined}
+        title={reason ?? (arranging ? ARRANGE_HINT : PLACE_HINT)}
         onClick={() => void place()}
       >
         {label}
       </button>
+      {children}
       {reason && <span className="tool-hint warn">{reason}</span>}
     </>
   );
@@ -581,72 +573,205 @@ function bodyFields(shape: Shape, fill: Fill): readonly ShapeField<Shape>[] {
   );
 }
 
+type Arranging = Extract<ShapePurpose, { kind: "arrange" }>;
+
+/** What the sections read: the settings shown, the pending shape, and where it goes. */
+interface Panel {
+  settings: ShapeSettings;
+  pending: PendingShape | null;
+  path: PlacementPath;
+  rules: PlacementRules;
+  arranging: Arranging | null;
+  stars: StarChoice;
+  skipNear: boolean;
+}
+
+interface SectionProps {
+  section: ShapeSection;
+  panel: Panel;
+}
+
+/** One section of the options under its heading; the first heading carries the tool's help link. */
+function Section({ section, children }: { section: ShapeSection; children: ReactNode }) {
+  const id = useId();
+  const { help, label } = TOOL_ENTRY.shape;
+  return (
+    <section className="shape-section" aria-labelledby={id}>
+      <h3 id={id} className="shape-heading">
+        {SHAPE_SECTION_HEADINGS[section]}
+        {section === SHAPE_SECTIONS[0] && help?.onHeading && (
+          <HelpLink place={help.place} topic={label} />
+        )}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function KindSection({ section, panel }: SectionProps) {
+  return (
+    <Section section={section}>
+      <KindPicker shape={panel.settings.shape} />
+    </Section>
+  );
+}
+
+function FillSection({ section, panel }: SectionProps) {
+  return (
+    <Section section={section}>
+      <FillPicker settings={panel.settings} />
+    </Section>
+  );
+}
+
+/** The extras that apply, Gaps only where follow lanes are laid, which Arrange does under Rebuild alone. */
+function formExtras({ settings, arranging }: Panel): ExtraKey[] {
+  return EXTRA_KEYS.filter(
+    (k) =>
+      extraApplies(k, settings, arranging ? "arrange" : "add") &&
+      (!EXTRA_ROWS[k].followOnly || arranging === null || arranging.lanes === "rebuild"),
+  );
+}
+
+/** Size, the kind's own fields and the outline's extras; hidden when none of them shows. */
+function FormSection({ section, panel }: SectionProps) {
+  const { settings, pending, rules } = panel;
+  const { shape, fill } = settings;
+  const fields = bodyFields(shape, fill);
+  const extras = formExtras(panel);
+  if (pending === null && fields.length === 0 && extras.length === 0) return null;
+  return (
+    <Section section={section}>
+      {pending && <SizeOptions shape={shape} rules={rules} />}
+      {fields.map((f) => (
+        <FieldRow key={String(f.key)} shape={shape} field={f} />
+      ))}
+      {extras.map((k) => (
+        <ExtraRow key={k} extra={k} extras={settings.extras} />
+      ))}
+    </Section>
+  );
+}
+
+/** How many systems and which stars, whether they keep clear of existing ones, and a centre system. */
+function SystemsSection({ section, panel }: SectionProps) {
+  const setSkipNear = useToolStore((s) => s.setSkipNear);
+  const setShapeExtras = useToolStore((s) => s.setShapeExtras);
+  const { settings, path, rules, arranging, stars, skipNear } = panel;
+  return (
+    <Section section={section}>
+      {arranging ? (
+        <label className="tool-option" title={SHAPE_OPTIONS.selected.hint}>
+          {SHAPE_OPTIONS.selected.label}
+          <span className="muted">{counted(arranging.ids.length, "system")}</span>
+        </label>
+      ) : (
+        <CountOrDensity settings={settings} rules={rules} />
+      )}
+      {path === "rolled" && !arranging && <StarsRow stars={stars} />}
+      {!arranging && (
+        <CheckOption copy={SHAPE_OPTIONS.skipNear} checked={skipNear} onChange={setSkipNear} />
+      )}
+      {takesCentre(settings, arranging ? "arrange" : "add") && (
+        <CheckOption
+          copy={SHAPE_OPTIONS.centre}
+          checked={settings.extras.centre !== "none"}
+          onChange={(on) => setShapeExtras({ centre: on ? "system" : "none" })}
+        />
+      )}
+    </Section>
+  );
+}
+
+/** The lanes the shape lays; arranging, first what becomes of the lanes between the selected systems. */
+function LanesSection({ section, panel }: SectionProps) {
+  const setArrangeLanes = useToolStore((s) => s.setArrangeLanes);
+  const setArrangeAlsoOuter = useToolStore((s) => s.setArrangeAlsoOuter);
+  const { settings, arranging } = panel;
+  return (
+    <Section section={section}>
+      {arranging && (
+        <Choice
+          label="Lanes between the selected systems"
+          value={arranging.lanes}
+          onPick={setArrangeLanes}
+          choices={ARRANGE_LANE_CHOICES.map((c) => ({ value: c, ...arrangeLaneRow(c) }))}
+        />
+      )}
+      {(arranging === null || arranging.lanes === "rebuild") && (
+        <LaneOptions settings={settings} purpose={arranging ? "arrange" : "add"} />
+      )}
+      {arranging && arranging.lanes !== "keep" && (
+        <CheckOption
+          copy={SHAPE_OPTIONS.alsoOuter}
+          checked={arranging.alsoOuter}
+          onChange={setArrangeAlsoOuter}
+        />
+      )}
+    </Section>
+  );
+}
+
+const SECTION_BODIES: Record<ShapeSection, ComponentType<SectionProps>> = {
+  shape: KindSection,
+  fill: FillSection,
+  form: FormSection,
+  systems: SystemsSection,
+  lanes: LanesSection,
+};
+
+/** Two crossing arrows: Shuffle. */
+const SHUFFLE_GLYPH =
+  "M2 5h2.2c3.6 0 4 6 7.6 6H14M2 11h2.2c1.4 0 2.3-.9 3-2M8.8 7c.7-1.1 1.6-2 3-2H14M12 3l2 2-2 2M12 9l2 2-2 2";
+
 /**
- * The Shape tool's options: the shape, its fill, its size and spacing, its lanes and Place. With
- * nothing pending they set what the next shape drawn starts from. Arranging, the count is the
- * selection's and the lanes row is about the selection's own lanes.
+ * The Shape tool's options: the shape, its fill, its size and form, its systems, its lanes and
+ * Place. With nothing pending they set what the next shape drawn starts from. Arranging, the count
+ * is the selection's and the lanes section is about the selection's own lanes.
  */
 export function ShapeOptions() {
   const pending = useToolStore((s) => s.pendingShape);
   const memory = useToolStore((s) => s.shapeMemory);
-  const setSkipNear = useToolStore((s) => s.setSkipNear);
   const shuffle = useToolStore((s) => s.shuffleShape);
   const path = useFileSessionStore((s) => shapePath(s.capabilities));
   if (path === null) return null;
   const rules = PLACEMENT_RULES[path];
   const settings = pending ?? rememberedFor(memory);
-  const { shape, fill } = settings;
   const arranging = pending?.purpose.kind === "arrange" ? pending.purpose : null;
-  const purpose = arranging ? "arrange" : "add";
+  const panel: Panel = {
+    settings,
+    pending,
+    path,
+    rules,
+    arranging,
+    stars: pending?.stars ?? memory.stars,
+    skipNear: pending?.skipNear ?? memory.skipNear,
+  };
   return (
     <div className="shape-options">
-      <KindPicker shape={shape} />
-      <FillPicker settings={settings} />
-      {pending && <SizeOptions shape={shape} rules={rules} />}
-      {bodyFields(shape, fill).map((f) => (
-        <FieldRow key={String(f.key)} shape={shape} field={f} />
-      ))}
-      {arranging ? (
-        <label className="tool-option">
-          Systems
-          <span className="muted">{arranging.ids.length} selected</span>
-        </label>
-      ) : (
-        <CountOrSpacing settings={settings} rules={rules} />
-      )}
-      <ExtraRows settings={settings} purpose={purpose} followOnly={false} />
-      {path === "rolled" && !arranging && <StarsRow stars={pending?.stars ?? memory.stars} />}
-      {arranging ? (
-        <ArrangeLaneOptions
-          settings={settings}
-          lanes={arranging.lanes}
-          alsoOuter={arranging.alsoOuter}
-        />
-      ) : (
-        <>
-          <LaneOptions settings={settings} purpose={purpose} />
-          <label className="tool-option">
-            <input
-              type="checkbox"
-              checked={pending?.skipNear ?? memory.skipNear}
-              onChange={(e) => setSkipNear(e.target.checked)}
-            />
-            Don&apos;t place on top of existing systems
-          </label>
-        </>
-      )}
-      {pending && drawsAtRandom(pending) && (
-        <button type="button" onClick={() => shuffle()}>
-          Shuffle
-        </button>
-      )}
-      {pending && <ExactValues shape={shape} fill={fill} />}
+      {SHAPE_SECTIONS.map((section) => {
+        const Body = SECTION_BODIES[section];
+        return <Body key={section} section={section} panel={panel} />;
+      })}
+      {pending && <ExactValues settings={settings} rules={rules} arranging={arranging !== null} />}
       <div className="shape-foot">
         {pending ? (
-          <>
-            <PlaceButton path={path} />
+          <PlaceButton path={path} arranging={arranging !== null}>
+            {drawsAtRandom(pending) && (
+              <button
+                type="button"
+                className="shape-shuffle"
+                title={iconTitle(SHAPE_OPTIONS.shuffle.label, SHAPE_OPTIONS.shuffle.hint)}
+                aria-label={SHAPE_OPTIONS.shuffle.label}
+                onClick={() => shuffle()}
+              >
+                <Glyph className="shape-glyph">
+                  <path d={SHUFFLE_GLYPH} />
+                </Glyph>
+              </button>
+            )}
             <span className="muted">{arranging ? "Esc moves nothing" : "Esc drops it"}</span>
-          </>
+          </PlaceButton>
         ) : (
           <span className="tool-hint muted">Drag on the map to draw a shape</span>
         )}

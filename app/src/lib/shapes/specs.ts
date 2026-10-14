@@ -90,6 +90,7 @@ function turnHandle(s: { centre: Pt; rotation: number }, reach: number, size: nu
 const RADIUS_FIELD = {
   key: "radius",
   label: "Radius",
+  hint: "Set how far the shape reaches from its centre, in game units.",
   range: SIZE_RANGE,
   step: 1,
   unit: "",
@@ -99,6 +100,7 @@ const RADIUS_FIELD = {
 const ROTATION_FIELD = {
   key: "rotation",
   label: "Rotation",
+  hint: "Turn the shape about its centre.",
   range: ROTATION_RANGE,
   step: 1,
   unit: "°",
@@ -121,6 +123,7 @@ type Hollowed = CircleShape | PolygonShape | StarShape;
 const HOLLOW_FIELD = {
   key: "hollow",
   label: "Hollow centre",
+  hint: "Leave the middle empty, as a share of the radius.",
   range: { min: 0, max: 90 },
   step: 1,
   unit: "%",
@@ -205,6 +208,7 @@ function radialRow<S extends Radial>() {
 
 const LINE: ShapeSpec<LineShape> = {
   label: "Line",
+  hint: "Lay systems along a straight line.",
   glyph: "M2.5 13.5 13.5 2.5",
   initial: { kind: "line", a: { x: -200, y: 0 }, b: { x: 200, y: 0 } },
   fills: () => OUTLINE_ONLY,
@@ -306,6 +310,7 @@ const SECTOR_NOUNS: Readonly<Record<number, { round: string; oval: string }>> = 
 
 const CIRCLE: ShapeSpec<CircleShape> = {
   label: "Circle",
+  hint: "Lay systems in a circle, an arc or an oval.",
   glyph: "M2.5 8a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0Z",
   initial: {
     kind: "circle",
@@ -323,6 +328,7 @@ const CIRCLE: ShapeSpec<CircleShape> = {
     {
       key: "sweep",
       label: "Arc",
+      hint: "Open the circle into an arc this many degrees round.",
       range: SWEEP_RANGE,
       step: 1,
       unit: "°",
@@ -332,6 +338,7 @@ const CIRCLE: ShapeSpec<CircleShape> = {
     {
       key: "squash",
       label: "Roundness",
+      hint: "Squash the circle into an oval.",
       range: SQUASH_RANGE,
       step: 1,
       unit: "%",
@@ -447,6 +454,7 @@ const POLYGON_NOUNS: Readonly<Record<number, string>> = {
 
 const POLYGON: ShapeSpec<PolygonShape> = {
   label: "Polygon",
+  hint: "Lay systems in a shape with 3 to 12 equal sides.",
   glyph: "M8 2.5 13 5.25v5.5L8 13.5 3 10.75v-5.5Z",
   initial: { kind: "polygon", centre: ORIGIN, radius: 200, rotation: 90, sides: 6, hollow: 0 },
   fills: () => ALL_FILLS,
@@ -456,6 +464,7 @@ const POLYGON: ShapeSpec<PolygonShape> = {
     {
       key: "sides",
       label: "Sides",
+      hint: "Set how many sides the shape has.",
       range: { min: 3, max: 12 },
       step: 1,
       unit: "",
@@ -551,6 +560,7 @@ function sideDragged(s: RectShape, index: number, to: Pt, mods: ShapeDragMods): 
 
 const RECT: ShapeSpec<RectShape> = {
   label: "Rectangle",
+  hint: "Lay systems in a rectangle or a square.",
   glyph: "M2.5 4.5h11v7h-11Z",
   initial: { kind: "rect", centre: ORIGIN, width: 300, height: 200, rotation: 0 },
   fills: () => ALL_FILLS,
@@ -560,6 +570,7 @@ const RECT: ShapeSpec<RectShape> = {
     {
       key: "width",
       label: "Width",
+      hint: "Set the rectangle's width, in game units.",
       range: SIZE_RANGE,
       step: 1,
       unit: "",
@@ -569,6 +580,7 @@ const RECT: ShapeSpec<RectShape> = {
     {
       key: "height",
       label: "Height",
+      hint: "Set the rectangle's height, in game units.",
       range: SIZE_RANGE,
       step: 1,
       unit: "",
@@ -632,6 +644,7 @@ function starCorners(s: StarShape): Pt[] {
 
 const STAR: ShapeSpec<StarShape> = {
   label: "Star",
+  hint: "Lay systems in a star with 4 to 12 points.",
   glyph: "M8 2.5 9.4 6.1 13.2 6.3 10.2 8.7 11.2 12.4 8 10.3 4.8 12.4 5.8 8.7 2.8 6.3 6.6 6.1Z",
   initial: {
     kind: "star",
@@ -649,6 +662,7 @@ const STAR: ShapeSpec<StarShape> = {
     {
       key: "points",
       label: "Points",
+      hint: "Set how many points the star has.",
       range: { min: 4, max: 12 },
       step: 1,
       unit: "",
@@ -658,6 +672,7 @@ const STAR: ShapeSpec<StarShape> = {
     {
       key: "inner",
       label: "Inner radius",
+      hint: "Pull the dips between the points in for a sharper star, or out for a blunter one.",
       range: INNER_RANGE,
       step: 1,
       unit: "%",
@@ -728,6 +743,7 @@ function armCounts(arms: number, n: number): number[] {
 
 const SPIRAL: ShapeSpec<SpiralShape> = {
   label: "Spiral",
+  hint: "Lay systems along arms that wind out from the centre.",
   glyph:
     "M8 8a1.5 1.5 0 1 1 1.5 1.5A3.5 3.5 0 0 1 6 6a5 5 0 0 1 5-5M8 8a1.5 1.5 0 1 0-1.5-1.5A3.5 3.5 0 0 0 10 10a5 5 0 0 0-5 5",
   initial: {
@@ -746,6 +762,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
     {
       key: "arms",
       label: "Arms",
+      hint: "Set how many arms the spiral has.",
       range: ARMS_RANGE,
       step: 1,
       unit: "",
@@ -755,6 +772,7 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
     {
       key: "turns",
       label: "Turns",
+      hint: "Set how far round each arm winds.",
       range: TURNS_RANGE,
       step: 0.25,
       unit: "",
@@ -764,13 +782,18 @@ const SPIRAL: ShapeSpec<SpiralShape> = {
     {
       key: "inner",
       label: "Inner radius",
+      hint: "Start the arms further out to leave the middle of the spiral open.",
       range: SPIRAL_INNER_RANGE,
       step: 1,
       unit: "%",
       exact: false,
       when: "always",
     },
-    { ...RADIUS_FIELD, label: "Outer radius" },
+    {
+      ...RADIUS_FIELD,
+      label: "Outer radius",
+      hint: "Set how far the arms reach from the centre, in game units.",
+    },
     ROTATION_FIELD,
   ],
   ...radialRow<SpiralShape>(),

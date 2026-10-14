@@ -332,6 +332,8 @@ export type ShapeFieldKey<K extends ShapeKind> = NumberKey<ShapeOf<K>>;
 export interface ShapeField<S extends Shape> {
   key: NumberKey<S>;
   label: string;
+  /** What the field does to the shape, for its tooltip. */
+  hint: string;
   range: { min: number; max: number };
   step: number;
   /** Shown after the number: "", "°" or "%". */
@@ -345,6 +347,8 @@ export interface ShapeField<S extends Shape> {
 export interface ShapeSpec<S extends Shape> {
   /** The kind's name in the picker and the status bar: "Rectangle". */
   label: string;
+  /** What the kind lays, for the picker's tooltip. */
+  hint: string;
   /** The picker's icon: SVG path data on `Glyph`'s 16-unit grid, stroked. */
   glyph: string;
   /** The shape a kind starts as before it is ever drawn: about the origin, at a default size. */

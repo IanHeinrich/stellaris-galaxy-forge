@@ -13,8 +13,8 @@ scenarios. A 3.x save doesn't offer the tool.
 ## Draw a shape
 
 1. Press <kbd>O</kbd>, or select Draw shapes on the tool strip.
-2. Pick the shape in the options: Line, Circle, Polygon, Rectangle, Star
-   or Spiral.
+2. Pick the shape at the top of the options: Line, Circle, Polygon,
+   Rectangle, Star or Spiral.
 3. Drag on the map to draw it. Until you do, the tool shows the shape at
    the centre of the galaxy.
 
@@ -34,6 +34,9 @@ A faint ring marks the edge of the galaxy, so you can judge the size.
 The readout below the shape gives its size and system count, such as
 "40% of the galaxy · 24 systems".
 
+The options are grouped under Shape, Fill, Size and form, Systems and
+Lanes, with Place at the bottom.
+
 Press <kbd>Enter</kbd> or the Place button to add the systems and lanes.
 Placing is one undo step. Press <kbd>Esc</kbd> to drop the pending
 shape, and <kbd>Esc</kbd> again to go back to the Select tool.
@@ -45,8 +48,8 @@ whole galaxies. A scenario allows 1,000.
 
 - Galaxy Forge keeps new systems at least 10 units from every other system,
   the spacing the game spawns systems at. Points closer than that are always left out,
-  whatever "Don't place on top of existing systems" says. Spacing can't go
-  below 10.
+  whatever "Don't place on top of existing systems" says. System density
+  stops at a spacing of 10.
 - The status bar also counts points left out because they were too close
   to each other.
 - The edge of the map is the galaxy's own circle.
@@ -77,8 +80,8 @@ To make a cluster of black holes, pick Black hole.
 ## The shapes
 
 - Line is a straight row of systems.
-- Circle places systems in a ring. Set Arc below 360° for an arc, or
-  Roundness below 100% for an ellipse.
+- Circle places systems in a ring. Set Arc below 360° for an arc, or set
+  Roundness below 100% to squash it into an oval (an ellipse).
 - Polygon has 3 to 12 sides.
 - Rectangle is a rectangle, or a square with <kbd>Shift</kbd> held.
 - Star has 4 to 12 points. Inner radius sets how far out the dips between
@@ -108,7 +111,7 @@ and can take it past the size of the galaxy.
 
 ## Outline, scattered or grid
 
-The Fill option sets where the systems go:
+The Fill bar, under the shapes, sets where the systems go:
 
 - Outline puts them along the edge of the shape only.
 - Scattered fills the shape at random, as the Paint brush does.
@@ -128,18 +131,21 @@ systems along the edge. Untick it to leave only scattered systems
 inside the shape, with lanes as natural as painted ones.
 
 Size is a slider, with Small and Whole galaxy buttons for the two ends.
-For an outline, Systems sets how many systems the edge gets. For a
-scattered or grid fill, Spacing sets how far apart they are. The closest
-spacing is the closest that still fills the whole shape. Shuffle rolls a
-scattered fill again.
+For an outline, set the number of systems on the edge with "How many"
+under Systems. For a scattered or grid fill, System density sets how
+close together they are, from sparse at the left to dense at the right.
+The dense end is the closest spacing that still fills the whole shape.
+Shuffle, the button beside Place, rolls a scattered fill again.
 
 Exact values, folded under the options, take typed numbers for the
-centre, the radius or the width and height, and the rotation.
+centre, the radius or the width and height, and the rotation. For a
+scattered or grid fill, Spacing there is the distance between neighbouring
+systems, in game units.
 
 ## Bands, rings, gaps and wobble
 
-An outline has four more options. Each one starts off, so the outline
-stays a single row of systems until you change them.
+An outline has four more options, under Size and form. Each one starts
+off, so the outline stays a single row of systems until you change them.
 
 - Band makes the outline 1 to 5 systems thick. The systems are scattered
   within the band, so a ring looks grown rather than drawn. On a small
@@ -163,6 +169,12 @@ Arrange hides Band, Rings and A system at the centre, because the number
 of systems is fixed to the selection. Gaps and Wobble still work, and
 Arrange wobbles at most 80%, so the systems stay clear of each other.
 
+## A system at the centre
+
+A system at the centre, under Systems, adds one system at the centre of a
+circle, polygon or spiral outline. If a system already stands there, the
+centre point is left out.
+
 ## Lanes
 
 - Follow the shape joins each system along the edge to the next, and
@@ -177,17 +189,12 @@ Arrange wobbles at most 80%, so the systems stay clear of each other.
 - Lane density sets how many lanes the shape adds. The left end lays the
   fewest lanes, and the new lanes form no loops of their own. At the right
   end, each system links to every neighbour.
-
-- A system at the centre adds one system at the centre of a circle,
-  polygon or spiral outline.
-- Spokes to the centre joins that system to every system on the outline.
-  It shows once A system at the centre is ticked. With Rings or Band, the
-  spokes go to the innermost ring or row only. On a spiral, they go to the
-  inner end of each arm.
-
-If a system already stands at the centre, the centre point is left out
-and the spokes run to that system instead. A ring round a home system can
-have spokes to it.
+- Spokes to the centre joins the centre system to every system on the
+  outline. It shows once A system at the centre is ticked under Systems.
+  With Rings or Band, the spokes go to the innermost ring or row only. On
+  a spiral, they go to the inner end of each arm. If a system already
+  stands at the centre, the spokes run to that system, so a ring round a
+  home system can have spokes to it.
 
 New lanes never cross an existing lane or each other.
 

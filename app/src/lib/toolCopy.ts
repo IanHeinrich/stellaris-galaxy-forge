@@ -24,29 +24,111 @@ export function choiceOf<T extends string>(choices: readonly Choice<T>[], text: 
   return choices.find((choice) => choice.value === text)?.value ?? null;
 }
 
-export const HEIGHT_MODE_LABELS: Record<HeightMode, string> = {
-  set: "Set",
-  raise: "Raise",
-  ripple: "Ripple",
-  smooth: "Smooth",
-};
+/** A mode or preset's button: its name and, for its tooltip, what it does. */
+interface ButtonCopy {
+  label: string;
+  title: string;
+}
 
-export const HEIGHT_MODE_HINTS: Record<HeightMode, string> = {
-  set: "Click or drag to set every system under the brush to this height.",
-  raise: "Click or drag to lift systems, most at the centre. Alt lowers.",
-  ripple:
-    "Click to drop a ripple, or hold the button and let go where it should land. Rings preview on the map first. Alt flips crests and troughs.",
-  smooth: "Drag to even out bumps between neighbours.",
+/** Each Height brush mode: its button, and the hint under the options while it is chosen. */
+export const HEIGHT_MODE_ROWS: Record<HeightMode, ButtonCopy & { hint: string }> = {
+  set: {
+    label: "Set",
+    title: "Give every system under the brush the same height.",
+    hint: "Click or drag to set every system under the brush to this height.",
+  },
+  raise: {
+    label: "Raise",
+    title: "Lift the systems under the brush, most at its centre.",
+    hint: "Click or drag to lift systems, most at the centre. Alt lowers.",
+  },
+  ripple: {
+    label: "Ripple",
+    title: "Raise and lower systems in rings around where you click.",
+    hint: "Click to drop a ripple, or hold the button and let go where it should land. Rings preview on the map first. Alt flips crests and troughs.",
+  },
+  smooth: {
+    label: "Smooth",
+    title: "Even out bumps between neighbouring systems.",
+    hint: "Drag to even out bumps between neighbours.",
+  },
 };
 
 export const SPREAD_HINT =
   "Drag to even out the spacing. Hold still to keep spreading. Alt gathers systems to the centre.";
 
-export const RIPPLE_PRESET_LABELS: Record<RipplePreset, string> = {
-  ripples: "Ripples",
-  waves: "Waves",
-  dome: "Dome",
-  crater: "Crater",
+/** Each ripple preset's button. */
+export const RIPPLE_PRESET_ROWS: Record<RipplePreset, ButtonCopy> = {
+  ripples: { label: "Ripples", title: "Make tall rings close together." },
+  waves: { label: "Waves", title: "Make low waves that roll a long way out." },
+  dome: { label: "Dome", title: "Raise one broad, round hill." },
+  crater: { label: "Crater", title: "Sink one broad, round hollow." },
+};
+
+/** The tooltip of a control drawn as an icon alone: its name, as a label would show it, then what it does. */
+export function iconTitle(name: string, hint: string): string {
+  return `${name}\n${hint}`;
+}
+
+/** An option's label, and what it does to the map for its tooltip. */
+export interface OptionCopy {
+  label: string;
+  hint: string;
+}
+
+/** The brushes' options, and the lane options the Shape tool shares with them. */
+export type ToolOption =
+  | "size"
+  | "density"
+  | "lanes"
+  | "laneDensity"
+  | "eraseTarget"
+  | "eraseSpecials"
+  | "height"
+  | "raise"
+  | "smooth"
+  | "rippleHeight"
+  | "waveSpacing"
+  | "fade"
+  | "spread"
+  | "spreadSpecials";
+
+export const TOOL_OPTIONS: Record<ToolOption, OptionCopy> = {
+  size: { label: "Size", hint: "Set how wide the brush is." },
+  density: { label: "Density", hint: "Set how close together the painted systems are." },
+  lanes: {
+    label: "Lanes",
+    hint: "Join the new systems with lanes among themselves, or to the systems around them too.",
+  },
+  laneDensity: {
+    label: "Lane density",
+    hint: "Set how many lanes are added, from a few with no loops to one to every neighbour.",
+  },
+  eraseTarget: {
+    label: "Target",
+    hint: "Erase whole systems with their lanes, or only the lanes.",
+  },
+  eraseSpecials: {
+    label: "Also erase special systems",
+    hint: "Let the brush erase systems with an initializer, a spawn point or another special role.",
+  },
+  height: {
+    label: "Height",
+    hint: "Set the height the brush gives systems, 0 on the galaxy plane.",
+  },
+  raise: { label: "Strength", hint: "Set how far each pass lifts the systems." },
+  smooth: { label: "Strength", hint: "Set how far each pass evens out the heights." },
+  rippleHeight: { label: "Height", hint: "Set how high the crests rise." },
+  waveSpacing: { label: "Wave spacing", hint: "Set the distance from one crest to the next." },
+  fade: {
+    label: "Fade out",
+    hint: "Set how quickly the ripples die away towards the brush's edge.",
+  },
+  spread: { label: "Strength", hint: "Set how far each pass moves a system." },
+  spreadSpecials: {
+    label: "Also move special and home systems",
+    hint: "Let the brush move points of interest and empires' home systems too.",
+  },
 };
 
 /** Why the paint brush's spacing cannot go below `least` at the current brush size. */
