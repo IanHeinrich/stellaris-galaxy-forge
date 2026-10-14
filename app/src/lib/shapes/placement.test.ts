@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
+import { GALAXY_REACH } from "../../generated/constants";
 import { placedNode } from "../../test/builders";
 import { buildGalaxy } from "../geometry/territory.fixture";
 import { DEFAULT_LANE_DENSITY } from "../geometry/mesh";
@@ -534,15 +535,16 @@ describe("a shape rolled into a save", () => {
     }
   });
 
-  it("places no point on a circle the galaxy's size that is outside the galaxy once written", () => {
-    const rim = circle({ radius: 500 });
+  it("places no point on a circle as far out as systems may stand that lies past it once written", () => {
+    const reach = 500 * GALAXY_REACH;
+    const rim = circle({ radius: reach });
     const preview = shapePlacement(
       pending(rim, { fill: { kind: "outline", count: 200 } }),
       groundOf([], OFF, ROLLED),
     );
     expect(preview.points.length).toBeGreaterThan(0);
     for (const p of preview.points) {
-      expect(Math.hypot(asWritten(p.x), asWritten(p.y))).toBeLessThanOrEqual(500);
+      expect(Math.hypot(asWritten(p.x), asWritten(p.y))).toBeLessThanOrEqual(reach);
     }
   });
 

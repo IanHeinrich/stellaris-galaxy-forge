@@ -5,7 +5,7 @@ import type { Pair } from "../geometry/pairs";
 import type { Pt } from "../geometry/pt";
 import { segmentsCross } from "../geometry/segments";
 import type { Symmetry } from "../geometry/symmetry";
-import { extentOf, type MapExtent } from "../guides";
+import { reachOf, type MapExtent } from "../guides";
 import { PlacementGround } from "../placement/ground";
 import { laneSegments, provisionalIndex } from "../placement/lanes";
 import { PLACEMENT_RULES, type PlacementRules } from "../placement/rules";
@@ -27,7 +27,7 @@ export function groundOf(
   grid.build(systems);
   return {
     placement: new PlacementGround(byId(...systems), grid, symmetry),
-    extent: extentOf(rules.edge, 500) as MapExtent,
+    extent: reachOf(rules.edge, 500) as MapExtent,
     rules,
     laneDensity: DEFAULT_LANE_DENSITY,
     starWeights: null,

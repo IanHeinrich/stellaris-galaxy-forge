@@ -7,7 +7,7 @@ use crate::format::save::write::lanes::moved_length;
 use crate::format::save::write::nebula::{plan_membership, restoring};
 use crate::keys;
 use crate::ops::rules::nebula::describe_membership;
-use crate::ops::rules::systems::{check_reach, decide_move};
+use crate::ops::rules::systems::decide_move;
 use crate::ops::{Edit, OpError, Plan, Planned, SystemMove, replace_lengths};
 use crate::session::Session;
 
@@ -19,7 +19,6 @@ pub(crate) fn plan(
     y: f64,
 ) -> Result<Planned, OpError> {
     let moved = decide_move(&s.graph, id, x, y)?;
-    check_reach(&s.graph, (x, y), Some(moved.from))?;
     let system = &s.graph.systems[&id];
 
     let mut neighbours: Vec<u32> = Vec::new();

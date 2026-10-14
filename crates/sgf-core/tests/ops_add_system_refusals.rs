@@ -49,10 +49,6 @@ fn what_the_op_refuses() {
     let cases: Vec<Case> = vec![
         (|s| s.x = f64::NAN, |e| matches!(e, OpError::NotFinite)),
         (
-            |s| (s.x, s.y) = (800.0, 0.0),
-            |e| matches!(e, OpError::OutsideGalaxy { .. }),
-        ),
-        (
             |s| (s.x, s.y) = (397.39 + 6.0, -180.25),
             |e| matches!(e, OpError::TooClose { id: 217, .. }),
         ),
@@ -193,6 +189,10 @@ fn a_system_is_added_up_to_half_again_past_the_galaxy_radius() {
     round_trip(open(), add(at(700.0)));
     let error = refused(open(), at(800.0));
     assert!(matches!(error, OpError::OutsideGalaxy { .. }), "{error:?}");
+    assert_eq!(
+        error.to_string(),
+        "(800, 0) is too far outside the galaxy: systems can be placed up to 749.89 from the centre, and the galaxy's radius is 499.93"
+    );
 }
 
 #[test]

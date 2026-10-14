@@ -15,7 +15,7 @@ export const LCLUSTER_PREFIX = "lcluster";
 /** How close the game lets a system it spawns stand to another. */
 export const SPAWN_BUFFER = 10;
 
-/** How far from the centre a system in a save may stand, as a share of the galaxy's radius. */
+/** How far from the centre a new system in a save may be placed, as a share of the galaxy's radius. */
 export const GALAXY_REACH = 1.5;
 
 /** The most systems one shape adds to a save. */

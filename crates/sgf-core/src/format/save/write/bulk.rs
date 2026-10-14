@@ -18,7 +18,7 @@ use crate::ops::rules::lanes::{
     undirected,
 };
 use crate::ops::rules::nebula::describe_membership;
-use crate::ops::rules::systems::{check_reach, decide_moves};
+use crate::ops::rules::systems::decide_moves;
 use crate::ops::{LaneLength, LanePair, Op, OpError, Plan, Planned, SystemMove, replace_lengths};
 use crate::plural;
 use crate::projections::galaxy::lane_length;
@@ -51,9 +51,6 @@ pub(crate) fn move_systems(
     moves: &[SystemMove],
 ) -> Result<(Vec<SystemMove>, usize), OpError> {
     let origin = decide_moves(&s.graph, moves)?;
-    for (m, from) in moves.iter().zip(&origin) {
-        check_reach(&s.graph, (m.x, m.y), Some((from.x, from.y)))?;
-    }
     let destination: BTreeMap<u32, (f64, f64)> =
         moves.iter().map(|m| (m.system, (m.x, m.y))).collect();
     for m in moves {

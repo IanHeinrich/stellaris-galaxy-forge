@@ -76,7 +76,7 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         SPAWN_BUFFER.to_string(),
     );
     constant(
-        "How far from the centre a system in a save may stand, as a share of the galaxy's radius.",
+        "How far from the centre a new system in a save may be placed, as a share of the galaxy's radius.",
         "GALAXY_REACH",
         GALAXY_REACH.to_string(),
     );

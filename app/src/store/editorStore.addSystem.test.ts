@@ -200,7 +200,7 @@ describe("why a system cannot be added", () => {
       asIs,
       [100, 0],
       {
-        reason: "Too far outside the galaxy: systems stand up to 90 from the centre",
+        reason: "Too far outside the galaxy: systems can be placed up to 90 from the centre",
         limit: "outside",
         reach: 90,
       },

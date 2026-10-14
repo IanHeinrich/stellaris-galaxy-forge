@@ -47,7 +47,7 @@ export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
   if (!isStellaris4(facts.meta)) return { reason: NEEDS_STELLARIS_4, limit: null };
   const reach = facts.radius * GALAXY_REACH;
   if (reach > 0 && Math.hypot(facts.x, facts.y) > reach) {
-    const reason = `Too far outside the galaxy: systems stand up to ${Math.round(reach)} from the centre`;
+    const reason = `Too far outside the galaxy: systems can be placed up to ${Math.floor(reach)} from the centre`;
     return { reason, limit: "outside", reach };
   }
   const near = facts.nearest;

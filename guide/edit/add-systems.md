@@ -1,7 +1,7 @@
 ---
 title: Add and delete systems
 description: Add a new star system, a special system such as Sol or Zevox, or a system from an initializer, and delete systems again.
-aliases: [new system, add star, create system, special system, sol, zevox, trappist, reroll, rename system, delete system, remove system]
+aliases: [new system, add star, create system, special system, sol, zevox, trappist, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
 ---
 # Add and delete systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -38,7 +38,17 @@ A special system you add comes without some of what the game gives it:
 
 A system added inside a nebula joins it.
 
-A system can stand past the edge, out to half again the galaxy's radius. See [Place systems outside the galaxy edge](select-and-move.md#place-systems-outside-the-galaxy-edge).
+## Systems outside the galaxy edge <Badge type="tip" text="Save" />
+
+In a save, you can add systems past the galaxy edge, out to half again
+the galaxy's radius. The game puts some systems past the edge itself,
+such as the L-Cluster's. The map still draws the edge at the galaxy's
+radius.
+
+Add system here and the Shape tool both stop at that limit. Further out,
+Add system here is greyed out with the reason under it, and a shape
+leaves those points out. You can still move a system further out once
+it is added.
 
 ## Reroll an added system <Badge type="tip" text="Save" />
 

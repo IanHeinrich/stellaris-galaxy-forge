@@ -528,7 +528,7 @@ pub(crate) fn check_body(body: &BodySpec) -> Result<(), OpError> {
 /// Within the galaxy's reach (see [`check_reach`]) and no nearer than the game spawns a
 /// system to any other.
 fn check_place(graph: &GalaxyGraph, x: f64, y: f64) -> Result<(), OpError> {
-    check_reach(graph, (x, y), None)?;
+    check_reach(graph, x, y)?;
     check_apart(
         x,
         y,

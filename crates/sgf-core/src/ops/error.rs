@@ -158,7 +158,8 @@ pub enum OpError {
     #[error("{count} systems are more than the {cap} one add writes into a save")]
     TooManySystems { count: usize, cap: usize },
     #[error(
-        "({x}, {y}) is too far outside the galaxy: a system may stand up to {limit:.2} from the centre, and the galaxy's radius is {radius:.2}"
+        "({x}, {y}) is too far outside the galaxy: systems can be placed up to {} from the centre, and the galaxy's radius is {radius:.2}",
+        (limit * 100.0).floor() / 100.0
     )]
     OutsideGalaxy {
         x: f64,

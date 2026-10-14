@@ -76,9 +76,9 @@ cross any others. Or undo the edit that split them.
 
 ### System far outside the galaxy edge
 
-The system stands more than half again the galaxy's radius out. The
-editor places and moves systems only that far. Drag it in towards the
-galaxy edge.
+The system stands more than half again the galaxy's radius out, further
+than the editor adds a new system. Leave it if you meant it, or drag it
+in towards the galaxy edge.
 
 ### Positions shifted before the game reads them
 
