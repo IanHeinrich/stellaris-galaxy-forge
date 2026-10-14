@@ -1,0 +1,181 @@
+import { describe, expect, it } from "vitest";
+import type { Pt } from "../geometry/pt";
+import { ANGLE_STEP, galaxyFrame, snapAngle } from "./drag";
+import { distance } from "./frame";
+import { centreOf, SHAPE_SPECS, specOf } from "./specs";
+import type { Shape, ShapeDragMods, StarShape } from "./types";
+
+const FREE: ShapeDragMods = { snap: true, constrain: false };
+const SHIFT: ShapeDragMods = { snap: true, constrain: true };
+
+const ALL: Shape[] = [
+  ...Object.values(SHAPE_SPECS).map((spec) => spec.initial),
+  { kind: "circle", centre: { x: 40, y: -30 }, radius: 120, rotation: 30, sweep: 200, squash: 60 },
+  { kind: "rect", centre: { x: -50, y: 20 }, width: 180, height: 90, rotation: 25 },
+];
+
+/** Every number in `s`, rounded so float noise compares equal. */
+function rounded(s: Shape): unknown {
+  return JSON.parse(JSON.stringify(s), (_, v) =>
+    typeof v === "number" ? Math.round(v * 1e6) / 1e6 + 0 : v,
+  );
+}
+
+function gaps(points: readonly Pt[], closed: boolean): number[] {
+  const n = closed ? points.length : points.length - 1;
+  return Array.from({ length: n }, (_, i) => distance(points[i], points[(i + 1) % points.length]));
+}
+
+describe("each kind's outline", () => {
+  it("spaces a circle's n points with n equal chords, and puts an arc's at both its ends", () => {
+    const ring = specOf(SHAPE_SPECS.circle.initial).outline(SHAPE_SPECS.circle.initial, 24);
+    expect(ring.closed).toBe(true);
+    expect(ring.points).toHaveLength(24);
+    for (const d of gaps(ring.points, true)) expect(d).toBeCloseTo(gaps(ring.points, true)[0]);
+
+    const arc = { ...SHAPE_SPECS.circle.initial, rotation: 90, sweep: 180 };
+    const { points, closed } = SHAPE_SPECS.circle.outline(arc, 7);
+    expect(closed).toBe(false);
+    expect(points[0].x).toBeCloseTo(0);
+    expect(points[0].y).toBeCloseTo(200);
+    expect(points[6].y).toBeCloseTo(-200);
+  });
+
+  it("spreads an ellipse's points evenly along it, not by angle", () => {
+    const oval = { ...SHAPE_SPECS.circle.initial, squash: 40 };
+    const d = gaps(SHAPE_SPECS.circle.outline(oval, 30).points, true);
+    expect(Math.max(...d) / Math.min(...d)).toBeLessThan(1.05);
+  });
+
+  it("puts a line's points from one end to the other", () => {
+    const line = SHAPE_SPECS.line.initial;
+    const { points, closed } = SHAPE_SPECS.line.outline(line, 5);
+    expect(closed).toBe(false);
+    expect(points).toEqual([-200, -100, 0, 100, 200].map((x) => ({ x, y: 0 })));
+  });
+
+  it("keeps every corner of a polygon, a rectangle and a star, and a star alternates its radii", () => {
+    const hexagon = SHAPE_SPECS.polygon.initial;
+    const corners = SHAPE_SPECS.polygon.outline(hexagon, 6).points;
+    const points = SHAPE_SPECS.polygon.outline(hexagon, 20).points;
+    for (const c of corners) expect(points.some((p) => distance(p, c) < 1e-9)).toBe(true);
+    expect(points).toHaveLength(20);
+
+    const rect = { ...SHAPE_SPECS.rect.initial, width: 400, height: 100 };
+    const along = SHAPE_SPECS.rect.outline(rect, 10).points;
+    for (const c of SHAPE_SPECS.rect.outline(rect, 4).points) {
+      expect(along.some((p) => distance(p, c) < 1e-9)).toBe(true);
+    }
+    // The long sides take the extra points, so the steps stay close to even.
+    expect(Math.max(...gaps(along, true))).toBeLessThanOrEqual(100 + 1e-9);
+
+    const star: StarShape = { ...SHAPE_SPECS.star.initial, points: 5, inner: 40 };
+    const tips = SHAPE_SPECS.star.outline(star, 10).points;
+    tips.forEach((p, i) => expect(distance(p, star.centre)).toBeCloseTo(i % 2 ? 80 : 200));
+  });
+});
+
+describe("drawing and handles", () => {
+  it("draws each kind from its anchor to the point that sets its size", () => {
+    const anchor = { x: 10, y: 10 };
+    const to = { x: 70, y: 90 };
+    const sized = (s: Shape) => specOf(s).size(s);
+    expect(sized(SHAPE_SPECS.circle.fromDrag(anchor, to, FREE, SHAPE_SPECS.circle.initial))).toBe(
+      100,
+    );
+    expect(sized(SHAPE_SPECS.line.fromDrag(anchor, to, FREE, SHAPE_SPECS.line.initial))).toBe(50);
+    const rect = SHAPE_SPECS.rect.fromDrag(anchor, to, FREE, SHAPE_SPECS.rect.initial);
+    expect(rounded(rect)).toEqual(
+      rounded({ ...rect, centre: { x: 40, y: 50 }, width: 60, height: 80 }),
+    );
+    const square = SHAPE_SPECS.rect.fromDrag(anchor, to, SHIFT, SHAPE_SPECS.rect.initial);
+    expect([square.width, square.height]).toEqual([80, 80]);
+    const hexagon = SHAPE_SPECS.polygon.fromDrag(anchor, to, FREE, SHAPE_SPECS.polygon.initial);
+    expect(hexagon.sides).toBe(6);
+  });
+
+  it("holds drawn and turned angles to 15° steps under Shift", () => {
+    const anchor = { x: 0, y: 0 };
+    const to = { x: 100, y: 37 };
+    const drawn = SHAPE_SPECS.polygon.fromDrag(anchor, to, SHIFT, SHAPE_SPECS.polygon.initial);
+    expect(drawn.rotation % ANGLE_STEP).toBeCloseTo(0);
+    expect(drawn.rotation).toBeCloseTo(15);
+    const turned = SHAPE_SPECS.star.dragHandle(
+      SHAPE_SPECS.star.initial,
+      "turn",
+      { x: -3, y: 50 },
+      SHIFT,
+    );
+    expect(turned.rotation).toBeCloseTo(90);
+    const line = SHAPE_SPECS.line.fromDrag(anchor, to, SHIFT, SHAPE_SPECS.line.initial);
+    expect(distance(line.a, line.b)).toBeCloseTo(distance(anchor, to));
+    expect(snapAngle(anchor, { x: 0, y: -10 })).toEqual({ x: expect.closeTo(0), y: -10 });
+  });
+
+  it("leaves a shape as it is when any handle is dragged to where it already is", () => {
+    for (const shape of ALL) {
+      const spec = specOf(shape);
+      const handles = spec.handles(shape);
+      expect(new Set(handles.map((h) => h.id)).size).toBe(handles.length);
+      for (const h of handles) {
+        expect(rounded(spec.dragHandle(shape, h.id, h.at, FREE)), `${shape.kind} ${h.id}`).toEqual(
+          rounded(shape),
+        );
+      }
+    }
+  });
+
+  it("resizes with the rim handle, keeping the outline's count, and moves with the centre", () => {
+    const circle = SHAPE_SPECS.circle.initial;
+    const bigger = SHAPE_SPECS.circle.dragHandle(circle, "rim", { x: 0, y: 300 }, FREE);
+    expect(bigger.radius).toBe(300);
+    expect(SHAPE_SPECS.circle.outline(bigger, 24).points).toHaveLength(24);
+    const moved = SHAPE_SPECS.circle.dragHandle(circle, "centre", { x: 50, y: 60 }, FREE);
+    expect(moved).toEqual({ ...circle, centre: { x: 50, y: 60 } });
+    const corner = SHAPE_SPECS.rect.dragHandle(
+      SHAPE_SPECS.rect.initial,
+      "corner2",
+      { x: -250, y: -100 },
+      FREE,
+    );
+    expect([corner.width, corner.height]).toEqual([400, 200]);
+  });
+
+  it("scales each kind about its centre to a size, and moves it by an offset", () => {
+    for (const shape of ALL) {
+      const spec = specOf(shape);
+      const twice = spec.resized(shape, 2 * spec.size(shape));
+      expect(spec.size(twice)).toBeCloseTo(2 * spec.size(shape));
+      expect(centreOf(twice)).toEqual(centreOf(shape));
+      const moved = spec.moved(shape, { x: 5, y: -7 });
+      expect(centreOf(moved).x).toBeCloseTo(centreOf(shape).x + 5);
+      expect(centreOf(moved).y).toBeCloseTo(centreOf(shape).y - 7);
+    }
+  });
+
+  it("holds its centre inside it and the outline inside its box, except a line or an arc", () => {
+    for (const shape of ALL) {
+      const spec = specOf(shape);
+      const box = spec.bounds(shape);
+      const open = shape.kind === "line" || (shape.kind === "circle" && shape.sweep < 360);
+      expect(spec.contains(shape, centreOf(shape))).toBe(!open);
+      for (const p of spec.outline(shape, 40).points) {
+        expect(p.x).toBeGreaterThanOrEqual(box.x0 - 1e-9);
+        expect(p.x).toBeLessThanOrEqual(box.x1 + 1e-9);
+        expect(p.y).toBeGreaterThanOrEqual(box.y0 - 1e-9);
+        expect(p.y).toBeLessThanOrEqual(box.y1 + 1e-9);
+      }
+      expect(spec.fills(shape)).toEqual(open ? ["outline"] : ["outline", "scattered", "grid"]);
+    }
+  });
+});
+
+describe("galaxyFrame", () => {
+  it("measures a scenario against the circle inside its square", () => {
+    expect(galaxyFrame({ shape: "square", half: 500 })).toEqual({
+      centre: { x: 0, y: 0 },
+      radius: 500,
+    });
+    expect(galaxyFrame({ shape: "circle", radius: 700 }).radius).toBe(700);
+  });
+});

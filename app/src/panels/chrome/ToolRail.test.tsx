@@ -71,6 +71,19 @@ describe("the tool rail", () => {
     expect(button("Erase systems")).toContain('aria-pressed="true"');
   });
 
+  it("offers Shape after Erase, with its key, on a scenario only", () => {
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    expect(rail()).not.toContain("Draw shapes");
+
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    useToolStore.setState({ tool: "shape" });
+    expect(button("Draw shapes")).toContain('title="Draw shapes (O)"');
+    expect(button("Draw shapes")).toContain('aria-pressed="true"');
+    expect(rail()).toMatch(
+      /aria-label="Erase systems".*aria-label="Draw shapes".*aria-label="Connect lanes"/,
+    );
+  });
+
   it("offers Connect and Cut, with their keys, on a save as on a scenario", () => {
     useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
     useToolStore.setState({ tool: "cut" });

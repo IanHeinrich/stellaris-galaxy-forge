@@ -131,6 +131,11 @@ export type ShapePreview = Placement & {
   overlaps: number;
   /** Whether points were dropped at the cap of `SAMPLE_CAP` over the symmetry's copies. */
   capped: boolean;
+  /**
+   * The symmetry's copies when they land on an outline between its points rather than on
+   * them, as for a ring on the pivot whose count they don't divide; absent otherwise.
+   */
+  interleaved?: number;
 };
 
 /** The galaxy a shape is placed into, read once per preview. */
@@ -223,7 +228,7 @@ export interface ShapeSpec<S extends Shape> {
   contains(s: S, p: Pt): boolean;
   /** The world box around `s`. */
   bounds(s: S): Rect;
-  /** `n` points along the outline, corners first, in the order follow lanes join them. */
+  /** `n` points in order along the outline, every corner among them when `n` is at least the corner count; follow lanes join them in this order. */
   outline(s: S, n: number): Outline;
   /** What a placed `s` is called after "Placed ": "a ring", "a disc", "a hexagon". */
   noun(s: S, fill: Fill): string;

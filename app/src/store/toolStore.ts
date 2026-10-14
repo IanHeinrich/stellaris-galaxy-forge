@@ -10,13 +10,14 @@ import {
 import type { LaneMode } from "../lib/placement/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { roundHeight } from "../lib/height";
+import { specOf } from "../lib/shapes/specs";
 import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
 import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
-import { shapeSlice, type ShapeState } from "./toolStore.shape";
+import { isBoolean, isFiniteNumber, isOneOf, prefField, type PrefField } from "./prefs";
+import { LANE_MODES, shapeSlice, type ShapeState } from "./toolStore.shape";
 
 /** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -87,7 +88,6 @@ export function spacingOfSlider(v: number): number {
   return clamp(roundSpacing(spacing), SPACING_RANGE);
 }
 
-const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
 export const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
@@ -122,7 +122,7 @@ export interface ToolState extends ShapeState {
    */
   setTool(tool: Tool): boolean;
   setSize(size: number): void;
-  /** `[` shrinks the brush and `]` grows it, by a constant ratio. */
+  /** `[` shrinks the brush and `]` grows it, or the pending shape in the Shape tool, by a constant ratio. */
   stepSize(dir: -1 | 1): void;
   setSpacing(spacing: number): void;
   setLaneMode(mode: LaneMode): void;
@@ -146,18 +146,14 @@ function clamp(value: number, range: { min: number; max: number }): number {
   return Math.min(range.max, Math.max(range.min, value));
 }
 
-function oneOf<T extends string>(values: readonly T[]) {
-  return (value: unknown): value is T => typeof value === "string" && values.includes(value as T);
-}
-
 function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
   return isSymmetry(value) && value.kind !== "off";
 }
 
 const SIZE = prefField(PREF_KEYS.brushSize, SIZE_RANGE.fallback, isFiniteNumber);
 const SPACING = prefField(PREF_KEYS.brushSpacing, SPACING_RANGE.fallback, isFiniteNumber);
-const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", oneOf(LANE_MODES));
-const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS));
+const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", isOneOf(LANE_MODES));
+const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", isOneOf(ERASE_TARGETS));
 const ERASE_SPECIALS = prefField(PREF_KEYS.eraseSpecials, false, isBoolean);
 const SYMMETRY = prefField(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
 const LAST_SYMMETRY = prefField(PREF_KEYS.symmetryLast, DEFAULT_SYMMETRY, isActiveSymmetry);
@@ -226,7 +222,11 @@ export const useToolStore = create<ToolState>((set, get) => ({
 
   setTool(tool) {
     if (!documentTakes(tool)) return false;
-    if (get().tool !== tool) set({ tool });
+    const was = get().tool;
+    if (was === tool) return true;
+    if (was === "shape") get().dropShape();
+    set({ tool });
+    if (tool === "shape") get().startShape();
     return true;
   },
 
@@ -241,6 +241,13 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   stepSize(dir) {
+    const { tool, pendingShape } = get();
+    if (tool === "shape") {
+      if (pendingShape === null) return;
+      const now = specOf(pendingShape.shape).size(pendingShape.shape);
+      get().setShapeSize(dir > 0 ? now * SIZE_STEP : now / SIZE_STEP);
+      return;
+    }
     const size = get().size;
     get().setSize(dir > 0 ? size * SIZE_STEP : size / SIZE_STEP);
   },

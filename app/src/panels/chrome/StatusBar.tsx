@@ -8,6 +8,7 @@ import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
 import { copyCountLabel, cutCountLabel, PASTE_HINT, selectedHint } from "../../lib/planetMove";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
+import { shapeStatus } from "../../lib/shapes/shapeCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -21,7 +22,9 @@ import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
+import { useShapePreview } from "../../store/shapePreview";
 import { useSystemGeometry } from "../../store/systemGeometry";
+import { useToolStore } from "../../store/toolStore";
 import { HelpLink } from "../HelpLink";
 import { useGivenNames } from "../useBodyName";
 import { useClipboard, type Clipboard } from "../useCut";
@@ -37,6 +40,8 @@ const IDLE_HINT =
   `${shortcutLabel("fitSelection")} fits the selection · ${shortcutLabel("focusSearch")} to search`;
 
 const DELETE_KEY = shortcutLabel("deleteSelection");
+
+const SHAPE_HINT = "Enter places · Esc drops · drag a handle to adjust";
 
 const LEAVE_HINT = `${shortcutLabel("clearSelection")} back to galaxy`;
 
@@ -201,6 +206,25 @@ function HeldRings() {
   );
 }
 
+/** While a shape waits on the galaxy map: what placing it adds, then what it leaves out. */
+function PendingShapeStatus() {
+  const shown = useSceneSystem();
+  const pending = useToolStore((s) => s.pendingShape);
+  const preview = useShapePreview();
+  if (shown !== null || pending === null || preview === null) return null;
+  const { summary, warnings } = shapeStatus(pending, preview);
+  return (
+    <span className="shape-status">
+      <span className="accent">{summary}</span>
+      {warnings.map((w) => (
+        <span key={w} className="warn">
+          {w}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** `Sol III · orbit 45 · angle 212°` for body `id` where `layout` draws it, or null when it does not place it. */
 function bodyReadout(
   details: SystemDetails,
@@ -267,10 +291,12 @@ function Hint() {
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
   const gesture = useMapChromeStore((s) => s.gesture);
   const clipboard = useClipboard();
+  const shapePending = useToolStore((s) => s.pendingShape !== null);
   if (gesture === "connecting") {
     return <span className="muted">release on a system to connect</span>;
   }
   if (shown !== null && gesture === null) return <SceneHint system={shown} />;
+  if (shapePending && gesture === null) return <span className="muted">{SHAPE_HINT}</span>;
   if (clipboard !== null && gesture === null) return <ClipboardHint clipboard={clipboard} />;
   if (hover !== null) {
     return <span className="muted">drag to move · drag ring to connect · Shift+click to add</span>;
@@ -325,6 +351,7 @@ export function StatusBar() {
       {!error && notice && <span className="muted">{notice}</span>}
       <span className="spacer" />
       <HeldRings />
+      <PendingShapeStatus />
       <Selected />
       <Hint />
       <span className="spacer" />

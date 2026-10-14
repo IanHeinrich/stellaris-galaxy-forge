@@ -5,6 +5,11 @@ import { buttonIn } from "../../test/elements";
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
+const SHAPE_PREVIEW = vi.hoisted(() => ({ current: null as null | object }));
+vi.mock("../../store/shapePreview", () => ({
+  shapePreview: () => SHAPE_PREVIEW.current,
+  useShapePreview: () => SHAPE_PREVIEW.current,
+}));
 vi.mock("./GameDataPanel", () => ({ GameDataPanel: () => "[game data]" }));
 
 import { DETAILS_DEBOUNCE_MS } from "../../store/batching";
@@ -17,6 +22,8 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore } from "../../store/sceneStore";
+import { useToolStore } from "../../store/toolStore";
+import { SHAPE_SPECS } from "../../lib/shapes/specs";
 import { armSession, resetStores } from "../../store/storeFixture";
 import {
   OPEN_RESULT,
@@ -41,6 +48,8 @@ const bar = () => renderToStaticMarkup(<StatusBar />);
 const button = (label: string) => buttonIn(<StatusBar />, label);
 
 beforeEach(() => {
+  SHAPE_PREVIEW.current = null;
+  useToolStore.setState({ ...useToolStore.getInitialState() });
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), status: "ready" });
@@ -193,6 +202,49 @@ describe("the held rings", () => {
     button("Clear the rings")!.props.onClick();
     expect(useEditorStore.getState().heldRings).toEqual([]);
     expect(bar()).not.toContain("ringed");
+  });
+});
+
+describe("the pending shape", () => {
+  const pending = () => ({
+    shape: SHAPE_SPECS.circle.initial,
+    fill: { kind: "outline" as const, count: 22 },
+    lanes: { follow: true, mode: "off" as const },
+    skipNear: true,
+    seed: 1,
+  });
+
+  it("says nothing without a pending shape, and what placing it adds with one", () => {
+    expect(bar()).not.toContain("Circle ·");
+
+    SHAPE_PREVIEW.current = {
+      points: Array.from({ length: 22 }, (_, i) => ({ x: i, y: 0 })),
+      pairs: Array.from({ length: 22 }, (_, i) => [i, (i + 1) % 22]),
+      left: [],
+      outside: [],
+      overlaps: 0,
+      capped: false,
+    };
+    useToolStore.setState({ pendingShape: pending() });
+    const html = bar();
+    expect(html).toContain("Circle · 22 systems, 22 lanes");
+    expect(html).toContain("Enter places · Esc drops · drag a handle to adjust");
+    expect(html).not.toContain("middle-drag to pan");
+  });
+
+  it("lists what the shape leaves out as warnings", () => {
+    SHAPE_PREVIEW.current = {
+      points: [{ x: 0, y: 0 }],
+      pairs: [],
+      left: [{ at: { x: 1, y: 1 }, blocker: 0 }],
+      outside: [{ x: 900, y: 0 }],
+      overlaps: 0,
+      capped: false,
+    };
+    useToolStore.setState({ pendingShape: pending() });
+    const html = bar();
+    expect(html).toContain('<span class="warn">1 left out, too close to existing systems</span>');
+    expect(html).toContain('<span class="warn">1 past the edge</span>');
   });
 });
 

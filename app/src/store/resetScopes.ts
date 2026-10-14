@@ -16,6 +16,7 @@ export const DOCUMENT_SCOPED: readonly (() => void)[] = [
   ...FILE_SCOPED,
   () => usePrepareStore.getState().reset(),
   () => useToolStore.getState().setTilt(0),
+  () => useToolStore.getState().dropShape(),
   () => useInspectorStore.setState({ groups: {}, classPicks: {} }),
 ];
 

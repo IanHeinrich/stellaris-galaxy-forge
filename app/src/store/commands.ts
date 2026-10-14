@@ -3,6 +3,7 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import { documentCapabilities } from "../lib/capabilities";
 import {
   isEditableTarget,
+  isMenuTarget,
   isToolAction,
   keyAction,
   layerKeyOf,
@@ -89,6 +90,15 @@ function enterSelectedSystem(): boolean {
   }
   useSceneStore.getState().enterSystem(selection[0]);
   return sceneSystem() === selection[0];
+}
+
+/** Enter in the Shape tool: places the pending shape, unless a menu has focus. True when it did. */
+function placePendingShape(): boolean {
+  if (useToolStore.getState().pendingShape === null || isMenuTarget(document.activeElement)) {
+    return false;
+  }
+  void useEditorStore.getState().placePendingShape();
+  return true;
 }
 
 /** M: shows the one selected system, or leaves the system shown. True when it did either. */
@@ -284,6 +294,8 @@ function escape(inInput: boolean): void {
     chrome.closeContextMenu();
   } else if (sceneSystem() === null && useEditorStore.getState().clearHeldRings()) {
     return;
+  } else if (useToolStore.getState().dropShape()) {
+    return;
   } else if (useToolStore.getState().tool !== "select") {
     useToolStore.getState().setTool("select");
   } else if (usePlanetMoveStore.getState().clearClipboard()) {
@@ -367,7 +379,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       goBack();
       return true;
     case "enterSystem":
-      return enterSelectedSystem();
+      return placePendingShape() || enterSelectedSystem();
     case "toggleSystemView":
       return toggleSystemView();
     case "undo":

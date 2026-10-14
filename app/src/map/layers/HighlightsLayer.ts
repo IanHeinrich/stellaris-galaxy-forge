@@ -26,13 +26,14 @@ import {
   RING_RADIUS,
   SEARCHED_COLOR,
 } from "../../lib/visual/style";
-import { mapReach } from "../../lib/guides";
+import { mapExtent, mapReach } from "../../lib/guides";
 import { AddedMarks } from "./highlights/AddedMarks";
 import { BrushOverlay } from "./highlights/BrushOverlay";
 import { dashedCircle } from "./dashes";
 import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
 import { LaneDragOverlay } from "./highlights/LaneDragOverlay";
 import { pointsOf, RingBatch, type RingSpec, ZoneMarks, zoneMarksOf } from "./highlights/RingBatch";
+import { ShapeOverlay } from "./highlights/ShapeOverlay";
 import { SymmetryGuide } from "./highlights/SymmetryGuide";
 import { markerScale, sameKeys, type DragState, type MapLayer } from "./MapLayer";
 
@@ -127,7 +128,8 @@ function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
  * previews of an interaction in
  * progress: the ghosts' lanes, the rubber lines of a pending lane or link, the lanes a mesh
  * action would add, the marquee, and the hovered edge (a lane or a zone's link) with its "×"
- * and the selected lane, and the brush circle with what a held stroke would add, remove or cut.
+ * and the selected lane, the brush circle with what a held stroke would add, remove or cut, and
+ * the Shape tool's pending shape.
  * It also marks the galaxy origin and, where the galaxy sets one, the
  * core radius stars are meant to stay outside of.
  */
@@ -156,6 +158,8 @@ export class HighlightsLayer implements MapLayer {
   private readonly added = new AddedMarks();
   /** The brush circle and what a held stroke would do. */
   readonly brush = new BrushOverlay();
+  /** The Shape tool's pending shape, its handles and what placing it would add. */
+  readonly shape = new ShapeOverlay();
   readonly laneDrag: LaneDragOverlay;
   /** The axis or spokes of the symmetry edits repeat under. */
   readonly guide = new SymmetryGuide(mapReach(EMPTY_CONTEXT.kind, EMPTY_CONTEXT.radius));
@@ -202,6 +206,7 @@ export class HighlightsLayer implements MapLayer {
       this.cutRing,
       this.laneDrag.target,
       this.brush.container,
+      this.shape.container,
     );
     this.container.addChild(
       this.selectionRings.container,
@@ -227,6 +232,7 @@ export class HighlightsLayer implements MapLayer {
       this.drawCoreRing();
     }
     this.guide.setReach(mapReach(ctx.kind, ctx.radius));
+    this.shape.setExtent(mapExtent(ctx.kind, ctx.radius));
     if (!loaded) return;
     this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();
@@ -262,6 +268,7 @@ export class HighlightsLayer implements MapLayer {
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.origin.scale.set(this.pixelScale.x, this.pixelScale.y);
+    this.shape.onViewport(cam);
     const portCapable = portsAt(cam.scale);
     if (cam.scale !== this.camScale || portCapable !== this.portCapable) {
       this.camScale = cam.scale;
