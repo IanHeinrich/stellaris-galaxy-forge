@@ -49,6 +49,11 @@ export function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
 }
 
+/** A validator that takes exactly the strings in `values`. */
+export function isOneOf<T extends string>(values: readonly T[]) {
+  return (value: unknown): value is T => typeof value === "string" && values.includes(value as T);
+}
+
 export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }

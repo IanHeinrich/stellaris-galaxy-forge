@@ -1,5 +1,7 @@
 import type { LaneRef, SelectionMode } from "../../store/editorStore";
 import type { BrushTool } from "../../lib/brush/brushTools";
+import type { Pt } from "../../lib/geometry/pt";
+import type { ShapeDragMods, ShapeHandleId, ShapePick } from "../../lib/shapes/types";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { FeZonePick, NebulaPick } from "../picking";
 import type { MapEdge } from "../picking/edges";
@@ -17,6 +19,15 @@ export type LaneSource = { kind: "systems"; ids: number[] } | { kind: "feZone"; 
 export type LaneTarget =
   | { kind: "system"; id: number; valid: boolean }
   | { kind: "feZone"; anchor: number; valid: boolean };
+
+/**
+ * What a drag in the Shape tool does: draw a new shape from the press point `anchor`, move the
+ * pending shape from the press point `press`, or drag one of its handles.
+ */
+export type ShapeDrag =
+  | { kind: "draw"; anchor: Pt }
+  | { kind: "move"; press: Pt }
+  | { kind: "handle"; id: ShapeHandleId };
 
 /** One pointer event resolved against the map: screen and world position plus the pick. */
 export interface MapInput {
@@ -48,6 +59,8 @@ export interface MapInput {
   feZone: FeZonePick | null;
   /** The nebula part under the pointer, looked up only when no system, edge or ring is. */
   nebula: NebulaPick | null;
+  /** The pending shape's handle, or its inside, under the pointer; looked up only in the Shape tool. */
+  shape: ShapePick | null;
   /**
    * A prevented pair's dash under the pointer, looked up only for a right-click on no system and
    * no edge, so nothing else a pointer does ever meets it.
@@ -115,6 +128,10 @@ export interface MapIntent {
   cancelStroke(): void;
   /** Hides the brush circle. */
   endBrush(): void;
+  /** The drag reaches the world point (x, y); the pending shape follows, snapped as `mods` say. */
+  shapeDrag(drag: ShapeDrag, x: number, y: number, mods: ShapeDragMods): void;
+  /** The drag is over; `cancelled` puts back the shape it started from. */
+  endShapeDrag(cancelled: boolean): void;
 }
 
 /**

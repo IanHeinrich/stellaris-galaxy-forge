@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import type { LaneMode } from "../../lib/placement/lanes";
 import { typedNumber } from "../../lib/text";
 import { LANE_MODE_CHOICES } from "../../lib/toolCopy";
 import { useToolStore } from "../../store/toolStore";
@@ -71,16 +72,27 @@ export function SliderOption({
   );
 }
 
-/** Which lanes new systems get: none, among themselves, or also to the systems near them. */
-export function LaneModeOption() {
-  const laneMode = useToolStore((s) => s.laneMode);
-  const setLaneMode = useToolStore((s) => s.setLaneMode);
+/** The Lanes drop-down over `value`, for whichever tool's lane setting it edits. */
+export function LaneModeSelect({
+  value,
+  onChange,
+}: {
+  value: LaneMode;
+  onChange(mode: LaneMode): void;
+}) {
   return (
     <label className="tool-option">
       Lanes
-      <Select value={laneMode} choices={LANE_MODE_CHOICES} onChange={setLaneMode} />
+      <Select value={value} choices={LANE_MODE_CHOICES} onChange={onChange} />
     </label>
   );
+}
+
+/** Which lanes the paint brush's new systems get: none, among themselves, or also to the systems near them. */
+export function LaneModeOption() {
+  const laneMode = useToolStore((s) => s.laneMode);
+  const setLaneMode = useToolStore((s) => s.setLaneMode);
+  return <LaneModeSelect value={laneMode} onChange={setLaneMode} />;
 }
 
 /** The β of the lanes a brush adds, shared with the selection's mesh. */

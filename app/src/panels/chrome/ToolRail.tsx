@@ -38,6 +38,12 @@ const ICONS: Record<Tool, ReactNode> = {
       <path d="M7.5 13.5h6" />
     </RailGlyph>
   ),
+  shape: (
+    <RailGlyph>
+      <circle cx="5.5" cy="5.5" r="3" />
+      <path d="M8.5 8.5h5v5h-5Z" />
+    </RailGlyph>
+  ),
   connect: (
     <RailGlyph>
       <circle cx="3.5" cy="11.5" r="1.5" />

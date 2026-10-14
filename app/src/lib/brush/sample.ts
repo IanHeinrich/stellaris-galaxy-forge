@@ -1,11 +1,9 @@
 import { dist2, type Pt } from "../geometry/pt";
+import { SAMPLE_CAP } from "../placement/limits";
 import { PointGrid, type Blockers } from "../placement/pointGrid";
 import type { Rand } from "../random";
 import type { Symmetry } from "../geometry/symmetry";
 import { PoissonCore } from "../placement/poisson";
-
-/** The most points one stroke places. */
-export const SAMPLE_CAP = 1000;
 
 export interface SamplerOptions {
   /** Stamp radius. */

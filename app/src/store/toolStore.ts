@@ -7,7 +7,9 @@ import {
   type RipplePreset,
   type RippleShape,
 } from "../lib/brush/heightBrush";
-import type { LaneMode } from "../lib/placement/lanes";
+import { LANE_MODES, type LaneMode } from "../lib/placement/lanes";
+import { LEAST_SPACING, MOST_SPACING } from "../lib/placement/limits";
+import { clampTo } from "../lib/geometry/geometry";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { roundHeight } from "../lib/height";
 import { toolRequires, type Tool } from "../lib/tools";
@@ -15,7 +17,8 @@ import { barShows, type BarMode } from "../lib/visual/barMode";
 import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
+import { isBoolean, isFiniteNumber, isOneOf, prefField, type PrefField } from "./prefs";
+import { shapeSlice, type ShapeState } from "./toolStore.shape";
 
 /** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -23,7 +26,7 @@ export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
 /** Brush diameter, in world units. */
 export const SIZE_RANGE = { min: 5, max: 400, fallback: 40 } as const;
 /** Distance between the systems a paint stroke lays down, in world units. */
-export const SPACING_RANGE = { min: 5, max: 150, fallback: 25 } as const;
+export const SPACING_RANGE = { min: LEAST_SPACING, max: MOST_SPACING, fallback: 25 } as const;
 /** What one `[` or `]` multiplies or divides the brush size by. */
 const SIZE_STEP = 1.2;
 
@@ -64,7 +67,7 @@ const PACKING = 0.7;
 export function minSpacingFor(size: number): number {
   const r = size / 2;
   const least = Math.sqrt((PACKING * Math.PI * r * r) / MAX_SYSTEMS_PER_BRUSH);
-  return clamp(Math.ceil(least * 10) / 10, SPACING_RANGE);
+  return clampTo(Math.ceil(least * 10) / 10, SPACING_RANGE);
 }
 
 /** The spacing a stroke paints at: the chosen one, widened when the brush is too large for it. */
@@ -74,23 +77,22 @@ export function effectiveSpacing(size: number, spacing: number): number {
 
 /** Density slider position (0 sparse .. `SPACING_SLIDER_MAX` dense) for `spacing`, log-in-spacing. */
 export function sliderOfSpacing(spacing: number): number {
-  const clamped = clamp(spacing, SPACING_RANGE);
+  const clamped = clampTo(spacing, SPACING_RANGE);
   const t = (SPACING_LOG_MAX - Math.log(clamped)) / SPACING_LOG_SPAN;
-  return Math.round(clamp(t, { min: 0, max: 1 }) * SPACING_SLIDER_MAX);
+  return Math.round(clampTo(t, { min: 0, max: 1 }) * SPACING_SLIDER_MAX);
 }
 
 /** The spacing, in world units, for a Density slider position in `[0, SPACING_SLIDER_MAX]`. */
 export function spacingOfSlider(v: number): number {
-  const t = clamp(v, { min: 0, max: SPACING_SLIDER_MAX }) / SPACING_SLIDER_MAX;
+  const t = clampTo(v, { min: 0, max: SPACING_SLIDER_MAX }) / SPACING_SLIDER_MAX;
   const spacing = Math.exp(SPACING_LOG_MAX - t * SPACING_LOG_SPAN);
-  return clamp(roundSpacing(spacing), SPACING_RANGE);
+  return clampTo(roundSpacing(spacing), SPACING_RANGE);
 }
 
-const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
 export const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
-export interface ToolState {
+export interface ToolState extends ShapeState {
   tool: Tool;
   size: number;
   spacing: number;
@@ -121,7 +123,7 @@ export interface ToolState {
    */
   setTool(tool: Tool): boolean;
   setSize(size: number): void;
-  /** `[` shrinks the brush and `]` grows it, by a constant ratio. */
+  /** `[` shrinks the brush and `]` grows it, or the pending shape in the Shape tool, by a constant ratio. */
   stepSize(dir: -1 | 1): void;
   setSpacing(spacing: number): void;
   setLaneMode(mode: LaneMode): void;
@@ -141,22 +143,14 @@ export interface ToolState {
   pickRipplePreset(preset: RipplePreset): void;
 }
 
-function clamp(value: number, range: { min: number; max: number }): number {
-  return Math.min(range.max, Math.max(range.min, value));
-}
-
-function oneOf<T extends string>(values: readonly T[]) {
-  return (value: unknown): value is T => typeof value === "string" && values.includes(value as T);
-}
-
 function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
   return isSymmetry(value) && value.kind !== "off";
 }
 
 const SIZE = prefField(PREF_KEYS.brushSize, SIZE_RANGE.fallback, isFiniteNumber);
 const SPACING = prefField(PREF_KEYS.brushSpacing, SPACING_RANGE.fallback, isFiniteNumber);
-const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", oneOf(LANE_MODES));
-const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS));
+const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", isOneOf(LANE_MODES));
+const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", isOneOf(ERASE_TARGETS));
 const ERASE_SPECIALS = prefField(PREF_KEYS.eraseSpecials, false, isBoolean);
 const SYMMETRY = prefField(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
 const LAST_SYMMETRY = prefField(PREF_KEYS.symmetryLast, DEFAULT_SYMMETRY, isActiveSymmetry);
@@ -170,7 +164,7 @@ function storedNumber(
   field: PrefField<number>,
   range: { min: number; max: number; fallback: number },
 ): number {
-  return clamp(field.read(), range);
+  return clampTo(field.read(), range);
 }
 
 /** The height brush as the options stand, `flipped` while Alt is held. */
@@ -221,15 +215,21 @@ export const useToolStore = create<ToolState>((set, get) => ({
   smoothStrength: 50,
   ripple: presetShape("ripples", SIZE_RANGE.fallback),
   ripplePreset: "ripples",
+  ...shapeSlice(set, get),
 
   setTool(tool) {
     if (!documentTakes(tool)) return false;
-    if (get().tool !== tool) set({ tool });
+    const was = get().tool;
+    if (was === tool) return true;
+    // The tool goes first: a drag the swap cancels puts its shape back only in the Shape tool.
+    set({ tool });
+    if (was === "shape") get().dropShape();
+    if (tool === "shape") get().startShape();
     return true;
   },
 
   setSize(size) {
-    const clamped = clamp(Math.round(size), SIZE_RANGE);
+    const clamped = clampTo(Math.round(size), SIZE_RANGE);
     set({ size: clamped });
     SIZE.save(clamped);
     const { ripplePreset } = get();
@@ -239,12 +239,16 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   stepSize(dir) {
+    if (get().tool === "shape") {
+      get().scaleShape(dir > 0 ? SIZE_STEP : 1 / SIZE_STEP);
+      return;
+    }
     const size = get().size;
     get().setSize(dir > 0 ? size * SIZE_STEP : size / SIZE_STEP);
   },
 
   setSpacing(spacing) {
-    const clamped = clamp(roundSpacing(spacing), SPACING_RANGE);
+    const clamped = clampTo(roundSpacing(spacing), SPACING_RANGE);
     set({ spacing: clamped });
     SPACING.save(clamped);
   },
@@ -287,22 +291,22 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   setHeightValue(value) {
-    set({ heightValue: clamp(roundHeight(value), HEIGHT_SET_RANGE) });
+    set({ heightValue: clampTo(roundHeight(value), HEIGHT_SET_RANGE) });
   },
 
   setRaiseStrength(strength) {
-    set({ raiseStrength: clamp(Math.round(strength), RAISE_RANGE) });
+    set({ raiseStrength: clampTo(Math.round(strength), RAISE_RANGE) });
   },
 
   setSmoothStrength(strength) {
-    set({ smoothStrength: clamp(Math.round(strength), SMOOTH_RANGE) });
+    set({ smoothStrength: clampTo(Math.round(strength), SMOOTH_RANGE) });
   },
 
   setRipple(change) {
     const ripple = { ...get().ripple };
     for (const key of Object.keys(change) as Array<keyof RippleShape>) {
       const value = change[key];
-      if (value !== undefined) ripple[key] = clamp(Math.round(value), RIPPLE_RANGES[key]);
+      if (value !== undefined) ripple[key] = clampTo(Math.round(value), RIPPLE_RANGES[key]);
     }
     set({ ripple, ripplePreset: null });
   },

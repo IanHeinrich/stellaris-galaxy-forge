@@ -334,14 +334,14 @@ function followTool(): void {
     const { tool } = useToolStore.getState();
     if (tool === "select") return;
     if (state.status !== "ready" || !toolAllowed(tool, currentBarMode())) {
-      useToolStore.setState({ tool: "select" });
+      useToolStore.getState().setTool("select");
     }
   });
   useSceneStore.subscribe((state, previous) => {
     if (state.scene === previous.scene) return;
     const { tool } = useToolStore.getState();
     if (tool !== "select" && !toolAllowed(tool, currentBarMode())) {
-      useToolStore.setState({ tool: "select" });
+      useToolStore.getState().setTool("select");
     }
   });
 }

@@ -2,8 +2,11 @@ import type { Capabilities } from "../generated/Capabilities";
 import type { GuidePlace } from "./guideLinks";
 import type { BrushTool } from "./brush/brushTools";
 
-/** What a left-drag on the map does: select and edit in place (ADR 0003), or one brush (ADR 0005). */
-export type Tool = "select" | BrushTool;
+/**
+ * What a left-drag on the map does: select and edit in place (ADR 0003), one brush (ADR 0005),
+ * or draw a shape.
+ */
+export type Tool = "select" | BrushTool | "shape";
 
 export interface ToolEntry {
   id: Tool;
@@ -20,6 +23,7 @@ const ENTRIES: Record<Tool, Omit<ToolEntry, "id">> = {
   select: { key: "v", label: "Select", help: null, requires: null },
   paint: { key: "b", label: "Paint systems", help: "paintBrushes", requires: "create_systems" },
   erase: { key: "e", label: "Erase systems", help: "paintBrushes", requires: "create_systems" },
+  shape: { key: "o", label: "Draw shapes", help: "shapes", requires: "create_systems" },
   connect: { key: "c", label: "Connect lanes", help: "laneBrushes", requires: null },
   cut: { key: "x", label: "Cut lanes", help: "laneBrushes", requires: null },
   height: { key: "h", label: "Height brush", help: "heightBrush", requires: "system_heights" },

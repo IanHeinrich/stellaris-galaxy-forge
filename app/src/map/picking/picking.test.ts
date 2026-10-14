@@ -11,6 +11,9 @@ import { SpatialGrid } from "../../lib/spatialGrid";
 import { DrawnPositions } from "../drawnPositions";
 import { PickIndex } from "./pickIndex";
 import { zoneOf } from "./zones";
+import { SHAPE_SPECS } from "../../lib/shapes/specs";
+import type { CircleShape, PendingShape } from "../../lib/shapes/types";
+import { pickShape } from "./shapeHandles";
 
 function nebula(x: number, y: number, radius: number): Nebula {
   return { name: name("N"), x, y, radius, systems: [] };
@@ -343,5 +346,41 @@ describe("zoneOf", () => {
     expect(zoneOf(21, 2, true)).toBe("port");
     expect(zoneOf(32, 2, true)).toBe("port");
     expect(zoneOf(33, 2, true)).toBeNull();
+  });
+});
+
+const CIRCLE: CircleShape = {
+  kind: "circle",
+  centre: { x: 0, y: 0 },
+  radius: 200,
+  rotation: 0,
+  sweep: 360,
+  squash: 100,
+};
+
+const PENDING: PendingShape = {
+  shape: CIRCLE,
+  fill: { kind: "outline", count: 24 },
+  lanes: { follow: true, mode: "off" },
+  skipNear: true,
+  seed: 1,
+};
+
+describe("pickShape", () => {
+  it("hits a handle at the same screen distance at any zoom, and misses it just beyond", () => {
+    const rim = SHAPE_SPECS.circle.handles(CIRCLE).find((h) => h.look === "size")!;
+    for (const scale of [0.5, 4]) {
+      const cam = camera(scale);
+      const off = (px: number) => ({ x: rim.at.x, y: rim.at.y + px / scale });
+      expect(pickShape(PENDING, cam, off(6))).toEqual({ kind: "handle", id: rim.id });
+      expect(pickShape(PENDING, cam, off(12))).not.toEqual({ kind: "handle", id: rim.id });
+    }
+  });
+
+  it("reads the inside of a closed shape, and nothing off it or with no shape pending", () => {
+    const cam = camera(1);
+    expect(pickShape(PENDING, cam, { x: 60, y: 40 })).toEqual({ kind: "inside" });
+    expect(pickShape(PENDING, cam, { x: 400, y: 400 })).toBeNull();
+    expect(pickShape(null, cam, { x: 0, y: 0 })).toBeNull();
   });
 });

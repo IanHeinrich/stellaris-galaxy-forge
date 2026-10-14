@@ -4,7 +4,8 @@ import { LANE_REACH, laneIndex, meshWithin, placedLanes, type LaneMode } from ".
 import { PlacementGround } from "../placement/ground";
 import type { Placement } from "../placement/placement";
 import { symmetricCopies } from "../placement/symmetricCopies";
-import { SAMPLE_CAP, StrokeSampler } from "./sample";
+import { SAMPLE_CAP } from "../placement/limits";
+import { StrokeSampler } from "./sample";
 import { sweptLanes, sweptSystems } from "./sweep";
 import { copies, imagesOfStamps, type Symmetry } from "../geometry/symmetry";
 import { MESH_BETA, meshPairs, type MeshPoint } from "../geometry/mesh";

@@ -91,6 +91,17 @@ function enterSelectedSystem(): boolean {
   return sceneSystem() === selection[0];
 }
 
+/**
+ * Enter in the Shape tool: places the pending shape while the map or the shape's options have
+ * focus, so Enter after Shuffle still places. True when it did.
+ */
+function placePendingShape(): boolean {
+  if (useToolStore.getState().pendingShape === null) return false;
+  if (!mapHasFocus() && !shapeOptionsHaveFocus()) return false;
+  void useEditorStore.getState().placePendingShape();
+  return true;
+}
+
 /** M: shows the one selected system, or leaves the system shown. True when it did either. */
 export function toggleSystemView(): boolean {
   if (sceneSystem() !== null) {
@@ -284,6 +295,8 @@ function escape(inInput: boolean): void {
     chrome.closeContextMenu();
   } else if (sceneSystem() === null && useEditorStore.getState().clearHeldRings()) {
     return;
+  } else if (useToolStore.getState().dropShape()) {
+    return;
   } else if (useToolStore.getState().tool !== "select") {
     useToolStore.getState().setTool("select");
   } else if (usePlanetMoveStore.getState().clearClipboard()) {
@@ -309,6 +322,11 @@ function mapHasFocus(): boolean {
   const active = document.activeElement;
   if (active === null || active === document.body) return true;
   return active instanceof HTMLCanvasElement && active.closest(".map-host") !== null;
+}
+
+function shapeOptionsHaveFocus(): boolean {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && active.closest(".shape-options") !== null;
 }
 
 /** Whether a document of `kind` has a master over `source`'s group for its key to switch. */
@@ -367,7 +385,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       goBack();
       return true;
     case "enterSystem":
-      return enterSelectedSystem();
+      return placePendingShape() || enterSelectedSystem();
     case "toggleSystemView":
       return toggleSystemView();
     case "undo":

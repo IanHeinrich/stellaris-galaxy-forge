@@ -3,6 +3,7 @@ import type { Guide } from "../generated/Guide";
 import type { SystemNode } from "../generated/SystemNode";
 import { L_CLUSTER, LCLUSTER_PREFIX } from "../generated/constants";
 import { DOCUMENT_KINDS, type LClusterGuide, type MapEdge } from "./documentKinds";
+import type { Pt } from "./geometry/pt";
 
 /** Half the side of the square a scenario's coordinates must fall in, in world units. */
 export const SCENARIO_HALF_EXTENT = 500;
@@ -23,6 +24,13 @@ const EXTENTS: Readonly<Record<MapEdge, (radius: number) => MapExtent | null>> =
 /** The edge of the map: a save's galaxy radius, null when it records none, else the scenario square. */
 export function mapExtent(kind: DocumentKind | null, radius: number): MapExtent | null {
   return kind === null ? SCENARIO_SQUARE : EXTENTS[DOCUMENT_KINDS[kind].mapEdge](radius);
+}
+
+/** Whether `p` lies on or inside the map's edge. */
+export function insideExtent(extent: MapExtent, p: Pt): boolean {
+  return extent.shape === "circle"
+    ? Math.hypot(p.x, p.y) <= extent.radius
+    : Math.abs(p.x) <= extent.half && Math.abs(p.y) <= extent.half;
 }
 
 /** How far from the origin the map reaches: its circle's radius, or out to its square's corners. */

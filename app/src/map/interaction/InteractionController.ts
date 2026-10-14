@@ -23,6 +23,7 @@ import {
 } from "../picking";
 import type { MapEdge } from "../picking/edges";
 import { PickIndex } from "../picking/pickIndex";
+import { pickShape } from "../picking/shapeHandles";
 import { trackGalaxy } from "../picking/trackGalaxy";
 import { AddedTooltip } from "./addedTooltip";
 import { BrushModel } from "./BrushModel";
@@ -35,6 +36,8 @@ import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
 import { PointerBridge } from "./pointerBridge";
 import { groupOf } from "./press";
+import { ShapeDrags } from "./shapeDrags";
+import { ShapeModel } from "./ShapeModel";
 
 const editor = () => useEditorStore.getState();
 
@@ -58,8 +61,25 @@ function models(): Record<Tool, MapModel> & { select: GestureModel } {
     connect: brush("connect"),
     cut: brush("cut"),
     height: brush("height"),
+    shape: new ShapeModel(),
   };
 }
+
+/**
+ * What each tool reads under the pointer: Select everything the map shows, the Shape tool the
+ * pending shape, and a brush nothing, since it reads only where the pointer is.
+ */
+type Picks = "map" | "shape" | "nothing";
+
+const PICKS: Record<Tool, Picks> = {
+  select: "map",
+  paint: "nothing",
+  erase: "nothing",
+  connect: "nothing",
+  cut: "nothing",
+  height: "nothing",
+  shape: "shape",
+};
 
 /** Whether any of the height brush's options moved, which change what it previews. */
 function heightOptionsChanged(state: ToolState, previous: ToolState): boolean {
@@ -82,6 +102,8 @@ export class InteractionController {
   private readonly nebulae: NebulaDrag;
   private readonly feZones: FeZoneDrag;
   private readonly moves: MoveDrag;
+  private readonly shapes: ShapeDrags;
+  private tool: Tool = "select";
   private model: MapModel = this.models.select;
   /** The pointer in pick space, where systems and lanes are found as they draw; rewritten per pick. */
   private readonly pickAt: Pt = { x: 0, y: 0 };
@@ -115,6 +137,7 @@ export class InteractionController {
     this.nebulae = new NebulaDrag(cam, highlights);
     this.feZones = new FeZoneDrag(cam, highlights);
     this.moves = new MoveDrag(layers, drawn);
+    this.shapes = new ShapeDrags(cam, highlights.shape, drawn);
     this.intent = this.buildIntent();
     this.pointer = new PointerBridge(
       canvas,
@@ -139,17 +162,19 @@ export class InteractionController {
       },
     );
 
-    this.model = this.models[useToolStore.getState().tool];
+    this.tool = useToolStore.getState().tool;
+    this.model = this.models[this.tool];
     this.activate();
     this.brushes.drawGuide();
     this.cleanups.push(
       trackGalaxy(this.index),
+      this.shapes.watch(),
       drawn.onChange(({ moved, leaned }) => {
         if (leaned) this.index.build(useGalaxyStore.getState().systems);
         else this.index.moved(moved);
       }),
       useToolStore.subscribe((state, previous) => {
-        if (state.tool !== previous.tool) this.swapModel(this.models[state.tool]);
+        if (state.tool !== previous.tool) this.swapModel(state.tool);
         if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
         if (
           state.size !== previous.size ||
@@ -261,14 +286,17 @@ export class InteractionController {
       commitStroke: () => this.brushes.commit(),
       cancelStroke: () => this.brushes.cancel(),
       endBrush: () => this.brushes.end(),
+      shapeDrag: (drag, x, y, mods) => this.shapes.drag(drag, x, y, mods),
+      endShapeDrag: (cancelled) => this.shapes.end(cancelled),
     };
   }
 
   /** Drops whatever the outgoing model had half done before the next one takes the pointer. */
-  private swapModel(next: MapModel): void {
+  private swapModel(tool: Tool): void {
     this.dropDrag();
     this.hover(null);
-    this.model = next;
+    this.tool = tool;
+    this.model = this.models[tool];
     this.canvas.style.cursor = this.model.cursor();
   }
 
@@ -331,6 +359,7 @@ export class InteractionController {
       feZone: null,
       snap: null,
       nebula: null,
+      shape: null,
       prevented: null,
     });
   }
@@ -339,13 +368,17 @@ export class InteractionController {
   private remeasure(input: MapInput): MapInput {
     const w = this.cam.screenToWorld(input.sx, input.sy, this.at);
     const moved = { ...input, wx: w.x, wy: w.y, selection: editor().selection };
-    return this.model === this.models.select ? this.pick(moved, w) : moved;
+    switch (PICKS[this.tool]) {
+      case "map":
+        return this.pick(moved, w);
+      case "shape":
+        return { ...moved, shape: pickShape(useToolStore.getState().pendingShape, this.cam, w) };
+      case "nothing":
+        return moved;
+    }
   }
 
-  /**
-   * What is under the pointer: systems and lanes where they draw, zones and nebulae on the
-   * plane. A brush reads only where the pointer is, so it never asks.
-   */
+  /** What is under the pointer: systems and lanes where they draw, zones and nebulae on the plane. */
   private pick(input: MapInput, w: Pt): MapInput {
     const { systems, nebulae } = useGalaxyStore.getState();
     const grid = this.drawn.pickGrid();
@@ -426,7 +459,7 @@ export class InteractionController {
 
   private moved(input: MapInput, panned: boolean): void {
     this.lastMove = input;
-    if (panned || this.model.busy() || this.model !== this.models.select) {
+    if (panned || this.model.busy() || PICKS[this.tool] !== "map") {
       this.hover(null);
     } else {
       this.hover(input);

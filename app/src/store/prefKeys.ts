@@ -28,6 +28,7 @@ export const PREF_KEYS = {
   eraseSpecials: "sgf.brush.eraseSpecials",
   symmetry: "sgf.brush.symmetry",
   symmetryLast: "sgf.brush.symmetryLast",
+  shapeMemory: "sgf.shape.memory",
   skippedUpdate: "sgf.update.skipped",
   noticedUpdate: "sgf.update.noticed",
   checkAtStart: "sgf.update.checkAtStart",
