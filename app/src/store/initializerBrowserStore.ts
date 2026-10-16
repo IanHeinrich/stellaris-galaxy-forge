@@ -4,26 +4,27 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { Op } from "../generated/Op";
 import {
   browserGroups,
-  notedRecent,
-  pinToggle,
+  currentKeys,
+  RANDOM_KEY,
   type BrowserGroup,
 } from "../lib/initializer/initializerBrowser";
 import { isEmpireSpawn, modRefs } from "../lib/initializer/initializerGroups";
 import { buildIndex, search, type SearchEntry } from "../lib/initializer/initializerSearch";
 import { initializerCounts } from "../lib/initializer/initializerLabels";
 import { initializersOp } from "../lib/systemsBatch";
+import { browseSlice, type BrowseState } from "./browseSlice";
 import { withTrackedSystems } from "./editorEdits";
 import { useEditorStore } from "./editorStore";
 import { useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isString, isStringArray, prefField } from "./prefs";
+import { isString, prefField } from "./prefs";
 
-/** The choice that leaves the system to the game, which is no initializer at all. */
-export const RANDOM_KEY = "@random";
+export { RANDOM_KEY };
 
-export interface InitializerBrowserState {
+/** The initializer browser, whose `highlighted` is [`RANDOM_KEY`] or an initializer key. */
+export interface InitializerBrowserState extends BrowseState {
   open: boolean;
   /** Whether the choice is written to existing systems or spawns a new one at `pending`. */
   mode: "assign" | "create";
@@ -31,13 +32,6 @@ export interface InitializerBrowserState {
   targets: number[];
   /** Where create mode puts the new system, in world coordinates. */
   pending: { x: number; y: number } | null;
-  query: string;
-  /** The group being listed, `null` for all of them. */
-  group: string | null;
-  /** [`RANDOM_KEY`] or an initializer key: what the detail pane shows and the map rings. */
-  highlighted: string | null;
-  pinned: string[];
-  recent: string[];
   /** This machine's initializer for a new system, `null` for random. */
   defaultKey: string | null;
   /** What `assign` writes; back to the highlighted entry's default on every change of it. */
@@ -48,11 +42,8 @@ export interface InitializerBrowserState {
   /** Opens the browser to spawn a new system at a world point instead of assigning to one. */
   openToCreate(x: number, y: number): void;
   close(): void;
-  setQuery(q: string): void;
-  setGroup(id: string | null): void;
   highlight(key: string | null): void;
   setSpawnWeight(w: number | null): void;
-  togglePin(key: string): void;
   /** Remembers the initializer a new system spawns from without being asked; `null` for random. */
   setDefault(key: string | null): void;
   /** Writes the highlighted choice to every target as one op; false when nothing was written. */
@@ -186,20 +177,35 @@ function mapKey(key: string | null): string | null {
   return key === RANDOM_KEY ? "" : key;
 }
 
-const PINNED = prefField(PREF_KEYS.initializerPins, [], isStringArray);
-const RECENT = prefField(PREF_KEYS.initializerRecent, [], isStringArray);
+/**
+ * The initializer every target already carries, where the list opens showing it or is still
+ * being read; `null` when the targets differ.
+ */
+function openingKey(targets: readonly number[], state: InitializerBrowserState): string | null {
+  const systems = useGalaxyStore.getState().systems;
+  const current = currentKeys(targets, systems);
+  const shared = current.size === 1 ? [...current][0] : null;
+  const { initializers, summary, names } = useGameDataStore.getState();
+  if (shared === null || initializers === null) return shared;
+  if (shared === RANDOM_KEY) return state.group === null ? shared : null;
+  const mods = summary?.mods ?? NO_MODS;
+  const tree = browserGroupsOf(initializers, mods, state.pinned, state.recent, systems);
+  const entries = searchEntries(initializers, mods, names);
+  const shown = visibleEntriesOf(entries, state.query, state.group, tree);
+  return shown.some((entry) => entry.name === shared) ? shared : null;
+}
+
 const DEFAULT_KEY = prefField<string | null>(PREF_KEYS.initializerDefault, null, isString);
 
 export const useInitializerBrowserStore = create<InitializerBrowserState>((set, get) => ({
+  ...browseSlice(set, get, {
+    pinned: PREF_KEYS.initializerPins,
+    recent: PREF_KEYS.initializerRecent,
+  }),
   open: false,
   mode: "assign",
   targets: [],
   pending: null,
-  query: "",
-  group: null,
-  highlighted: null,
-  pinned: PINNED.read(),
-  recent: RECENT.read(),
   defaultKey: DEFAULT_KEY.read(),
   spawnWeight: null,
 
@@ -209,6 +215,8 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
     if (useGameDataStore.getState().initializers === null) {
       void useGameDataStore.getState().loadInitializers();
     }
+    const opening = openingKey(targets, get());
+    if (opening !== null) get().highlight(opening);
     useMapChromeStore.getState().setHighlightInitializer(mapKey(get().highlighted));
   },
 
@@ -225,14 +233,6 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
     useMapChromeStore.getState().setHighlightInitializer(null);
   },
 
-  setQuery(query) {
-    set({ query });
-  },
-
-  setGroup(group) {
-    set({ group });
-  },
-
   highlight(key) {
     if (get().highlighted === key) set({ highlighted: key });
     else set({ highlighted: key, spawnWeight: spawnWeightFor(key) });
@@ -241,12 +241,6 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
 
   setSpawnWeight(spawnWeight) {
     set({ spawnWeight });
-  },
-
-  togglePin(key) {
-    const pinned = pinToggle(get().pinned, key);
-    set({ pinned });
-    PINNED.save(pinned);
   },
 
   setDefault(key) {
@@ -275,11 +269,7 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
       );
     }
     if (!applied) return false;
-    if (!random) {
-      const recent = notedRecent(get().recent, highlighted);
-      set({ recent });
-      RECENT.save(recent);
-    }
+    if (!random) get().noteRecent(highlighted);
     if (!keepOpen) get().close();
     return applied;
   },

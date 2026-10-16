@@ -110,6 +110,59 @@ describe("openFor", () => {
   });
 });
 
+describe("the highlight on open", () => {
+  const carrying = (initializers: Record<number, string>) => {
+    const systems = new Map(useGalaxyStore.getState().systems);
+    for (const [id, initializer] of Object.entries(initializers)) {
+      systems.set(Number(id), { ...systems.get(Number(id))!, initializer });
+    }
+    useGalaxyStore.setState({ systems });
+  };
+
+  it("is the initializer every target already carries, its weight and ring with it", () => {
+    carrying({ 1: HOME.name, 2: HOME.name });
+    browser().openFor([1, 2]);
+    expect(browser().highlighted).toBe(HOME.name);
+    expect(browser().spawnWeight).toBe(1);
+    expect(useMapChromeStore.getState().highlightInitializer).toBe(HOME.name);
+  });
+
+  it("is random over targets that carry none", () => {
+    carrying({ 2: "" });
+    browser().openFor([2]);
+    expect(browser().highlighted).toBe(RANDOM_KEY);
+  });
+
+  it("is left alone when the targets differ, or the list would not show the shared one", () => {
+    useInitializerBrowserStore.setState({ highlighted: BASIC.name });
+    carrying({ 1: HOME.name, 2: SOL.name });
+    browser().openFor([1, 2]);
+    expect(browser().highlighted).toBe(BASIC.name);
+
+    browser().setGroup("empire");
+    browser().openFor([2]);
+    expect(browser().highlighted).toBe(BASIC.name);
+
+    carrying({ 2: "" });
+    browser().openFor([2]);
+    expect(browser().highlighted).toBe(BASIC.name);
+  });
+
+  it("is the shared one while the initializers are still being read", () => {
+    useGameDataStore.setState({ initializers: null });
+    browser().openFor([2]);
+    expect(browser().highlighted).toBe(BASIC.name);
+  });
+
+  it("is picked again on every open", () => {
+    browser().openFor([2]);
+    browser().highlight(SOL.name);
+    browser().close();
+    browser().openFor([2]);
+    expect(browser().highlighted).toBe(BASIC.name);
+  });
+});
+
 describe("highlight", () => {
   it("rings the highlighted key on the map, and the empty key for random", () => {
     browser().highlight(SOL.name);
@@ -339,5 +392,29 @@ describe("the visible entries", () => {
 
     browser().setGroup(null);
     expect(visible().map((e) => e.name)).toEqual([SOL.name]);
+  });
+});
+
+describe("the pins and recent picks", () => {
+  it("are read back under the keys they were saved to", async () => {
+    stored.set("sgf.initializers.pinned", JSON.stringify(["sol_system", "basic_init_01"]));
+    stored.set("sgf.initializers.recent", JSON.stringify(["empire_init_01"]));
+    stored.set("sgf.initializers.default", JSON.stringify("sol_system"));
+    vi.resetModules();
+
+    const fresh = (await import("./initializerBrowserStore")).useInitializerBrowserStore.getState();
+    expect(fresh.pinned).toEqual(["sol_system", "basic_init_01"]);
+    expect(fresh.recent).toEqual(["empire_init_01"]);
+    expect(fresh.defaultKey).toBe("sol_system");
+  });
+
+  it("start empty when nothing was saved, or what was is not a list of keys", async () => {
+    stored.set("sgf.initializers.pinned", JSON.stringify([1, 2]));
+    vi.resetModules();
+
+    const fresh = (await import("./initializerBrowserStore")).useInitializerBrowserStore.getState();
+    expect(fresh.pinned).toEqual([]);
+    expect(fresh.recent).toEqual([]);
+    expect(fresh.defaultKey).toBe(null);
   });
 });

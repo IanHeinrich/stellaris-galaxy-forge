@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { isEditableTarget } from "../../lib/keys";
+import { useMemo } from "react";
+import { currentKeys } from "../../lib/initializer/initializerBrowser";
 import { initializerCounts } from "../../lib/initializer/initializerLabels";
 import { useSystemNames } from "../../store/browserRows";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -11,21 +11,11 @@ import {
   useInitializerBrowserStore,
   useVisibleEntries,
 } from "../../store/initializerBrowserStore";
-import { listStep } from "../gridKeys";
-import { ENTER } from "../keys";
-import { Dialog } from "../Dialog";
+import { BrowseDialog } from "../browseDialog/BrowseDialog";
 import { HelpLink } from "../HelpLink";
 import "./browser.css";
 import { Detail } from "./Detail";
-import { GroupTree } from "./GroupTree";
-import { List } from "./List";
-import { currentKeys } from "./rows";
-
-/** How many rows are drawn before the list asks for a narrower search. */
-const MAX_ROWS = 300;
-
-/** How far PgUp and PgDn move. */
-const PAGE = 10;
+import { Row } from "./Row";
 
 const PREFIX_HINT = "usage: · mod: · class: · flag: · planets:>5";
 
@@ -53,17 +43,17 @@ function Browsing() {
   const systems = useGalaxyStore((s) => s.systems);
   const targetNames = useSystemNames(targets);
 
-  const search = useRef<HTMLInputElement>(null);
-  const first = useRef(true);
-
   const tree = useBrowserGroups();
+  const groups = useMemo(
+    () => tree.map((g) => ({ id: g.id, label: g.label, count: g.entries.length })),
+    [tree],
+  );
   const entries = useVisibleEntries(tree);
   const byKey = useMemo(() => new Map(entries.map((entry) => [entry.name, entry])), [entries]);
   const keys = useMemo(() => {
     const listed = entries.map((entry) => entry.name);
-    return (group === null ? [RANDOM_KEY, ...listed] : listed).slice(0, MAX_ROWS);
+    return group === null ? [RANDOM_KEY, ...listed] : listed;
   }, [entries, group]);
-  const more = (group === null ? entries.length + 1 : entries.length) - keys.length;
 
   const uses = useMemo(
     () => new Map(initializerCounts(systems.values()).map((c) => [c.key, c.count])),
@@ -72,38 +62,8 @@ function Browsing() {
   const current = useMemo(() => currentKeys(targets, systems), [targets, systems]);
   const entry = useHighlightedEntry();
 
-  useEffect(() => {
-    if (keys.length === 0) return;
-    if (first.current) {
-      first.current = false;
-      const shared = current.size === 1 ? [...current][0] : null;
-      if (shared !== null && keys.includes(shared)) {
-        highlight(shared);
-        return;
-      }
-    }
-    if (highlighted === null || !keys.includes(highlighted)) highlight(keys[0]);
-  }, [keys, current, highlighted, highlight]);
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const fromSearch = e.target === search.current;
-    if (!fromSearch && isEditableTarget(e.target)) return;
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key.toLowerCase() !== "d") return;
-      e.preventDefault();
-      if (highlighted !== null && highlighted !== RANDOM_KEY) togglePin(highlighted);
-      return;
-    }
-    if (e.key === ENTER) {
-      e.preventDefault();
-      void assign(e.shiftKey);
-      return;
-    }
-    if (fromSearch && (e.key === "Home" || e.key === "End")) return;
-    const to = listStep(e.key, keys.indexOf(highlighted ?? ""), keys.length, { page: PAGE });
-    if (to === null) return;
-    e.preventDefault();
-    highlight(keys[to]);
+  const pin = (key: string) => {
+    if (key !== RANDOM_KEY) togglePin(key);
   };
 
   const creating = mode === "create";
@@ -116,61 +76,46 @@ function Browsing() {
       : `Assign to ${targets.length} systems`;
 
   return (
-    <Dialog
-      className="ib"
-      scrim="ib-scrim"
+    <BrowseDialog
       label="Choose an initializer"
+      className="ib"
       onClose={close}
-      onDismiss={close}
-    >
-      <div className="ib-inner" onKeyDown={onKeyDown}>
-        <div className="ib-head">
-          <button
-            type="button"
-            className="link ib-close"
-            onClick={close}
-            title="Close (Esc)"
-            aria-label="Close"
-          >
-            ×
-          </button>
-          <input
-            ref={search}
-            type="search"
-            className="ib-search"
-            aria-label="Search initializers"
-            placeholder="Search initializers"
-            autoComplete="off"
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
+      searchLabel="Search initializers"
+      query={query}
+      onQuery={setQuery}
+      hint={
+        <>
+          {PREFIX_HINT} <HelpLink place="initializers" topic="Initializers" />
+        </>
+      }
+      tree={{
+        label: "Initializer groups",
+        groups,
+        total: initializers?.length ?? 0,
+        selected: group,
+        onSelect: setGroup,
+      }}
+      keys={keys}
+      rows={{
+        label: "Initializers",
+        idPrefix: "ib-row-",
+        rowClassName: "ib-row",
+        renderRow: (key) => (
+          <Row
+            entry={byKey.get(key) ?? null}
+            used={uses.get(key === RANDOM_KEY ? "" : key) ?? 0}
+            current={current.has(key)}
           />
-          <div className="muted ib-hint">
-            {PREFIX_HINT} <HelpLink place="initializers" topic="Initializers" />
-          </div>
-        </div>
-        <div className="ib-cols">
-          <GroupTree
-            groups={tree}
-            total={initializers?.length ?? 0}
-            selected={group}
-            onSelect={setGroup}
-          />
-          {initializers === null ? (
-            <div className="muted ib-empty">Reading the initializers…</div>
-          ) : (
-            <List
-              keys={keys}
-              byKey={byKey}
-              uses={uses}
-              current={current}
-              more={more}
-              onAssign={() => void assign()}
-            />
-          )}
-          <Detail entry={entry} uses={entry === null ? 0 : (uses.get(entry.name) ?? 0)} />
-        </div>
-        <div className="ib-foot">
+        ),
+      }}
+      waiting={initializers === null ? "Reading the initializers…" : undefined}
+      highlighted={highlighted}
+      onHighlight={highlight}
+      onChoose={(keepOpen) => void assign(keepOpen)}
+      onPin={pin}
+      detail={<Detail entry={entry} uses={entry === null ? 0 : (uses.get(entry.name) ?? 0)} />}
+      foot={
+        <>
           <span className="ib-summary">{summary}</span>
           <span className="muted ib-hints">
             Up/Down move · Enter {verb} · Shift+Enter {verb} and keep open · Ctrl+D pin · Esc close
@@ -190,7 +135,7 @@ function Browsing() {
             disabled={highlighted === null || highlighted === RANDOM_KEY}
             title="Ctrl+D"
             onClick={() => {
-              if (highlighted !== null && highlighted !== RANDOM_KEY) togglePin(highlighted);
+              if (highlighted !== null) pin(highlighted);
             }}
           >
             {pinnedNow ? "★ Unpin" : "☆ Pin"}
@@ -203,9 +148,9 @@ function Browsing() {
           >
             {creating ? "Create" : "Assign"}
           </button>
-        </div>
-      </div>
-    </Dialog>
+        </>
+      }
+    />
   );
 }
 

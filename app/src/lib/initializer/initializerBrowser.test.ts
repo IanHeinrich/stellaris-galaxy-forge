@@ -3,12 +3,11 @@ import { initializerView, initPlanetView } from "../../test/builders";
 import type { DepositView } from "../../generated/DepositView";
 import type { InitializerView } from "../../generated/InitializerView";
 import type { ModRef } from "./initializerGroups";
+import { notedRecent, pinToggle } from "../browsePicks";
 import {
   browserGroups,
   initializerTotals,
   newSystemRows,
-  notedRecent,
-  pinToggle,
   type BrowserGroup,
 } from "./initializerBrowser";
 

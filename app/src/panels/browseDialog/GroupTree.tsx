@@ -1,27 +1,30 @@
 import { useRef } from "react";
-import type { BrowserGroup } from "../../lib/initializer/initializerBrowser";
 import { listStep } from "../gridKeys";
 
-const ALL = { id: null, label: "All" };
+/** One group a browser lists down its left edge, with how many entries it holds. */
+export interface TreeGroup {
+  id: string;
+  label: string;
+  count: number;
+}
 
-/**
- * The groups the browser lists down its left edge: everything first, then the pinned and recent
- * picks and the game data's own groups. One button is tabbable, and the arrows move between them.
- */
-export function GroupTree({
-  groups,
-  total,
-  selected,
-  onSelect,
-}: {
-  groups: readonly BrowserGroup[];
+export interface GroupTreeProps {
+  /** What the tree is called to a screen reader. */
+  label: string;
+  groups: readonly TreeGroup[];
+  /** How many entries All holds. */
   total: number;
   selected: string | null;
   onSelect: (id: string | null) => void;
-}) {
+}
+
+/**
+ * The groups a browser lists down its left edge: All first, then the groups it is given. One
+ * button is tabbable, and the arrows move between them.
+ */
+export function GroupTree({ label, groups, total, selected, onSelect }: GroupTreeProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const rows = [ALL, ...groups.map((g) => ({ id: g.id as string | null, label: g.label }))];
-  const counts = [total, ...groups.map((g) => g.entries.length)];
+  const rows = [{ id: null as string | null, label: "All", count: total }, ...groups];
   const at = Math.max(
     0,
     rows.findIndex((row) => row.id === selected),
@@ -36,9 +39,9 @@ export function GroupTree({
   return (
     <div
       ref={ref}
-      className="ib-tree"
+      className="browse-tree"
       role="listbox"
-      aria-label="Initializer groups"
+      aria-label={label}
       onKeyDown={(e) => {
         const move = listStep(e.key, at, rows.length);
         if (move === null) return;
@@ -54,11 +57,11 @@ export function GroupTree({
           role="option"
           aria-selected={i === at}
           tabIndex={i === at ? 0 : -1}
-          className={`ib-group${i === at ? " active" : ""}`}
+          className={`browse-group${i === at ? " active" : ""}`}
           onClick={() => onSelect(row.id)}
         >
-          <span className="ib-group-label">{row.label}</span>
-          <span className="ib-count">{counts[i]}</span>
+          <span className="browse-group-label">{row.label}</span>
+          <span className="browse-count">{row.count}</span>
         </button>
       ))}
     </div>

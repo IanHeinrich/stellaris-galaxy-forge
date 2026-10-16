@@ -1,0 +1,146 @@
+/* A browse dialog: a large overlay over the map with a search, groups, a list and a detail pane. */
+.browse-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(5, 7, 13, 0.7);
+}
+
+.browse {
+  width: min(1200px, 94vw);
+  height: min(860px, 92%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.browse-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.browse-head {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 44px 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.browse-close {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.browse-search {
+  width: 100%;
+}
+
+.browse-hint {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+.browse-cols {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 400px;
+}
+
+.browse-tree {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+
+.browse-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+}
+
+.browse-group:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  border-color: transparent;
+}
+
+.browse-group.active {
+  background: var(--bg-elevated);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.browse-group-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browse-count {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--text-small);
+}
+
+.browse-list {
+  min-height: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+
+.browse-list:focus-visible {
+  outline: 1px solid var(--accent-dim);
+  outline-offset: -1px;
+}
+
+.browse-row {
+  cursor: pointer;
+}
+
+.browse-row:hover {
+  background: var(--bg-elevated);
+}
+
+.browse-row.active {
+  background: var(--bg-elevated);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.browse-empty {
+  padding: 8px 12px;
+}
+
+.browse-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+}

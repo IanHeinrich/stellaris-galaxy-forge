@@ -1,10 +1,12 @@
 # `panels/`
 
-One folder per slice of the UI: `browser/` (the dock's lists), `chrome/` (the
-top bar, its menus, the dock frame, the status bar and the map's tool rail),
-`file/` (the launch and open screens), `initializers/` (the initializer
-browser), `inspector/` (the right-hand pane), `overlays/` (dialogs, the context
-menu, the map tooltip) and `search/` (the palette). A file more than one
+One folder per slice of the UI: `browser/` (the dock's lists), `browseDialog/`
+(the large browse dialog's frame: search, group tree, list and keys), `chrome/`
+(the top bar, its menus, the dock frame, the status bar and the map's tool
+rail), `file/` (the launch and open screens), `initializers/` (the initializer
+browser's rows, detail pane and actions, in a browse dialog), `inspector/` (the
+right-hand pane), `overlays/` (dialogs, the context menu, the map tooltip) and
+`search/` (the palette). A file more than one
 folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
 piece of script text the app shows: the Initializer sections' groups and the
 Inspector's Source tab. `Dialog.tsx` holds `Dialog` and `DialogFrame`, the
