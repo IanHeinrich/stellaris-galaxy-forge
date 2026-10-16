@@ -24,12 +24,18 @@
 .browse.browse-beside {
   position: absolute;
   z-index: 5;
-  width: min(600px, calc(100% - 16px));
+  width: min(680px, calc(100% - 16px));
   height: min(600px, calc(100% - 16px));
 }
 
 .browse-beside .browse-cols {
-  grid-template-columns: 120px minmax(0, 1fr) 280px;
+  grid-template-columns: 140px minmax(0, 1fr) 280px;
+}
+
+/* The narrow columns wrap long names onto a second line instead of cutting them. */
+.browse-beside .browse-group-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .browse-inner {
