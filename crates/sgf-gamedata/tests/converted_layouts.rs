@@ -136,11 +136,11 @@ fn converted_layouts_come_without_their_empires_civilisations_and_start_flags() 
             .flags
             .iter()
             .map(String::as_str)
-            .filter(|flag| !START_FLAGS.contains(flag))
+            .filter(|flag| !START_FLAGS.contains(flag) && !layout.drops.contains(flag))
             .collect();
         assert_eq!(
             spec.flags, kept,
-            "{key}: every star flag but those of an empire's start"
+            "{key}: every star flag but those of an empire's start and its dropped guardians"
         );
         spec.lanes = vec![169];
         session
