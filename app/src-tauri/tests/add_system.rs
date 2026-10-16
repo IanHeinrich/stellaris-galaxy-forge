@@ -2,6 +2,7 @@
 //! real sample save.
 use serde_json::json;
 use sgf_core::projections::galaxy::SystemNode;
+use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{EditResult, ErrorKind, GalaxyView, SystemDetail};
 use sgf_gamedata::summary::AddSystemPicks;
 
@@ -272,7 +273,7 @@ fn a_scenario_takes_no_rolled_system() {
     let special = invoke::<EditResult>(
         &w,
         "add_special_system",
-        json!({ "seed": 1, "x": 0.0, "y": 0.0, "layout": "trappist_initializer" }),
+        json!({ "seed": 1, "x": 0.0, "y": 0.0, "layout": "trappist_initializer", "extras": true }),
     )
     .expect_err("a scenario is refused");
     let picks = invoke::<AddSystemPicks>(&w, "get_add_system_picks", json!({}))
@@ -349,7 +350,7 @@ fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
     let placed: EditResult = invoke(
         &w,
         "add_special_system",
-        json!({ "seed": 5, "x": x, "y": y, "layout": layout }),
+        json!({ "seed": 5, "x": x, "y": y, "layout": layout, "extras": true }),
     )
     .expect("placed though the galaxy has one");
     let system = added(&placed).clone();
@@ -407,13 +408,64 @@ fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
     let unique: EditResult = invoke(
         &w,
         "add_special_system",
-        json!({ "seed": 8, "x": x, "y": y, "layout": "unique_system_initializer_03" }),
+        json!({ "seed": 8, "x": x, "y": y, "layout": "unique_system_initializer_03", "extras": true }),
     )
     .expect("place Zevox");
     assert_eq!(
         added_with(&unique, "unique_system_initializer_03").flags,
         ["unique_system"],
         "the flag the game's timeline reads"
+    );
+}
+
+#[test]
+fn a_special_system_comes_with_its_anomalies_and_dig_sites_only_when_asked() {
+    let Some((w, opened)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let anomaly = "BREACHSEALER_CAT";
+    let mut taken = Vec::new();
+    for (seed, extras) in [(31, false), (32, true)] {
+        let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &taken);
+        taken.push((x, y));
+        let placed: EditResult = invoke(
+            &w,
+            "add_special_system",
+            json!({ "seed": seed, "x": x, "y": y, "layout": "breachsealer_system", "extras": extras }),
+        )
+        .unwrap_or_else(|e| panic!("extras {extras}: {e:?}"));
+        let system = added_with(&placed, "breachsealer_system");
+        assert!(
+            system.flags.iter().any(|f| f == "natural_spectacle_system"),
+            "the star flags come whatever extras says: {:?}",
+            system.flags
+        );
+        assert_eq!(placed.history.undo.len(), taken.len(), "one step per add");
+        let details: Vec<SystemDetails> =
+            invoke(&w, "get_system_details", json!({ "ids": [system.id] })).expect("details");
+        let held = details[0]
+            .planets
+            .iter()
+            .any(|p| p.anomaly.as_deref() == Some(anomaly));
+        assert_eq!(held, extras, "the anomaly is written only with extras");
+    }
+
+    let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &taken);
+    let ort: EditResult = invoke(
+        &w,
+        "add_special_system",
+        json!({ "seed": 33, "x": x, "y": y, "layout": "hostile_init_21", "extras": true }),
+    )
+    .expect("Tiyun Ort with extras");
+    let system = added_with(&ort, "hostile_init_21");
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [system.id] })).expect("details");
+    assert!(!details[0].sites.is_empty(), "its dig site is written");
+    let undone = history_step(&w, "undo");
+    assert_eq!(
+        undone.delta.removed,
+        [system.id],
+        "the system and what it came with undo as one step"
     );
 }
 

@@ -1,4 +1,5 @@
 import type { Feature } from "../generated/Feature";
+import type { LeftOut } from "../generated/LeftOut";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SystemNode } from "../generated/SystemNode";
@@ -88,9 +89,24 @@ export interface PickCardCopy {
   lines: CardLine[];
   /** A unique layout's closing line, in the warning colour once the galaxy has one; null for others. */
   unique: { text: string; warn: boolean } | null;
+  /** The warning that the save's own copy keeps the layout's event chain; null when it has no copy. */
+  storyKept: string | null;
   /** The line saying the save lacks the layout's DLC; null when it has it or needs none. */
   missingDlc: string | null;
 }
+
+/** What a system added from a layout comes without, in the words a player would use. */
+const LEFT_OUT_WORDS: Record<LeftOut, string> = {
+  pre_ftl_civilisation: "a pre-FTL civilisation",
+  colony: "colonies and pops",
+  empire: "its empire",
+  fleets: "fleets and guardians",
+  starbase: "a starbase",
+  anomaly: "an anomaly",
+  dig_site: "a dig site",
+  spawned_planets: "some of its planets",
+  ambient_objects: "debris, wrecks and storms",
+};
 
 function spanText({ min, max }: Span): string {
   return min === max ? `${min}` : `${min}–${max}`;
@@ -105,8 +121,8 @@ function starText(names: string[]): string {
   return listed(names, "or");
 }
 
-/** The hover card of a pick of the Add system menu, leaving out the lines it has nothing for. */
-export function pickCard(summary: PickSummary): PickCardCopy {
+/** The hover card of the pick called `name` in the Add system menu, leaving out the lines it has nothing for. */
+export function pickCard(summary: PickSummary, name: string): PickCardCopy {
   const lines: CardLine[] = [];
   const add = (label: string, text: string) => {
     if (text !== "") lines.push({ label, text });
@@ -119,6 +135,11 @@ export function pickCard(summary: PickSummary): PickCardCopy {
   }
   add("Notable", featureText([...summary.named_bodies, ...summary.notable_classes]));
   add("Modifiers", featureText(summary.modifiers));
+  add("Comes with", (summary.comes_with ?? []).map((planting) => planting.name).join(", "));
+  add(
+    "Comes without",
+    (summary.comes_without ?? []).map((left) => LEFT_OUT_WORDS[left]).join(", "),
+  );
   if (summary.dlc) add("DLC", summary.dlc.name);
   const inGalaxy = summary.in_galaxy ?? 0;
   const cap = summary.max_instances;
@@ -136,10 +157,13 @@ export function pickCard(summary: PickSummary): PickCardCopy {
               inGalaxy === 0 ? `${limit} Not in this galaxy yet.` : `${limit} ${inGalaxy} so far.`,
             warn: false,
           };
+  const storyKept = summary.story_kept_by_existing
+    ? `${name} is already in this galaxy, so its event chain stays with that one.`
+    : null;
   const dlc = summary.dlc;
   const missingDlc =
     dlc && !dlc.met ? `This save doesn't have ${dlc.name}, so its events won't run.` : null;
-  return { lines, unique, missingDlc };
+  return { lines, unique, storyKept, missingDlc };
 }
 
 /** The marks a Special menu row carries. */

@@ -60,8 +60,18 @@ fn label_of(key: &str) -> &'static str {
         .unwrap_or_else(|| panic!("no label recorded for {key}"))
 }
 
+/// The star flags the game's `has_special_star_flag_trigger` lists as start-system flags.
+const START_FLAGS: [&str; 6] = [
+    "empire_home_system",
+    "empire_cluster",
+    "neighbor_t1",
+    "neighbor_t2",
+    "neighbor_t1_first_colony",
+    "neighbor_t2_second_colony",
+];
+
 #[test]
-fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() {
+fn converted_layouts_come_without_their_empires_civilisations_and_start_flags() {
     let Some(gd) = INSTALL.as_ref() else {
         return;
     };
@@ -119,20 +129,19 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
     for layout in &CONVERTED_LAYOUTS {
         let key = layout.key;
         let mut spec = by_name(gd, 1, "Gen", free_ground(&session), key).unwrap();
-        let unique = gd
+        let kept: Vec<&str> = gd
             .initializers
             .get(key)
             .unwrap()
             .flags
             .iter()
-            .any(|f| f == "unique_system");
-        let kept: Vec<&str> = layout
-            .flags
-            .iter()
-            .copied()
-            .chain(unique.then_some("unique_system"))
+            .map(String::as_str)
+            .filter(|flag| !START_FLAGS.contains(flag) && !layout.drops.contains(flag))
             .collect();
-        assert_eq!(spec.flags, kept, "{key}: no story flags");
+        assert_eq!(
+            spec.flags, kept,
+            "{key}: every star flag but those of an empire's start and its dropped guardians"
+        );
         spec.lanes = vec![169];
         session
             .apply(Op::AddSystemFromSpec { spec })

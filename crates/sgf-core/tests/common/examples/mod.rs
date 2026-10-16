@@ -1,9 +1,9 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::ops::{
-    HabitatPlacement, LanePair, NewBody, NewHabitat, NewMegastructure, NewMegastructurePlace,
-    NewPlanet, NewRingWorld, Op, RingQuadrant, RingRow, RingSegment, RingVariable, SystemMove,
-    TimedModifier,
+    EventTargetOf, HabitatPlacement, LanePair, NewBody, NewHabitat, NewMegastructure,
+    NewMegastructurePlace, NewPlanet, NewRingWorld, Op, RingQuadrant, RingRow, RingSegment,
+    RingVariable, SystemMove, TimedModifier,
 };
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -74,6 +74,15 @@ impl Example {
             save: Some(op),
             scenario: None,
             open_save: save_4_5_with_added_ring_world,
+        }
+    }
+
+    /// A save example that needs [`ADDED_EVENT_TARGET`] saved on the sample in the session.
+    fn added_event_target(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: save_with_added_event_target,
         }
     }
 
@@ -160,6 +169,25 @@ pub fn save_4_5_with_added_body() -> Session {
     static ADDED: LazyLock<Mutex<Session>> = LazyLock::new(|| {
         let mut session = save_4_5();
         session.apply(meissa_v()).expect("add Meissa V");
+        Mutex::new(session)
+    });
+    held(&ADDED).clone()
+}
+
+/// The global event target the session of [`save_with_added_event_target`] saved.
+pub const ADDED_EVENT_TARGET: &str = "sgf_example_target";
+
+/// The sample save with [`ADDED_EVENT_TARGET`] saved on planet 749.
+pub fn save_with_added_event_target() -> Session {
+    static ADDED: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        let mut session = save();
+        let target = EventTargetOf::Body { body: 749 };
+        session
+            .apply(Op::AddEventTarget {
+                name: ADDED_EVENT_TARGET.to_owned(),
+                target,
+            })
+            .expect("save the target");
         Mutex::new(session)
     });
     held(&ADDED).clone()

@@ -11,6 +11,7 @@ use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::systems::timed_modifiers;
 use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec, polar};
 use crate::format::save::write::asteroid_names;
+use crate::format::save::write::flags::day_one;
 use crate::format::save::write::initializer_counter::counted;
 use crate::format::save::{entity, planet_statement, system_statement};
 use crate::keys;
@@ -81,6 +82,7 @@ struct ReadBody {
     modifiers: Vec<String>,
     ring: bool,
     star: bool,
+    flags: Vec<String>,
 }
 
 impl ReadBody {
@@ -101,6 +103,7 @@ impl ReadBody {
             modifiers: self.modifiers.clone(),
             ring: self.ring,
             star: self.star,
+            flags: self.flags.clone(),
         };
         let placed = polar(cx, cy, &spec);
         (spec, placed)
@@ -140,6 +143,7 @@ fn read_body(
         modifiers,
         ring: flags & RING_FLAG != 0,
         star: read::scalar_u32(&node, keys::CARRIER_BINARY_FLAGS, src) == Some(STAR_CARRIER_FLAGS),
+        flags: spec_flags(doc, &node, src),
     })
 }
 
@@ -182,4 +186,22 @@ pub(crate) fn bodies(doc: &Document, id: u32) -> Result<Vec<u32>, OpError> {
     let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
     let (node, src) = entity(doc, Subject::System(id), anchor)?;
     Ok(planet_ids(&node, src))
+}
+
+/// The planet flags of the body `node` a spec writes: those dated the save's day one. A flag
+/// another op set later, such as a habitat's on its host, is dated the day it was set and
+/// is left to that op.
+fn spec_flags(doc: &Document, node: &Node, src: &[u8]) -> Vec<String> {
+    let Some(flags) = node.find(keys::FLAGS, src) else {
+        return Vec::new();
+    };
+    let Ok(day_one) = day_one(doc) else {
+        return Vec::new();
+    };
+    flags
+        .children()
+        .iter()
+        .filter(|flag| flag.scalar_str(src) == Some(day_one.as_str()))
+        .filter_map(|flag| flag.key_str(src).map(str::to_owned))
+        .collect()
 }

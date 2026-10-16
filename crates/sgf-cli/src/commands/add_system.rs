@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use sgf_core::ops::{BodySpec, Op, SystemSpec};
+use sgf_core::ops::{BodySpec, LaneEnd, Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
 use sgf_gamedata::generate::{self, ForSaveError, Pick};
@@ -23,6 +23,8 @@ pub struct Generate {
     pub star_class: Option<String>,
     /// The layout to build the system from, in place of a drawn one.
     pub layout: Option<String>,
+    /// Write the layout's anomalies and dig sites too, as the app does.
+    pub extras: bool,
     pub print_spec: bool,
     /// A seed to roll the added system again from, keeping its name and position.
     pub then_reroll: Option<u64>,
@@ -41,28 +43,50 @@ pub fn generated(
 ) -> Run {
     let gd = game_data(opts)?;
     let mut session = Session::open(sav)?;
-    let pick = match generating.layout {
-        Some(layout) => Pick::Layout(layout),
-        None => Pick::Random(generating.star_class.clone()),
-    };
     let (seed, at) = (generating.seed, generating.at);
-    let mut spec = match generating.name {
-        Some(name) => SystemSpec {
-            name: name.clone(),
-            ..pick.spec(&gd, &session, seed, &name, at)?
-        },
-        None => generate::for_save(&gd, &session, seed, at, &pick).map_err(|e| match e {
-            ForSaveError::NoNames => NO_NAMES.to_owned(),
-            e => e.to_string(),
-        })?,
+    let (spec, op) = match (&generating.layout, generating.print_spec) {
+        (Some(layout), false) => {
+            let lanes: Vec<(LaneEnd, LaneEnd)> = generating
+                .lanes
+                .iter()
+                .map(|&system| (LaneEnd::Held { system }, LaneEnd::New { index: 0 }))
+                .collect();
+            let op = generate::special_op_with(
+                &gd,
+                &session,
+                seed,
+                at,
+                layout,
+                generating.extras,
+                generating.name.as_deref(),
+                &lanes,
+            )
+            .map_err(for_save_error)?;
+            (added_spec(&op).cloned(), Some(op))
+        }
+        (layout, _) => {
+            let pick = match layout {
+                Some(layout) => Pick::Layout(layout.clone()),
+                None => Pick::Random(generating.star_class.clone()),
+            };
+            let mut spec = match &generating.name {
+                Some(name) => pick.spec(&gd, &session, seed, name, at)?,
+                None => {
+                    generate::for_save(&gd, &session, seed, at, &pick).map_err(for_save_error)?
+                }
+            };
+            spec.lanes = generating.lanes;
+            (Some(spec), None)
+        }
     };
-    spec.lanes = generating.lanes;
+    let spec = spec.ok_or("the add holds no system")?;
     if generating.print_spec {
         println!("{}", serde_json::to_string_pretty(&spec)?);
         return Ok(Outcome::Ok);
     }
     print_summary(&spec, seed);
-    let mut issues = mutate::apply(&mut session, vec![Op::AddSystemFromSpec { spec }])?;
+    let op = op.unwrap_or(Op::AddSystemFromSpec { spec });
+    let mut issues = mutate::apply(&mut session, vec![op])?;
     if let Some(seed) = generating.then_reroll {
         let system = last_added(&session);
         let pick = Pick::of_added(
@@ -81,6 +105,23 @@ pub fn generated(
     }
     remove_added(&mut session, then_remove, &mut issues)?;
     mutate::save(session, out, &issues)
+}
+
+/// The error `--generate` reports for a refused roll.
+fn for_save_error(error: ForSaveError) -> String {
+    match error {
+        ForSaveError::NoNames => NO_NAMES.to_owned(),
+        error => error.to_string(),
+    }
+}
+
+/// The spec of the first system `op` adds: the op itself, or the first of its batch.
+fn added_spec(op: &Op) -> Option<&SystemSpec> {
+    match op {
+        Op::AddSystemFromSpec { spec } => Some(spec),
+        Op::Batch { ops, .. } => ops.iter().find_map(added_spec),
+        _ => None,
+    }
 }
 
 /// The system added last, which takes the highest id of those added.

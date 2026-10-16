@@ -7,7 +7,7 @@ use sgf_core::session::Session;
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::body_effects;
+use crate::body_effects::{self, LeftOut};
 use crate::generate::{GenerateError, layouts_for, star_classes};
 use crate::initializers::{BodyClass, InitPlanet, Initializer};
 use crate::install::script::{Range, whole};
@@ -82,6 +82,35 @@ pub struct PickSummary {
     pub max_instances: Option<u32>,
     /// Systems of the save from this layout, or of this star class for a star pick.
     pub in_galaxy: Option<u32>,
+    /// The anomalies and dig sites a special layout's script plants, which the add writes
+    /// when asked to.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub comes_with: Vec<Planting>,
+    /// What a special layout's script makes that the add leaves out.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub comes_without: Vec<LeftOut>,
+    /// A global event target the layout's script saves is one the save holds already, so
+    /// the add leaves it, and the story it starts, with the system that has it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub story_kept_by_existing: bool,
+}
+
+/// What a layout's script plants on one of its bodies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum PlantingKind {
+    Anomaly,
+    DigSite,
+}
+
+/// An anomaly category or dig site type a layout plants, with its localised name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct Planting {
+    pub kind: PlantingKind,
+    pub key: String,
+    pub name: String,
 }
 
 /// A star-class entry of the Add system menu, named as the game names the class.
@@ -126,7 +155,7 @@ pub fn add_system_picks(gd: &GameData, session: &Session) -> AddSystemPicks {
         .into_iter()
         .filter_map(|layout| {
             let init = gd.initializers.get(&layout.key)?;
-            let summary = special_summary(gd, init, &save);
+            let summary = special_summary(gd, init, &save, session);
             Some(SpecialPick { layout, summary })
         })
         .collect();
@@ -147,15 +176,106 @@ pub fn layout_summary(
         .into_iter()
         .find(|init| init.name == key)
         .ok_or_else(|| GenerateError::UnknownLayout(key.to_owned()))?;
-    Ok(special_summary(gd, init, &SaveFacts::read(session)))
+    Ok(special_summary(
+        gd,
+        init,
+        &SaveFacts::read(session),
+        session,
+    ))
 }
 
-fn special_summary(gd: &GameData, init: &Initializer, save: &SaveFacts) -> PickSummary {
+fn special_summary(
+    gd: &GameData,
+    init: &Initializer,
+    save: &SaveFacts,
+    session: &Session,
+) -> PickSummary {
     let mut summary = merge(gd, &[init]);
     summary.dlc = save.dlc_need(gd, init);
     summary.max_instances = init.max_instances;
     summary.in_galaxy = Some(save.in_galaxy(&init.name));
+    let (comes_with, sites_left) = comes_with(gd, init);
+    summary.comes_with = comes_with;
+    summary.comes_without = comes_without(init, sites_left);
+    summary.story_kept_by_existing = session.save("reading event targets").is_ok_and(|save| {
+        saved_targets(init)
+            .iter()
+            .any(|name| save.holds_event_target(name))
+    });
     summary
+}
+
+/// Every body of `init`, each planet followed by its moons.
+fn bodies(init: &Initializer) -> impl Iterator<Item = &InitPlanet> {
+    init.planets
+        .iter()
+        .flat_map(|planet| std::iter::once(planet).chain(&planet.moons))
+}
+
+/// The anomalies and dig sites `init`'s bodies plant as the generator plants them, each
+/// once, and whether a dig site is left out: one of a type the install gives no first stage,
+/// or on a star.
+fn comes_with(gd: &GameData, init: &Initializer) -> (Vec<Planting>, bool) {
+    let mut sites_left = false;
+    let mut out: Vec<Planting> = Vec::new();
+    let mut plant = |kind: PlantingKind, key: &str| {
+        if !out.iter().any(|held| held.kind == kind && held.key == key) {
+            out.push(Planting {
+                kind,
+                key: key.to_owned(),
+                name: gd.loc.name_or_readable(key),
+            });
+        }
+    };
+    for body in bodies(init) {
+        let planted = body_effects::plantable(&body.effects);
+        for category in &planted.anomalies {
+            plant(PlantingKind::Anomaly, category);
+        }
+        let star = star_body(gd, &body.class);
+        for site in &planted.dig_sites {
+            if !star && gd.dig_site_start(site).is_some() {
+                plant(PlantingKind::DigSite, site);
+            } else {
+                sites_left = true;
+            }
+        }
+    }
+    (out, sites_left)
+}
+
+/// What the generator leaves out of `init`: its bodies' colonies and pre-FTL civilisations,
+/// its starbase and empires, and what the statements it drops from the system's and the
+/// bodies' effects make, in [`LeftOut`]'s order.
+fn comes_without(init: &Initializer, sites_left: bool) -> Vec<LeftOut> {
+    let mut out: Vec<LeftOut> = init.left_out.clone();
+    if sites_left {
+        out.push(LeftOut::DigSite);
+    }
+    for body in bodies(init) {
+        out.extend(&body.left_out);
+        if body.colonised {
+            out.push(LeftOut::Colony);
+        }
+        if body.pre_ftl {
+            out.push(LeftOut::PreFtlCivilisation);
+        }
+    }
+    if init.starbase.is_some() {
+        out.push(LeftOut::Starbase);
+    }
+    if !init.countries.is_empty() {
+        out.push(LeftOut::Empire);
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// Every global event target `init`'s bodies or its own `init_effect` save.
+fn saved_targets(init: &Initializer) -> Vec<String> {
+    let bodies = bodies(init).flat_map(|body| body_effects::plantable(&body.effects).event_targets);
+    init.saves_targets.iter().cloned().chain(bodies).collect()
 }
 
 /// The card for a star-class pick: the layouts [`crate::generate::generate`] draws for
@@ -364,6 +484,9 @@ fn merge(gd: &GameData, layouts: &[&Initializer]) -> PickSummary {
         dlc: None,
         max_instances: None,
         in_galaxy: None,
+        comes_with: Vec::new(),
+        comes_without: Vec::new(),
+        story_kept_by_existing: false,
     }
 }
 

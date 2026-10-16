@@ -917,6 +917,26 @@ pub enum Op {
     RemoveDigSite {
         site: u32,
     },
+    /// A global event target named `name`, by which the game's events find what `target`
+    /// names: a top-level `saved_event_target` block naming its type and id, with the null
+    /// `opener_id`, written after the last such block the save holds, or after its global
+    /// `flags` when it holds none. A name the save already holds, one that is empty or not an
+    /// identifier, and a body, system or country the save does not hold are refused, and so
+    /// is a save before Stellaris 4.0. The inverse is [`Op::RemoveEventTarget`]. Save
+    /// documents only.
+    AddEventTarget {
+        name: String,
+        target: EventTargetOf,
+    },
+    /// The global event target named `name`, its block taken out whole. A name the save does
+    /// not hold is refused, and so are a target the file held when it was opened and one of
+    /// a type [`Op::AddEventTarget`] does not write. Only an inverse: the session refuses it from
+    /// [`crate::session::Session::apply`]. The inverse is the [`Op::AddEventTarget`] that
+    /// writes it again. Save documents only.
+    #[ts(skip)]
+    RemoveEventTarget {
+        name: String,
+    },
     /// A new `megastructures` row of type `spec.kind` in save system `system`, written finished:
     /// at the slot past the highest the table has used, at generation 0, with no
     /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
@@ -1082,6 +1102,8 @@ impl Op {
             | Self::SetEmpireFlag { .. }
             | Self::RenameEmpire { .. }
             | Self::SetSystemHeights { .. } => OpReach::of(SAVE),
+            Self::AddEventTarget { .. } => OpReach::of(SAVE).whole_entries(),
+            Self::RemoveEventTarget { .. } => OpReach::of(SAVE).whole_entries().inverse_only(),
             Self::SetStarClass { .. } | Self::SetBodySize { .. } | Self::RenameBody { .. } => {
                 OpReach::of(SAVE).details(InPlace)
             }

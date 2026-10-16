@@ -34,14 +34,13 @@ pub const UNIQUE_SYSTEM: &str = "unique_system";
 pub struct Converted {
     /// The initializer's key.
     pub key: &'static str,
-    /// The star flags the system keeps beside [`UNIQUE_SYSTEM`]. Events find the systems
-    /// they placed by flag, so an added copy drops the rest.
-    pub flags: &'static [&'static str],
     /// Listed with the unique systems, though the game does not flag it [`UNIQUE_SYSTEM`].
     pub unique: bool,
     /// A localisation key the menu shows in place of the label it builds, for a layout
     /// with no fixed name.
     pub label: Option<&'static str>,
+    /// Star flags the game's events read as the dropped guardians or fleets being there.
+    pub drops: &'static [&'static str],
 }
 
 impl Converted {
@@ -49,29 +48,42 @@ impl Converted {
     const fn special(key: &'static str) -> Self {
         Self {
             key,
-            flags: &[],
             unique: false,
             label: None,
+            drops: &[],
         }
     }
 
-    /// The system keeps `flag`.
+    /// The system keeps `flag`: events find the systems they placed by flag.
     pub fn keeps(&self, flag: &str) -> bool {
-        flag == UNIQUE_SYSTEM || self.flags.contains(&flag)
+        !EMPIRE_START_FLAGS.contains(&flag) && !self.drops.contains(&flag)
     }
 }
+
+/// The game's start-system star flags (`has_special_star_flag_trigger`), which a system no
+/// empire starts in does not carry: origins look for them near a capital.
+const EMPIRE_START_FLAGS: [&str; 6] = [
+    "empire_home_system",
+    "empire_cluster",
+    "neighbor_t1",
+    "neighbor_t2",
+    "neighbor_t1_first_colony",
+    "neighbor_t2_second_colony",
+];
 
 /// The layouts the generator builds by converting them.
 pub const CONVERTED_LAYOUTS: [Converted; 14] = [
     Converted {
         key: "sol_system_initializer",
-        flags: &["sol_system", "sol", "galactic_landmark_system"],
         unique: true,
         label: None,
+        drops: &[],
     },
     Converted::special("new_bratulla_initializer"),
     Converted {
         label: Some("NAME_Zanaam"),
+        // Entering the system hails the guardians, which a copy comes without.
+        drops: &["guardians_of_zanaam"],
         ..Converted::special("special_init_06")
     },
     Converted::special("great_wound_system"),

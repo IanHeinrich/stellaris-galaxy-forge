@@ -1,14 +1,14 @@
 //! The examples of the ops on stars, bodies, empires, belts and wormholes, and the batch.
 use sgf_core::ops::{
-    ClassChange, EmpireFlag, MapColorPair, MegastructurePlace, NebulaFootprint, NewBypass,
-    NewMegastructure, NewName, NewPlanet, Op, Parent, PlanetClassRule, SavedEntity, SavedTable,
-    StarBody, SystemHeight,
+    ClassChange, EmpireFlag, EventTargetOf, MapColorPair, MegastructurePlace, NebulaFootprint,
+    NewBypass, NewMegastructure, NewName, NewPlanet, Op, Parent, PlanetClassRule, SavedEntity,
+    SavedTable, StarBody, SystemHeight,
 };
 use sgf_core::projections::galaxy::LGateOutcome;
 
 use super::{
-    ADDED_BODY, ADDED_MEGASTRUCTURE, Example, chors_ring, chors_ring_removal, meissa_v,
-    sol_habitat, sol_shipyard,
+    ADDED_BODY, ADDED_EVENT_TARGET, ADDED_MEGASTRUCTURE, Example, chors_ring, chors_ring_removal,
+    meissa_v, sol_habitat, sol_shipyard,
 };
 
 /// The ring planet [`sol_shipyard`] spawns round its planet.
@@ -223,6 +223,13 @@ pub(super) fn examples() -> Vec<Example> {
             difficulty: 1,
         }),
         Example::save(Op::RemoveDigSite { site: 0 }),
+        Example::save(Op::AddEventTarget {
+            name: "sgf_other_target".to_owned(),
+            target: EventTargetOf::Body { body: 749 },
+        }),
+        Example::added_event_target(Op::RemoveEventTarget {
+            name: ADDED_EVENT_TARGET.to_owned(),
+        }),
         Example::save_4_5(Op::AddMegastructure {
             system: 1,
             spec: NewMegastructure {

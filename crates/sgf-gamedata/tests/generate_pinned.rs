@@ -70,6 +70,7 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
         modifiers,
         ring,
         star,
+        flags,
     } = body;
     let mut line = format!("{indent}{class} {size} orbit {orbit} angle {angle}");
     if *entity != 0 {
@@ -92,6 +93,9 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
     }
     if !modifiers.is_empty() {
         line.push_str(&format!(" modifiers {modifiers:?}"));
+    }
+    if !flags.is_empty() {
+        line.push_str(&format!(" flags {flags:?}"));
     }
     out.push_str(&line);
     out.push('\n');

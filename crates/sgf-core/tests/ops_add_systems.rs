@@ -2,7 +2,7 @@
 //! them and to a held system, one undo step, and what the builder refuses before any op
 //! is applied.
 
-use sgf_core::ops::{BULK_ADD_CAP, LaneEnd, Op, OpError, SystemSpec};
+use sgf_core::ops::{BULK_ADD_CAP, LaneEnd, Op, OpError, SystemAdd, SystemSpec};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -11,6 +11,10 @@ use common::open_4_5;
 use common::spec::{SAMPLE_4_5, mura, small};
 
 const DESCRIPTION: &str = "Added 3 systems in a ring";
+
+fn adds(specs: Vec<SystemSpec>) -> Vec<SystemAdd> {
+    specs.into_iter().map(SystemAdd::from).collect()
+}
 
 fn specs(points: &[(f64, f64)]) -> Vec<SystemSpec> {
     points
@@ -35,7 +39,7 @@ fn shape_op(session: &Session, specs: Vec<SystemSpec>, lanes: &[(LaneEnd, LaneEn
     session
         .save("adding systems")
         .expect("a 4.5 save")
-        .add_systems_op(specs, lanes, DESCRIPTION.to_owned())
+        .add_systems_op(adds(specs), lanes, true, Some(DESCRIPTION.to_owned()))
         .expect("the op")
 }
 
@@ -44,7 +48,7 @@ fn refused(specs: Vec<SystemSpec>, lanes: &[(LaneEnd, LaneEnd)]) -> OpError {
     let error = session
         .save("adding systems")
         .expect("a 4.5 save")
-        .add_systems_op(specs, lanes, DESCRIPTION.to_owned())
+        .add_systems_op(adds(specs), lanes, true, Some(DESCRIPTION.to_owned()))
         .expect_err("refused");
     assert!(!session.doc().is_dirty(), "{error}");
     assert!(session.history().undo.is_empty(), "{error}");

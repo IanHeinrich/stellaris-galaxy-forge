@@ -15,7 +15,7 @@ use crate::emit::system::{
 use crate::emit::{coord, roman, rounded};
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
-use crate::format::save::system_spec::{BodySpec, SystemSpec, polar};
+use crate::format::save::system_spec::{BodySpec, SpecBody, SystemSpec, polar};
 use crate::format::save::write::asteroid_names::Pool;
 use crate::format::save::write::deposits::check_deposit_kind;
 use crate::format::save::write::flags::day_one;
@@ -68,23 +68,30 @@ pub(crate) fn plan_add(
     count_layout(plan, &s.doc, spec)?;
     name_pool::take(plan, &s.doc, SYSTEM_POOLS, &spec.name)?;
 
+    Ok(Planned {
+        description: add_description(s, id, spec, lanes.len()),
+        inverse: Op::RemoveSystem { system: id },
+    })
+}
+
+/// What an add of `spec` as system `id` with `lanes` lanes says in the undo list, the nebula
+/// it joins named: "Added Mura #601 at (-292.2, -137.6) with 7 bodies and 1 lane".
+pub(crate) fn add_description(s: &Session, id: u32, spec: &SystemSpec, lanes: usize) -> String {
+    let (x, y) = (rounded(spec.x), rounded(spec.y));
     let joins = nearest_prospective(&prospective(&s.graph), x, y).map(|nebula| Membership {
         system: id,
         nebula,
         joined: true,
     });
     let joins = describe_membership(&s.graph, joins.as_slice(), false);
-    Ok(Planned {
-        description: format!(
-            "Added {} at ({}, {}) with {} and {}{joins}",
-            labelled(&spec.name, written_literal(&spec.name), id),
-            coord(x),
-            coord(y),
-            bodies(spec, written.ids.len()),
-            plural(lanes.len(), "lane")
-        ),
-        inverse: Op::RemoveSystem { system: id },
-    })
+    format!(
+        "Added {} at ({}, {}) with {} and {}{joins}",
+        labelled(&spec.name, written_literal(&spec.name), id),
+        coord(x),
+        coord(y),
+        bodies(spec, order(spec).count()),
+        plural(lanes, "lane")
+    )
 }
 
 /// The second step of an add, once the graph holds the new system: it joins the nebula
@@ -183,7 +190,7 @@ pub(crate) fn system_text(
     written: &Written,
     lanes: &[(u32, u32)],
 ) -> Result<Vec<u8>, OpError> {
-    let flag_date = flag_date(doc, spec)?;
+    let flag_date = flag_date(doc, &spec.flags)?;
     let belts = belts(spec);
     Ok(system_entry(
         indent,
@@ -205,10 +212,10 @@ pub(crate) fn system_text(
     ))
 }
 
-/// The date the spec's star flags are written with: the save's day one, as the game dates
-/// the flags of a generated galaxy. Empty when there are none.
-pub(crate) fn flag_date(doc: &Document, spec: &SystemSpec) -> Result<String, OpError> {
-    match spec.flags.is_empty() {
+/// The date a spec's star or planet flags `flags` are written with: the save's day one, as
+/// the game dates the flags of a generated galaxy. Empty when there are none.
+pub(crate) fn flag_date(doc: &Document, flags: &[String]) -> Result<String, OpError> {
+    match flags.is_empty() {
         true => Ok(String::new()),
         false => day_one(doc),
     }
@@ -333,6 +340,7 @@ pub(crate) fn write_body(
         .map(|m| (m.as_str(), -1))
         .chain(body.timed.iter().copied())
         .collect();
+    let flag_date = flag_date(doc, &body.spec.flags)?;
     let entry = PlanetEntry {
         id: planet,
         class: &body.spec.class,
@@ -352,6 +360,8 @@ pub(crate) fn write_body(
         entity: body.spec.entity,
         entity_name: body.spec.entity_name.as_deref(),
         deposits: &held,
+        flags: &body.spec.flags,
+        flag_date: &flag_date,
     };
     let text = |indent: &[u8]| planet_entry(indent, &entry);
     let emitted = Emitted::Planet { id: planet, system };
@@ -372,75 +382,114 @@ struct Placed<'a> {
     extent: f64,
 }
 
+/// The spec's bodies in the order the system lists them, which is the order
+/// [`write_bodies`] gives them their slots in: the star, then each planet followed by its
+/// moons.
+pub(crate) fn order(spec: &SystemSpec) -> impl Iterator<Item = (SpecBody, &BodySpec)> {
+    let planets = spec.planets.iter().enumerate().flat_map(|(of, planet)| {
+        let moons = planet
+            .moons
+            .iter()
+            .enumerate()
+            .map(move |(index, moon)| (SpecBody::Moon { of, index }, moon));
+        std::iter::once((SpecBody::Planet { index: of }, planet)).chain(moons)
+    });
+    std::iter::once((SpecBody::Star, &spec.star)).chain(planets)
+}
+
+/// Where `body` stands in [`order`]; `None` for a body the spec lacks.
+pub(crate) fn body_place(spec: &SystemSpec, body: SpecBody) -> Option<usize> {
+    order(spec).position(|(at, _)| at == body)
+}
+
+/// The ids [`write_bodies`] gives the bodies of each of `specs`, added one after another to
+/// `doc` as it stands, each in [`order`]: every body takes the next slot of the planet
+/// table, and nothing else an add writes takes one.
+pub(crate) fn body_ids(doc: &Document, specs: &[&SystemSpec]) -> Result<Vec<Vec<u32>>, OpError> {
+    let mut planets = SlotTable::planets(doc)?;
+    Ok(specs
+        .iter()
+        .map(|spec| order(spec).map(|_| planets.take().id()).collect())
+        .collect())
+}
+
 fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_>> {
     let mut asteroid_names = asteroid_names.into_iter();
     let mut numeral = 0;
-    let (sx, sy) = polar(0.0, 0.0, &spec.star);
-    let star_name = match spec.star_named_by_class {
-        true => NameTemplate::plain(&spec.name),
-        false => format(STAR_NAME, vec![(NAME_VAR, NameTemplate::plain(&spec.name))]),
-    };
-    let mut placed = vec![Placed {
-        spec: &spec.star,
-        name: star_name,
-        x: sx,
-        y: sy,
-        parent: None,
-        extent: spec.star.orbit,
-    }];
-    for planet in &spec.planets {
-        let name = match (&planet.name, planet.asteroid) {
-            (Some(fixed), _) => NameTemplate::plain(fixed),
-            (None, true) => asteroid_names.next().unwrap_or_default(),
-            (None, false) => {
-                numeral += 1;
-                format(
-                    PLANET_NAME,
-                    vec![
-                        (PARENT_VAR, NameTemplate::plain(&spec.name)),
-                        (NUMERAL_VAR, literal(&roman(numeral))),
-                    ],
-                )
+    let mut letters = 0;
+    let mut placed: Vec<Placed<'_>> = Vec::new();
+    // The planet the moons that follow orbit: its place, name and position.
+    let mut planet_at: (usize, NameTemplate, (f64, f64)) = (0, NameTemplate::default(), (0.0, 0.0));
+    for (at, body) in order(spec) {
+        match at {
+            SpecBody::Star => {
+                let (x, y) = polar(0.0, 0.0, body);
+                let name = match spec.star_named_by_class {
+                    true => NameTemplate::plain(&spec.name),
+                    false => format(STAR_NAME, vec![(NAME_VAR, NameTemplate::plain(&spec.name))]),
+                };
+                placed.push(Placed {
+                    spec: body,
+                    name,
+                    x,
+                    y,
+                    parent: None,
+                    extent: body.orbit,
+                });
             }
-        };
-        let (px, py) = polar(0.0, 0.0, planet);
-        let parent = placed.len();
-        let mut letters = 0;
-        for moon in &planet.moons {
-            let (mx, my) = polar(px, py, moon);
-            let moon_name = match &moon.name {
-                Some(fixed) => NameTemplate::plain(fixed),
-                None => {
-                    letters += 1;
-                    format(
-                        MOON_NAME,
-                        vec![
-                            (PARENT_VAR, name.clone()),
-                            (NUMERAL_VAR, literal(&letter(letters - 1))),
-                        ],
-                    )
-                }
-            };
-            placed.push(Placed {
-                spec: moon,
-                name: moon_name,
-                x: mx,
-                y: my,
-                parent: Some(parent),
-                extent: planet.orbit + moon.orbit,
-            });
+            SpecBody::Planet { .. } => {
+                let name = match (&body.name, body.asteroid) {
+                    (Some(fixed), _) => NameTemplate::plain(fixed),
+                    (None, true) => asteroid_names.next().unwrap_or_default(),
+                    (None, false) => {
+                        numeral += 1;
+                        format(
+                            PLANET_NAME,
+                            vec![
+                                (PARENT_VAR, NameTemplate::plain(&spec.name)),
+                                (NUMERAL_VAR, literal(&roman(numeral))),
+                            ],
+                        )
+                    }
+                };
+                let (x, y) = polar(0.0, 0.0, body);
+                letters = 0;
+                planet_at = (placed.len(), name.clone(), (x, y));
+                placed.push(Placed {
+                    spec: body,
+                    name,
+                    x,
+                    y,
+                    parent: None,
+                    extent: body.orbit,
+                });
+            }
+            SpecBody::Moon { of, .. } => {
+                let (parent, ref planet_name, (px, py)) = planet_at;
+                let (x, y) = polar(px, py, body);
+                let name = match &body.name {
+                    Some(fixed) => NameTemplate::plain(fixed),
+                    None => {
+                        letters += 1;
+                        format(
+                            MOON_NAME,
+                            vec![
+                                (PARENT_VAR, planet_name.clone()),
+                                (NUMERAL_VAR, literal(&letter(letters - 1))),
+                            ],
+                        )
+                    }
+                };
+                placed.push(Placed {
+                    spec: body,
+                    name,
+                    x,
+                    y,
+                    parent: Some(parent),
+                    extent: spec.planets[of].orbit + body.orbit,
+                });
+            }
         }
-        placed.insert(
-            parent,
-            Placed {
-                spec: planet,
-                name,
-                x: px,
-                y: py,
-                parent: None,
-                extent: planet.orbit,
-            },
-        );
     }
     placed
 }
@@ -521,6 +570,9 @@ pub(crate) fn check_body(body: &BodySpec) -> Result<(), OpError> {
     }
     for modifier in &body.modifiers {
         check_text("a modifier", modifier, Form::Bare)?;
+    }
+    for flag in &body.flags {
+        check_text("a planet flag", flag, Form::Bare)?;
     }
     Ok(())
 }

@@ -1035,6 +1035,32 @@ for planets or deposits.
 - The 4.5 sample rolled the Gray Tempest, and its two flags close the
   block. The 4.4 sample has L-Gates and none of the outcome flags.
 
+## Saved event targets
+
+- `save_global_event_target_as = name` in a script becomes a top-level
+  `saved_event_target=` block, one per name. The blocks follow the
+  global `flags=` block and end at `ship_design=`, in the 3.4, 4.4 and 4.5
+  samples alike:
+
+  ```
+  saved_event_target=
+  {
+  \ttype=galactic_object
+  \tid=24
+  \topener_id=4294967295
+  \tname="shroud_tunnel_nexus"
+  }
+  ```
+
+- `type` is `country`, `galactic_object` (a system), `planet`, `fleet`,
+  `ambient_object`, `species` or, in 4.4, `ship`. `id` is that entity's id.
+  The 4.x samples give every block `opener_id=4294967295`, the null id.
+- 3.4 writes the block with the brace on the key's line and no
+  `opener_id`: `saved_event_target={`, then `type`, `id` and `name`.
+- The core writes only the 4.x form, for a planet, a system or a country.
+  It adds a block after the last one the save holds, or after `flags=`
+  when it holds none, and indents it like the section it follows.
+
 ## Static galaxy scenarios
 
 - The game reads scenarios only from `map/setup_scenarios/*.txt`, and

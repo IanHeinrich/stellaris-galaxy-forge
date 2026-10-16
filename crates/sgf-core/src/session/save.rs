@@ -1,9 +1,9 @@
 use super::Session;
-use crate::format::save::site;
 use crate::format::save::write::{
     add_megastructure, add_ring_world, add_systems, copy_bodies, megastructure_links, move_planet,
 };
-use crate::ops::{LaneEnd, NewBody, NewRingWorld, Op, OpError, SystemSpec};
+use crate::format::save::{event_targets, site};
+use crate::ops::{LaneEnd, NewBody, NewRingWorld, Op, OpError, SystemAdd};
 use crate::views::details::ConstructionSite;
 use crate::views::{OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, RingWorldClearing};
 
@@ -77,20 +77,31 @@ impl SaveQueries<'_> {
         add_ring_world::add_op(self.session, system, owner, ring, clear)
     }
 
-    /// The op that adds `specs` to the save as one [`Op::Batch`] described as
-    /// `description`: an [`Op::AddSystemFromSpec`] per spec, the `j`th taking the next
-    /// system id plus `j` and its spec's own lanes dropped, then one [`Op::AddLanePairs`]
-    /// laying `lanes` between new and held systems. Refused before any op is built when
-    /// there are none or more than [`crate::ops::BULK_ADD_CAP`], when one stands nearer
-    /// than the game spawns a system to another or to a new one before it, and when a
-    /// lane end names no system.
+    /// The op that adds `systems` to the save, the one way a save takes new systems: an
+    /// [`Op::AddSystemFromSpec`] per system, the `j`th taking the next system id plus `j`
+    /// and its spec's own lanes dropped; then each system's extras, its anomalies and dig
+    /// sites only with `extras` and its global event targets whatever it says, leaving out
+    /// a target whose name the save already holds; then one [`Op::AddLanePairs`] laying
+    /// `lanes` between new and held systems. The extras name the ids the new bodies take.
+    /// It is one [`Op::Batch`] described as `description`, or by what it adds when that is
+    /// `None`, and then a lone system with nothing beside it is its add alone. Refused
+    /// before any op is built when there are none or more than
+    /// [`crate::ops::BULK_ADD_CAP`], when one stands nearer than the game spawns a system
+    /// to another or to a new one before it, and when a lane end names no system.
     pub fn add_systems_op(
         &self,
-        specs: Vec<SystemSpec>,
+        systems: Vec<SystemAdd>,
         lanes: &[(LaneEnd, LaneEnd)],
-        description: String,
+        extras: bool,
+        description: Option<String>,
     ) -> Result<Op, OpError> {
-        add_systems::add_op(self.session, specs, lanes, description)
+        add_systems::add_op(self.session, systems, lanes, extras, description)
+    }
+
+    /// Whether the save holds a global event target named `name`, which an add of a system
+    /// whose script saves it leaves to the one there.
+    pub fn holds_event_target(&self, name: &str) -> bool {
+        event_targets::find(&self.session.doc, name).is_some()
     }
 
     /// Where the save planets `planets` may move together, and which of them cannot move.

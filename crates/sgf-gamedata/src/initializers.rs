@@ -10,7 +10,7 @@ use sgf_core::span::Span;
 use sgf_core::views::details::{CountRange, InlineScriptUse, SourceLine};
 use ts_rs::TS;
 
-use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};
+use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, LeftOut, Unwritten};
 use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def, LineStarts, ParsedDir, Range, Variables, whole};
@@ -89,6 +89,8 @@ pub struct InitPlanet {
     /// Its `moon` blocks, and the `planet` blocks written inside it, which the game spawns
     /// around it the same way, in file order.
     pub moons: Vec<InitPlanet>,
+    /// What the generator leaves out of this block's effects, its moons aside.
+    pub left_out: Vec<LeftOut>,
     /// What else the block and its `init_effect` state of the body.
     pub stated: StatedBody,
 }
@@ -316,6 +318,11 @@ pub struct Initializer {
     /// Every `create_archaeological_site` written directly in the system's own
     /// `init_effect`, no planet's.
     pub sites: Vec<String>,
+    /// Each `save_global_event_target_as` written directly in the system's own
+    /// `init_effect`, no planet's.
+    pub saves_targets: Vec<String>,
+    /// What the generator leaves out of the system's own effects.
+    pub left_out: Vec<LeftOut>,
     pub starbase: Option<InitStarbase>,
     /// The system's block, or a `planet` or `moon` block in it, runs an `inline_script` that
     /// was not read in place: the bodies it places are not in [`Self::planets`].
@@ -403,6 +410,8 @@ impl Initializer {
             calls: written.calls,
             bypasses: bypasses(node, src),
             sites: own_sites(node, src),
+            saves_targets: own_effects(node, "save_global_event_target_as", src),
+            left_out: body_effects::left_out(node, def, true),
             starbase: written.starbase,
             inline_script: places_by_script(node, src),
             stated,
@@ -617,7 +626,14 @@ fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPla
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
     let colony_owner = colony_owner(node, src);
-    let (effects, unwritten) = body_effects::read(node, def);
+    let (read, unwritten) = body_effects::read(node, def);
+    let anomaly = scalar(node, "anomaly", src).filter(|&category| category != "none");
+    let effects = script::list_items(node, "flags", src)
+        .into_iter()
+        .map(BodyEffect::Flag)
+        .chain(anomaly.map(|category| BodyEffect::Anomaly(category.to_owned())))
+        .chain(read)
+        .collect();
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: BodyClass::of(scalar(node, "class", src).unwrap_or(RANDOM)),
@@ -650,6 +666,7 @@ fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPla
         effects,
         unwritten,
         moons: bodies(node, &["moon", "planet"], def, origin),
+        left_out: body_effects::left_out(node, def, false),
         stated: stated::body(node, def, origin),
     }
 }
@@ -710,8 +727,13 @@ fn deposits(node: &Node, src: &[u8]) -> Vec<String> {
 /// Each `create_archaeological_site = site` written directly in the system's own
 /// `init_effect`: one under a condition or in another scope is left to the script.
 fn own_sites(node: &Node, src: &[u8]) -> Vec<String> {
+    own_effects(node, "create_archaeological_site", src)
+}
+
+/// The value of each `key = value` written directly in the system's own `init_effect`.
+fn own_effects(node: &Node, key: &str, src: &[u8]) -> Vec<String> {
     node.find_all("init_effect", src)
-        .flat_map(|block| block.find_all("create_archaeological_site", src))
+        .flat_map(|block| block.find_all(key, src))
         .filter_map(|n| n.scalar_str(src))
         .map(str::to_owned)
         .collect()

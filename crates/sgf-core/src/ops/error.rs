@@ -197,6 +197,10 @@ pub enum OpError {
     UnknownDigSite(u32),
     #[error("dig site {0} is not on a planet")]
     DigSiteNotOnPlanet(u32),
+    #[error("the save holds no event target {0:?}")]
+    UnknownEventTarget(String),
+    #[error("{system} has no {body} for what its layout plants there")]
+    NoSpecBody { system: String, body: String },
     #[error("{0:?} is not a nebula cloud type")]
     InvalidCloudType(String),
     #[error("ambient object {0} cannot be written back: its slot is taken")]
@@ -317,6 +321,7 @@ impl OpError {
             | Self::UnknownCountry { .. }
             | Self::UnknownDeposit { .. }
             | Self::UnknownDigSite { .. }
+            | Self::UnknownEventTarget { .. }
             | Self::UnknownWormhole { .. }
             | Self::UnknownBelt { .. }
             | Self::UnknownEntity { .. } => ErrorKind::NotFound,
@@ -393,6 +398,7 @@ impl OpError {
             | Self::DepositNotOnPlanet { .. }
             | Self::DigSitePresent { .. }
             | Self::DigSiteNotOnPlanet { .. }
+            | Self::NoSpecBody { .. }
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }
             | Self::AtCentre { .. }

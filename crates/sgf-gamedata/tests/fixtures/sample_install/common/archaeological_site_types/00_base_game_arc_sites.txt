@@ -1,0 +1,18 @@
+site_tiyanki_graveyard = {
+	stages = 5
+	stage = {
+		difficulty = 3
+	}
+	stage = {
+		difficulty = 3
+	}
+	stage = {
+		difficulty = 3
+	}
+	stage = {
+		difficulty = 4
+	}
+	stage = {
+		difficulty = 5
+	}
+}
