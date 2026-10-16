@@ -66,11 +66,13 @@ describe("a special layout's card", () => {
       "empire",
       "fleets",
       "starbase",
+      "anomaly",
+      "dig_site",
       "spawned_planets",
       "ambient_objects",
     ];
     expect(line(pickCard(summary({ comes_without: every }), "Seddom"), "Comes without")).toBe(
-      "a pre-FTL civilisation, colonies and pops, its empire, fleets and guardians, a starbase, some of its planets, debris, wrecks and storms",
+      "a pre-FTL civilisation, colonies and pops, its empire, fleets and guardians, a starbase, an anomaly, a dig site, some of its planets, debris, wrecks and storms",
     );
     expect(line(pickCard(summary({ comes_without: ["fleets"] }), "Seddom"), "Comes without")).toBe(
       "fleets and guardians",

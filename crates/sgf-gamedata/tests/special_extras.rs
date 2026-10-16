@@ -11,10 +11,11 @@ use sgf_core::ops::{EventTargetOf, Op};
 use sgf_core::overlay::Anchor;
 use sgf_core::session::Session;
 use sgf_gamedata::body_effects::LeftOut;
-use sgf_gamedata::generate::special_op;
+use sgf_gamedata::generate::{SystemAsk, special_op, systems_op};
 use sgf_gamedata::summary::{Planting, PlantingKind, layout_summary};
 
-use common::{SPOT, open_4_5, open_4_5_edited, sample_install};
+use common::generate::FILES;
+use common::{SPOT, hand_written, open_4_5, open_4_5_edited, sample_install};
 
 const SEDDOM: &str = "breachsealer_system";
 const TIYUN_ORT: &str = "hostile_init_21";
@@ -205,4 +206,105 @@ fn the_card_says_what_each_comes_with_and_without() {
         tiyun_ort.story_kept_by_existing,
         "the sample's own Tiyun Ort holds {GRAVEYARD}"
     );
+}
+
+const SCOPES: &str = "common/solar_system_initializers/01_scopes.txt";
+
+/// Two special layouts on the hand-written install: one plants from a scope its own
+/// `init_effect` opens, the other from a body, which follows an `if`-free effect but not a
+/// scope inside it.
+const SCOPED: &str = "fx_scoped_system = {
+	class = rl_single
+	usage = misc_system_init
+	usage_odds = 5
+	max_instances = 1
+	planet = { count = 1 class = star orbit_distance = 0 }
+	change_orbit = 40
+	planet = { count = 1 orbit_distance = 40 }
+	init_effect = {
+		random_system_planet = {
+			add_anomaly = { category = FX_SCOPED_CAT }
+			create_archaeological_site = site_fx_scoped
+		}
+	}
+}
+fx_scoped_body = {
+	class = rl_single
+	usage = misc_system_init
+	usage_odds = 5
+	max_instances = 1
+	planet = { count = 1 class = star orbit_distance = 0 }
+	change_orbit = 40
+	planet = {
+		count = 1
+		orbit_distance = 40
+		init_effect = {
+			set_planet_flag = fx_kept
+			set_planet_flag = fx_dynamic_@event_target:fx_caller
+			add_anomaly = { category = FX_KEPT_CAT }
+			random_system_planet = {
+				add_anomaly = { category = FX_SCOPED_CAT }
+			}
+		}
+	}
+}
+";
+
+fn scoped_install() -> (tempfile::TempDir, sgf_gamedata::GameData) {
+    let mut files = FILES.to_vec();
+    files.push((SCOPES, SCOPED));
+    hand_written(&files)
+}
+
+#[test]
+fn an_anomaly_or_dig_site_in_a_scope_the_generator_does_not_follow_is_on_the_card() {
+    let (_dir, gd) = scoped_install();
+    let session = open_4_5();
+
+    let system = layout_summary(&gd, "fx_scoped_system", &session).expect("the card");
+    assert_eq!(
+        system.comes_without,
+        [LeftOut::Anomaly, LeftOut::DigSite],
+        "the system's own script is dropped"
+    );
+    assert!(system.comes_with.is_empty());
+
+    let body = layout_summary(&gd, "fx_scoped_body", &session).expect("the card");
+    assert_eq!(body.comes_without, [LeftOut::Anomaly], "the scoped one");
+    let kept: Vec<&str> = body.comes_with.iter().map(|p| p.key.as_str()).collect();
+    assert_eq!(kept, ["FX_KEPT_CAT"], "the one the body's own effect adds");
+}
+
+#[test]
+fn a_planet_flag_written_from_a_scope_at_run_time_is_not_written() {
+    let (_dir, gd) = scoped_install();
+    let session = open_4_5();
+    let op = special_op(&gd, &session, 1, SPOT, "fx_scoped_body", true).expect("the op");
+    assert_eq!(names(&op), ["AddSystemFromSpec", "AddAnomaly"]);
+    let Op::AddSystemFromSpec { spec } = members(&op)[0] else {
+        unreachable!()
+    };
+    let flags: Vec<&String> = spec.planets.iter().flat_map(|p| &p.flags).collect();
+    assert_eq!(flags, ["fx_kept"]);
+}
+
+/// Random and Shape adds draw from the plain layouts, so they write a body's planet flags and
+/// nothing a layout's script plants: no anomaly, dig site or event target.
+#[test]
+fn random_and_shape_adds_plant_nothing() {
+    let (_dir, gd) = common::generate::hand_written();
+    let session = open_4_5();
+    let star_class = "sc_sun".to_owned();
+    let asks = [SystemAsk {
+        star_class,
+        x: SPOT.0,
+        y: SPOT.1,
+    }];
+    let op = systems_op(&gd, &session, 7, &asks, &[], "Shape".to_owned()).expect("the op");
+    assert!(
+        names(&op).iter().all(|name| *name == "AddSystemFromSpec"),
+        "{:?}",
+        names(&op)
+    );
+    assert_eq!(names(&op).len(), 1);
 }

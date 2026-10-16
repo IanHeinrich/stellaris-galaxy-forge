@@ -147,7 +147,9 @@ pub enum Command {
     /// Roll a star system from the install's rules and add it to a Stellaris 4.x save:
     ///   sgf add-system game.sav --seed 7 --at -310,-95 --lane 169 -o out.sav
     /// --star-class sc_g rolls it around that star, or --layout trappist_initializer builds
-    /// that layout (`sgf special-layouts` lists the special ones). --then-reroll 8 rolls it
+    /// that layout (`sgf special-layouts` lists the special ones), with the anomalies and dig
+    /// sites its script plants as the app writes them; --no-extras leaves those out, and the
+    /// planet flags and event targets it saves are written either way. --then-reroll 8 rolls it
     /// again from seed 8, keeping its name, position and lanes. --print-spec prints the
     /// system as JSON, which an `AddSystemFromSpec` edit file for `sgf apply` holds as its
     /// `spec`.
@@ -178,6 +180,9 @@ pub enum Command {
         /// The initializer to build the system from, plain or special.
         #[arg(long)]
         layout: Option<String>,
+        /// With --layout, leave out the anomalies and dig sites the layout's script plants.
+        #[arg(long, requires = "layout")]
+        no_extras: bool,
         /// Print the spec as JSON and write nothing, so it takes no --then-remove or
         /// --then-reroll.
         #[arg(long, conflicts_with_all = ["then_remove", "then_reroll"])]

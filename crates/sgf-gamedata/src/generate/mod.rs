@@ -32,7 +32,7 @@ pub use megastructure::{
 };
 pub use save::{
     BodyAsk, ClassRulesError, ForSaveError, Pick, SystemAsk, added_among, body_for_save, for_save,
-    for_save_many, reroll, settle_name, special_op, systems_op,
+    for_save_many, reroll, settle_name, special_op, special_op_with, systems_op,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.
@@ -299,27 +299,21 @@ fn build(
             .collect(),
         lanes: Vec::new(),
     };
-    let extras = extras(gd, init, &spec, deposits.planted);
+    let extras = extras(gd, init, deposits.planted);
     Ok(SystemAdd { spec, extras })
 }
 
-/// What `init`'s script plants beside `spec`'s bodies, `planted` holding what each body's
-/// effects planted: its anomalies, its dig sites but those of a type the install gives no
-/// first stage and those on a star, which takes none, and the global event targets its
-/// bodies and the system's own `init_effect` save.
+/// What `init`'s script plants beside the system's bodies, `planted` holding what each
+/// body's effects planted and whether its block is a star's: its anomalies, its dig sites
+/// but those of a type the install gives no first stage and those on a star, which takes
+/// none, and the global event targets its bodies and the system's own `init_effect` save.
 fn extras(
     gd: &GameData,
     init: &Initializer,
-    spec: &SystemSpec,
-    planted: Vec<(SpecBody, Planted)>,
+    planted: Vec<(SpecBody, bool, Planted)>,
 ) -> SystemExtras {
     let mut extras = SystemExtras::default();
-    for (body, planted) in planted {
-        let star = match body {
-            SpecBody::Star => true,
-            SpecBody::Planet { index } => spec.planets[index].star,
-            SpecBody::Moon { .. } => false,
-        };
+    for (body, star, planted) in planted {
         extras.anomalies.extend(
             planted
                 .anomalies
@@ -832,7 +826,8 @@ struct Deposits<'g> {
     abundance: f64,
     rng: Rng,
     save: Option<&'g SaveFacts>,
-    planted: Vec<(SpecBody, Planted)>,
+    /// Each body that planted something, whether its block is a star's, and what it planted.
+    planted: Vec<(SpecBody, bool, Planted)>,
 }
 
 impl Deposits<'_> {
@@ -899,7 +894,8 @@ impl Deposits<'_> {
         let dlc = Dlc::of(self.gd, self.save);
         body_effects::apply(self.gd, &block.effects, body, &dlc, &mut planted);
         if planted != Planted::default() {
-            self.planted.push((at, planted));
+            self.planted
+                .push((at, star_body(self.gd, &block.class), planted));
         }
     }
 }

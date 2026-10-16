@@ -60,8 +60,18 @@ fn label_of(key: &str) -> &'static str {
         .unwrap_or_else(|| panic!("no label recorded for {key}"))
 }
 
+/// The star flags the game's `has_special_star_flag_trigger` lists as start-system flags.
+const START_FLAGS: [&str; 6] = [
+    "empire_home_system",
+    "empire_cluster",
+    "neighbor_t1",
+    "neighbor_t2",
+    "neighbor_t1_first_colony",
+    "neighbor_t2_second_colony",
+];
+
 #[test]
-fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() {
+fn converted_layouts_come_without_their_empires_civilisations_and_start_flags() {
     let Some(gd) = INSTALL.as_ref() else {
         return;
     };
@@ -126,11 +136,11 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
             .flags
             .iter()
             .map(String::as_str)
-            .filter(|flag| !["empire_home_system", "empire_cluster"].contains(flag))
+            .filter(|flag| !START_FLAGS.contains(flag))
             .collect();
         assert_eq!(
             spec.flags, kept,
-            "{key}: every star flag but an empire's start"
+            "{key}: every star flag but those of an empire's start"
         );
         spec.lanes = vec![169];
         session

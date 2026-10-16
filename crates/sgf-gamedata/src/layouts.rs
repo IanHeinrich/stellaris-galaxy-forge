@@ -57,8 +57,16 @@ impl Converted {
     }
 }
 
-/// Star flags of an empire's home or start, which a system no one owns does not carry.
-const EMPIRE_START_FLAGS: [&str; 2] = ["empire_home_system", "empire_cluster"];
+/// The game's start-system star flags (`has_special_star_flag_trigger`), which a system no
+/// empire starts in does not carry: origins look for them near a capital.
+const EMPIRE_START_FLAGS: [&str; 6] = [
+    "empire_home_system",
+    "empire_cluster",
+    "neighbor_t1",
+    "neighbor_t2",
+    "neighbor_t1_first_colony",
+    "neighbor_t2_second_colony",
+];
 
 /// The layouts the generator builds by converting them.
 pub const CONVERTED_LAYOUTS: [Converted; 14] = [

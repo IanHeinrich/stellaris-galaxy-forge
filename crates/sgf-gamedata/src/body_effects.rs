@@ -268,6 +268,10 @@ fn read_block(
             continue;
         }
         let scalar = child.scalar_str(src);
+        if key == "set_planet_flag" && scalar.is_some_and(|flag| flag.contains('@')) {
+            // The game's dynamic form, named from a scope at run time: no fixed flag to write.
+            continue;
+        }
         let field = |name: &str| child.find(name, src).and_then(|n| n.scalar_str(src));
         let deposit = scalar.filter(|d| d.starts_with("d_")).map(str::to_owned);
         let effect = match key {
@@ -500,6 +504,12 @@ pub enum LeftOut {
     /// Fleets, guardians among them.
     Fleets,
     Starbase,
+    /// An anomaly the script plants where the generator does not follow it: in a scope or a
+    /// chance of a body's `init_effect`, or anywhere in the system's own.
+    Anomaly,
+    /// A dig site left out the same way, or of a type the install gives no first stage, or
+    /// on a star.
+    DigSite,
     /// Planets the layout's `init_effect` spawns with `spawn_planet`: only the `planet` and
     /// `moon` blocks of a layout are built as bodies.
     SpawnedPlanets,
@@ -535,17 +545,32 @@ fn left_out_by(key: &str) -> Option<LeftOut> {
     owned(key).then_some(LeftOut::Colony)
 }
 
-/// What the `init_effect` blocks of `node`, a layout or one of its bodies, leave out when
-/// the generator drops them, at any depth but a nested body's.
-pub(crate) fn left_out(node: &Node, def: &Def) -> Vec<LeftOut> {
+/// What the `init_effect` blocks of `node` leave out when the generator drops them, at any
+/// depth but a nested body's. For the system itself (`system`) the whole `init_effect` is
+/// dropped but what [`Initializer::saves_targets`] keeps; for a body, what its effects
+/// plant is dropped from a scope or chance they do not follow into.
+///
+/// [`Initializer::saves_targets`]: crate::initializers::Initializer::saves_targets
+pub(crate) fn left_out(node: &Node, def: &Def, system: bool) -> Vec<LeftOut> {
     let mut out = Vec::new();
     for block in node.find_all("init_effect", &def.src) {
-        collect_left_out(block, def, &mut out);
+        collect_left_out(block, def, system, &mut out);
     }
     out
 }
 
-fn collect_left_out(block: &Node, def: &Def, out: &mut Vec<LeftOut>) {
+/// What a statement `key` that [`read_block`] collects leaves out when it is not followed.
+fn left_out_unfollowed(key: &str) -> Option<LeftOut> {
+    match key {
+        "add_anomaly" => Some(LeftOut::Anomaly),
+        "create_archaeological_site" => Some(LeftOut::DigSite),
+        _ => None,
+    }
+}
+
+/// `unfollowed` holds when the statements in `block` are in a scope or chance `read_block`
+/// does not follow, or in the system's own `init_effect`.
+fn collect_left_out(block: &Node, def: &Def, unfollowed: bool, out: &mut Vec<LeftOut>) {
     for child in block.children() {
         let Some(key) = child.key_str(&def.src) else {
             continue;
@@ -553,13 +578,15 @@ fn collect_left_out(block: &Node, def: &Def, out: &mut Vec<LeftOut>) {
         if condition_key(key) || matches!(key, "planet" | "moon") {
             continue;
         }
-        if let Some(left) = left_out_by(key)
+        let left = left_out_by(key).or_else(|| left_out_unfollowed(key).filter(|_| unfollowed));
+        if let Some(left) = left
             && !out.contains(&left)
         {
             out.push(left);
         }
         if nested(child, def) {
-            collect_left_out(child, def, out);
+            let inside = unfollowed || CHANCE.contains(&key) || scope(key);
+            collect_left_out(child, def, inside, out);
         }
     }
 }

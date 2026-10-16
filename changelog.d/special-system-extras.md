@@ -1,7 +1,7 @@
 ### Added
 
 - Special systems you add come with their own anomalies and dig sites. Their
-  card in the Special list shows what each comes with and what it still
+  card in the Special list shows what each comes with and what it
   lacks, such as its empire, its fleets or some of its planets.
 
 ### Changed

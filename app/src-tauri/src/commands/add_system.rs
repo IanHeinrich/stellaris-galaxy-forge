@@ -27,7 +27,15 @@ pub async fn add_random_system<R: Runtime>(
     y: f64,
     star_class: Option<String>,
 ) -> Result<EditResult, SgfError> {
-    add(app, seed, (x, y), Pick::Random(star_class)).await
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
+        let pick = Pick::Random(star_class);
+        let spec = generate::for_save(&gd, session, seed, (x, y), &pick)?;
+        let result = session.apply(Op::AddSystemFromSpec { spec })?;
+        Ok(session.edit_result(result))
+    })
+    .await
 }
 
 /// Roll a system at each of `systems` around its star class, all from `seed`, named from one
@@ -139,21 +147,4 @@ pub fn get_generator_star_classes(game_data: State<'_, GameDataState>) -> Vec<St
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.star_class_picks())
-}
-
-/// Add the system `pick` gives at `at` from `seed` to the open save, as one `AddSystemFromSpec`.
-async fn add<R: Runtime>(
-    app: AppHandle<R>,
-    seed: u64,
-    at: (f64, f64),
-    pick: Pick,
-) -> Result<EditResult, SgfError> {
-    let gd = game_data(&app, ADD_A_SYSTEM)?;
-    with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
-        let spec = generate::for_save(&gd, session, seed, at, &pick)?;
-        let result = session.apply(Op::AddSystemFromSpec { spec })?;
-        Ok(session.edit_result(result))
-    })
-    .await
 }

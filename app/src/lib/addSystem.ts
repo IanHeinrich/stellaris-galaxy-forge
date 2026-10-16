@@ -102,6 +102,8 @@ const LEFT_OUT_WORDS: Record<LeftOut, string> = {
   empire: "its empire",
   fleets: "fleets and guardians",
   starbase: "a starbase",
+  anomaly: "an anomaly",
+  dig_site: "a dig site",
   spawned_planets: "some of its planets",
   ambient_objects: "debris, wrecks and storms",
 };

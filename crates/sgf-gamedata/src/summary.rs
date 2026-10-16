@@ -194,8 +194,9 @@ fn special_summary(
     summary.dlc = save.dlc_need(gd, init);
     summary.max_instances = init.max_instances;
     summary.in_galaxy = Some(save.in_galaxy(&init.name));
-    summary.comes_with = comes_with(gd, init);
-    summary.comes_without = comes_without(init);
+    let (comes_with, sites_left) = comes_with(gd, init);
+    summary.comes_with = comes_with;
+    summary.comes_without = comes_without(init, sites_left);
     summary.story_kept_by_existing = session.save("reading event targets").is_ok_and(|save| {
         saved_targets(init)
             .iter()
@@ -212,8 +213,10 @@ fn bodies(init: &Initializer) -> impl Iterator<Item = &InitPlanet> {
 }
 
 /// The anomalies and dig sites `init`'s bodies plant as the generator plants them, each
-/// once: a dig site of a type the install gives no first stage, or on a star, is left out.
-fn comes_with(gd: &GameData, init: &Initializer) -> Vec<Planting> {
+/// once, and whether a dig site is left out: one of a type the install gives no first stage,
+/// or on a star.
+fn comes_with(gd: &GameData, init: &Initializer) -> (Vec<Planting>, bool) {
+    let mut sites_left = false;
     let mut out: Vec<Planting> = Vec::new();
     let mut plant = |kind: PlantingKind, key: &str| {
         if !out.iter().any(|held| held.kind == kind && held.key == key) {
@@ -229,23 +232,26 @@ fn comes_with(gd: &GameData, init: &Initializer) -> Vec<Planting> {
         for category in &planted.anomalies {
             plant(PlantingKind::Anomaly, category);
         }
-        if star_body(gd, &body.class) {
-            continue;
-        }
+        let star = star_body(gd, &body.class);
         for site in &planted.dig_sites {
-            if gd.dig_site_start(site).is_some() {
+            if !star && gd.dig_site_start(site).is_some() {
                 plant(PlantingKind::DigSite, site);
+            } else {
+                sites_left = true;
             }
         }
     }
-    out
+    (out, sites_left)
 }
 
 /// What the generator leaves out of `init`: its bodies' colonies and pre-FTL civilisations,
 /// its starbase and empires, and what the statements it drops from the system's and the
 /// bodies' effects make, in [`LeftOut`]'s order.
-fn comes_without(init: &Initializer) -> Vec<LeftOut> {
+fn comes_without(init: &Initializer, sites_left: bool) -> Vec<LeftOut> {
     let mut out: Vec<LeftOut> = init.left_out.clone();
+    if sites_left {
+        out.push(LeftOut::DigSite);
+    }
     for body in bodies(init) {
         out.extend(&body.left_out);
         if body.colonised {

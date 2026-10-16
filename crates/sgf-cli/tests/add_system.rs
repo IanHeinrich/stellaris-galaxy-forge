@@ -215,6 +215,66 @@ fn add_system_generates_the_special_layout_asked_for() {
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }
 
+/// `--layout` makes the edit the app makes: the anomaly its script plants comes with the
+/// system, and `--no-extras` leaves it out.
+#[test]
+fn add_system_layout_comes_with_its_anomaly_unless_no_extras() {
+    let dir = tempfile::tempdir().unwrap();
+    let run = |extra: &[&str]| {
+        let out_path = dir.path().join("seddom.sav");
+        let out_str = out_path.to_str().unwrap();
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--seed",
+            "4",
+            "--at",
+            "-292.23404,-137.62265",
+            "--lane",
+            "169",
+            "--layout",
+            "breachsealer_system",
+            "--no-mods",
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        let out = sgf(&args);
+        (out, out_path)
+    };
+    let (with, with_path) = run(&[]);
+    if without_install(&with) {
+        return;
+    }
+    ok(&with);
+    assert!(stdout(&with).contains("its anomaly"), "{}", stdout(&with));
+    assert_eq!(
+        sgf(&["validate", with_path.to_str().unwrap()])
+            .status
+            .code(),
+        Some(0)
+    );
+    std::fs::remove_file(&with_path).unwrap();
+
+    let (without, _) = run(&["--no-extras"]);
+    ok(&without);
+    assert!(
+        !stdout(&without).contains("anomaly"),
+        "{}",
+        stdout(&without)
+    );
+
+    let refused = sgf(&[
+        "add-system",
+        SAMPLE_4_5,
+        "--seed",
+        "1",
+        "--at",
+        "0,0",
+        "--no-extras",
+    ]);
+    assert_eq!(refused.status.code(), Some(2), "--no-extras needs --layout");
+}
+
 /// `--then-reroll` reaches the app's reroll: the system keeps its name and position, and
 /// with `--keep-special` a Special menu layout is built from that layout again.
 #[test]

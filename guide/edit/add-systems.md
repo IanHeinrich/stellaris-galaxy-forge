@@ -38,6 +38,8 @@ Some of what the game gives a special system is missing:
 - Empires, colonies and pre-FTL civilisations. Sol's Earth, for example,
   is an uncolonised continental world.
 - Fleets and guardians, and any starbase.
+- An anomaly or dig site the script puts on a planet it picks at random, or
+  a dig site on a star.
 - Debris, wrecks and storms.
 - Planets the game's script spawns there, such as Seddom's
   Huanghun. The card lists these as "some of its planets".

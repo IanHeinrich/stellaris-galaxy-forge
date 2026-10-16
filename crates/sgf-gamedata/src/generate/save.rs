@@ -181,10 +181,30 @@ pub fn special_op(
     layout: &str,
     extras: bool,
 ) -> Result<Op, ForSaveError> {
+    special_op_with(gd, session, seed, at, layout, extras, None, &[])
+}
+
+/// [`special_op`] with `lanes` laid between the new system, `LaneEnd::New { index: 0 }`, and
+/// the systems the save holds, and the system named `name` when given instead of from the
+/// save's pool.
+#[allow(clippy::too_many_arguments)]
+pub fn special_op_with(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    at: (f64, f64),
+    layout: &str,
+    extras: bool,
+    name: Option<&str>,
+    lanes: &[(LaneEnd, LaneEnd)],
+) -> Result<Op, ForSaveError> {
     let save = session.save("adding a system")?;
     let pick = Pick::Layout(layout.to_owned());
-    let add = roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?;
-    Ok(save.add_systems_op(vec![add], &[], extras, None)?)
+    let add = match name {
+        Some(name) => pick.system(gd, session, seed, name, at)?,
+        None => roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?,
+    };
+    Ok(save.add_systems_op(vec![add], lanes, extras, None)?)
 }
 
 /// A system for `session`'s save at each of `asks`, rolled around its star class from a seed

@@ -3,4 +3,4 @@
 /**
  * What a system added from a layout comes without, of what its script would make.
  */
-export type LeftOut = "pre_ftl_civilisation" | "colony" | "empire" | "fleets" | "starbase" | "spawned_planets" | "ambient_objects";
+export type LeftOut = "pre_ftl_civilisation" | "colony" | "empire" | "fleets" | "starbase" | "anomaly" | "dig_site" | "spawned_planets" | "ambient_objects";

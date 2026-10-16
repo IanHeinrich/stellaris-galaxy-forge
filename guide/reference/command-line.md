@@ -56,7 +56,8 @@ systems, lanes and nebulae. It changes nothing.
 | `--lane ID` | A system the new one is joined to by a hyperlane. Repeat it for more. |
 | `--name NAME` | The system's name. Without it, the system gets an unused star name. |
 | `--star-class sc_g` | Rolls the system around that star class. |
-| `--layout NAME` | Builds the system from that initializer, plain or special. |
+| `--layout NAME` | Builds the system from that initializer, plain or special. A special system comes with its anomalies and dig sites, as in the app. |
+| `--no-extras` | With `--layout`, leaves out the anomalies and dig sites. |
 | `--then-reroll N` | Rolls the system again from seed N before saving, keeping its name, position and lanes. |
 
 For example: `sgf add-system game.sav --seed 7 --at -310,-95 --lane 169 -o out.sav`.

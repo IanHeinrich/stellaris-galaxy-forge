@@ -411,7 +411,7 @@ impl Initializer {
             bypasses: bypasses(node, src),
             sites: own_sites(node, src),
             saves_targets: own_effects(node, "save_global_event_target_as", src),
-            left_out: body_effects::left_out(node, def),
+            left_out: body_effects::left_out(node, def, true),
             starbase: written.starbase,
             inline_script: places_by_script(node, src),
             stated,
@@ -666,7 +666,7 @@ fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPla
         effects,
         unwritten,
         moons: bodies(node, &["moon", "planet"], def, origin),
-        left_out: body_effects::left_out(node, def),
+        left_out: body_effects::left_out(node, def, false),
         stated: stated::body(node, def, origin),
     }
 }
