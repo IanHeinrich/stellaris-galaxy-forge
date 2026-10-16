@@ -5,3 +5,5 @@
   Mega Shipyard and ring world, and Cybrex Alpha. Untick "Add its
   anomalies, dig sites and megastructures" to add the system without its
   ruins.
+- Federation's End can now be added to a save, with its two habitats. It
+  comes without its pre-FTL civilisation.

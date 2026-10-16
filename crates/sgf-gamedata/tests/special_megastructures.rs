@@ -53,7 +53,6 @@ fn refused() -> Vec<(&'static str, Unsupported)> {
             "megacorp_interstellar_assembly_init_01",
             Unsupported::Body("ideal_planet_class".to_owned()),
         ),
-        ("unique_system_initializer_01", Unsupported::PreFtl),
         ("yuhtaan_system", Unsupported::Usage),
         ("sanctuary_system", Unsupported::PreFtl),
         ("cybrex_beta", Unsupported::Usage),
@@ -163,4 +162,67 @@ fn an_anomaly_only_a_chance_plants_is_left_out_and_said_so() {
     );
     let op = special_op(gd, &session, 1, SPOT, "ring_world_init_01", true).expect("the op");
     assert_eq!(kinds(&op), ["AddSystemFromSpec", "AddRingWorld"]);
+}
+
+/// Federation's End is offered, its check of the galaxy's primitives setting taken to pass:
+/// both habitats come with the flags, model and deposit that check gives them, the pre-FTL
+/// civilisation it also places is left out and the card says so, and undo puts the save back.
+#[test]
+fn federations_end_comes_with_its_habitats_but_not_their_civilisation() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let key = "unique_system_initializer_01";
+    let mut session = open_4_5();
+    let original = current(&session);
+    assert!(
+        special_layouts(gd, &session)
+            .iter()
+            .any(|entry| entry.key == key)
+    );
+    let card = layout_summary(gd, key, &session).expect("the card");
+    assert!(
+        card.comes_without.contains(&LeftOut::PreFtlCivilisation),
+        "{:?}",
+        card.comes_without
+    );
+
+    let op = special_op(gd, &session, 1, SPOT, key, true).expect("the op");
+    let spec = match &op {
+        Op::AddSystemFromSpec { spec } => spec,
+        Op::Batch { ops, .. } => match &ops[0] {
+            Op::AddSystemFromSpec { spec } => spec,
+            other => panic!("a system first, not {}", other.name()),
+        },
+        other => panic!("a system add, not {}", other.name()),
+    };
+    let habitats: Vec<_> = spec
+        .planets
+        .iter()
+        .flat_map(|planet| &planet.moons)
+        .filter(|moon| moon.class == "pc_habitat")
+        .collect();
+    assert_eq!(habitats.len(), 2);
+    for habitat in habitats {
+        for flag in ["megastructure", "habitat"] {
+            assert!(
+                habitat.flags.iter().any(|f| f == flag),
+                "{:?}",
+                habitat.flags
+            );
+        }
+        assert_eq!(
+            habitat.entity_name.as_deref(),
+            Some("habitat_phase_01_entity")
+        );
+        assert!(
+            habitat.deposits.iter().any(|d| d == "d_arcane_replicator"),
+            "{:?}",
+            habitat.deposits
+        );
+    }
+
+    session.apply(op).expect("the add");
+    session.undo().expect("undo").expect("the add");
+    assert_eq!(current(&session), original);
 }

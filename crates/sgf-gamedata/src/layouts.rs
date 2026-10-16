@@ -27,6 +27,8 @@ pub const USAGE: &str = "misc_system_init";
 /// The star flag of the game's unique systems, which its timeline reads when an empire
 /// takes control of one.
 pub const UNIQUE_SYSTEM: &str = "unique_system";
+/// The trigger that reads a galaxy setting, such as how many primitives the galaxy has.
+const GALAXY_SETUP: &str = "check_galaxy_setup_value";
 
 /// A layout the Special menu offers converted to a system no one owns: built without its
 /// usage, odds, neighbour systems and system script, its home and colonised planets left
@@ -74,7 +76,7 @@ const EMPIRE_START_FLAGS: [&str; 6] = [
 ];
 
 /// The layouts the generator builds by converting them.
-pub const CONVERTED_LAYOUTS: [Converted; 15] = [
+pub const CONVERTED_LAYOUTS: [Converted; 16] = [
     Converted {
         key: "sol_system_initializer",
         unique: true,
@@ -100,6 +102,7 @@ pub const CONVERTED_LAYOUTS: [Converted; 15] = [
     Converted::special("holibrae_initializer"),
     Converted::special("the_chosen_escapee_initializer"),
     Converted::special("cybrex_system"),
+    Converted::special("unique_system_initializer_01"),
 ];
 
 /// The entry of [`CONVERTED_LAYOUTS`] for `init`, when it has one.
@@ -308,6 +311,8 @@ impl Subject for Dlc<'_> {
     fn leaf(&self, leaf: &Condition) -> Option<bool> {
         match leaf {
             Condition::HostDlc(dlc) => Some((self.has)(dlc)),
+            // The galaxy settings are unknown, and a check of them is taken to pass.
+            Condition::Unknown(key) if key == GALAXY_SETUP => Some(true),
             _ => None,
         }
     }

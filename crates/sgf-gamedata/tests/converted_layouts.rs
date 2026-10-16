@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use sgf_core::ops::Op;
 use sgf_core::session::Session;
-use sgf_gamedata::layouts::{CONVERTED_LAYOUTS, Eligibility};
+use sgf_gamedata::layouts::{CONVERTED_LAYOUTS, Eligibility, UNIQUE_SYSTEM};
 use sgf_gamedata::menu::special_layouts;
 
 use common::layouts::{by_name, of};
@@ -35,7 +35,7 @@ fn free_ground(session: &Session) -> (f64, f64) {
 
 /// The label the install's own localisation gives each of [`CONVERTED_LAYOUTS`], which only
 /// the real install can settle.
-const LABELS: [(&str, &str); 15] = [
+const LABELS: [(&str, &str); 16] = [
     ("sol_system_initializer", "Sol"),
     ("new_bratulla_initializer", "New Bratulla"),
     ("special_init_06", "Zanaam"),
@@ -51,6 +51,7 @@ const LABELS: [(&str, &str); 15] = [
     ("holibrae_initializer", "Holibrae"),
     ("the_chosen_escapee_initializer", "Ophala"),
     ("cybrex_system", "Cybrex Alpha"),
+    ("unique_system_initializer_01", "Federation's End"),
 ];
 
 fn label_of(key: &str) -> &'static str {
@@ -83,7 +84,6 @@ fn converted_layouts_come_without_their_empires_civilisations_and_start_flags() 
     for other in [
         "sanctuary_system",
         "cybrex_beta",
-        "unique_system_initializer_01",
         "pre_ftl_init_sol",
         "com_sol_system",
         "special_init_04",
@@ -110,12 +110,21 @@ fn converted_layouts_come_without_their_empires_civilisations_and_start_flags() 
         .collect();
     let mut expected: Vec<(&str, &str, bool)> = CONVERTED_LAYOUTS
         .iter()
-        .map(|layout| (layout.key, label_of(layout.key), layout.unique))
+        .map(|layout| {
+            let flagged = gd
+                .initializers
+                .get(layout.key)
+                .unwrap()
+                .flags
+                .iter()
+                .any(|f| f == UNIQUE_SYSTEM);
+            (layout.key, label_of(layout.key), layout.unique || flagged)
+        })
         .collect();
     expected.sort_by_key(|&(key, label, _)| (label, key));
     assert_eq!(
         menu, expected,
-        "by label, Sol alone with the unique systems"
+        "by label, Sol and the layouts flagged unique_system with the unique systems"
     );
 
     let findings = |session: &Session| -> BTreeSet<(String, Vec<u32>, String)> {
