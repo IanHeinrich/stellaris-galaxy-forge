@@ -11,27 +11,46 @@ different choices in a save and in a scenario.
 ## Add a system to a save <Badge type="tip" text="Save" />
 
 Right-click empty space and select "Add system here", then Random or a
-star class. The last entry, Special, lists the game's special systems in
-two groups: unique systems such as Zevox and Sol, and other special
-systems such as Trappist. Hover an entry to see its star, planets, belts
-and notable bodies.
+star class. Hover an entry to see its star, planets, belts and notable
+bodies.
 
-Some entries in the Special list show a mark:
+![The right-click menu on empty space, with Add system here open on Random, the star classes and Special…](../images/edit/add-system-menu.png)
+
+A system added inside a nebula joins it. To add many systems at once,
+draw a [shape](shapes.md#in-a-save).
+
+## Add a special system <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
+
+Right-click empty space in a save and select "Add system here", then
+"Special…". A list of the game's special systems opens beside the spot,
+with the map left in view. Type in the search field to find one by name.
+
+The list has these groups:
+
+- Pinned and Recent. Press <kbd>Ctrl</kbd>+<kbd>D</kbd> or the star on a
+  row to pin it.
+- Unique systems, such as Zevox and Sol.
+- Other special systems, such as Trappist.
+- One group for each mod that adds special systems.
+
+Some rows show a mark:
 
 - A warning mark means the galaxy already has that system and the game
   normally places only one. You can still add another.
+- A DLC tag names the DLC the system belongs to.
 - A lock means the save doesn't have the DLC the system belongs to. You
   can still add the system, but its events won't run.
 
-![The right-click menu on empty space, with Add system here open on Random, the star classes and Special](../images/edit/add-system-menu.png)
-
-![The Special list under Add system here, with unique systems such as Sol and Zevox, warning marks and DLC tags](../images/edit/add-system-special.png)
-
-A system added inside a nebula joins it.
+The pane on the right shows the highlighted system's star, planets,
+belts and notable bodies. Press Place or <kbd>Enter</kbd>, or
+double-click a row, to add it at the spot. If the spot is too close to
+another system, the pane says so and Place is greyed out.
 
 A special system comes with its own anomalies and dig sites, as the game
-gives them. Hover its entry to see them under "Comes with", and what it
-lacks under "Comes without".
+gives them. The pane lists them under "Comes with", and what the system
+lacks under "Comes without". To add the system without them, untick "Add
+its anomalies, dig sites and megastructures". The picker remembers your
+choice.
 
 Some of what the game gives a special system is missing:
 
@@ -42,10 +61,16 @@ Some of what the game gives a special system is missing:
   a dig site on a star.
 - Debris, wrecks and storms.
 - Planets the game's script spawns there, such as Seddom's
-  Huanghun. The card lists these as "some of its planets".
+  Huanghun. The pane lists these as "some of its planets".
 
 If the galaxy already has the system, the game's events about it stay with
-the one that is there. The card says so.
+the one that is there. The pane says so.
+
+In a scenario, right-click empty space and select "New special
+system…". The [initializer browser](../scenario/initializers.md) opens on
+its "Unique & special" group. The game builds the whole system from its
+initializer when the galaxy is made, so the scenario has no option to
+leave anything out.
 
 ## Systems outside the galaxy edge
 

@@ -19,6 +19,7 @@ import type { MegastructureView } from "../generated/MegastructureView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
+import type { PickSummary } from "../generated/PickSummary";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { PlanetPageColony } from "../generated/PlanetPageColony";
@@ -876,4 +877,26 @@ export function campaignSave(over: Partial<SaveFile> = {}): SaveFile {
 /** A scenario a mod lists. */
 export function modScenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
   return scenarioListing({ source: "mod", mod_name: "A Mod", ...over });
+}
+
+/** An Add system pick's card: one class M star with two to five planets, and nothing else. */
+export function pickSummary(over: Partial<PickSummary> = {}): PickSummary {
+  return {
+    star_classes: [{ key: "sc_m", name: "Class M Star" }],
+    star_description: null,
+    planets: { min: 2, max: 5 },
+    max_moons: 0,
+    moons: "never",
+    belts: { min: 0, max: 0 },
+    belt_kinds: [],
+    asteroids: { min: 0, max: 0 },
+    named_bodies: [],
+    notable_classes: [],
+    modifiers: [],
+    rings: "never",
+    dlc: null,
+    max_instances: null,
+    in_galaxy: null,
+    ...over,
+  };
 }

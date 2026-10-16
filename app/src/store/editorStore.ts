@@ -206,9 +206,9 @@ export interface EditorState {
   addRandomSystemAt(x: number, y: number, starClass?: string | null): Promise<boolean>;
   /**
    * Builds a system of the special layout `layout` at a world point of the open save in one edit,
-   * and selects it, as `addRandomSystemAt` does.
+   * with its anomalies and dig sites when `extras`, and selects it, as `addRandomSystemAt` does.
    */
-  addSpecialSystemAt(x: number, y: number, layout: string): Promise<boolean>;
+  addSpecialSystemAt(x: number, y: number, layout: string, extras: boolean): Promise<boolean>;
   /**
    * Rolls a body into system `system` of the open save in one edit, at `at` about what it orbits:
    * a moon of `parent`, or a planet for null, of `planetClass` or a class drawn at its orbit for

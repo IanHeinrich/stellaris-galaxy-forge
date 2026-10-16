@@ -70,7 +70,7 @@ The Issues, Changes and added-system shots show those edits.
 | `edit/lane-menu.png` | `edit/hyperlanes.md` | The right-click menu on a lane | Right-click the Usksion to Xraneax lane. |
 | `edit/system-menu-save.png` | `edit/hyperlanes.md` | The right-click menu on a system in a save | Right-click Xraneax. |
 | `edit/add-system-menu.png` | `edit/add-systems.md` | Add system here with the star classes | Right-click empty space and hover Add system here. |
-| `edit/add-system-special.png` | `edit/add-systems.md` | The Special list | As above, then hover Special. Kira, Big Rip System and others show warning marks on this save. |
+| `edit/special-picker.png` | `edit/add-systems.md` | The Special picker beside the spot, with the map in view: groups, rows with their marks, the detail pane with Comes with, Comes without and the extras checkbox, and Place | Right-click an empty spot right of the core, hover Add system here and select Special…. Highlight Seddom, which shows the extras checkbox. Kira, Big Rip System and others show warning marks on this save. Crop the dialog with the spot beside it. |
 | `edit/added-system-inspector.png` | `edit/add-systems.md` | An added system's page | Select Alphecca #601 after adding it. |
 | `edit/connect-brush-options.png` | `edit/brushes.md` | The Connect lanes brush and its options | Press C with the Size at 40 and hover the tool so its tooltip shows. |
 | `edit/paint-brush-options.png` | `edit/brushes.md` | The Paint brush options | In the Paint a Galaxy scenario, press B with Size 400 and Lanes on New and nearby. Crop the option bar. |
