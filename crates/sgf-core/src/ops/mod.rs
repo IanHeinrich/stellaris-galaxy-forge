@@ -23,7 +23,7 @@ use crate::session::Session;
 
 pub use crate::format::save::system_spec::{
     BeltSpec, BodySpec, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget, SpecMegastructure,
-    SpecTarget, SystemAdd, SystemExtras, SystemSpec,
+    SpecMegastructurePlace, SpecTarget, SystemAdd, SystemExtras, SystemSpec,
 };
 pub use crate::format::save::write::add_systems::BULK_ADD_CAP;
 pub use crate::format::save::write::game_tables::SPAWN_BUFFER;

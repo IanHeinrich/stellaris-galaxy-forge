@@ -15,6 +15,7 @@ use sgf_gamedata::generate::{SystemAsk, special_op, systems_op};
 use sgf_gamedata::summary::{Planting, PlantingKind, layout_summary};
 
 use common::generate::FILES;
+use common::prepare::current;
 use common::{SPOT, hand_written, open_4_5, open_4_5_edited, sample_install};
 
 const SEDDOM: &str = "breachsealer_system";
@@ -37,10 +38,6 @@ fn members(op: &Op) -> Vec<&Op> {
 
 fn names(op: &Op) -> Vec<&'static str> {
     members(op).iter().map(|op| op.name()).collect()
-}
-
-fn current(session: &Session) -> Vec<u8> {
-    session.doc().pieces().collect::<Vec<_>>().concat()
 }
 
 /// Every slot the session wrote, in file order: the line it stands at, what it replaced and

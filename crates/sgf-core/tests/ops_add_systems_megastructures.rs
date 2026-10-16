@@ -4,8 +4,8 @@
 //! in unless asked for.
 
 use sgf_core::ops::{
-    NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, RingQuadrant, RingRow, SpecBody,
-    SpecMegastructure, SystemAdd, SystemExtras,
+    NewMegastructurePlace, NewRingWorld, Op, RingQuadrant, RingRow, SpecBody, SpecMegastructure,
+    SpecMegastructurePlace, SystemAdd, SystemExtras,
 };
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
@@ -18,15 +18,11 @@ use common::{current, open_4_5, planet_ids};
 /// A row on the spec's `at`, as a script's `spawn_megastructure = { planet = … }` leaves one.
 fn on(at: SpecBody, kind: &str) -> SpecMegastructure {
     SpecMegastructure {
-        body: Some(at),
-        spec: NewMegastructure {
-            kind: kind.to_owned(),
-            at: NewMegastructurePlace::Body {
-                body: 0,
-                body_flags: Vec::new(),
-                star_only: false,
-            },
-            ..NewMegastructure::default()
+        kind: kind.to_owned(),
+        at: SpecMegastructurePlace::Body {
+            body: at,
+            body_flags: Vec::new(),
+            star_only: false,
         },
     }
 }
@@ -61,12 +57,8 @@ fn with_rows() -> SystemAdd {
     let mut spec = small("Rows", SAMPLE_4_5.spots[0], Vec::new());
     spec.planets = vec![body("pc_gas_giant", 20, 80.0, 120.0, 0)];
     let dyson = SpecMegastructure {
-        body: None,
-        spec: NewMegastructure {
-            kind: "dyson_sphere_ruined".to_owned(),
-            at: NewMegastructurePlace::Free { x: 0.0, y: 0.0 },
-            ..NewMegastructure::default()
-        },
+        kind: "dyson_sphere_ruined".to_owned(),
+        at: SpecMegastructurePlace::Free { x: 0.0, y: 0.0 },
     };
     SystemAdd {
         spec,
@@ -95,7 +87,11 @@ fn built(session: &Session, add: SystemAdd, extras: bool) -> Result<Op, sgf_core
 fn a_row_on_a_missing_body_is_refused() {
     let session = open_4_5();
     let mut add = with_rows();
-    add.extras.megastructures[1].body = Some(SpecBody::Planet { index: 2 });
+    add.extras.megastructures[1].at = SpecMegastructurePlace::Body {
+        body: SpecBody::Planet { index: 2 },
+        body_flags: Vec::new(),
+        star_only: false,
+    };
     let error = built(&session, add, true).expect_err("refused");
     assert_eq!(
         error.to_string(),

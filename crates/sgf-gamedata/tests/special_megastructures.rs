@@ -7,12 +7,14 @@ use crate::common;
 use std::collections::BTreeSet;
 
 use sgf_core::ops::{NewMegastructurePlace, Op};
-use sgf_core::session::Session;
+use sgf_gamedata::body_effects::LeftOut;
 use sgf_gamedata::generate::special_op;
 use sgf_gamedata::layouts::{Eligibility, Unsupported};
 use sgf_gamedata::menu::special_layouts;
+use sgf_gamedata::summary::layout_summary;
 
 use common::layouts::of;
+use common::prepare::current;
 use common::{INSTALL, SPOT, open_4_5};
 
 /// The layouts whose spawned megastructures an add writes, and the rows each leaves: one row
@@ -145,6 +147,20 @@ fn without_extras_no_megastructure_is_written() {
     }
 }
 
-fn current(session: &Session) -> Vec<u8> {
-    session.doc().pieces().collect::<Vec<_>>().concat()
+/// An anomaly only a chance plants is never written, and the card says the system comes
+/// without it: the ruined ring world's star plants DISTAR_CLONE_CAT half the time.
+#[test]
+fn an_anomaly_only_a_chance_plants_is_left_out_and_said_so() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let session = open_4_5();
+    let card = layout_summary(gd, "ring_world_init_01", &session).expect("the card");
+    assert!(
+        card.comes_without.contains(&LeftOut::Anomaly),
+        "{:?}",
+        card.comes_without
+    );
+    let op = special_op(gd, &session, 1, SPOT, "ring_world_init_01", true).expect("the op");
+    assert_eq!(kinds(&op), ["AddSystemFromSpec", "AddRingWorld"]);
 }

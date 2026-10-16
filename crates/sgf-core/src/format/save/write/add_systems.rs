@@ -7,11 +7,14 @@ use std::collections::BTreeSet;
 use crate::and_list;
 use crate::format::save::alloc;
 use crate::format::save::event_targets;
-use crate::format::save::system_spec::{SpecTarget, SystemAdd, SystemSpec};
+use crate::format::save::system_spec::{SpecMegastructurePlace, SpecTarget, SystemAdd, SystemSpec};
 use crate::format::save::write::add_system::{add_description, body_ids, body_place, check_places};
 use crate::format::save::write::nebula::written_literal;
 use crate::ops::rules::{Form, check_text, labelled};
-use crate::ops::{EventTargetOf, LaneEnd, LanePair, NewMegastructurePlace, Op, OpError, SpecBody};
+use crate::ops::{
+    EventTargetOf, LaneEnd, LanePair, NewMegastructure, NewMegastructurePlace, Op, OpError,
+    SpecBody,
+};
 use crate::session::Session;
 use crate::{plural, plural_of};
 
@@ -145,15 +148,23 @@ fn planted(
                 });
             }
             for row in &add.extras.megastructures {
-                let mut spec = row.spec.clone();
-                if let (
-                    Some(at),
-                    NewMegastructurePlace::Body { body: id, .. }
-                    | NewMegastructurePlace::Beside { body: id, .. },
-                ) = (row.body, &mut spec.at)
-                {
-                    *id = body(at)?;
-                }
+                let at = match &row.at {
+                    SpecMegastructurePlace::Body {
+                        body: at,
+                        body_flags,
+                        star_only,
+                    } => NewMegastructurePlace::Body {
+                        body: body(*at)?,
+                        body_flags: body_flags.clone(),
+                        star_only: *star_only,
+                    },
+                    &SpecMegastructurePlace::Free { x, y } => NewMegastructurePlace::Free { x, y },
+                };
+                let spec = NewMegastructure {
+                    kind: row.kind.clone(),
+                    at,
+                    ..NewMegastructure::default()
+                };
                 ops.push(Op::AddMegastructure { system, spec });
             }
             if let Some(ring) = &add.extras.ring_world {

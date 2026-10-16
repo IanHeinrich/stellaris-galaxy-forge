@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
-    NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, OpError, RingQuadrant,
+    NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, OpError, RingQuadrant, SpecBody,
+    SpecMegastructure, SpecMegastructurePlace,
 };
 use sgf_core::session::{SaveQueries, Session};
 use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
@@ -690,50 +691,11 @@ fn add_op(
     construction: MegastructureConstruction,
     left_out: usize,
 ) -> Op {
-    Op::AddMegastructure {
-        system,
-        spec: new_row(gd, def, place, owner, construction, left_out),
-    }
-}
-
-/// The row a layout's `spawn_megastructure` of type `def` leaves at `place`, as [`add_op`]
-/// writes one, with no owner and none of the type's build chain, which a spawn does not run.
-pub(crate) fn spawned_row(
-    gd: &GameData,
-    def: &MegastructureDef,
-    place: MegastructurePlace,
-) -> NewMegastructure {
-    new_row(
-        gd,
-        def,
-        place,
-        None,
-        MegastructureConstruction::default(),
-        0,
-    )
-}
-
-/// The row [`add_op`] adds.
-fn new_row(
-    gd: &GameData,
-    def: &MegastructureDef,
-    place: MegastructurePlace,
-    owner: Option<u32>,
-    construction: MegastructureConstruction,
-    left_out: usize,
-) -> NewMegastructure {
     let bypass = def.bypass_type.as_ref().map(|kind| NewBypass {
         kind: kind.clone(),
         active: def.activates_gateway || gd.bypasses.get(kind).is_some_and(|b| b.always_active),
     });
-    let mut body_flags = Vec::new();
-    if def.sets_has_megastructure {
-        body_flags.push("has_megastructure".to_owned());
-    }
-    if def.ruined_orbital_ring {
-        body_flags.push("ruined_orbital_ring_planet".to_owned());
-    }
-    let star_only = matches!(def.placement, Placement::Body { star_only: true });
+    let (body_flags, star_only) = (body_flags(def), star_only(def));
     let at = match place {
         MegastructurePlace::Body { body } => NewMegastructurePlace::Body {
             body,
@@ -749,16 +711,53 @@ fn new_row(
         },
         MegastructurePlace::Free { x, y } => NewMegastructurePlace::Free { x, y },
     };
-    NewMegastructure {
-        kind: def.key.clone(),
-        name: None,
-        at,
-        owner,
-        bypass,
-        construction: (!construction.is_empty()).then_some(construction),
-        planet: None,
-        left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
+    Op::AddMegastructure {
+        system,
+        spec: NewMegastructure {
+            kind: def.key.clone(),
+            name: None,
+            at,
+            owner,
+            bypass,
+            construction: (!construction.is_empty()).then_some(construction),
+            planet: None,
+            left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
+        },
     }
+}
+
+/// The row a layout's `spawn_megastructure` of type `def` leaves on `body` of the spec, or at
+/// the centre for none, with the body flags and star rule [`add_op`] gives a row of that type.
+pub(crate) fn spawned_row(def: &MegastructureDef, body: Option<SpecBody>) -> SpecMegastructure {
+    let at = match body {
+        Some(body) => SpecMegastructurePlace::Body {
+            body,
+            body_flags: body_flags(def),
+            star_only: star_only(def),
+        },
+        None => SpecMegastructurePlace::Free { x: 0.0, y: 0.0 },
+    };
+    SpecMegastructure {
+        kind: def.key.clone(),
+        at,
+    }
+}
+
+/// The planet flags a row of type `def` leaves on its body, in order.
+fn body_flags(def: &MegastructureDef) -> Vec<String> {
+    let mut flags = Vec::new();
+    if def.sets_has_megastructure {
+        flags.push("has_megastructure".to_owned());
+    }
+    if def.ruined_orbital_ring {
+        flags.push("ruined_orbital_ring_planet".to_owned());
+    }
+    flags
+}
+
+/// A row of type `def` stands only on a star.
+fn star_only(def: &MegastructureDef) -> bool {
+    matches!(def.placement, Placement::Body { star_only: true })
 }
 
 /// Why the editor does not add type `name`.

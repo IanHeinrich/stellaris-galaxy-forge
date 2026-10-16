@@ -686,12 +686,13 @@ for planets or deposits.
   id the table no longer holds (a 4.5.2 save), so the tie is read from
   the row's `planet`.
 - A layout's `spawn_megastructure` that names no place writes its row at
-  (0, 0) with `planet=4294967295`: the ruined Dyson Sphere of
-  `dyson_sphere_init_01` in a 4.5 save. One with `planet = star` or
-  `planet = event_target:…` stands at that body's point and names it, and
-  one at `orbit_angle` stands 180 degrees round from it: four
-  `ring_world_ruined` rows spawned at angles 0 to 270 stand at
-  (−45.20385, 0) first, then (−0.00045, −45.20385), in a 4.5 save.
+  (0, 0) with `planet=4294967295`: the 4.5 sample's ruined Dyson Sphere
+  from `dyson_sphere_init_01`. One with `planet = star` or
+  `planet = event_target:…` stands at that body's point and names it. One
+  at `orbit_angle` stands 180 degrees round from it: rows spawned at 0 and
+  90 stand at (−45.20385, 0) and (−0.00045, −45.20385), as system 0 of the
+  4.4 sample and Lachium in a 4.5.2 save have their `ring_world_ruined`
+  rows.
 - The game keeps a tied row's coordinate wherever it is, and draws most
   types there: a Science Nexus tied to an asteroid with its coordinate
   20 units away, and one with its coordinate on the far side of its

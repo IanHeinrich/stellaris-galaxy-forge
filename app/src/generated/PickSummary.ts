@@ -45,8 +45,8 @@ max_instances: number | null,
  */
 in_galaxy: number | null, 
 /**
- * The anomalies and dig sites a special layout's script plants, which the add writes
- * when asked to.
+ * The anomalies, dig sites and megastructures a special layout's script makes, which the
+ * add writes when asked to.
  */
 comes_with?: Array<Planting>, 
 /**

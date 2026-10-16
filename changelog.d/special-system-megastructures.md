@@ -1,8 +1,7 @@
 ### Added
 
-- Add the special systems of ruined megastructures to a save, with their
-  ruins: the ruined Dyson Sphere, Science Nexus, Sentry Array, Mega
-  Shipyard, Quantum Catapult, Matter Decompressor and Strategic
-  Coordination Center, the ruined ring world, and Cybrex Alpha. The
-  Special list names each by its ruin. Added without its anomalies, dig
-  sites and megastructures, the system comes without its ruins.
+- Special systems with a ruined megastructure can now be added to a save,
+  with their ruins. These include the ruined Dyson Sphere, Science Nexus,
+  Mega Shipyard and ring world, and Cybrex Alpha. Untick "Add its
+  anomalies, dig sites and megastructures" to add the system without its
+  ruins.

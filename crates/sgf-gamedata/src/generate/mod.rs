@@ -4,8 +4,8 @@
 //! abundance and install give the same spec.
 
 use sgf_core::ops::{
-    BeltSpec, BodySpec, MegastructurePlace, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget,
-    SpecMegastructure, SpecTarget, SystemAdd, SystemExtras, SystemSpec,
+    BeltSpec, BodySpec, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget, SpecTarget, SystemAdd,
+    SystemExtras, SystemSpec,
 };
 
 use crate::GameData;
@@ -301,7 +301,7 @@ fn build(
             .collect(),
         lanes: Vec::new(),
     };
-    let extras = extras(gd, init, deposits.planted, &deposits.saved);
+    let extras = extras(gd, init, deposits.planted, &deposits.saved)?;
     Ok(SystemAdd { spec, extras })
 }
 
@@ -310,41 +310,31 @@ fn build(
 /// but those of a type the install gives no first stage and those on a star, which takes
 /// none, the global event targets its bodies and the system's own `init_effect` save, and the
 /// megastructures its own `init_effect` spawns, a row on a saved event target standing on the
-/// last body of `saved` that saves it.
+/// last body of `saved` that saves it. Refused as the judge refuses the layout when it spawns
+/// a row the add cannot write, or one on an event target no body of the roll saves.
 fn extras(
     gd: &GameData,
     init: &Initializer,
     planted: Vec<(SpecBody, bool, Planted)>,
     saved: &[(SpecBody, Vec<String>)],
-) -> SystemExtras {
+) -> Result<SystemExtras, GenerateError> {
+    let refused = |why| GenerateError::Unsupported(init.name.clone(), why);
+    let structures = layout_structures(gd, init).map_err(refused)?;
     let mut extras = SystemExtras::default();
-    if let Ok(structures) = layout_structures(gd, init) {
-        for (def, at) in structures.rows {
-            let body = match at {
-                SpawnedAt::Star => Some(SpecBody::Star),
-                SpawnedAt::Saved(token) => {
-                    let Some((body, _)) = saved
-                        .iter()
-                        .rev()
-                        .find(|(_, names)| names.iter().any(|name| name == token))
-                    else {
-                        continue;
-                    };
-                    Some(*body)
-                }
-                SpawnedAt::Centre => None,
-            };
-            let place = match body {
-                Some(_) => MegastructurePlace::Body { body: 0 },
-                None => MegastructurePlace::Free { x: 0.0, y: 0.0 },
-            };
-            extras.megastructures.push(SpecMegastructure {
-                body,
-                spec: spawned_row(gd, def, place),
-            });
-        }
-        extras.ring_world = structures.ring.map(|(_, ring)| ring);
+    for (def, at) in structures.rows {
+        let body = match at {
+            SpawnedAt::Star => Some(SpecBody::Star),
+            SpawnedAt::Saved(token) => saved
+                .iter()
+                .rev()
+                .find(|(_, names)| names.iter().any(|name| name == token))
+                .map(|(body, _)| Some(*body))
+                .ok_or_else(|| refused(Unsupported::Megastructure))?,
+            SpawnedAt::Centre => None,
+        };
+        extras.megastructures.push(spawned_row(def, body));
     }
+    extras.ring_world = structures.ring.map(|(_, ring)| ring);
     for (body, star, planted) in planted {
         extras.anomalies.extend(
             planted
@@ -382,7 +372,7 @@ fn extras(
             target: SpecTarget::System,
             name: name.clone(),
         }));
-    extras
+    Ok(extras)
 }
 
 /// How often `init` gives a system of star class `class`: always for its one class, else

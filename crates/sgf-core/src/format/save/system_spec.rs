@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::ops::{NewMegastructure, NewRingWorld};
+use crate::ops::NewRingWorld;
 
 /// One star system to add to a save.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -151,12 +151,25 @@ impl SystemExtras {
     }
 }
 
-/// A `megastructures` row the script spawns: `spec`, standing on or beside `body` of the spec
-/// when there is one, whose id the add writes in `spec.at` in place of the one it holds.
+/// A `megastructures` row of type `kind` the script spawns, finished, with no owner.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpecMegastructure {
-    pub body: Option<SpecBody>,
-    pub spec: NewMegastructure,
+    pub kind: String,
+    pub at: SpecMegastructurePlace,
+}
+
+/// Where a [`SpecMegastructure`] stands.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpecMegastructurePlace {
+    /// On a body of the spec, at its point: the body gets `body_flags`, and a body that is not
+    /// a star is refused when `star_only`.
+    Body {
+        body: SpecBody,
+        body_flags: Vec<String>,
+        star_only: bool,
+    },
+    /// At its own point about the star, tied to no body.
+    Free { x: f64, y: f64 },
 }
 
 /// A body of a [`SystemSpec`]: its star, the `index`th of its planets, or the `index`th moon

@@ -52,6 +52,10 @@ lacks under "Comes without". To add the system without them, untick "Add
 its anomalies, dig sites and megastructures". The picker remembers your
 choice.
 
+A special system built round a ruined megastructure, such as a ruined
+Dyson Sphere or ring world, comes with its ruins too. Untick the same
+checkbox to add the system without them.
+
 Some of what the game gives a special system is missing:
 
 - Empires, colonies and pre-FTL civilisations. Sol's Earth, for example,
