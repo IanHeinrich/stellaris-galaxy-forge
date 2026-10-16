@@ -25,6 +25,8 @@ Right-click empty space in a save and select "Add system here", then
 "Special…". A list of the game's special systems opens beside the spot,
 with the map left in view. Type in the search field to find one by name.
 
+![The Special picker beside the right-clicked spot, with its groups, Seddom highlighted, and its detail pane listing what Seddom comes with and without](../images/edit/special-picker.png)
+
 The list has these groups:
 
 - Pinned and Recent. Press <kbd>Ctrl</kbd>+<kbd>D</kbd> or the star on a

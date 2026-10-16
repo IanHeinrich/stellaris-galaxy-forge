@@ -20,7 +20,8 @@ pages don't need editing.
   same window, and with the game data the developer has installed.
   `system/planet-page.png`, `scenario/scenario-system-inspector.png`,
   `system/system-view.png`, `system/megastructures.png`, the three
-  `edit/shape-*.png` shots and the Paint and Connect brush options were taken
+  `edit/shape-*.png` shots, the Paint and Connect brush options,
+  `edit/add-system-menu.png` and `edit/special-picker.png` were taken
   that way, on Stellaris 4.5.2 game data.
 - The dock is 340 pixels wide. Drag its left edge to set it.
 - Saved as PNG at 1x, cropped to the part of the window the page talks
