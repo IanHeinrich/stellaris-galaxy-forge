@@ -1,6 +1,4 @@
 import type { InitializerView } from "../../generated/InitializerView";
-import type { SystemNode } from "../../generated/SystemNode";
-import { RANDOM_KEY } from "../../store/initializerBrowserStore";
 
 /** What the list calls the random choice, which is no initializer at all. */
 export const RANDOM_LABEL = "Random (no initializer)";
@@ -29,17 +27,4 @@ export function entryLabel(
 /** The file an entry is defined in, short enough to sit in a badge. */
 export function sourceBadge(source: string): string {
   return source.replace(/\\/g, "/").split("/").pop() ?? source;
-}
-
-/** The keys the targets already carry, the random key standing in for no initializer at all. */
-export function currentKeys(
-  targets: readonly number[],
-  systems: ReadonlyMap<number, SystemNode>,
-): Set<string> {
-  const keys = new Set<string>();
-  for (const id of targets) {
-    const system = systems.get(id);
-    if (system !== undefined) keys.add(system.initializer === "" ? RANDOM_KEY : system.initializer);
-  }
-  return keys;
 }

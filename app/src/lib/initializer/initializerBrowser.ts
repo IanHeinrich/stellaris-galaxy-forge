@@ -1,11 +1,13 @@
 import type { DepositView } from "../../generated/DepositView";
 import type { InitPlanetView } from "../../generated/InitPlanetView";
 import type { InitializerView } from "../../generated/InitializerView";
+import type { SystemNode } from "../../generated/SystemNode";
+import { pickedGroups } from "../browsePicks";
 import { groupInitializers, type ModRef } from "./initializerGroups";
 import { compareResources } from "../resources";
 
-/** How many picks the recent list keeps. */
-export const RECENT_CAP = 10;
+/** The choice that leaves the system to the game, which is no initializer at all. */
+export const RANDOM_KEY = "@random";
 
 export interface BrowserEntry {
   entry: InitializerView;
@@ -19,27 +21,8 @@ export interface BrowserGroup {
   entries: BrowserEntry[];
 }
 
-export const PINNED_GROUP = { id: "pinned", label: "Pinned" };
-export const RECENT_GROUP = { id: "recent", label: "Recent" };
-
 function uses(entry: InitializerView, counts: ReadonlyMap<string, number>): BrowserEntry {
   return { entry, uses: counts.get(entry.name) ?? 0 };
-}
-
-/** The named initializers in the order named, less the ones the loaded game data does not have. */
-function namedGroup(
-  id: string,
-  label: string,
-  keys: readonly string[],
-  byName: ReadonlyMap<string, InitializerView>,
-  counts: ReadonlyMap<string, number>,
-): BrowserGroup | null {
-  const entries: BrowserEntry[] = [];
-  for (const key of keys) {
-    const entry = byName.get(key);
-    if (entry !== undefined) entries.push(uses(entry, counts));
-  }
-  return entries.length === 0 ? null : { id, label, entries };
 }
 
 /**
@@ -53,20 +36,14 @@ export function browserGroups(
   recent: readonly string[],
   counts: ReadonlyMap<string, number>,
 ): BrowserGroup[] {
-  const byName = new Map(list.map((entry) => [entry.name, entry]));
-  const groups: BrowserGroup[] = [];
-  const pins = namedGroup(PINNED_GROUP.id, PINNED_GROUP.label, pinned, byName, counts);
-  if (pins !== null) groups.push(pins);
-  const recents = namedGroup(RECENT_GROUP.id, RECENT_GROUP.label, recent, byName, counts);
-  if (recents !== null) groups.push(recents);
-  for (const group of groupInitializers(list, mods)) {
-    groups.push({
-      id: group.id,
-      label: group.label,
-      entries: group.entries.map((entry) => uses(entry, counts)),
-    });
-  }
-  return groups;
+  return [
+    ...pickedGroups(list, (entry) => entry.name, pinned, recent),
+    ...groupInitializers(list, mods),
+  ].map((group) => ({
+    id: group.id,
+    label: group.label,
+    entries: group.entries.map((entry) => uses(entry, counts)),
+  }));
 }
 
 function addDeposits(
@@ -120,12 +97,15 @@ export function newSystemRows(defaultKey: string | null, lastUsed: string | null
   return rows;
 }
 
-/** Pin the initializer, or unpin it when it is already pinned; a new pin goes last. */
-export function pinToggle(pinned: readonly string[], key: string): string[] {
-  return pinned.includes(key) ? pinned.filter((k) => k !== key) : [...pinned, key];
-}
-
-/** The recent list after picking `key`: most recent first, no repeats, `cap` at most. */
-export function notedRecent(recent: readonly string[], key: string, cap = RECENT_CAP): string[] {
-  return [key, ...recent.filter((k) => k !== key)].slice(0, Math.max(cap, 0));
+/** The keys the targets already carry, the random key standing in for no initializer at all. */
+export function currentKeys(
+  targets: readonly number[],
+  systems: ReadonlyMap<number, SystemNode>,
+): Set<string> {
+  const keys = new Set<string>();
+  for (const id of targets) {
+    const system = systems.get(id);
+    if (system !== undefined) keys.add(system.initializer === "" ? RANDOM_KEY : system.initializer);
+  }
+  return keys;
 }
