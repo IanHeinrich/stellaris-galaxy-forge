@@ -82,6 +82,7 @@ mod special_extras;
 mod special_generation;
 mod special_layout_bodies;
 mod special_layouts;
+mod special_megastructures;
 mod special_menu;
 mod star_discs;
 mod star_placeholders;

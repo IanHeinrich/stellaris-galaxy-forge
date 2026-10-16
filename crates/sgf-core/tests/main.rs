@@ -52,6 +52,7 @@ mod ops_add_system_ids;
 mod ops_add_system_refusals;
 mod ops_add_systems;
 mod ops_add_systems_extras;
+mod ops_add_systems_megastructures;
 mod ops_anomaly;
 mod ops_belts;
 mod ops_black_hole_names;

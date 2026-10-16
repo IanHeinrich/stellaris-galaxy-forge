@@ -61,6 +61,7 @@ fn with_extras() -> SystemAdd {
                 target(SpecTarget::System, "sgf_system"),
                 target(SpecTarget::System, HELD),
             ],
+            ..SystemExtras::default()
         },
     }
 }

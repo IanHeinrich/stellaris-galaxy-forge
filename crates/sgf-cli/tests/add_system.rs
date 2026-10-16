@@ -275,6 +275,42 @@ fn add_system_layout_comes_with_its_anomaly_unless_no_extras() {
     assert_eq!(refused.status.code(), Some(2), "--no-extras needs --layout");
 }
 
+/// A layout whose script spawns a ruin comes with it, as the app adds it, and the save
+/// validates.
+#[test]
+fn add_system_layout_comes_with_its_ruined_megastructure() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("dyson.sav");
+    let out = sgf(&[
+        "add-system",
+        SAMPLE_4_5,
+        "--seed",
+        "1",
+        "--at",
+        "-292.23404,-137.62265",
+        "--lane",
+        "169",
+        "--layout",
+        "dyson_sphere_init_01",
+        "--no-mods",
+        "-o",
+        out_path.to_str().unwrap(),
+    ]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    assert!(
+        stdout(&out).contains("its megastructure"),
+        "{}",
+        stdout(&out)
+    );
+    assert_eq!(
+        sgf(&["validate", out_path.to_str().unwrap()]).status.code(),
+        Some(0)
+    );
+}
+
 /// `--then-reroll` reaches the app's reroll: the system keeps its name and position, and
 /// with `--keep-special` a Special menu layout is built from that layout again.
 #[test]

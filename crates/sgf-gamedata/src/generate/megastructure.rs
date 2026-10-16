@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sgf_core::entity::{EntityError, get_planet_page};
 use sgf_core::ops::{
     MegastructureConstruction, MegastructurePlace, MegastructureRefusal, NewBypass,
-    NewMegastructure, NewMegastructurePlace, Op, OpError,
+    NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, OpError, RingQuadrant,
 };
 use sgf_core::session::{SaveQueries, Session};
 use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
@@ -22,8 +22,11 @@ use crate::construction::PlanetChange;
 use crate::construction::habitat::habitat;
 use crate::construction::ring_world::{RingStage, ring_world};
 use crate::construction::spawned::{AtHost, at_host, spawns_beside};
+use crate::initializers::{self, Body, Initializer};
+use crate::layouts::Unsupported as LayoutRefusal;
 use crate::registries::megastructure_swaps::made_at;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
+use crate::structure_spawns::WrittenPlace;
 
 /// An add's op, with what the type's construction does that the op leaves out.
 #[derive(Debug, Clone, PartialEq)]
@@ -687,6 +690,38 @@ fn add_op(
     construction: MegastructureConstruction,
     left_out: usize,
 ) -> Op {
+    Op::AddMegastructure {
+        system,
+        spec: new_row(gd, def, place, owner, construction, left_out),
+    }
+}
+
+/// The row a layout's `spawn_megastructure` of type `def` leaves at `place`, as [`add_op`]
+/// writes one, with no owner and none of the type's build chain, which a spawn does not run.
+pub(crate) fn spawned_row(
+    gd: &GameData,
+    def: &MegastructureDef,
+    place: MegastructurePlace,
+) -> NewMegastructure {
+    new_row(
+        gd,
+        def,
+        place,
+        None,
+        MegastructureConstruction::default(),
+        0,
+    )
+}
+
+/// The row [`add_op`] adds.
+fn new_row(
+    gd: &GameData,
+    def: &MegastructureDef,
+    place: MegastructurePlace,
+    owner: Option<u32>,
+    construction: MegastructureConstruction,
+    left_out: usize,
+) -> NewMegastructure {
     let bypass = def.bypass_type.as_ref().map(|kind| NewBypass {
         kind: kind.clone(),
         active: def.activates_gateway || gd.bypasses.get(kind).is_some_and(|b| b.always_active),
@@ -714,18 +749,15 @@ fn add_op(
         },
         MegastructurePlace::Free { x, y } => NewMegastructurePlace::Free { x, y },
     };
-    Op::AddMegastructure {
-        system,
-        spec: NewMegastructure {
-            kind: def.key.clone(),
-            name: None,
-            at,
-            owner,
-            bypass,
-            construction: (!construction.is_empty()).then_some(construction),
-            planet: None,
-            left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
-        },
+    NewMegastructure {
+        kind: def.key.clone(),
+        name: None,
+        at,
+        owner,
+        bypass,
+        construction: (!construction.is_empty()).then_some(construction),
+        planet: None,
+        left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
     }
 }
 
@@ -762,3 +794,134 @@ const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
 const ROUND_SATELLITE: &str =
     "Galaxy Forge can't add this round anything that orbits a planet, such as a moon.";
 const RING_WORLD_NO_STAR: &str = "Can't place a ring world in a system with no star.";
+
+/// Where a row a layout's script spawns stands, as the script places it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpawnedAt<'i> {
+    /// On the system's star.
+    Star,
+    /// On the last body whose block saves this event target.
+    Saved(&'i str),
+    /// At the system's centre, tied to no body, as the game writes a spawn that names no place.
+    Centre,
+}
+
+/// The megastructures a layout's script spawns, as an add writes them.
+#[derive(Debug, Default)]
+pub(crate) struct LayoutStructures<'g, 'i> {
+    pub rows: Vec<(&'g MegastructureDef, SpawnedAt<'i>)>,
+    /// The ring world its rows round the star make, with the type of those rows.
+    pub ring: Option<(&'g MegastructureDef, NewRingWorld)>,
+}
+
+impl<'g> LayoutStructures<'g, '_> {
+    /// The type of each row, in the order the script spawns them, the ring's last.
+    pub(crate) fn types(&self) -> impl Iterator<Item = &'g MegastructureDef> + '_ {
+        let ring = self.ring.iter().map(|(def, _)| *def);
+        self.rows.iter().map(|(def, _)| *def).chain(ring)
+    }
+}
+
+/// What `init`'s script spawns, as an add writes it: each `spawn_megastructure` of its own
+/// `init_effect` that runs whatever happens, of a type the install defines that stands for
+/// no bypass, placed on the star, on a body the layout always places and saves as the event
+/// target the spawn names, or at the centre, and the ruined ring world [`ruined_ring`] makes
+/// of its ring world rows. Refused with the reason for any other spawn, and for one written
+/// in a body's block.
+pub(crate) fn layout_structures<'g, 'i>(
+    gd: &'g GameData,
+    init: &'i Initializer,
+) -> Result<LayoutStructures<'g, 'i>, LayoutRefusal> {
+    let bodies: Vec<Body<'i>> = initializers::expand(&init.planets).collect();
+    if bodies.iter().any(|b| !b.block.megastructures.is_empty()) {
+        return Err(LayoutRefusal::Megastructure);
+    }
+    let mut out = LayoutStructures::default();
+    let mut ring_rows = Vec::new();
+    for spawn in &init.megastructures {
+        let def = gd
+            .megastructures
+            .get(&spawn.kind)
+            .filter(|_| spawn.always)
+            .ok_or(LayoutRefusal::Megastructure)?;
+        if def.bypass_type.is_some() {
+            return Err(LayoutRefusal::Bypass);
+        }
+        if def.ring_world {
+            ring_rows.push((def, &spawn.place));
+            continue;
+        }
+        let at = match &spawn.place {
+            WrittenPlace::Centre => SpawnedAt::Centre,
+            WrittenPlace::Planet(target) if target == "star" => SpawnedAt::Star,
+            WrittenPlace::Planet(target) => {
+                let token = target
+                    .strip_prefix("event_target:")
+                    .ok_or(LayoutRefusal::Megastructure)?;
+                bodies
+                    .iter()
+                    .rev()
+                    .find(|b| b.block.saves_target.iter().any(|t| t == token))
+                    .filter(|b| b.always)
+                    .ok_or(LayoutRefusal::Megastructure)?;
+                SpawnedAt::Saved(token)
+            }
+            _ => return Err(LayoutRefusal::Megastructure),
+        };
+        out.rows.push((def, at));
+    }
+    if let Some(&(def, _)) = ring_rows.first() {
+        let ring = ruined_ring(gd, def, &ring_rows).ok_or(LayoutRefusal::Megastructure)?;
+        out.ring = Some((def, ring));
+    }
+    Ok(out)
+}
+
+/// The ring world that `rows`, spawns at their written orbits, make: the one `def`'s chain
+/// lays out with every quadrant ruined, when every row is of `def`'s type and stands where a
+/// ruined quadrant of that type does, a written angle turning on 180 degrees as the game's
+/// spawn turns it. It has none of the flags or variables the chain leaves, since a spawn runs
+/// no chain. `None` for any other rows.
+fn ruined_ring(
+    gd: &GameData,
+    def: &MegastructureDef,
+    rows: &[(&MegastructureDef, &WrittenPlace)],
+) -> Option<NewRingWorld> {
+    let stages = vec![RingStage::Ruined; rows.len()];
+    let mut ring = ring_world(gd, &def.key, &stages, None, &[]).ok()?;
+    let mut written: Vec<(f64, f64)> = rows
+        .iter()
+        .map(|(row, place)| match place {
+            WrittenPlace::Orbit { distance, angle }
+                if row.key == def.key && distance.min == distance.max && angle.min == angle.max =>
+            {
+                Some((distance.min, (angle.min + 180.0).rem_euclid(360.0)))
+            }
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    let mut laid: Vec<(f64, f64)> = ring
+        .quadrants
+        .iter()
+        .map(|quadrant| match quadrant {
+            RingQuadrant::Ruined { row } if row.kind == def.key => {
+                Some((row.at.radius, row.at.angle.rem_euclid(360.0)))
+            }
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    written.sort_by(|a, b| a.1.total_cmp(&b.1));
+    laid.sort_by(|a, b| a.1.total_cmp(&b.1));
+    let same = written.len() == laid.len()
+        && written
+            .iter()
+            .zip(&laid)
+            .all(|(a, b)| (a.0 - b.0).abs() < 0.01 && (a.1 - b.1).abs() < 0.01);
+    if !same {
+        return None;
+    }
+    ring.system_flags.clear();
+    ring.system_variables.clear();
+    ring.star_flags.clear();
+    Some(ring)
+}

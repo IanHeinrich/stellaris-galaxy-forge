@@ -35,7 +35,7 @@ fn free_ground(session: &Session) -> (f64, f64) {
 
 /// The label the install's own localisation gives each of [`CONVERTED_LAYOUTS`], which only
 /// the real install can settle.
-const LABELS: [(&str, &str); 14] = [
+const LABELS: [(&str, &str); 15] = [
     ("sol_system_initializer", "Sol"),
     ("new_bratulla_initializer", "New Bratulla"),
     ("special_init_06", "Zanaam"),
@@ -50,6 +50,7 @@ const LABELS: [(&str, &str); 14] = [
     ("hostile_init_21", "Tiyun Ort"),
     ("holibrae_initializer", "Holibrae"),
     ("the_chosen_escapee_initializer", "Ophala"),
+    ("cybrex_system", "Cybrex Alpha"),
 ];
 
 fn label_of(key: &str) -> &'static str {

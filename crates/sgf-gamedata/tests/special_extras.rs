@@ -308,3 +308,17 @@ fn random_and_shape_adds_plant_nothing() {
     );
     assert_eq!(names(&op).len(), 1);
 }
+
+/// A ruined Dyson sphere's system goes in with its row at the centre, tied to no body, as the
+/// game writes a `spawn_megastructure` that names no place.
+#[test]
+fn a_ruined_dyson_sphere_comes_with_its_row() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = open_4_5();
+    let op = special_op(gd, &session, 1, SPOT, "dyson_sphere_init_01", true).expect("the op");
+    assert_eq!(names(&op), ["AddSystemFromSpec", "AddMegastructure"]);
+    let text = applied(&mut session, "dyson_sphere", op);
+    assert!(text.contains("type=\"dyson_sphere_ruined\""), "{text}");
+}
