@@ -1,19 +1,21 @@
-import { useEffect } from "react";
 import type { AddSystemPicks } from "../../../generated/AddSystemPicks";
 import type { StarClassPick } from "../../../store/generatorStore";
-import { useAddSystemRefusal, useEditorStore } from "../../../store/editorStore";
+import { useEditorStore } from "../../../store/editorStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
+import { useSpecialPickerStore } from "../../../store/specialPickerStore";
+import { useAddSystemPreview } from "../../useAddSystemPreview";
 import { useGeneratorData } from "../../useGeneratorData";
+import { MenuItem } from "./MenuItem";
 import { PickItem } from "./PickCard";
-import { SpecialItems } from "./SpecialItems";
 import { Submenu } from "./Submenu";
 
 const ADD_SYSTEM_LABEL = "Add system here";
 const RANDOM_LABEL = "Random";
+const SPECIAL_LABEL = "Special…";
 
 /**
- * The rolls "Add system here" offers: any regular system, one around a star class, and the
- * game's special layouts, each with its card once the picks for this save are read.
+ * The rolls "Add system here" offers: any regular system, one around a star class, each with its
+ * card once the picks for this save are read, and Special…, which opens the Special picker.
  */
 function Rolls({
   x,
@@ -27,6 +29,8 @@ function Rolls({
   stars: readonly StarClassPick[];
 }) {
   const addRandomSystemAt = useEditorStore((s) => s.addRandomSystemAt);
+  const menu = useMapChromeStore((s) => s.contextMenu);
+  const openSpecial = useSpecialPickerStore((s) => s.openAt);
   return (
     <>
       <PickItem
@@ -48,7 +52,14 @@ function Rolls({
           {c.label}
         </PickItem>
       ))}
-      {picks && picks.special.length > 0 && <SpecialItems x={x} y={y} picks={picks.special} />}
+      {picks && picks.special.length > 0 && menu && (
+        <MenuItem
+          className="menu-item context-menu-separated"
+          run={() => openSpecial({ x, y }, { x: menu.x, y: menu.y })}
+        >
+          {SPECIAL_LABEL}
+        </MenuItem>
+      )}
     </>
   );
 }
@@ -60,15 +71,7 @@ function Rolls({
  */
 export function AddSystemItems({ x, y }: { x: number; y: number }) {
   const { picks, stars } = useGeneratorData(true);
-  const setPreview = useMapChromeStore((s) => s.setAddSystemPreview);
-  const refusal = useAddSystemRefusal(x, y);
-  const tooClose = refusal?.limit === "tooClose";
-  const edge = refusal?.limit === "outside" ? refusal.reach : null;
-
-  useEffect(() => {
-    setPreview({ x, y, tooClose, edge });
-    return () => setPreview(null);
-  }, [x, y, tooClose, edge, setPreview]);
+  const refusal = useAddSystemPreview(x, y);
 
   return (
     <Submenu

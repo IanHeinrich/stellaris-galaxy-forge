@@ -20,6 +20,24 @@
   overflow: hidden;
 }
 
+/* Beside a point of the map, smaller and with no scrim, so the map around the point stays in view. */
+.browse.browse-beside {
+  position: absolute;
+  z-index: 5;
+  width: min(680px, calc(100% - 16px));
+  height: min(600px, calc(100% - 16px));
+}
+
+.browse-beside .browse-cols {
+  grid-template-columns: 140px minmax(0, 1fr) 280px;
+}
+
+/* The narrow columns wrap long names onto a second line instead of cutting them. */
+.browse-beside .browse-group-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .browse-inner {
   display: flex;
   flex-direction: column;
@@ -134,6 +152,41 @@
 
 .browse-empty {
   padding: 8px 12px;
+}
+
+/* The detail pane right of the list: a name, its key, and labelled facts. */
+.browse-detail {
+  min-height: 0;
+  padding: 10px 14px;
+  overflow-y: auto;
+}
+
+.browse-detail-head {
+  margin-bottom: 6px;
+}
+
+.browse-detail-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.browse-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 0;
+  font-size: var(--text-note);
+}
+
+.browse-fact {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.browse-fact .k {
+  color: var(--fg-muted);
 }
 
 .browse-foot {

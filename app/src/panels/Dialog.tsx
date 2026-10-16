@@ -1,4 +1,11 @@
-import { useEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { ENTER, ESCAPE } from "./keys";
 
 const FOCUSABLE =
@@ -23,10 +30,11 @@ function submitForm(root: HTMLElement): void {
  * itself submits its form, as Enter in a field would, but not a held key's repeats, which began
  * before it opened. A dialog that opens without the player asking, such as Update, has no form,
  * so a key meant for the screen under it takes no action. With `onDismiss` it sits on a scrim
- * that answers a press on the backdrop.
+ * that answers a press on the backdrop; without one, `style` can place it.
  */
 export function Dialog({
   className,
+  style,
   scrim = "launch",
   label,
   onClose,
@@ -34,6 +42,7 @@ export function Dialog({
   children,
 }: {
   className?: string;
+  style?: CSSProperties;
   scrim?: string;
   label: string;
   onClose: () => void;
@@ -75,6 +84,7 @@ export function Dialog({
     <div
       ref={ref}
       className={className}
+      style={style}
       role="dialog"
       aria-modal="true"
       aria-label={label}

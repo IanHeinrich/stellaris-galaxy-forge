@@ -48,6 +48,15 @@ export function lastDrawn(
   throw new Error(`nothing drawn: ${what}`);
 }
 
+/** The key handler of the browse dialog drawn last, which every key pressed inside it reaches. */
+export function drawnBrowseKeys(): (e: unknown) => void {
+  return lastDrawn(
+    ({ type, props }) =>
+      type === "div" && typeof props.onKeyDown === "function" && props.role === undefined,
+    "the browse dialog's key handler",
+  ).onKeyDown as never;
+}
+
 /** The last checkbox drawn. */
 export function drawnCheckbox(): { onChange(): void; checked: boolean; disabled?: boolean } {
   return lastDrawn(

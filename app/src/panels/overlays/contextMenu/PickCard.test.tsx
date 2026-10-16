@@ -5,109 +5,12 @@ vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
-import type { PickSummary } from "../../../generated/PickSummary";
-import type { SpecialLayout } from "../../../generated/SpecialLayout";
-import { shown } from "../../../test/elements";
+import { pickSummary } from "../../../test/builders";
 import { PickCardBody } from "./PickCard";
-import { SpecialRows } from "./SpecialItems";
 
-describe("the Special menu and the cards", () => {
-  const summary = (extra: Partial<PickSummary> = {}): PickSummary => ({
-    star_classes: [{ key: "sc_m", name: "Class M Star" }],
-    star_description: null,
-    planets: { min: 2, max: 5 },
-    max_moons: 0,
-    moons: "never",
-    belts: { min: 0, max: 0 },
-    belt_kinds: [],
-    asteroids: { min: 0, max: 0 },
-    named_bodies: [],
-    notable_classes: [],
-    modifiers: [],
-    rings: "never",
-    dlc: null,
-    max_instances: null,
-    in_galaxy: null,
-    ...extra,
-  });
-  const layout = (key: string, label: string, extra: Partial<SpecialLayout> = {}) => ({
-    layout: {
-      key,
-      label,
-      unique: false,
-      capped: false,
-      in_galaxy: 0,
-      dlc: null,
-      group: null,
-      ...extra,
-    },
-    summary: summary(extra.capped ? { max_instances: 1 } : {}),
-  });
-
-  it("groups unique systems before the other special systems, each by label, and marks each row", () => {
-    const html = renderToStaticMarkup(
-      <SpecialRows
-        x={0}
-        y={0}
-        picks={[
-          layout("wooden", "Arboreal World", { dlc: { name: "Cosmic Storms", met: false } }),
-          layout("zevox", "Zevox", { unique: true, capped: true, in_galaxy: 1 }),
-          layout("kira", "Kira", { unique: true, capped: true }),
-          layout("trappist", "Trappist", { capped: true }),
-          layout("metal", "Metal Planet", { dlc: { name: "Cosmic Storms", met: true } }),
-        ]}
-      />,
-    );
-    const order = [
-      ...html.matchAll(/>(Unique systems|Other special systems)<|<span>([^<]+)<\/span>/g),
-    ].map((m) => m[1] ?? m[2]);
-    expect(order).toEqual([
-      "Unique systems",
-      "Kira",
-      "Zevox",
-      "Other special systems",
-      "Arboreal World",
-      "Metal Planet",
-      "Trappist",
-    ]);
-    expect(html.match(/aria-label="Already in this galaxy"/g)).toHaveLength(1);
-    expect(shown(html).match(/\bDLC\b/g)).toHaveLength(1);
-    expect(html).toContain("Needs Cosmic Storms, which this save doesn&#x27;t have");
-    expect(html).not.toContain("disabled");
-  });
-
-  it("lists the layouts no galaxy places after the rest, one group per mod by name", () => {
-    const html = renderToStaticMarkup(
-      <SpecialRows
-        x={0}
-        y={0}
-        picks={[
-          layout("ring", "Ring Cluster", { group: "Zeta Mod" }),
-          layout("story", "Story System", { group: "Alpha Mod" }),
-          layout("trappist", "Trappist", { capped: true }),
-          layout("forge", "Forge World", { group: "Zeta Mod", unique: true }),
-          layout("kira", "Kira", { unique: true, capped: true }),
-        ]}
-      />,
-    );
-    const order = [...html.matchAll(/aria-label="([^"]+)"|<span>([^<]+)<\/span>/g)].map(
-      (m) => m[1] ?? m[2],
-    );
-    expect(order).toEqual([
-      "Unique systems",
-      "Kira",
-      "Other special systems",
-      "Trappist",
-      "Alpha Mod",
-      "Story System",
-      "Zeta Mod",
-      "Forge World",
-      "Ring Cluster",
-    ]);
-  });
-
+describe("the cards", () => {
   it("says what a pick can produce and leaves out what it has nothing for", () => {
-    const html = renderToStaticMarkup(<PickCardBody title="Random" summary={summary()} />);
+    const html = renderToStaticMarkup(<PickCardBody title="Random" summary={pickSummary()} />);
     expect(html).toContain("Class M Star");
     expect(html).toContain("2–5");
     expect(html).not.toContain("Belts");
@@ -118,7 +21,7 @@ describe("the Special menu and the cards", () => {
     const html = renderToStaticMarkup(
       <PickCardBody
         title="Wenkwort"
-        summary={summary({
+        summary={pickSummary({
           max_instances: 1,
           in_galaxy: 1,
           belts: { min: 1, max: 1 },
@@ -138,7 +41,7 @@ describe("the Special menu and the cards", () => {
     const html = renderToStaticMarkup(
       <PickCardBody
         title="Arboreal World"
-        summary={summary({
+        summary={pickSummary({
           max_instances: 1,
           in_galaxy: 0,
           dlc: { name: "Cosmic Storms", met: false },
@@ -155,7 +58,7 @@ describe("the Special menu and the cards", () => {
     const html = renderToStaticMarkup(
       <PickCardBody
         title="Tiyun Ort"
-        summary={summary({
+        summary={pickSummary({
           comes_with: [{ kind: "dig_site", key: "site_graveyard", name: "Tiyanki Graveyard" }],
           comes_without: ["fleets", "ambient_objects"],
           story_kept_by_existing: true,

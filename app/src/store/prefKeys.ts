@@ -19,6 +19,9 @@ export const PREF_KEYS = {
   initializerPins: "sgf.initializers.pinned",
   initializerRecent: "sgf.initializers.recent",
   initializerDefault: "sgf.initializers.default",
+  specialPins: "sgf.special.pinned",
+  specialRecent: "sgf.special.recent",
+  specialExtras: "sgf.special.extras",
   nebulaRadius: "sgf.nebula.radius",
   /** Read only to carry a setting from before `laneDensity` over. */
   meshBeta: "sgf.mesh.beta",

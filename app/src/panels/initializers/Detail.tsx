@@ -19,7 +19,7 @@ import { entryLabel, nameKeysOf } from "./rows";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="ib-fact">
+    <div className="browse-fact">
       <span className="k">{label}</span>
       <span>{children}</span>
     </div>
@@ -73,9 +73,9 @@ export function Detail({ entry, uses }: { entry: InitializerView | null; uses: n
 
   if (entry === null) {
     return (
-      <div className="ib-detail">
-        <div className="ib-detail-head">
-          <div className="ib-detail-name">Random</div>
+      <div className="browse-detail">
+        <div className="browse-detail-head">
+          <div className="browse-detail-name">Random</div>
           <div className="muted mono">no initializer</div>
         </div>
         <div className="muted">The game picks what the system holds when the galaxy is built.</div>
@@ -87,9 +87,9 @@ export function Detail({ entry, uses }: { entry: InitializerView | null; uses: n
   const label = entryLabel(entry, names);
   const roots = [summary?.install ?? "", ...(summary?.mods ?? []).map((m) => m.dir ?? "")];
   return (
-    <div className="ib-detail">
-      <div className="ib-detail-head">
-        <div className="ib-detail-name">{label ?? entry.name}</div>
+    <div className="browse-detail">
+      <div className="browse-detail-head">
+        <div className="browse-detail-name">{label ?? entry.name}</div>
         <div className="muted mono">{entry.name}</div>
       </div>
       <InitializerSpawn name={entry.name} />
@@ -101,7 +101,7 @@ export function Detail({ entry, uses }: { entry: InitializerView | null; uses: n
           </span>
         </div>
       )}
-      <div className="ib-facts">
+      <div className="browse-facts">
         {about.countries.length > 0 && (
           <Row label="Spawns">
             {about.countries.map((country, i) => (

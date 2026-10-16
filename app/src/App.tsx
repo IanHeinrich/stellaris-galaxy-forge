@@ -8,6 +8,7 @@ import { MapCanvas } from "./map/MapCanvas";
 import { ContextMenu } from "./panels/overlays/ContextMenu";
 import { LoadingOverlay } from "./panels/overlays/LoadingOverlay";
 import { InitializerBrowser } from "./panels/initializers/Browser";
+import { SpecialPicker } from "./panels/specialPicker/SpecialPicker";
 import { browseInitializers } from "./panels/initializerEntry";
 import { DiskChangeNotice } from "./panels/chrome/DiskChangeNotice";
 import { Dock } from "./panels/chrome/Dock";
@@ -206,6 +207,7 @@ function App() {
           <UpdateDialog />
           <ExportDialog />
           <InitializerBrowser />
+          <SpecialPicker />
           <EditorChooser />
         </div>
         {status === "ready" && <Dock />}

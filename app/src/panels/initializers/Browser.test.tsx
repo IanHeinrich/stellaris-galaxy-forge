@@ -13,7 +13,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { RANDOM_KEY, useInitializerBrowserStore } from "../../store/initializerBrowserStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
+import { drawnBrowseKeys, drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
 import { shown } from "../../test/elements";
 import { mockedIpc } from "../../test/ipc";
 import { stubPrefs } from "../../test/prefs";
@@ -46,11 +46,7 @@ function press(
   { shift = false, ctrl = false, meta = false, target = {} as unknown } = {},
 ): { preventDefault: ReturnType<typeof vi.fn> } {
   render();
-  const onKeyDown = lastDrawn(
-    ({ type, props }) =>
-      type === "div" && typeof props.onKeyDown === "function" && props.role === undefined,
-    "the dialog's key handler",
-  ).onKeyDown as KeyHandler;
+  const onKeyDown = drawnBrowseKeys();
   const event = {
     key,
     shiftKey: shift,
@@ -113,7 +109,7 @@ describe("the dialog", () => {
     expect(html).toContain('aria-label="Initializer groups"');
     expect(shown(html)).toContain("All 17");
     expect(html).toContain('role="listbox" aria-label="Initializers"');
-    expect(html).toContain('class="ib-detail"');
+    expect(html).toContain('class="browse-detail"');
     expect(html).toContain("Assign to 3 systems");
     expect(html).toContain(
       "Up/Down move · Enter assign · Shift+Enter assign and keep open · Ctrl+D pin · Esc close",

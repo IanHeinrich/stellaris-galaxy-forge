@@ -52,6 +52,9 @@ function fileStem(source: string): string {
 const MEGASTRUCTURE =
   /dyson|ring_world|megastructure|science_nexus|sentry|art_install|interstellar_assembly|matter_decompressor|mega_shipyard|strategic_coord/;
 
+/** The group of the game's unique and special systems. */
+export const SPECIAL_GROUP = "unique";
+
 interface Category {
   id: string;
   label: string;
@@ -81,7 +84,7 @@ const CATEGORIES: Category[] = [
     match: (entry) => MEGASTRUCTURE.test(entry.name.toLowerCase()),
   },
   {
-    id: "unique",
+    id: SPECIAL_GROUP,
     label: "Unique & special",
     match: (_, stem) =>
       stem.startsWith("unique_") ||
