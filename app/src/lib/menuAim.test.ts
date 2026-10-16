@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SUBMENU_CLOSE_MS, SubmenuAim, aimsAt, inTriangle, placeBeside } from "./menuAim";
+import {
+  SUBMENU_CLOSE_MS,
+  SubmenuAim,
+  aimsAt,
+  inTriangle,
+  placeBeside,
+  placeBesidePoint,
+} from "./menuAim";
 
 /** A submenu to the right of an entry that the pointer left at (100, 50). */
 const MENU = { left: 110, top: 20, right: 250, bottom: 220 };
@@ -137,5 +144,44 @@ describe("where a submenu or card goes beside its anchor", () => {
 
   it("moves up to stay above the bottom edge", () => {
     expect(placeBeside(anchor, 93, size, { width: 1000, height: 350 }).top).toBe(42);
+  });
+});
+
+describe("a dialog placed beside a point", () => {
+  const SIZE = { width: 600, height: 400 };
+  const WINDOW = { width: 1600, height: 1000 };
+
+  it("goes left of a point mid-window, level with it", () => {
+    expect(placeBesidePoint({ x: 800, y: 500 }, SIZE, WINDOW, 16)).toEqual({
+      left: 184,
+      top: 300,
+      side: "left",
+    });
+  });
+
+  it("goes right of a point near the left edge, and stays inside the top and bottom", () => {
+    expect(placeBesidePoint({ x: 100, y: 20 }, SIZE, WINDOW, 16)).toEqual({
+      left: 116,
+      top: 8,
+      side: "right",
+    });
+    expect(placeBesidePoint({ x: 100, y: 990 }, SIZE, WINDOW, 16).top).toBe(592);
+  });
+
+  it("stays left of a point near the right edge", () => {
+    expect(placeBesidePoint({ x: 1550, y: 500 }, SIZE, WINDOW, 16)).toMatchObject({
+      left: 934,
+      side: "left",
+    });
+  });
+
+  it("in a window too narrow for either side, takes the side with more room, inside the window", () => {
+    const narrow = { width: 900, height: 700 };
+    const left = placeBesidePoint({ x: 500, y: 350 }, SIZE, narrow, 16);
+    expect(left).toMatchObject({ left: 8, side: "left" });
+
+    const right = placeBesidePoint({ x: 300, y: 350 }, SIZE, narrow, 16);
+    expect(right).toMatchObject({ left: 292, side: "right" });
+    expect(right.left + SIZE.width).toBeLessThanOrEqual(narrow.width - 8);
   });
 });

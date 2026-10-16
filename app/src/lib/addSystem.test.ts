@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LeftOut } from "../generated/LeftOut";
-import type { PickSummary } from "../generated/PickSummary";
 import type { SystemNode } from "../generated/SystemNode";
-import { systemNode } from "../test/builders";
+import { pickSummary, systemNode } from "../test/builders";
 import { addedAmong, deleteAddedLabel, pickCard } from "./addSystem";
 
 describe("the Delete added systems entry", () => {
@@ -23,30 +22,12 @@ describe("the Delete added systems entry", () => {
 });
 
 describe("a special layout's card", () => {
-  const summary = (extra: Partial<PickSummary> = {}): PickSummary => ({
-    star_classes: [{ key: "sc_m", name: "Class M Star" }],
-    star_description: null,
-    planets: { min: 2, max: 5 },
-    max_moons: 0,
-    moons: "never",
-    belts: { min: 0, max: 0 },
-    belt_kinds: [],
-    asteroids: { min: 0, max: 0 },
-    named_bodies: [],
-    notable_classes: [],
-    modifiers: [],
-    rings: "never",
-    dlc: null,
-    max_instances: null,
-    in_galaxy: null,
-    ...extra,
-  });
   const line = (card: ReturnType<typeof pickCard>, label: string) =>
     card.lines.find((l) => l.label === label)?.text;
 
   it("names what it comes with, and says nothing when it comes with nothing", () => {
     const card = pickCard(
-      summary({
+      pickSummary({
         comes_with: [
           { kind: "anomaly", key: "BREACHSEALER_CAT", name: "Breachsealer" },
           { kind: "dig_site", key: "site_graveyard", name: "Tiyanki Graveyard" },
@@ -55,8 +36,21 @@ describe("a special layout's card", () => {
       "Seddom",
     );
     expect(line(card, "Comes with")).toBe("Breachsealer, Tiyanki Graveyard");
-    const bare = pickCard(summary(), "Seddom");
+    const bare = pickCard(pickSummary(), "Seddom");
     expect(bare.lines.map((l) => l.label)).toEqual(["Star", "Planets"]);
+  });
+
+  it("lists what it plants under Comes without when its extras are left out", () => {
+    const card = pickCard(
+      pickSummary({
+        comes_with: [{ kind: "anomaly", key: "BREACHSEALER_CAT", name: "Breachsealer" }],
+        comes_without: ["ambient_objects"],
+      }),
+      "Seddom",
+      false,
+    );
+    expect(line(card, "Comes with")).toBeUndefined();
+    expect(line(card, "Comes without")).toBe("Breachsealer, debris, wrecks and storms");
   });
 
   it("names every kind it comes without in plain words, in the order given", () => {
@@ -71,18 +65,18 @@ describe("a special layout's card", () => {
       "spawned_planets",
       "ambient_objects",
     ];
-    expect(line(pickCard(summary({ comes_without: every }), "Seddom"), "Comes without")).toBe(
+    expect(line(pickCard(pickSummary({ comes_without: every }), "Seddom"), "Comes without")).toBe(
       "a pre-FTL civilisation, colonies and pops, its empire, fleets and guardians, a starbase, an anomaly, a dig site, some of its planets, debris, wrecks and storms",
     );
-    expect(line(pickCard(summary({ comes_without: ["fleets"] }), "Seddom"), "Comes without")).toBe(
-      "fleets and guardians",
-    );
+    expect(
+      line(pickCard(pickSummary({ comes_without: ["fleets"] }), "Seddom"), "Comes without"),
+    ).toBe("fleets and guardians");
   });
 
   it("warns that the galaxy's own copy keeps the event chain, naming the layout", () => {
-    expect(pickCard(summary({ story_kept_by_existing: true }), "Tiyun Ort").storyKept).toBe(
+    expect(pickCard(pickSummary({ story_kept_by_existing: true }), "Tiyun Ort").storyKept).toBe(
       "Tiyun Ort is already in this galaxy, so its event chain stays with that one.",
     );
-    expect(pickCard(summary(), "Tiyun Ort").storyKept).toBeNull();
+    expect(pickCard(pickSummary(), "Tiyun Ort").storyKept).toBeNull();
   });
 });

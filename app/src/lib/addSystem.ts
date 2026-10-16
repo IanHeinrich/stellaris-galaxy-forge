@@ -121,8 +121,11 @@ function starText(names: string[]): string {
   return listed(names, "or");
 }
 
-/** The hover card of the pick called `name` in the Add system menu, leaving out the lines it has nothing for. */
-export function pickCard(summary: PickSummary, name: string): PickCardCopy {
+/**
+ * The card of the pick called `name`, leaving out the lines it has nothing for. Without `extras`
+ * what the layout plants is listed under Comes without.
+ */
+export function pickCard(summary: PickSummary, name: string, extras = true): PickCardCopy {
   const lines: CardLine[] = [];
   const add = (label: string, text: string) => {
     if (text !== "") lines.push({ label, text });
@@ -135,11 +138,10 @@ export function pickCard(summary: PickSummary, name: string): PickCardCopy {
   }
   add("Notable", featureText([...summary.named_bodies, ...summary.notable_classes]));
   add("Modifiers", featureText(summary.modifiers));
-  add("Comes with", (summary.comes_with ?? []).map((planting) => planting.name).join(", "));
-  add(
-    "Comes without",
-    (summary.comes_without ?? []).map((left) => LEFT_OUT_WORDS[left]).join(", "),
-  );
+  const planted = (summary.comes_with ?? []).map((planting) => planting.name);
+  const leftOut = (summary.comes_without ?? []).map((left) => LEFT_OUT_WORDS[left]);
+  add("Comes with", extras ? planted.join(", ") : "");
+  add("Comes without", [...(extras ? [] : planted), ...leftOut].join(", "));
   if (summary.dlc) add("DLC", summary.dlc.name);
   const inGalaxy = summary.in_galaxy ?? 0;
   const cap = summary.max_instances;
@@ -166,7 +168,7 @@ export function pickCard(summary: PickSummary, name: string): PickCardCopy {
   return { lines, unique, storyKept, missingDlc };
 }
 
-/** The marks a Special menu row carries. */
+/** The marks a row of the Special picker carries. */
 export interface SpecialMarks {
   /** A layout the galaxy already holds as many of as the game places, `cap`. */
   inGalaxy: boolean;

@@ -23,6 +23,7 @@ import { usePlanetMoveStore } from "./planetMoveStore";
 import { useRecentsStore } from "./recentsStore";
 import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
 import { useSceneStore } from "./sceneStore";
+import { useSpecialPickerStore } from "./specialPickerStore";
 import { useScriptsStore } from "./scriptsStore";
 import { useToolStore } from "./toolStore";
 import { useUpdateStore } from "./updateStore";
@@ -49,6 +50,7 @@ const STORES: StoreApi<object>[] = [
   useRecentsStore,
   useSceneStore,
   useScriptsStore,
+  useSpecialPickerStore,
   useToolStore,
   useUpdateStore,
   useWatchlistStore,

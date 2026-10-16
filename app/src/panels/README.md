@@ -5,8 +5,9 @@ One folder per slice of the UI: `browser/` (the dock's lists), `browseDialog/`
 (the top bar, its menus, the dock frame, the status bar and the map's tool
 rail), `file/` (the launch and open screens), `initializers/` (the initializer
 browser's rows, detail pane and actions, in a browse dialog), `inspector/` (the
-right-hand pane), `overlays/` (dialogs, the context menu, the map tooltip) and
-`search/` (the palette). A file more than one
+right-hand pane), `overlays/` (dialogs, the context menu, the map tooltip),
+`search/` (the palette) and `specialPicker/` (the Special picker's rows, detail
+pane and actions, in a browse dialog). A file more than one
 folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
 piece of script text the app shows: the Initializer sections' groups and the
 Inspector's Source tab. `Dialog.tsx` holds `Dialog` and `DialogFrame`, the
@@ -18,7 +19,8 @@ dialog with a form uses; its rules (`.dialog*`, `button.primary`) are in
 `inspector/useHoverCard.ts` its wiring.
 `panels.css` holds `.pop-surface`, the surface every popover wears, and
 `.listbox-option`, the states an option or tile of a listbox shows.
-The root also holds `useBodyName` (the names a body shows), `initializerEntry`
+The root also holds `useBodyName` (the names a body shows), `useAddSystemPreview`
+(the spawn buffer drawn while a spot is offered for a new system), `initializerEntry`
 (opening the initializer browser), `paintMod` (opening the Workshop pages) and
 `Select`. `PlanetIcon` sits in `inspector/`, because only its pages use it.
 

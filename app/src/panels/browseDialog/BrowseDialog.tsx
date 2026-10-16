@@ -1,9 +1,10 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Dialog } from "../Dialog";
 import { GroupTree, type GroupTreeProps } from "./GroupTree";
 import { ListBox, type ListBoxProps } from "./ListBox";
 import "./browse.css";
 import { fallbackHighlight } from "./highlight";
+import { useBeside, type BesidePoint } from "./useBeside";
 import { useBrowserKeys } from "./useBrowserKeys";
 
 /** How many rows are drawn before the list asks for a narrower search. */
@@ -14,6 +15,12 @@ export interface BrowseDialogProps<K extends string> {
   label: string;
   /** A class of the caller's own beside the dialog's. */
   className?: string;
+  /**
+   * A point of the map area to open beside, with no scrim, so the map around it stays in view;
+   * a press or a wheel turn outside the dialog closes it. Without one the dialog sits centred on
+   * a scrim.
+   */
+  beside?: BesidePoint;
   onClose: () => void;
   /** The search field's label and placeholder. */
   searchLabel: string;
@@ -45,6 +52,7 @@ export interface BrowseDialogProps<K extends string> {
 export function BrowseDialog<K extends string>({
   label,
   className,
+  beside,
   onClose,
   searchLabel,
   query,
@@ -61,6 +69,8 @@ export function BrowseDialog<K extends string>({
   detail,
   foot,
 }: BrowseDialogProps<K>) {
+  const inner = useRef<HTMLDivElement>(null);
+  const placed = useBeside(beside, inner, onClose);
   const shown = useMemo(() => keys.slice(0, MAX_ROWS), [keys]);
   const more = keys.length - shown.length;
   const { search, onKeyDown } = useBrowserKeys({
@@ -78,13 +88,14 @@ export function BrowseDialog<K extends string>({
 
   return (
     <Dialog
-      className={className === undefined ? "browse" : `browse ${className}`}
+      className={["browse", beside && "browse-beside", className].filter(Boolean).join(" ")}
+      style={placed}
       scrim="browse-scrim"
       label={label}
       onClose={onClose}
-      onDismiss={onClose}
+      onDismiss={beside === undefined ? onClose : undefined}
     >
-      <div className="browse-inner" onKeyDown={onKeyDown}>
+      <div ref={inner} className="browse-inner" onKeyDown={onKeyDown}>
         <div className="browse-head">
           <button
             type="button"

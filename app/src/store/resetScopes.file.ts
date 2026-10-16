@@ -12,6 +12,7 @@ import { useModifierPickerStore } from "./modifierPickerStore";
 import { useOpCheckStore } from "./opCheckStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
+import { useSpecialPickerStore } from "./specialPickerStore";
 
 /** The planet page's pickers: what each read and where each is open. */
 export const PICKERS: readonly (() => void)[] = [
@@ -33,6 +34,7 @@ export const FILE_SCOPED: readonly (() => void)[] = [
   () => useMegastructureAddStore.getState().cancel(),
   () => useEntityStore.getState().clear(),
   () => useGeneratorStore.getState().clearPicks(),
+  () => useSpecialPickerStore.getState().close(),
   () => useOpCheckStore.getState().reset(),
   () => useClassRollsStore.getState().clear(),
   forgetReclassify,

@@ -16,6 +16,9 @@ import { newFeZone } from "../../lib/feZone";
 import { clanOf } from "../../lib/marauder";
 import { useEditorStore } from "../../store/editorStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useInitializerBrowserStore } from "../../store/initializerBrowserStore";
+import { SPECIAL_GROUP } from "../../lib/initializer/initializerGroups";
+import { drawnBy, drawnButton } from "../../test/drawn";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { buttons } from "../../test/elements";
 import { openWith } from "../../test/session";
@@ -401,6 +404,23 @@ describe("the add system item", () => {
     await openWith(SCENARIO_RESULT);
     space(-50, -20);
     expect(menu()).not.toContain("Add system here");
+  });
+
+  it("on a scenario, opens the initializer browser on the special systems for that open only", async () => {
+    await openWith(SCENARIO_RESULT);
+    space(-50, -20);
+    drawnBy(menu);
+    drawnButton("New special system…").onClick();
+
+    const browser = useInitializerBrowserStore.getState();
+    expect(browser.open).toBe(true);
+    expect(browser.mode).toBe("create");
+    expect(browser.pending).toEqual({ x: -50, y: -20 });
+    expect(browser.group).toBe(SPECIAL_GROUP);
+
+    browser.close();
+    useInitializerBrowserStore.getState().openToCreate(10, 10);
+    expect(useInitializerBrowserStore.getState().group).toBeNull();
   });
 
   it("put Delete system on an added system's menu and on no other save system's", () => {

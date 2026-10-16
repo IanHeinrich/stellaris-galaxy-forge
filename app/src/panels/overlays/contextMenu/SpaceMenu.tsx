@@ -1,4 +1,5 @@
 import { newSystemRows } from "../../../lib/initializer/initializerBrowser";
+import { SPECIAL_GROUP } from "../../../lib/initializer/initializerGroups";
 import { ALL_CLANS_PLACED, nextFreeClan } from "../../../lib/marauder";
 import { useSystemNames } from "../../../store/browserRows";
 import { nearestSystem, useEditorStore } from "../../../store/editorStore";
@@ -65,6 +66,16 @@ export function SpaceMenu({
           run={() => createSystemFrom(target.x, target.y)}
         >
           New system from…
+        </MenuItem>
+      )}
+      {canCreate && (
+        <MenuItem
+          className="menu-item"
+          disabled={!gameData}
+          title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
+          run={() => createSystemFrom(target.x, target.y, SPECIAL_GROUP)}
+        >
+          New special system…
         </MenuItem>
       )}
       {canNebulae && (

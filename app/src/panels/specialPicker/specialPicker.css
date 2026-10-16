@@ -1,0 +1,91 @@
+/* The Special picker's rows, detail pane and actions, inside the browse dialog. */
+.sp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 22px;
+  align-items: center;
+  column-gap: 8px;
+  padding: 3px 10px;
+}
+
+.sp-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sp-dlc {
+  padding: 0 4px;
+  font-size: var(--text-fine);
+  line-height: 14px;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.sp-lock {
+  color: var(--fg-muted);
+}
+
+.sp-pin {
+  padding: 0;
+  opacity: 0.45;
+}
+
+.sp-pin.on,
+.browse-row:hover .sp-pin,
+.browse-row.active .sp-pin {
+  opacity: 1;
+}
+
+.sp-pin.on,
+.sp-pin-button.on {
+  color: var(--accent);
+}
+
+.sp-note {
+  margin-top: 5px;
+  font-size: var(--text-note);
+}
+
+.sp-extras {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 7px 8px;
+  font-size: var(--text-note);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sp-extras input {
+  flex: none;
+  margin: 2px 0 0;
+}
+
+.sp-summary {
+  white-space: nowrap;
+}
+
+.sp-hints {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-pin-button,
+.sp-place {
+  flex: none;
+}

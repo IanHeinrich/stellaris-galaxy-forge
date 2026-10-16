@@ -106,21 +106,6 @@
   flex: none;
 }
 
-.ib-detail {
-  min-height: 0;
-  padding: 10px 14px;
-  overflow-y: auto;
-}
-
-.ib-detail-head {
-  margin-bottom: 6px;
-}
-
-.ib-detail-name {
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .ib-totals {
   display: flex;
   align-items: center;
@@ -132,25 +117,6 @@
 .ib-totals .k {
   color: var(--fg-muted);
   font-size: var(--text-hint);
-}
-
-.ib-facts {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 0;
-  font-size: var(--text-note);
-}
-
-.ib-fact {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 8px;
-  overflow-wrap: anywhere;
-}
-
-.ib-fact .k {
-  color: var(--fg-muted);
 }
 
 .ib-country {
