@@ -325,17 +325,28 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "wenkwort_initializer",
         "wooden_planet_system_initializer",
     ];
+    let ruins = [
+        "dyson_sphere_init_01",
+        "mega_shipyard_init_01",
+        "megacorp_matter_decompressor_init_01",
+        "megacorp_strategic_coordination_center_init_01",
+        "quantum_catapult_init_01",
+        "ring_world_init_01",
+        "science_nexus_init_01",
+        "sentry_array_init_01",
+    ];
     let converted: Vec<&str> = CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect();
     assert_eq!(
         special,
         group_a
             .iter()
             .chain(&group_b)
+            .chain(&ruins)
             .chain(&converted)
             .copied()
             .collect(),
         "A and B with odds, less the layouts whose point is their spawn, time loop's shield \
-         and relic_system_4's scripted deposits, and the converted layouts"
+         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, and the converted layouts"
     );
     let why = |layout: &str| match of(gd, layout) {
         Eligibility::Unsupported(why) => why,
@@ -367,7 +378,6 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "sc_m in the layout, with a red giant written as its star"
     );
     assert_eq!(why("guardians_init_hatchling"), Unsupported::Guardian);
-    assert_eq!(why("dyson_sphere_init_01"), Unsupported::Megastructure);
 
     let mut session = common::open_4_5();
     for layout in &special {

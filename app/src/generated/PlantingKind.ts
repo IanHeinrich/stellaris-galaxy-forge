@@ -3,4 +3,4 @@
 /**
  * What a layout's script plants on one of its bodies.
  */
-export type PlantingKind = "anomaly" | "dig_site";
+export type PlantingKind = "anomaly" | "dig_site" | "megastructure";

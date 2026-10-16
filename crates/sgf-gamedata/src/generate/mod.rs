@@ -30,6 +30,7 @@ pub use megastructure::{
     AddSpot, HostMoons, HostMoonsFit, MegastructureFit, Planned, Refusal, habitat_op,
     megastructure_fits, megastructure_op, ring_world_op,
 };
+pub(crate) use megastructure::{SpawnedAt, layout_structures, spawned_row};
 pub use save::{
     BodyAsk, ClassRulesError, ForSaveError, Pick, SystemAsk, added_among, body_for_save, for_save,
     for_save_many, reroll, settle_name, special_op, special_op_with, systems_op,
@@ -272,6 +273,7 @@ fn build(
         rng: Rng::new(seed ^ DEPOSIT_STREAM),
         save: draw.save,
         planted: Vec::new(),
+        saved: Vec::new(),
     };
     let (star, planets) = deposits.give(rolled_star, rolled_planets);
     let spec = SystemSpec {
@@ -299,20 +301,40 @@ fn build(
             .collect(),
         lanes: Vec::new(),
     };
-    let extras = extras(gd, init, deposits.planted);
+    let extras = extras(gd, init, deposits.planted, &deposits.saved)?;
     Ok(SystemAdd { spec, extras })
 }
 
 /// What `init`'s script plants beside the system's bodies, `planted` holding what each
 /// body's effects planted and whether its block is a star's: its anomalies, its dig sites
 /// but those of a type the install gives no first stage and those on a star, which takes
-/// none, and the global event targets its bodies and the system's own `init_effect` save.
+/// none, the global event targets its bodies and the system's own `init_effect` save, and the
+/// megastructures its own `init_effect` spawns, a row on a saved event target standing on the
+/// last body of `saved` that saves it. Refused as the judge refuses the layout when it spawns
+/// a row the add cannot write, or one on an event target no body of the roll saves.
 fn extras(
     gd: &GameData,
     init: &Initializer,
     planted: Vec<(SpecBody, bool, Planted)>,
-) -> SystemExtras {
+    saved: &[(SpecBody, Vec<String>)],
+) -> Result<SystemExtras, GenerateError> {
+    let refused = |why| GenerateError::Unsupported(init.name.clone(), why);
+    let structures = layout_structures(gd, init).map_err(refused)?;
     let mut extras = SystemExtras::default();
+    for (def, at) in structures.rows {
+        let body = match at {
+            SpawnedAt::Star => Some(SpecBody::Star),
+            SpawnedAt::Saved(token) => saved
+                .iter()
+                .rev()
+                .find(|(_, names)| names.iter().any(|name| name == token))
+                .map(|(body, _)| Some(*body))
+                .ok_or_else(|| refused(Unsupported::Megastructure))?,
+            SpawnedAt::Centre => None,
+        };
+        extras.megastructures.push(spawned_row(def, body));
+    }
+    extras.ring_world = structures.ring.map(|(_, ring)| ring);
     for (body, star, planted) in planted {
         extras.anomalies.extend(
             planted
@@ -350,7 +372,7 @@ fn extras(
             target: SpecTarget::System,
             name: name.clone(),
         }));
-    extras
+    Ok(extras)
 }
 
 /// How often `init` gives a system of star class `class`: always for its one class, else
@@ -828,6 +850,8 @@ struct Deposits<'g> {
     save: Option<&'g SaveFacts>,
     /// Each body that planted something, whether its block is a star's, and what it planted.
     planted: Vec<(SpecBody, bool, Planted)>,
+    /// Each body whose block saves event targets, and their names.
+    saved: Vec<(SpecBody, Vec<String>)>,
 }
 
 impl Deposits<'_> {
@@ -890,6 +914,9 @@ impl Deposits<'_> {
             &mut self.rng,
             block.blockers,
         );
+        if !block.saves_target.is_empty() {
+            self.saved.push((at, block.saves_target.clone()));
+        }
         let mut planted = Planted::default();
         let dlc = Dlc::of(self.gd, self.save);
         body_effects::apply(self.gd, &block.effects, body, &dlc, &mut planted);

@@ -175,19 +175,39 @@ fn nested(node: &Node, def: &Def) -> bool {
     node.scalar_str(&def.src).is_none() && !node.children().is_empty()
 }
 
-/// The first statement below `block` that is not dropped with the script, when there is
-/// one: what a layout's own `init_effect`, or a scope or chance a body's changes to, runs.
-pub(crate) fn undropped(block: &Node, def: &Def, dropping: Dropping) -> Option<String> {
+/// The first statement below `block` that is not dropped with the script, nor one of `written`,
+/// when there is one: what a layout's own `init_effect`, or a scope or chance a body's changes
+/// to, runs.
+pub(crate) fn undropped(
+    block: &Node,
+    def: &Def,
+    dropping: Dropping,
+    written: &[&str],
+) -> Option<String> {
     for child in block.children() {
         let Some(key) = child.key_str(&def.src) else {
             continue;
         };
-        if condition_key(key) || dropped(key, dropping) || COLLECTED.contains(&key) {
+        if condition_key(key)
+            || dropped(key, dropping)
+            || COLLECTED.contains(&key)
+            || written.contains(&key)
+        {
             continue;
+        }
+        if key.parse::<f64>().is_ok() {
+            // A `random_list` weight, whose block is one chance's effects.
+            match nested(child, def) {
+                true => match undropped(child, def, dropping, written) {
+                    Some(found) => return Some(found),
+                    None => continue,
+                },
+                false => continue,
+            }
         }
         let walkable = keeps_scope(key) || CHANCE.contains(&key) || scope(key);
         if nested(child, def) && walkable {
-            match undropped(child, def, dropping) {
+            match undropped(child, def, dropping, written) {
                 Some(found) => return Some(found),
                 None => continue,
             }
@@ -314,7 +334,7 @@ fn read_block(
                 continue;
             }
             _ if nested(child, def) && (CHANCE.contains(&key) || scope(key)) => {
-                if let Some(found) = undropped(child, def, dropping) {
+                if let Some(found) = undropped(child, def, dropping, &[]) {
                     unwritten.get_or_insert(found);
                 }
                 continue;

@@ -15,6 +15,7 @@ use sgf_gamedata::generate::{SystemAsk, special_op, systems_op};
 use sgf_gamedata::summary::{Planting, PlantingKind, layout_summary};
 
 use common::generate::FILES;
+use common::prepare::current;
 use common::{SPOT, hand_written, open_4_5, open_4_5_edited, sample_install};
 
 const SEDDOM: &str = "breachsealer_system";
@@ -37,10 +38,6 @@ fn members(op: &Op) -> Vec<&Op> {
 
 fn names(op: &Op) -> Vec<&'static str> {
     members(op).iter().map(|op| op.name()).collect()
-}
-
-fn current(session: &Session) -> Vec<u8> {
-    session.doc().pieces().collect::<Vec<_>>().concat()
 }
 
 /// Every slot the session wrote, in file order: the line it stands at, what it replaced and
@@ -307,4 +304,18 @@ fn random_and_shape_adds_plant_nothing() {
         names(&op)
     );
     assert_eq!(names(&op).len(), 1);
+}
+
+/// A ruined Dyson sphere's system goes in with its row at the centre, tied to no body, as the
+/// game writes a `spawn_megastructure` that names no place.
+#[test]
+fn a_ruined_dyson_sphere_comes_with_its_row() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = open_4_5();
+    let op = special_op(gd, &session, 1, SPOT, "dyson_sphere_init_01", true).expect("the op");
+    assert_eq!(names(&op), ["AddSystemFromSpec", "AddMegastructure"]);
+    let text = applied(&mut session, "dyson_sphere", op);
+    assert!(text.contains("type=\"dyson_sphere_ruined\""), "{text}");
 }

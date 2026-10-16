@@ -1,17 +1,20 @@
 //! Adding systems to a save as one undo step: a `Batch` of `AddSystemFromSpec`, the
-//! anomalies, dig sites and global event targets their layouts' scripts make, and the lanes
-//! between them.
+//! anomalies, dig sites, megastructures and global event targets their layouts' scripts make,
+//! and the lanes between them.
 
 use std::collections::BTreeSet;
 
 use crate::and_list;
 use crate::format::save::alloc;
 use crate::format::save::event_targets;
-use crate::format::save::system_spec::{SpecTarget, SystemAdd, SystemSpec};
+use crate::format::save::system_spec::{SpecMegastructurePlace, SpecTarget, SystemAdd, SystemSpec};
 use crate::format::save::write::add_system::{add_description, body_ids, body_place, check_places};
 use crate::format::save::write::nebula::written_literal;
 use crate::ops::rules::{Form, check_text, labelled};
-use crate::ops::{EventTargetOf, LaneEnd, LanePair, Op, OpError, SpecBody};
+use crate::ops::{
+    EventTargetOf, LaneEnd, LanePair, NewMegastructure, NewMegastructurePlace, Op, OpError,
+    SpecBody,
+};
 use crate::session::Session;
 use crate::{plural, plural_of};
 
@@ -21,7 +24,8 @@ pub const BULK_ADD_CAP: usize = 200;
 /// The op that adds `systems` to the save: an [`Op::AddSystemFromSpec`] per system in order,
 /// the `j`th taking the next system id plus `j` and each spec's own lanes dropped; then for
 /// each system, with `extras`, an [`Op::AddAnomaly`] and an [`Op::AddDigSite`] per one its
-/// extras plant, and whatever `extras` says an [`Op::AddEventTarget`] per target they save
+/// extras plant, an [`Op::AddMegastructure`] per row they spawn and an [`Op::AddRingWorld`] for
+/// their ring world, and whatever `extras` says an [`Op::AddEventTarget`] per target they save
 /// whose name the save does not hold yet, the last of a name saved twice; then one
 /// [`Op::AddLanePairs`] laying `lanes` when there are any. The new bodies' ids are those the
 /// planet table hands out next, in the order the specs list them. All of it is one
@@ -93,7 +97,7 @@ pub(crate) fn add_op(
 }
 
 /// The ops that write each system's extras, the `j`th system taking id `first + j`: its
-/// anomalies and dig sites when `extras`, and its event targets but those whose name the
+/// anomalies, dig sites, megastructures and ring world when `extras`, and its event targets but those whose name the
 /// save holds, a name saved twice taking the last.
 fn planted(
     s: &Session,
@@ -103,8 +107,7 @@ fn planted(
 ) -> Result<Vec<Op>, OpError> {
     let any = systems.iter().any(|add| {
         let planted = &add.extras;
-        !planted.event_targets.is_empty()
-            || (extras && !(planted.anomalies.is_empty() && planted.dig_sites.is_empty()))
+        !planted.event_targets.is_empty() || (extras && planted.optional())
     });
     if !any {
         return Ok(Vec::new());
@@ -144,6 +147,33 @@ fn planted(
                     difficulty: site.difficulty,
                 });
             }
+            for row in &add.extras.megastructures {
+                let at = match &row.at {
+                    SpecMegastructurePlace::Body {
+                        body: at,
+                        body_flags,
+                        star_only,
+                    } => NewMegastructurePlace::Body {
+                        body: body(*at)?,
+                        body_flags: body_flags.clone(),
+                        star_only: *star_only,
+                    },
+                    &SpecMegastructurePlace::Free { x, y } => NewMegastructurePlace::Free { x, y },
+                };
+                let spec = NewMegastructure {
+                    kind: row.kind.clone(),
+                    at,
+                    ..NewMegastructure::default()
+                };
+                ops.push(Op::AddMegastructure { system, spec });
+            }
+            if let Some(ring) = &add.extras.ring_world {
+                ops.push(Op::AddRingWorld {
+                    system,
+                    owner: None,
+                    ring: ring.clone(),
+                });
+            }
         }
         for saved in &add.extras.event_targets {
             if held.contains(&saved.name) {
@@ -166,12 +196,14 @@ fn planted(
 }
 
 /// What the add says in the undo list: "Added Seddom #601 with its anomaly", or "Added 3
-/// systems with their 2 anomalies" for several, naming the anomalies and dig sites
-/// `planted` writes. A lone system with neither says what its add says.
+/// systems with their 2 anomalies" for several, naming the anomalies, dig sites, megastructures
+/// and ring worlds `planted` writes. A lone system with neither says what its add says.
 fn describe(s: &Session, first: u32, systems: &[SystemAdd], planted: &[Op]) -> String {
     let count = |matches: fn(&Op) -> bool| planted.iter().filter(|op| matches(op)).count();
     let anomalies = count(|op| matches!(op, Op::AddAnomaly { .. }));
     let sites = count(|op| matches!(op, Op::AddDigSite { .. }));
+    let rows = count(|op| matches!(op, Op::AddMegastructure { .. }));
+    let rings = count(|op| matches!(op, Op::AddRingWorld { .. }));
     let mut parts = Vec::new();
     match anomalies {
         0 => {}
@@ -182,6 +214,16 @@ fn describe(s: &Session, first: u32, systems: &[SystemAdd], planted: &[Op]) -> S
         0 => {}
         1 => parts.push("dig site".to_owned()),
         n => parts.push(plural(n, "dig site")),
+    }
+    match rows {
+        0 => {}
+        1 => parts.push("megastructure".to_owned()),
+        n => parts.push(plural(n, "megastructure")),
+    }
+    match rings {
+        0 => {}
+        1 => parts.push("ring world".to_owned()),
+        n => parts.push(plural(n, "ring world")),
     }
     let (added, possessive) = match systems {
         [one] if parts.is_empty() => return add_description(s, first, &one.spec, 0),

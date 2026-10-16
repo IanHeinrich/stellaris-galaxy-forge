@@ -2,6 +2,7 @@
 import type { PlantingKind } from "./PlantingKind";
 
 /**
- * An anomaly category or dig site type a layout plants, with its localised name.
+ * An anomaly category, dig site type or megastructure type a layout plants, with its
+ * localised name.
  */
 export type Planting = { kind: PlantingKind, key: string, name: string, };

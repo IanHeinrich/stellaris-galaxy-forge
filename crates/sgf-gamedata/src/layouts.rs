@@ -14,17 +14,21 @@ use ts_rs::TS;
 use crate::GameData;
 use crate::body_effects::{self, Dropping};
 use crate::condition::{Condition, Subject};
+use crate::generate::layout_structures;
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::layers::VANILLA;
 use crate::install::script::Range;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::registries::star_classes::{StarClass, StarList};
+use crate::structure_spawns::SPAWN_MEGASTRUCTURE;
 
 /// The `usage` of the initializers a galaxy fills its ordinary systems with.
 pub const USAGE: &str = "misc_system_init";
 /// The star flag of the game's unique systems, which its timeline reads when an empire
 /// takes control of one.
 pub const UNIQUE_SYSTEM: &str = "unique_system";
+/// The trigger that reads a galaxy setting, such as how many primitives the galaxy has.
+const GALAXY_SETUP: &str = "check_galaxy_setup_value";
 
 /// A layout the Special menu offers converted to a system no one owns: built without its
 /// usage, odds, neighbour systems and system script, its home and colonised planets left
@@ -72,7 +76,7 @@ const EMPIRE_START_FLAGS: [&str; 6] = [
 ];
 
 /// The layouts the generator builds by converting them.
-pub const CONVERTED_LAYOUTS: [Converted; 14] = [
+pub const CONVERTED_LAYOUTS: [Converted; 16] = [
     Converted {
         key: "sol_system_initializer",
         unique: true,
@@ -97,6 +101,8 @@ pub const CONVERTED_LAYOUTS: [Converted; 14] = [
     Converted::special("hostile_init_21"),
     Converted::special("holibrae_initializer"),
     Converted::special("the_chosen_escapee_initializer"),
+    Converted::special("cybrex_system"),
+    Converted::special("unique_system_initializer_01"),
 ];
 
 /// The entry of [`CONVERTED_LAYOUTS`] for `init`, when it has one.
@@ -151,6 +157,7 @@ pub enum Unsupported {
     Guardian,
     /// It places other systems beside it.
     Linked,
+    /// It spawns a megastructure the add cannot write as its script places it.
     Megastructure,
     Bypass,
     Starbase,
@@ -304,6 +311,8 @@ impl Subject for Dlc<'_> {
     fn leaf(&self, leaf: &Condition) -> Option<bool> {
         match leaf {
             Condition::HostDlc(dlc) => Some((self.has)(dlc)),
+            // The galaxy settings are unknown, and a check of them is taken to pass.
+            Condition::Unknown(key) if key == GALAXY_SETUP => Some(true),
             _ => None,
         }
     }
@@ -433,8 +442,8 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if !converted && !init.spawns.is_empty() {
         return Some(Unsupported::Linked);
     }
-    if !init.megastructures.is_empty() {
-        return Some(Unsupported::Megastructure);
+    if let Err(why) = layout_structures(gd, init) {
+        return Some(why);
     }
     let bypasses = &init.bypasses;
     if !bypasses.own.is_empty()
@@ -473,7 +482,9 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     let def = gd.initializers.spliced(&init.name)?;
     def.node
         .find_all("init_effect", &def.src)
-        .find_map(|block| body_effects::undropped(block, def, Dropping::Script))
+        .find_map(|block| {
+            body_effects::undropped(block, def, Dropping::Script, &[SPAWN_MEGASTRUCTURE])
+        })
         .map(Unsupported::Effect)
 }
 

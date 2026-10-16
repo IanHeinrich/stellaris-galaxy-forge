@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::ops::NewRingWorld;
+
 /// One star system to add to a save.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -121,18 +123,53 @@ impl From<SystemSpec> for SystemAdd {
     }
 }
 
-/// What a layout's script plants on a new system's bodies and saves as global event targets.
+/// What a layout's script plants on a new system's bodies, spawns beside them and saves as
+/// global event targets.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SystemExtras {
     pub anomalies: Vec<SpecAnomaly>,
     pub dig_sites: Vec<SpecDigSite>,
     pub event_targets: Vec<SpecEventTarget>,
+    /// The `megastructures` rows its script spawns, in the order it spawns them.
+    pub megastructures: Vec<SpecMegastructure>,
+    /// The ring world whose rows its script spawns round the star.
+    pub ring_world: Option<NewRingWorld>,
 }
 
 impl SystemExtras {
     pub fn is_empty(&self) -> bool {
-        self.anomalies.is_empty() && self.dig_sites.is_empty() && self.event_targets.is_empty()
+        self.event_targets.is_empty() && !self.optional()
     }
+
+    /// It holds something an add writes only when asked to: an anomaly, a dig site or a
+    /// megastructure.
+    pub fn optional(&self) -> bool {
+        !(self.anomalies.is_empty()
+            && self.dig_sites.is_empty()
+            && self.megastructures.is_empty()
+            && self.ring_world.is_none())
+    }
+}
+
+/// A `megastructures` row of type `kind` the script spawns, finished, with no owner.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpecMegastructure {
+    pub kind: String,
+    pub at: SpecMegastructurePlace,
+}
+
+/// Where a [`SpecMegastructure`] stands.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpecMegastructurePlace {
+    /// On a body of the spec, at its point: the body gets `body_flags`, and a body that is not
+    /// a star is refused when `star_only`.
+    Body {
+        body: SpecBody,
+        body_flags: Vec<String>,
+        star_only: bool,
+    },
+    /// At its own point about the star, tied to no body.
+    Free { x: f64, y: f64 },
 }
 
 /// A body of a [`SystemSpec`]: its star, the `index`th of its planets, or the `index`th moon

@@ -8,7 +8,7 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::body_effects::{self, LeftOut};
-use crate::generate::{GenerateError, layouts_for, star_classes};
+use crate::generate::{GenerateError, layout_structures, layouts_for, star_classes};
 use crate::initializers::{BodyClass, InitPlanet, Initializer};
 use crate::install::script::{Range, whole};
 use crate::layouts::{
@@ -82,8 +82,8 @@ pub struct PickSummary {
     pub max_instances: Option<u32>,
     /// Systems of the save from this layout, or of this star class for a star pick.
     pub in_galaxy: Option<u32>,
-    /// The anomalies and dig sites a special layout's script plants, which the add writes
-    /// when asked to.
+    /// The anomalies, dig sites and megastructures a special layout's script makes, which the
+    /// add writes when asked to.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub comes_with: Vec<Planting>,
     /// What a special layout's script makes that the add leaves out.
@@ -102,9 +102,11 @@ pub struct PickSummary {
 pub enum PlantingKind {
     Anomaly,
     DigSite,
+    Megastructure,
 }
 
-/// An anomaly category or dig site type a layout plants, with its localised name.
+/// An anomaly category, dig site type or megastructure type a layout plants, with its
+/// localised name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Planting {
@@ -212,8 +214,8 @@ fn bodies(init: &Initializer) -> impl Iterator<Item = &InitPlanet> {
         .flat_map(|planet| std::iter::once(planet).chain(&planet.moons))
 }
 
-/// The anomalies and dig sites `init`'s bodies plant as the generator plants them, each
-/// once, and whether a dig site is left out: one of a type the install gives no first stage,
+/// The anomalies and dig sites `init`'s bodies plant and the megastructures its own
+/// `init_effect` spawns, as the generator writes them, each type once, and whether a dig site is left out: one of a type the install gives no first stage,
 /// or on a star.
 fn comes_with(gd: &GameData, init: &Initializer) -> (Vec<Planting>, bool) {
     let mut sites_left = false;
@@ -239,6 +241,11 @@ fn comes_with(gd: &GameData, init: &Initializer) -> (Vec<Planting>, bool) {
             } else {
                 sites_left = true;
             }
+        }
+    }
+    if let Ok(structures) = layout_structures(gd, init) {
+        for def in structures.types() {
+            plant(PlantingKind::Megastructure, &def.key);
         }
     }
     (out, sites_left)

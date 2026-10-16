@@ -81,8 +81,8 @@ pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
     entries
 }
 
-/// What a label is built from: the fixed name, or the notable bodies and modifiers, and the
-/// belts that tell it from another. A phenomenon's card shows its star, so its label
+/// What a label is built from: the fixed name, or the megastructures its script spawns and the
+/// notable bodies and modifiers, and the belts that tell it from another. A phenomenon's card shows its star, so its label
 /// leaves the star out.
 struct LabelParts {
     main: Vec<String>,
@@ -166,6 +166,11 @@ fn label_parts(gd: &GameData, init: &Initializer) -> LabelParts {
             main.push(part);
         }
     };
+    if let Ok(structures) = generate::layout_structures(gd, init) {
+        for def in structures.types() {
+            push(loc(&def.key));
+        }
+    }
     for body in expand(&init.planets)
         .skip_while(|b| !star_body(gd, &b.block.class))
         .skip(1)
