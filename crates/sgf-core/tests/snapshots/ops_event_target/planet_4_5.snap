@@ -1,0 +1,24 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 360
+expression: value
+---
+Added event target sgf_story for Xu Nur I #585
+inverse: RemoveEventTarget { name: "sgf_story" }
+
+--- gamestate
++++ gamestate
+@@ -1140879,6 +1140879,13 @@
+ 	opener_id=4294967295
+ 	name="fotd_seperatist_planet16777220"
+ }
++saved_event_target=
++{
++	type=planet
++	id=585
++	opener_id=4294967295
++	name="sgf_story"
++}
+ ship_design=
+ {
+ 	0=none

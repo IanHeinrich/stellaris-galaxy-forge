@@ -111,7 +111,7 @@ export function addSystemActions(
     },
 
     addSpecialSystemAt(x, y, layout) {
-      return addAt(x, y, () => ipc.addSpecialSystem(newSeed(), x, y, layout));
+      return addAt(x, y, () => ipc.addSpecialSystem(newSeed(), x, y, layout, true));
     },
 
     addBodyAt(system, at, parent = null, planetClass = null) {

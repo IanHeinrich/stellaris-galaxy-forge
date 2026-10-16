@@ -73,6 +73,9 @@ pub struct PlanetEntry<'a> {
     pub entity: u32,
     pub entity_name: Option<&'a str>,
     pub deposits: &'a [u32],
+    /// Planet flags, each dated `flag_date`.
+    pub flags: &'a [String],
+    pub flag_date: &'a str,
 }
 
 /// The `planets.planet` entry of a planet a build effect spawns, as the game's
@@ -321,6 +324,8 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
             entity: p.entity,
             entity_name: p.entity_name,
             deposits: p.deposits,
+            flags: p.flags,
+            flag_date: p.flag_date,
             ..Entry::new(p.id, p.class, p.size, p.name, (p.x, p.y), p.system, p.orbit)
         },
     )

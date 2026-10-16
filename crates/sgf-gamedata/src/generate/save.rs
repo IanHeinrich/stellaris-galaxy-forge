@@ -5,13 +5,13 @@
 use serde::{Deserialize, Serialize};
 use sgf_core::ops::{
     BULK_ADD_CAP, BodyName, BodyNaming, GivenName, LaneEnd, NewBody, Op, OpError, PlanetClassRule,
-    SystemSpec,
+    SystemAdd, SystemSpec,
 };
 use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
 use ts_rs::TS;
 
-use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, generate_layout_for, roll_body};
+use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, layout_system_for, roll_body};
 use crate::GameData;
 use crate::layouts::SaveFacts;
 use crate::menu::menu_initializers;
@@ -124,10 +124,25 @@ impl Pick {
         name: &str,
         at: (f64, f64),
     ) -> Result<SystemSpec, GenerateError> {
+        self.system(gd, session, seed, name, at).map(|add| add.spec)
+    }
+
+    /// [`Self::spec`] with what a layout's script plants beside its bodies, which a random
+    /// pick, drawn from the plain layouts, never has.
+    pub fn system(
+        &self,
+        gd: &GameData,
+        session: &Session,
+        seed: u64,
+        name: &str,
+        at: (f64, f64),
+    ) -> Result<SystemAdd, GenerateError> {
         let abundance = gd.deposit_defines.abundance(session.resource_abundance());
         match self {
-            Self::Random(class) => generate(gd, seed, name, at, class.as_deref(), abundance),
-            Self::Layout(layout) => generate_layout_for(
+            Self::Random(class) => {
+                generate(gd, seed, name, at, class.as_deref(), abundance).map(SystemAdd::from)
+            }
+            Self::Layout(layout) => layout_system_for(
                 gd,
                 &SaveFacts::read(session),
                 seed,
@@ -149,7 +164,27 @@ pub fn for_save(
     at: (f64, f64),
     pick: &Pick,
 ) -> Result<SystemSpec, ForSaveError> {
-    roll(gd, session, &mut NameDraw::new(session), seed, at, pick)
+    roll(gd, session, &mut NameDraw::new(session), seed, at, pick).map(|add| add.spec)
+}
+
+/// The op that adds a system of the layout `layout` to `session`'s save at `at` from `seed`,
+/// named as [`for_save`] names it, with what the layout's script plants beside its bodies:
+/// [`SaveQueries::add_systems_op`] for that one system, writing its anomalies and dig sites
+/// only with `extras`, and its planet flags and global event targets whatever it says.
+///
+/// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
+pub fn special_op(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    at: (f64, f64),
+    layout: &str,
+    extras: bool,
+) -> Result<Op, ForSaveError> {
+    let save = session.save("adding a system")?;
+    let pick = Pick::Layout(layout.to_owned());
+    let add = roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?;
+    Ok(save.add_systems_op(vec![add], &[], extras, None)?)
 }
 
 /// A system for `session`'s save at each of `asks`, rolled around its star class from a seed
@@ -174,6 +209,7 @@ pub fn for_save_many(
                 (ask.x, ask.y),
                 &pick,
             )
+            .map(|add| add.spec)
         })
         .collect()
 }
@@ -200,8 +236,11 @@ pub fn systems_op(
         }
         .into());
     }
-    let specs = for_save_many(gd, session, seed, asks)?;
-    Ok(save.add_systems_op(specs, lanes, description)?)
+    let systems = for_save_many(gd, session, seed, asks)?
+        .into_iter()
+        .map(SystemAdd::from)
+        .collect();
+    Ok(save.add_systems_op(systems, lanes, false, Some(description))?)
 }
 
 /// A system for `session`'s save at `at` from `seed`, as `pick` gives it, named from `draw`
@@ -214,14 +253,14 @@ fn roll(
     seed: u64,
     at: (f64, f64),
     pick: &Pick,
-) -> Result<SystemSpec, ForSaveError> {
+) -> Result<SystemAdd, ForSaveError> {
     let name = draw.system(gd, seed).ok_or(ForSaveError::NoNames)?;
-    let mut spec = pick.spec(gd, session, seed, &name, at)?;
-    settle_in(draw, gd, &mut spec, &name, seed);
-    if spec.name != name {
+    let mut add = pick.system(gd, session, seed, &name, at)?;
+    settle_in(draw, gd, &mut add.spec, &name, seed);
+    if add.spec.name != name {
         draw.give_back(&name);
     }
-    Ok(spec)
+    Ok(add)
 }
 
 /// A system asked of a bulk add to a save: where it stands and its star class.

@@ -150,4 +150,23 @@ describe("the Special menu and the cards", () => {
       "This save doesn&#x27;t have Cosmic Storms, so its events won&#x27;t run.",
     );
   });
+
+  it("shows what a special layout comes with and without, and the event chain warning", () => {
+    const html = renderToStaticMarkup(
+      <PickCardBody
+        title="Tiyun Ort"
+        summary={summary({
+          comes_with: [{ kind: "dig_site", key: "site_graveyard", name: "Tiyanki Graveyard" }],
+          comes_without: ["fleets", "ambient_objects"],
+          story_kept_by_existing: true,
+        })}
+      />,
+    );
+    expect(html).toContain("Comes with");
+    expect(html).toContain("Tiyanki Graveyard");
+    expect(html).toContain("fleets and guardians, debris, wrecks and storms");
+    expect(html).toContain(
+      '<div class="pick-card-note warn">Tiyun Ort is already in this galaxy, so its event chain stays with that one.</div>',
+    );
+  });
 });

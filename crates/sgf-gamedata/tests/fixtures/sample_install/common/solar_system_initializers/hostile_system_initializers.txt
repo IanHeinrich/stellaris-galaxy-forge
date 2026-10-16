@@ -398,22 +398,150 @@ hostile_init_20 = {
 }
 
 hostile_init_21 = {
+	name = "NAME_Tiyun_Ort"
 	class = "sc_m_giant"
+	asteroid_belt = {
+		type = icy_asteroid_belt
+		radius = 150
+	}
+
 	usage = misc_system_init
 	usage_odds = {
-			base = @spawn_system_extreme
-			modifier = {
-				factor = 0
-				has_star_flag = empire_cluster
-			}
-			modifier = {
-				factor = 2
-				is_bottleneck_system = yes
-			}
+		base = @spawn_system_extreme
+		modifier = {
+			factor = 0
+			has_star_flag = empire_cluster
 		}
+		modifier = {
+			factor = 2
+			is_bottleneck_system = yes
+		}
+	}
+
 	max_instances = 1
 	flags = { tiyanki_graveyard_system space_critter_system space_ecology_system }
-	init_effect = { }
+
+	planet = {
+		count = 1
+		class = star
+		orbit_distance = 0
+		orbit_angle = 1
+		size = { min = 20 max = 30 }
+		has_ring = no
+
+		init_effect = {
+			prevent_anomaly = yes
+			clear_deposits = yes
+			add_deposit = d_physics_6
+			save_event_target_as = graveyard_star
+			set_planet_flag = graveyard_star
+			create_ambient_object = {
+				type = "space_storm_2"
+				location = this
+			}
+			last_created_ambient_object = {
+				set_location = {
+					target = prev
+					distance = 0
+					angle = random
+				}
+			}
+			# Decorations
+			while = {
+				count = 10
+				create_ambient_object = {
+					type = "small_dead_tiyanki_object"
+					entity_offset_angle = { min = 0 max = 360 }
+					entity_offset = { min = -10 max = 10 }
+					entity_offset_height = { min = -5 max = 5 }
+				}
+				last_created_ambient_object = {
+					set_location = {
+						target = prev
+						distance = 40
+						angle = random
+					}
+				}
+			}
+		}
+	}
+
+	planet = {
+		class = pc_barren
+		name = "NAME_Orek_Vuul"
+		orbit_distance = 50
+		size = 1
+		has_ring = no
+
+		init_effect = {
+			prevent_anomaly = yes
+			clear_deposits = yes
+			save_event_target_as = graveyard_site
+			set_planet_flag = graveyard_site
+			create_archaeological_site = site_tiyanki_graveyard
+			# Graveyard
+			create_ambient_object = {
+				type = "NAME_Orek_Vuul"
+				location = this
+				use_3d_location = yes
+			}
+		}
+	}
+
+	planet = {
+		count = 1
+		class = pc_ice_asteroid
+		name = "NAME_Zhaduva"
+		orbit_distance = 100
+		orbit_angle = 100
+
+		init_effect = {
+			prevent_anomaly = yes
+			clear_deposits = yes
+			save_event_target_as = graveyard_asteroid
+			set_planet_flag = graveyard_asteroid
+			add_anomaly = {
+				category = TIYANKI_ASTEROID_CAT
+			}
+		}
+	}
+
+	planet = {
+		class = "pc_barren"
+		name = "NAME_Ghanek"
+		orbit_distance = 80
+		orbit_angle = 300
+		size = 25
+		has_ring = no
+
+		init_effect = {
+			prevent_anomaly = yes
+			clear_deposits = yes
+			save_event_target_as = graveyard_gas
+			set_planet_flag = graveyard_gas
+			add_deposit = d_volatile_motes_3
+		}
+	}
+
+	init_effect = {
+		create_ambient_object = {
+			type = "nebula_L3_entity"
+			entity_offset_height = -5
+			location = this
+		}
+		last_created_ambient_object = {
+			set_location = {
+				target = event_target:graveyard_star
+				distance = 0
+				angle = random
+			}
+		}
+		create_tiyanki_garrison_country = yes
+		save_global_event_target_as = tiyanki_graveyard_system
+		create_tiyanki_graveyard_gravekeeper_fleet = yes
+		create_tiyanki_graveyard_roaming_fleet_1 = yes
+		create_tiyanki_graveyard_roaming_fleet_2 = yes
+	}
 }
 
 hostile_init_22 = {

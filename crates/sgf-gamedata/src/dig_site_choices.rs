@@ -31,6 +31,17 @@ pub struct DigSiteChoice {
 }
 
 impl GameData {
+    /// The first stage's difficulty of dig site type `key`, which a new site starts at; `None`
+    /// for a type the install does not define, or whose first stage it cannot read.
+    pub fn dig_site_start(&self, key: &str) -> Option<i32> {
+        self.dig_site_types
+            .get(key)?
+            .difficulties
+            .first()
+            .copied()
+            .flatten()
+    }
+
     /// Every dig site type with a stage, by key, each saying whether the picker offers it.
     pub fn dig_site_choices(&self) -> Vec<DigSiteChoice> {
         self.dig_site_types

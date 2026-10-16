@@ -34,9 +34,6 @@ pub const UNIQUE_SYSTEM: &str = "unique_system";
 pub struct Converted {
     /// The initializer's key.
     pub key: &'static str,
-    /// The star flags the system keeps beside [`UNIQUE_SYSTEM`]. Events find the systems
-    /// they placed by flag, so an added copy drops the rest.
-    pub flags: &'static [&'static str],
     /// Listed with the unique systems, though the game does not flag it [`UNIQUE_SYSTEM`].
     pub unique: bool,
     /// A localisation key the menu shows in place of the label it builds, for a layout
@@ -49,23 +46,24 @@ impl Converted {
     const fn special(key: &'static str) -> Self {
         Self {
             key,
-            flags: &[],
             unique: false,
             label: None,
         }
     }
 
-    /// The system keeps `flag`.
+    /// The system keeps `flag`: events find the systems they placed by flag.
     pub fn keeps(&self, flag: &str) -> bool {
-        flag == UNIQUE_SYSTEM || self.flags.contains(&flag)
+        !EMPIRE_START_FLAGS.contains(&flag)
     }
 }
+
+/// Star flags of an empire's home or start, which a system no one owns does not carry.
+const EMPIRE_START_FLAGS: [&str; 2] = ["empire_home_system", "empire_cluster"];
 
 /// The layouts the generator builds by converting them.
 pub const CONVERTED_LAYOUTS: [Converted; 14] = [
     Converted {
         key: "sol_system_initializer",
-        flags: &["sol_system", "sol", "galactic_landmark_system"],
         unique: true,
         label: None,
     },

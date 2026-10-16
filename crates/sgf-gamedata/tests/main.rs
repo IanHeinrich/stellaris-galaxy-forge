@@ -78,6 +78,7 @@ mod scripts_lgate;
 mod scripts_owners;
 mod scripts_rows;
 mod special;
+mod special_extras;
 mod special_generation;
 mod special_layout_bodies;
 mod special_layouts;

@@ -89,7 +89,7 @@ pub(crate) fn plan_fill(
 ) -> Result<Planned, OpError> {
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let written = write_bodies(plan, s, id, spec)?;
-    let flag_date = flag_date(&s.doc, spec)?;
+    let flag_date = flag_date(&s.doc, &spec.flags)?;
     respec(plan.edit(&s.doc, id)?, spec, &written, &flag_date)?;
     if spec.name != system.name.key {
         swap_name(plan, s, id, &system.name.key, &spec.name)?;

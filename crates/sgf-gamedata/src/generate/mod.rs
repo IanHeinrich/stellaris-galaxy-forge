@@ -3,10 +3,13 @@
 //! spec [`sgf_core::ops::Op::AddSystemFromSpec`] writes. The same seed, star class or layout,
 //! abundance and install give the same spec.
 
-use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
+use sgf_core::ops::{
+    BeltSpec, BodySpec, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget, SpecTarget, SystemAdd,
+    SystemExtras, SystemSpec,
+};
 
 use crate::GameData;
-use crate::body_effects;
+use crate::body_effects::{self, Planted};
 use crate::deposit_roll::{self, Kind, RollBody};
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer, body_size};
 use crate::install::script::Range;
@@ -29,7 +32,7 @@ pub use megastructure::{
 };
 pub use save::{
     BodyAsk, ClassRulesError, ForSaveError, Pick, SystemAsk, added_among, body_for_save, for_save,
-    for_save_many, reroll, settle_name, systems_op,
+    for_save_many, reroll, settle_name, special_op, systems_op,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.
@@ -154,7 +157,7 @@ pub fn generate(
         abundance,
         save: None,
     };
-    build(gd, init, rng, &draw, name, at)
+    build(gd, init, rng, &draw, name, at).map(|add| add.spec)
 }
 
 /// A system of the plain or special layout `layout` for `save`, rolled as [`generate`]
@@ -169,6 +172,21 @@ pub fn generate_layout_for(
     layout: &str,
     abundance: f64,
 ) -> Result<SystemSpec, GenerateError> {
+    layout_system_for(gd, save, seed, name, at, layout, abundance).map(|add| add.spec)
+}
+
+/// [`generate_layout_for`]'s system with what the layout's script plants beside its
+/// bodies: the anomalies and dig sites its bodies' effects make and the global event targets
+/// they and the system's own `init_effect` save.
+pub fn layout_system_for(
+    gd: &GameData,
+    save: &SaveFacts,
+    seed: u64,
+    name: &str,
+    at: (f64, f64),
+    layout: &str,
+    abundance: f64,
+) -> Result<SystemAdd, GenerateError> {
     let init = gd
         .initializers
         .get(layout)
@@ -234,7 +252,7 @@ fn build(
     draw: &Draw<'_>,
     name: &str,
     (x, y): (f64, f64),
-) -> Result<SystemSpec, GenerateError> {
+) -> Result<SystemAdd, GenerateError> {
     let seed = draw.seed;
     let star_class = match draw.star_class.and_then(|class| gd.star_classes.get(class)) {
         Some(fixed) => fixed,
@@ -248,14 +266,15 @@ fn build(
         star_named_by_class: false,
     };
     let (rolled_star, rolled_planets) = roller.bodies(&init.planets)?;
-    let (star, planets) = Deposits {
+    let mut deposits = Deposits {
         gd,
         abundance: draw.abundance,
         rng: Rng::new(seed ^ DEPOSIT_STREAM),
         save: draw.save,
-    }
-    .give(rolled_star, rolled_planets);
-    Ok(SystemSpec {
+        planted: Vec::new(),
+    };
+    let (star, planets) = deposits.give(rolled_star, rolled_planets);
+    let spec = SystemSpec {
         name: init.display_name.as_deref().unwrap_or(name).to_owned(),
         x,
         y,
@@ -279,7 +298,65 @@ fn build(
             .cloned()
             .collect(),
         lanes: Vec::new(),
-    })
+    };
+    let extras = extras(gd, init, &spec, deposits.planted);
+    Ok(SystemAdd { spec, extras })
+}
+
+/// What `init`'s script plants beside `spec`'s bodies, `planted` holding what each body's
+/// effects planted: its anomalies, its dig sites but those of a type the install gives no
+/// first stage and those on a star, which takes none, and the global event targets its
+/// bodies and the system's own `init_effect` save.
+fn extras(
+    gd: &GameData,
+    init: &Initializer,
+    spec: &SystemSpec,
+    planted: Vec<(SpecBody, Planted)>,
+) -> SystemExtras {
+    let mut extras = SystemExtras::default();
+    for (body, planted) in planted {
+        let star = match body {
+            SpecBody::Star => true,
+            SpecBody::Planet { index } => spec.planets[index].star,
+            SpecBody::Moon { .. } => false,
+        };
+        extras.anomalies.extend(
+            planted
+                .anomalies
+                .into_iter()
+                .map(|category| SpecAnomaly { body, category }),
+        );
+        if !star {
+            extras
+                .dig_sites
+                .extend(planted.dig_sites.into_iter().filter_map(|site_type| {
+                    let difficulty = gd.dig_site_start(&site_type)?;
+                    Some(SpecDigSite {
+                        body,
+                        site_type,
+                        difficulty,
+                    })
+                }));
+        }
+        extras
+            .event_targets
+            .extend(
+                planted
+                    .event_targets
+                    .into_iter()
+                    .map(|name| SpecEventTarget {
+                        target: SpecTarget::Body(body),
+                        name,
+                    }),
+            );
+    }
+    extras
+        .event_targets
+        .extend(init.saves_targets.iter().map(|name| SpecEventTarget {
+            target: SpecTarget::System,
+            name: name.clone(),
+        }));
+    extras
 }
 
 /// How often `init` gives a system of star class `class`: always for its one class, else
@@ -605,7 +682,13 @@ pub fn roll_body(gd: &GameData, seed: u64, roll: &BodyRoll<'_>) -> Result<BodySp
         let mut deposits = Rng::new(seed ^ DEPOSIT_STREAM);
         spec.deposits = deposit_roll::roll(gd, &rolled, roll.abundance, &mut deposits, true);
     } else if let Some(effect) = deposit_effect(gd, &class.key) {
-        body_effects::apply(gd, &effect, &mut spec, &Dlc::of(gd, None));
+        body_effects::apply(
+            gd,
+            &effect,
+            &mut spec,
+            &Dlc::of(gd, None),
+            &mut Planted::default(),
+        );
     }
     Ok(spec)
 }
@@ -743,12 +826,13 @@ fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitP
 
 /// Rolls each body's deposits from a stream of its own, so the bodies a seed gives stay
 /// the same whatever the abundance, then runs the effects of its block, with the save's
-/// DLC, when there is one, answering their `if`s.
+/// DLC, when there is one, answering their `if`s, and keeps what they plant on each body.
 struct Deposits<'g> {
     gd: &'g GameData,
     abundance: f64,
     rng: Rng,
     save: Option<&'g SaveFacts>,
+    planted: Vec<(SpecBody, Planted)>,
 }
 
 impl Deposits<'_> {
@@ -760,32 +844,45 @@ impl Deposits<'_> {
         planets: Vec<RolledPlanet<'_>>,
     ) -> (BodySpec, Vec<BodySpec>) {
         let Rolled { mut spec, block } = star;
-        self.roll(&mut spec, block, Kind::Star);
+        self.roll(&mut spec, block, Kind::Star, SpecBody::Star);
         let planets = planets
             .into_iter()
-            .map(|planet| self.planet(planet))
+            .enumerate()
+            .map(|(index, planet)| self.planet(index, planet))
             .collect();
         (spec, planets)
     }
 
-    fn planet(&mut self, planet: RolledPlanet<'_>) -> BodySpec {
+    fn planet(&mut self, index: usize, planet: RolledPlanet<'_>) -> BodySpec {
         let RolledPlanet {
             mut spec,
             block,
             moons,
         } = planet;
-        self.roll(&mut spec, block, Kind::Planet);
-        spec.moons = moons.into_iter().map(|moon| self.moon(moon)).collect();
+        self.roll(&mut spec, block, Kind::Planet, SpecBody::Planet { index });
+        spec.moons = moons
+            .into_iter()
+            .enumerate()
+            .map(|(moon, rolled)| {
+                self.moon(
+                    SpecBody::Moon {
+                        of: index,
+                        index: moon,
+                    },
+                    rolled,
+                )
+            })
+            .collect();
         spec
     }
 
-    fn moon(&mut self, moon: Rolled<'_>) -> BodySpec {
+    fn moon(&mut self, at: SpecBody, moon: Rolled<'_>) -> BodySpec {
         let Rolled { mut spec, block } = moon;
-        self.roll(&mut spec, block, Kind::Moon);
+        self.roll(&mut spec, block, Kind::Moon, at);
         spec
     }
 
-    fn roll(&mut self, body: &mut BodySpec, block: &InitPlanet, kind: Kind) {
+    fn roll(&mut self, body: &mut BodySpec, block: &InitPlanet, kind: Kind, at: SpecBody) {
         let rolled = RollBody {
             class: &body.class,
             size: body.size,
@@ -798,6 +895,11 @@ impl Deposits<'_> {
             &mut self.rng,
             block.blockers,
         );
-        body_effects::apply(self.gd, &block.effects, body, &Dlc::of(self.gd, self.save));
+        let mut planted = Planted::default();
+        let dlc = Dlc::of(self.gd, self.save);
+        body_effects::apply(self.gd, &block.effects, body, &dlc, &mut planted);
+        if planted != Planted::default() {
+            self.planted.push((at, planted));
+        }
     }
 }

@@ -5,6 +5,7 @@ pub(crate) mod added;
 pub(crate) mod alloc;
 pub mod details;
 pub(crate) mod dig_sites;
+pub(crate) mod event_targets;
 pub(crate) mod galaxy;
 pub(crate) mod planet_extras;
 pub(crate) mod read_spec;
@@ -25,11 +26,11 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::save::write::{
     add_body, add_habitat, add_megastructure, add_ring_world, add_system, anomaly, belts, bodies,
-    bulk, delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, flag, lanes,
-    lgate, map_colors, move_megastructure, move_planet, move_system, nebula, planet_class,
-    planet_entity, planet_modifier, planet_ring, planet_size, remove_planet, remove_system,
-    rename_planet, rename_system, replace_system, restore, spawned_planet, star_class,
-    system_height, wormhole, wormhole_pair,
+    bulk, delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, event_target,
+    flag, lanes, lgate, map_colors, move_megastructure, move_planet, move_system, nebula,
+    planet_class, planet_entity, planet_modifier, planet_ring, planet_size, remove_planet,
+    remove_system, rename_planet, rename_system, replace_system, restore, spawned_planet,
+    star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::format::{self, Format};
 use crate::keys;
@@ -72,10 +73,7 @@ impl Format for Save {
                 .section(keys::FLAGS)
                 .map(|section| Anchor::Original(section.stmt))
                 .ok_or(OpError::NoFlags),
-            Subject::Country(id) => match doc.index().entity(keys::COUNTRY, u64::from(id)) {
-                Some(e) if matches!(e.value, Value::Block { .. }) => Ok(Anchor::Original(e.stmt)),
-                _ => Err(OpError::UnknownCountry(id)),
-            },
+            Subject::Country(id) => country_statement(doc, id),
         }
     }
 
@@ -222,6 +220,8 @@ impl Format for Save {
                 difficulty,
             } => dig_site::plan_add(plan, s, *body, site_type, *difficulty),
             Op::RemoveDigSite { site } => dig_site::plan_remove(plan, s, *site),
+            Op::AddEventTarget { name, target } => event_target::plan_add(plan, s, name, *target),
+            Op::RemoveEventTarget { name } => event_target::plan_remove(plan, s, name),
             Op::RemoveSystem { system } => remove_system::plan_remove(plan, s, &[*system]),
             Op::RemoveSystems { systems } => remove_system::plan_remove(plan, s, systems),
             Op::ReplaceSystemFromSpec { system, spec } => {
@@ -483,6 +483,14 @@ pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
         Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
         Some(_) => Err(OpError::VersionTooOld(version)),
         None => Err(OpError::UnknownVersion(version)),
+    }
+}
+
+/// The statement of country `id`, refused when the save holds no such country.
+pub(crate) fn country_statement(doc: &Document, id: u32) -> Result<Anchor, OpError> {
+    match doc.index().entity(keys::COUNTRY, u64::from(id)) {
+        Some(e) if matches!(e.value, Value::Block { .. }) => Ok(Anchor::Original(e.stmt)),
+        _ => Err(OpError::UnknownCountry(id)),
     }
 }
 

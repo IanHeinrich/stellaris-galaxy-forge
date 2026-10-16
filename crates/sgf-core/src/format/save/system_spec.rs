@@ -79,6 +79,10 @@ pub struct BodySpec {
     /// Drawn with a ring around it.
     #[serde(default)]
     pub ring: bool,
+    /// The planet flags its layout sets, which the game writes on the body dated as day
+    /// one, as it dates the star flags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flags: Vec<String>,
     /// Of a class the install makes a star, as a layout's extra black holes are. The
     /// system's own star is written as one whatever this says.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -98,4 +102,74 @@ pub struct BeltSpec {
     /// `rocky_asteroid_belt`, `icy_asteroid_belt`, …
     pub kind: String,
     pub inner_radius: f64,
+}
+
+/// One system an add writes: its spec, and what its layout's own script makes beside its
+/// bodies when the system is made, which the add writes with the op that writes each.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SystemAdd {
+    pub spec: SystemSpec,
+    pub extras: SystemExtras,
+}
+
+impl From<SystemSpec> for SystemAdd {
+    fn from(spec: SystemSpec) -> Self {
+        Self {
+            spec,
+            extras: SystemExtras::default(),
+        }
+    }
+}
+
+/// What a layout's script plants on a new system's bodies and saves as global event targets.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SystemExtras {
+    pub anomalies: Vec<SpecAnomaly>,
+    pub dig_sites: Vec<SpecDigSite>,
+    pub event_targets: Vec<SpecEventTarget>,
+}
+
+impl SystemExtras {
+    pub fn is_empty(&self) -> bool {
+        self.anomalies.is_empty() && self.dig_sites.is_empty() && self.event_targets.is_empty()
+    }
+}
+
+/// A body of a [`SystemSpec`]: its star, the `index`th of its planets, or the `index`th moon
+/// of its `of`th planet. Each is a place in a list of the spec, not an id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecBody {
+    Star,
+    Planet { index: usize },
+    Moon { of: usize, index: usize },
+}
+
+/// An anomaly of `category` on a body of the spec.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpecAnomaly {
+    pub body: SpecBody,
+    pub category: String,
+}
+
+/// A dig site of `site_type` on a body of the spec, starting at `difficulty`, its first
+/// stage's.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpecDigSite {
+    pub body: SpecBody,
+    pub site_type: String,
+    pub difficulty: i32,
+}
+
+/// What a global event target the script saves names: the system, or a body of it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecTarget {
+    System,
+    Body(SpecBody),
+}
+
+/// A global event target `name` the script saves.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpecEventTarget {
+    pub target: SpecTarget,
+    pub name: String,
 }

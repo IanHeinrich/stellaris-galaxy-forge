@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 360
+expression: value
+---
+Added event target sgf_country for empire 0
+inverse: RemoveEventTarget { name: "sgf_country" }
+
+--- gamestate
++++ gamestate
+@@ -1140879,6 +1140879,20 @@
+ 	opener_id=4294967295
+ 	name="fotd_seperatist_planet16777220"
+ }
++saved_event_target=
++{
++	type=galactic_object
++	id=46
++	opener_id=4294967295
++	name="sgf_system"
++}
++saved_event_target=
++{
++	type=country
++	id=0
++	opener_id=4294967295
++	name="sgf_country"
++}
+ ship_design=
+ {
+ 	0=none

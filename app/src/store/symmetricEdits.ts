@@ -350,6 +350,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   RemoveAnomaly: null,
   AddDigSite: null,
   RemoveDigSite: null,
+  AddEventTarget: null,
   SetEmpireMapColors: null,
   SetEmpireFlag: null,
   RenameEmpire: null,

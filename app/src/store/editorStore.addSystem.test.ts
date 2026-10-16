@@ -152,9 +152,9 @@ describe("placing a special layout", () => {
 
     expect(await editor().addSpecialSystemAt(-50, -20, "trappist_initializer")).toBe(true);
 
-    const [seed, x, y, layout] = addSpecialSystem.mock.calls[0];
+    const [seed, x, y, layout, extras] = addSpecialSystem.mock.calls[0];
     expect(Number.isSafeInteger(seed)).toBe(true);
-    expect([x, y, layout]).toEqual([-50, -20, "trappist_initializer"]);
+    expect([x, y, layout, extras]).toEqual([-50, -20, "trappist_initializer", true]);
     expect(editor().selection).toEqual([6]);
     expect(editor().inspected?.system.id).toBe(6);
     expect(addRandomSystem).not.toHaveBeenCalled();

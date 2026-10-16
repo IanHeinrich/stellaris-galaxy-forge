@@ -52,6 +52,11 @@ modifiers: Array<string>,
  */
 ring: boolean, 
 /**
+ * The planet flags its layout sets, which the game writes on the body dated as day
+ * one, as it dates the star flags.
+ */
+flags?: Array<string>, 
+/**
  * Of a class the install makes a star, as a layout's extra black holes are. The
  * system's own star is written as one whatever this says.
  */

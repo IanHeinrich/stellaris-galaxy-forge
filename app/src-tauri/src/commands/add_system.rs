@@ -52,9 +52,10 @@ pub async fn add_random_systems<R: Runtime>(
 }
 
 /// Build a system of the special layout `layout` at (`x`, `y`) from `seed`, and add it to the
-/// open save as one `AddSystemFromSpec`. It takes the layout's fixed name unless a system of the
-/// save holds it, and a name from the pool otherwise. A capped layout the galaxy already has
-/// is placed all the same.
+/// open save with what its script plants beside its bodies, as one `Batch`: the planet flags
+/// and global event targets always, the anomalies and dig sites when `extras`. It takes the
+/// layout's fixed name unless a system of the save holds it, and a name from the pool
+/// otherwise. A capped layout the galaxy already has is placed all the same.
 #[tauri::command]
 pub async fn add_special_system<R: Runtime>(
     app: AppHandle<R>,
@@ -62,8 +63,16 @@ pub async fn add_special_system<R: Runtime>(
     x: f64,
     y: f64,
     layout: String,
+    extras: bool,
 ) -> Result<EditResult, SgfError> {
-    add(app, seed, (x, y), Pick::Layout(layout)).await
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
+        let op = generate::special_op(&gd, session, seed, (x, y), &layout, extras)?;
+        let result = session.apply(op)?;
+        Ok(session.edit_result(result))
+    })
+    .await
 }
 
 /// Roll the added save system `system` again from `seed`, keeping its name, position and lanes:

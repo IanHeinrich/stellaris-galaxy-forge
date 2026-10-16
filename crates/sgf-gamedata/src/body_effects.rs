@@ -1,12 +1,15 @@
 //! What a layout's body runs in its `init_effect` that the generator writes: deposit,
-//! blocker, class, model and modifier changes, repeated by a `while` with a count or
-//! chosen by an `if` on the DLC. Anomalies, flags, event targets and ambient objects are
-//! dropped with the script, and so, in a converted layout, is what makes or runs an empire,
-//! a colony or a pre-FTL civilisation; anything else makes the layout one the generator
-//! cannot build.
+//! blocker, class, model, modifier and planet flag changes, the anomalies and dig sites it
+//! plants and the global event targets it saves, repeated by a `while` with a count or
+//! chosen by an `if` on the DLC. Other flags, local event targets, events and ambient
+//! objects are dropped with the script, and so, in a converted layout, is what makes or runs
+//! an empire, a colony or a pre-FTL civilisation; anything else makes the layout one the
+//! generator cannot build.
 
+use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use sgf_core::ops::BodySpec;
+use ts_rs::TS;
 
 use crate::GameData;
 use crate::condition::{Condition, Subject};
@@ -32,6 +35,14 @@ pub enum BodyEffect {
     Entity(String),
     /// `add_modifier = { modifier = … }`.
     Modifier(String),
+    /// `set_planet_flag = …`.
+    Flag(String),
+    /// `add_anomaly = { category = … }`, or the block's own `anomaly`.
+    Anomaly(String),
+    /// `create_archaeological_site = …`.
+    DigSite(String),
+    /// `save_global_event_target_as = …`.
+    EventTarget(String),
     /// `while = { count = n … }`.
     Repeat(u32, Vec<BodyEffect>),
     /// An `if`, its `else_if`s and its `else`: the first arm whose check holds runs, an
@@ -39,14 +50,11 @@ pub enum BodyEffect {
     Branch(Vec<(Option<Condition>, Vec<BodyEffect>)>),
 }
 
-/// Effects dropped with the script: anomalies, archaeology sites, event targets and events,
-/// ambient objects and logging. Flags are matched by [`dropped`].
-const DROPPED: [&str; 17] = [
+/// Effects dropped with the script: local event targets, events, ambient objects and
+/// logging. Flags are matched by [`dropped`].
+const DROPPED: [&str; 14] = [
     "prevent_anomaly",
-    "add_anomaly",
-    "create_archaeological_site",
     "save_event_target_as",
-    "save_global_event_target_as",
     "country_event",
     "fleet_event",
     "planet_event",
@@ -59,6 +67,14 @@ const DROPPED: [&str; 17] = [
     "reroll_random",
     "nebula_cloaking_effect",
     "log",
+];
+/// Effects the generator plants on the body that runs them, read as [`BodyEffect`]s. In a
+/// scope or chance it does not follow they are dropped with the script.
+const COLLECTED: [&str; 4] = [
+    "add_anomaly",
+    "create_archaeological_site",
+    "save_global_event_target_as",
+    "set_planet_flag",
 ];
 /// Keys inside an effect block that hold its parameters beside its guards.
 const PARAMETERS: [&str; 2] = ["modifier", "count"];
@@ -125,10 +141,13 @@ pub(crate) fn pre_ftl(key: &str) -> bool {
     key.starts_with("generate_") && key.contains("pre_ftl") && key.ends_with("_on_planet")
 }
 
-/// Flags on any scope but a country's, which only a spawned country would have.
+/// Flags on any scope but a country's, which only a spawned country would have, and a
+/// planet's, which [`COLLECTED`] keeps.
 fn dropped(key: &str, dropping: Dropping) -> bool {
     DROPPED.contains(&key)
-        || (key.starts_with("set_") && key.ends_with("_flag") && key != "set_country_flag")
+        || (key.starts_with("set_")
+            && key.ends_with("_flag")
+            && !matches!(key, "set_country_flag" | "set_planet_flag"))
         || key == "remove_global_flag"
         || (dropping == Dropping::Converted && owned(key))
 }
@@ -163,7 +182,7 @@ pub(crate) fn undropped(block: &Node, def: &Def, dropping: Dropping) -> Option<S
         let Some(key) = child.key_str(&def.src) else {
             continue;
         };
-        if condition_key(key) || dropped(key, dropping) {
+        if condition_key(key) || dropped(key, dropping) || COLLECTED.contains(&key) {
             continue;
         }
         let walkable = keeps_scope(key) || CHANCE.contains(&key) || scope(key);
@@ -266,6 +285,10 @@ fn read_block(
             },
             "set_planet_entity" => field("entity").map(|e| BodyEffect::Entity(e.to_owned())),
             "add_modifier" => field("modifier").map(|m| BodyEffect::Modifier(m.to_owned())),
+            "set_planet_flag" => scalar.map(|f| BodyEffect::Flag(f.to_owned())),
+            "add_anomaly" => field("category").map(|c| BodyEffect::Anomaly(c.to_owned())),
+            "create_archaeological_site" => scalar.map(|s| BodyEffect::DigSite(s.to_owned())),
+            "save_global_event_target_as" => scalar.map(|t| BodyEffect::EventTarget(t.to_owned())),
             "while" => repeat(child, def, dropping, unwritten),
             "if" => {
                 let mut arms = vec![arm(child, def, dropping, true, unwritten)];
@@ -370,8 +393,58 @@ fn collect_modifiers<'e>(effects: &'e [BodyEffect], out: &mut Vec<&'e str>) {
     }
 }
 
-/// Run `effects` on `body` in order, with `dlc` answering the `if`s.
-pub(crate) fn apply(gd: &GameData, effects: &[BodyEffect], body: &mut BodySpec, dlc: &dyn Subject) {
+/// What a body's effects plant on it beside what its spec holds: the anomalies, the dig
+/// sites and the global event targets they save, each once, in the order they run.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Planted {
+    pub anomalies: Vec<String>,
+    pub dig_sites: Vec<String>,
+    pub event_targets: Vec<String>,
+}
+
+impl Planted {
+    fn plant(&mut self, effect: &BodyEffect) {
+        let (list, key) = match effect {
+            BodyEffect::Anomaly(key) => (&mut self.anomalies, key),
+            BodyEffect::DigSite(key) => (&mut self.dig_sites, key),
+            BodyEffect::EventTarget(key) => (&mut self.event_targets, key),
+            _ => return,
+        };
+        if !list.contains(key) {
+            list.push(key.clone());
+        }
+    }
+}
+
+/// Every anomaly, dig site and event target `effects` can plant, whichever arm of an `if`
+/// runs, each once.
+pub fn plantable(effects: &[BodyEffect]) -> Planted {
+    let mut out = Planted::default();
+    collect_plantable(effects, &mut out);
+    out
+}
+
+fn collect_plantable(effects: &[BodyEffect], out: &mut Planted) {
+    for effect in effects {
+        match effect {
+            BodyEffect::Repeat(_, inner) => collect_plantable(inner, out),
+            BodyEffect::Branch(arms) => arms
+                .iter()
+                .for_each(|(_, inner)| collect_plantable(inner, out)),
+            effect => out.plant(effect),
+        }
+    }
+}
+
+/// Run `effects` on `body` in order, with `dlc` answering the `if`s, and keep in `planted`
+/// what they plant on it.
+pub(crate) fn apply(
+    gd: &GameData,
+    effects: &[BodyEffect],
+    body: &mut BodySpec,
+    dlc: &dyn Subject,
+    planted: &mut Planted,
+) {
     for effect in effects {
         match effect {
             BodyEffect::ClearDeposits => body.deposits.clear(),
@@ -390,9 +463,17 @@ pub(crate) fn apply(gd: &GameData, effects: &[BodyEffect], body: &mut BodySpec, 
                     body.modifiers.push(modifier.clone());
                 }
             }
+            BodyEffect::Flag(flag) => {
+                if !body.flags.contains(flag) {
+                    body.flags.push(flag.clone());
+                }
+            }
+            BodyEffect::Anomaly(_) | BodyEffect::DigSite(_) | BodyEffect::EventTarget(_) => {
+                planted.plant(effect);
+            }
             BodyEffect::Repeat(count, inner) => {
                 for _ in 0..*count {
-                    apply(gd, inner, body, dlc);
+                    apply(gd, inner, body, dlc, planted);
                 }
             }
             BodyEffect::Branch(arms) => {
@@ -400,9 +481,85 @@ pub(crate) fn apply(gd: &GameData, effects: &[BodyEffect], body: &mut BodySpec, 
                     check.as_ref().is_none_or(|c| c.evaluate(dlc) == Some(true))
                 });
                 if let Some((_, inner)) = taken {
-                    apply(gd, inner, body, dlc);
+                    apply(gd, inner, body, dlc, planted);
                 }
             }
+        }
+    }
+}
+
+/// What a system added from a layout comes without, of what its script would make.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum LeftOut {
+    PreFtlCivilisation,
+    /// A colony, its pops and buildings.
+    Colony,
+    Empire,
+    /// Fleets, guardians among them.
+    Fleets,
+    Starbase,
+    /// Planets the layout's `init_effect` spawns with `spawn_planet`: only the `planet` and
+    /// `moon` blocks of a layout are built as bodies.
+    SpawnedPlanets,
+    /// Storms, wrecks and the other objects the game places in space for show.
+    AmbientObjects,
+}
+
+/// What dropping the statement `key` leaves out, of what a player would see: `None` for one
+/// [`dropped`] keeps, or one that changes nothing on the map, such as a flag or an event.
+fn left_out_by(key: &str) -> Option<LeftOut> {
+    let words = || key.split('_');
+    if pre_ftl(key) {
+        return Some(LeftOut::PreFtlCivilisation);
+    }
+    if matches!(key, "create_ambient_object" | "spawn_debris") {
+        return Some(LeftOut::AmbientObjects);
+    }
+    if key == "spawn_planet" {
+        return Some(LeftOut::SpawnedPlanets);
+    }
+    if words().any(|word| matches!(word, "starbase" | "starbases")) {
+        return Some(LeftOut::Starbase);
+    }
+    if !dropped(key, Dropping::Converted) {
+        return None;
+    }
+    if words().any(|word| matches!(word, "fleet" | "fleets" | "guardian" | "garrison")) {
+        return Some(LeftOut::Fleets);
+    }
+    if words().any(|word| matches!(word, "country" | "countries")) {
+        return Some(LeftOut::Empire);
+    }
+    owned(key).then_some(LeftOut::Colony)
+}
+
+/// What the `init_effect` blocks of `node`, a layout or one of its bodies, leave out when
+/// the generator drops them, at any depth but a nested body's.
+pub(crate) fn left_out(node: &Node, def: &Def) -> Vec<LeftOut> {
+    let mut out = Vec::new();
+    for block in node.find_all("init_effect", &def.src) {
+        collect_left_out(block, def, &mut out);
+    }
+    out
+}
+
+fn collect_left_out(block: &Node, def: &Def, out: &mut Vec<LeftOut>) {
+    for child in block.children() {
+        let Some(key) = child.key_str(&def.src) else {
+            continue;
+        };
+        if condition_key(key) || matches!(key, "planet" | "moon") {
+            continue;
+        }
+        if let Some(left) = left_out_by(key)
+            && !out.contains(&left)
+        {
+            out.push(left);
+        }
+        if nested(child, def) {
+            collect_left_out(child, def, out);
         }
     }
 }

@@ -119,20 +119,19 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
     for layout in &CONVERTED_LAYOUTS {
         let key = layout.key;
         let mut spec = by_name(gd, 1, "Gen", free_ground(&session), key).unwrap();
-        let unique = gd
+        let kept: Vec<&str> = gd
             .initializers
             .get(key)
             .unwrap()
             .flags
             .iter()
-            .any(|f| f == "unique_system");
-        let kept: Vec<&str> = layout
-            .flags
-            .iter()
-            .copied()
-            .chain(unique.then_some("unique_system"))
+            .map(String::as_str)
+            .filter(|flag| !["empire_home_system", "empire_cluster"].contains(flag))
             .collect();
-        assert_eq!(spec.flags, kept, "{key}: no story flags");
+        assert_eq!(
+            spec.flags, kept,
+            "{key}: every star flag but an empire's start"
+        );
         spec.lanes = vec![169];
         session
             .apply(Op::AddSystemFromSpec { spec })

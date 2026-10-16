@@ -23,20 +23,27 @@ Some entries in the Special list show a mark:
 - A lock means the save doesn't have the DLC the system belongs to. You
   can still add the system, but its events won't run.
 
-A special system you add comes without some of what the game gives it:
-
-- The game's scripted extras, such as anomalies and background clouds,
-  are not added.
-- Sol comes without an empire, so Earth is an uncolonised continental
-  world.
-- Other named systems, such as New Bratulla and Vultaumar, come without
-  their empires, pre-FTL civilisations, guardians and fleets.
-
 ![The right-click menu on empty space, with Add system here open on Random, the star classes and Special](../images/edit/add-system-menu.png)
 
 ![The Special list under Add system here, with unique systems such as Sol and Zevox, warning marks and DLC tags](../images/edit/add-system-special.png)
 
 A system added inside a nebula joins it.
+
+A special system comes with its own anomalies and dig sites, as the game
+gives them. Hover its entry to see them under "Comes with", and what it
+lacks under "Comes without".
+
+Some of what the game gives a special system is missing:
+
+- Empires, colonies and pre-FTL civilisations. Sol's Earth, for example,
+  is an uncolonised continental world.
+- Fleets and guardians, and any starbase.
+- Debris, wrecks and storms.
+- Planets the game's script spawns there, such as Seddom's
+  Huanghun. The card lists these as "some of its planets".
+
+If the galaxy already has the system, the game's events about it stay with
+the one that is there. The card says so.
 
 ## Systems outside the galaxy edge
 

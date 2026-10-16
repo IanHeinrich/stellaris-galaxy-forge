@@ -1,4 +1,16 @@
+pc_g_star = {
+	star = yes
+}
+
+pc_m_giant_star = {
+	star = yes
+}
+
 pc_gas_giant = { }
+
+pc_barren = { }
+
+pc_shrouded = { }
 
 pc_asteroid = {
 	asteroid = yes
@@ -6,4 +18,5 @@ pc_asteroid = {
 
 pc_ice_asteroid = {
 	asteroid = yes
+	planet_size = 5
 }

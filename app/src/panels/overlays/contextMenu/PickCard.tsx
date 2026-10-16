@@ -17,7 +17,7 @@ const CARD_GAP_PX = 6;
 
 /** What a pick's card says, under its title. */
 export function PickCardBody({ title, summary }: { title: string; summary: PickSummary }) {
-  const copy = pickCard(summary);
+  const copy = pickCard(summary, title);
   return (
     <>
       <div className="map-tooltip-title">{title}</div>
@@ -32,6 +32,7 @@ export function PickCardBody({ title, summary }: { title: string; summary: PickS
           {copy.unique.text}
         </div>
       )}
+      {copy.storyKept && <div className="pick-card-note warn">{copy.storyKept}</div>}
       {copy.missingDlc && <div className="pick-card-note muted">{copy.missingDlc}</div>}
     </>
   );

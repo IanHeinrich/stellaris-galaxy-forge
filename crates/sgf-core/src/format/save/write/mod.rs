@@ -26,6 +26,7 @@ pub(crate) mod deposits;
 pub(crate) mod dig_site;
 pub(crate) mod dismantle;
 pub(crate) mod empire_name;
+pub(crate) mod event_target;
 pub(crate) mod flag;
 pub(crate) mod flag_colors;
 pub(crate) mod flags;

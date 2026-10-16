@@ -7,7 +7,9 @@ starts Prepare writes, the plain layouts Plain system draws from, and every init
 places one of these. `common::sample_install()` loads it.
 
 Files and initializers keep the install's names and order. The plain layouts are copied
-whole. Every other initializer keeps its `class`, `usage`, `usage_odds`, `max_instances`,
+whole. So are `breachsealer_system` and `hostile_init_21`, which the special-system tests
+add with what their scripts plant, with the planet classes and the dig site type they
+name. Every other initializer keeps its `class`, `usage`, `usage_odds`, `max_instances`,
 `flags` and `primitive_system` as written. Its `create_country`, `spawn_system` and
 `neighbor_system` blocks are cut to a name and type or an initializer key, and its pre-FTL
 planets to a class and `generate_pre_ftls_on_planet`. An initializer written through an

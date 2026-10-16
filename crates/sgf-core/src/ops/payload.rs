@@ -754,6 +754,16 @@ pub enum LaneEnd {
     Held { system: u32 },
 }
 
+/// What a global event target of [`Op::AddEventTarget`] names: a body, a system or a country.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EventTargetOf {
+    Body { body: u32 },
+    System { system: u32 },
+    Country { country: u32 },
+}
+
 /// One lane's new length in [`Op::SetLaneLengths`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
