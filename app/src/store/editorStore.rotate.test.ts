@@ -10,6 +10,7 @@ import { OPEN_RESULT, SYSTEMS, editResult, name } from "./fixture";
 import { mockedIpc } from "../test/ipc";
 import { rotateAbout } from "../lib/geometry/rotate";
 import type { Op } from "../generated/Op";
+import type { Pt } from "../lib/geometry/pt";
 
 beforeEach(async () => {
   await openFixtureSave();
@@ -43,7 +44,7 @@ describe("rotating the selection", () => {
     expect(editor().rotatePivot).toEqual({ x: 10, y: 0 });
   });
 
-  it("turns about the selection's bounds centre with no pivot given", async () => {
+  it("turns two systems about their midpoint with no pivot given", async () => {
     await editor().setSelection([0, 2], "replace");
     expect(editor().rotatePivot).toBeNull();
 
@@ -61,25 +62,45 @@ describe("rotating the selection", () => {
     });
   });
 
-  it("pins the centre it turned about, so a second turn goes about the same point", async () => {
-    const turned = [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]].map((s) => ({
-      ...s,
-      ...rotateAbout(s, { x: 10, y: -10 }, 30),
-    }));
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: turned } }));
-    await editor().setSelection([0, 2, 4], "replace");
+  describe("with no pivot placed", () => {
+    const TRIO = [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]];
+    const at = (p: Pt) => ({ x: expect.closeTo(p.x, 4), y: expect.closeTo(p.y, 4) });
+    /** The trio's moves in the `index`th op sent. */
+    const movesOf = (index: number) => (sent()[index] as Extract<Op, { type: "Batch" }>).ops[0];
+    /** An edit that leaves the trio where `place` puts each. */
+    const landing = (place: (s: Pt) => Pt) =>
+      editResult({ delta: { systems: TRIO.map((s) => ({ ...s, ...place(s) })) } });
 
-    await editor().rotateSelection(30);
-    expect(editor().rotatePivot).toEqual({ x: 10, y: -10 });
-    await editor().rotateSelection(30);
+    beforeEach(() => editor().setSelection([0, 2, 4], "replace"));
 
-    const second = sent()[1] as Extract<Op, { type: "Batch" }>;
-    expect(second.ops[0]).toEqual({
-      type: "MoveSystems",
-      moves: [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]].map((s) => {
-        const at = rotateAbout(s, { x: 10, y: -10 }, 60);
-        return { system: s.id, x: expect.closeTo(at.x, 4), y: expect.closeTo(at.y, 4) };
-      }),
+    it("turns about the centroid, which a turn leaves where it is", async () => {
+      const centroid = { x: 10, y: -20 / 3 };
+      mockedIpc.applyOp.mockResolvedValueOnce(landing((s) => rotateAbout(s, centroid, 30)));
+
+      await editor().rotateSelection(30);
+      await editor().rotateSelection(30);
+
+      expect(editor().rotatePivot).toBeNull();
+      expect(movesOf(1)).toEqual({
+        type: "MoveSystems",
+        moves: TRIO.map((s) => ({ system: s.id, ...at(rotateAbout(s, centroid, 60)) })),
+      });
+    });
+
+    it("turns about the centroid where a nudge took the group", async () => {
+      const moved = (s: Pt) => ({ x: s.x + 50, y: s.y });
+      mockedIpc.applyOp.mockResolvedValueOnce(landing(moved));
+
+      await editor().nudgeSelection(50, 0);
+      await editor().rotateSelection(30);
+
+      expect(movesOf(1)).toEqual({
+        type: "MoveSystems",
+        moves: TRIO.map((s) => ({
+          system: s.id,
+          ...at(rotateAbout(moved(s), { x: 60, y: -20 / 3 }, 30)),
+        })),
+      });
     });
   });
 

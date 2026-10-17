@@ -1,13 +1,13 @@
 import type { Op } from "../generated/Op";
 import type { SystemMove } from "../generated/SystemMove";
-import { convexHull, inConvexHull, rotateAbout, selectionCentre } from "./geometry/rotate";
+import { convexHull, inConvexHull, rotateAbout, selectionCentroid } from "./geometry/rotate";
 import { type Pt, writtenPt } from "./geometry/pt";
 import { counted } from "./text";
 
 /** What a rotation reads of the editor: the selection, the pivot it was given and the nebulae toggle. */
 export interface RotationState {
   selection: readonly number[];
-  /** Null turns the selection about its bounds centre. */
+  /** The point the player dragged the pivot to; null turns the selection about its centroid. */
   rotatePivot: Pt | null;
   rotateNebulae: boolean;
 }
@@ -32,12 +32,12 @@ export interface RotationPreview {
   nebulae: NebulaMove[];
 }
 
-/** The point the selection turns about: the pivot it was given, else its bounds centre. */
+/** The point the selection turns about: the pivot the player placed, else the selection's centroid. */
 export function rotationPivot(
   state: Pick<RotationState, "selection" | "rotatePivot">,
   systems: ReadonlyMap<number, Pt>,
 ): Pt | null {
-  return state.rotatePivot ?? selectionCentre(systems, state.selection);
+  return state.rotatePivot ?? selectionCentroid(systems, state.selection);
 }
 
 /**
@@ -68,6 +68,13 @@ export function rotationPreview(
   );
   return { pivot, systems, nebulae };
 }
+
+/** The Rotate section's quarter and half turns, clockwise as the map shows it. */
+export const ROTATE_TURNS = [
+  { label: "90° left", degrees: -90 },
+  { label: "90° right", degrees: 90 },
+  { label: "180°", degrees: 180 },
+] as const;
 
 /** `45` → `45°`, `12.5` → `12.5°`, to two decimals at most. */
 function angle(degrees: number): string {

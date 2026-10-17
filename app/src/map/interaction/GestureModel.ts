@@ -4,6 +4,7 @@ import { dragTurn } from "../rotateGizmo";
 import type { LaneSource, LaneTarget, MapInput, MapIntent, MapModel } from "./MapIntent";
 import {
   doubles,
+  gizmoOf,
   groupOf,
   laneSourceOf,
   pastThreshold,
@@ -27,7 +28,8 @@ type Drag =
   | { kind: "pivot"; dx: number; dy: number };
 
 function idleCursor(input: MapInput): string {
-  if (input.rotate) return input.rotate.part === "handle" ? "grab" : "move";
+  const gizmo = gizmoOf(input);
+  if (gizmo) return gizmo.part === "handle" ? "grab" : "move";
   if (input.zone === "port" || (input.zone !== null && input.shift)) return "crosshair";
   if (input.zone !== null) return "move";
   if (input.midpointHit) return "pointer";
@@ -263,7 +265,7 @@ export class GestureModel implements MapModel {
   private click(press: Press, intent: MapIntent): void {
     const last = this.lastClick;
     this.lastClick = null;
-    if (press.rotate && press.system === null) return;
+    if (gizmoOf(press)) return;
     if (press.system !== null) {
       if (press.ctrl || press.shift) intent.toggleSelect(press.system);
       else if (last?.system === press.system && doubles(last, press)) {
@@ -295,8 +297,9 @@ function turnOf(pivot: Pt, press: Press, input: MapInput): number {
 
 /** A press on the gizmo wins over the Shift marquee and lane drag under it. */
 function dragFrom(press: Press): Drag {
-  if (press.rotate) {
-    const { part, pivot } = press.rotate;
+  const gizmo = gizmoOf(press);
+  if (gizmo) {
+    const { part, pivot } = gizmo;
     return part === "handle"
       ? { kind: "rotate", pivot }
       : { kind: "pivot", dx: pivot.x - press.wx, dy: pivot.y - press.wy };

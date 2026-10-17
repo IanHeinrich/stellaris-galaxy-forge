@@ -385,7 +385,7 @@ export class HighlightsLayer implements MapLayer {
     this.drawPreviews();
   }
 
-  /** The point the selection turns about, as the store holds it; null for its bounds centre. */
+  /** The point the selection turns about, as the store holds it; null for its centroid. */
   setRotatePivot(pivot: Pt | null): void {
     this.rotatePivot = pivot;
     this.placeRotate();

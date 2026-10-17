@@ -18,15 +18,18 @@ import { installControllerHooks, key, mapOver } from "./controllerHarness";
 
 installControllerHooks();
 
-/** Three systems round a bounds centre of (0, 30), which no system stands on. */
+/** Three systems round a centroid of (0, 20), which no system stands on. */
 const SYSTEMS = [
   systemNode({ id: 1, x: -100 }),
   systemNode({ id: 2, x: 100 }),
   systemNode({ id: 3, y: 60 }),
 ];
 
-/** The three systems on the map with `selection` selected, the ops sent and the drags shown recorded. */
-function selected(selection: number[]) {
+/**
+ * `systems` on the map with `selection` selected, the ops sent and the drags shown recorded, and
+ * the gizmo of all three.
+ */
+function selected(selection: number[], systems = SYSTEMS) {
   const ops: Op[] = [];
   const applyOp = vi.fn(async (source: OpSource) => {
     const op = typeof source === "function" ? await source() : source;
@@ -37,7 +40,7 @@ function selected(selection: number[]) {
   useEditorStore.setState({ applyOp, cutLanes });
   const drags: Array<DragState | null> = [];
   const layer = { setDragState: (d: DragState | null) => drags.push(d) } as unknown as MapLayer;
-  const { cam, surface, positions } = mapOver(SYSTEMS, [layer]);
+  const { cam, surface, positions } = mapOver(systems, [layer]);
   useEditorStore.setState({ selection });
   const all = { selection: [1, 2, 3], rotatePivot: null };
   const gizmo = rotateGizmo(useGalaxyStore.getState().systems, all, cam, positions.at)!;
@@ -53,7 +56,7 @@ function selected(selection: number[]) {
   return { ops, applyOp, drags, gizmo, cam, surface, screen, drag };
 }
 
-/** Where the selection lands turned `degrees` about its bounds centre. */
+/** Where the selection lands turned `degrees` about its centroid. */
 function landing(degrees: number) {
   return rotationPreview(useEditorStore.getState(), useGalaxyStore.getState(), degrees)!.systems;
 }
@@ -61,7 +64,7 @@ function landing(degrees: number) {
 describe("a drag on the rotate handle", () => {
   it("previews the turned systems as ghosts, then sends one rotation where they land", async () => {
     const { ops, applyOp, drags, gizmo, surface, screen } = selected([1, 2, 3]);
-    expect(gizmo.pivot).toEqual({ x: 0, y: 30 });
+    expect(gizmo.pivot).toEqual({ x: 0, y: 20 });
     const a = screen(gizmo.handle);
     const b = screen(rotateAbout(gizmo.handle, gizmo.pivot, 30));
 
@@ -128,6 +131,22 @@ describe("a drag on the pivot", () => {
       x: expect.closeTo(-50),
       y: expect.closeTo(80),
     });
+  });
+
+  it("gives way to a selected star under it, which moves the group", async () => {
+    const onPivot = [
+      systemNode({ id: 1, x: -100 }),
+      systemNode({ id: 2, x: 100 }),
+      systemNode({ id: 3 }),
+    ];
+    const { ops, drag, gizmo } = selected([1, 2, 3], onPivot);
+    expect(gizmo.pivot).toEqual({ x: 0, y: 0 });
+
+    drag(gizmo.pivot, { x: 10, y: 20 });
+
+    expect(useEditorStore.getState().rotatePivot).toBeNull();
+    await until(() => expect(ops).toHaveLength(1));
+    expect(ops[0]).toMatchObject({ type: "MoveSystems" });
   });
 
   it("puts the pivot back when Esc drops the drag", () => {

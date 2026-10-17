@@ -23,7 +23,7 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
-import { rotationOp, rotationPivot } from "../lib/rotation";
+import { rotationOp } from "../lib/rotation";
 import { wormholePartnerOf } from "../lib/wormholes";
 import { addSystemActions } from "./editorStore.addSystem";
 import { editPipeline, runAdd, runAnswered, systems, type OpSource } from "./editorEdits";
@@ -121,7 +121,7 @@ export interface EditorState {
   lastNebulaRadius: number;
   /** What the fit dialog is asked over: the mod's candidate rings and the automatic zones standing now. */
   feZoneFitPrompt: { candidates: number; automatic: number } | null;
-  /** The galaxy point the selection turns about; null turns it about its bounds centre. A new selection clears it. */
+  /** Where the player dragged the pivot; null turns the selection about its centroid. A new selection clears it. */
   rotatePivot: Pt | null;
   /** Whether a rotation carries the nebulae centred inside the selection's hull. */
   rotateNebulae: boolean;
@@ -165,12 +165,13 @@ export interface EditorState {
   deleteSelection(): Promise<void>;
   /** Moves every selected system by a world offset in one op. */
   nudgeSelection(dx: number, dy: number): Promise<void>;
-  /** Moves the point the selection turns about, or puts it back on the selection's centre with null. */
+  /** Moves the point the selection turns about, or puts it back on the selection's centroid with null. */
   setRotatePivot(pivot: Pt | null): void;
   setRotateNebulae(on: boolean): void;
   /**
-   * Turns the selected systems about `rotatePivot` by `degrees`, clockwise as the map shows it,
-   * and with `rotateNebulae` the nebulae inside them, in one edit. Symmetry does not apply.
+   * Turns the selected systems by `degrees` about `rotatePivot`, else their centroid, clockwise
+   * as the map shows it, and with `rotateNebulae` the nebulae inside them, in one edit. Symmetry
+   * does not apply.
    */
   rotateSelection(degrees: number): Promise<boolean>;
   /** Sets system `id` to the height the editor shows, 0 on the game's default plane, in one op. */
@@ -563,13 +564,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async rotateSelection(degrees) {
-      return get().applyOp(() => {
-        const galaxy = useGalaxyStore.getState();
-        const op = rotationOp(get(), galaxy, degrees);
-        // Pinned, so the next turn goes about the same point rather than the turned bounds' centre.
-        if (op !== null) set({ rotatePivot: rotationPivot(get(), galaxy.systems) });
-        return op;
-      });
+      return get().applyOp(() => rotationOp(get(), useGalaxyStore.getState(), degrees));
     },
 
     async addSystemAt(x, y, initializer = null, spawnWeight = null) {

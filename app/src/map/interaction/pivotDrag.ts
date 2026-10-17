@@ -6,7 +6,7 @@ import { useEditorStore } from "../../store/editorStore";
  * than an edit, and a cancelled drag puts back the one it started from.
  */
 export class PivotDrag {
-  /** The pivot the drag started from, once it has moved; null turns about the bounds centre. */
+  /** The pivot the drag started from, once it has moved; null turns about the centroid. */
   private from: { pivot: Pt | null } | null = null;
 
   move(x: number, y: number): void {

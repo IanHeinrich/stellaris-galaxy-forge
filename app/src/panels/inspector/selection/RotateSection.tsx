@@ -1,15 +1,9 @@
 import { useState } from "react";
+import { ROTATE_TURNS } from "../../../lib/rotation";
 import { typedNumber } from "../../../lib/text";
 import { useEditorStore } from "../../../store/editorStore";
 import { EditBlock, EditRow, TextField, ToggleField } from "../../EditField";
 import { Section } from "../parts";
-
-/** The turns the buttons make, clockwise as the map shows it. */
-const TURNS = [
-  { label: "90° left", degrees: -90 },
-  { label: "90° right", degrees: 90 },
-  { label: "180°", degrees: 180 },
-] as const;
 
 /** Several systems selected: turn them about the pivot by a typed angle or a quarter or half turn. */
 export function RotateSection() {
@@ -53,7 +47,7 @@ export function RotateSection() {
         <button type="button" onClick={() => turn(degrees)}>
           Rotate
         </button>
-        {TURNS.map(({ label, degrees: by }) => (
+        {ROTATE_TURNS.map(({ label, degrees: by }) => (
           <button type="button" key={label} onClick={() => turn(by)}>
             {label}
           </button>

@@ -14,24 +14,25 @@ export function rotateAbout(p: Pt, pivot: Pt, degrees: number): Pt {
   return { x: pivot.x + dx * cos - dy * sin, y: pivot.y + dx * sin + dy * cos };
 }
 
-/** The centre of the box round the systems of `ids` that exist; null when none does. */
-export function selectionCentre(
+/**
+ * The mean position of the systems of `ids` that exist, which a turn about it leaves where it is;
+ * null when none does.
+ */
+export function selectionCentroid(
   systems: ReadonlyMap<number, Pt>,
   ids: readonly number[],
 ): Pt | null {
-  let x0 = Infinity;
-  let y0 = Infinity;
-  let x1 = -Infinity;
-  let y1 = -Infinity;
+  let x = 0;
+  let y = 0;
+  let count = 0;
   for (const id of ids) {
     const s = systems.get(id);
     if (!s) continue;
-    x0 = Math.min(x0, s.x);
-    y0 = Math.min(y0, s.y);
-    x1 = Math.max(x1, s.x);
-    y1 = Math.max(y1, s.y);
+    x += s.x;
+    y += s.y;
+    count++;
   }
-  return x0 === Infinity ? null : { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+  return count === 0 ? null : { x: x / count, y: y / count };
 }
 
 function cross(o: Pt, a: Pt, b: Pt): number {

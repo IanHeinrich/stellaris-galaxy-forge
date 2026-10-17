@@ -38,7 +38,7 @@ import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
 import { PivotDrag } from "./pivotDrag";
 import { PointerBridge } from "./pointerBridge";
-import { groupOf } from "./press";
+import { gizmoOf, groupOf } from "./press";
 import { ShapeDrags } from "./shapeDrags";
 import { ShapeModel } from "./ShapeModel";
 
@@ -465,7 +465,7 @@ export class InteractionController {
   /** What a lane drag would start from, and where on the system or nebula the press grabbed it. */
   private pressed(input: MapInput): void {
     const pressed =
-      input.system === null || input.rotate
+      input.system === null || gizmoOf(input)
         ? null
         : useGalaxyStore.getState().systems.get(input.system);
     this.laneFrom = pressed
