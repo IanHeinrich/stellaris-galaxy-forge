@@ -5,9 +5,11 @@ use sgf_core::ops::{Op, SystemMove};
 use sgf_core::session::OpResult;
 
 use crate::common;
+use crate::ops_nebula::{inside, rotation};
 use common::current;
 use common::diff::{report, snapshot};
 use common::fixture::GRAMMAR;
+use common::fixture::from_scenario_text;
 
 #[test]
 fn move_system_2_writes_decimals_over_an_integer_position() {
@@ -238,4 +240,46 @@ fn adding_a_nebula_and_removing_it_again_is_byte_identical() {
     assert_eq!(current(&session), fixture);
     assert_eq!(session.graph().nebulae.len(), 2);
     assert_eq!(session.graph().systems[&2].nebula, Some(0));
+}
+
+/// Galactic Center, Coruscant and system 16 turned about Coruscant with the Heart of the
+/// Galaxy, which leaves Corellia (111) outside the moved circle.
+#[test]
+fn rotating_a_selection_and_a_nebula_in_one_batch_rebuilds_membership_on_the_moved_systems() {
+    let fixture = GRAMMAR.bytes();
+    let mut session = GRAMMAR.open();
+    assert_eq!(session.graph().nebulae[0].systems, [1, 2, 111]);
+    let before = session.graph().nebulae[0].clone();
+    let pivot = (0.0, -56.0);
+    let op = rotation(&session, pivot, &[1, 2, 16], &[0]);
+
+    let result = session.apply(op).unwrap();
+
+    assert_eq!(
+        result.entry.description,
+        "Rotated 3 systems and 1 nebula by 90°"
+    );
+    let graph = session.graph();
+    assert_eq!((graph.systems[&1].x, graph.systems[&1].y), (-56.0, -56.0));
+    assert_eq!((graph.systems[&2].x, graph.systems[&2].y), (0.0, -56.0));
+    assert_eq!((graph.systems[&16].x, graph.systems[&16].y), (32.5, -110.0));
+    assert_eq!((graph.nebulae[0].x, graph.nebulae[0].y), (-56.0, -56.0));
+    assert_eq!(graph.nebulae[0].radius, before.radius);
+    assert_eq!(graph.nebulae[0].systems, inside(&session, 0));
+    assert_eq!(graph.nebulae[0].systems, [1, 2]);
+    assert_eq!(graph.systems[&111].nebula, None);
+    assert_eq!(graph.systems[&1].nebula, Some(0));
+    let fresh = from_scenario_text(current(&session));
+    assert_eq!(session.graph().systems, fresh.graph().systems);
+    assert_eq!(session.graph().nebulae, fresh.graph().nebulae);
+    common::snapshot("rotate_selection_and_nebula_0", &report(&session, &result));
+
+    session.undo().unwrap().expect("undo");
+    assert_eq!(current(&session), fixture);
+    assert_eq!(session.graph().nebulae[0], before);
+
+    session.redo().unwrap().expect("redo");
+    session.apply(result.inverse).unwrap();
+    assert_eq!(current(&session), fixture);
+    assert_eq!(session.graph().nebulae[0], before);
 }

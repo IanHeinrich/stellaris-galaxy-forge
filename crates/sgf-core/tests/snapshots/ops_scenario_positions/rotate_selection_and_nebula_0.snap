@@ -1,0 +1,32 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Rotated 3 systems and 1 nebula by 90°
+touched: [1, 2, 16, 111]
+inverse: Batch { description: "Rotated 3 systems and 1 nebula by 90°", ops: [MoveNebula { index: 0, x: 0.0, y: 0.0 }, MoveSystems { moves: [SystemMove { system: 1, x: 0.0, y: 0.0 }, SystemMove { system: 2, x: 0.0, y: -56.0 }, SystemMove { system: 16, x: -54.0, y: -88.5 }] }] }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
+… and 1 other issues
+
+--- scenario
++++ scenario
+@@ -32,9 +32,9 @@
+ 	}
+ 
+ 	### Systems, one per line in the mod's shape
+-	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
++	system = { id = "1" name = "Galactic Center" position = { x = -56 y = -56 } initializer = misc_system_init_01 }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+-	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
++	system = { id = "16" name = "" position = { x = 32.5 y = -110 z = 4 } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block
+@@ -62,6 +62,6 @@
+ 	add_hyperlane = { from = "3018" to = "512" }
+ 	add_hyperlane = { from = "512" to = "888" }
+ 
+-	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
++	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = -56 y = -56 } radius = 60 }
+ 	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
+ }

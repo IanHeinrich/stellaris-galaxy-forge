@@ -23,6 +23,7 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
+import { rotationOp } from "../lib/rotation";
 import { wormholePartnerOf } from "../lib/wormholes";
 import { addSystemActions } from "./editorStore.addSystem";
 import { editPipeline, runAdd, runAnswered, systems, type OpSource } from "./editorEdits";
@@ -120,6 +121,10 @@ export interface EditorState {
   lastNebulaRadius: number;
   /** What the fit dialog is asked over: the mod's candidate rings and the automatic zones standing now. */
   feZoneFitPrompt: { candidates: number; automatic: number } | null;
+  /** The galaxy point the selection turns about; null turns it about its bounds centre. A new selection clears it. */
+  rotatePivot: Pt | null;
+  /** Whether a rotation carries the nebulae centred inside the selection's hull. */
+  rotateNebulae: boolean;
 
   /** Replaces the selection with `id`, or clears it. */
   select(id: number | null): Promise<void>;
@@ -160,6 +165,14 @@ export interface EditorState {
   deleteSelection(): Promise<void>;
   /** Moves every selected system by a world offset in one op. */
   nudgeSelection(dx: number, dy: number): Promise<void>;
+  /** Moves the point the selection turns about, or puts it back on the selection's centre with null. */
+  setRotatePivot(pivot: Pt | null): void;
+  setRotateNebulae(on: boolean): void;
+  /**
+   * Turns the selected systems about `rotatePivot` by `degrees`, clockwise as the map shows it,
+   * and with `rotateNebulae` the nebulae inside them, in one edit. Symmetry does not apply.
+   */
+  rotateSelection(degrees: number): Promise<boolean>;
   /** Sets system `id` to the height the editor shows, 0 on the game's default plane, in one op. */
   setSystemHeight(id: number, relative: number): Promise<boolean>;
   /**
@@ -423,6 +436,7 @@ const INITIAL = {
   framed: null as Framed | null,
   history: { undo: [], redo: [] } as HistoryView,
   feZoneFitPrompt: null as { candidates: number; automatic: number } | null,
+  rotatePivot: null as Pt | null,
 } satisfies Partial<EditorState>;
 
 export const useEditorStore = create<EditorState>((set, get) => {
@@ -431,6 +445,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...INITIAL,
     fitNonce: 0,
     fitSelectionNonce: 0,
+    rotateNebulae: false,
     ...edits.actions,
     ...nebulaActions(set, get, edits.runEdit),
     ...laneActions(set, get),
@@ -539,6 +554,18 @@ export const useEditorStore = create<EditorState>((set, get) => {
       });
     },
 
+    setRotatePivot(pivot) {
+      set({ rotatePivot: pivot });
+    },
+
+    setRotateNebulae(on) {
+      set({ rotateNebulae: on });
+    },
+
+    async rotateSelection(degrees) {
+      return get().applyOp(() => rotationOp(get(), useGalaxyStore.getState(), degrees));
+    },
+
     async addSystemAt(x, y, initializer = null, spawnWeight = null) {
       // Under the Paint a Galaxy profile the weight is the site's script, keyed to the id the core will give.
       const paint = getPaintLayer() && spawnWeight !== null;
@@ -615,6 +642,12 @@ function unique(ids: number[]): number[] {
   return [...new Set(ids)];
 }
 
+function sameIds(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((id) => set.has(id));
+}
+
 function isSingle(selection: number[], id: number): boolean {
   return selection.length === 1 && selection[0] === id;
 }
@@ -622,8 +655,10 @@ function isSingle(selection: number[], id: number): boolean {
 /** The one path every selection change takes: it owns `inspected` and clears the lane and nebula. */
 export async function selectSystems(ids: number[], reveal = true): Promise<void> {
   const { setState, getState } = useEditorStore;
+  const same = sameIds(getState().selection, ids);
   setState({
     selection: ids,
+    rotatePivot: same ? getState().rotatePivot : null,
     selectedLane: null,
     selectedNebula: null,
     inspected: ids.length === 1 ? getState().inspected : null,
