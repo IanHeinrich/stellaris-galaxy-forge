@@ -125,6 +125,23 @@ pub enum Op {
         index: usize,
         name: String,
     },
+    /// `systems` turned together by `degrees` about `pivot`, a point in the galaxy's
+    /// coordinates. Positive degrees turn clockwise as the galaxy map shows it, which
+    /// mirrors the file's x axis: a quarter turn about (0, 0) takes a system at (0, 10) to
+    /// (10, 0). With `nebulae`, each nebula whose centre lies in or on the convex hull of the
+    /// systems where they stand turns with them. It writes what an [`Op::MoveSystems`] to
+    /// the turned positions, rounded as the file holds them, and then an [`Op::MoveNebula`]
+    /// per nebula would write, so a save gives each cloud the members its radius covers once
+    /// the systems have moved. An empty list, a system listed twice or missing, a pivot or
+    /// angle that is not a finite number, and a turn that leaves everything where it stands,
+    /// as a whole number of turns does, are refused. The inverse is the [`Op::Batch`] of
+    /// those ops' inverses.
+    RotateSystems {
+        systems: Vec<u32>,
+        pivot: (f64, f64),
+        degrees: f64,
+        nebulae: bool,
+    },
     /// A new `system` statement, its id `system` defaulting to one past the highest held.
     /// Scenario documents only; a save adds a system through [`Op::AddSystemFromSpec`]. A weight and a
     /// script together are refused (see [`Op::SetSpawnScript`]).
@@ -1084,7 +1101,8 @@ impl Op {
             | Self::AddNebula { .. }
             | Self::RemoveNebula { .. }
             | Self::SetNebulaRadius { .. }
-            | Self::RenameNebula { .. } => OpReach::of(BOTH),
+            | Self::RenameNebula { .. }
+            | Self::RotateSystems { .. } => OpReach::of(BOTH),
             Self::RenameSystem { .. } => OpReach::of(BOTH).details(SaveBodies).reclassifies(),
             Self::RemoveSystem { .. } | Self::RemoveSystems { .. } => {
                 OpReach::of(BOTH).details(Bodies).reclassifies()

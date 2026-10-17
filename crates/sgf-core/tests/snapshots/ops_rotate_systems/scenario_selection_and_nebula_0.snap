@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Rotated 3 systems and 1 nebula by 90°
+Rotated 3 systems and 1 nebula by -90°
 touched: [1, 2, 16, 111]
-inverse: Batch { description: "Rotated 3 systems and 1 nebula by 90°", ops: [MoveNebula { index: 0, x: 0.0, y: 0.0 }, MoveSystems { moves: [SystemMove { system: 1, x: 0.0, y: 0.0 }, SystemMove { system: 2, x: 0.0, y: -56.0 }, SystemMove { system: 16, x: -54.0, y: -88.5 }] }] }
+inverse: Batch { description: "Rotated 3 systems and 1 nebula by -90°", ops: [MoveNebula { index: 0, x: 0.0, y: 0.0 }, MoveSystems { moves: [SystemMove { system: 1, x: 0.0, y: 0.0 }, SystemMove { system: 2, x: 0.0, y: -56.0 }, SystemMove { system: 16, x: -54.0, y: -88.5 }] }] }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 1 other issues
 

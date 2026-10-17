@@ -2,15 +2,17 @@
 //!
 //! One module per subject: `lanes` for the links between systems, `systems` for where
 //! they stand, `bodies` for where the planets and moons in one stand, `nebula` for the
-//! clouds over them, `fe_zone` for the empty space Paint a Galaxy seats a fallen empire
-//! in. Nothing here reaches for a plan, an edit or a document; both formats' writers
-//! start from these decisions and differ only in the bytes they then splice.
+//! clouds over them, `rotation` for a selection turned about a point, `fe_zone` for the
+//! empty space Paint a Galaxy seats a fallen empire in. Nothing here reaches for a plan, an
+//! edit or a document; both formats' writers start from these decisions and differ only in
+//! the bytes they then splice.
 
 pub(crate) mod bodies;
 pub mod fe_zone;
 pub(crate) mod lanes;
 pub(crate) mod modifiers;
 pub(crate) mod nebula;
+pub(crate) mod rotation;
 pub(crate) mod systems;
 
 pub use systems::GALAXY_REACH;

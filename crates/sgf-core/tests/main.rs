@@ -96,6 +96,7 @@ mod ops_remove_planet_restore;
 mod ops_rename_added_system;
 mod ops_rename_planet;
 mod ops_replace_added_system;
+mod ops_rotate_systems;
 mod ops_scenario_bulk;
 mod ops_scenario_history;
 mod ops_scenario_incremental;

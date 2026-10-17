@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Rotated 5 systems and 1 nebula by 90°
+Rotated 5 systems and 1 nebula by -90°
 touched: [108, 136, 140, 164, 166, 181, 348, 438, 455, 484, 500, 623, 753]
-inverse: Batch { description: "Rotated 5 systems and 1 nebula by 90°", ops: [MoveNebula { index: 0, x: 66.15, y: -136.85 }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 140, cloud: Some(NebulaCloud { id: 1051, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 181, cloud: Some(NebulaCloud { id: 1048, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 348, cloud: Some(NebulaCloud { id: 1042, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 455, cloud: Some(NebulaCloud { id: 1069, kind: "nebula_1" }), cloaking: true, turbulent: false }] }, MoveSystems { moves: [SystemMove { system: 438, x: 66.15, y: -136.85 }, SystemMove { system: 623, x: 54.01, y: -129.39 }, SystemMove { system: 164, x: 81.78, y: -145.56 }, SystemMove { system: 108, x: 83.2, y: -118.95 }, SystemMove { system: 455, x: 100.07, y: -134.13 }] }] }
+inverse: Batch { description: "Rotated 5 systems and 1 nebula by -90°", ops: [MoveNebula { index: 0, x: 66.15, y: -136.85 }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 140, cloud: Some(NebulaCloud { id: 1051, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 181, cloud: Some(NebulaCloud { id: 1048, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 348, cloud: Some(NebulaCloud { id: 1042, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 455, cloud: Some(NebulaCloud { id: 1069, kind: "nebula_1" }), cloaking: true, turbulent: false }] }, MoveSystems { moves: [SystemMove { system: 438, x: 66.15, y: -136.85 }, SystemMove { system: 623, x: 54.01, y: -129.39 }, SystemMove { system: 164, x: 81.78, y: -145.56 }, SystemMove { system: 108, x: 83.2, y: -118.95 }, SystemMove { system: 455, x: 100.07, y: -134.13 }] }] }
 … and 3 other issues
 
 --- gamestate

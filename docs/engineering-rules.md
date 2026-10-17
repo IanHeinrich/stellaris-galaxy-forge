@@ -76,7 +76,8 @@ format sees it.
 - Verbs. `Set` replaces one value. `Add` and `Remove` are each other's
   inverse. `Delete` takes out something the document held when it was
   opened. `Restore` writes back whole entities an edit rewrote, and is
-  only ever an inverse. `Move` sets a position and `Rename` a name.
+  only ever an inverse. `Move` sets a position, `Rotate` turns positions
+  about a point and `Rename` sets a name.
   `Prevent` and `Allow` are the scenario's lane pair. `Isolate` takes
   every lane off a system, `Normalise` sets a lane length to the one the
   game writes, and `Replace` rolls an added system again.
