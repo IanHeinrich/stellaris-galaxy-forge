@@ -6,8 +6,10 @@ vi.mock("../api/events");
 import { editor, openFixtureSave } from "./editorFixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
-import { OPEN_RESULT, editResult, name } from "./fixture";
+import { OPEN_RESULT, SYSTEMS, editResult, name } from "./fixture";
 import { mockedIpc } from "../test/ipc";
+import { rotateAbout } from "../lib/geometry/rotate";
+import type { Op } from "../generated/Op";
 
 beforeEach(async () => {
   await openFixtureSave();
@@ -56,6 +58,28 @@ describe("rotating the selection", () => {
           ],
         },
       ],
+    });
+  });
+
+  it("pins the centre it turned about, so a second turn goes about the same point", async () => {
+    const turned = [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]].map((s) => ({
+      ...s,
+      ...rotateAbout(s, { x: 10, y: -10 }, 30),
+    }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: turned } }));
+    await editor().setSelection([0, 2, 4], "replace");
+
+    await editor().rotateSelection(30);
+    expect(editor().rotatePivot).toEqual({ x: 10, y: -10 });
+    await editor().rotateSelection(30);
+
+    const second = sent()[1] as Extract<Op, { type: "Batch" }>;
+    expect(second.ops[0]).toEqual({
+      type: "MoveSystems",
+      moves: [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]].map((s) => {
+        const at = rotateAbout(s, { x: 10, y: -10 }, 60);
+        return { system: s.id, x: expect.closeTo(at.x, 4), y: expect.closeTo(at.y, 4) };
+      }),
     });
   });
 

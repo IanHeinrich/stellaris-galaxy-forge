@@ -101,6 +101,18 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
   ),
   follows(
     useEditorStore,
+    [(s) => s.rotatePivot],
+    (s, view) => view.highlights.setRotatePivot(s.rotatePivot),
+    "bind",
+  ),
+  follows(
+    useToolStore,
+    [(s) => s.tool],
+    (s, view) => view.highlights.setRotateShown(s.tool === "select"),
+    "bind",
+  ),
+  follows(
+    useEditorStore,
     [(s) => s.selectedLane],
     (s, view) => view.highlights.setSelectedLane(s.selectedLane),
     "bind",

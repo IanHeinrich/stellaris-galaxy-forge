@@ -1,3 +1,4 @@
+import { rotationPreview } from "../../lib/rotation";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import {
@@ -23,14 +24,22 @@ function groupGhosts(ids: readonly number[], dx: number, dy: number): SystemMove
   });
 }
 
+/** Where turning the selection by `degrees` puts its systems, as the edit would write them. */
+function turnedGhosts(degrees: number): SystemMove[] {
+  return (
+    rotationPreview(useEditorStore.getState(), useGalaxyStore.getState(), degrees)?.systems ?? []
+  );
+}
+
 /**
  * Previews `ghosts` on `layers`, each where its system would draw at its destination, with what
- * they leave behind faded; none ends the preview.
+ * they leave behind faded, and the `turn` a rotate drag gives them; none ends the preview.
  */
 export function showGhosts(
   layers: readonly MapLayer[],
   drawn: DrawnPositions,
   ghosts: readonly MoveGhost[],
+  turn: number | null = null,
 ): void {
   let drag: DragState | null = null;
   if (ghosts.length > 0) {
@@ -39,15 +48,16 @@ export function showGhosts(
       const s = systems.get(g.id);
       return s ? { id: g.id, ...drawn.atPoint(s, g) } : g;
     });
-    drag = { ghosts: placed, byId: new Map(placed.map((g) => [g.id, g])) };
+    drag = { ghosts: placed, byId: new Map(placed.map((g) => [g.id, g])), turn };
   }
   for (const layer of layers) layer.setDragState?.(drag);
 }
 
 /**
  * The move side of `MapIntent`: one system or a group dragged, with the counterparts symmetry
- * carries found once when the drag starts, shown as ghosts on `layers` until the edit it sends
- * settles. A move is a place on the plane; each ghost draws where its system would draw there.
+ * carries found once when the drag starts, or the selection turned about its pivot, shown as
+ * ghosts on `layers` until the edit it sends settles. A move is a place on the plane; each ghost
+ * draws where its system would draw there.
  */
 export class MoveDrag {
   private readonly preview: SettlingPreview;
@@ -78,6 +88,15 @@ export class MoveDrag {
     this.commit({ type: "MoveSystems", moves: groupGhosts(ids, dx, dy) });
   }
 
+  /** The selection turned by `degrees` about its pivot; symmetry does not apply. */
+  rotate(degrees: number): void {
+    this.showMoves(turnedGhosts(degrees), degrees);
+  }
+
+  commitRotate(degrees: number): void {
+    this.preview.settle(useEditorStore.getState().rotateSelection(degrees));
+  }
+
   cancel(): void {
     this.plan = null;
     this.preview.drop();
@@ -88,9 +107,14 @@ export class MoveDrag {
   }
 
   private update(ids: readonly number[], moves: SystemMove[]): void {
+    this.showMoves(plannedMoves(this.planFor(ids), moves));
+  }
+
+  private showMoves(moves: readonly SystemMove[], turn: number | null = null): void {
     this.preview.update();
     this.show(
-      plannedMoves(this.planFor(ids), moves).map(({ system, x, y }) => ({ id: system, x, y })),
+      moves.map(({ system, x, y }) => ({ id: system, x, y })),
+      turn,
     );
   }
 
@@ -100,7 +124,7 @@ export class MoveDrag {
     this.preview.settle(useEditorStore.getState().applyOp(planned));
   }
 
-  private show(ghosts: MoveGhost[]): void {
-    showGhosts(this.layers, this.drawn, ghosts);
+  private show(ghosts: MoveGhost[], turn: number | null = null): void {
+    showGhosts(this.layers, this.drawn, ghosts, turn);
   }
 }

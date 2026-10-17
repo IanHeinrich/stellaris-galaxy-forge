@@ -23,7 +23,7 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
-import { rotationOp } from "../lib/rotation";
+import { rotationOp, rotationPivot } from "../lib/rotation";
 import { wormholePartnerOf } from "../lib/wormholes";
 import { addSystemActions } from "./editorStore.addSystem";
 import { editPipeline, runAdd, runAnswered, systems, type OpSource } from "./editorEdits";
@@ -563,7 +563,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async rotateSelection(degrees) {
-      return get().applyOp(() => rotationOp(get(), useGalaxyStore.getState(), degrees));
+      return get().applyOp(() => {
+        const galaxy = useGalaxyStore.getState();
+        const op = rotationOp(get(), galaxy, degrees);
+        // Pinned, so the next turn goes about the same point rather than the turned bounds' centre.
+        if (op !== null) set({ rotatePivot: rotationPivot(get(), galaxy.systems) });
+        return op;
+      });
     },
 
     async addSystemAt(x, y, initializer = null, spawnWeight = null) {

@@ -8,6 +8,7 @@ import { counted } from "../../../lib/text";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
 import { BulkActions } from "../../BulkActions";
 import { BulkStarClass } from "./BulkStarClass";
+import { RotateSection } from "./RotateSection";
 import { Chip, FILTER_MIN, FilterField } from "../../parts";
 import { Section, Swatch } from "../parts";
 import { shortcutLabel } from "../../../lib/keys";
@@ -64,6 +65,7 @@ export function SelectionView() {
         </div>
         <div className="muted ins-hint">Also in the right-click menu on the map.</div>
       </Section>
+      <RotateSection />
       <SelectedChips />
       {selection.some((id) => !systems.has(id)) && (
         <div className="ins-line">

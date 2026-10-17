@@ -131,3 +131,37 @@ describe("the bulk star class", () => {
     expect(html).toContain(`title="${STARS_NEED_GAME_DATA}"`);
   });
 });
+
+describe("the rotate section", () => {
+  async function render(): Promise<string> {
+    await open("scenario");
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+    return renderToStaticMarkup(<SelectionView />);
+  }
+
+  it("offers an angle, the quarter and half turns and the nebulae choice", async () => {
+    const html = await render();
+    expect(html).toContain("Rotate");
+    expect(html).toContain('aria-label="Degrees"');
+    expect(html).toContain('value="45"');
+    expect(html).toContain("90° left");
+    expect(html).toContain("90° right");
+    expect(html).toContain("180°");
+    expect(html).toContain("Nebulae too");
+    expect(html).not.toContain("Centre pivot");
+  });
+
+  it("shows the nebulae choice as the store holds it", async () => {
+    await open("scenario");
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+    useEditorStore.getState().setRotateNebulae(true);
+    expect(renderToStaticMarkup(<SelectionView />)).toMatch(/type="checkbox" checked=""/);
+  });
+
+  it("offers to centre the pivot only once it has been moved", async () => {
+    await open("scenario");
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+    useEditorStore.getState().setRotatePivot({ x: 10, y: 20 });
+    expect(renderToStaticMarkup(<SelectionView />)).toContain("Centre pivot");
+  });
+});
