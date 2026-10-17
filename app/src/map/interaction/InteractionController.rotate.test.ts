@@ -87,18 +87,11 @@ describe("a drag on the rotate handle", () => {
     await until(() => expect(ops).toHaveLength(1));
     expect(ops).toEqual([
       {
-        type: "Batch",
-        description: expect.any(String),
-        ops: [
-          {
-            type: "MoveSystems",
-            moves: expected.map(({ system, x, y }) => ({
-              system,
-              x: expect.closeTo(x, 4),
-              y: expect.closeTo(y, 4),
-            })),
-          },
-        ],
+        type: "RotateSystems",
+        systems: [1, 2, 3],
+        pivot: [gizmo.pivot.x, gizmo.pivot.y],
+        degrees: expect.closeTo(30, 4),
+        nebulae: false,
       },
     ]);
   });
@@ -112,9 +105,11 @@ describe("a drag on the rotate handle", () => {
     await until(() => expect(ops).toHaveLength(1));
     expect(ops).toEqual([
       {
-        type: "Batch",
-        description: expect.any(String),
-        ops: [{ type: "MoveSystems", moves: landing(45) }],
+        type: "RotateSystems",
+        systems: [1, 2, 3],
+        pivot: [gizmo.pivot.x, gizmo.pivot.y],
+        degrees: 45,
+        nebulae: false,
       },
     ]);
   });
@@ -176,6 +171,6 @@ describe("the pivot and rotate handle", () => {
 
     expect(useEditorStore.getState().rotatePivot).toBeNull();
     expect(drags.filter((d) => d?.turn != null)).toEqual([]);
-    expect(ops.filter((op) => op.type === "Batch")).toEqual([]);
+    expect(ops.filter((op) => op.type === "RotateSystems")).toEqual([]);
   });
 });

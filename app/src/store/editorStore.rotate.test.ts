@@ -4,11 +4,9 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 
 import { editor, openFixtureSave } from "./editorFixture";
-import { useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
-import { OPEN_RESULT, SYSTEMS, editResult, name } from "./fixture";
+import { SYSTEMS, editResult } from "./fixture";
 import { mockedIpc } from "../test/ipc";
-import { rotateAbout } from "../lib/geometry/rotate";
 import type { Op } from "../generated/Op";
 import type { Pt } from "../lib/geometry/pt";
 
@@ -20,123 +18,61 @@ beforeEach(async () => {
 const sent = () => mockedIpc.applyOp.mock.calls.map(([op]) => op);
 
 describe("rotating the selection", () => {
-  it("turns the selection about the pivot it was given in one Batch, symmetry or not", async () => {
+  it("sends one RotateSystems about the pivot it was given, symmetry or not", async () => {
     useToolStore.setState({ symmetry: { kind: "mirror", axis: "x" } });
     await editor().setSelection([0, 3], "replace");
     editor().setRotatePivot({ x: 10, y: 0 });
 
     expect(await editor().rotateSelection(90)).toBe(true);
     expect(sent()).toEqual([
-      {
-        type: "Batch",
-        description: "Rotated 2 systems by 90°",
-        ops: [
-          {
-            type: "MoveSystems",
-            moves: [
-              { system: 0, x: 10, y: 10 },
-              { system: 3, x: 10, y: -20 },
-            ],
-          },
-        ],
-      },
+      { type: "RotateSystems", systems: [0, 3], pivot: [10, 0], degrees: 90, nebulae: false },
     ]);
     expect(editor().rotatePivot).toEqual({ x: 10, y: 0 });
   });
 
-  it("turns two systems about their midpoint with no pivot given", async () => {
+  it("turns about the centroid with no pivot given, which a turn leaves where it is", async () => {
     await editor().setSelection([0, 2], "replace");
     expect(editor().rotatePivot).toBeNull();
 
     await editor().rotateSelection(90);
-    expect(sent()[0]).toMatchObject({
-      ops: [
-        {
-          type: "MoveSystems",
-          moves: [
-            { system: 0, x: 5, y: 15 },
-            { system: 2, x: 15, y: -5 },
-          ],
-        },
-      ],
+    await editor().rotateSelection(30);
+    expect(sent()).toEqual([
+      { type: "RotateSystems", systems: [0, 2], pivot: [10, 5], degrees: 90, nebulae: false },
+      { type: "RotateSystems", systems: [0, 2], pivot: [10, 5], degrees: 30, nebulae: false },
+    ]);
+    expect(editor().rotatePivot).toBeNull();
+  });
+
+  it("turns about the centroid where a nudge took the group", async () => {
+    const moved = (s: Pt) => ({ x: s.x + 50, y: s.y });
+    const trio = [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]];
+    await editor().setSelection([0, 2, 4], "replace");
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: trio.map((s) => ({ ...s, ...moved(s) })) } }),
+    );
+
+    await editor().nudgeSelection(50, 0);
+    await editor().rotateSelection(30);
+
+    expect(sent()[1]).toEqual({
+      type: "RotateSystems",
+      systems: [0, 2, 4],
+      pivot: [expect.closeTo(60, 4), expect.closeTo(-20 / 3, 4)],
+      degrees: 30,
+      nebulae: false,
     });
   });
 
-  describe("with no pivot placed", () => {
-    const TRIO = [SYSTEMS[0], SYSTEMS[2], SYSTEMS[4]];
-    const at = (p: Pt) => ({ x: expect.closeTo(p.x, 4), y: expect.closeTo(p.y, 4) });
-    /** The trio's moves in the `index`th op sent. */
-    const movesOf = (index: number) => (sent()[index] as Extract<Op, { type: "Batch" }>).ops[0];
-    /** An edit that leaves the trio where `place` puts each. */
-    const landing = (place: (s: Pt) => Pt) =>
-      editResult({ delta: { systems: TRIO.map((s) => ({ ...s, ...place(s) })) } });
-
-    beforeEach(() => editor().setSelection([0, 2, 4], "replace"));
-
-    it("turns about the centroid, which a turn leaves where it is", async () => {
-      const centroid = { x: 10, y: -20 / 3 };
-      mockedIpc.applyOp.mockResolvedValueOnce(landing((s) => rotateAbout(s, centroid, 30)));
-
-      await editor().rotateSelection(30);
-      await editor().rotateSelection(30);
-
-      expect(editor().rotatePivot).toBeNull();
-      expect(movesOf(1)).toEqual({
-        type: "MoveSystems",
-        moves: TRIO.map((s) => ({ system: s.id, ...at(rotateAbout(s, centroid, 60)) })),
-      });
-    });
-
-    it("turns about the centroid where a nudge took the group", async () => {
-      const moved = (s: Pt) => ({ x: s.x + 50, y: s.y });
-      mockedIpc.applyOp.mockResolvedValueOnce(landing(moved));
-
-      await editor().nudgeSelection(50, 0);
-      await editor().rotateSelection(30);
-
-      expect(movesOf(1)).toEqual({
-        type: "MoveSystems",
-        moves: TRIO.map((s) => ({
-          system: s.id,
-          ...at(rotateAbout(moved(s), { x: 60, y: -20 / 3 }, 30)),
-        })),
-      });
-    });
-  });
-
-  it("carries a nebula centred inside the selection's hull only with rotateNebulae on", async () => {
-    const cloud = (x: number, y: number) => ({
-      name: name("NAME_Cloud"),
-      x,
-      y,
-      radius: 5,
-      systems: [],
-    });
-    useGalaxyStore
-      .getState()
-      .load({ ...OPEN_RESULT.galaxy, nebulae: [cloud(100, 100), cloud(10, -5)] });
+  it("asks for the nebulae in the selection's hull only with rotateNebulae on", async () => {
     await editor().setSelection([0, 3, 4], "replace");
-    editor().setRotatePivot({ x: 10, y: -10 });
-    const moves = {
-      type: "MoveSystems",
-      moves: [
-        { system: 0, x: 20, y: 0 },
-        { system: 3, x: 20, y: -30 },
-        { system: 4, x: -10, y: -10 },
-      ],
-    };
 
     await editor().rotateSelection(90);
     editor().setRotateNebulae(true);
     await editor().rotateSelection(90);
 
-    expect(sent()).toEqual([
-      { type: "Batch", description: "Rotated 3 systems by 90°", ops: [moves] },
-      {
-        type: "Batch",
-        description: "Rotated 3 systems and 1 nebula by 90°",
-        ops: [moves, { type: "MoveNebula", index: 1, x: 15, y: -10 }],
-      },
+    expect(sent().map((op) => (op as Extract<Op, { type: "RotateSystems" }>).nebulae)).toEqual([
+      false,
+      true,
     ]);
   });
 

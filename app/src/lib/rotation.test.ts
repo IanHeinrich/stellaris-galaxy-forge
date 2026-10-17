@@ -10,7 +10,7 @@ describe("rotationPreview", () => {
       [2, { x: 1, y: 0 }],
     ]);
     const state = { selection: [1, 2], rotatePivot: null, rotateNebulae: false };
-    const preview = rotationPreview(state, { systems, nebulae: [] }, 30)!;
+    const preview = rotationPreview(state, { systems }, 30)!;
     expect(preview.pivot).toEqual({ x: 0.5, y: 0 });
     expect(preview.systems).toEqual([
       { system: 1, x: 0.06699, y: 0.25 },
