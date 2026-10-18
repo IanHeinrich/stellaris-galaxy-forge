@@ -1,4 +1,5 @@
 import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
+import type { StarClassView } from "../../../generated/StarClassView";
 import type { MapExtent } from "../../../lib/guides";
 import { SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import type { Rect } from "../../../lib/geometry/polygon";
@@ -100,6 +101,7 @@ export class ShapeOverlay {
   private readonly readout = new BitmapText({ text: "", style: READOUT_STYLE });
   private drawing: ShapeDrawing | null = null;
   private extent: MapExtent | null = null;
+  private starClasses: ReadonlyMap<string, StarClassView> = new Map();
   /** Where the readout hangs: below the lowest handle or point on screen, centred across the shape. */
   private below: Pt = { x: 0, y: 0 };
   private camScale = 1;
@@ -139,6 +141,13 @@ export class ShapeOverlay {
     if (sameExtent(extent, this.extent)) return;
     this.extent = extent;
     this.drawEdge();
+    this.drawMarks();
+  }
+
+  /** The install's star classes, which colour the stars the preview rolled. */
+  setStarClasses(starClasses: ReadonlyMap<string, StarClassView>): void {
+    if (starClasses === this.starClasses) return;
+    this.starClasses = starClasses;
     this.drawMarks();
   }
 
@@ -211,7 +220,7 @@ export class ShapeOverlay {
         g,
         p.points,
         px,
-        p.classes?.map((c) => starGlyph(c).tint),
+        p.classes?.map((c) => starGlyph(c, this.starClasses).tint),
       );
     }
     const shape = d.pending?.shape;

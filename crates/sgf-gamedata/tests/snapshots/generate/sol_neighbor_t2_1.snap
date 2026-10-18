@@ -1,0 +1,18 @@
+---
+source: crates/sgf-gamedata/tests/generate_pinned.rs
+expression: out
+---
+NAME_Procyon at -292.23404 -137.62265 sc_binary_8 sol_neighbor_t2 star_name NAME_Procyon_A
+belt rocky_asteroid_belt 120
+pc_f_star 35 orbit 30 angle 181 deposits ["d_energy_2"] star
+  pc_f_star 20 orbit 30 angle 306 deposits ["d_energy_2"] star name NAME_Procyon_B
+  pc_barren_cold 26 orbit 95 angle 295.56
+  pc_asteroid 5 orbit 120 angle 251.41 deposits ["d_trade_value_2"] asteroid
+  pc_asteroid 5 orbit 120 angle 79.71 deposits ["d_trade_value_2"] asteroid
+  pc_asteroid 5 orbit 120 angle 182.49 asteroid
+  pc_frozen 10 orbit 145 angle 327.99
+  pc_barren 21 orbit 170 angle 124.93
+    pc_frozen 7 orbit 15 angle 65.41
+  pc_barren_cold 19 orbit 195 angle 154.24
+    pc_barren_cold 7 orbit 15 angle 197.24
+  pc_gas_giant 21 orbit 220 angle 169.99

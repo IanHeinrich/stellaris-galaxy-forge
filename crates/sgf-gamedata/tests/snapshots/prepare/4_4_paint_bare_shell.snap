@@ -7,7 +7,7 @@ RenameSystem: 762
 SetFeLinks: 3
 SetFeZone: 8
 SetHeaderKeys: 1
-SetInitializer: 698
+SetInitializer: 685
 SetSpawnScript: 34
 SetWormholePair: 6
 -fallen_empire_max = 3

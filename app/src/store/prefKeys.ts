@@ -23,6 +23,8 @@ export const PREF_KEYS = {
   specialRecent: "sgf.special.recent",
   specialExtras: "sgf.special.extras",
   specialJoin: "sgf.special.join",
+  starBuilderLast: "sgf.starBuilder.last",
+  starBuilderNoPlanets: "sgf.starBuilder.noPlanets",
   nebulaRadius: "sgf.nebula.radius",
   /** Read only to carry a setting from before `laneDensity` over. */
   meshBeta: "sgf.mesh.beta",

@@ -21,7 +21,7 @@ pages don't need editing.
   `system/planet-page.png`, `scenario/scenario-system-inspector.png`,
   `system/system-view.png`, `system/megastructures.png`, the three
   `edit/shape-*.png` shots, the Paint and Connect brush options,
-  `edit/add-system-menu.png` and `edit/special-picker.png` were taken
+  `edit/add-system-menu.png`, `edit/star-builder.png` and `edit/special-picker.png` were taken
   that way, on Stellaris 4.5.2 game data.
 - The dock is 340 pixels wide. Drag its left edge to set it.
 - Saved as PNG at 1x, cropped to the part of the window the page talks
@@ -70,7 +70,8 @@ The Issues, Changes and added-system shots show those edits.
 | `edit/lane-drawn.png` | `edit/hyperlanes.md` | A newly drawn lane | Zoom in and drag from Xraneax's ring to Usksion. |
 | `edit/lane-menu.png` | `edit/hyperlanes.md` | The right-click menu on a lane | Right-click the Usksion to Xraneax lane. |
 | `edit/system-menu-save.png` | `edit/hyperlanes.md` | The right-click menu on a system in a save | Right-click Xraneax. |
-| `edit/add-system-menu.png` | `edit/add-systems.md` | Add system here with the star classes | Right-click empty space and hover Add system here. |
+| `edit/add-system-menu.png` | `edit/add-systems.md` | Add system here with the star classes and Binary or trinary | Right-click empty space, hover Add system here, then Binary or trinary. |
+| `edit/star-builder.png` | `edit/add-systems.md` | The binary and trinary builder | Right-click empty space, select Add system here, then Binary or trinary, then Build one…. Pick Two distant companions and B, K and B stars, with Join to nearby systems ticked. |
 | `edit/special-picker.png` | `edit/add-systems.md` | The Special picker beside the spot, with the map in view: groups with Clusters, rows with their marks, the detail pane with Comes with, Comes without, Join to nearby systems and the extras checkbox, and Place | On the 4.5 day-one sample, right-click an empty spot just outside the galaxy's west edge, hover Add system here and select Special…. Scroll the list and click Seddom, which shows the extras checkbox. Previously Terraformed Planet and others show warning marks on this save. Crop the dialog with the spot beside it. |
 | `edit/added-system-inspector.png` | `edit/add-systems.md` | An added system's page | Select Alphecca #601 after adding it. |
 | `edit/connect-brush-options.png` | `edit/brushes.md` | The Connect lanes brush and its options | Press C with the Size at 40 and hover the tool so its tooltip shows. |

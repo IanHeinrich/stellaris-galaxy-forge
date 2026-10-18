@@ -6,7 +6,7 @@ use sgf_core::ops::MegastructurePlace;
 use sgf_core::prepare::PrepareOptions;
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
-use sgf_gamedata::generate::{BodyAsk, HostMoons};
+use sgf_gamedata::generate::{BodyAsk, BuiltSystem, HostMoons};
 
 mod cli;
 mod commands;
@@ -109,6 +109,12 @@ fn run(cli: Cli) -> commands::Run {
             print_spec,
             then_reroll,
             keep_special,
+            arrangement,
+            stars,
+            filed_as,
+            no_planets,
+            random_binary,
+            random_trinary,
             install,
             out,
         }) => commands::add_system::generated(
@@ -126,6 +132,17 @@ fn run(cli: Cli) -> commands::Run {
                 print_spec,
                 then_reroll,
                 keep_special,
+                built: arrangement.map(|layout| BuiltSystem {
+                    layout,
+                    stars,
+                    star_class: filed_as,
+                    planets: !no_planets,
+                }),
+                star_count: match (random_binary, random_trinary) {
+                    (true, _) => Some(2),
+                    (_, true) => Some(3),
+                    _ => None,
+                },
             },
             &then_remove,
             &install.options(),

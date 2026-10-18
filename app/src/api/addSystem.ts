@@ -4,22 +4,25 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
+import type { Arrangement } from "../generated/Arrangement";
 import type { EditResult } from "../generated/EditResult";
 import type { LaneEnd } from "../generated/LaneEnd";
 import type { StarClassPick } from "../generated/StarClassPick";
+import type { StarType } from "../generated/StarType";
 import type { SystemAsk } from "../generated/SystemAsk";
+import type { SystemPick } from "../generated/SystemPick";
 
 /**
- * Calls `add_random_system`: roll a system at (x, y) from `seed`, around `starClass` when given.
- * The command's doc says what it refuses.
+ * Calls `add_random_system`: roll a system at (x, y) from `seed` as `pick` says. The command's
+ * doc says what it refuses.
  */
 export function addRandomSystem(
   seed: number,
   x: number,
   y: number,
-  starClass: string | null,
+  pick: SystemPick,
 ): Promise<EditResult> {
-  return invoke<EditResult>("add_random_system", { seed, x, y, starClass });
+  return invoke<EditResult>("add_random_system", { seed, x, y, pick });
 }
 
 /** What `addRandomSystems` sends: each system's place and star class, and the lanes between them. */
@@ -59,17 +62,46 @@ export function addSpecialSystem(
   return invoke<EditResult>("add_special_system", { seed, x, y, layout, extras, links });
 }
 
+/** A system built from chosen stars: its layout, its stars in slot order, its class and its planets. */
+export interface BuiltStars {
+  layout: string;
+  stars: string[];
+  /** The class the system is filed under; null files it as `fileStarClass` does. */
+  starClass: string | null;
+  /** False adds the stars alone, with no planets, moons or belts. */
+  planets: boolean;
+}
+
 /**
- * Calls `reroll_system`: roll the added save system `system` again from `seed`, around
- * `starClass` when given, or from its own special layout with `keepSpecial`.
+ * Calls `add_built_system`: build a system at (x, y) from `seed` in the plain layout of `built`
+ * with its stars in the star slots, joined by a lane to each system of `links`, as one edit. The
+ * command's doc says what it refuses.
  */
-export function rerollSystem(
-  system: number,
+export function addBuiltSystem(
   seed: number,
-  starClass: string | null,
-  keepSpecial: boolean,
+  x: number,
+  y: number,
+  { layout, stars, starClass, planets }: BuiltStars,
+  links: number[],
 ): Promise<EditResult> {
-  return invoke<EditResult>("reroll_system", { system, seed, starClass, keepSpecial });
+  return invoke<EditResult>("add_built_system", {
+    seed,
+    x,
+    y,
+    layout,
+    stars,
+    starClass,
+    planets,
+    links,
+  });
+}
+
+/**
+ * Calls `reroll_system`: roll the added save system `system` again from `seed` as `pick` says,
+ * keeping its name, position and lanes. The command's doc says what it refuses.
+ */
+export function rerollSystem(system: number, seed: number, pick: SystemPick): Promise<EditResult> {
+  return invoke<EditResult>("reroll_system", { system, seed, pick });
 }
 
 /** Calls `get_add_system_picks`: what the Add system menu offers for the open save. */
@@ -85,4 +117,19 @@ export function removeAddedSystems(ids: number[]): Promise<EditResult> {
 /** Calls `get_generator_star_classes`: the star classes a rolled system can have. */
 export function getGeneratorStarClasses(): Promise<StarClassPick[]> {
   return invoke<StarClassPick[]>("get_generator_star_classes");
+}
+
+/** Calls `get_star_arrangements`: the plain layouts of several stars the builder arranges stars in. */
+export function getStarArrangements(): Promise<Arrangement[]> {
+  return invoke<Arrangement[]>("get_star_arrangements");
+}
+
+/** Calls `get_star_types`: every star type a slot of the builder offers, the usual ones first. */
+export function getStarTypes(): Promise<StarType[]> {
+  return invoke<StarType[]>("get_star_types");
+}
+
+/** Calls `file_star_class`: the star class a system of `stars`, in slot order, is filed under. */
+export function fileStarClass(stars: string[]): Promise<string> {
+  return invoke<string>("file_star_class", { stars });
 }

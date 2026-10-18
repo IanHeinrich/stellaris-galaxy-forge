@@ -8,13 +8,13 @@ use std::collections::BTreeSet;
 
 use crate::document::Document;
 use crate::emit::roman;
-use crate::emit::system::{FIXED_NAME_FLAG, MOON_FLAG, RING_FLAG};
+use crate::emit::system::{FIXED_NAME_FLAG, MOON_FLAG, Orbiting, RING_FLAG};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::{Slot, SlotTable};
-use crate::format::save::system_spec::BodySpec;
+use crate::format::save::system_spec::{BodyKind, BodySpec};
 use crate::format::save::write::add_system::{
-    self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, write_body,
+    self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, satellite_name, write_body,
 };
 use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::bodies::{Stored, frame, grow_past};
@@ -118,13 +118,7 @@ pub(crate) fn plan_add(
             Some(given) => written_name(&given.name),
             None => {
                 letters += 1;
-                format(
-                    MOON_NAME,
-                    vec![
-                        (PARENT_VAR, name.clone()),
-                        (NUMERAL_VAR, literal(&letter(letters - 1))),
-                    ],
-                )
+                satellite_name(&name, false, letters)
             }
         };
         let moon_body = moon_body(&moon.spec);
@@ -248,9 +242,10 @@ fn write_new(
         spec: &spec,
         star: false,
         name: new.name,
+        fixed_name: spec.name.is_some(),
         x: new.at.0,
         y: new.at.1,
-        moon_of: new.moon_of,
+        moon_of: new.moon_of.map(Orbiting::Planet),
         moons: new.moons.clone(),
         timed,
         features,
@@ -311,7 +306,10 @@ fn body_spec(spec: &NewBody, orbit: f64, angle: f64) -> BodySpec {
         deposits: spec.deposits.clone(),
         entity_name: spec.entity_name.clone(),
         ring: spec.ring,
-        asteroid: spec.naming == BodyNaming::Asteroid,
+        kind: match spec.naming {
+            BodyNaming::Asteroid => BodyKind::Asteroid,
+            _ => BodyKind::Planet,
+        },
         name: match &spec.naming {
             BodyNaming::Named(GivenName {
                 name: BodyName::Typed(name) | BodyName::Fixed(name),
@@ -564,7 +562,7 @@ fn numbered(
     let names_of = |ids: &mut dyn Iterator<Item = u32>| -> Result<Vec<NameTemplate>, OpError> {
         ids.map(|id| name_of(s, id)).collect()
     };
-    let (key, parent, highest) = match moon_of {
+    match moon_of {
         Some(parent) => {
             let siblings = names_of(
                 &mut stored
@@ -575,9 +573,8 @@ fn numbered(
             let highest = numerals(&siblings, MOON_NAME)
                 .filter_map(|text| (0..702).find(|&i| letter(i) == text))
                 .max();
-            let name = name_of(s, parent)?;
-            let next = highest.map_or(0, |i| i + 1);
-            (MOON_NAME, name, literal(&letter(next)))
+            let next = highest.map_or(1, |i| i + 2);
+            Ok(satellite_name(&name_of(s, parent)?, false, next))
         }
         None => {
             let siblings = names_of(&mut stored.iter().map(|b| b.body.id))?;
@@ -592,13 +589,15 @@ fn numbered(
                 .cloned()
                 .or_else(|| s.graph.systems.get(&system).map(|n| n.name.clone()))
                 .unwrap_or_default();
-            (PLANET_NAME, named, literal(&roman(highest + 1)))
+            Ok(format(
+                PLANET_NAME,
+                vec![
+                    (PARENT_VAR, named),
+                    (NUMERAL_VAR, literal(&roman(highest + 1))),
+                ],
+            ))
         }
-    };
-    Ok(format(
-        key,
-        vec![(PARENT_VAR, parent), (NUMERAL_VAR, highest)],
-    ))
+    }
 }
 
 /// The `NUMERAL` each of `names` formatted by `key` holds.

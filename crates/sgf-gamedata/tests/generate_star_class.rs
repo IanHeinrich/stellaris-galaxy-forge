@@ -5,49 +5,73 @@ use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use sgf_core::ops::BodyKind;
 use sgf_gamedata::generate::{GenerateError, generate, star_classes};
-use sgf_gamedata::layouts::{plain_initializers, special_initializers};
+use sgf_gamedata::layouts::{
+    Eligibility, Unsupported, eligibility, plain_initializers, special_initializers,
+};
 
 use common::generate::{SEEDS, hand_written, specs};
 use common::{ABUNDANCE, INSTALL, SPOT};
 
+/// A random pick draws each plain layout at its odds and then a class of its list at the
+/// class's, so binaries and trinaries come up at the game's own rate: their four layouts are
+/// 16 of the 88.
 #[test]
-fn star_classes_come_up_about_as_often_as_their_odds() {
+fn star_classes_come_up_about_as_often_as_their_layouts_and_odds_give_them() {
     let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let mut drawn: BTreeMap<String, f64> = BTreeMap::new();
+    let mut several = 0.0;
     for spec in specs(gd) {
+        if gd.star_classes.get(&spec.star_class).unwrap().planets.len() > 1 {
+            several += 1.0 / SEEDS as f64;
+        }
         *drawn.entry(spec.star_class).or_default() += 1.0 / SEEDS as f64;
         if spec.initializer == "basic_init_01" {
             assert_eq!(spec.planets[0].orbit, 65.0, "as the trace found it");
         }
     }
-    let list = gd.star_lists.get("rl_standard_stars").unwrap();
-    let odds: Vec<(String, f64)> = list
-        .stars
-        .iter()
-        .map(|key| (key.clone(), gd.star_classes.get(key).unwrap().spawn_odds))
-        .collect();
-    let total: f64 = odds.iter().map(|(_, o)| o).sum();
+    let layouts = plain_initializers(gd);
+    let total: f64 = layouts.iter().filter_map(|i| i.usage_odds).sum();
+    let mut weighted: BTreeMap<String, f64> = BTreeMap::new();
+    for init in &layouts {
+        let list = gd.star_lists.get(init.class.as_deref().unwrap()).unwrap();
+        let odds = |key: &String| gd.star_classes.get(key).unwrap().spawn_odds;
+        let list_total: f64 = list.stars.iter().map(odds).sum();
+        for key in &list.stars {
+            *weighted.entry(key.clone()).or_default() +=
+                init.usage_odds.unwrap() / total * odds(key) / list_total;
+        }
+    }
     assert_eq!(
-        drawn.keys().cloned().collect::<BTreeSet<_>>(),
-        list.stars.iter().cloned().collect::<BTreeSet<_>>()
+        drawn.keys().collect::<BTreeSet<_>>(),
+        weighted.keys().collect::<BTreeSet<_>>()
     );
-    for (key, odds) in odds {
+    assert_eq!(weighted.len(), 7 + 10 + 4);
+    for (key, weight) in weighted {
         let share = drawn[&key];
         assert!(
-            (share - odds / total).abs() < 0.04,
-            "{key}: drawn {share:.3}, weighted {:.3}",
-            odds / total
+            (share - weight).abs() < 0.04,
+            "{key}: drawn {share:.3}, weighted {weight:.3}"
         );
     }
+    assert!((several - 16.0 / 88.0).abs() < 0.03, "{several:.3}");
 }
 
 #[test]
 fn a_hand_written_install_rolls_the_star_class_asked_for() {
     let (_dir, gd) = hand_written();
     assert_eq!(star_classes(&gd), ["sc_sun", "sc_ember", "sc_blaze"]);
+    assert_eq!(
+        eligibility(&gd, gd.initializers.get("fx_pair").unwrap()),
+        Eligibility::Unsupported(Unsupported::StarCount {
+            blocks: 1,
+            stars: 2
+        }),
+        "one star block for sc_pair's two stars"
+    );
     for seed in 0..50 {
         let spec =
             generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember"), ABUNDANCE).expect("a system");
@@ -62,7 +86,7 @@ fn a_hand_written_install_rolls_the_star_class_asked_for() {
     assert_eq!(
         generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pair"), ABUNDANCE),
         Err(GenerateError::NoLayoutFor("sc_pair".to_owned())),
-        "only a binary layout makes it"
+        "no layout has a star block for each of its stars"
     );
     assert_eq!(
         generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_nowhere"), ABUNDANCE),
@@ -103,9 +127,17 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         return;
     };
     let classes = star_classes(gd);
-    let standard = &gd.star_lists.get("rl_standard_stars").unwrap().stars;
-    let (plain, special) = classes.split_at(standard.len());
-    assert_eq!(plain, standard);
+    let list = |key: &str| gd.star_lists.get(key).unwrap().stars.clone();
+    let (plain, special) = classes.split_at(classes.len() - 3);
+    assert_eq!(
+        plain,
+        [
+            list("rl_standard_stars"),
+            list("rl_binary_stars"),
+            list("rl_trinary_stars")
+        ]
+        .concat()
+    );
     assert_eq!(special, ["sc_black_hole", "sc_neutron_star", "sc_pulsar"]);
     assert_eq!(star_classes(gd), classes, "a stable order");
     let specials: Vec<String> = special_initializers(gd)
@@ -117,10 +149,14 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         for seed in 0..40 {
             let spec = generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE).expect("a system");
             assert_eq!(spec.star_class, *class, "seed {seed}");
+            let stars: Vec<&str> = std::iter::once(&spec.star)
+                .chain(spec.planets.iter().filter(|p| p.kind == BodyKind::Star))
+                .map(|body| body.class.as_str())
+                .collect();
             assert_eq!(
-                spec.star.class,
-                star.planet_keys().next().unwrap(),
-                "seed {seed}"
+                stars,
+                star.planet_keys().collect::<Vec<_>>(),
+                "seed {seed}: the class's stars in its order"
             );
             let plain_layout = plain_initializers(gd)
                 .iter()
@@ -139,8 +175,11 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         }
     }
     let error =
-        generate(gd, 1, "Gen", SPOT, Some("sc_binary_1"), ABUNDANCE).expect_err("no layout");
-    assert_eq!(error, GenerateError::NoLayoutFor("sc_binary_1".to_owned()));
+        generate(gd, 1, "Gen", SPOT, Some("sc_crisis_binary_1"), ABUNDANCE).expect_err("no layout");
+    assert_eq!(
+        error,
+        GenerateError::NoLayoutFor("sc_crisis_binary_1".to_owned())
+    );
 }
 
 /// A pick of no class rolls only what the plain layouts make, so the classes only special

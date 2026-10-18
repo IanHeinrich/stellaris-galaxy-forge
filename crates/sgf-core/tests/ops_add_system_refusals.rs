@@ -2,7 +2,7 @@
 //! asteroid pool or a deposit table, a table whose closing brace shares a line, and the
 //! version the save names.
 
-use sgf_core::ops::{BeltSpec, OpError, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodyKind, OpError, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::views::Capabilities;
 
@@ -95,26 +95,22 @@ fn what_the_op_refuses() {
             |e| matches!(e, OpError::InvalidText { .. }),
         ),
         (
-            |s| s.star.moons = vec![body("pc_barren", 5, 10.0, 0.0, 1)],
-            |e| matches!(e, OpError::MoonsNotAllowed("the star")),
-        ),
-        (
             |s| s.planets[3].moons[0].moons = vec![body("pc_barren", 5, 10.0, 0.0, 1)],
             |e| matches!(e, OpError::MoonsNotAllowed("a moon")),
         ),
         (
             |s| {
-                s.planets[1].asteroid = true;
+                s.planets[1].kind = BodyKind::Asteroid;
                 s.planets[1].moons = vec![body("pc_barren", 5, 10.0, 0.0, 1)];
             },
             |e| matches!(e, OpError::MoonsNotAllowed("an asteroid")),
         ),
         (
-            |s| s.star.asteroid = true,
+            |s| s.star.kind = BodyKind::Asteroid,
             |e| matches!(e, OpError::AsteroidNotAllowed("the star")),
         ),
         (
-            |s| s.planets[3].moons[0].asteroid = true,
+            |s| s.planets[3].moons[0].kind = BodyKind::Asteroid,
             |e| matches!(e, OpError::AsteroidNotAllowed("a moon")),
         ),
         (

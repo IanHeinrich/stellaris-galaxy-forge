@@ -1,14 +1,46 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
-import { pickSummary } from "../../../test/builders";
+import { useGameDataStore } from "../../../store/gameDataStore";
+import { resetStores } from "../../../store/storeFixture";
+import { pickSummary, starClassView } from "../../../test/builders";
 import { PickCardBody } from "./PickCard";
 
+beforeEach(resetStores);
+
 describe("the cards", () => {
+  it("names a multiple star by its stars, as its row is, and a single star by its own name", () => {
+    useGameDataStore.setState({
+      starClasses: new Map(
+        [
+          starClassView("sc_binary_2", "pc_b_star", "pc_neutron_star"),
+          starClassView("sc_m", "pc_m_star"),
+        ].map((c) => [c.key, c]),
+      ),
+      names: new Map([
+        ["pc_b_star", "Class B Star"],
+        ["pc_neutron_star", "Neutron Star"],
+      ]),
+    });
+    const html = renderToStaticMarkup(
+      <PickCardBody
+        title="Random"
+        summary={pickSummary({
+          star_classes: [
+            { key: "sc_binary_2", name: "Binary Stars" },
+            { key: "sc_m", name: "Class M Star" },
+          ],
+        })}
+      />,
+    );
+    expect(html).toContain("Class B Star + Neutron Star or Class M Star");
+    expect(html).not.toContain("Binary Stars");
+  });
+
   it("says what a pick can produce and leaves out what it has nothing for", () => {
     const html = renderToStaticMarkup(<PickCardBody title="Random" summary={pickSummary()} />);
     expect(html).toContain("Class M Star");

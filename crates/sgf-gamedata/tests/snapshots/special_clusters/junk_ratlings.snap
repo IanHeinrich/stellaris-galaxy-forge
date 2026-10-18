@@ -31,12 +31,12 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			
 +			{
 +				to=602
-+				length=12
++				length=21
 +			}
 + 
 +			{
 +				to=603
-+				length=27
++				length=28
 +			}
 + 
 +		}
@@ -71,8 +71,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +	{
 +		coordinate=
 +		{
-+			x=-304.01128
-+			y=-135.3212
++			x=-275.58741
++			y=-150.81459
 +			origin=4294967295
 +			visual_height=3.65056
 +		}
@@ -92,7 +92,7 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			
 +			{
 +				to=601
-+				length=12
++				length=21
 +			}
 + 
 +		}
@@ -102,8 +102,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			ratling_system=62808000
 +		}
 +		initializer="ratling_1_2"
-+		inner_radius=229
-+		outer_radius=329
++		inner_radius=218.34
++		outer_radius=318.34
 +		starbases=
 +		{
 +			4294967295 
@@ -117,8 +117,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +	{
 +		coordinate=
 +		{
-+			x=-295.09395
-+			y=-110.77454
++			x=-290.43926
++			y=-166.08612
 +			origin=4294967295
 +			visual_height=3.65056
 +		}
@@ -141,7 +141,7 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			
 +			{
 +				to=601
-+				length=27
++				length=28
 +			}
 + 
 +		}
@@ -151,8 +151,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			ratling_system=62808000
 +		}
 +		initializer="ratling_1_3"
-+		inner_radius=300
-+		outer_radius=400
++		inner_radius=302.66
++		outer_radius=402.66
 +		starbases=
 +		{
 +			4294967295 
@@ -566,11 +566,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=73
 +			coordinate=
 +			{
-+				x=44.2482
-+				y=94.11746
++				x=43.13348
++				y=91.74643
 +				origin=602
 +			}
-+			orbit=104
++			orbit=101.38
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -601,11 +601,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=73
 +			coordinate=
 +			{
-+				x=124.46211
-+				y=-90.6928
++				x=115.84674
++				y=-84.41497
 +				origin=602
 +			}
-+			orbit=154
++			orbit=143.34
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -656,11 +656,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=328
 +			coordinate=
 +			{
-+				x=-47.65372
-+				y=177.72204
++				x=-44.89292
++				y=167.42575
 +				origin=602
 +			}
-+			orbit=184
++			orbit=173.34
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -686,8 +686,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=585
 +			coordinate=
 +			{
-+				x=-47.5778
-+				y=192.72185
++				x=-44.81699
++				y=182.42556
 +				origin=602
 +			}
 +			orbit=15
@@ -809,11 +809,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=73
 +			coordinate=
 +			{
-+				x=-72.41719
-+				y=68.96195
++				x=-74.34348
++				y=70.79634
 +				origin=603
 +			}
-+			orbit=100
++			orbit=102.66
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -864,11 +864,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=72
 +			coordinate=
 +			{
-+				x=-77.52069
-+				y=-139.96622
++				x=-78.80947
++				y=-142.29316
 +				origin=603
 +			}
-+			orbit=160
++			orbit=162.66
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -935,8 +935,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=-63.72953
-+				y=-134.06672
++				x=-65.01832
++				y=-136.39366
 +				origin=603
 +			}
 +			orbit=15
@@ -982,11 +982,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=328
 +			coordinate=
 +			{
-+				x=70.24383
-+				y=208.48454
++				x=71.09314
++				y=211.00531
 +				origin=603
 +			}
-+			orbit=220
++			orbit=222.66
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1032,11 +1032,11 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=328
 +			coordinate=
 +			{
-+				x=188.90622
-+				y=-163.75115
++				x=190.91618
++				y=-165.49347
 +				origin=603
 +			}
-+			orbit=250
++			orbit=252.66
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -1107,8 +1107,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=202.99353
-+				y=-158.59872
++				x=205.00349
++				y=-160.34103
 +				origin=603
 +			}
 +			orbit=15
@@ -1179,8 +1179,8 @@ Added the Junk Ratlings: 3 systems and 2 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=192.88332
-+				y=-183.35173
++				x=194.89328
++				y=-185.09405
 +				origin=603
 +			}
 +			orbit=20

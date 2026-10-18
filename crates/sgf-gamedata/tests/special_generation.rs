@@ -5,7 +5,7 @@ use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use sgf_core::ops::Op;
+use sgf_core::ops::{BodyKind, Op};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{GenerateError, generate, settle_name, star_classes};
@@ -78,7 +78,14 @@ fn rings_come_up_about_as_often_as_their_class_allows() {
     for seed in 0..seeds {
         let spec = generate(gd, seed, "Gen", SPOT, None, ABUNDANCE).unwrap();
         assert!(!spec.star.ring);
-        for planet in &spec.planets {
+        let planets = spec.planets.iter().flat_map(|body| match body.kind {
+            BodyKind::Star => {
+                assert!(!body.ring, "seed {seed}: a companion star");
+                body.moons.iter().collect()
+            }
+            BodyKind::Planet | BodyKind::Asteroid => vec![body],
+        });
+        for planet in planets {
             let seen = tally.entry(planet.class.clone()).or_default();
             seen.0 += 1.0;
             seen.1 += f64::from(u8::from(planet.ring));

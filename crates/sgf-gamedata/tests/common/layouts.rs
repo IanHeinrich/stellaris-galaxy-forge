@@ -2,7 +2,7 @@
 
 use std::sync::LazyLock;
 
-use sgf_core::ops::SystemSpec;
+use sgf_core::ops::{BodyKind, BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{GenerateError, generate_layout_for};
 use sgf_gamedata::layouts::{Eligibility, SaveFacts, eligibility};
@@ -11,6 +11,13 @@ use super::{ABUNDANCE, hand_written as install_of, open_4_5};
 
 /// The 4.5 sample's DLC, which the `if`s of a layout's bodies read.
 static SAMPLE_4_5_FACTS: LazyLock<SaveFacts> = LazyLock::new(|| SaveFacts::read(&open_4_5()));
+
+/// The system's own star and its companions, in the order the spec holds them.
+pub fn stars(spec: &SystemSpec) -> Vec<&BodySpec> {
+    std::iter::once(&spec.star)
+        .chain(spec.planets.iter().filter(|p| p.kind == BodyKind::Star))
+        .collect()
+}
 
 pub fn of(gd: &GameData, layout: &str) -> Eligibility {
     eligibility(gd, gd.initializers.get(layout).expect(layout))

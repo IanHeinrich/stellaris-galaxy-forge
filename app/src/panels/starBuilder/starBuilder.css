@@ -1,0 +1,153 @@
+/* The builder beside a point of the map, with no scrim, so the map around the point stays in view. */
+.sb {
+  position: absolute;
+  z-index: 5;
+  width: min(600px, calc(100% - 16px));
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* The pickers' lists float over the dialog, so opening one never grows or scrolls it. */
+.sb .dialog-body {
+  overflow: visible;
+}
+
+.sb .sp-extras {
+  margin-top: 6px;
+  padding: 4px 8px;
+}
+
+.sb h4 {
+  margin: 10px 0 6px;
+  font-size: var(--text-fine);
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sb h4:first-child {
+  margin-top: 0;
+}
+
+.sb-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 14px;
+}
+
+.sb-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sb-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  font-size: var(--text-fine);
+  color: var(--fg-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.sb-tile[aria-pressed="true"] {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* Every dropdown fills the column whatever it shows; a long name ends in an ellipsis. */
+.sb .icon-picker {
+  display: flex;
+  min-width: 0;
+}
+
+.sb .icon-picker > .icon-picker-trigger {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-slot {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+/* The unused third slot of a pair keeps the panel's height; it shows what a trio would restore. */
+.sb-slot.off {
+  opacity: 0.45;
+}
+
+/* Both counts' chips share one cell, the one not shown invisible, so the block never changes height. */
+.sb-sets-stack {
+  display: grid;
+  align-self: stretch;
+  text-align: left;
+}
+
+.sb-sets-stack > .sb-sets {
+  grid-area: 1 / 1;
+  margin: 0;
+}
+
+.sb-sets-held {
+  visibility: hidden;
+}
+
+.sb-sets-label {
+  margin-bottom: 3px;
+  font-size: var(--text-fine);
+}
+
+.sb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sb-chip {
+  padding: 1px 8px;
+  font-size: var(--text-fine);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* A double click on the tiles, the art or the chips picks nothing, and the art cannot be dragged. */
+.sb-tile,
+.sb-slot > .muted,
+.sb-preview,
+.sb-chip {
+  user-select: none;
+}
+
+.sb img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.sb-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.sb-note {
+  font-size: var(--text-note);
+}
+
+@media (max-width: 640px) {
+  .sb-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

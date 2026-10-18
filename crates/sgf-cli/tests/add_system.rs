@@ -235,6 +235,46 @@ fn add_system_generates_the_special_layout_asked_for() {
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }
 
+/// The summary lists a companion star's planets under it and their moons under them.
+#[test]
+fn add_system_prints_a_companions_planets_under_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("alpha.sav");
+    let out_str = out_path.to_str().unwrap();
+    let out = sgf(&[
+        "add-system",
+        SAMPLE_4_5,
+        "--seed",
+        "1",
+        "--at",
+        "-292.23404,-137.62265",
+        "--layout",
+        "sol_neighbor_t1_no_guaranteed_colony",
+        "--no-mods",
+        "-o",
+        out_str,
+    ]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains(" name NAME_Alpha_Centauri_A"), "{text}");
+    let lines: Vec<&str> = text.lines().collect();
+    let proxima = lines
+        .iter()
+        .position(|line| line.contains("name NAME_Proxima_Centauri (star)"))
+        .unwrap_or_else(|| panic!("{text}"));
+    assert!(
+        lines[proxima + 1]
+            .trim_start()
+            .starts_with("1    pc_barren_cold")
+            && lines[proxima + 1].contains("name NAME_Proxima_Centauri_b"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+}
+
 /// `--cluster` adds a Special menu cluster as the app does: its systems, the lanes between
 /// them and one from its home to each `--lane` as one edit, which leaves a save the validator
 /// passes.
@@ -413,4 +453,76 @@ fn add_system_then_reroll_keeps_the_name_and_with_keep_special_the_layout() {
     assert_eq!(name(again), name(added), "the name stays: {text}");
     assert!(again.contains("(wenkwort_initializer"), "{text}");
     ok(&sgf(&["validate", out_str]));
+}
+
+/// `--arrangement` with `--stars` builds a binary of those stars and prints the class the rule
+/// files it under; `--filed-as` overrides it, `--no-planets` leaves the stars alone, and
+/// `--random-trinary` rolls one of the game's three-star layouts.
+#[test]
+fn add_system_builds_a_binary_from_chosen_stars_and_rolls_a_random_trinary() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("built.sav");
+    let out_str = out_path.to_str().unwrap();
+    let run = |extra: &[&str]| {
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--seed",
+            "4",
+            "--at",
+            "-292.23404,-137.62265",
+            "--no-mods",
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        sgf(&args)
+    };
+    let built = &[
+        "--arrangement",
+        "binary_init_02",
+        "--stars",
+        "pc_black_hole,pc_t_star",
+    ];
+    let out = run(built);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        said.contains("filed as ") && said.contains(": no class with 2 stars has a "),
+        "{said}"
+    );
+    assert!(text.contains(" sc_black_hole (binary_init_02)"), "{text}");
+    assert!(text.contains("star pc_black_hole "), "{text}");
+    assert!(text.contains("pc_t_star size"), "{text}");
+
+    let mut chosen = built.to_vec();
+    chosen.extend_from_slice(&["--filed-as", "sc_binary_10", "--no-planets"]);
+    let out = run(&chosen);
+    ok(&out);
+    let text = stdout(&out);
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(said.contains(": chosen"), "{said}");
+    assert!(text.contains(" sc_binary_10 (binary_init_02)"), "{text}");
+    let bodies = text.lines().filter(|l| l.contains(" size ")).count();
+    assert_eq!(bodies, 2, "the stars alone: {text}");
+
+    let out = run(&["--arrangement", "binary_init_02", "--stars", "pc_g_star"]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("places 2 stars, not 1"), "{err}");
+
+    let mut printed = built.to_vec();
+    printed.push("--print-spec");
+    let out = run(&printed);
+    ok(&out);
+    let spec: serde_json::Value =
+        serde_json::from_str(&stdout(&out)).expect("--print-spec prints JSON alone");
+    assert_eq!(spec["star_class"], "sc_black_hole");
+
+    let out = run(&["--random-trinary"]);
+    ok(&out);
+    assert!(stdout(&out).contains("(trinary_init_0"), "{}", stdout(&out));
 }

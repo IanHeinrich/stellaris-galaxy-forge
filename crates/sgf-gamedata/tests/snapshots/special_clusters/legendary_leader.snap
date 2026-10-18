@@ -37,17 +37,17 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			
 +			{
 +				to=602
-+				length=17
++				length=12
 +			}
 + 
 +			{
 +				to=603
-+				length=15
++				length=13
 +			}
 + 
 +			{
 +				to=604
-+				length=19
++				length=15
 +			}
 + 
 +		}
@@ -56,8 +56,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			legendary_leader_spawn_system=62808000
 +		}
 +		initializer="legendary_leader_start_site"
-+		inner_radius=318
-+		outer_radius=418
++		inner_radius=290.92
++		outer_radius=390.92
 +		starbases=
 +		{
 +			4294967295 
@@ -71,8 +71,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +	{
 +		coordinate=
 +		{
-+			x=-294.94305
-+			y=-120.83988
++			x=-294.1909
++			y=-125.49957
 +			origin=4294967295
 +			visual_height=3.65056
 +		}
@@ -97,7 +97,7 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			
 +			{
 +				to=601
-+				length=17
++				length=12
 +			}
 + 
 +		}
@@ -106,8 +106,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			legendary_leader_1st_system=62808000
 +		}
 +		initializer="legendary_leader_1st_site"
-+		inner_radius=266
-+		outer_radius=366
++		inner_radius=264.26
++		outer_radius=364.26
 +		starbases=
 +		{
 +			4294967295 
@@ -121,8 +121,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +	{
 +		coordinate=
 +		{
-+			x=-308.23305
-+			y=-137.80031
++			x=-305.59322
++			y=-137.771
 +			origin=4294967295
 +			visual_height=3.65056
 +		}
@@ -147,7 +147,7 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			
 +			{
 +				to=601
-+				length=15
++				length=13
 +			}
 + 
 +		}
@@ -156,8 +156,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			legendary_leader_2nd_system=62808000
 +		}
 +		initializer="legendary_leader_2nd_site"
-+		inner_radius=202
-+		outer_radius=302
++		inner_radius=214.2
++		outer_radius=314.2
 +		starbases=
 +		{
 +			4294967295 
@@ -171,8 +171,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +	{
 +		coordinate=
 +		{
-+			x=-277.49693
-+			y=-125.63025
++			x=-279.94795
++			y=-127.62478
 +			origin=4294967295
 +			visual_height=3.65056
 +		}
@@ -196,7 +196,7 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			
 +			{
 +				to=601
-+				length=19
++				length=15
 +			}
 + 
 +		}
@@ -214,8 +214,8 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			legendary_leader_3rd_system=62808000
 +		}
 +		initializer="legendary_leader_3rd_site"
-+		inner_radius=254
-+		outer_radius=354
++		inner_radius=291.9
++		outer_radius=391.9
 +		starbases=
 +		{
 +			4294967295 
@@ -233,20 +233,9 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			carrier_binary_flags=3
 +			name=
 +			{
-+				key="STAR_NAME_1_OF_1"
-+				variables=
-+				{
-+					
-+					{
-+						key="NAME"
-+						value=
-+						{
-+							key="NAME_legendary_crash_site"
-+						}
-+					}
-+ 
-+				}
++				key="NAME_legendary_crash_site"
 +			}
++			binary_flags=65
 +			coordinate=
 +			{
 +				x=0
@@ -298,11 +287,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-71.13337
-+				y=-20.39716
++				x=-76.47798
++				y=-21.92971
 +				origin=601
 +			}
-+			orbit=74
++			orbit=79.56
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -342,11 +331,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=85.98278
-+				y=-35.43955
++				x=95.59806
++				y=-39.40268
 +				origin=601
 +			}
-+			orbit=93
++			orbit=103.4
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -386,11 +375,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-99.50844
-+				y=22.40695
++				x=-105.88868
++				y=23.84363
 +				origin=601
 +			}
-+			orbit=102
++			orbit=108.54
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -430,11 +419,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=17.20303
-+				y=-104.59472
++				x=18.41049
++				y=-111.93609
 +				origin=601
 +			}
-+			orbit=106
++			orbit=113.44
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -474,11 +463,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=89.11815
-+				y=71.09117
++				x=95.55968
++				y=76.22969
 +				origin=601
 +			}
-+			orbit=114
++			orbit=122.24
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -522,11 +511,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=40.22288
-+				y=-110.93295
++				x=44.90646
++				y=-123.85006
 +				origin=601
 +			}
-+			orbit=118
++			orbit=131.74
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -566,11 +555,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=31.94845
-+				y=122.91581
++				x=35.01752
++				y=134.72347
 +				origin=601
 +			}
-+			orbit=127
++			orbit=139.2
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -615,11 +604,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=45.04174
-+				y=-185.61315
++				x=42.51374
++				y=-175.19549
 +				origin=601
 +			}
-+			orbit=191
++			orbit=180.28
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -686,11 +675,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=60.44707
-+				y=-181.29161
++				x=58.09238
++				y=-170.82533
 +				origin=601
 +			}
-+			orbit=16
++			orbit=16.18
 +			last_bombardment=			"0.01.01"
 +			moon_of=6382
 +			planet_orbitals=
@@ -732,11 +721,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-150.32638
-+				y=184.51552
++				x=-137.89603
++				y=169.25811
 +				origin=601
 +			}
-+			orbit=238
++			orbit=218.32
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -803,11 +792,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=-138.72232
-+				y=173.49983
++				x=-124.98651
++				y=157.00314
 +				origin=601
 +			}
-+			orbit=16
++			orbit=17.8
 +			last_bombardment=			"0.01.01"
 +			moon_of=6384
 +			planet_orbitals=
@@ -850,11 +839,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=72
 +			coordinate=
 +			{
-+				x=284.29524
-+				y=-46.04578
++				x=257.56359
++				y=-41.7162
 +				origin=601
 +			}
-+			orbit=288
++			orbit=260.92
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -875,20 +864,9 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			carrier_binary_flags=3
 +			name=
 +			{
-+				key="STAR_NAME_1_OF_1"
-+				variables=
-+				{
-+					
-+					{
-+						key="NAME"
-+						value=
-+						{
-+							key="NAME_Vapob"
-+						}
-+					}
-+ 
-+				}
++				key="NAME_Vapob"
 +			}
++			binary_flags=65
 +			coordinate=
 +			{
 +				x=0
@@ -941,11 +919,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=320
 +			coordinate=
 +			{
-+				x=-76.27926
-+				y=-43.88024
++				x=-82.0002
++				y=-47.17125
 +				origin=602
 +			}
-+			orbit=88
++			orbit=94.6
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -989,11 +967,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=28.1075
-+				y=100.12976
++				x=29.56152
++				y=105.30955
 +				origin=602
 +			}
-+			orbit=104
++			orbit=109.38
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1033,11 +1011,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-53.9369
-+				y=-88.92025
++				x=-56.46779
++				y=-93.09266
 +				origin=602
 +			}
-+			orbit=104
++			orbit=108.88
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1081,11 +1059,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-55.82616
-+				y=86.55888
++				x=-58.88305
++				y=91.29861
 +				origin=602
 +			}
-+			orbit=103
++			orbit=108.64
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1125,11 +1103,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-23.08237
-+				y=-100.3803
++				x=-24.47179
++				y=-106.42261
 +				origin=602
 +			}
-+			orbit=103
++			orbit=109.2
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1171,11 +1149,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=72
 +			coordinate=
 +			{
-+				x=92.75436
-+				y=91.08583
++				x=97.23511
++				y=95.48598
 +				origin=602
 +			}
-+			orbit=130
++			orbit=136.28
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -1263,11 +1241,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=114.6693
-+				y=93.01856
++				x=116.54018
++				y=97.18854
 +				origin=602
 +			}
-+			orbit=22
++			orbit=19.38
 +			last_bombardment=			"0.01.01"
 +			moon_of=6393
 +			planet_orbitals=
@@ -1309,11 +1287,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-81.0428
-+				y=-150.57577
++				x=-81.6684
++				y=-151.73811
 +				origin=602
 +			}
-+			orbit=171
++			orbit=172.32
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1358,11 +1336,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-52.33278
-+				y=211.62533
++				x=-51.91988
++				y=209.95563
 +				origin=602
 +			}
-+			orbit=218
++			orbit=216.28
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -1429,11 +1407,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=-34.47669
-+				y=213.89691
++				x=-34.08363
++				y=212.22468
 +				origin=602
 +			}
-+			orbit=18
++			orbit=17.98
 +			last_bombardment=			"0.01.01"
 +			moon_of=6396
 +			planet_orbitals=
@@ -1450,20 +1428,9 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			carrier_binary_flags=3
 +			name=
 +			{
-+				key="STAR_NAME_1_OF_1"
-+				variables=
-+				{
-+					
-+					{
-+						key="NAME"
-+						value=
-+						{
-+							key="NAME_Ivusheh"
-+						}
-+					}
-+ 
-+				}
++				key="NAME_Ivusheh"
 +			}
++			binary_flags=65
 +			coordinate=
 +			{
 +				x=0
@@ -1515,11 +1482,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=37.20356
-+				y=19.49091
++				x=36.08745
++				y=18.90618
 +				origin=603
 +			}
-+			orbit=42
++			orbit=40.74
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -1590,11 +1557,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=50.674
-+				y=35.60138
++				x=45.0934
++				y=29.67718
 +				origin=603
 +			}
-+			orbit=21
++			orbit=14.04
 +			last_bombardment=			"0.01.01"
 +			moon_of=6399
 +			planet_orbitals=
@@ -1635,11 +1602,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-57.12586
-+				y=14.75248
++				x=-58.13283
++				y=15.01252
 +				origin=603
 +			}
-+			orbit=59
++			orbit=60.04
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1679,11 +1646,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=63.94526
-+				y=2.64656
++				x=67.76199
++				y=2.80453
 +				origin=603
 +			}
-+			orbit=64
++			orbit=67.82
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1727,11 +1694,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-67.30128
-+				y=15.21638
++				x=-74.96777
++				y=16.94972
 +				origin=603
 +			}
-+			orbit=69
++			orbit=76.86
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1773,11 +1740,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=72
 +			coordinate=
 +			{
-+				x=91.33026
-+				y=-80.88748
++				x=89.86298
++				y=-79.58797
 +				origin=603
 +			}
-+			orbit=122
++			orbit=120.04
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1838,11 +1805,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-123.42562
-+				y=-61.72614
++				x=-122.94265
++				y=-61.4846
 +				origin=603
 +			}
-+			orbit=138
++			orbit=137.46
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1886,11 +1853,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=130.4086
-+				y=-48.11027
++				x=128.41963
++				y=-47.3765
 +				origin=603
 +			}
-+			orbit=139
++			orbit=136.88
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -1935,11 +1902,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-108.73353
-+				y=-107.63837
++				x=-113.5235
++				y=-112.38009
 +				origin=603
 +			}
-+			orbit=153
++			orbit=159.74
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -2006,11 +1973,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=-106.13194
-+				y=-126.45941
++				x=-110.17429
++				y=-136.6097
 +				origin=603
 +			}
-+			orbit=19
++			orbit=24.46
 +			last_bombardment=			"0.01.01"
 +			moon_of=6407
 +			planet_orbitals=
@@ -2029,6 +1996,7 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			{
 +				key="NAME_Taprib"
 +			}
++			binary_flags=65
 +			coordinate=
 +			{
 +				x=0
@@ -2080,11 +2048,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-48.06308
-+				y=-13.78187
++				x=-52.10038
++				y=-14.93954
 +				origin=604
 +			}
-+			orbit=50
++			orbit=54.2
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -2151,11 +2119,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=-44.057
-+				y=1.70849
++				x=-46.96759
++				y=4.90748
 +				origin=604
 +			}
-+			orbit=16
++			orbit=20.5
 +			last_bombardment=			"0.01.01"
 +			moon_of=6410
 +			planet_orbitals=
@@ -2200,11 +2168,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=100.68189
-+				y=46.73498
++				x=103.89282
++				y=48.22544
 +				origin=604
 +			}
-+			orbit=111
++			orbit=114.54
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -2244,11 +2212,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-59.25146
-+				y=-95.04349
++				x=-60.63752
++				y=-97.26683
 +				origin=604
 +			}
-+			orbit=112
++			orbit=114.62
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -2290,11 +2258,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=72
 +			coordinate=
 +			{
-+				x=-112.75813
-+				y=89.56341
++				x=-117.11185
++				y=93.02155
 +				origin=604
 +			}
-+			orbit=144
++			orbit=149.56
 +			last_bombardment=			"0.01.01"
 +			planet_orbitals=
 +			{
@@ -2356,11 +2324,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=92.08342
-+				y=-159.30048
++				x=104.7549
++				y=-181.22161
 +				origin=604
 +			}
-+			orbit=184
++			orbit=209.32
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -2427,11 +2395,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=96.00693
-+				y=-141.73329
++				x=108.67405
++				y=-163.67395
 +				origin=604
 +			}
-+			orbit=18
++			orbit=17.98
 +			last_bombardment=			"0.01.01"
 +			moon_of=6415
 +			planet_orbitals=
@@ -2473,11 +2441,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			}
 +			coordinate=
 +			{
-+				x=-198.25268
-+				y=62.92754
++				x=-233.78566
++				y=74.20609
 +				origin=604
 +			}
-+			orbit=208
++			orbit=245.28
 +			last_bombardment=			"0.01.01"
 +			moons=
 +			{
@@ -2544,11 +2512,11 @@ Added the Legendary Leader's sites: 4 systems and 3 lanes
 +			binary_flags=576
 +			coordinate=
 +			{
-+				x=-197.70545
-+				y=78.91818
++				x=-233.21723
++				y=90.81637
 +				origin=604
 +			}
-+			orbit=16
++			orbit=16.62
 +			last_bombardment=			"0.01.01"
 +			moon_of=6417
 +			planet_orbitals=

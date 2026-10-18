@@ -59,7 +59,7 @@ export interface SpecialPickerState extends BrowseState {
 }
 
 const EXTRAS = prefField(PREF_KEYS.specialExtras, true, isBoolean);
-const JOIN = prefField(PREF_KEYS.specialJoin, true, isBoolean);
+const JOIN = prefField(PREF_KEYS.specialJoin, false, isBoolean);
 const NO_ENTRIES: SpecialEntry[] = [];
 const NO_EXTENT: Pt = { x: 0, y: 0 };
 

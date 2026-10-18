@@ -8,6 +8,7 @@ use crate::ops::NewRingWorld;
 
 /// One star system to add to a save.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct SystemSpec {
     /// The system's name key, which its star and planets are named after.
@@ -22,14 +23,15 @@ pub struct SystemSpec {
     /// `system_initializer_counter`, and so does the add.
     #[serde(default)]
     pub capped: bool,
-    /// The star is named with the system's name key itself, as the game names a star its
-    /// layout writes as a class (`class = pc_m_star`), rather than `STAR_NAME_1_OF_1`.
+    /// How the star is named.
     #[serde(default)]
-    pub star_named_by_class: bool,
-    /// The body at the centre, or off it at its orbit.
+    pub star_name: PrimaryName,
+    /// The body at the centre, or off it at its orbit, written as a star whatever its kind.
+    /// Its moons are its planets, written as a companion's are, and it has no name of its
+    /// own: [`SystemSpec::star_name`] names it.
     pub star: BodySpec,
-    /// The bodies orbiting the star, in this order: the planets numbered I, II, …, and the
-    /// asteroids named from the save's pool among them.
+    /// The bodies about the centre, in this order: the planets numbered I, II, …, the
+    /// asteroids named from the save's pool among them, and the companion stars.
     #[serde(default)]
     pub planets: Vec<BodySpec>,
     /// In the order the initializer lists them.
@@ -44,8 +46,46 @@ pub struct SystemSpec {
     pub lanes: Vec<u32>,
 }
 
+/// How a system's own star is named.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum PrimaryName {
+    /// `STAR_NAME_k_OF_n` after the system's name, lettered among its stars without a name
+    /// of their own (see [`crate::projections::name::star_name_keys`]).
+    #[default]
+    Lettered,
+    /// The system's name key itself, as the game names a star its layout writes as a class
+    /// (`class = pc_m_star`).
+    System,
+    /// A fixed name key, `NAME_Alpha_Centauri_A`, written with the fixed-name bit.
+    Fixed(String),
+}
+
+/// What a body of a spec is, which decides how it is named and what orbits it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum BodyKind {
+    /// Numbered after what it orbits; its moons are lettered after it.
+    #[default]
+    Planet,
+    /// Named from the save's pool of asteroid names and left out of the numbering.
+    Asteroid,
+    /// Of a class the install makes a star: a companion of the system's star, a layout's
+    /// extra black hole, or a moon of a planet (Sol's Helios), written as any moon is. About
+    /// the centre, its moons are its planets, numbered in roman numerals after it and
+    /// written without the moon bit, and each may have moons of its own.
+    Star,
+}
+
+impl BodyKind {
+    fn is_planet(&self) -> bool {
+        *self == Self::Planet
+    }
+}
+
 /// A star, planet or moon.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct BodySpec {
     /// `pc_g_star`, `pc_gas_giant`, …
@@ -60,13 +100,15 @@ pub struct BodySpec {
     /// Deposit keys, `d_energy_5`, …
     #[serde(default)]
     pub deposits: Vec<String>,
-    /// Lettered a, b, … in this order, but for those with a fixed name. Only a planet has
-    /// moons.
+    /// What orbits it, in this order, numbered but for those with a fixed name: a planet's
+    /// moons lettered a, b, …, a star's planets numbered I, II, …. A moon has none, and a
+    /// star orbits only the centre or, as a moon, a planet about it.
     #[serde(default)]
     pub moons: Vec<BodySpec>,
-    /// Named from the save's pool of asteroid names and left out of the numbering.
-    #[serde(default)]
-    pub asteroid: bool,
+    /// A planet, an asteroid or a star.
+    #[serde(default, skip_serializing_if = "BodyKind::is_planet")]
+    #[ts(as = "Option<BodyKind>", optional)]
+    pub kind: BodyKind,
     /// A fixed name key, `NAME_Vermilion`, written as it is and left out of the numbering.
     /// Its moons are lettered after it.
     #[serde(default)]
@@ -94,10 +136,6 @@ pub struct BodySpec {
     /// one, as it dates the star flags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub flags: Vec<String>,
-    /// Of a class the install makes a star, as a layout's extra black holes are. The
-    /// system's own star is written as one whatever this says.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub star: bool,
 }
 
 /// Where `body` stands: its orbit from (x, y), at its angle in degrees.
@@ -108,6 +146,7 @@ pub(crate) fn polar(x: f64, y: f64, body: &BodySpec) -> (f64, f64) {
 
 /// An asteroid belt, drawn as a ring around the star.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct BeltSpec {
     /// `rocky_asteroid_belt`, `icy_asteroid_belt`, …
@@ -181,13 +220,36 @@ pub enum SpecMegastructurePlace {
     Free { x: f64, y: f64 },
 }
 
-/// A body of a [`SystemSpec`]: its star, the `index`th of its planets, or the `index`th moon
-/// of its `of`th planet. Each is a place in a list of the spec, not an id.
+/// A star of a [`SystemSpec`] that planets orbit: the system's own, or the companion at
+/// `planets[index]`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecStar {
+    Primary,
+    Companion(usize),
+}
+
+/// A body of a [`SystemSpec`]: its star, the `index`th of its planets, the `index`th moon
+/// of its `of`th planet, the `index`th planet of a star, or the `index`th moon of that
+/// star's `satellite`th planet. Each is a place in a list of the spec, not an id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpecBody {
     Star,
-    Planet { index: usize },
-    Moon { of: usize, index: usize },
+    Planet {
+        index: usize,
+    },
+    Moon {
+        of: usize,
+        index: usize,
+    },
+    Satellite {
+        star: SpecStar,
+        index: usize,
+    },
+    SatelliteMoon {
+        star: SpecStar,
+        satellite: usize,
+        index: usize,
+    },
 }
 
 /// An anomaly of `category` on a body of the spec.

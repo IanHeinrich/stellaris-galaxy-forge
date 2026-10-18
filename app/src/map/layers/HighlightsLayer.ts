@@ -270,6 +270,7 @@ export class HighlightsLayer implements MapLayer {
     }
     this.guide.setReach(mapReach(ctx.kind, ctx.radius));
     this.shape.setExtent(mapExtent(ctx.kind, ctx.radius));
+    this.shape.setStarClasses(ctx.starClasses);
     if (!loaded) return;
     this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();

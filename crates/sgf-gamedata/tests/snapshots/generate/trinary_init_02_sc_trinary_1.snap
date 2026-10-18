@@ -1,0 +1,18 @@
+---
+source: crates/sgf-gamedata/tests/generate_pinned.rs
+expression: out
+---
+Gen at -292.23404 -137.62265 sc_trinary_1 trinary_init_02
+pc_g_star 31 orbit 0 angle 180 deposits ["d_physics_2"] star
+  pc_m_star 27 orbit 220 angle 84.76 deposits ["d_energy_3"] star
+    pc_molten 29 orbit 55 angle 301.3
+    pc_toxic 13 orbit 80 angle 102.66 deposits ["d_society_2"]
+      pc_barren_cold 6 orbit 13 angle 37.48
+  pc_k_star 19 orbit 220 angle 312.44 deposits ["d_energy_2"] star
+    pc_gas_giant 22 orbit 50 angle 63.99 deposits ["d_energy_3"]
+  pc_molten 16 orbit 35 angle 146.06 deposits ["d_energy_4"]
+  pc_molten 20 orbit 50 angle 43.63 deposits ["d_trade_value_3"]
+  pc_toxic 15 orbit 65 angle 137.38 deposits ["d_society_2"]
+    pc_barren_cold 7 orbit 13 angle 312.35 deposits ["d_minerals_3"]
+  pc_barren 20 orbit 80 angle 320.84
+    pc_toxic 7 orbit 13 angle 53.46 deposits ["d_society_2"]

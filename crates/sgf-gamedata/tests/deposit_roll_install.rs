@@ -5,7 +5,7 @@ use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use sgf_core::ops::{BodySpec, SystemSpec};
+use sgf_core::ops::{BodyKind, BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
 use sgf_gamedata::deposit_roll::{Kind, NewBody, RollBody, roll_deposits};
 use sgf_gamedata::generate::generate;
@@ -270,7 +270,7 @@ fn a_generated_system_rolls_deposits_on_every_kind_of_body_at_abundance_2() {
         assert_eq!(spec.star.deposits.len(), 1, "seed {seed}: the star's one");
         for (body, moon) in generated(&spec).into_iter().skip(1) {
             let class = gd.planet_classes.get(&body.class).unwrap();
-            let kind = match (class.colonizable, body.asteroid, moon) {
+            let kind = match (class.colonizable, body.kind == BodyKind::Asteroid, moon) {
                 (true, ..) => "habitable",
                 (_, true, _) => "asteroid",
                 (.., true) => "moon",

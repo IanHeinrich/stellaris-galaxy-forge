@@ -1,0 +1,357 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 360
+expression: value
+---
+Added Alpha Centauri #791 with its anomaly
+touched: [791]
+inverse: Batch { description: "Added Alpha Centauri #791 with its anomaly", ops: [RemoveAnomaly { body: 8406 }, RemoveSystem { system: 791 }] }
+warning system_isolated: system 791 has no hyperlanes
+warning disconnected: galaxy has 3 components, 2 at load; newly separated: 791
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -82543,6 +82543,39 @@
+ 		index=0
+ 		storm=4294967295
+ 	}
++	791=
++	{
++		coordinate=
++		{
++			x=433.43269
++			y=-205.48736
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="NAME_Alpha_Centauri"
++		}
++		planet=8403
++		planet=8404
++		planet=8405
++		planet=8406
++		planet=8407
++		planet=8408
++		planet=8409
++		planet=8410
++		star_class="sc_trinary_1"
++		initializer="sol_neighbor_t1_first_colony"
++		inner_radius=330
++		outer_radius=430
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+ }
+ starbase_mgr=
+ {
+@@ -530216,6 +530249,293 @@
+ 				4988 
+ 			}
+ 		}
++		8403=
++		{
++			planet_class="pc_g_star"
++			planet_size=32
++			carrier_binary_flags=3
++			name=
++			{
++				key="NAME_Alpha_Centauri_A"
++			}
++			binary_flags=65
++			coordinate=
++			{
++				x=-14.77212
++				y=2.60472
++				origin=791
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		8404=
++		{
++			planet_class="pc_k_star"
++			planet_size=27
++			carrier_binary_flags=3
++			name=
++			{
++				key="NAME_Alpha_Centauri_B"
++			}
++			binary_flags=65
++			coordinate=
++			{
++				x=20
++				y=0
++				origin=791
++			}
++			orbit=-20
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		8405=
++		{
++			planet_class="pc_m_star"
++			planet_size=15
++			carrier_binary_flags=3
++			name=
++			{
++				key="NAME_Proxima_Centauri"
++			}
++			binary_flags=65
++			coordinate=
++			{
++				x=154.26903
++				y=-183.85067
++				origin=791
++			}
++			orbit=240
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				8406 8407 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		8406=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=20
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Proxima_Centauri_b"
++			}
++			binary_flags=73
++			coordinate=
++			{
++				x=161.54594
++				y=-149.6155
++				origin=791
++			}
++			orbit=35
++			last_bombardment=			"0.01.01"
++			moon_of=8405
++			planet_orbitals=
++			{
++			}
++			anomaly="ALPHA_CENTAURI_CAT"
++			bombardment_damage=0
++			entity=1
++		}
++		8407=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=18
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Proxima_Centauri_c"
++			}
++			binary_flags=321
++			coordinate=
++			{
++				x=208.64749
++				y=-209.20776
++				origin=791
++			}
++			orbit=60
++			last_bombardment=			"0.01.01"
++			moon_of=8405
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=3
++		}
++		8408=
++		{
++			planet_class="pc_molten"
++			planet_size=19
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Alpha_Centauri"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=45
++				origin=791
++			}
++			orbit=45
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				8409 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++		}
++		8409=
++		{
++			planet_class="pc_molten"
++			planet_size=11
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Alpha_Centauri"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="I"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=6.10105
++				y=31.29682
++				origin=791
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=8408
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++		}
++		8410=
++		{
++			planet_class="pc_continental"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Alpha_Centauri"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=-15.64345
++				y=98.76883
++				origin=791
++			}
++			orbit=100
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -954250,7 +954570,7 @@
+ {
+ }
+ last_created_country=56
+-last_created_system=790
++last_created_system=791
+ leaders=
+ {
+ 	419430400=

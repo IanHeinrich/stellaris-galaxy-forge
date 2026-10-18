@@ -3,7 +3,7 @@
 
 use crate::common;
 
-use sgf_core::ops::SystemSpec;
+use sgf_core::ops::{BodyKind, SystemSpec};
 use sgf_gamedata::generate::generate_layout_for;
 use sgf_gamedata::initializers::InitPlanet;
 use sgf_gamedata::install::script::Range;
@@ -18,12 +18,12 @@ use common::{ABUNDANCE, INSTALL, SPOT};
 fn a_body_of_a_star_class_is_marked_a_star() {
     let (_dir, gd) = layouts::hand_written();
     let spec = by_name(&gd, 1, "Fx", (1.0, 2.0), "fx_haven").unwrap();
-    assert!(spec.star.star, "the system's own star");
+    assert_eq!(spec.star.kind, BodyKind::Star, "the system's own star");
     let marked: Vec<(&str, bool)> = spec
         .planets
         .iter()
         .flat_map(|planet| std::iter::once(planet).chain(&planet.moons))
-        .map(|body| (body.class.as_str(), body.star))
+        .map(|body| (body.class.as_str(), body.kind == BodyKind::Star))
         .collect();
     assert!(marked.contains(&("pc_hole", true)), "{marked:?}");
     assert!(
@@ -100,7 +100,7 @@ fn a_body_with_no_orbit_distance_is_rolled_10_to_20_past_the_running_orbit() {
         );
         assert_eq!(
             cabin.orbit,
-            molten.orbit + 86.0,
+            ((molten.orbit + 86.0) * 100.0).round() / 100.0,
             "seed {seed}: The Cabin lies its change_orbit and distance past the molten world"
         );
 
@@ -302,7 +302,7 @@ fn the_real_installs_effect_layouts_come_out_as_their_scripts_say() {
         assert!(planet.deposits.contains(&blocker.to_owned()), "{blocker}");
     }
     assert!(
-        planet.moons.iter().all(|m| !m.asteroid),
+        planet.moons.iter().all(|m| m.kind != BodyKind::Asteroid),
         "asteroid moons are lettered, not pool-named"
     );
 

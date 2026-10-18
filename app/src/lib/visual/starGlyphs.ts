@@ -1,4 +1,5 @@
 import type { StarClassView } from "../../generated/StarClassView";
+import { starCount } from "../details/starBody";
 
 export interface StarGlyph {
   tint: number;
@@ -28,10 +29,19 @@ const CLASSES: Array<[prefix: string, glyph: StarGlyph]> = [
 const MULTI: StarGlyph = { tint: 0xfff0c8, size: BASE * 1.3, ring: false };
 const OTHER: StarGlyph = { tint: 0x9aa3ad, size: BASE * 0.9, ring: false };
 
-/** Colour and size for a star class; matched by prefix so modded classes still get a colour. */
-export function starGlyph(starClass: string): StarGlyph {
+/**
+ * Colour and size for a star class: one of several stars by its count in `classes`, else matched
+ * by prefix so modded classes still get a colour.
+ */
+export function starGlyph(
+  starClass: string,
+  classes: ReadonlyMap<string, StarClassView>,
+): StarGlyph {
   const sc = starClass.toLowerCase();
-  if (sc.includes("binary") || sc.includes("trinary")) return MULTI;
+  const view = classes.get(starClass);
+  // A class the install does not list has no count, and `sc_binary_*` would take `sc_b`'s colour.
+  const multi = view ? starCount(view) > 1 : sc.includes("binary") || sc.includes("trinary");
+  if (multi) return MULTI;
   for (const [prefix, glyph] of CLASSES) {
     if (sc.startsWith(prefix)) return glyph;
   }

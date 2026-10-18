@@ -164,6 +164,25 @@ pub fn letter(index: usize) -> String {
     }
 }
 
+/// The name key of each of a system's star bodies, in the order the system lists them,
+/// given whether each has a name of its own: `None` for one that has, and
+/// `STAR_NAME_k_OF_n` for the `k`th of the `n` that have not. The Great Wound's one unnamed
+/// black hole of eleven is `STAR_NAME_1_OF_1`.
+pub fn star_name_keys(named: impl IntoIterator<Item = bool>) -> Vec<Option<String>> {
+    let named: Vec<bool> = named.into_iter().collect();
+    let n = named.iter().filter(|&&named| !named).count();
+    let mut k = 0;
+    named
+        .into_iter()
+        .map(|named| {
+            (!named).then(|| {
+                k += 1;
+                format!("STAR_NAME_{k}_OF_{n}")
+            })
+        })
+        .collect()
+}
+
 /// Each value of a variable keyed by one of `variable_keys` inside the name `name`, at any
 /// depth, that `matches`. The walk does not go inside a value that matches.
 pub(crate) fn variable_values<'n>(

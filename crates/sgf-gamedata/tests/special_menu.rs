@@ -5,6 +5,7 @@ use crate::common;
 
 use std::collections::BTreeSet;
 
+use sgf_gamedata::body_effects::LeftOut;
 use sgf_gamedata::generate::{GenerateError, generate};
 use sgf_gamedata::layouts::{DlcNeed, special_initializers};
 use sgf_gamedata::menu::special_layouts;
@@ -136,6 +137,22 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
     );
     let entry = |key: &str| entries.iter().find(|e| e.key == key).expect(key);
     assert_eq!(entry("trappist_initializer").label, "Trappist");
+    for (neighbour, label) in [
+        ("sol_neighbor_t1_no_guaranteed_colony", "Alpha Centauri"),
+        ("sol_neighbor_t2", "Procyon"),
+        ("sol_neighbor_t2_no_guaranteed_colony", "Sirius"),
+    ] {
+        assert_eq!(entry(neighbour).label, label);
+        assert!(
+            entry(neighbour).unique,
+            "{neighbour}: with the unique systems"
+        );
+        let card = layout_summary(gd, neighbour, &session).expect(neighbour);
+        assert!(
+            !card.comes_without.contains(&LeftOut::ClusterSystems),
+            "{neighbour}: no event of Sol's looks for it"
+        );
+    }
     for unique in ["unique_system_initializer_03", "oasis_system"] {
         assert!(entry(unique).unique, "{unique} is flagged unique_system");
     }
@@ -364,7 +381,11 @@ fn the_real_install_summarises_pulsar_black_hole_trappist_and_random() {
         [("terraforming_candidate", true)]
     );
     assert_eq!(trappist.max_instances, Some(1));
-    assert_eq!(random.star_classes.len(), 7);
+    assert_eq!(
+        random.star_classes.len(),
+        21,
+        "the standard stars, 10 binaries and 4 trinaries"
+    );
     assert_eq!(random.star_description, None);
     assert_eq!(random.rings, Presence::SomeLayouts);
     assert!(random.belt_kinds.iter().all(|kind| !kind.every));

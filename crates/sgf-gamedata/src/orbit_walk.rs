@@ -135,12 +135,14 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
 pub(crate) mod draw {
     use super::{Range, Rng};
 
-    /// A whole number between whole bounds, as the game writes orbits.
+    /// A fixed distance as it is, else a number between the bounds on the 0.02 grid the
+    /// game's saves show: `trinary_init_01`'s stars, `{ min = 0 max = 20 }` apart, stand at
+    /// 25, 29.94 and 47.78 in the 4.5 sample.
     pub(crate) fn distance(rng: &mut Rng, range: Range) -> f64 {
-        if range.min.fract() == 0.0 && range.max.fract() == 0.0 {
-            return rng.int(range.min as i64, range.max as i64) as f64;
+        if range.min == range.max {
+            return range.min;
         }
-        rng.between(range)
+        (rng.between(range) * 50.0).round() / 50.0
     }
 
     pub(crate) fn angle(rng: &mut Rng, angle: Range) -> f64 {

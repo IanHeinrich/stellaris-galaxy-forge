@@ -35,7 +35,7 @@ fn free_ground(session: &Session) -> (f64, f64) {
 
 /// The label the install's own localisation gives each of [`CONVERTED_LAYOUTS`], which only
 /// the real install can settle.
-const LABELS: [(&str, &str); 16] = [
+const LABELS: [(&str, &str); 19] = [
     ("sol_system_initializer", "Sol"),
     ("new_bratulla_initializer", "New Bratulla"),
     ("special_init_06", "Zanaam"),
@@ -46,6 +46,9 @@ const LABELS: [(&str, &str); 16] = [
     ("irass_system", "Irass"),
     ("last_baol_system", "Grunur"),
     ("sol_neighbor_t1", "Barnard's Star"),
+    ("sol_neighbor_t1_no_guaranteed_colony", "Alpha Centauri"),
+    ("sol_neighbor_t2", "Procyon"),
+    ("sol_neighbor_t2_no_guaranteed_colony", "Sirius"),
     ("hostile_init_16", "Tiyana Vek"),
     ("hostile_init_21", "Tiyun Ort"),
     ("holibrae_initializer", "Holibrae"),

@@ -47,8 +47,9 @@ shape, and <kbd>Esc</kbd> again to go back to the Select tool.
 
 ## In a save <Badge type="tip" text="Save" />
 
-A shape adds many systems to a save at once, up to 200 systems. It is
-meant for clusters, not whole galaxies. A scenario allows 1,000.
+A shape adds many systems to a save at once. How many depends on its
+points, up to 200. It is meant for clusters, not whole galaxies. A
+scenario allows 1,000.
 
 - Galaxy Forge keeps new systems at least 10 units from every other system,
   the spacing the game spawns systems at. Points closer than that are always left out,

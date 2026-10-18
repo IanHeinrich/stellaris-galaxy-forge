@@ -12,7 +12,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { EditNote, EditRow, PickerField } from "../../EditField";
 import { useApplyOp } from "../../useApplyOp";
-import { useStarClassItems } from "../useStarClassItems";
+import { useStarClassItems } from "../../useStarClassItems";
 
 /** Above this many selected systems the star class action reads no details and says so. */
 const STAR_CLASS_COUNT_MAX = 1000;

@@ -22,8 +22,9 @@ use crate::projections::galaxy::{GalaxyGraph, Lane};
 use crate::session::Session;
 
 pub use crate::format::save::system_spec::{
-    BeltSpec, BodySpec, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget, SpecMegastructure,
-    SpecMegastructurePlace, SpecTarget, SystemAdd, SystemExtras, SystemSpec,
+    BeltSpec, BodyKind, BodySpec, PrimaryName, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget,
+    SpecMegastructure, SpecMegastructurePlace, SpecStar, SpecTarget, SystemAdd, SystemExtras,
+    SystemSpec,
 };
 pub use crate::format::save::write::add_systems::BULK_ADD_CAP;
 pub use crate::format::save::write::game_tables::SPAWN_BUFFER;

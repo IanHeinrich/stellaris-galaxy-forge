@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 
 use sgf_core::emit::roman;
-use sgf_core::projections::name::letter;
+use sgf_core::projections::name::{letter, star_name_keys};
 use sgf_core::views::details::{
     BodyRole, Bounds, ClassPool, ClassRolls, DepositStep, OrbitFit, PlanetSummary, PoolClass,
     PoolEntry, SpawnClass, SpawnName, SpawnPool, SpawnRing,
@@ -560,6 +560,8 @@ impl<'g> Rolls<'g> {
                     .is_some_and(|c| c.star)
         };
         let stars: Vec<usize> = (0..bodies.len()).filter(|&i| star(i)).collect();
+        let star_keys =
+            star_name_keys(stars.iter().map(|&i| fixed_name(bodies[i].block).is_some()));
         let mut counters: HashMap<Option<usize>, (u32, u32)> = HashMap::new();
         let ids: Vec<u32> = planets.iter().map(|p| p.id).collect();
         for (i, body) in bodies.iter().enumerate() {
@@ -576,12 +578,12 @@ impl<'g> Rolls<'g> {
                 name: name.to_owned(),
             });
             if let Some(nth) = stars.iter().position(|&s| s == i) {
-                let format = format!("STAR_NAME_{}_OF_{}", nth + 1, stars.len());
-                spawn.naming = Some(fixed.unwrap_or(SpawnName::Template {
+                let lettered = star_keys[nth].clone().map(|format| SpawnName::Template {
                     format,
                     parent: None,
                     numerals: Vec::new(),
-                }));
+                });
+                spawn.naming = fixed.or(lettered);
                 continue;
             }
             if block.name.is_some() {

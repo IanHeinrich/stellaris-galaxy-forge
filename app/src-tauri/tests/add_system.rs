@@ -53,7 +53,7 @@ fn added(result: &EditResult) -> &SystemNode {
 #[test]
 fn adding_a_system_needs_game_data_and_a_save() {
     let w = webview();
-    let args = json!({ "seed": 7, "x": 0.0, "y": 0.0, "starClass": null });
+    let args = json!({ "seed": 7, "x": 0.0, "y": 0.0, "pick": { "kind": "random" } });
     let classes: Vec<StarClassPick> =
         invoke(&w, "get_generator_star_classes", json!({})).expect("star classes");
     assert!(classes.is_empty(), "no game data, no classes: {classes:?}");
@@ -95,7 +95,7 @@ fn add_reroll_rename_delete_and_undo() {
     let result: EditResult = invoke(
         &w,
         "add_random_system",
-        json!({ "seed": 42, "x": x, "y": y, "starClass": "sc_g" }),
+        json!({ "seed": 42, "x": x, "y": y, "pick": { "kind": "class", "star_class": "sc_g" } }),
     )
     .expect("add a system");
     let system = added(&result).clone();
@@ -121,7 +121,7 @@ fn add_reroll_rename_delete_and_undo() {
     let rolled: EditResult = invoke(
         &w,
         "reroll_system",
-        json!({ "system": system.id, "seed": 43, "starClass": "sc_m" }),
+        json!({ "system": system.id, "seed": 43, "pick": { "kind": "class", "star_class": "sc_m" } }),
     )
     .expect("roll it again as a red star");
     let again = added(&rolled);
@@ -156,7 +156,7 @@ fn add_reroll_rename_delete_and_undo() {
     let refused = invoke::<EditResult>(
         &w,
         "reroll_system",
-        json!({ "system": 0, "seed": 1, "starClass": null }),
+        json!({ "system": 0, "seed": 1, "pick": { "kind": "random" } }),
     )
     .expect_err("a system the file already held is refused");
     assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
@@ -182,7 +182,7 @@ fn deleting_added_systems_in_bulk_skips_the_files_own_and_undoes_in_one_step() {
         let result: EditResult = invoke(
             &w,
             "add_random_system",
-            json!({ "seed": seed, "x": x, "y": y, "starClass": null }),
+            json!({ "seed": seed, "x": x, "y": y, "pick": { "kind": "random" } }),
         )
         .expect("add a system");
         ids.push(added(&result).id);
@@ -262,13 +262,13 @@ fn a_scenario_takes_no_rolled_system() {
     let added = invoke::<EditResult>(
         &w,
         "add_random_system",
-        json!({ "seed": 1, "x": 0.0, "y": 0.0, "starClass": null }),
+        json!({ "seed": 1, "x": 0.0, "y": 0.0, "pick": { "kind": "random" } }),
     )
     .expect_err("a scenario is refused");
     let rolled = invoke::<EditResult>(
         &w,
         "reroll_system",
-        json!({ "system": 0, "seed": 1, "starClass": null }),
+        json!({ "system": 0, "seed": 1, "pick": { "kind": "random" } }),
     )
     .expect_err("a scenario is refused");
     let picks = invoke::<AddSystemPicks>(&w, "get_add_system_picks", json!({}))
@@ -306,7 +306,7 @@ fn a_scenario_takes_special_systems_and_clusters_as_statements() {
     let keys: Vec<&str> = clusters.iter().map(|c| c.cluster.key.as_str()).collect();
     assert_eq!(
         keys,
-        ["junk_ratlings"],
+        ["junk_ratlings", "sol_neighbours"],
         "the Legendary Leader's start site creates its sites itself in a scenario"
     );
 
@@ -474,7 +474,7 @@ fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
     let rolled: EditResult = invoke(
         &w,
         "reroll_system",
-        json!({ "system": system.id, "seed": 6, "starClass": system.star_class, "keepSpecial": true }),
+        json!({ "system": system.id, "seed": 6, "pick": { "kind": "layout", "layout": layout } }),
     )
     .expect("roll it again");
     let rolled_node = added(&rolled);
@@ -485,7 +485,7 @@ fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
     let changed: EditResult = invoke(
         &w,
         "reroll_system",
-        json!({ "system": system.id, "seed": 7, "starClass": "sc_g", "keepSpecial": false }),
+        json!({ "system": system.id, "seed": 7, "pick": { "kind": "class", "star_class": "sc_g" } }),
     )
     .expect("change the star");
     let changed_node = added(&changed);
@@ -629,7 +629,7 @@ fn adding_systems_together_names_them_apart_and_undoes_in_one_step() {
     let rolled: EditResult = invoke(
         &w,
         "reroll_system",
-        json!({ "system": first, "seed": 9, "starClass": "sc_f" }),
+        json!({ "system": first, "seed": 9, "pick": { "kind": "class", "star_class": "sc_f" } }),
     )
     .expect("roll one of the new systems again");
     assert_eq!(added(&rolled).id, first);

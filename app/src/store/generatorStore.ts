@@ -1,10 +1,14 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
+import type { Arrangement } from "../generated/Arrangement";
 import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SpecialLayout } from "../generated/SpecialLayout";
+import type { StarType } from "../generated/StarType";
+import { canEdit } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
+import { keyedReads } from "./reads";
 
 /** A star class a rolled system can have, named as the game names it, with its odds. */
 export interface GeneratorStarClass {
@@ -30,8 +34,21 @@ export interface GeneratorState {
   planetClasses: BodyClassPick[] | null;
   /** The classes an added moon may take, by name; null until read. */
   moonClasses: BodyClassPick[] | null;
+  /** The arrangements a binary or trinary is built in; null until read. */
+  arrangements: Arrangement[] | null;
+  /** Every star type a star slot offers, the usual ones first; null until read. */
+  starTypes: StarType[] | null;
+  /** What `file_star_class` answered for each set of stars asked of `fileStars`, by `starsKey`. */
+  filed: ReadonlyMap<string, FiledClass>;
   /** Reads the classes once per loaded game data; a no-op without it. */
   request(): void;
+  /**
+   * Reads the arrangements and star types once per loaded game data, for a document that builds
+   * systems from chosen stars; a no-op otherwise.
+   */
+  requestStars(): void;
+  /** Asks which class `stars`, in slot order, are filed under, unless it is known or on its way. */
+  fileStars(stars: readonly string[]): void;
   /** Reads the planet and moon classes once per loaded game data; a no-op without it. */
   requestBodyClasses(): void;
   /**
@@ -44,10 +61,31 @@ export interface GeneratorState {
   clear(): void;
 }
 
+/** The class a set of stars is filed under, or why the core would not say. */
+export type FiledClass = { kind: "filed"; starClass: string } | { kind: "refused"; reason: string };
+
+/** The key `filed` holds a set of stars under. */
+export function starsKey(stars: readonly string[]): string {
+  return stars.join("+");
+}
+
 export const useGeneratorStore = create<GeneratorState>((set, get) => {
   let generation = 0;
   let asked = false;
   let bodiesAsked = false;
+  let starsAsked = false;
+  const filing = keyedReads((asks: string[][]) => ipc.fileStarClass(asks[0]), {
+    key: starsKey,
+    batch: 1,
+    answered([stars], starClass: string) {
+      const filed: FiledClass = { kind: "filed", starClass };
+      set({ filed: new Map(get().filed).set(starsKey(stars), filed) });
+    },
+    failed([stars], message) {
+      const refused: FiledClass = { kind: "refused", reason: message };
+      set({ filed: new Map(get().filed).set(starsKey(stars), refused) });
+    },
+  });
   /** The latest picks read asked for; an older answer landing after it is dropped. */
   let picksAsked = 0;
   return {
@@ -55,6 +93,9 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
     picks: null,
     planetClasses: null,
     moonClasses: null,
+    arrangements: null,
+    starTypes: null,
+    filed: new Map(),
 
     request() {
       if (asked || useGameDataStore.getState().status !== "ready") return;
@@ -94,6 +135,27 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
       );
     },
 
+    requestStars() {
+      if (starsAsked || useGameDataStore.getState().status !== "ready") return;
+      if (!canEdit("added_systems")) return;
+      starsAsked = true;
+      const mine = generation;
+      Promise.all([ipc.getStarArrangements(), ipc.getStarTypes()]).then(
+        ([arrangements, starTypes]) => {
+          if (mine === generation) set({ arrangements, starTypes });
+        },
+        (e: unknown) => {
+          if (mine === generation) starsAsked = false;
+          console.warn("star arrangements", ipc.errorMessage(e));
+        },
+      );
+    },
+
+    fileStars(stars) {
+      if (stars.length === 0 || get().filed.get(starsKey(stars))?.kind === "filed") return;
+      void filing.read([[...stars]]);
+    },
+
     refreshPicks() {
       if (useGameDataStore.getState().status !== "ready") return;
       picksAsked += 1;
@@ -117,6 +179,11 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
       generation += 1;
       asked = false;
       bodiesAsked = false;
+      starsAsked = false;
+      filing.clear();
+      if (get().arrangements !== null || get().starTypes !== null || get().filed.size > 0) {
+        set({ arrangements: null, starTypes: null, filed: new Map() });
+      }
       if (get().starClasses !== null) set({ starClasses: null });
       if (get().planetClasses !== null || get().moonClasses !== null) {
         set({ planetClasses: null, moonClasses: null });

@@ -20,7 +20,7 @@ describe("odds bars", () => {
         { key: "sc_black_hole", share: 0.3 },
         { key: "sc_weird", share: 0.1 },
       ],
-      (key) => readableTint(starGlyph(key).tint),
+      (key) => readableTint(starGlyph(key, new Map()).tint),
     );
     expect(rows.map((r) => [r.key, r.width.toFixed(3), r.color])).toEqual([
       ["sc_g", "1.000", "#ffe066"],

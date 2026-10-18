@@ -3,7 +3,7 @@
 
 use crate::common;
 
-use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodyKind, BodySpec, PrimaryName, SystemSpec};
 use sgf_gamedata::generate::generate;
 
 use common::layouts::{self, by_name};
@@ -21,7 +21,7 @@ fn pinned(name: &str, spec: &SystemSpec) {
         star_class,
         initializer,
         capped,
-        star_named_by_class,
+        star_name,
         star,
         planets,
         belts,
@@ -32,8 +32,10 @@ fn pinned(name: &str, spec: &SystemSpec) {
     if *capped {
         out.push_str(" capped");
     }
-    if *star_named_by_class {
-        out.push_str(" star_named_by_class");
+    match star_name {
+        PrimaryName::Lettered => {}
+        PrimaryName::System => out.push_str(" star_named_by_class"),
+        PrimaryName::Fixed(name) => out.push_str(&format!(" star_name {name}")),
     }
     if !flags.is_empty() {
         out.push_str(&format!(" flags {flags:?}"));
@@ -64,14 +66,13 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
         entity,
         deposits,
         moons,
-        asteroid,
+        kind,
         name,
         entity_name,
         picture,
         prevent_anomaly,
         modifiers,
         ring,
-        star,
         flags,
     } = body;
     let mut line = format!("{indent}{class} {size} orbit {orbit} angle {angle}");
@@ -81,7 +82,9 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
     if !deposits.is_empty() {
         line.push_str(&format!(" deposits {deposits:?}"));
     }
-    for (set, word) in [(star, "star"), (asteroid, "asteroid"), (ring, "ring")] {
+    let star = *kind == BodyKind::Star;
+    let asteroid = *kind == BodyKind::Asteroid;
+    for (set, word) in [(&star, "star"), (&asteroid, "asteroid"), (ring, "ring")] {
         if *set {
             line.push(' ');
             line.push_str(word);
@@ -144,5 +147,31 @@ fn the_real_install_rolls_the_same_bodies_for_a_seed_as_before() {
     ] {
         let spec = by_name(gd, seed, "Gen", SPOT, layout).unwrap();
         pinned(&format!("{layout}_{seed}"), &spec);
+    }
+}
+
+/// Sol's trinary neighbour, Procyon, and the first seed of each random multi-star layout a
+/// class pick draws: each star in its class's order, a companion's planets and their moons
+/// under it.
+#[test]
+fn the_real_install_rolls_the_same_multi_star_systems_for_a_seed_as_before() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for layout in ["sol_neighbor_t1_no_guaranteed_colony", "sol_neighbor_t2"] {
+        let spec = by_name(gd, 1, "Gen", SPOT, layout).unwrap();
+        pinned(&format!("{layout}_1"), &spec);
+    }
+    for (layout, class) in [
+        ("binary_init_01", "sc_binary_7"),
+        ("binary_init_02", "sc_binary_7"),
+        ("trinary_init_01", "sc_trinary_1"),
+        ("trinary_init_02", "sc_trinary_1"),
+    ] {
+        let spec = (0..200)
+            .map(|seed| generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE).unwrap())
+            .find(|spec| spec.initializer == layout)
+            .expect(layout);
+        pinned(&format!("{layout}_{class}"), &spec);
     }
 }

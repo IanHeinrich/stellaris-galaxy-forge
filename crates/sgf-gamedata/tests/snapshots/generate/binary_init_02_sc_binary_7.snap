@@ -1,0 +1,18 @@
+---
+source: crates/sgf-gamedata/tests/generate_pinned.rs
+expression: out
+---
+Gen at -292.23404 -137.62265 sc_binary_7 binary_init_02
+pc_k_star 31 orbit 0 angle 180 deposits ["d_energy_4"] star
+  pc_f_star 22 orbit 240 angle 169.52 deposits ["d_energy_3"] star
+    pc_barren 23 orbit 50 angle 301.3 ring
+    pc_toxic 23 orbit 75 angle 102.66 deposits ["d_society_2"]
+      pc_barren_cold 6 orbit 13 angle 37.48
+  pc_molten 25 orbit 50 angle 296.36
+    pc_barren 7 orbit 13 angle 77.32 deposits ["d_minerals_5"]
+  pc_barren_cold 17 orbit 70 angle 129.98
+  pc_toxic 25 orbit 90 angle 27.55 deposits ["d_trade_value_4"]
+  pc_toxic 15 orbit 110 angle 121.31 deposits ["d_society_2"]
+    pc_barren_cold 7 orbit 13 angle 312.35 deposits ["d_minerals_3"]
+  pc_barren 20 orbit 130 angle 304.77
+    pc_frozen 7 orbit 13 angle 53.46

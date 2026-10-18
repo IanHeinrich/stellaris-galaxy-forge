@@ -12,6 +12,9 @@ import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PrepareOptions } from "../generated/PrepareOptions";
 import type { RingStage } from "../generated/RingStage";
 import type { RowChoice } from "../generated/RowChoice";
+import type { BuiltStars } from "../api/ipc";
+import type { SystemPick } from "../generated/SystemPick";
+import type { StarCount } from "../lib/multiStar";
 import type { NewSystems } from "../lib/specialPicks";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
@@ -219,6 +222,13 @@ export interface EditorState {
    * and selects it. A spot the core would refuse is reported without asking it.
    */
   addRandomSystemAt(x: number, y: number, starClass?: string | null): Promise<boolean>;
+  /** Rolls a random binary (2) or trinary (3) at a world point, as `addRandomSystemAt` does. */
+  addRandomStarsAt(x: number, y: number, count: StarCount): Promise<boolean>;
+  /**
+   * Builds a system of `built`'s stars at a world point of the open save in one edit, joined to the
+   * systems near it when `join`, and selects it, as `addRandomSystemAt` does.
+   */
+  addBuiltSystemAt(x: number, y: number, built: BuiltStars, join: boolean): Promise<boolean>;
   /**
    * Builds a system of the special layout `layout` at a world point of the open document in one
    * edit, with its anomalies and dig sites when `extras`, joined to the systems near it when
@@ -289,11 +299,12 @@ export interface EditorState {
   ): Promise<Omit<Added, "edit"> | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
-   * null. Left out, a system of a Special menu layout is built from that layout again, and any
-   * other is rolled around the class it has when the edit runs. The id is followed through the
-   * edits queued before it.
+   * null. Left out, it is built again as it was built, which the core reads when the edit runs.
+   * The id is followed through the edits queued before it.
    */
   rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
+  /** Builds a system added this session again in place as `pick` says, as `rerollSystem` follows the id. */
+  rebuildSystem(id: number, pick: SystemPick): Promise<boolean>;
   /** Renames a system added this session; a blank name sends nothing. */
   renameAddedSystem(id: number, name: string): Promise<boolean>;
   /** Adds the next free marauder clan at a world point: its home there, two raid bases beside it. */

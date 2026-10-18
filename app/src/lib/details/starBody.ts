@@ -155,3 +155,8 @@ export function eachStarKeys(starClass: StarClassView | undefined): string[] {
   if (starClass === undefined || starClass.alternatives === true) return [];
   return starClass.planet_keys.length > 1 ? starClass.planet_keys : [];
 }
+
+/** How many stars a system of `starClass` has: one for a class listing the stars it may have. */
+export function starCount(starClass: StarClassView): number {
+  return Math.max(eachStarKeys(starClass).length, Math.min(starClass.planet_keys.length, 1));
+}

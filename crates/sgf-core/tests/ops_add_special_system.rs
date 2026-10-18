@@ -5,7 +5,9 @@
 //! removal's and a reroll's inverse. The spec builders here serve the other
 //! `ops_add_special_system_*` files.
 
-use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, initializer_counts};
+use sgf_core::ops::{
+    BeltSpec, BodyKind, BodySpec, Op, PrimaryName, SystemSpec, initializer_counts,
+};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -23,7 +25,7 @@ pub(crate) fn add(spec: SystemSpec) -> Op {
     Op::AddSystemFromSpec { spec }
 }
 
-fn named(name: &str, body: BodySpec) -> BodySpec {
+pub(crate) fn named(name: &str, body: BodySpec) -> BodySpec {
     BodySpec {
         name: Some(name.to_owned()),
         ..body
@@ -67,7 +69,7 @@ pub(crate) fn trappist(at: &SystemSpec) -> SystemSpec {
         star_class: "sc_m".to_owned(),
         initializer: "trappist_initializer".to_owned(),
         capped: true,
-        star_named_by_class: true,
+        star_name: PrimaryName::System,
         star: star(body("pc_m_star", 20, 0.0, 0.0, 0)),
         planets: vec![
             body("pc_molten", 16, 20.0, 15.0, 1),
@@ -128,7 +130,7 @@ pub(crate) fn larionessi(at: &SystemSpec) -> SystemSpec {
         },
     ];
     let asteroid = |angle: f64| BodySpec {
-        asteroid: true,
+        kind: BodyKind::Asteroid,
         ..with(body("pc_asteroid", 5, 80.0, angle, 0), &["d_alloys_2"])
     };
     SystemSpec {

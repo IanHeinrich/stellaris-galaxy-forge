@@ -154,7 +154,9 @@ pub enum Command {
     /// system as JSON, which an `AddSystemFromSpec` edit file for `sgf apply` holds as its
     /// `spec`. --cluster junk_ratlings adds a Special menu cluster instead, its home at --at
     /// and joined by --lane, and its other systems placed from the seed, with the lanes
-    /// between them, as one edit.
+    /// between them, as one edit. --arrangement binary_init_02 --stars pc_black_hole,pc_t_star
+    /// builds a binary or trinary of those stars, filed under the class the builder's rule
+    /// gives or --filed-as; --random-binary and --random-trinary roll one of the game's.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
@@ -205,6 +207,29 @@ pub enum Command {
         /// On --then-reroll, build a system of a Special menu layout from that layout again.
         #[arg(long, requires = "then_reroll")]
         keep_special: bool,
+        /// A plain layout of several stars (`binary_init_02`) to build the system in, its star
+        /// slots taking --stars.
+        #[arg(long, requires = "stars", conflicts_with_all = ["star_class", "special"])]
+        arrangement: Option<String>,
+        /// The planet class of each star of --arrangement, in its order:
+        /// `pc_black_hole,pc_t_star`.
+        #[arg(long, value_delimiter = ',', requires = "arrangement")]
+        stars: Vec<String>,
+        /// The star class to file the --stars system under, in place of the one the rule gives.
+        #[arg(long, requires = "arrangement")]
+        filed_as: Option<String>,
+        /// Build the --stars system with its stars alone: no planets, moons or belts.
+        #[arg(long, requires = "arrangement")]
+        no_planets: bool,
+        /// Roll a binary, drawn among the plain layouts of two stars at their odds.
+        #[arg(
+            long,
+            conflicts_with_all = ["star_class", "special", "arrangement", "random_trinary"]
+        )]
+        random_binary: bool,
+        /// Roll a trinary, drawn among the plain layouts of three stars at their odds.
+        #[arg(long, conflicts_with_all = ["star_class", "special", "arrangement"])]
+        random_trinary: bool,
         #[command(flatten)]
         install: InstallArg,
         #[command(flatten)]

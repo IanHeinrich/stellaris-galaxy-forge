@@ -6,7 +6,7 @@ use crate::common;
 
 use std::collections::BTreeSet;
 
-use sgf_core::ops::Op;
+use sgf_core::ops::{BodyKind, Op, PrimaryName};
 use sgf_gamedata::generate::GenerateError;
 use sgf_gamedata::layouts::{
     CONVERTED_LAYOUTS, Eligibility, SaveFacts, Unsupported, odds, special_initializers,
@@ -112,7 +112,11 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
             ["fx_haven", "unique_system"],
             "the layout's star flags"
         );
-        assert!(spec.star_named_by_class, "a star written as a class");
+        assert_eq!(
+            spec.star_name,
+            PrimaryName::System,
+            "a star written as a class"
+        );
         assert_eq!(spec.star_class, "sc_sun");
         assert_eq!(
             (spec.star.class.as_str(), spec.star.size),
@@ -130,7 +134,7 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
         assert_eq!(husk.modifiers, ["fx_mod"]);
         assert_eq!(husk.deposits, ["d_fx_gem"], "set_deposit after the roll");
         assert!(husk.ring, "has_ring = yes");
-        assert!(!husk.asteroid);
+        assert_ne!(husk.kind, BodyKind::Asteroid);
         assert_eq!(husk.moons.len(), 1);
         let moon = &husk.moons[0];
         assert_eq!(
@@ -163,7 +167,7 @@ fn an_off_centre_star_stands_at_its_orbit_once_and_the_planets_count_from_the_ce
         let spec = by_name(&gd, seed, "Fx", (0.0, 0.0), "fx_offcentre").expect("a system");
         assert_eq!(spec.name, "Fx", "no fixed name");
         assert!(!spec.capped, "no max_instances");
-        assert!(!spec.star_named_by_class);
+        assert_eq!(spec.star_name, PrimaryName::Lettered);
         assert_eq!(spec.star.orbit, 40.0);
         assert_eq!(
             spec.planets.len(),
@@ -247,7 +251,7 @@ fn a_star_written_as_a_class_takes_the_class_of_the_list_that_has_it() {
             ("sc_hole", "pc_hole"),
             "seed {seed}: rl_both's other class has another star"
         );
-        assert!(spec.star_named_by_class);
+        assert_eq!(spec.star_name, PrimaryName::System);
     }
 }
 
@@ -345,6 +349,20 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "ratling_1_2",
         "ratling_1_3",
     ];
+    // The multi-star layouts with no other blocker, Sol's three neighbours among them.
+    let multi_star = [
+        "broken_shroudwalker_init_01",
+        "distar_phaseshift_system",
+        "distar_pod_system",
+        "living_planet_system",
+        "mechanocalibrator_system",
+        "megacorp_mega_art_installation_init_01",
+        "orbital_ring_init_01",
+        "sol_neighbor_t1_no_guaranteed_colony",
+        "sol_neighbor_t2",
+        "sol_neighbor_t2_no_guaranteed_colony",
+        "solarpunk_01",
+    ];
     let converted: Vec<&str> = CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect();
     assert_eq!(
         special,
@@ -353,11 +371,12 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
             .chain(&group_b)
             .chain(&ruins)
             .chain(&clusters)
+            .chain(&multi_star)
             .chain(&converted)
             .copied()
             .collect(),
         "A and B with odds, less the layouts whose point is their spawn, time loop's shield \
-         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, the clusters' systems, and the converted layouts"
+         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, the clusters' systems, the multi-star layouts and the converted layouts"
     );
     let why = |layout: &str| match of(gd, layout) {
         Eligibility::Unsupported(why) => why,
@@ -367,7 +386,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         why("fumongus_init_01"),
         Unsupported::Effect("create_tiyanki_country".to_owned())
     );
-    assert_eq!(why("binary_init_01"), Unsupported::MultiStar);
+    assert_eq!(of(gd, "binary_init_01"), Eligibility::Plain);
     assert_eq!(
         why("time_loop_world_system"),
         Unsupported::Effect("change_pc".to_owned())

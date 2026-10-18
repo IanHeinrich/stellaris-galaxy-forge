@@ -53,6 +53,8 @@ mod model_sprites;
 mod model_sprites_install;
 mod model_sprites_surfaces;
 mod model_thumbnails;
+mod multi_star;
+mod multi_star_builder;
 mod naming;
 mod picks;
 mod planet_disc_shapes;

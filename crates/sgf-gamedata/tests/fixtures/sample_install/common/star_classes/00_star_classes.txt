@@ -39,3 +39,105 @@ sc_m_giant = {
 	planet = { key = pc_m_giant_star }
 	spawn_odds = 20
 }
+
+sc_binary_1 = {
+	class = a_star
+	planet = { key = pc_a_star class = a_star }
+	planet = { key = pc_pulsar class = pulsar }
+	spawn_odds = 5
+}
+
+sc_binary_2 = {
+	class = b_star
+	planet = { key = pc_b_star class = b_star }
+	planet = { key = pc_neutron_star class = neutron_star }
+	spawn_odds = 5
+}
+
+sc_binary_3 = {
+	class = m_star
+	planet = { key = pc_m_giant_star class = m_star }
+	planet = { key = pc_b_star class = b_star }
+	spawn_odds = 5
+}
+
+sc_binary_4 = {
+	class = m_star
+	planet = { key = pc_m_giant_star class = m_star }
+	planet = { key = pc_f_star class = f_star }
+	spawn_odds = 5
+}
+
+sc_binary_5 = {
+	class = b_star
+	planet = { key = pc_b_star class = b_star }
+	planet = { key = pc_b_star class = b_star }
+	spawn_odds = 5
+}
+
+sc_binary_6 = {
+	class = m_star
+	planet = { key = pc_m_star class = m_star }
+	planet = { key = pc_g_star class = g_star }
+	spawn_odds = 5
+}
+
+sc_binary_7 = {
+	class = k_star
+	planet = { key = pc_k_star class = k_star }
+	planet = { key = pc_f_star class = f_star }
+	spawn_odds = 5
+}
+
+sc_binary_8 = {
+	class = g_star
+	planet = { key = pc_g_star class = g_star }
+	planet = { key = pc_f_star class = f_star }
+	spawn_odds = 5
+}
+
+sc_binary_9 = {
+	class = a_star
+	planet = { key = pc_a_star class = a_star }
+	planet = { key = pc_f_star class = f_star }
+	spawn_odds = 5
+}
+
+sc_binary_10 = {
+	class = a_star
+	planet = { key = pc_a_star class = a_star }
+	planet = { key = pc_t_star class = t_star }
+	spawn_odds = 5
+}
+
+sc_trinary_1 = {
+	class = g_star
+	planet = { key = pc_g_star class = g_star }
+	planet = { key = pc_m_star class = m_star }
+	planet = { key = pc_k_star class = k_star }
+	spawn_odds = 30
+}
+
+sc_trinary_2 = {
+	class = b_star
+	planet = { key = pc_b_star class = b_star }
+	planet = { key = pc_a_star class = a_star }
+	planet = { key = pc_f_star class = f_star }
+	spawn_odds = 30
+}
+
+sc_trinary_3 = {
+	class = k_star
+	planet = { key = pc_k_star class = k_star }
+	planet = { key = pc_f_star class = f_star }
+	planet = { key = pc_g_star class = g_star }
+	spawn_odds = 30
+}
+
+sc_trinary_4 = {
+	class = b_star
+	planet = { key = pc_b_star class = b_star }
+	planet = { key = pc_k_star class = k_star }
+	planet = { key = pc_t_star class = t_star }
+	spawn_odds = 30
+}

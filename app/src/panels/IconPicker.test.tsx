@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { IconPickerItem } from "./IconPicker";
-import { popupPlace } from "./iconPickerPlace";
+import { floatAcross, floatPlace, popupPlace } from "./iconPickerPlace";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { FILTER_MIN, FilterField } from "./parts";
 
@@ -121,5 +121,68 @@ describe("a filter field", () => {
     expect(html).toContain('aria-controls="list"');
     expect(html).toContain('aria-activedescendant="list-2"');
     expect(html).toContain('aria-label="Filter 30 choices"');
+  });
+});
+
+describe("a floating popup's side", () => {
+  const view = { top: 0, bottom: 1000 };
+
+  it("opens below where it fits, as tall as the room there", () => {
+    expect(floatPlace({ top: 100, bottom: 130 }, 300, view, 4, 4)).toEqual({
+      up: false,
+      maxHeight: 862,
+    });
+  });
+
+  it("flips up where only the room above fits it", () => {
+    expect(floatPlace({ top: 800, bottom: 830 }, 300, view, 4, 4)).toEqual({
+      up: true,
+      maxHeight: 792,
+    });
+  });
+
+  it("takes the side with more room, capped to it, where neither fits", () => {
+    expect(floatPlace({ top: 600, bottom: 630 }, 900, view, 4, 4)).toEqual({
+      up: true,
+      maxHeight: 592,
+    });
+    expect(floatPlace({ top: 300, bottom: 330 }, 900, view, 4, 4)).toEqual({
+      up: false,
+      maxHeight: 662,
+    });
+  });
+});
+
+describe("a floating popup's width", () => {
+  const window = { left: 4, right: 1004 };
+
+  it("is as wide as its rows need, from the picker's left edge", () => {
+    expect(floatAcross({ left: 100, right: 220 }, 300, window, 420)).toEqual({
+      left: 100,
+      width: 300,
+    });
+  });
+
+  it("is no narrower than the picker", () => {
+    expect(floatAcross({ left: 100, right: 340 }, 200, window, 420)).toEqual({
+      left: 100,
+      width: 240,
+    });
+  });
+
+  it("is capped, and never wider than the window", () => {
+    expect(floatAcross({ left: 100, right: 220 }, 900, window, 420).width).toBe(420);
+    expect(floatAcross({ left: 10, right: 90 }, 900, { left: 4, right: 304 }, 420)).toEqual({
+      left: 4,
+      width: 300,
+    });
+  });
+
+  it("shifts left where it would run off the right edge, and stays inside the left", () => {
+    expect(floatAcross({ left: 900, right: 980 }, 300, window, 420)).toEqual({
+      left: 704,
+      width: 300,
+    });
+    expect(floatAcross({ left: -50, right: 30 }, 300, window, 420).left).toBe(4);
   });
 });

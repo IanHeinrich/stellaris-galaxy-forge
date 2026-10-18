@@ -115,7 +115,8 @@ const LEFT_OUT_WORDS: Record<Exclude<LeftOut, "cluster_systems">, string> = {
 
 export const CLUSTER_SYSTEMS = "Its event chain also uses the other systems of its cluster.";
 
-function spanText({ min, max }: Span): string {
+/** "3–11" for a span, "3" when its ends meet. */
+export function spanText({ min, max }: Span): string {
   return min === max ? `${min}` : `${min}–${max}`;
 }
 

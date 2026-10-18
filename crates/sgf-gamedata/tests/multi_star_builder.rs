@@ -1,0 +1,691 @@
+//! Binary and trinary systems built star by star on the real install: the class chosen stars
+//! are filed under, one case per step of the rule, the star types and arrangements the
+//! builder offers, a built system rolled and added to the 4.5 sample, and random binaries and
+//! trinaries.
+
+use crate::common;
+
+use sgf_core::ops::{BodyKind, BodySpec, Op, SystemSpec};
+use sgf_gamedata::GameData;
+use sgf_gamedata::deposit_roll::{Kind, RollBody, fitting};
+use sgf_gamedata::generate::{BuiltSystem, ForSaveError, GenerateError, Pick, for_save, joined_op};
+use sgf_gamedata::multi_star::{FiledReason, Shape, arrangements, file_star_class, star_types};
+use sgf_gamedata::views::StarClassView;
+
+use common::layouts::stars;
+use common::prepare::current;
+use common::{INSTALL, SPOT, hand_written, open_4_5};
+
+fn keys(stars: &[&str]) -> Vec<String> {
+    stars.iter().map(|&star| star.to_owned()).collect()
+}
+
+fn filed(gd: &GameData, stars: &[&str]) -> (String, FiledReason) {
+    let filed = file_star_class(gd, &keys(stars), None).expect("filed");
+    (filed.class, filed.reason)
+}
+
+/// One case for each step of the rule, with the precedents it follows.
+#[test]
+fn chosen_stars_are_filed_by_the_first_step_that_applies() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let effect = |star: &str| FiledReason::EffectStar {
+        star: star.to_owned(),
+    };
+    let alone = |star: &str| FiledReason::EffectStarAlone {
+        star: star.to_owned(),
+    };
+    let cases: [(&[&str], &str, FiledReason); 10] = [
+        (
+            &["pc_b_star", "pc_neutron_star"],
+            "sc_binary_2",
+            FiledReason::Exact,
+        ),
+        (
+            &["pc_neutron_star", "pc_b_star"],
+            "sc_binary_2",
+            FiledReason::Exact,
+        ),
+        (
+            &["pc_m_giant_star", "pc_pulsar"],
+            "sc_crisis_binary_1",
+            FiledReason::Exact,
+        ),
+        (
+            &["pc_g_star", "pc_pulsar"],
+            "sc_binary_1",
+            effect("pc_pulsar"),
+        ),
+        (
+            &["pc_black_hole"; 3],
+            "sc_black_hole",
+            alone("pc_black_hole"),
+        ),
+        (
+            &["pc_t_star", "pc_black_hole"],
+            "sc_black_hole",
+            alone("pc_black_hole"),
+        ),
+        (&["pc_pulsar"; 3], "sc_pulsar", alone("pc_pulsar")),
+        (
+            &["pc_g_star", "pc_g_star"],
+            "sc_binary_8",
+            FiledReason::MostShared { shared: 1 },
+        ),
+        // A brown dwarf shares one star with A + T, and a red giant one with each of its two
+        // binaries; no class leads with T, so the one the game reads first wins.
+        (
+            &["pc_t_star", "pc_m_giant_star"],
+            "sc_binary_3",
+            FiledReason::MostShared { shared: 1 },
+        ),
+        // No class has a protostar: of the binaries without effects a galaxy draws as often,
+        // the one the game reads first.
+        (
+            &["pc_protostar", "pc_protostar"],
+            "sc_binary_3",
+            FiledReason::Commonest,
+        ),
+    ];
+    for (stars, class, reason) in cases {
+        assert_eq!(filed(gd, stars), (class.to_owned(), reason), "{stars:?}");
+    }
+
+    let chosen = file_star_class(gd, &keys(&["pc_black_hole", "pc_t_star"]), Some("sc_g"))
+        .expect("an override");
+    assert_eq!(
+        (chosen.class.as_str(), chosen.reason),
+        ("sc_g", FiledReason::Chosen)
+    );
+    assert_eq!(file_star_class(gd, &[], None), Err(GenerateError::NoStars));
+    assert_eq!(
+        file_star_class(gd, &keys(&["pc_g_star", "pc_continental"]), None),
+        Err(GenerateError::NotAStar("pc_continental".to_owned()))
+    );
+    assert_eq!(
+        file_star_class(gd, &keys(&["pc_g_star"]), Some("sc_nope")),
+        Err(GenerateError::UnknownStar("sc_nope".to_owned()))
+    );
+}
+
+/// Stars of three types and pairs of them, defined out of key order: a placeholder, a list of
+/// alternatives, and a pair only a special layout could give.
+const FILING_FILES: [(&str, &str); 2] = [
+    (
+        "common/planet_classes/00_stars.txt",
+        "pc_a = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_b = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_c = {\n\tstar = yes\n\tplanet_size = 20\n}\n",
+    ),
+    (
+        "common/star_classes/00_stars.txt",
+        "sc_z_pair = {\n\tclass = a\n\tplanet = { key = pc_a }\n\tplanet = { key = pc_c }\n\tspawn_odds = 5\n}\n\
+         sc_a_pair = {\n\tclass = a\n\tplanet = { key = pc_b }\n\tplanet = { key = pc_c }\n\tspawn_odds = 5\n}\n\
+         sc_special_pair = {\n\tclass = a\n\tplanet = { key = pc_c }\n\tplanet = { key = pc_c }\n\tspawn_odds = 0\n}\n\
+         sc_one_a = {\n\tclass = a\n\tplanet = { key = pc_a }\n\tspawn_odds = 10\n}\n\
+         sc_hollow = { class = a spawn_odds = 0 }\n\
+         sc_shell = {\n\tclass = a\n\tplanet = { key = pc_a }\n\tplanet = { key = pc_b }\n\
+         \tplanet = { key = pc_c }\n\tplanet = { key = pc_a }\n\tspawn_odds = 0\n}\n",
+    ),
+];
+
+/// A pair only a special layout gives is never taken for its stars, a tie goes to the class
+/// the game reads first whatever its key, and a class that gives a system no stars of its own
+/// cannot be chosen.
+#[test]
+fn filing_takes_no_special_only_class_and_breaks_ties_in_definition_order() {
+    let (_dir, gd) = hand_written(&FILING_FILES);
+    assert_eq!(
+        filed(&gd, &["pc_c", "pc_c"]),
+        (
+            "sc_z_pair".to_owned(),
+            FiledReason::MostShared { shared: 1 }
+        ),
+        "not the special pair, and the pair defined first"
+    );
+    let special = file_star_class(&gd, &keys(&["pc_c", "pc_c"]), Some("sc_special_pair"));
+    assert_eq!(
+        special.map(|f| f.class),
+        Ok("sc_special_pair".to_owned()),
+        "chosen, a special class still files"
+    );
+    for class in ["sc_hollow", "sc_shell"] {
+        assert_eq!(
+            file_star_class(&gd, &keys(&["pc_a", "pc_b"]), Some(class)),
+            Err(GenerateError::NotFileable(class.to_owned()))
+        );
+        let view = StarClassView::new(gd.star_classes.get(class).expect(class), &gd.loc);
+        assert_eq!(view.fileable, None, "{class} is left out of the class list");
+    }
+    let view = StarClassView::new(gd.star_classes.get("sc_z_pair").expect("a pair"), &gd.loc);
+    assert_eq!(view.fileable, Some(true));
+}
+
+/// Every star type of the install, the eleven a galaxy draws first, each marked when its own
+/// class has effects.
+#[test]
+fn the_slots_offer_every_star_type_the_usual_ones_first() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let types = star_types(gd);
+    let usual: Vec<&str> = types
+        .iter()
+        .take_while(|t| t.usual)
+        .map(|t| t.key.as_str())
+        .collect();
+    let mut sorted = usual.clone();
+    sorted.sort_unstable();
+    assert_eq!(
+        sorted,
+        [
+            "pc_a_star",
+            "pc_b_star",
+            "pc_black_hole",
+            "pc_f_star",
+            "pc_g_star",
+            "pc_k_star",
+            "pc_m_giant_star",
+            "pc_m_star",
+            "pc_neutron_star",
+            "pc_pulsar",
+            "pc_t_star",
+        ]
+    );
+    for rest in ["pc_toxoid_star", "pc_rift_star", "pc_protostar"] {
+        let found = types[usual.len()..].iter().find(|t| t.key == rest);
+        assert!(found.is_some(), "{rest} after the usual ones");
+    }
+    let with_effects: Vec<&str> = types
+        .iter()
+        .filter(|t| t.effects)
+        .map(|t| t.key.as_str())
+        .collect();
+    assert_eq!(
+        with_effects.len(),
+        4,
+        "black hole, neutron star, pulsar, toxoid: {with_effects:?}"
+    );
+    assert!(types.iter().all(|t| !t.name.is_empty()));
+}
+
+/// A class with effects lists each modifier with the game's name for it, for the class
+/// picker's tags; one without lists none.
+#[test]
+fn a_star_class_names_the_modifiers_it_puts_on_its_systems() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let view = |key: &str| StarClassView::new(gd.star_classes.get(key).expect(key), &gd.loc);
+    let neutron = view("sc_neutron_star").modifiers.expect("a neutron star's");
+    assert_eq!(neutron.len(), 1);
+    assert_eq!(neutron[0].key, "ship_speed_reduction");
+    assert!(!neutron[0].name.is_empty(), "{neutron:?}");
+    assert_eq!(view("sc_g").modifiers, None);
+    assert_eq!(
+        view("sc_rift_star").modifiers,
+        None,
+        "an empty modifier block"
+    );
+}
+
+/// The four random layouts, each named by what it does with its stars, with its share of the
+/// draw among the layouts of as many stars and where its stars stand.
+#[test]
+fn the_arrangements_are_the_plain_multi_star_layouts() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let arrangements = arrangements(gd);
+    let got: Vec<(&str, u32, Shape, f64)> = arrangements
+        .iter()
+        .map(|a| (a.layout.as_str(), a.stars, a.shape, a.share))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            ("binary_init_01", 2, Shape::ClosePair, 0.6),
+            ("binary_init_02", 2, Shape::DistantCompanion, 0.4),
+            ("trinary_init_01", 3, Shape::CloseTrio, 0.5),
+            ("trinary_init_02", 3, Shape::TwoDistantCompanions, 0.5),
+        ]
+    );
+    let orbits: Vec<(&str, &str, Vec<f64>)> = arrangements
+        .iter()
+        .map(|a| {
+            let orbits = a.diagram.stars.iter().map(|s| s.orbit).collect();
+            (a.layout.as_str(), a.name.as_str(), orbits)
+        })
+        .collect();
+    assert_eq!(
+        orbits,
+        [
+            ("binary_init_01", "Close pair", vec![25.0, 25.0]),
+            ("binary_init_02", "Distant companion", vec![0.0, 240.0]),
+            ("trinary_init_01", "Close trio", vec![25.0, 35.0, 45.0]),
+            (
+                "trinary_init_02",
+                "Two distant companions",
+                vec![0.0, 220.0, 220.0]
+            ),
+        ]
+    );
+    let planets: Vec<(u32, u32)> = arrangements
+        .iter()
+        .map(|a| (a.planets.min, a.planets.max))
+        .collect();
+    assert_eq!(
+        planets,
+        [(2, 10), (5, 8), (2, 10), (6, 12)],
+        "each block's count, a companion's planets with it"
+    );
+    let distant: Vec<Vec<bool>> = arrangements
+        .iter()
+        .map(|a| a.diagram.stars.iter().map(|s| s.distant).collect())
+        .collect();
+    assert_eq!(
+        distant,
+        [
+            vec![false, false],
+            vec![false, true],
+            vec![false, false, false],
+            vec![false, true, true],
+        ]
+    );
+    for arrangement in &arrangements {
+        for star in &arrangement.diagram.stars {
+            assert!(
+                (star.x.hypot(star.y) - star.orbit).abs() < 1e-6,
+                "{}: {star:?} stands on its path",
+                arrangement.layout
+            );
+        }
+    }
+    let pair = &arrangements[0].diagram.stars;
+    assert!(
+        (pair[0].x - pair[1].x).hypot(pair[0].y - pair[1].y) > 1.0,
+        "a close pair's stars stand apart: {pair:?}"
+    );
+}
+
+/// A system built without planets holds its stars alone, where the arrangement puts them,
+/// each with its own deposits; undoing its add gives back the same bytes.
+#[test]
+fn a_built_system_without_planets_holds_its_stars_alone() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let built = BuiltSystem {
+        layout: "trinary_init_02".to_owned(),
+        stars: keys(&["pc_pulsar", "pc_g_star", "pc_m_star"]),
+        star_class: None,
+        planets: false,
+    };
+    let mut session = open_4_5();
+    let spec = for_save(gd, &session, 5, SPOT, &Pick::Built(built.clone())).expect("the roll");
+    assert_eq!(spec.star_class, "sc_pulsar");
+    assert!(spec.belts.is_empty());
+    assert!(
+        spec.planets
+            .iter()
+            .all(|p| p.kind == BodyKind::Star && p.moons.is_empty())
+    );
+    let classes: Vec<&str> = stars(&spec).iter().map(|s| s.class.as_str()).collect();
+    assert_eq!(classes, ["pc_pulsar", "pc_g_star", "pc_m_star"]);
+    let orbits: Vec<f64> = stars(&spec).iter().map(|s| s.orbit).collect();
+    assert_eq!(orbits, [0.0, 220.0, 220.0]);
+    assert!(
+        stars(&spec).iter().any(|s| !s.deposits.is_empty()),
+        "{spec:?}"
+    );
+
+    let original = current(&session);
+    let op = joined_op(
+        gd,
+        &session,
+        5,
+        SPOT,
+        &Pick::Built(built.clone()),
+        false,
+        &[],
+    )
+    .expect("the op");
+    session.apply(op).expect("the add");
+    let added = session
+        .graph()
+        .systems
+        .values()
+        .find(|s| s.added)
+        .expect("the added system");
+    assert_eq!(added.star_class, "sc_pulsar");
+    session.undo().expect("undo").expect("the add");
+    assert!(current(&session) == original, "undo gives back the bytes");
+}
+
+/// A black hole with a brown dwarf companion, built: the stars in slot order, filed as a black
+/// hole, each star's deposits its own class's, planets drawn at the black hole's odds within
+/// the layout's counts. The add writes the pick's roll, and undoing it gives back the same
+/// bytes.
+#[test]
+fn a_built_system_rolls_its_chosen_stars_and_adds_as_rolled() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let built = BuiltSystem {
+        layout: "binary_init_02".to_owned(),
+        stars: keys(&["pc_black_hole", "pc_t_star"]),
+        star_class: None,
+        planets: true,
+    };
+    let pick = |built: &BuiltSystem| Pick::Built(built.clone());
+    let mut session = open_4_5();
+    let black_hole = gd.star_classes.get("sc_black_hole").expect("sc_black_hole");
+    let zeroed: Vec<&str> = black_hole
+        .planet_odds
+        .iter()
+        .filter(|(_, odds)| *odds == 0.0)
+        .map(|(class, _)| class.as_str())
+        .collect();
+    assert!(zeroed.contains(&"pc_gas_giant"), "{zeroed:?}");
+    let mut drawn = 0;
+    for seed in 0..12 {
+        let spec = for_save(gd, &session, seed, SPOT, &pick(&built)).expect("the roll");
+        assert_eq!(spec.star_class, "sc_black_hole", "seed {seed}");
+        assert_eq!(spec.initializer, "binary_init_02");
+        let classes: Vec<&str> = stars(&spec).iter().map(|s| s.class.as_str()).collect();
+        assert_eq!(classes, ["pc_black_hole", "pc_t_star"], "seed {seed}");
+        for star in stars(&spec) {
+            let body = RollBody {
+                class: &star.class,
+                size: star.size,
+                kind: Kind::Star,
+            };
+            let fits: Vec<&str> = fitting(gd, &body, &[])
+                .iter()
+                .map(|d| d.key.as_str())
+                .collect();
+            assert!(
+                star.deposits.iter().all(|d| fits.contains(&d.as_str())),
+                "seed {seed}: {} holds {:?}",
+                star.class,
+                star.deposits
+            );
+        }
+        let centre: Vec<&BodySpec> = spec
+            .planets
+            .iter()
+            .filter(|p| p.kind != BodyKind::Star)
+            .collect();
+        let companion = stars(&spec)[1];
+        assert!(
+            centre.len() <= 5 && companion.moons.len() <= 3,
+            "seed {seed}"
+        );
+        // The companion's planets are written as a list, drawn alike whatever the star.
+        for planet in &centre {
+            assert!(
+                !zeroed.contains(&planet.class.as_str()),
+                "seed {seed}: {} never spawns about a black hole",
+                planet.class
+            );
+        }
+        drawn += centre.len();
+    }
+    assert!(
+        drawn > 12,
+        "planets were drawn about the black hole: {drawn}"
+    );
+
+    // Two G stars file as G + F, which zeroes none of those: a gas giant or a habitable world
+    // turns up about them.
+    let suns = BuiltSystem {
+        layout: "binary_init_01".to_owned(),
+        stars: keys(&["pc_g_star", "pc_g_star"]),
+        ..built.clone()
+    };
+    let shown = (0..12).any(|seed| {
+        let spec = for_save(gd, &session, seed, SPOT, &pick(&suns)).expect("the roll");
+        spec.planets
+            .iter()
+            .any(|p| zeroed.contains(&p.class.as_str()))
+    });
+    assert!(
+        shown,
+        "a class a black hole zeroes turns up about two G stars"
+    );
+
+    let original = current(&session);
+    let op = joined_op(gd, &session, 3, SPOT, &pick(&built), false, &[]).expect("the op");
+    session.apply(op).expect("the add");
+    let mut rolled = open_4_5();
+    let spec = for_save(gd, &rolled, 3, SPOT, &pick(&built)).expect("the roll");
+    rolled
+        .apply(Op::AddSystemFromSpec { spec })
+        .expect("the roll's add");
+    assert!(
+        current(&session) == current(&rolled),
+        "the add writes the roll"
+    );
+    session.undo().expect("undo").expect("the add");
+    assert!(current(&session) == original, "undo gives back the bytes");
+
+    let chosen = BuiltSystem {
+        star_class: Some("sc_binary_3".to_owned()),
+        ..built.clone()
+    };
+    let spec = for_save(gd, &session, 3, SPOT, &pick(&chosen)).expect("an override");
+    assert_eq!(spec.star_class, "sc_binary_3");
+
+    let three = BuiltSystem {
+        stars: keys(&["pc_g_star"; 3]),
+        ..built.clone()
+    };
+    assert!(matches!(
+        for_save(gd, &session, 3, SPOT, &pick(&three)),
+        Err(ForSaveError::Generate(GenerateError::StarCount {
+            blocks: 2,
+            stars: 3,
+            ..
+        }))
+    ));
+    let special = BuiltSystem {
+        layout: "sol_neighbor_t2".to_owned(),
+        ..built
+    };
+    assert!(matches!(
+        for_save(gd, &session, 3, SPOT, &pick(&special)),
+        Err(ForSaveError::Generate(GenerateError::NotPlain(_)))
+    ));
+}
+
+/// The planets about each star of a built system, in star order: the system's own star's
+/// planets about the centre and its own, then each companion's own.
+fn planets_by_star(spec: &SystemSpec) -> Vec<Vec<&BodySpec>> {
+    let centre = spec.planets.iter().filter(|p| p.kind != BodyKind::Star);
+    let primary = spec.star.moons.iter().chain(centre).collect();
+    std::iter::once(primary)
+        .chain(stars(spec)[1..].iter().map(|s| s.moons.iter().collect()))
+        .collect()
+}
+
+/// `planet` and its moons.
+fn with_moons(planet: &BodySpec) -> impl Iterator<Item = &BodySpec> {
+    std::iter::once(planet).chain(&planet.moons)
+}
+
+/// The planet classes a black hole's own class zeroes: the habitable ones and gas giants.
+fn black_hole_zeroes(gd: &GameData) -> Vec<&str> {
+    let black_hole = gd.star_classes.get("sc_black_hole").expect("sc_black_hole");
+    let zeroed: Vec<&str> = black_hole
+        .planet_odds
+        .iter()
+        .filter(|(_, odds)| *odds == 0.0)
+        .map(|(class, _)| class.as_str())
+        .collect();
+    assert!(zeroed.contains(&"pc_gas_giant"), "{zeroed:?}");
+    zeroed
+}
+
+/// Three black holes, two of them distant companions: each keeps no more planets than a black
+/// hole's own class gives, and none of a class a black hole zeroes, moons included. Its count is
+/// drawn, so the centre sometimes holds fewer than the layout's 3 to 4.
+#[test]
+fn each_built_star_keeps_its_own_class_planet_count_and_odds() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let zeroed = black_hole_zeroes(gd);
+    let most = gd.star_classes.get("sc_black_hole").expect("sc_black_hole");
+    let most = most.num_planets.expect("a black hole's planet count").max as usize;
+    let built = BuiltSystem {
+        layout: "trinary_init_02".to_owned(),
+        stars: keys(&["pc_black_hole"; 3]),
+        star_class: None,
+        planets: true,
+    };
+    let session = open_4_5();
+    let mut drawn = 0;
+    let mut fewer = false;
+    for seed in 0..12 {
+        let spec = for_save(gd, &session, seed, SPOT, &Pick::Built(built.clone())).expect("a roll");
+        assert_eq!(spec.star_class, "sc_black_hole", "seed {seed}");
+        for (star, planets) in planets_by_star(&spec).iter().enumerate() {
+            assert!(
+                planets.len() <= most,
+                "seed {seed}, star {star}: {planets:?}"
+            );
+            for body in planets.iter().flat_map(|p| with_moons(p)) {
+                assert!(
+                    !zeroed.contains(&body.class.as_str()),
+                    "seed {seed}, star {star}: {} never spawns about a black hole",
+                    body.class
+                );
+            }
+            drawn += planets.len();
+        }
+        fewer |= planets_by_star(&spec)[0].len() < 3;
+    }
+    assert!(
+        drawn > 12,
+        "planets were drawn about the black holes: {drawn}"
+    );
+    assert!(fewer, "a drawn count below the layout's");
+}
+
+/// A black hole with G companions: the black hole's planets never take a class it zeroes, while
+/// the companions' planets, drawn at a G star's odds, do. The companion of a distant pair draws
+/// from a planet list, alike whatever the star, so the trinary shows the odds.
+#[test]
+fn a_companion_draws_its_planets_at_its_own_odds() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let zeroed = black_hole_zeroes(gd);
+    let session = open_4_5();
+    let mut companions_zeroed = false;
+    for (layout, stars) in [
+        ("binary_init_02", &["pc_black_hole", "pc_g_star"][..]),
+        (
+            "trinary_init_02",
+            &["pc_black_hole", "pc_g_star", "pc_g_star"][..],
+        ),
+    ] {
+        let built = BuiltSystem {
+            layout: layout.to_owned(),
+            stars: keys(stars),
+            star_class: None,
+            planets: true,
+        };
+        for seed in 0..12 {
+            let spec =
+                for_save(gd, &session, seed, SPOT, &Pick::Built(built.clone())).expect("a roll");
+            let by_star = planets_by_star(&spec);
+            for body in by_star[0].iter().flat_map(|p| with_moons(p)) {
+                assert!(
+                    !zeroed.contains(&body.class.as_str()),
+                    "{layout}, seed {seed}: {} about the black hole",
+                    body.class
+                );
+            }
+            if layout == "trinary_init_02" {
+                companions_zeroed |= by_star[1..]
+                    .iter()
+                    .flatten()
+                    .any(|p| zeroed.contains(&p.class.as_str()));
+            }
+        }
+    }
+    assert!(
+        companions_zeroed,
+        "a class a black hole zeroes turns up about a G companion"
+    );
+}
+
+/// A pair the game rolls, built exactly, still rolls planets: each star keeps no more than its
+/// layout's places and its own class's most, and some seed gives each star planets.
+#[test]
+fn a_built_game_pair_keeps_each_star_within_its_own_range() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let built = BuiltSystem {
+        layout: "binary_init_02".to_owned(),
+        stars: keys(&["pc_k_star", "pc_f_star"]),
+        star_class: None,
+        planets: true,
+    };
+    let most = |class: &str| {
+        let class = gd.star_classes.get(class).expect(class);
+        class.num_planets.expect("a planet count").max as usize
+    };
+    // The centre's 3 to 5 places, and the companion's 2 to 3.
+    let caps = [5.min(most("sc_k")), 3.min(most("sc_f"))];
+    let session = open_4_5();
+    let mut held = [false; 2];
+    for seed in 0..12 {
+        let spec = for_save(gd, &session, seed, SPOT, &Pick::Built(built.clone())).expect("a roll");
+        assert_eq!(spec.star_class, "sc_binary_7", "seed {seed}");
+        for (star, planets) in planets_by_star(&spec).iter().enumerate() {
+            assert!(planets.len() <= caps[star], "seed {seed}, star {star}");
+            held[star] |= !planets.is_empty();
+        }
+    }
+    assert_eq!(held, [true, true], "both stars hold planets");
+}
+
+/// A random binary rolls only the two-star layouts and a random trinary the three-star ones,
+/// each with a class of its layout's list.
+#[test]
+fn random_binaries_and_trinaries_roll_only_layouts_of_that_many_stars() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let session = open_4_5();
+    for (count, layouts) in [
+        (2, ["binary_init_01", "binary_init_02"]),
+        (3, ["trinary_init_01", "trinary_init_02"]),
+    ] {
+        let mut seen: Vec<String> = Vec::new();
+        for seed in 0..30 {
+            let spec = for_save(gd, &session, seed, SPOT, &Pick::Stars(count)).expect("a roll");
+            assert!(
+                layouts.contains(&spec.initializer.as_str()),
+                "{count} stars, seed {seed}: {}",
+                spec.initializer
+            );
+            assert_eq!(stars(&spec).len(), count, "seed {seed}");
+            let class = gd.star_classes.get(&spec.star_class).expect("its class");
+            assert_eq!(class.planets.len(), count, "seed {seed}");
+            if !seen.contains(&spec.initializer) {
+                seen.push(spec.initializer.clone());
+            }
+        }
+        assert_eq!(seen.len(), 2, "both layouts of {count} stars: {seen:?}");
+    }
+    assert!(matches!(
+        for_save(gd, &session, 0, SPOT, &Pick::Stars(4)),
+        Err(ForSaveError::Generate(GenerateError::NoArrangement(4)))
+    ));
+}

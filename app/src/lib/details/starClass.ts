@@ -4,7 +4,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import { counted, needsGameData } from "../text";
-import { eachStarKeys, isStarBody, starGroup } from "./starBody";
+import { eachStarKeys, isStarBody, starCount, starGroup } from "./starBody";
 
 type Body = Pick<PlanetSummary, "id" | "class">;
 
@@ -65,7 +65,7 @@ function starClassGroup(view: StarClassView, crisisVariants: ReadonlySet<string>
   if (isInternalStarClass(view)) return INTERNAL;
   if (crisisVariants.has(view.key)) return "Crisis variants";
   if (view.spawn_odds === 0) return "Special";
-  const count = view.planet_keys.length;
+  const count = starCount(view);
   if (count === 0) return NO_STAR;
   if (count === 2) return "Binaries";
   if (count === 3) return "Trinaries";
@@ -84,7 +84,40 @@ function groupRank(row: StarClassRow): number {
   if (row.group === "Crisis variants") return 2000;
   if (row.group === "Special") return 1000;
   if (row.group === NO_STAR) return 999;
-  return row.view.planet_keys.length * 2 + (row.group === "Exotic" ? 1 : 0);
+  return starCount(row.view) * 2 + (row.group === "Exotic" ? 1 : 0);
+}
+
+/** A multiple star named by its bodies, since every binary is called "Binary Stars"; else `name`. */
+export function starClassLabel(
+  view: StarClassView | undefined,
+  name: string,
+  label: (key: string) => string,
+): string {
+  const stars = eachStarKeys(view);
+  return stars.length > 0 ? stars.map(label).join(" + ") : name;
+}
+
+/** The localisation keys of the bodies each multiple star among `keys` is named by. */
+export function multiStarNameKeys(
+  keys: readonly string[],
+  starClasses: ReadonlyMap<string, StarClassView>,
+): string[] {
+  return [...new Set(keys.flatMap((key) => eachStarKeys(starClasses.get(key))))];
+}
+
+/**
+ * `picks` in the order given, less the binaries and trinaries the install lists, which the menu's
+ * Binary or trinary submenu rolls instead. A class the install does not list stays.
+ */
+export function withoutMultiStars<P extends { key: string }>(
+  picks: readonly P[],
+  starClasses: ReadonlyMap<string, StarClassView>,
+): P[] {
+  return picks.filter((pick) => {
+    const view = starClasses.get(pick.key);
+    const count = view ? starCount(view) : 1;
+    return count !== 2 && count !== 3;
+  });
 }
 
 /** Every localisation key the picker's rows read: each class and each of its bodies. */
@@ -102,12 +135,11 @@ export function starClassRows(
   crisisVariants: ReadonlySet<string>,
 ): StarClassRow[] {
   return choices
-    .map((view): StarClassRow => {
-      // Every binary is called "Binary Stars", so a multiple star is named by its bodies.
-      const stars = eachStarKeys(view);
-      const name = stars.length > 0 ? stars.map(label).join(" + ") : label(view.key);
-      return { view, label: name, group: starClassGroup(view, crisisVariants) };
-    })
+    .map((view): StarClassRow => ({
+      view,
+      label: starClassLabel(view, label(view.key), label),
+      group: starClassGroup(view, crisisVariants),
+    }))
     .sort((a, b) => groupRank(a) - groupRank(b) || a.label.localeCompare(b.label));
 }
 
@@ -187,7 +219,7 @@ export function bulkStarClassChoices(
   starClasses: ReadonlyMap<string, StarClassView>,
 ): StarClassView[] {
   const counts = new Set(targets.flatMap((t) => (t.bodies?.length ? [t.bodies.length] : [])));
-  return [...starClasses.values()].filter((c) => counts.has(c.planet_keys.length));
+  return [...starClasses.values()].filter((c) => counts.has(starCount(c)));
 }
 
 /** The edit that turns every target with as many stars as `target` has into it. */
@@ -202,7 +234,7 @@ export function planStarClass(
   for (const { system, bodies } of targets) {
     if (bodies === null) skipped.unread++;
     else if (system.star_class === target.key) skipped.same++;
-    else if (bodies.length !== target.planet_keys.length) skipped.stars++;
+    else if (bodies.length !== starCount(target)) skipped.stars++;
     else ops.push(setStarClassOp(system, target, bodies, starClasses));
   }
   const description = `Set the star class of ${counted(ops.length, "system")} to ${label}`;

@@ -8,7 +8,14 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { opensUp, popupPlace, type Across, type Down } from "./iconPickerPlace";
+import {
+  floatAcross,
+  floatPlace,
+  opensUp,
+  popupPlace,
+  type Across,
+  type Down,
+} from "./iconPickerPlace";
 import { listStep } from "./gridKeys";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
@@ -23,6 +30,8 @@ export interface IconPickerItem {
   icon?: ReactNode;
   /** The header the item sits under; a new header starts wherever the group changes. */
   group?: string;
+  /** The full name where `label` is a short form of it: the row's hover and its trigger's name. */
+  fullLabel?: string;
   note?: ReactNode;
   /** Runs instead of picking this row: a local action (revealing more rows) that leaves the list open. */
   onSelect?: () => void;
@@ -31,8 +40,10 @@ export interface IconPickerItem {
 function Row({ item }: { item: IconPickerItem }) {
   return (
     <>
-      {item.icon !== undefined && <span className="icon-picker-icon">{item.icon}</span>}
-      <span className="icon-picker-label">{item.label}</span>
+      <span className="icon-picker-main">
+        {item.icon !== undefined && <span className="icon-picker-icon">{item.icon}</span>}
+        <span className="icon-picker-label">{item.label}</span>
+      </span>
       {item.note !== undefined && <span className="icon-picker-note muted">{item.note}</span>}
     </>
   );
@@ -74,7 +85,7 @@ export function PickerTrigger({
       ref={ref}
       aria-haspopup={popup}
       aria-expanded={expanded}
-      aria-label={`${label}: ${current.label}`}
+      aria-label={`${label}: ${current.fullLabel ?? current.label}`}
       title={title}
       disabled={disabled}
       onClick={onClick}
@@ -133,6 +144,44 @@ function fitPopup(popup: HTMLElement, picker: HTMLElement) {
   }
 }
 
+/** The space between a floating popup and its picker. */
+const POPUP_GAP_PX = 4;
+
+/** The widest a floating popup grows to fit its rows. */
+const FLOAT_WIDTH_CAP_PX = 420;
+
+/**
+ * Floats `popup` over everything, fixed to the window beside `picker`: as wide as its rows need
+ * and no narrower than the picker, and on the side with room, no taller than the window leaves
+ * there, so opening it never grows or scrolls a box around it.
+ */
+function floatPopup(popup: HTMLElement, picker: HTMLElement) {
+  const { style } = popup;
+  Object.assign(style, {
+    position: "fixed",
+    margin: "0",
+    right: "auto",
+    bottom: "auto",
+    left: "0",
+    width: "",
+    maxHeight: "",
+  });
+  popup.classList.remove("up");
+  const box = picker.getBoundingClientRect();
+  const across = {
+    left: POPUP_EDGE_PX,
+    right: document.documentElement.clientWidth - POPUP_EDGE_PX,
+  };
+  const place = floatAcross(box, popup.offsetWidth, across, FLOAT_WIDTH_CAP_PX);
+  style.width = `${place.width}px`;
+  style.left = `${place.left}px`;
+  const view = { top: 0, bottom: window.innerHeight };
+  const { up, maxHeight } = floatPlace(box, popup.offsetHeight, view, POPUP_GAP_PX, POPUP_EDGE_PX);
+  style.maxHeight = `${maxHeight}px`;
+  const height = Math.min(popup.offsetHeight, maxHeight);
+  style.top = `${up ? box.top - POPUP_GAP_PX - height : box.bottom + POPUP_GAP_PX}px`;
+}
+
 /**
  * While `open`, fits `popup` to the box that shows `picker`, so it never widens that box into
  * scrolling sideways: before it paints, again as `rows` change and as the window resizes.
@@ -142,16 +191,21 @@ function usePopupFit(
   picker: RefObject<HTMLElement | null>,
   popup: RefObject<HTMLElement | null>,
   rows: unknown,
+  floating: boolean,
 ): void {
   useLayoutEffect(() => {
     const at = picker.current;
     const el = popup.current;
     if (!open || at === null || el === null) return undefined;
-    const place = () => fitPopup(el, at);
+    const place = () => (floating ? floatPopup(el, at) : fitPopup(el, at));
     place();
     window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [open, picker, popup, rows]);
+    if (floating) window.addEventListener("scroll", place, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, { capture: true });
+    };
+  }, [open, picker, popup, rows, floating]);
 }
 
 /**
@@ -170,6 +224,7 @@ export function IconPicker({
   disabled,
   empty,
   triggerClassName,
+  floating = false,
   onOpen,
   onActive,
   onPick,
@@ -181,6 +236,11 @@ export function IconPicker({
   disabled?: boolean;
   empty?: ReactNode;
   triggerClassName?: string;
+  /**
+   * Floats the list over everything, fixed to the window, for a picker in a box that must not
+   * grow or scroll as the list opens, such as a dialog beside the map.
+   */
+  floating?: boolean;
   onOpen?: () => void;
   onActive?: (key: string | null) => void;
   onPick: (key: string) => void;
@@ -205,7 +265,7 @@ export function IconPicker({
   const activeKey = open && at >= 0 ? rows[at].item.key : null;
 
   useOutsidePress(open, () => setOpen(false), root);
-  usePopupFit(open, root, filtered ? filteredPop : list, items);
+  usePopupFit(open, root, filtered ? filteredPop : list, items, floating);
   useEffect(() => {
     if (open) (filter.current ?? list.current)?.focus();
   }, [open]);
@@ -270,7 +330,13 @@ export function IconPicker({
 
   const listbox = (
     <ul
-      className={filtered ? "icon-picker-list" : "icon-picker-pop pop-surface"}
+      className={
+        filtered
+          ? "icon-picker-list"
+          : floating
+            ? "icon-picker-pop icon-picker-floating pop-surface"
+            : "icon-picker-pop pop-surface"
+      }
       id={listId}
       role="listbox"
       aria-label={label}
@@ -317,7 +383,14 @@ export function IconPicker({
       {open &&
         !disabled &&
         (filtered ? (
-          <div className="icon-picker-pop icon-picker-filtered pop-surface" ref={filteredPop}>
+          <div
+            className={
+              floating
+                ? "icon-picker-pop icon-picker-filtered icon-picker-floating pop-surface"
+                : "icon-picker-pop icon-picker-filtered pop-surface"
+            }
+            ref={filteredPop}
+          >
             <FilterField
               label={`Filter ${items.length} choices`}
               value={query}
@@ -369,6 +442,7 @@ function Option({
           active ? "icon-picker-option listbox-option active" : "icon-picker-option listbox-option"
         }
         aria-selected={selected}
+        title={item.fullLabel}
         onMouseMove={active ? undefined : onHover}
         onClick={onPick}
       >

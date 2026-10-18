@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { SaveMeta } from "../generated/SaveMeta";
+import type { SystemPick } from "../generated/SystemPick";
 import { BODIES_NEED_GAME_DATA } from "../lib/addBody";
 import { addSystemRefusal, type AddRefusal } from "../lib/addSystem";
 import { newSeed } from "../lib/random";
@@ -25,6 +26,8 @@ import { specialLinksNow } from "./specialLinks";
 type AddSystemActions = Pick<
   EditorState,
   | "addRandomSystemAt"
+  | "addRandomStarsAt"
+  | "addBuiltSystemAt"
   | "addSpecialSystemAt"
   | "addSpecialClusterAt"
   | "addBodyAt"
@@ -32,6 +35,7 @@ type AddSystemActions = Pick<
   | "addHabitat"
   | "addRingWorld"
   | "rerollSystem"
+  | "rebuildSystem"
   | "renameAddedSystem"
 >;
 
@@ -93,6 +97,19 @@ export function useAddSystemRefusal(x: number, y: number): AddRefusal | null {
   return refusalFrom({ statements, meta, gameData, systems, names, radius }, x, y);
 }
 
+/** The existing systems a new system at (x, y) is joined to as the galaxy stands, or none without `join`. */
+function linksAt(x: number, y: number, join: boolean): number[] {
+  const here = { places: [{ x, y, star_class: null, refused: null }], lanes: [] };
+  return specialLinksNow(join ? here : null).map(([, system]) => system);
+}
+
+/** What a reroll around `starClass` asks for: a random class for null, the system as it is built when left out. */
+function rerollPick(starClass: string | null | undefined): SystemPick {
+  if (starClass === null) return { kind: "random" };
+  if (starClass === undefined) return { kind: "same" };
+  return { kind: "class", star_class: starClass };
+}
+
 /** The system a queued edit was asked about, as it stands when the edit runs, if it is still an added one. */
 function addedNow(tracked: TrackedSystem) {
   const system = tracked.id === null ? undefined : systems().get(tracked.id);
@@ -116,15 +133,23 @@ export function addSystemActions(
 
   return {
     addRandomSystemAt(x, y, starClass = null) {
-      return addAt(x, y, () => ipc.addRandomSystem(newSeed(), x, y, starClass));
+      const pick: SystemPick =
+        starClass === null ? { kind: "random" } : { kind: "class", star_class: starClass };
+      return addAt(x, y, () => ipc.addRandomSystem(newSeed(), x, y, pick));
+    },
+
+    addRandomStarsAt(x, y, count) {
+      return addAt(x, y, () => ipc.addRandomSystem(newSeed(), x, y, { kind: "stars", count }));
+    },
+
+    addBuiltSystemAt(x, y, built, join) {
+      return addAt(x, y, () => ipc.addBuiltSystem(newSeed(), x, y, built, linksAt(x, y, join)));
     },
 
     addSpecialSystemAt(x, y, layout, extras, join) {
-      return addAt(x, y, () => {
-        const here = { places: [{ x, y, star_class: null, refused: null }], lanes: [] };
-        const links = specialLinksNow(join ? here : null).map(([, system]) => system);
-        return ipc.addSpecialSystem(newSeed(), x, y, layout, extras, links);
-      });
+      return addAt(x, y, () =>
+        ipc.addSpecialSystem(newSeed(), x, y, layout, extras, linksAt(x, y, join)),
+      );
     },
 
     addSpecialClusterAt(seed, x, y, cluster, extras, join) {
@@ -162,9 +187,18 @@ export function addSystemActions(
         const result = await runEdit(async () => {
           const system = addedNow(tracked);
           if (!system) return null;
-          const same = starClass === undefined;
-          const star = same ? system.star_class : starClass;
-          return ipc.rerollSystem(system.id, newSeed(), star, same);
+          return ipc.rerollSystem(system.id, newSeed(), rerollPick(starClass));
+        });
+        return result !== null;
+      });
+    },
+
+    rebuildSystem(id, pick) {
+      return withTrackedSystem(id, async (tracked) => {
+        const result = await runEdit(async () => {
+          const system = addedNow(tracked);
+          if (!system) return null;
+          return ipc.rerollSystem(system.id, newSeed(), pick);
         });
         return result !== null;
       });

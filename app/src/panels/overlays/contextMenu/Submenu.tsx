@@ -1,5 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { placeBeside, SubmenuAim, type Placed } from "../../../lib/menuAim";
+import { useMapChromeStore } from "../../../store/mapChromeStore";
 import { MenuSide } from "./menuState";
 import { menuItems } from "../../menuKeys";
 
@@ -13,7 +14,8 @@ const OVERLAP_PX = 2;
  * It stays open a moment after the pointer leaves, and while the pointer heads for it. A disabled
  * one never opens, and `hint` reads under its label. The list is fixed to the window, so it
  * escapes a scrolling list it sits in. It opens on the side its own menu did, and on the other
- * where that side has no room.
+ * where that side has no room. Its entry becomes the menu's active row, so a card beside the
+ * menu around it hides.
  */
 export function Submenu({
   label,
@@ -36,6 +38,8 @@ export function Submenu({
   const entry = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const side = useContext(MenuSide);
+  const enterMenuRow = useMapChromeStore((s) => s.enterMenuRow);
+  const leaveMenuRow = useMapChromeStore((s) => s.leaveMenuRow);
   const [place, setPlace] = useState<Placed | null>(null);
   const focusList = () => menuItems(list.current)[0]?.focus();
   useEffect(() => {
@@ -99,6 +103,10 @@ export function Submenu({
         className={classes}
         disabled={disabled}
         title={title}
+        onPointerEnter={(e) => enterMenuRow({ el: e.currentTarget, card: null })}
+        onFocus={(e) => enterMenuRow({ el: e.currentTarget, card: null })}
+        onPointerLeave={(e) => leaveMenuRow(e.currentTarget)}
+        onBlur={(e) => leaveMenuRow(e.currentTarget)}
         onClick={() => {
           aim.cancel();
           setOpen(!open);

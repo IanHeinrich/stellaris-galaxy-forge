@@ -1,23 +1,21 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { pickCard, specialMarks, type AddRefusal, type LayoutAdd } from "../../lib/addSystem";
 import type { Pt } from "../../lib/geometry/pt";
 import {
   clusterRefusal,
   memberName,
-  previewArea,
   rolledSystems,
   specialKey,
   specialLabel,
-  specialPlacement,
   type ClusterRollState,
   type NewSystems,
   type SpecialEntry,
 } from "../../lib/specialPicks";
+import { specialStars, systemReach } from "../../lib/multiStar";
 import { counted } from "../../lib/text";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { useGeneratorStore } from "../../store/generatorStore";
 import { useCanEdit } from "../../store/fileSessionStore";
-import { useGalaxyStore } from "../../store/galaxyStore";
-import { useMapChromeStore } from "../../store/mapChromeStore";
-import { useSpecialLinks } from "../../store/specialLinks";
 import {
   useHighlightedSpecial,
   useSpecialPickerStore,
@@ -27,11 +25,46 @@ import {
 import { BrowseDialog } from "../browseDialog/BrowseDialog";
 import { LockGlyph } from "../Glyph";
 import { useAddSystemPreview } from "../useAddSystemPreview";
+import { useNewSystemPreview } from "../useNewSystemPreview";
+import { StarDiagram } from "../StarDiagram";
+import { useNamed } from "../useNamed";
+import { useStarNamedSummary } from "../useStarClassLabel";
 import "./specialPicker.css";
 
 const IN_GALAXY = "Already in this galaxy";
 const EXTRAS_LABEL = "Add its anomalies, dig sites and megastructures";
 const JOIN_LABEL = "Join to nearby systems";
+const DIAGRAM_PX = 160;
+const DIAGRAM_STAR_PX = 32;
+
+/** A layout of several stars drawn stars only, each with the art of its class's star in that place. */
+function SpecialStars({ entry }: { entry: SpecialEntry }) {
+  const starClasses = useGameDataStore((s) => s.starClasses);
+  const diagram = entry.kind === "layout" ? entry.pick.diagram : undefined;
+  const first = entry.pick.summary.star_classes[0]?.key;
+  const stars =
+    diagram === undefined || diagram.stars.length < 2
+      ? []
+      : specialStars(
+          first === undefined ? undefined : starClasses.get(first),
+          diagram.stars.length,
+        );
+  const named = useNamed(stars);
+  const reach = useGeneratorStore((s) => systemReach(s.arrangements));
+  if (diagram === undefined || stars.length === 0) return null;
+  return (
+    <div className="sp-diagram">
+      <StarDiagram
+        diagram={diagram}
+        stars={stars}
+        size={DIAGRAM_PX}
+        starSize={DIAGRAM_STAR_PX}
+        labels={stars.map(named)}
+        reach={reach}
+      />
+    </div>
+  );
+}
 
 /** One row: its name, a cluster's count of systems, its marks and its pin. */
 function Row({ entry, how }: { entry: SpecialEntry; how: LayoutAdd["kind"] }) {
@@ -120,14 +153,14 @@ function Detail({
   const setExtras = useSpecialPickerStore((s) => s.setExtras);
   const join = useSpecialPickerStore((s) => s.join);
   const setJoin = useSpecialPickerStore((s) => s.setJoin);
-  if (entry === null) {
+  const summary = useStarNamedSummary(entry?.pick.summary);
+  if (entry === null || summary === undefined) {
     return (
       <div className="browse-detail">
         <div className="muted">Nothing highlighted.</div>
       </div>
     );
   }
-  const { summary } = entry.pick;
   const cluster = entry.kind === "cluster" ? entry.pick.cluster : null;
   const label = specialLabel(entry);
   const card = pickCard(
@@ -145,6 +178,7 @@ function Detail({
             : entry.pick.layout.key}
         </div>
       </div>
+      <SpecialStars entry={entry} />
       <div className="browse-facts">
         {card.lines.map((line) => (
           <div key={line.label} className="browse-fact">
@@ -190,32 +224,19 @@ function Detail({
   );
 }
 
-/**
- * Draws what the highlighted row would add at `at`, a cluster as rolled, with its lanes to the
- * systems near it when the picker joins them, as the Shape tool draws a shape's systems, while the
- * caller shows.
- */
-function useSpecialPreview(
+/** What the highlighted row would add at `at`: a cluster as rolled, or one system. */
+function useSpecialAdded(
   entry: SpecialEntry | null,
   roll: ClusterRollState | null,
   at: Pt,
   refused: string | null,
-) {
-  const setPreview = useMapChromeStore((s) => s.setSpecialPreview);
-  const join = useSpecialPickerStore((s) => s.join);
+): NewSystems | null {
   const { x, y } = at;
-  const added = useMemo((): NewSystems | null => {
+  return useMemo((): NewSystems | null => {
     if (entry === null) return null;
     if (entry.kind === "cluster") return roll?.kind === "rolled" ? rolledSystems(roll.roll) : null;
     return { places: [{ x, y, star_class: null, refused }], lanes: [] };
   }, [entry, roll, x, y, refused]);
-  const links = useSpecialLinks(join ? added : null);
-  const preview = useMemo(() => added && specialPlacement(added, links), [added, links]);
-  useEffect(() => {
-    setPreview(preview);
-    return () => setPreview(null);
-  }, [preview, setPreview]);
-  return preview;
 }
 
 function Browsing({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) {
@@ -246,12 +267,9 @@ function Browsing({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
   const keys = useMemo(() => visible.map(specialKey), [visible]);
   const entry = useHighlightedSpecial(visible);
   const cluster = entry?.kind === "cluster" ? entry.pick.cluster : null;
-  const preview = useSpecialPreview(entry, roll, at, refusal?.reason ?? null);
-  const systems = useGalaxyStore((s) => s.systems);
-  const area = useMemo(
-    () => previewArea(preview, systems, at, anchor, perUnit),
-    [preview, systems, at, anchor, perUnit],
-  );
+  const join = useSpecialPickerStore((s) => s.join);
+  const added = useSpecialAdded(entry, roll, at, refusal?.reason ?? null);
+  const { area } = useNewSystemPreview(added, join, at, anchor, perUnit);
   const pinnedNow = highlighted !== null && pinnedKeys.includes(highlighted);
   const blocked = cluster ? clusterRefusal(roll) : (refusal?.reason ?? null);
   const canPlace = entry !== null && blocked === null;

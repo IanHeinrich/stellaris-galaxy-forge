@@ -3,7 +3,10 @@
 
 use sgf_core::ops::{LaneEnd, Op};
 use sgf_core::views::{EditResult, ErrorKind, SgfError};
-use sgf_gamedata::generate::{self, ClusterRoll, Pick, SystemAsk};
+use sgf_gamedata::generate::{
+    self, BuiltSystem, ClusterRoll, ForSaveError, Pick, SystemAsk, SystemPick,
+};
+use sgf_gamedata::multi_star::{self, Arrangement, StarType};
 use sgf_gamedata::picks::StarClassPick;
 use sgf_gamedata::summary::{self, AddSystemPicks, ClusterPick, SpecialPick};
 use tauri::{AppHandle, Runtime, State};
@@ -17,21 +20,22 @@ const NO_BULK_ADD: &str = "this document takes no systems added together";
 const NO_SPECIAL: &str = "this document takes no special systems";
 const NO_ADDED: &str = "this document has no systems added this session";
 const NONE_ADDED: &str = "none of these systems was added this session";
+const NO_BUILT: &str = "this document takes no built binary or trinary systems";
 
-/// Roll a system at (`x`, `y`) from `seed`, around `star_class` when given, named from the
-/// save's pool of unused star names, and add it to the open save as one `AddSystemFromSpec`.
+/// Roll a system at (`x`, `y`) from `seed` as `pick` asks, named from the save's pool of unused
+/// star names, and add it to the open save as one `AddSystemFromSpec`.
 #[tauri::command]
 pub async fn add_random_system<R: Runtime>(
     app: AppHandle<R>,
     seed: u64,
     x: f64,
     y: f64,
-    star_class: Option<String>,
+    pick: SystemPick,
 ) -> Result<EditResult, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
-        let pick = Pick::Random(star_class);
+        let pick = pick.for_add()?;
         let spec = generate::for_save(&gd, session, seed, (x, y), &pick)?;
         let result = session.apply(Op::AddSystemFromSpec { spec })?;
         Ok(session.edit_result(result))
@@ -164,25 +168,99 @@ pub async fn get_special_clusters<R: Runtime>(
     .await
 }
 
-/// Roll the added save system `system` again from `seed`, keeping its name, position and lanes:
-/// one `ReplaceSystemFromSpec`. With `keep_special`, a system of a Special menu layout is built from
-/// that layout again. Otherwise it is rolled around `star_class` when given, a random class
-/// when not.
+/// Roll the added save system `system` again from `seed` as `pick` asks, keeping its name,
+/// position and lanes: one `ReplaceSystemFromSpec`.
 #[tauri::command]
 pub async fn reroll_system<R: Runtime>(
     app: AppHandle<R>,
     system: u32,
     seed: u64,
-    star_class: Option<String>,
-    keep_special: Option<bool>,
+    pick: SystemPick,
 ) -> Result<EditResult, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
-        let keep_special = keep_special.unwrap_or(false);
-        let spec = Pick::of_added(session, &gd, system, keep_special, star_class)
-            .and_then(|pick| generate::reroll(&gd, session, seed, system, &pick))?;
+        let pick = pick.for_reroll(&gd, session, system)?;
+        let spec = generate::reroll(&gd, session, seed, system, &pick)?;
         let result = session.apply(Op::ReplaceSystemFromSpec { system, spec })?;
+        Ok(session.edit_result(result))
+    })
+    .await
+}
+
+/// The plain layouts of more than one star the builder arranges stars in, each with its
+/// shape, its share of the draw among the layouts of as many stars, and where its stars stand.
+#[tauri::command]
+pub async fn get_star_arrangements<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<Arrangement>, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        require(guard.as_mut(), |c| c.added_systems, NO_BUILT)?;
+        Ok(multi_star::arrangements(&gd))
+    })
+    .await
+}
+
+/// Every star type a slot of the builder offers, the ones a galaxy draws first.
+#[tauri::command]
+pub async fn get_star_types<R: Runtime>(app: AppHandle<R>) -> Result<Vec<StarType>, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        require(guard.as_mut(), |c| c.added_systems, NO_BUILT)?;
+        Ok(multi_star::star_types(&gd))
+    })
+    .await
+}
+
+/// The star class a system of `stars`, in slot order, is filed under. Refused for no stars and
+/// for a slot that is no star.
+#[tauri::command]
+pub async fn file_star_class<R: Runtime>(
+    app: AppHandle<R>,
+    stars: Vec<String>,
+) -> Result<String, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        require(guard.as_mut(), |c| c.added_systems, NO_BUILT)?;
+        let filed = multi_star::file_star_class(&gd, &stars, None)
+            .map_err(|e| SgfError::from(ForSaveError::from(e)))?;
+        Ok(filed.class)
+    })
+    .await
+}
+
+/// Build a system at (`x`, `y`) from `seed` in the plain layout `layout` with the planet
+/// classes `stars` in its star slots, in order, filed under `star_class` when given and else
+/// as `file_star_class` files the stars, with planets rolled at that class's odds when
+/// `planets`, and add it to the open save as one step, named from the save's pool.
+/// Each of `links`, a system the save holds, is joined to the new one by a lane in the same
+/// step. Refused with nothing applied in a scenario, for a layout that is not plain, a count
+/// of stars other than its slots, and a link naming no system.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn add_built_system<R: Runtime>(
+    app: AppHandle<R>,
+    seed: u64,
+    x: f64,
+    y: f64,
+    layout: String,
+    stars: Vec<String>,
+    star_class: Option<String>,
+    planets: bool,
+    links: Vec<u32>,
+) -> Result<EditResult, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.added_systems, NO_BUILT)?;
+        let pick = Pick::Built(BuiltSystem {
+            layout,
+            stars,
+            star_class,
+            planets,
+        });
+        let op = generate::joined_op(&gd, session, seed, (x, y), &pick, false, &links)?;
+        let result = session.apply(op)?;
         Ok(session.edit_result(result))
     })
     .await
