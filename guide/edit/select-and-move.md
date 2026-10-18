@@ -1,7 +1,7 @@
 ---
 title: Select and move systems
 description: Select one or many systems and move them to a new place on the galaxy map.
-aliases: [move system, drag star, relocate, reposition, nudge, rotate, turn, pivot, position, coordinates, selection box, multi select]
+aliases: [move system, drag star, relocate, reposition, nudge, rotate, turn, pivot, position, coordinates, selection box, multi select, swap systems, exchange systems, trade places]
 ---
 # Select and move systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -40,11 +40,30 @@ Pivot row in the Inspector's Position section reads "moved", and its
 
 For an exact turn, use the Rotate block in the Inspector's Position
 section. Type an angle in the Degrees field and press <kbd>Enter</kbd> or
-click **Rotate**, or use the Quick buttons: 90° left, 90° right and 180°.
-A positive angle turns clockwise. The typed angle stays in the field, so
+click **Rotate**, or use the 90° left, 90° right and 180° buttons. A
+positive angle turns clockwise. The typed angle stays in the field, so
 you can apply it again.
 
 Nebulae centred inside the selection turn with it. Untick **Nebulae too**
 to leave them where they are. Each turn is one undo step.
+
+## Swap two systems
+
+Two systems can trade places on the map. Each one takes its name, star,
+planets, starbase and owner to the other's place. The hyperlanes stay
+where they were, so each system takes over the other's neighbours. A
+hyperlane between the two stays.
+
+1. Select the two systems.
+2. Right-click one of them and choose Swap systems, or click Swap systems
+   in the Swap block of the Inspector's Position section.
+
+With one system selected, you can also right-click another system and
+choose Swap with and the selected system's name.
+
+Each place keeps its height. A system that lands inside a nebula joins
+it, and the one that leaves drops out. In a save, an empire's border
+follows the systems it owns. Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to swap
+them back.
 
 To remove systems, see [Delete systems](add-systems.md#delete-systems).

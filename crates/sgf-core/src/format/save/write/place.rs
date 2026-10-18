@@ -55,6 +55,20 @@ pub(crate) mod system {
         before: &[keys::ARM, keys::FLAGS, keys::INITIALIZER],
         last: false,
     };
+    pub(crate) const ARM: Place = Place {
+        key: keys::ARM,
+        after: &[
+            keys::DISCOVERY,
+            keys::ASTEROID_BELTS,
+            keys::BYPASSES,
+            keys::ASTRAL_RIFTS,
+            keys::NATURAL_WORMHOLES,
+            keys::HYPERLANE,
+            keys::STAR_CLASS,
+        ],
+        before: &[keys::FLAGS, keys::INITIALIZER],
+        last: false,
+    };
     pub(crate) const FLAGS: Place = Place {
         key: keys::FLAGS,
         after: &[

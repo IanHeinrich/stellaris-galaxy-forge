@@ -4,7 +4,7 @@ import { ARRANGE_IN_SHAPE, ROTATE_NOTE } from "../../../lib/selectionCopy";
 import { typedNumber } from "../../../lib/text";
 import { useEditorStore } from "../../../store/editorStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
-import { ArrangeButton } from "../../BulkActions";
+import { ArrangeButton, SwapSystemsButton } from "../../BulkActions";
 import { useArrange } from "../../useSelectionActions";
 import { BulkHeight } from "../../BulkHeight";
 import { EditBlock, EditNote, EditRow, TextField, ToggleField } from "../../EditField";
@@ -19,6 +19,11 @@ export function PositionSection() {
       <RotateBlock />
       {heights && <BulkHeight ids={selection} />}
       <ShapeBlock ids={selection} />
+      {selection.length === 2 && (
+        <EditBlock title="Swap">
+          <SwapSystemsButton className="edit-wide" a={selection[0]} b={selection[1]} />
+        </EditBlock>
+      )}
     </Section>
   );
 }

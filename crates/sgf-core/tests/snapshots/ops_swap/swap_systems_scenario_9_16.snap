@@ -1,0 +1,40 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Swapped Lonely #9 and system #16
+inverse: SwapSystems { system: 9, with: 16 }
+
+--- scenario
++++ scenario
+@@ -34,7 +34,7 @@
+ 	### Systems, one per line in the mod's shape
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+-	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
++	system = { id = "16" name = "" position = { x = -90 y = 90 } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block
+@@ -48,17 +48,17 @@
+ 			log = "Success system [This.GetName]"
+ 		}
+ 	}
+-	system = { id = "9" name = "Lonely" position = { x = -90 y = 90 } }
++	system = { id = "9" name = "Lonely" position = { x = -54 y = -88.5 z = 4 } }
+ 	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+ 	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
+ 
+ 	add_hyperlane = { from = "1" to = "2" }
+ 	add_hyperlane = { from = "2" to = "1" }
+-	add_hyperlane = { from = "1" to = "16" }
+-	add_hyperlane = { from = "1" to = "16" }
+-	add_hyperlane = { from = "16" to = "111" }
++	add_hyperlane = { from = "1" to = "9" }
++	add_hyperlane = { from = "1" to = "9" }
++	add_hyperlane = { from = "9" to = "111" }
+ 	add_hyperlane = { from = "111" to = "3018" }
+-	prevent_hyperlane = { from = "9" to = "1" }
++	prevent_hyperlane = { from = "16" to = "1" }
+ 	add_hyperlane = { from = "3018" to = "512" }
+ 	add_hyperlane = { from = "512" to = "888" }

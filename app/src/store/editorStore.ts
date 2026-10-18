@@ -378,6 +378,8 @@ export interface EditorState {
   connectSelectedMesh(): Promise<void>;
   /** Adds a lane from `target` to every selected system not yet linked to it. */
   connectSelectedTo(target: number): Promise<void>;
+  /** Makes `system` and `other` trade places; each place keeps its hyperlanes. Symmetry does not widen it. */
+  swapSystems(system: number, other: number): Promise<boolean>;
   /** Cuts every lane between two selected systems. */
   cutLanesBetweenSelected(): Promise<void>;
   /** Cuts every lane between `target` and a selected system. */

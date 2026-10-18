@@ -13,6 +13,7 @@ import {
   ArrangeButton,
   CountedButton,
   MarauderClanButton,
+  SwapSystemsButton,
   WormholePairButton,
 } from "../../BulkActions";
 import {
@@ -61,6 +62,7 @@ export function SelectionItems({ dismiss }: { dismiss: () => void }) {
         />
       )}
       {selection.length === 2 && <WormholePairButton {...host} a={selection[0]} b={selection[1]} />}
+      {selection.length === 2 && <SwapSystemsButton {...host} a={selection[0]} b={selection[1]} />}
       {canCreate && selection.length === 3 && <MarauderClanButton {...host} ids={selection} />}
       <ArrangeButton {...host} ids={selection} label={ARRANGE_ITEM} />
       {deletion !== null && (

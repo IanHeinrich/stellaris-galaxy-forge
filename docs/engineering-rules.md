@@ -80,7 +80,8 @@ format sees it.
   about a point and `Rename` sets a name.
   `Prevent` and `Allow` are the scenario's lane pair. `Isolate` takes
   every lane off a system, `Normalise` sets a lane length to the one the
-  game writes, and `Replace` rolls an added system again.
+  game writes, `Replace` rolls an added system again, and `Swap` trades
+  two systems' places on the map, each place keeping its lanes.
 - A subject takes the word the game or the player uses. A planet, moon or
   star in a system's list is a `Body`.
 - Two kinds share an op when its payload means the same for both. When it

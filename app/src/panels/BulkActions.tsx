@@ -130,3 +130,27 @@ export function WormholePairButton({
     </button>
   );
 }
+
+/** Swaps the two selected systems; each place keeps its hyperlanes. */
+export function SwapSystemsButton({
+  a,
+  b,
+  className,
+  dismiss,
+  itemRole,
+}: BulkHost & { a: number; b: number; className?: string }) {
+  const swapSystems = useEditorStore((s) => s.swapSystems);
+  return (
+    <button
+      type="button"
+      role={itemRole}
+      className={className}
+      onClick={() => {
+        dismiss?.();
+        void swapSystems(a, b);
+      }}
+    >
+      Swap systems
+    </button>
+  );
+}

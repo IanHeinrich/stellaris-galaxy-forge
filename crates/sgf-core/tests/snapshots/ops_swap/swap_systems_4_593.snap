@@ -1,0 +1,130 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Swapped Gaping Maw #4 and Ophala #593
+inverse: SwapSystems { system: 4, with: 593 }
+
+--- gamestate
++++ gamestate
+@@ -29118,11 +29118,11 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=303.32
+-			y=151.44
++			x=365.50186
++			y=-423.52114
+ 			origin=4294967295
+ 			randomized=yes
+-			visual_height=3.65056
++			visual_height=5.11847
+ 		}
+ 		name=
+ 		{
+@@ -29135,30 +29135,10 @@
+ 			0 
+ 		}
+ 		star_class="sc_black_hole"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=227
+-				length=29
+-			}
+- 
+-			{
+-				to=520
+-				length=19
+-			}
+- 
+-			{
+-				to=194
+-				length=19
+-			}
+- 
+-		}
+ 		bypasses=
+ 		{
+ 			0 
+ 		}
+-		arm=0
+ 		flags=
+ 		{
+ 			hostile_system=62808000
+@@ -42827,7 +42807,7 @@
+ 			}
+  
+ 			{
+-				to=4
++				to=593
+ 				length=19
+ 			}
+  
+@@ -45211,7 +45191,7 @@
+ 			}
+  
+ 			{
+-				to=4
++				to=593
+ 				length=29
+ 			}
+  
+@@ -65850,7 +65830,7 @@
+ 			}
+  
+ 			{
+-				to=4
++				to=593
+ 				length=19
+ 			}
+  
+@@ -70888,10 +70868,10 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=365.50186
+-			y=-423.52114
++			x=303.32
++			y=151.44
+ 			origin=4294967295
+-			visual_height=5.11847
++			visual_height=3.65056
+ 		}
+ 		name=
+ 		{
+@@ -70913,6 +70893,25 @@
+ 			351 
+ 		}
+ 		star_class="sc_g"
++		hyperlane=
++		{
++			
++			{
++				to=227
++				length=29
++			}
++ 
++			{
++				to=520
++				length=19
++			}
++ 
++			{
++				to=194
++				length=19
++			}
++ 
++		}
+ 		asteroid_belts=
+ 		{
+ 			
+@@ -70927,6 +70926,7 @@
+ 			}
+  
+ 		}
++		arm=0
+ 		flags=
+ 		{
+ 			chosen_system=62808000

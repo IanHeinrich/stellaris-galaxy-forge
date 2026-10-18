@@ -1,0 +1,102 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Swapped Occidan #591 and Gianfar #1
+inverse: SwapSystems { system: 591, with: 1 }
+
+--- gamestate
++++ gamestate
+@@ -36605,8 +36605,8 @@
+ 	}
+ 	1={
+ 		coordinate={
+-			x=300.04
+-			y=-188.89
++			x=-101.59488
++			y=261.33716
+ 			origin=4294967295
+ 			randomized=yes
+ 		}
+@@ -36627,21 +36627,6 @@
+ 		planet=752
+ 		planet=753
+ 		star_class="sc_k"
+-		hyperlane={
+-			{
+-				to=540
+-				length=43
+-			}
+- {
+-				to=375
+-				length=43
+-			}
+- {
+-				to=324
+-				length=38
+-			}
+- 
+-		}
+ 		flags={
+ 			AI_hub=62808000
+ 			AI_system_2=62808000
+@@ -58040,7 +58025,7 @@
+ 				length=42
+ 			}
+  {
+-				to=1
++				to=591
+ 				length=38
+ 			}
+  {
+@@ -61322,7 +61307,7 @@
+ 		star_class="sc_g"
+ 		hyperlane={
+ 			{
+-				to=1
++				to=591
+ 				length=43
+ 			}
+  {
+@@ -71928,7 +71913,7 @@
+ 		star_class="sc_pulsar"
+ 		hyperlane={
+ 			{
+-				to=1
++				to=591
+ 				length=43
+ 			}
+  {
+@@ -75310,8 +75295,8 @@
+ 	}
+ 	591={
+ 		coordinate={
+-			x=-101.59488
+-			y=261.33716
++			x=300.04
++			y=-188.89
+ 			origin=4294967295
+ 			randomized=yes
+ 		}
+@@ -75330,6 +75315,21 @@
+ 			176 
+ 		}
+ 		star_class="sc_trinary_3"
++		hyperlane={
++			{
++				to=540
++				length=43
++			}
++ {
++				to=375
++				length=43
++			}
++ {
++				to=324
++				length=38
++			}
++ 
++		}
+ 		natural_wormholes={
+ 			12 
+ 		}
