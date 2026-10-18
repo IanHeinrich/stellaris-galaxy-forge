@@ -37,6 +37,20 @@ pub struct StarClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub alternatives: Option<bool>,
+    /// Each modifier its `modifier` block puts on a system of it, with the game's name for
+    /// it; `None` for a class with none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub modifiers: Option<Vec<StarClassModifier>>,
+}
+
+/// A modifier a star class puts on its systems: `ship_shield_reduction`, named as the game
+/// names it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StarClassModifier {
+    pub key: String,
+    pub name: String,
 }
 
 impl StarClassView {
@@ -54,6 +68,15 @@ impl StarClassView {
             localised: loc.raw(&sc.key).is_some(),
             placeholder: marker(sc.placeholder),
             alternatives: marker(sc.alternatives),
+            modifiers: sc.effects().then(|| {
+                sc.modifiers
+                    .iter()
+                    .map(|key| StarClassModifier {
+                        key: key.clone(),
+                        name: loc.modifier_name(key),
+                    })
+                    .collect()
+            }),
         }
     }
 }

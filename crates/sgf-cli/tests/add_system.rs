@@ -454,3 +454,61 @@ fn add_system_then_reroll_keeps_the_name_and_with_keep_special_the_layout() {
     assert!(again.contains("(wenkwort_initializer"), "{text}");
     ok(&sgf(&["validate", out_str]));
 }
+
+/// `--arrangement` with `--stars` builds a binary of those stars and prints the class the rule
+/// files it under; `--filed-as` overrides it, `--no-planets` leaves the stars alone, and
+/// `--random-trinary` rolls one of the game's three-star layouts.
+#[test]
+fn add_system_builds_a_binary_from_chosen_stars_and_rolls_a_random_trinary() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("built.sav");
+    let out_str = out_path.to_str().unwrap();
+    let run = |extra: &[&str]| {
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--seed",
+            "4",
+            "--at",
+            "-292.23404,-137.62265",
+            "--no-mods",
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        sgf(&args)
+    };
+    let built = &[
+        "--arrangement",
+        "binary_init_02",
+        "--stars",
+        "pc_black_hole,pc_t_star",
+    ];
+    let out = run(built);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains("filed as sc_black_hole ("), "{text}");
+    assert!(text.contains(" sc_black_hole (binary_init_02)"), "{text}");
+    assert!(text.contains("star pc_black_hole "), "{text}");
+    assert!(text.contains("pc_t_star size"), "{text}");
+
+    let mut chosen = built.to_vec();
+    chosen.extend_from_slice(&["--filed-as", "sc_binary_10", "--no-planets"]);
+    let out = run(&chosen);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains("filed as sc_binary_10 (chosen)"), "{text}");
+    let bodies = text.lines().filter(|l| l.contains(" size ")).count();
+    assert_eq!(bodies, 2, "the stars alone: {text}");
+
+    let out = run(&["--arrangement", "binary_init_02", "--stars", "pc_g_star"]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("places 2 stars, not 1"), "{err}");
+
+    let out = run(&["--random-trinary"]);
+    ok(&out);
+    assert!(stdout(&out).contains("(trinary_init_0"), "{}", stdout(&out));
+}

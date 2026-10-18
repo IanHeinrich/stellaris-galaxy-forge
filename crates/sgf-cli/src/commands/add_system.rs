@@ -6,7 +6,8 @@ use std::path::Path;
 use sgf_core::ops::{BodyKind, BodySpec, LaneEnd, Op, PrimaryName, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
-use sgf_gamedata::generate::{self, ForSaveError, Pick};
+use sgf_gamedata::generate::{self, BuiltSystem, ForSaveError, Pick};
+use sgf_gamedata::multi_star::{FiledReason, file_star_class};
 
 use super::{Outcome, Run, game_data, mutate};
 
@@ -32,6 +33,10 @@ pub struct Generate {
     pub then_reroll: Option<u64>,
     /// On the roll again, build a Special menu layout's system from that layout again.
     pub keep_special: bool,
+    /// The binary or trinary to build star by star, in place of a drawn system.
+    pub built: Option<BuiltSystem>,
+    /// Roll a system of this many stars among the plain layouts that place them.
+    pub star_count: Option<usize>,
 }
 
 /// Add the system `generating` rolls, then roll it again and remove those of `then_remove`
@@ -82,9 +87,15 @@ pub fn generated(
             (added_spec(&op).cloned(), Some(op))
         }
         (layout, _) => {
-            let pick = match layout {
-                Some(layout) => Pick::Layout(layout.clone()),
-                None => Pick::Random(generating.star_class.clone()),
+            let pick = match (layout, &generating.built, generating.star_count) {
+                (Some(layout), _, _) => Pick::Layout(layout.clone()),
+                (None, Some(built), _) => {
+                    let filed = file_star_class(&gd, &built.stars, built.star_class.as_deref())?;
+                    println!("filed as {} ({})", filed.class, reason(&filed.reason));
+                    Pick::Built(built.clone())
+                }
+                (None, None, Some(count)) => Pick::Stars(count),
+                (None, None, None) => Pick::Random(generating.star_class.clone()),
             };
             let mut spec = match &generating.name {
                 Some(name) => pick.spec(&gd, &session, seed, name, at)?,
@@ -106,13 +117,17 @@ pub fn generated(
     let mut issues = mutate::apply(&mut session, vec![op])?;
     if let Some(seed) = generating.then_reroll {
         let system = last_added(&session);
-        let pick = Pick::of_added(
-            &session,
-            &gd,
-            system,
-            generating.keep_special,
-            generating.star_class,
-        )?;
+        let pick = match (generating.built, generating.star_count) {
+            (Some(built), _) => Pick::Built(built),
+            (None, Some(count)) => Pick::Stars(count),
+            (None, None) => Pick::of_added(
+                &session,
+                &gd,
+                system,
+                generating.keep_special,
+                generating.star_class,
+            )?,
+        };
         let spec = generate::reroll(&gd, &session, seed, system, &pick)?;
         print_summary(&spec, seed);
         issues = mutate::apply(
@@ -122,6 +137,19 @@ pub fn generated(
     }
     remove_added(&mut session, then_remove, &mut issues)?;
     mutate::save(session, out, &issues)
+}
+
+/// Which step of the builder's rule filed the stars, in a few words.
+fn reason(reason: &FiledReason) -> String {
+    match reason {
+        FiledReason::Exact => "its stars are the class's".to_owned(),
+        FiledReason::EffectStar { star } => format!("{star} has effects, kept with as many stars"),
+        FiledReason::EffectStarAlone { star } => format!("{star} has effects, its own class"),
+        FiledReason::MostShared { shared } => format!("shares {shared} of its stars"),
+        FiledReason::FirstStar => "the first star's own class".to_owned(),
+        FiledReason::Commonest => "the commonest class of as many stars".to_owned(),
+        FiledReason::Chosen => "chosen".to_owned(),
+    }
 }
 
 /// The error `--generate` reports for a refused roll.

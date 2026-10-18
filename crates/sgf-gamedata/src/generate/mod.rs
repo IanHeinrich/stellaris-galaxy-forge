@@ -15,8 +15,10 @@ use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer, 
 use crate::install::script::Range;
 use crate::layouts::{
     Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, converted, eligibility, generic,
-    layout_stars, odds, plain_initializers, special_initializers, star_body, star_source, unplaced,
+    layout_stars, odds, plain_initializers, special_initializers, star_blocks, star_body,
+    star_source, unplaced,
 };
+use crate::multi_star::{Filed, file_star_class};
 use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
@@ -34,8 +36,9 @@ pub use megastructure::{
 };
 pub(crate) use megastructure::{SpawnedAt, layout_structures, spawned_row};
 pub use save::{
-    BodyAsk, ClassRulesError, ForSaveError, Pick, PickAt, SystemAsk, added_among, body_for_save,
-    for_save, for_save_many, reroll, settle_name, special_op, special_op_with, systems_op,
+    BodyAsk, BuiltSystem, ClassRulesError, ForSaveError, Pick, PickAt, SystemAsk, added_among,
+    body_for_save, built_op, for_save, for_save_many, reroll, settle_name, special_op,
+    special_op_with, systems_op,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.
@@ -61,6 +64,8 @@ pub enum GenerateError {
     UnknownLayout(String),
     #[error("{0} cannot be generated: {1}")]
     Unsupported(String, Unsupported),
+    #[error("{0} is not a plain layout the builder arranges stars in")]
+    NotPlain(String),
     #[error("{0} is neither a star list nor a star class")]
     UnknownStar(String),
     #[error("no star class in {0} can spawn")]
@@ -73,6 +78,20 @@ pub enum GenerateError {
     NoPlanetClass(f64),
     #[error("{0} has no size to draw from")]
     NoSize(String),
+    #[error("no star was chosen")]
+    NoStars,
+    #[error("{0} is not a star")]
+    NotAStar(String),
+    #[error("the install has no star class of {0} stars to file them under")]
+    NoClassFor(usize),
+    #[error("{layout} places {blocks} stars, not {stars}")]
+    StarCount {
+        layout: String,
+        blocks: usize,
+        stars: usize,
+    },
+    #[error("no plain {USAGE} initializer of the install places {0} stars")]
+    NoArrangement(usize),
 }
 
 /// The star classes [`generate`] can give a system: each class a plain initializer fixes
@@ -146,21 +165,106 @@ pub fn generate(
     {
         return Err(GenerateError::UnknownStar(class.to_owned()));
     }
-    let mut rng = Rng::new(seed);
-    let layouts = layouts_for(gd, star_class);
-    let Some(&init) = rng.weighted(&layouts) else {
-        return Err(match star_class {
-            Some(class) => GenerateError::NoLayoutFor(class.to_owned()),
-            None => GenerateError::NoInitializer,
-        });
+    let missing = || match star_class {
+        Some(class) => GenerateError::NoLayoutFor(class.to_owned()),
+        None => GenerateError::NoInitializer,
     };
     let draw = Draw {
         seed,
         star_class,
+        stars: None,
+        stars_only: false,
         abundance,
         save: None,
     };
-    build(gd, init, rng, &draw, name, at).map(|add| add.spec)
+    draw_among(gd, layouts_for(gd, star_class), &draw, name, at, missing).map(|add| add.spec)
+}
+
+/// A system of `stars` stars named `name` at `at`, rolled from `seed` as [`generate`] rolls one
+/// of no class, drawn among the plain layouts that place that many stars at their odds, its
+/// class drawn from the layout's list.
+pub fn generate_stars(
+    gd: &GameData,
+    seed: u64,
+    name: &str,
+    at: (f64, f64),
+    stars: usize,
+    abundance: f64,
+) -> Result<SystemAdd, GenerateError> {
+    let layouts = layouts_for(gd, None)
+        .into_iter()
+        .filter(|(init, _)| star_blocks(init) == stars)
+        .collect();
+    let draw = Draw {
+        seed,
+        star_class: None,
+        stars: None,
+        stars_only: false,
+        abundance,
+        save: None,
+    };
+    draw_among(gd, layouts, &draw, name, at, || {
+        GenerateError::NoArrangement(stars)
+    })
+}
+
+/// A system built from one of `layouts`, drawn by weight from `draw`'s seed; `missing` when
+/// there is none to draw.
+fn draw_among(
+    gd: &GameData,
+    layouts: Vec<(&Initializer, f64)>,
+    draw: &Draw<'_>,
+    name: &str,
+    at: (f64, f64),
+    missing: impl FnOnce() -> GenerateError,
+) -> Result<SystemAdd, GenerateError> {
+    let mut rng = Rng::new(draw.seed);
+    let Some(&init) = rng.weighted(&layouts) else {
+        return Err(missing());
+    };
+    build(gd, init, rng, draw, name, at)
+}
+
+/// A system the builder makes: the plain layout `built.layout` with the planet classes
+/// `built.stars` in its `class = star` blocks, in order, named `name` at `at` and rolled from
+/// `seed` as [`generate`] rolls a layout. Its star class is `built.star_class` when given,
+/// else the one [`file_star_class`] files the stars under, and its planets are drawn at that
+/// class's odds, or none without `built.planets`. Each star rolls its deposits as its own
+/// class. Refused for a layout that is not plain, a count of stars other than its star blocks, and as [`file_star_class`] refuses.
+pub fn generate_built(
+    gd: &GameData,
+    seed: u64,
+    name: &str,
+    at: (f64, f64),
+    built: &BuiltSystem,
+    abundance: f64,
+) -> Result<(SystemAdd, Filed), GenerateError> {
+    let init = gd
+        .initializers
+        .get(&built.layout)
+        .ok_or_else(|| GenerateError::UnknownLayout(built.layout.clone()))?;
+    if eligibility(gd, init) != Eligibility::Plain {
+        return Err(GenerateError::NotPlain(built.layout.clone()));
+    }
+    let blocks = star_blocks(init);
+    if blocks != built.stars.len() {
+        return Err(GenerateError::StarCount {
+            layout: built.layout.clone(),
+            blocks,
+            stars: built.stars.len(),
+        });
+    }
+    let filed = file_star_class(gd, &built.stars, built.star_class.as_deref())?;
+    let draw = Draw {
+        seed,
+        star_class: Some(&filed.class),
+        stars: Some(&built.stars),
+        stars_only: !built.planets,
+        abundance,
+        save: None,
+    };
+    let add = build(gd, init, Rng::new(seed), &draw, name, at)?;
+    Ok((add, filed))
 }
 
 /// A system of the plain or special layout `layout` for `save`, rolled as [`generate`]
@@ -200,6 +304,8 @@ pub fn layout_system_for(
     let draw = Draw {
         seed,
         star_class: None,
+        stars: None,
+        stars_only: false,
         abundance,
         save: Some(save),
     };
@@ -240,10 +346,14 @@ fn generic_specials(gd: &GameData) -> Vec<&Initializer> {
 }
 
 /// What a system is rolled from beside its layout: the seed, the star class asked for, the
-/// save's Resource Abundance, and the save whose DLC answers the bodies' `if`s.
+/// planet classes of its `class = star` blocks when they are chosen, the save's Resource
+/// Abundance, and the save whose DLC answers the bodies' `if`s.
 struct Draw<'a> {
     seed: u64,
     star_class: Option<&'a str>,
+    stars: Option<&'a [String]>,
+    /// Only the star bodies are placed: no planets, moons or belts.
+    stars_only: bool,
     abundance: f64,
     save: Option<&'a SaveFacts>,
 }
@@ -264,6 +374,8 @@ fn build(
     let mut roller = Roller {
         gd,
         star_class,
+        stars: draw.stars.map(<[String]>::to_vec),
+        stars_only: draw.stars_only,
         rng,
         rings: Rng::new(seed ^ RING_STREAM),
         star_blocks: 0,
@@ -301,6 +413,7 @@ fn build(
             let mut radii = Rng::new(seed ^ BELT_STREAM);
             init.asteroid_belts
                 .iter()
+                .filter(|_| !roller.stars_only)
                 .filter_map(|b| rolled_belt(b, &mut radii))
                 .collect()
         },
@@ -466,6 +579,11 @@ fn roll_star<'g>(
 struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
+    /// The planet class of each `class = star` block, in order, when they are chosen rather
+    /// than the star class's.
+    stars: Option<Vec<String>>,
+    /// Only the star bodies are placed: no planets, moons or belts.
+    stars_only: bool,
     rng: Rng,
     /// Each planet's ring, drawn apart so the bodies a seed gives stay as they were.
     rings: Rng,
@@ -535,14 +653,22 @@ impl<'g> Roller<'g> {
         let key = match &block.class {
             BodyClass::Named(key) => {
                 self.star_named_by_class |= primary;
-                key.as_str()
+                key.clone()
             }
             _ => {
-                let key = self
-                    .star_class
-                    .planet_keys()
-                    .nth(self.star_blocks)
-                    .ok_or_else(|| GenerateError::NoStarBody(self.star_class.key.clone()))?;
+                let chosen = self
+                    .stars
+                    .as_ref()
+                    .map(|stars| stars.get(self.star_blocks).cloned());
+                let key = match chosen {
+                    Some(chosen) => chosen,
+                    None => self
+                        .star_class
+                        .planet_keys()
+                        .nth(self.star_blocks)
+                        .map(str::to_owned),
+                }
+                .ok_or_else(|| GenerateError::NoStarBody(self.star_class.key.clone()))?;
                 self.star_blocks += 1;
                 key
             }
@@ -550,8 +676,8 @@ impl<'g> Roller<'g> {
         let class = self
             .gd
             .planet_classes
-            .get(key)
-            .ok_or_else(|| GenerateError::UnknownPlanetClass(key.to_owned()))?;
+            .get(&key)
+            .ok_or_else(|| GenerateError::UnknownPlanetClass(key.clone()))?;
         let size = self.size(block, class, false)?;
         let spec = BodySpec {
             kind: BodyKind::Star,
@@ -561,7 +687,9 @@ impl<'g> Roller<'g> {
             roller: self,
             bodies: Satellites(Vec::new()),
         };
-        orbit_walk::walk(&block.moons, &mut walk)?;
+        if !walk.roller.stars_only {
+            orbit_walk::walk(&block.moons, &mut walk)?;
+        }
         Ok(RolledStar {
             spec,
             block,
@@ -883,6 +1011,9 @@ impl<'g> Bodies<'g> for Planets<'g, Option<RolledStar<'g>>> {
             } else {
                 self.planets.push(Orbiter::Star(star));
             }
+            return Ok(());
+        }
+        if roller.stars_only {
             return Ok(());
         }
         if let Some(planet) = roller.planet(block, placed)? {

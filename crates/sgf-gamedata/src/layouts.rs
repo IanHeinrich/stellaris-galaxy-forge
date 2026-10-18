@@ -583,7 +583,7 @@ fn plain_planet(gd: &GameData, planet: &InitPlanet) -> bool {
 }
 
 /// How many of `init`'s own blocks are written `class = star`.
-fn star_blocks(init: &Initializer) -> usize {
+pub(crate) fn star_blocks(init: &Initializer) -> usize {
     init.planets
         .iter()
         .filter(|p| p.class == BodyClass::Star)

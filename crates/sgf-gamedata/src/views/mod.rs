@@ -10,7 +10,8 @@ mod roll;
 mod summary;
 
 pub use bodies::{
-    DepositView, PlanetClassView, ResourceIcon, StarClassView, TerraformCandidateView,
+    DepositView, PlanetClassView, ResourceIcon, StarClassModifier, StarClassView,
+    TerraformCandidateView,
 };
 pub use countries::{CountryTypeView, FlagParts, MapColor, ShipSizeView, StarbaseLevelView};
 pub use galaxy::{GalaxyShapeView, GalaxySizeView, PrecursorView};

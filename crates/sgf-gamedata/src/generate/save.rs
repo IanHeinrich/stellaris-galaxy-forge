@@ -13,7 +13,10 @@ use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
 use ts_rs::TS;
 
 use super::cluster::statements_op;
-use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, layout_system_for, roll_body};
+use super::{
+    BLACK_HOLE, BodyRoll, GenerateError, generate, generate_built, generate_stars,
+    layout_system_for, roll_body,
+};
 use crate::GameData;
 use crate::layouts::{SaveFacts, runs_scripts};
 use crate::menu::menu_initializers;
@@ -66,6 +69,26 @@ pub enum Pick {
     Random(Option<String>),
     /// Built from this plain or special layout.
     Layout(String),
+    /// Built from a plain layout with the stars chosen for it.
+    Built(BuiltSystem),
+    /// Rolled from the plain layouts that place this many stars: a random binary or trinary.
+    Stars(usize),
+}
+
+/// A binary or trinary the builder makes, as [`generate_built`] builds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuiltSystem {
+    /// A plain layout with as many `class = star` blocks as `stars`.
+    pub layout: String,
+    /// The planet class of each star, in the order the layout places them.
+    pub stars: Vec<String>,
+    /// The star class the system is filed under; the one [`file_star_class`] gives when
+    /// `None`.
+    ///
+    /// [`file_star_class`]: crate::multi_star::file_star_class
+    pub star_class: Option<String>,
+    /// Planets are rolled about the stars; without, the system holds its stars alone.
+    pub planets: bool,
 }
 
 /// Why no system could be built for a save.
@@ -117,6 +140,33 @@ impl Pick {
         })
     }
 
+    /// How the added system `system` of `session`'s save is rolled again with `stars`: in
+    /// `layout`, else in its own layout, filed under `star_class` when given, with planets
+    /// when `planets`.
+    pub fn built_for(
+        session: &Session,
+        system: u32,
+        layout: Option<String>,
+        stars: Vec<String>,
+        star_class: Option<String>,
+        planets: bool,
+    ) -> Result<Self, ForSaveError> {
+        let layout = match layout {
+            Some(layout) => layout,
+            None => session
+                .system(system)
+                .ok_or(ForSaveError::NoSystem(system))?
+                .initializer
+                .clone(),
+        };
+        Ok(Self::Built(BuiltSystem {
+            layout,
+            stars,
+            star_class,
+            planets,
+        }))
+    }
+
     /// The system this pick gives for `session`'s save, named `name` at `at`: its deposits
     /// at the Resource Abundance the save was set up with, and a layout's DLC branches as
     /// the save was played.
@@ -155,6 +205,10 @@ impl Pick {
                 layout,
                 abundance,
             ),
+            Self::Built(built) => {
+                generate_built(gd, seed, name, at, built, abundance).map(|(add, _)| add)
+            }
+            Self::Stars(stars) => generate_stars(gd, seed, name, at, *stars, abundance),
         }
     }
 }
@@ -247,6 +301,29 @@ pub fn special_op_with(
         None => roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?,
     };
     Ok(save.add_systems_op(vec![add], lanes, extras, None)?)
+}
+
+/// The op that adds the system [`Pick::Built`] gives `built` to `session`'s save at `at` from
+/// `seed`, named from the save's pool, joined by a lane to each of the systems the save holds
+/// in `joins`, as one step. Refused with nothing applied for a document other than a save,
+/// whose systems name their initializers, as [`generate_built`] refuses, and for a join naming
+/// no system.
+pub fn built_op(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    at: (f64, f64),
+    built: &BuiltSystem,
+    joins: &[u32],
+) -> Result<Op, ForSaveError> {
+    let save = session.save("building a system")?;
+    let pick = Pick::Built(built.clone());
+    let add = roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?;
+    let lanes: Vec<(LaneEnd, LaneEnd)> = joins
+        .iter()
+        .map(|&system| (LaneEnd::New { index: 0 }, LaneEnd::Held { system }))
+        .collect();
+    Ok(save.add_systems_op(vec![add], &lanes, false, None)?)
 }
 
 /// A system asked of [`for_save_many`]: what it is built from, and where it stands.

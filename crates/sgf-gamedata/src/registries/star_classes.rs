@@ -33,6 +33,9 @@ pub struct StarClass {
     /// `pc_… = { spawn_odds = n }`: what a random draw multiplies that planet class's own
     /// odds by around this star.
     pub planet_odds: Vec<(String, f64)>,
+    /// The keys of its `modifier` block: the effects a system of it has on what is in it, a
+    /// black hole's, a pulsar's. Empty for most classes.
+    pub modifiers: Vec<String>,
     /// Its definition writes only a `class` and zero `spawn_odds`: a key kept valid for the
     /// scripts that name it, with no star body, planet count or anything else a system uses.
     pub placeholder: bool,
@@ -49,6 +52,11 @@ pub struct StarPlanet {
 }
 
 impl StarClass {
+    /// Its `modifier` block is not empty.
+    pub fn effects(&self) -> bool {
+        !self.modifiers.is_empty()
+    }
+
     pub fn texture_icon(&self) -> &str {
         self.icon.as_deref().unwrap_or(&self.class)
     }
@@ -152,6 +160,12 @@ impl FromDef for StarClass {
             spawn_odds,
             num_planets: def.range("num_planets"),
             planet_odds,
+            modifiers: def
+                .node
+                .find_all("modifier", &def.src)
+                .flat_map(|modifier| modifier.children())
+                .filter_map(|child| child.key_str(&def.src).map(str::to_owned))
+                .collect(),
             placeholder: only_named && spawn_odds == 0.0,
             alternatives: false,
         }

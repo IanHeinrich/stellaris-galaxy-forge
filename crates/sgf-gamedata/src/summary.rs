@@ -17,6 +17,7 @@ use crate::layouts::{
 };
 use crate::loc::localisation::Localisation;
 use crate::menu::{SpecialCluster, SpecialLayout, cluster_row, document_clusters, special_layouts};
+use crate::multi_star::{LayoutDiagram, diagram};
 
 /// The smallest and largest number a pick can give.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -131,6 +132,10 @@ pub struct StarPick {
 pub struct SpecialPick {
     pub layout: SpecialLayout,
     pub summary: PickSummary,
+    /// Its layout with each range at its middle, as the builder draws an arrangement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub diagram: Option<LayoutDiagram>,
 }
 
 /// A cluster of the Special menu with its card, which merges what its systems give.
@@ -139,6 +144,11 @@ pub struct SpecialPick {
 pub struct ClusterPick {
     pub cluster: SpecialCluster,
     pub summary: PickSummary,
+    /// Each system's layout with each range at its middle, the home first, in the order the
+    /// add writes them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub diagrams: Option<Vec<LayoutDiagram>>,
 }
 
 /// Everything the Add system menu offers for a save, each with its card: Random, a star
@@ -179,7 +189,11 @@ pub fn special_picks(gd: &GameData, session: &Session) -> Vec<SpecialPick> {
         .filter_map(|layout| {
             let init = gd.initializers.get(&layout.key)?;
             let summary = special_summary(gd, init, &save, session);
-            Some(SpecialPick { layout, summary })
+            Some(SpecialPick {
+                layout,
+                summary,
+                diagram: Some(diagram(gd, init)),
+            })
         })
         .collect()
 }
@@ -192,6 +206,13 @@ pub fn cluster_picks(gd: &GameData, session: &Session) -> Vec<ClusterPick> {
         .map(|(cluster, plan)| ClusterPick {
             summary: cluster_summary(gd, plan, &save, session),
             cluster: cluster_row(gd, &save, cluster, plan),
+            diagrams: Some(
+                plan.layouts
+                    .iter()
+                    .filter_map(|layout| gd.initializers.get(layout))
+                    .map(|init| diagram(gd, init))
+                    .collect(),
+            ),
         })
         .collect()
 }

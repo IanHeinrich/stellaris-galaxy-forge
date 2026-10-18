@@ -6,7 +6,7 @@ use crate::common;
 
 use std::collections::BTreeSet;
 
-use sgf_core::ops::{BodyKind, BodySpec, Op, PrimaryName, SpecAnomaly, SpecBody, SpecStar};
+use sgf_core::ops::{BodyKind, Op, PrimaryName, SpecAnomaly, SpecBody, SpecStar};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{
@@ -15,7 +15,7 @@ use sgf_gamedata::generate::{
 use sgf_gamedata::layouts::{Eligibility, SaveFacts, Unsupported, eligibility};
 use sgf_gamedata::menu::menu_clusters;
 
-use common::layouts::{by_name, of};
+use common::layouts::{by_name, of, stars};
 use common::prepare::current;
 use common::{ABUNDANCE, INSTALL, SPOT, hand_written, open_4_5};
 
@@ -49,13 +49,6 @@ fn multi_star(gd: &GameData, key: &str) -> bool {
             .filter(|p| p.class.written() == "star")
             .count()
             > 1
-}
-
-/// The system's own star and its companions, in the order the spec holds them.
-fn stars(spec: &sgf_core::ops::SystemSpec) -> Vec<&BodySpec> {
-    std::iter::once(&spec.star)
-        .chain(spec.planets.iter().filter(|p| p.kind == BodyKind::Star))
-        .collect()
 }
 
 /// The first seed from 0 whose roll of `class` for `session` is built from `layout`.
