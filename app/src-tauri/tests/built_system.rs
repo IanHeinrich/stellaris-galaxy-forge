@@ -252,3 +252,107 @@ fn the_star_class_list_names_each_class_effect() {
     let g = classes.iter().find(|c| c.key == "sc_g").expect("sc_g");
     assert_eq!(g.modifiers, None);
 }
+
+/// The star classes of `system`'s star bodies in the order it lists them, and whether it holds
+/// any other body.
+fn star_bodies(system: &SystemNode, types: &[StarType]) -> (Vec<String>, bool) {
+    let bodies = system.bodies.as_deref().unwrap_or_default();
+    let star = |class: &str| types.iter().any(|t| t.key == class);
+    let stars = bodies
+        .iter()
+        .filter(|b| star(&b.class))
+        .map(|b| b.class.clone())
+        .collect();
+    (stars, bodies.iter().any(|b| !star(&b.class)))
+}
+
+/// `{ kind: "same" }` rolls an added system again as it is: a Special menu layout from that
+/// layout, a built binary with its stars, its chosen class and its want of planets, and any
+/// other system around its star class. A new system cannot be added as it is.
+#[test]
+fn rolling_an_added_system_again_as_it_is_keeps_what_it_is() {
+    let Some((w, opened)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let types: Vec<StarType> = invoke(&w, "get_star_types", json!({})).expect("star types");
+    let radius = opened.galaxy.galaxy_radius;
+    let same = |id: u32, seed: u64| {
+        step(
+            &w,
+            "reroll_system",
+            json!({ "system": id, "seed": seed, "pick": { "kind": "same" } }),
+        )
+    };
+
+    let special = step(
+        &w,
+        "add_special_system",
+        json!({
+            "seed": 5, "x": radius + 40.0, "y": 0.0, "layout": "wenkwort_initializer",
+            "extras": false, "links": [],
+        }),
+    );
+    let id = added(&special).id;
+    assert_eq!(added(&same(id, 6)).initializer, "wenkwort_initializer");
+
+    let built = step(
+        &w,
+        "add_built_system",
+        json!({
+            "seed": 4, "x": radius + 40.0, "y": 60.0, "layout": "trinary_init_02",
+            "stars": ["pc_black_hole", "pc_t_star", "pc_g_star"], "starClass": "sc_g",
+            "planets": false, "links": [],
+        }),
+    );
+    let system = added(&built).clone();
+    assert_eq!(system.star_class, "sc_g", "the class chosen");
+    let rolled = same(system.id, 9);
+    let again = added(&rolled);
+    assert_eq!(again.initializer, "trinary_init_02");
+    assert_eq!(again.star_class, "sc_g", "the chosen class stays");
+    let (stars, planets) = star_bodies(again, &types);
+    assert_eq!(stars, ["pc_black_hole", "pc_t_star", "pc_g_star"]);
+    assert!(!planets, "still the stars alone");
+
+    let filed = step(
+        &w,
+        "add_built_system",
+        json!({
+            "seed": 4, "x": radius + 40.0, "y": 120.0, "layout": "binary_init_01",
+            "stars": ["pc_g_star", "pc_g_star"], "starClass": null, "planets": true,
+            "links": [],
+        }),
+    );
+    let id = added(&filed).id;
+    let rolled = same(id, 9);
+    assert_eq!(
+        added(&rolled).star_class,
+        "sc_binary_8",
+        "filed again by the rule"
+    );
+    let (stars, planets) = star_bodies(added(&rolled), &types);
+    assert_eq!(stars, ["pc_g_star", "pc_g_star"]);
+    assert!(planets, "with planets as before");
+
+    let single = step(
+        &w,
+        "add_random_system",
+        json!({
+            "seed": 3, "x": radius + 40.0, "y": 180.0,
+            "pick": { "kind": "class", "star_class": "sc_m" },
+        }),
+    );
+    let id = added(&single).id;
+    assert_eq!(added(&same(id, 8)).star_class, "sc_m");
+
+    let refused = invoke::<EditResult>(
+        &w,
+        "add_random_system",
+        json!({ "seed": 3, "x": radius + 40.0, "y": 240.0, "pick": { "kind": "same" } }),
+    );
+    assert_eq!(
+        kind(refused),
+        ErrorKind::Op,
+        "a new system has nothing to keep"
+    );
+}

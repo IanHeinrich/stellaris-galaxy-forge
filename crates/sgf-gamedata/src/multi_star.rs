@@ -12,10 +12,11 @@ use ts_rs::TS;
 use crate::GameData;
 use crate::generate::{GenerateError, layouts_for};
 use crate::initializers::{InitPlanet, Initializer};
-use crate::install::script::Range;
+use crate::install::script::{Range, whole};
 use crate::layouts::{star_blocks, star_body};
 use crate::orbit_walk::{self, Placed, Walk};
 use crate::registries::star_classes::StarClass;
+use crate::summary::{Span, asteroids_only};
 
 /// How far from the centre a star stands and still makes a close group.
 const CLOSE: f64 = 60.0;
@@ -290,7 +291,7 @@ impl Shape {
     fn of(stars: &[(DiagramStar, bool)]) -> Self {
         let far: Vec<bool> = stars
             .iter()
-            .filter(|(star, _)| star.orbit > CLOSE)
+            .filter(|(star, _)| star.distant)
             .map(|&(_, planets)| planets)
             .collect();
         let with_planets = far.iter().all(|&planets| planets);
@@ -329,6 +330,8 @@ pub struct Arrangement {
     pub odds: f64,
     /// Its share of the draw among the plain layouts of as many stars: 0.6 for six in ten.
     pub share: f64,
+    /// The fewest and most planets a roll gives about all its stars, asteroids and moons aside.
+    pub planets: Span,
     pub diagram: LayoutDiagram,
 }
 
@@ -348,6 +351,8 @@ pub struct DiagramStar {
     pub y: f64,
     /// The radius of its path about the centre; 0 at the centre.
     pub orbit: f64,
+    /// It stands further than [`CLOSE`] from the centre: a distant companion.
+    pub distant: bool,
 }
 
 /// The plain layouts of more than one star, in the install's key order.
@@ -374,12 +379,34 @@ pub fn arrangements(gd: &GameData) -> Vec<Arrangement> {
                 name: shape.name().to_owned(),
                 odds,
                 share: odds / total,
+                planets: planet_span(gd, init),
                 diagram: LayoutDiagram {
                     stars: walked.into_iter().map(|(star, _)| star).collect(),
                 },
             }
         })
         .collect()
+}
+
+/// The fewest and most planets `init` places about its centre and its stars: each block's
+/// count, a star's own planets for a star, asteroids and spacers aside. A planet no class
+/// fits at its orbit is not spawned, so a roll can give fewer than the fewest.
+fn planet_span(gd: &GameData, init: &Initializer) -> Span {
+    let counted = |block: &InitPlanet| !block.spacer() && !asteroids_only(gd, &block.class);
+    let mut span = Span { min: 0, max: 0 };
+    let blocks = init
+        .planets
+        .iter()
+        .flat_map(|block| match star_body(gd, &block.class) {
+            true => block.moons.iter().collect::<Vec<_>>(),
+            false => vec![block],
+        });
+    for block in blocks.filter(|block| counted(block)) {
+        let count = block.count();
+        span.min += whole(count.min);
+        span.max += whole(count.max);
+    }
+    span
 }
 
 /// `init` walked with each range, count and turn at its middle.
@@ -441,7 +468,16 @@ impl<'p> Walk<'p> for Middle<'_> {
         }
         let (x, y) = point((0.0, 0.0), placed.orbit, placed.angle);
         let orbit = placed.orbit.abs();
-        self.stars.push((DiagramStar { x, y, orbit }, false));
+        let distant = orbit > CLOSE;
+        self.stars.push((
+            DiagramStar {
+                x,
+                y,
+                orbit,
+                distant,
+            },
+            false,
+        ));
         self.about = Some(self.stars.len() - 1);
         let planets = orbit_walk::walk(&block.moons, self);
         self.about = None;

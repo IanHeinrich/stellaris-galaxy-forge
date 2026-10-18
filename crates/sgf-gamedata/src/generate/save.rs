@@ -18,8 +18,9 @@ use super::{
     layout_system_for, roll_body,
 };
 use crate::GameData;
-use crate::layouts::{SaveFacts, runs_scripts};
+use crate::layouts::{Eligibility, SaveFacts, eligibility, runs_scripts, star_blocks};
 use crate::menu::menu_initializers;
+use crate::multi_star::file_star_class;
 use crate::naming::NameDraw;
 use crate::rng::Rng;
 
@@ -86,6 +87,8 @@ pub enum SystemPick {
     },
     /// Built from this plain or special layout, as the Special menu builds it.
     Layout { layout: String },
+    /// Only when rolling an added system again: as it is now, as [`Pick::same`] reads it.
+    Same,
 }
 
 /// How many stars a random multi-star system has: two or three.
@@ -110,24 +113,40 @@ impl From<StarCount> for u8 {
     }
 }
 
-impl From<SystemPick> for Pick {
-    fn from(pick: SystemPick) -> Self {
-        match pick {
-            SystemPick::Random => Self::Random(None),
-            SystemPick::Class { star_class } => Self::Random(Some(star_class)),
-            SystemPick::Stars { count } => Self::Stars(usize::from(count.0)),
-            SystemPick::Built {
+impl SystemPick {
+    /// The pick an add of a new system makes. Refused for [`SystemPick::Same`], which only
+    /// a system rolled again has.
+    pub fn for_add(self) -> Result<Pick, ForSaveError> {
+        match self {
+            Self::Random => Ok(Pick::Random(None)),
+            Self::Class { star_class } => Ok(Pick::Random(Some(star_class))),
+            Self::Stars { count } => Ok(Pick::Stars(usize::from(count.0))),
+            Self::Built {
                 layout,
                 stars,
                 star_class,
                 planets,
-            } => Self::Built(BuiltSystem {
+            } => Ok(Pick::Built(BuiltSystem {
                 layout,
                 stars,
                 star_class,
                 planets,
-            }),
-            SystemPick::Layout { layout } => Self::Layout(layout),
+            })),
+            Self::Layout { layout } => Ok(Pick::Layout(layout)),
+            Self::Same => Err(ForSaveError::SameForNew),
+        }
+    }
+
+    /// The pick that rolls the added system `system` of `session`'s save again.
+    pub fn for_reroll(
+        self,
+        gd: &GameData,
+        session: &Session,
+        system: u32,
+    ) -> Result<Pick, ForSaveError> {
+        match self {
+            Self::Same => Pick::same(gd, session, system),
+            pick => pick.for_add(),
         }
     }
 }
@@ -170,6 +189,8 @@ pub enum ForSaveError {
     NoSystem(u32),
     #[error("the Special menu offers no cluster {0}")]
     UnknownCluster(String),
+    #[error("a new system cannot be rolled as it is; only an added one rolled again can")]
+    SameForNew,
     #[error(transparent)]
     Generate(#[from] GenerateError),
     #[error(transparent)]
@@ -208,6 +229,47 @@ impl Pick {
             true => Self::Layout(node.initializer.clone()),
             false => Self::Random(star_class),
         })
+    }
+
+    /// How the added system `system` of `session`'s save is rolled again as it is: from its own
+    /// layout when the Special menu offers it; built again from its own plain layout of several
+    /// stars with its star bodies' classes in order, filed under its star class when the rule
+    /// would file them otherwise, and with planets when it holds any body that is no star; else
+    /// at random around its star class.
+    pub fn same(gd: &GameData, session: &Session, system: u32) -> Result<Self, ForSaveError> {
+        let node = session
+            .system(system)
+            .ok_or(ForSaveError::NoSystem(system))?;
+        let layout = &node.initializer;
+        if menu_initializers(gd)
+            .iter()
+            .any(|init| init.name == *layout)
+        {
+            return Ok(Self::Layout(layout.clone()));
+        }
+        let built = gd.initializers.get(layout).is_some_and(|init| {
+            eligibility(gd, init) == Eligibility::Plain && star_blocks(init) > 1
+        });
+        if !built {
+            return Ok(Self::Random(Some(node.star_class.clone())));
+        }
+        let bodies = node.bodies.as_deref().unwrap_or_default();
+        let star = |class: &str| gd.planet_classes.get(class).is_some_and(|c| c.star);
+        let stars: Vec<String> = bodies
+            .iter()
+            .filter(|body| star(&body.class))
+            .map(|body| body.class.clone())
+            .collect();
+        let filed = file_star_class(gd, &stars, None)
+            .ok()
+            .map(|filed| filed.class);
+        Ok(Self::Built(BuiltSystem {
+            layout: layout.clone(),
+            star_class: (filed.as_deref() != Some(node.star_class.as_str()))
+                .then(|| node.star_class.clone()),
+            planets: bodies.iter().any(|body| !star(&body.class)),
+            stars,
+        }))
     }
 
     /// The system this pick gives for `session`'s save, named `name` at `at`: its deposits

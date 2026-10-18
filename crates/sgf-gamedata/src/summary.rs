@@ -501,7 +501,7 @@ fn span(count: Range) -> Span {
 }
 
 /// A class, or every class of a list, that is an asteroid.
-fn asteroids_only(gd: &GameData, class: &BodyClass) -> bool {
+pub(crate) fn asteroids_only(gd: &GameData, class: &BodyClass) -> bool {
     let Some(class) = class.named() else {
         return false;
     };

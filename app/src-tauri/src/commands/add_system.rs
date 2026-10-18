@@ -35,7 +35,7 @@ pub async fn add_random_system<R: Runtime>(
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
-        let pick = Pick::from(pick);
+        let pick = pick.for_add()?;
         let spec = generate::for_save(&gd, session, seed, (x, y), &pick)?;
         let result = session.apply(Op::AddSystemFromSpec { spec })?;
         Ok(session.edit_result(result))
@@ -180,7 +180,8 @@ pub async fn reroll_system<R: Runtime>(
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
-        let spec = generate::reroll(&gd, session, seed, system, &Pick::from(pick))?;
+        let pick = pick.for_reroll(&gd, session, system)?;
+        let spec = generate::reroll(&gd, session, seed, system, &pick)?;
         let result = session.apply(Op::ReplaceSystemFromSpec { system, spec })?;
         Ok(session.edit_result(result))
     })

@@ -272,6 +272,28 @@ fn the_arrangements_are_the_plain_multi_star_layouts() {
             ),
         ]
     );
+    let planets: Vec<(u32, u32)> = arrangements
+        .iter()
+        .map(|a| (a.planets.min, a.planets.max))
+        .collect();
+    assert_eq!(
+        planets,
+        [(2, 10), (5, 8), (2, 10), (6, 12)],
+        "each block's count, a companion's planets with it"
+    );
+    let distant: Vec<Vec<bool>> = arrangements
+        .iter()
+        .map(|a| a.diagram.stars.iter().map(|s| s.distant).collect())
+        .collect();
+    assert_eq!(
+        distant,
+        [
+            vec![false, false],
+            vec![false, true],
+            vec![false, false, false],
+            vec![false, true, true],
+        ]
+    );
     for arrangement in &arrangements {
         for star in &arrangement.diagram.stars {
             assert!(
