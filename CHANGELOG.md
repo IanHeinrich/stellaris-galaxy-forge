@@ -8,6 +8,26 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-18
+
+### Added
+
+- Add binary and trinary systems to a save, rolled as the game would or
+  built from the stars you choose.
+- More of the game's unique and special systems can be added to a save,
+  including clusters such as the Junk Ratlings and the Legendary Leader's
+  sites.
+  - They come with their anomalies, dig sites and ruined megastructures,
+    and are chosen from a searchable list.
+- Rotate a selection of systems around a point.
+- Swap two systems. They trade places, hyperlanes included.
+
+### Changed
+
+- The Inspector's page for several selected systems is tidier.
+- New hyperlanes form clusters the way the game's do, unless you turn
+  that off.
+
 ## [0.26.1] - 2026-10-14
 
 ### Added
