@@ -67,6 +67,16 @@ pub(super) fn examples() -> Vec<Example> {
             },
         ),
         Example::each(
+            Op::SwapSystems {
+                system: 0,
+                with: 86,
+            },
+            Op::SwapSystems {
+                system: 10,
+                with: 4,
+            },
+        ),
+        Example::each(
             Op::AddLanePairs {
                 lanes: vec![
                     pair(789, 790, false),

@@ -30,7 +30,7 @@ use crate::format::save::write::{
     flag, lanes, lgate, map_colors, move_megastructure, move_planet, move_system, nebula,
     planet_class, planet_entity, planet_modifier, planet_ring, planet_size, remove_planet,
     remove_system, rename_planet, rename_system, replace_system, restore, spawned_planet,
-    star_class, system_height, wormhole, wormhole_pair,
+    star_class, swap_system, system_height, wormhole, wormhole_pair,
 };
 use crate::format::{self, Format};
 use crate::keys;
@@ -162,6 +162,7 @@ impl Format for Save {
             Op::SetLaneLength { a, b, length } => lanes::plan_set_length(plan, s, *a, *b, *length),
             Op::IsolateSystem { system } => lanes::plan_isolate(plan, s, *system),
             Op::MoveSystems { moves } => bulk::plan_move_many(plan, s, moves),
+            Op::SwapSystems { system, with } => swap_system::plan_swap(plan, s, *system, *with),
             Op::AddLanePairs { lanes } => bulk::plan_add_pairs(plan, s, lanes),
             Op::RemoveLanePairs { lanes } => bulk::plan_remove_pairs(plan, s, lanes),
             Op::IsolateSystems { systems } => bulk::plan_isolate_many(plan, s, systems),

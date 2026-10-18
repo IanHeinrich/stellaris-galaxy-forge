@@ -111,6 +111,14 @@ export function BulkActions({
           itemRole={itemRole}
         />
       )}
+      {selection.length === 2 && (
+        <SwapSystemsButton
+          a={selection[0]}
+          b={selection[1]}
+          dismiss={dismiss}
+          itemRole={itemRole}
+        />
+      )}
       {canCreate && selection.length === 3 && (
         <MarauderClanButton ids={selection} dismiss={dismiss} itemRole={itemRole} />
       )}
@@ -242,6 +250,33 @@ export function WormholePairButton({
       }}
     >
       {action === "link" ? "Link as wormhole pair" : "Unlink wormhole pair"}
+    </button>
+  );
+}
+
+/** Swaps the two selected systems; each place keeps its hyperlanes. */
+function SwapSystemsButton({
+  a,
+  b,
+  dismiss,
+  itemRole,
+}: {
+  a: number;
+  b: number;
+  dismiss?: () => void;
+  itemRole?: "menuitem";
+}) {
+  const swapSystems = useEditorStore((s) => s.swapSystems);
+  return (
+    <button
+      type="button"
+      role={itemRole}
+      onClick={() => {
+        dismiss?.();
+        void swapSystems(a, b);
+      }}
+    >
+      Swap systems
     </button>
   );
 }

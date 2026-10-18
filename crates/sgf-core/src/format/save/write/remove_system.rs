@@ -17,7 +17,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::as_u32;
-use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::DEFAULT_SYSTEM_HEIGHT;
 use crate::entity::views::EntityKind;
@@ -28,15 +27,13 @@ use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::fleets::{move_fleet, present_fleets};
 use crate::format::save::write::footprint::{Footprints, is_bare};
 use crate::format::save::write::initializer_counter::{self, counted};
-use crate::format::save::write::lanes::remove_entries;
+use crate::format::save::write::lanes::{remove_entries, retarget_entries};
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::{check_version, entity, system_statement};
 use crate::keys;
 use crate::ops::rules::each_once;
 use crate::ops::rules::named;
-use crate::ops::{
-    Edit, LaneLength, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemHeight,
-};
+use crate::ops::{LaneLength, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemHeight};
 use crate::overlay::Anchor;
 use crate::plural;
 use crate::projections::galaxy::lane_length;
@@ -250,28 +247,6 @@ fn rewrite_lanes(
                 .ok_or_else(|| edit.parse_error(0, "the system has no key"))?;
             edit.replace_span(key, new.to_string());
         }
-    }
-    Ok(())
-}
-
-/// Rewrite the `to` of every lane entry naming a renumbered system.
-fn retarget_entries(edit: &mut Edit, renumber: &BTreeMap<u32, u32>) -> Result<(), OpError> {
-    let Some(block) = edit.hyperlane()? else {
-        return Ok(());
-    };
-    let mut splices = Vec::new();
-    for entry in block.children() {
-        let Some(&new) = edit.lane_to(entry).and_then(|to| renumber.get(&to)) else {
-            continue;
-        };
-        let span = entry
-            .find(keys::TO, &edit.buf)
-            .and_then(Node::scalar_span)
-            .ok_or_else(|| edit.parse_error(entry.span().start, "lane entry has no to"))?;
-        splices.push((span, new));
-    }
-    for (span, new) in splices {
-        edit.replace_span(span, new.to_string());
     }
     Ok(())
 }

@@ -1,12 +1,14 @@
 //! Hyperlanes: the `add_hyperlane` statements that link two systems and the
 //! `prevent_hyperlane` statements that bar the generator from linking them.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{erase, index, lane_indent, matching, undirected};
-use crate::cst;
+use crate::cst::{self, Node};
+use crate::emit::quoted;
 use crate::format::scenario::emit::{hyperlane_stmt, prevent_hyperlane_stmt};
 use crate::format::scenario::index::LaneStmt;
+use crate::keys::scenario as keys;
 use crate::ops::rules::lanes as lane_rules;
 use crate::ops::rules::named;
 use crate::ops::{Emitted, LanePair, Op, OpError, Plan, Planned, projected_lane};
@@ -64,6 +66,43 @@ pub(super) fn add_lane_pairs(
             lanes: pairs.iter().map(|l| (l.a, l.b)).collect(),
         },
     })
+}
+
+/// Write each end of the hyperlane statement `stmt` that names a key of `renamed` as the id
+/// it maps to, in place and quoted as it was.
+pub(super) fn rename_ends(
+    plan: &mut Plan,
+    s: &Session,
+    stmt: &LaneStmt,
+    renamed: &BTreeMap<u32, u32>,
+) -> Result<(), OpError> {
+    let edit = plan.edit_statement(&s.doc, stmt.anchor, (stmt.from, stmt.to))?;
+    let mut splices = Vec::new();
+    for key in [keys::FROM, keys::TO] {
+        let span = edit
+            .entity()?
+            .find(key, &edit.buf)
+            .and_then(Node::scalar_span)
+            .ok_or_else(|| edit.parse_error(0, format!("the lane has no {key}")))?;
+        let text = edit.text(span);
+        let Some(&new) = text
+            .trim_matches('"')
+            .parse::<u32>()
+            .ok()
+            .and_then(|id| renamed.get(&id))
+        else {
+            continue;
+        };
+        let written = match text.starts_with('"') {
+            true => quoted(&new.to_string()),
+            false => new.to_string(),
+        };
+        splices.push((span, written));
+    }
+    for (span, written) in splices {
+        edit.replace_span(span, written);
+    }
+    Ok(())
 }
 
 /// One `add_hyperlane` statement per pair, refusing a pair the graph already links and a

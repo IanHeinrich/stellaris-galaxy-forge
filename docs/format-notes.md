@@ -1281,7 +1281,10 @@ reads none of them. The save loads, validates and round-trips
 byte-identically with no change to the reader.
 
 - `galactic_object.<id>.arm=<0..2>` names the system's spiral arm. 590
-  of the sample's 601 systems have it.
+  of the sample's 601 systems have it. It comes after `hyperlane` and
+  `bypasses` and before `flags`. The 11 without it are the
+  script-spawned systems 590 to 600. A swap trades two systems' `arm`
+  values, because the arm belongs to the place.
 - The `galaxy.design` block is gone.
 - `fleet.<id>.settings` is renamed `properties`.
 - `pop_groups` is restructured.

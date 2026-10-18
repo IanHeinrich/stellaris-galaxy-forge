@@ -122,6 +122,17 @@ impl Plan {
         self.subject(doc, Subject::Nebula(index))
     }
 
+    /// The edit for the standalone statement at `anchor` joining `ends`, loading and parsing
+    /// it on first use.
+    pub fn edit_statement(
+        &mut self,
+        doc: &Document,
+        anchor: Anchor,
+        ends: (u32, u32),
+    ) -> Result<&mut Edit, OpError> {
+        self.subject(doc, Subject::Statement { anchor, ends })
+    }
+
     /// The edit for one header statement, loading and parsing it on first use.
     pub fn edit_header(&mut self, doc: &Document, anchor: Anchor) -> Result<&mut Edit, OpError> {
         self.subject(doc, Subject::Header(anchor))

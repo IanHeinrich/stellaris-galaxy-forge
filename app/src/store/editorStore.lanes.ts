@@ -32,6 +32,7 @@ type LaneActions = Pick<
   | "preventLanesToSelected"
   | "allowLanesToSelected"
   | "isolateSelected"
+  | "swapSystems"
   | "resetSelectedLaneLengths"
 >;
 
@@ -132,6 +133,10 @@ export function laneActions(
           allowOp(preventedTo(systems(), from, selection).map((id) => pairOf(from, id))),
         false,
       );
+    },
+
+    swapSystems(system, other) {
+      return get().applyOp({ type: "SwapSystems", system, with: other });
     },
 
     async isolateSelected() {

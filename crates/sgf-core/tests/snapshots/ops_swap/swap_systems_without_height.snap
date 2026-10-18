@@ -1,0 +1,113 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Swapped Aspharelle #592 and Ophala #593
+inverse: SwapSystems { system: 592, with: 593 }
+
+--- gamestate
++++ gamestate
+@@ -70820,10 +70820,9 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=307.92199
+-			y=-356.80112
++			x=365.50186
++			y=-423.52114
+ 			origin=4294967295
+-			visual_height=4.31213
+ 		}
+ 		name=
+ 		{
+@@ -70840,25 +70839,6 @@
+ 		planet=6234
+ 		planet=6235
+ 		star_class="sc_g"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=594
+-				length=16.7022
+-			}
+- 
+-			{
+-				to=599
+-				length=15.69152
+-			}
+- 
+-			{
+-				to=600
+-				length=15.8962
+-			}
+- 
+-		}
+ 		flags=
+ 		{
+ 			chosen_system=62808000
+@@ -70888,9 +70868,10 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=365.50186
+-			y=-423.52114
++			x=307.92199
++			y=-356.80112
+ 			origin=4294967295
++			visual_height=4.31213
+ 		}
+ 		name=
+ 		{
+@@ -70912,6 +70893,25 @@
+ 			351 
+ 		}
+ 		star_class="sc_g"
++		hyperlane=
++		{
++			
++			{
++				to=594
++				length=16.7022
++			}
++ 
++			{
++				to=599
++				length=15.69152
++			}
++ 
++			{
++				to=600
++				length=15.8962
++			}
++ 
++		}
+ 		asteroid_belts=
+ 		{
+ 			
+@@ -70981,7 +70981,7 @@
+ 			}
+  
+ 			{
+-				to=592
++				to=593
+ 				length=16.7022
+ 			}
+  
+@@ -71298,7 +71298,7 @@
+ 		{
+ 			
+ 			{
+-				to=592
++				to=593
+ 				length=15.69152
+ 			}
+  
+@@ -71367,7 +71367,7 @@
+ 		{
+ 			
+ 			{
+-				to=592
++				to=593
+ 				length=15.8962
+ 			}

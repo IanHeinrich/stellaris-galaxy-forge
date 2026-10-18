@@ -52,7 +52,7 @@ fn height_text(height: f64) -> String {
 /// Makes the system's `coordinate.visual_height` read `text`: rewritten where it is
 /// written, put after the last key of `coordinate` where it is not, and taken out for
 /// `None`.
-fn write_height(edit: &mut Edit, text: Option<&str>) -> Result<(), OpError> {
+pub(crate) fn write_height(edit: &mut Edit, text: Option<&str>) -> Result<(), OpError> {
     let coordinate = edit
         .entity()?
         .find(keys::COORDINATE, &edit.buf)

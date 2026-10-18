@@ -1,0 +1,120 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Swapped Lavis system #0 and Impal Tov #398
+inverse: SwapSystems { system: 0, with: 398 }
+
+--- gamestate
++++ gamestate
+@@ -36515,8 +36515,8 @@
+ galactic_object={
+ 	0={
+ 		coordinate={
+-			x=118.4
+-			y=179.15
++			x=155.22
++			y=170.6
+ 			origin=4294967295
+ 			randomized=yes
+ 		}
+@@ -36548,12 +36548,17 @@
+ 				length=37
+ 			}
+  {
+-				to=386
+-				length=19
++				to=185
++				length=28
++			}
++ {
++				to=482
++				length=27
+ 			}
+  {
+-				to=248
+-				length=14
++				to=51
++				length=35
++				bridge=yes
+ 			}
+  
+ 		}
+@@ -40143,7 +40148,7 @@
+ 				length=25
+ 			}
+  {
+-				to=398
++				to=0
+ 				length=35
+ 				bridge=yes
+ 			}
+@@ -49023,7 +49028,7 @@
+ 		star_class="sc_m"
+ 		hyperlane={
+ 			{
+-				to=398
++				to=0
+ 				length=28
+ 			}
+  {
+@@ -53057,7 +53062,7 @@
+ 				length=27
+ 			}
+  {
+-				to=0
++				to=398
+ 				length=14
+ 			}
+  
+@@ -61993,7 +61998,7 @@
+ 				length=23
+ 			}
+  {
+-				to=0
++				to=398
+ 				length=19
+ 			}
+  
+@@ -62716,8 +62721,8 @@
+ 	}
+ 	398={
+ 		coordinate={
+-			x=155.22
+-			y=170.6
++			x=118.4
++			y=179.15
+ 			origin=4294967295
+ 			randomized=yes
+ 		}
+@@ -62743,17 +62748,12 @@
+ 				length=37
+ 			}
+  {
+-				to=185
+-				length=28
++				to=386
++				length=19
+ 			}
+  {
+-				to=482
+-				length=27
+-			}
+- {
+-				to=51
+-				length=35
+-				bridge=yes
++				to=248
++				length=14
+ 			}
+  
+ 		}
+@@ -68276,7 +68276,7 @@
+ 				length=31
+ 			}
+  {
+-				to=398
++				to=0
+ 				length=27
+ 			}
+  {

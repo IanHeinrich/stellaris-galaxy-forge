@@ -56,6 +56,19 @@ pub enum Op {
     MoveSystems {
         moves: Vec<SystemMove>,
     },
+    /// Two systems trade places on the map. Each spot keeps its lanes, with their lengths
+    /// and bridge flags, so a lane between the two stays; everything else a system holds
+    /// goes with it. A save swaps the `coordinate` x, y and `visual_height`, the `arm` and
+    /// the `hyperlane` blocks, names `with` for `system` and `system` for `with` in every
+    /// other system's lane entries, and keeps the nebula member lists in step as
+    /// [`Op::MoveSystems`] does. A scenario swaps the two `position` values and the ends of
+    /// every `add_hyperlane` and `prevent_hyperlane` naming either. The same system twice
+    /// and an unknown system are refused. Its own inverse, followed in a save by the
+    /// [`Op::SetNebulaFootprints`] that puts back the footprints its member changes took.
+    SwapSystems {
+        system: u32,
+        with: u32,
+    },
     /// Several unrelated lanes as one op, each system's new entries written together. A lane
     /// listed twice, either way round, is refused. It is what [`Op::RemoveLanePairs`] and
     /// [`Op::IsolateSystems`] invert to.
@@ -1077,6 +1090,7 @@ impl Op {
             | Self::RemoveLanes { .. }
             | Self::IsolateSystem { .. }
             | Self::MoveSystems { .. }
+            | Self::SwapSystems { .. }
             | Self::AddLanePairs { .. }
             | Self::RemoveLanePairs { .. }
             | Self::IsolateSystems { .. }
