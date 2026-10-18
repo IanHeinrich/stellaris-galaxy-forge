@@ -8,7 +8,14 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { floatPlace, opensUp, popupPlace, type Across, type Down } from "./iconPickerPlace";
+import {
+  floatAcross,
+  floatPlace,
+  opensUp,
+  popupPlace,
+  type Across,
+  type Down,
+} from "./iconPickerPlace";
 import { listStep } from "./gridKeys";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
@@ -136,9 +143,13 @@ function fitPopup(popup: HTMLElement, picker: HTMLElement) {
 /** The space between a floating popup and its picker. */
 const POPUP_GAP_PX = 4;
 
+/** The widest a floating popup grows to fit its rows. */
+const FLOAT_WIDTH_CAP_PX = 420;
+
 /**
- * Floats `popup` over everything, fixed to the window beside `picker`: on the side with room, no
- * taller than the window leaves there, so opening it never grows or scrolls a box around it.
+ * Floats `popup` over everything, fixed to the window beside `picker`: as wide as its rows need
+ * and no narrower than the picker, and on the side with room, no taller than the window leaves
+ * there, so opening it never grows or scrolls a box around it.
  */
 function floatPopup(popup: HTMLElement, picker: HTMLElement) {
   const { style } = popup;
@@ -147,28 +158,24 @@ function floatPopup(popup: HTMLElement, picker: HTMLElement) {
     margin: "0",
     right: "auto",
     bottom: "auto",
+    left: "0",
+    width: "",
     maxHeight: "",
-    minWidth: "",
-    maxWidth: "",
   });
   popup.classList.remove("up");
   const box = picker.getBoundingClientRect();
+  const across = {
+    left: POPUP_EDGE_PX,
+    right: document.documentElement.clientWidth - POPUP_EDGE_PX,
+  };
+  const place = floatAcross(box, popup.offsetWidth, across, FLOAT_WIDTH_CAP_PX);
+  style.width = `${place.width}px`;
+  style.left = `${place.left}px`;
   const view = { top: 0, bottom: window.innerHeight };
   const { up, maxHeight } = floatPlace(box, popup.offsetHeight, view, POPUP_GAP_PX, POPUP_EDGE_PX);
   style.maxHeight = `${maxHeight}px`;
   const height = Math.min(popup.offsetHeight, maxHeight);
   style.top = `${up ? box.top - POPUP_GAP_PX - height : box.bottom + POPUP_GAP_PX}px`;
-  const across = {
-    left: POPUP_EDGE_PX,
-    right: document.documentElement.clientWidth - POPUP_EDGE_PX,
-  };
-  const { edge, maxWidth } = popupPlace(box, across, popup.offsetWidth);
-  if (maxWidth !== null) {
-    style.minWidth = "0";
-    style.maxWidth = `${maxWidth}px`;
-  }
-  const width = Math.min(popup.offsetWidth, maxWidth ?? Infinity);
-  style.left = `${edge === "left" ? box.left : box.right - width}px`;
 }
 
 /**
@@ -319,7 +326,13 @@ export function IconPicker({
 
   const listbox = (
     <ul
-      className={filtered ? "icon-picker-list" : "icon-picker-pop pop-surface"}
+      className={
+        filtered
+          ? "icon-picker-list"
+          : floating
+            ? "icon-picker-pop icon-picker-floating pop-surface"
+            : "icon-picker-pop pop-surface"
+      }
       id={listId}
       role="listbox"
       aria-label={label}
@@ -366,7 +379,14 @@ export function IconPicker({
       {open &&
         !disabled &&
         (filtered ? (
-          <div className="icon-picker-pop icon-picker-filtered pop-surface" ref={filteredPop}>
+          <div
+            className={
+              floating
+                ? "icon-picker-pop icon-picker-filtered icon-picker-floating pop-surface"
+                : "icon-picker-pop icon-picker-filtered pop-surface"
+            }
+            ref={filteredPop}
+          >
             <FilterField
               label={`Filter ${items.length} choices`}
               value={query}

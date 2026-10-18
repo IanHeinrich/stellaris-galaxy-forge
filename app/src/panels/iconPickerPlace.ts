@@ -67,3 +67,20 @@ export function floatPlace(
   if (height <= above) return { up: true, maxHeight: above };
   return above > below ? { up: true, maxHeight: above } : { up: false, maxHeight: below };
 }
+
+/** Where a floating popup sits across the window: its left edge and its width. */
+export interface FloatAcross {
+  left: number;
+  width: number;
+}
+
+/**
+ * Where a floating popup that wants `width` sits across `box`, the window: at least as wide as
+ * `picker`, at most `cap` and the box, from the picker's left edge, shifted left where it would
+ * run off the box's right edge.
+ */
+export function floatAcross(picker: Across, width: number, box: Across, cap: number): FloatAcross {
+  const widest = Math.max(0, Math.min(cap, box.right - box.left));
+  const wide = Math.min(Math.max(width, picker.right - picker.left), widest);
+  return { left: Math.max(box.left, Math.min(picker.left, box.right - wide)), width: wide };
+}

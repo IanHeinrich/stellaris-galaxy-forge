@@ -86,6 +86,33 @@
   overflow: hidden;
 }
 
+/* A floating popup is sized in script to its rows, from its picker's width to a cap. Names keep
+   to a line, and a row's tags sit after the name or wrap under it, none cut off. */
+.icon-picker-pop.icon-picker-floating {
+  min-width: 0;
+  max-width: none;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+.icon-picker-floating .icon-picker-option {
+  flex-wrap: wrap;
+  padding-block: 3px;
+}
+
+.icon-picker-floating .icon-picker-label {
+  flex: 0 1 auto;
+}
+
+.icon-picker-floating .icon-picker-note {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
 .icon-picker-filtered > .filter-input {
   flex: none;
 }
