@@ -320,6 +320,20 @@
   justify-self: start;
 }
 
+/* A button or strip that is the whole row, such as a block's one command. */
+.edit-grid > .edit-wide {
+  grid-column: 1 / -1;
+}
+
+.edit-grid > button.edit-wide {
+  width: 100%;
+  text-align: left;
+}
+
+.edit-cell > .segmented button {
+  flex: 1 1 0;
+}
+
 .edit-note {
   font-size: var(--text-hint);
   line-height: 1.4;
@@ -538,13 +552,6 @@
   color: var(--warn);
 }
 
-.height-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-
 .height-strip {
   width: 100%;
   max-width: 300px;
@@ -582,10 +589,6 @@
   flex: 1;
   width: auto;
   text-align: center;
-}
-
-.height-hint {
-  font-size: var(--text-hint);
 }
 
 button.link.help-link {

@@ -446,7 +446,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...INITIAL,
     fitNonce: 0,
     fitSelectionNonce: 0,
-    rotateNebulae: false,
+    rotateNebulae: true,
     ...edits.actions,
     ...nebulaActions(set, get, edits.runEdit),
     ...laneActions(set, get),

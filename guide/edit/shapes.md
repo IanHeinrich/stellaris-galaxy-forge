@@ -268,8 +268,9 @@ Arrange moves systems you already have onto a shape, such as a ring of
 systems you painted by hand.
 
 1. Select the systems.
-2. Right-click one of them and pick Arrange…. The button is also with the
-   other selection actions in the inspector.
+2. Right-click one of them and pick Arrange…. The Inspector has the same
+   action as "Arrange in a shape…" in the Shape block of its Position
+   section.
 3. Adjust the shape. It starts centred where you right-clicked and sized
    to fit the selection. The first time it is a circle. After that it is
    the last shape you arranged into.

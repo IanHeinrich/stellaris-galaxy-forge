@@ -91,7 +91,7 @@ describe("a drag on the rotate handle", () => {
         systems: [1, 2, 3],
         pivot: [gizmo.pivot.x, gizmo.pivot.y],
         degrees: expect.closeTo(30, 4),
-        nebulae: false,
+        nebulae: true,
       },
     ]);
   });
@@ -109,7 +109,7 @@ describe("a drag on the rotate handle", () => {
         systems: [1, 2, 3],
         pivot: [gizmo.pivot.x, gizmo.pivot.y],
         degrees: 45,
-        nebulae: false,
+        nebulae: true,
       },
     ]);
   });

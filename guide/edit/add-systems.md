@@ -132,9 +132,11 @@ To add many at once, use the [Paint systems brush](brushes.md#paint-and-erase-sy
 In a save, you can delete only the systems you added since you opened
 the file. To delete one, select it and press
 <kbd>Delete</kbd>, or right-click it and select "Delete system". To
-delete several, select them, right-click one and select "Delete N added
+delete several, select them and click "Delete N added systems" at the
+bottom of the Inspector, or right-click one and select "Delete N added
 systems".
 Systems the save already had can't be deleted.
 
-In a scenario, select systems and press <kbd>Delete</kbd> to remove
+In a scenario, select systems and press <kbd>Delete</kbd>, or click
+"Delete N systems" at the bottom of the Inspector, to remove
 them.

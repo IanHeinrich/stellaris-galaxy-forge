@@ -437,14 +437,65 @@ button.link.ins-drill:hover {
   width: 72px;
 }
 
-/* The angle's Enter wrapper sits between the cell and the field, so it passes the row's width on. */
+/* The angle's Enter wrapper holds the field and its Rotate button, so it passes the row's width on. */
 .rotate-angle {
   display: flex;
+  gap: 6px;
 }
 
 .rotate-angle > .edit-field {
   flex: 1;
   min-width: 0;
+}
+
+/* The quarter and half turns, one row across the block. */
+.rotate-turns {
+  display: flex;
+  gap: 4px;
+}
+
+.rotate-turns button {
+  flex: 1 1 0;
+  white-space: nowrap;
+}
+
+.rotate-pivot {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--fg-muted);
+}
+
+.rotate-pivot button.link {
+  padding: 0 2px;
+  color: var(--fg);
+  text-decoration: underline;
+}
+
+.lane-density {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-hint);
+}
+
+.lane-density input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Deleting the selection, under a rule at the foot of the page. */
+.ins-delete {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.ins-delete button {
+  width: 100%;
+  text-align: left;
+  color: var(--warn);
 }
 
 .ins-random-name {

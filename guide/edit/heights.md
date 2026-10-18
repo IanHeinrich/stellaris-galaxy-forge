@@ -18,8 +18,9 @@ the slider. Click Flat to put the height back to 0.
 ## Change several systems at once
 
 With several systems selected, the Inspector shows a strip of their
-heights. Set to, Raise by and Lower by change them all, and Flatten
-puts them back at 0.
+heights. The Height block in its Position section changes them all: pick
+Set to, Raise by or Lower by, type a value and click Apply. Flatten puts
+them back at 0.
 
 ## Shape heights with the Height brush
 

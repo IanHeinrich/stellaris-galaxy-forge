@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { typedNumber } from "../lib/text";
-import { IconPicker, type IconPickerItem } from "./IconPicker";
+import { IconPicker, PickerTrigger, type IconPickerItem } from "./IconPicker";
 import { useDraft } from "./useDraft";
 import "./panels.css";
 
@@ -116,6 +116,27 @@ export function PickerField({
       onOpen={onOpen}
       onActive={onActive}
       onPick={onPick}
+    />
+  );
+}
+
+/** A choice made in a dialog of its own: a picker's button that opens the dialog, not a list. */
+export function DialogField({
+  label,
+  text,
+  title,
+  disabledReason,
+  onOpen,
+}: FieldBase & { text: string; title?: string; onOpen: () => void }) {
+  return (
+    <PickerTrigger
+      className="edit-field"
+      popup="dialog"
+      label={label}
+      current={{ key: "", label: text }}
+      title={disabledReason ?? title}
+      disabled={disabledReason !== undefined}
+      onClick={onOpen}
     />
   );
 }

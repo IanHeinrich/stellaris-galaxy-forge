@@ -1,7 +1,7 @@
 ---
 title: Hyperlanes
-description: Draw and cut hyperlanes, connect several systems at once, join a split galaxy and fix lane lengths.
-aliases: [lanes, connections, link systems, connect systems, cut lane, remove lane, isolate, join, mesh, prevent lane, lane length]
+description: Draw and cut hyperlanes, link several selected systems at once, join a split galaxy and fix lane lengths.
+aliases: [lanes, connections, link systems, connect systems, connect nearby systems, link every pair, every pair, nearby, add lanes, cut lane, remove lane, isolate, join, mesh, prevent lane, lane length]
 ---
 # Hyperlanes <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -26,19 +26,29 @@ Right-clicking a lane also offers Cut.
 
 ![The right-click menu on the system Xraneax in a save, with Open system view and Isolate](../images/edit/system-menu-save.png)
 
-## Connect or cut several systems at once
+## Link or cut several systems at once
 
-With several systems selected, the Inspector offers "Connect to each
-other", "Connect as mesh" and "Cut hyperlanes between".
+With two or more systems selected, the Inspector's Hyperlanes section has
+an Add lanes block and a Remove lanes block.
 
-"Connect to each other" links every selected system to every other one.
-It works on up to 5 systems. "Connect as mesh" links each system only to
-its near neighbours, so it suits a large selection. Its Mesh density
-slider sets how many lanes it adds. The left end lays the fewest lanes,
-and the new lanes form no loops of their own. At the right end, each
-system links to every neighbour. Tick Generate lanes like the game to
-link the selection in small clusters joined by single lanes, as the game
-does, instead of an even mesh. Point at the row to preview the new lanes on the map.
+In Add lanes, the Link choice sets which lanes the button adds. Every
+pair links each selected system to every other one, and works on up to 5
+systems. Nearby connects each system to the systems near it, so it suits
+a large selection. Its Density slider sets how many lanes it adds. The
+left end lays the fewest lanes, and the new lanes form no loops of their
+own. At the right end, each system links to every neighbour. Like the game is
+ticked by default. It links the selection in small clusters joined by
+single lanes, as the game does. Untick it for an even spread of lanes.
+Point at the "Add N lanes" button to preview the new lanes on the map.
+
+Remove lanes has "Cut lanes between them" and "Isolate them". Cut lanes
+removes only the lanes that join two selected systems. Isolate removes
+every lane from each selected system, including lanes to systems outside
+the selection. Each button shows how many lanes or systems it changes.
+
+The right-click menu on a selected system has the same actions: "Link
+every pair", "Link nearby", "Cut lanes between them" and "Isolate them".
+Each shows a count in brackets.
 
 ## Join a split galaxy
 
@@ -52,7 +62,8 @@ The game uses a hyperlane's stored length as its travel cost. A lane's
 page marks the length with "!" when it doesn't match the distance
 between its systems. Click "Reset length" on the lane's page, or right-click
 the lane and select "Reset length". Either sets the length to that
-distance.
+distance. With several systems selected, "Reset lane lengths" in the
+Inspector's Hyperlanes section resets the lanes of those systems whose length is off.
 
 ## Prevent a lane <Badge type="info" text="Scenario" />
 

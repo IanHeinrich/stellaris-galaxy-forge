@@ -14,5 +14,5 @@ Star type and Size there.
 
 ## Change the star class of several systems
 
-With several systems selected, the Star class action applies one class
-to all of them.
+With several systems selected, the Stars block under "Set for all" in the
+Inspector applies one star class to all of them.

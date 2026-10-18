@@ -25,7 +25,7 @@ describe("rotating the selection", () => {
 
     expect(await editor().rotateSelection(90)).toBe(true);
     expect(sent()).toEqual([
-      { type: "RotateSystems", systems: [0, 3], pivot: [10, 0], degrees: 90, nebulae: false },
+      { type: "RotateSystems", systems: [0, 3], pivot: [10, 0], degrees: 90, nebulae: true },
     ]);
     expect(editor().rotatePivot).toEqual({ x: 10, y: 0 });
   });
@@ -37,8 +37,8 @@ describe("rotating the selection", () => {
     await editor().rotateSelection(90);
     await editor().rotateSelection(30);
     expect(sent()).toEqual([
-      { type: "RotateSystems", systems: [0, 2], pivot: [10, 5], degrees: 90, nebulae: false },
-      { type: "RotateSystems", systems: [0, 2], pivot: [10, 5], degrees: 30, nebulae: false },
+      { type: "RotateSystems", systems: [0, 2], pivot: [10, 5], degrees: 90, nebulae: true },
+      { type: "RotateSystems", systems: [0, 2], pivot: [10, 5], degrees: 30, nebulae: true },
     ]);
     expect(editor().rotatePivot).toBeNull();
   });
@@ -59,20 +59,20 @@ describe("rotating the selection", () => {
       systems: [0, 2, 4],
       pivot: [expect.closeTo(60, 4), expect.closeTo(-20 / 3, 4)],
       degrees: 30,
-      nebulae: false,
+      nebulae: true,
     });
   });
 
-  it("asks for the nebulae in the selection's hull only with rotateNebulae on", async () => {
+  it("asks for the nebulae in the selection's hull unless rotateNebulae is off", async () => {
     await editor().setSelection([0, 3, 4], "replace");
 
     await editor().rotateSelection(90);
-    editor().setRotateNebulae(true);
+    editor().setRotateNebulae(false);
     await editor().rotateSelection(90);
 
     expect(sent().map((op) => (op as Extract<Op, { type: "RotateSystems" }>).nebulae)).toEqual([
-      false,
       true,
+      false,
     ]);
   });
 
