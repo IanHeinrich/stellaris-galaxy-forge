@@ -776,7 +776,9 @@ for planets or deposits.
 - A relay's bypass row `connections` lists the relay bypasses of the
   systems its hyperlanes lead to, in numeric order, and
   `active_connections` lists the same ids; a relay with none has neither
-  block. A gateway's lists every other gateway bypass. Ruined gateways
+  block. On load, 4.5.2 rebuilds a relay's `connections` from its lanes:
+  after a swap of two relay systems the game's re-save lists each
+  relay's new neighbours. A gateway's lists every other gateway bypass. Ruined gateways
   have `active=no` and no `active_connections`. A gateway type whose
   `on_build_complete` runs `activate_gateway` is active once built.
   The game fills in `lock_country`, `lock_remaining_days` and
