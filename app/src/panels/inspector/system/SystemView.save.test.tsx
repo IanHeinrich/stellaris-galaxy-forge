@@ -472,9 +472,10 @@ describe("a system added this session", () => {
     initializer: string,
     bodies: string[],
     filed: [string, FiledClass][] = [],
+    starClass = "sc_m",
   ): Promise<string> {
     const added = {
-      star_class: "sc_m",
+      star_class: starClass,
       added: true,
       initializer,
       bodies: [...bodies, "pc_barren"].map((cls) => ({ class: cls, size: 10 })),
@@ -533,7 +534,7 @@ describe("a system added this session", () => {
 
     picker("Star 2").onPick("pc_k_star");
     await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(1));
-    picker("Map icon").onPick(null);
+    picker("Map icon").onPick("sc_black_hole");
     await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(2));
     picker("Arrangement").onPick("trinary_1");
     await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(3));
@@ -542,6 +543,41 @@ describe("a system added this session", () => {
       [SYSTEM, built("binary_2", ["pc_black_hole", "pc_k_star"], "sc_m")],
       [SYSTEM, built("binary_2", ["pc_black_hole", "pc_m_star"], null)],
       [SYSTEM, built("trinary_1", ["pc_black_hole", "pc_m_star", "pc_black_hole"], "sc_m")],
+    ]);
+  });
+
+  it("names the map icon by its class alone, the automatic one clearing the choice and another setting it", async () => {
+    const filed: [string, FiledClass][] = [
+      ["pc_black_hole+pc_m_star", { kind: "filed", starClass: "sc_black_hole" }],
+    ];
+    const fileable = () => {
+      const { starClasses } = useGameDataStore.getState();
+      useGameDataStore.setState({
+        starClasses: new Map([...starClasses].map(([k, v]) => [k, { ...v, fileable: true }])),
+      });
+    };
+    await openAdded("binary_2", BLACK_HOLE_AND_M, filed, "sc_black_hole");
+    fileable();
+    const html = overview();
+    expect(html).not.toContain("(automatic)");
+    expect(html).toMatch(/aria-label="Map icon: sc_black_hole"/);
+    const items = (picker("Map icon") as unknown as { items: { key: string }[] }).items;
+    expect(items.map((i) => i.key).sort()).toEqual(["sc_black_hole", "sc_m"]);
+
+    picker("Map icon").onPick("sc_m");
+    await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(1));
+    expect(sentPicks()).toEqual([
+      [SYSTEM, built("binary_2", ["pc_black_hole", "pc_m_star"], "sc_m")],
+    ]);
+
+    await openAdded("binary_2", BLACK_HOLE_AND_M, filed, "sc_m");
+    fileable();
+    overview();
+    picker("Map icon").onPick("sc_black_hole");
+    await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(2));
+    expect(sentPicks()[1]).toEqual([
+      SYSTEM,
+      built("binary_2", ["pc_black_hole", "pc_m_star"], null),
     ]);
   });
 

@@ -173,6 +173,54 @@ describe("the builder", () => {
     expect(slots()).toEqual(["pc_m_star", "pc_k_star"]);
   });
 
+  it("names the map icon by its class alone, the automatic one clearing the choice and another setting it", async () => {
+    const { starClasses } = useGameDataStore.getState();
+    useGameDataStore.setState({
+      starClasses: new Map(
+        [...starClasses].map(([k, v]) => [
+          k,
+          {
+            ...v,
+            fileable: true,
+            modifiers: k === "sc_a" ? [{ key: "slow", name: "Sublight Speed Reduction" }] : [],
+          },
+        ]),
+      ),
+    });
+    await openBuilder();
+    builder().setLayout(PAIR.layout);
+    await until(() => expect(useGeneratorStore.getState().filed.size).toBeGreaterThan(0));
+    const label = "Shows on the galaxy map as";
+    const html = render();
+    expect(html).not.toContain("(automatic)");
+    expect(html).toMatch(new RegExp(`aria-label="${label}: [^"]*"`));
+    const pick = lastDrawn(
+      ({ props }) => props.label === label && typeof props.onPick === "function",
+      label,
+    ) as { items: { key: string }[]; current: { key: string }; onPick(key: string): void };
+    expect(pick.items.map((i) => i.key)).toEqual([
+      "sc_a",
+      "sc_black_hole",
+      "sc_pair_mk",
+      "sc_trio",
+    ]);
+    expect(pick.current.key).toBe("sc_a");
+    expect(pick.current).not.toHaveProperty("note", expect.anything());
+    expect(html).not.toContain("Sublight Speed Reduction");
+    expect(pick.items.find((i) => i.key === "sc_a")).toHaveProperty("note");
+
+    pick.onPick("sc_black_hole");
+    expect(builder().starClass).toBe("sc_black_hole");
+    render();
+    const again = lastDrawn(
+      ({ props }) => props.label === label && typeof props.onPick === "function",
+      label,
+    ) as { current: { key: string }; onPick(key: string): void };
+    expect(again.current.key).toBe("sc_black_hole");
+    again.onPick("sc_a");
+    expect(builder().starClass).toBeNull();
+  });
+
   it("holds the room of the other count's chips, empty, so a pair and a trio are as tall", async () => {
     await openBuilder();
     builder().setLayout(PAIR.layout);

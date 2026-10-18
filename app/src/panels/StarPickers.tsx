@@ -6,8 +6,8 @@ import { IconPicker, type IconPickerItem } from "./IconPicker";
 import { StarArt } from "./StarDiagram";
 import { useStarClassItems } from "./useStarClassItems";
 
-/** The key of the map icon picker's Automatic row: never a star class key. */
-const AUTOMATIC_KEY = "__automatic__";
+/** The map icon picker's choice while the automatic class is still being asked for. */
+const PENDING: IconPickerItem = { key: "__pending__", label: "…" };
 const SLOT_ART_PX = 18;
 
 /** One star slot: every star type, the usual ones first, each with its art. Repeats are allowed. */
@@ -48,7 +48,7 @@ export function StarSlot({
   return (
     <IconPicker
       label={label}
-      title={disabledReason}
+      title={disabledReason ?? current.label}
       disabled={disabledReason !== undefined}
       current={current}
       items={items}
@@ -60,9 +60,11 @@ export function StarSlot({
 }
 
 /**
- * The class a system is filed under, which sets its galaxy map icon: Automatic first, naming the
- * class `automatic` its stars are filed under, then every class, multiple stars named by their
- * stars, a class with effects tagged with its modifiers' names. Picks null for Automatic.
+ * The class a system is filed under, which sets its galaxy map icon: every class, multiple stars
+ * named by their stars, a class with effects tagged with its modifiers' names in the open list
+ * only. The class the
+ * player chose is selected, else the class `automatic` its stars are filed under, so the choice
+ * follows the stars until one is chosen. Picks null for the automatic class, else the class.
  */
 export function MapIconPicker({
   label,
@@ -104,24 +106,19 @@ export function MapIconPicker({
       )),
     };
   });
-  const autoRow = automatic === undefined ? undefined : tagged.find((i) => i.key === automatic);
-  const auto: IconPickerItem = {
-    key: AUTOMATIC_KEY,
-    label: `${autoRow?.label ?? automatic ?? "…"} (automatic)`,
-    icon: autoRow?.icon,
-  };
-  const items = [auto, ...tagged];
-  const current = chosen === null ? auto : (tagged.find((i) => i.key === chosen) ?? auto);
+  const shown = chosen ?? automatic;
+  const chosenRow = tagged.find((i) => i.key === shown);
+  const current = chosenRow === undefined ? PENDING : { ...chosenRow, note: undefined };
   return (
     <IconPicker
       label={label}
-      title={title}
+      title={title ?? current.label}
       disabled={disabled}
       current={current}
-      items={items}
+      items={tagged}
       triggerClassName={triggerClassName}
       floating={floating}
-      onPick={(key) => onPick(key === AUTOMATIC_KEY ? null : key)}
+      onPick={(key) => onPick(key === automatic ? null : key)}
     />
   );
 }

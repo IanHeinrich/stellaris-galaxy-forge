@@ -62,6 +62,17 @@
   border-color: var(--accent);
 }
 
+/* Every dropdown fills the column whatever it shows; a long name ends in an ellipsis. */
+.sb .icon-picker {
+  display: flex;
+  min-width: 0;
+}
+
+.sb .icon-picker > .icon-picker-trigger {
+  flex: 1;
+  min-width: 0;
+}
+
 .sb-slot {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
