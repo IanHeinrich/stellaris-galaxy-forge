@@ -30,6 +30,7 @@ const TITLE = "Build a binary or trinary";
 const NO_PLANETS_LABEL = "No planets";
 const JOIN_LABEL = "Join to nearby systems";
 const MAP_ICON_LABEL = "Shows on the galaxy map as";
+const UNUSED_SLOT = "This arrangement has no third star";
 const PLANETS_NOTE = "Planets are generated to suit the stars you choose.";
 const TILE_PX = 64;
 const TILE_STAR_PX = 14;
@@ -38,9 +39,18 @@ const PREVIEW_STAR_PX = 32;
 
 /**
  * The game's own sets of as many stars as the slots, each a chip named short by its stars that
- * fills them, its full name its title.
+ * fills them, its full name its title. While another count is shown, it holds the room that
+ * count's chips take, empty, so the block is as tall for a pair as for a trio.
  */
-function GameSets({ count, starTypes }: { count: number; starTypes: readonly StarType[] | null }) {
+function GameSets({
+  count,
+  shown,
+  starTypes,
+}: {
+  count: StarCount;
+  shown: boolean;
+  starTypes: readonly StarType[] | null;
+}) {
   const views = useGameDataStore((s) => s.starClasses);
   const fillStars = useStarBuilderStore((s) => s.fillStars);
   const sets = useMemo(
@@ -48,7 +58,7 @@ function GameSets({ count, starTypes }: { count: number; starTypes: readonly Sta
     [views, count],
   );
   const short = useMemo(() => shortStarNames(starTypes ?? []), [starTypes]);
-  if (sets.length === 0 || (count !== 2 && count !== 3)) return null;
+  if (sets.length === 0) return null;
   const chips = sets
     .map((view) => ({
       view,
@@ -56,9 +66,23 @@ function GameSets({ count, starTypes }: { count: number; starTypes: readonly Sta
       full: view.planet_keys.map((key) => starTypeName(starTypes, key)).join(" + "),
     }))
     .sort((a, b) => a.text.localeCompare(b.text));
+  if (!shown) {
+    return (
+      <div className="sb-sets sb-sets-held" aria-hidden="true">
+        <div className="sb-sets-label">&nbsp;</div>
+        <div className="sb-chips">
+          {chips.map(({ view, text }) => (
+            <span key={view.key} className="sb-chip held">
+              {text}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="sb-sets">
-      <div className="muted sb-sets-label">{`The game's ${starSetNoun(count as StarCount).many}`}</div>
+      <div className="muted sb-sets-label">{`The game's ${starSetNoun(count).many}`}</div>
       <div className="sb-chips">
         {chips.map(({ view, text, full }) => (
           <button
@@ -73,6 +97,23 @@ function GameSets({ count, starTypes }: { count: number; starTypes: readonly Sta
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** The game's pairs or trios, whichever the slots call for, in a block as tall for either. */
+function GameSetsStack({
+  count,
+  starTypes,
+}: {
+  count: number;
+  starTypes: readonly StarType[] | null;
+}) {
+  return (
+    <div className="sb-sets-stack">
+      {([2, 3] as const).map((n) => (
+        <GameSets key={n} count={n} shown={n === count} starTypes={starTypes} />
+      ))}
     </div>
   );
 }
@@ -119,7 +160,7 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
   const filed = useGeneratorStore((s) => s.filed);
   const { arrangements, starTypes } = useStarData();
   const reach = useMemo(() => systemReach(arrangements), [arrangements]);
-  const { arrangement, slots } = useMemo(
+  const { arrangement, slots, spare } = useMemo(
     () => builtStars(state.layout, state.stars, arrangements, starTypes),
     [state.layout, state.stars, arrangements, starTypes],
   );
@@ -201,7 +242,20 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
                   />
                 </div>
               ))}
-              <GameSets count={slots.length} starTypes={starTypes} />
+              {spare !== null && (
+                <div className="sb-slot off">
+                  <span className="muted">{slots.length + 1}</span>
+                  <StarSlot
+                    label={`Star ${slots.length + 1}`}
+                    star={spare}
+                    starTypes={starTypes}
+                    triggerClassName="edit-field"
+                    floating
+                    disabledReason={UNUSED_SLOT}
+                    onPick={() => undefined}
+                  />
+                </div>
+              )}
               <h4>{MAP_ICON_LABEL}</h4>
               <MapIconPicker
                 label={MAP_ICON_LABEL}
@@ -242,6 +296,7 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
               )}
               <div className="muted sb-note">{PLANETS_NOTE}</div>
               {refusal && <div className="warn sb-note">{refusal.reason}</div>}
+              <GameSetsStack count={slots.length} starTypes={starTypes} />
             </div>
           </div>
         </DialogFrame>

@@ -70,8 +70,25 @@
   margin: 4px 0;
 }
 
-.sb-sets {
-  margin: 6px 0;
+/* The unused third slot of a pair keeps the panel's height; it shows what a trio would restore. */
+.sb-slot.off {
+  opacity: 0.45;
+}
+
+/* Both counts' chips share one cell, the one not shown invisible, so the block never changes height. */
+.sb-sets-stack {
+  display: grid;
+  align-self: stretch;
+  text-align: left;
+}
+
+.sb-sets-stack > .sb-sets {
+  grid-area: 1 / 1;
+  margin: 0;
+}
+
+.sb-sets-held {
+  visibility: hidden;
 }
 
 .sb-sets-label {
@@ -90,6 +107,20 @@
   font-size: var(--text-fine);
   border: 1px solid var(--border);
   border-radius: 10px;
+}
+
+/* A double click on the tiles, the art or the chips picks nothing, and the art cannot be dragged. */
+.sb-tile,
+.sb-slot > .muted,
+.sb-preview,
+.sb-chip {
+  user-select: none;
+}
+
+.sb img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 .sb-preview {

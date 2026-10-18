@@ -8,6 +8,7 @@ import { nodeName } from "../../../lib/names";
 import { useEditorStore } from "../../../store/editorStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { specialFor, starsKey, useGeneratorStore } from "../../../store/generatorStore";
+import { spareStar } from "../../../store/starBuilderStore";
 import { EditBlock, EditNote, EditRow, PickerField, TextField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { useGeneratorData, useStarData } from "../../useGeneratorData";
@@ -24,6 +25,7 @@ const ROLL_BODIES = "Roll new bodies around the same star class";
 /** The key of the Arrangement picker's single star: never a layout. */
 const ONE_STAR = "__one_star__";
 const ONE_STAR_LABEL = "One star";
+const UNUSED_SLOT = "This arrangement has no third star";
 const READING_CLASS = "Reading which star class these stars are filed under…";
 
 function rebuildsSpecial(label: string): string {
@@ -94,6 +96,7 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
       : known?.kind === "refused"
         ? known.reason
         : READING_CLASS);
+  const spare = built ? spareStar(stars, built.stars, starTypes) : null;
   const offersArrangement = built !== null || stars.length === 1;
   const singles = useMemo(() => singleStarClasses(views), [views]);
 
@@ -188,6 +191,16 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
                   }}
                 />
               ))}
+              {spare !== null && (
+                <StarSlot
+                  label={`Star ${stars.length + 1}`}
+                  star={spare}
+                  starTypes={starTypes}
+                  triggerClassName="edit-field"
+                  disabledReason={UNUSED_SLOT}
+                  onPick={() => undefined}
+                />
+              )}
             </span>
           </EditRow>
           <EditRow label="Map icon">

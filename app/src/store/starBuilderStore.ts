@@ -42,7 +42,10 @@ export interface StarBuilderState {
   perUnit: Pt;
   /** The arrangement chosen; the first one offered while none is, or it is gone. Remembered. */
   layout: string | null;
-  /** The stars chosen, in slot order; `builtStars` fits them to the arrangement. Remembered. */
+  /**
+   * The stars chosen, in slot order, with any past the arrangement's slots kept so a trio's third
+   * star comes back after a pair; `builtStars` fits them to the arrangement. Remembered.
+   */
   stars: string[];
   /** The class the player chose for the galaxy map, or null for the automatic one. */
   starClass: string | null;
@@ -66,6 +69,23 @@ export interface StarBuilderState {
 export interface BuiltView {
   arrangement: Arrangement | null;
   slots: string[];
+  /** The star the unused last slot of a pair shows, greyed; null where every slot is in use. */
+  spare: string | null;
+}
+
+/** The most stars an arrangement has. */
+const MAX_STARS = 3;
+
+/**
+ * The star a pair's unused third slot shows: the third star `stars` still holds, else the first
+ * star's type, as a trio would start with. Null for a trio, which has no unused slot.
+ */
+export function spareStar(
+  stars: readonly string[],
+  count: number,
+  starTypes: readonly StarType[] | null,
+): string | null {
+  return count >= MAX_STARS ? null : fitSlots(stars, MAX_STARS, starTypes)[MAX_STARS - 1];
 }
 
 /** The arrangement `layout` names, or the first offered, and `stars` fitted to its slots. */
@@ -78,8 +98,12 @@ export function builtStars(
   const offered = arrangements ?? [];
   const arrangement =
     (layout === null ? null : arrangementOf(offered, layout)) ?? offered[0] ?? null;
-  if (arrangement === null) return { arrangement, slots: [...stars] };
-  return { arrangement, slots: fitSlots(stars, arrangement.stars, starTypes) };
+  if (arrangement === null) return { arrangement, slots: [...stars], spare: null };
+  return {
+    arrangement,
+    slots: fitSlots(stars, arrangement.stars, starTypes),
+    spare: spareStar(stars, arrangement.stars, starTypes),
+  };
 }
 
 export const useStarBuilderStore = create<StarBuilderState>((set, get) => {
@@ -89,11 +113,15 @@ export const useStarBuilderStore = create<StarBuilderState>((set, get) => {
     return builtStars(layout, stars, arrangements, starTypes);
   }
 
-  /** Keeps `layout` and `stars`, remembers them and asks how the slots are filed. */
+  /**
+   * Keeps `layout` and `stars`, with the stars held past its slots, remembers them and asks how
+   * the slots are filed.
+   */
   function choose(layout: string | null, stars: readonly string[]) {
     const { arrangement, slots } = viewNow(layout, stars);
-    set({ layout: arrangement?.layout ?? layout, stars: slots });
-    if (arrangement !== null) LAST.save({ layout: arrangement.layout, stars: slots });
+    const kept = arrangement === null ? slots : [...slots, ...get().stars.slice(slots.length)];
+    set({ layout: arrangement?.layout ?? layout, stars: kept });
+    if (arrangement !== null) LAST.save({ layout: arrangement.layout, stars: kept });
     useGeneratorStore.getState().fileStars(slots);
   }
 
@@ -124,7 +152,7 @@ export const useStarBuilderStore = create<StarBuilderState>((set, get) => {
     },
 
     setLayout(layout) {
-      choose(layout, viewNow().slots);
+      choose(layout, get().stars);
     },
 
     setStar(index, star) {

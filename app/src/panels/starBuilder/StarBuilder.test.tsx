@@ -113,11 +113,51 @@ describe("the builder", () => {
     expect(slots()).toEqual(["pc_black_hole", "pc_a_star", "pc_k_star"]);
 
     builder().setLayout(COMPANION.layout);
-    expect(slots()).toEqual(["pc_black_hole", "pc_a_star"]);
+    expect(slots().slice(0, 2)).toEqual(["pc_black_hole", "pc_a_star"]);
     expect(JSON.parse(stored.get("sgf.starBuilder.last") ?? "null")).toEqual({
       layout: COMPANION.layout,
-      stars: ["pc_black_hole", "pc_a_star"],
+      stars: ["pc_black_hole", "pc_a_star", "pc_k_star"],
     });
+  });
+
+  it("shows a pair's third slot greyed and disabled, the third star kept for a trio again", async () => {
+    await openBuilder();
+    builder().setLayout(TRIO.layout);
+    builder().setStar(2, "pc_k_star");
+    expect(render()).not.toContain("sb-slot off");
+
+    builder().setLayout(PAIR.layout);
+    const pair = render();
+    expect(pair).toContain('class="sb-slot off"');
+    expect(pair).toMatch(/<button[^>]*aria-label="Star 3: Named pc_k_star"[^>]*disabled=""/);
+    expect(pair).not.toMatch(/<button[^>]*aria-label="Star 2: [^"]*"[^>]*disabled=""/);
+
+    builder().setStar(0, "pc_m_star");
+    builder().setLayout(TRIO.layout);
+    expect(render()).not.toContain("sb-slot off");
+    expect(builder().stars).toEqual(["pc_m_star", "pc_a_star", "pc_k_star"]);
+  });
+
+  it("shows the first star in a pair's third slot where there never was a third", async () => {
+    useStarBuilderStore.setState({ layout: PAIR.layout, stars: ["pc_m_star", "pc_k_star"] });
+    await openBuilder();
+    expect(render()).toMatch(/aria-label="Star 3: Named pc_m_star"[^>]*disabled=""/);
+  });
+
+  it("sends only a pair's two stars on Place and to be filed", async () => {
+    await openBuilder();
+    builder().setLayout(TRIO.layout);
+    builder().setStar(2, "pc_k_star");
+    builder().setLayout(PAIR.layout);
+    render();
+    submit();
+    await until(() => expect(builder().open).toBe(false));
+    expect(mockedIpc.addBuiltSystem.mock.calls[0][3]).toMatchObject({
+      layout: PAIR.layout,
+      stars: ["pc_a_star", "pc_a_star"],
+    });
+    const asked = mockedIpc.fileStarClass.mock.calls.map(([stars]) => stars);
+    expect(asked[asked.length - 1]).toEqual(["pc_a_star", "pc_a_star"]);
   });
 
   it("fills the slots from one of the game's own sets, offered for as many stars", async () => {
@@ -131,6 +171,18 @@ describe("the builder", () => {
     expect(html).toContain('title="Named pc_m_star + Named pc_k_star"');
     drawnButton(chips[0]).onClick();
     expect(slots()).toEqual(["pc_m_star", "pc_k_star"]);
+  });
+
+  it("holds the room of the other count's chips, empty, so a pair and a trio are as tall", async () => {
+    await openBuilder();
+    builder().setLayout(PAIR.layout);
+    const pair = render();
+    expect(pair.match(/class="sb-chip held"/g)).toHaveLength(1);
+    builder().setLayout(TRIO.layout);
+    const trio = render();
+    expect(trio.match(/class="sb-chip held"/g)).toHaveLength(1);
+    expect(trio).toContain("The game&#x27;s trios");
+    expect(trio).not.toContain("The game&#x27;s pairs");
   });
 
   it("asks which class the stars are filed under each time they change", async () => {
