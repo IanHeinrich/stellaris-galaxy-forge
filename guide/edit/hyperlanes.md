@@ -28,8 +28,9 @@ Right-clicking a lane also offers Cut.
 
 ## Link or cut several systems at once
 
-With two or more systems selected, the Inspector's Hyperlanes section has
-an Add lanes block and a Remove lanes block.
+With two or more systems selected, the Inspector's Hyperlanes section can
+add lanes between them or cut them. It has an Add lanes block and a
+Remove lanes block.
 
 In Add lanes, the Link choice sets which lanes the button adds. Every
 pair links each selected system to every other one, and works on up to 5

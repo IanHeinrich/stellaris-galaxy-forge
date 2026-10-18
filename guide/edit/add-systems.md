@@ -50,17 +50,16 @@ belts and notable bodies. Press Place or <kbd>Enter</kbd>, or
 double-click a row, to add it at the spot. If the spot is too close to
 another system, the pane says so and Place is greyed out.
 
-A cluster adds all its members and the lanes between them as one edit,
+A cluster places all its members, joined to each other, as one edit,
 with its first member at the spot. The map shows where each one would
 go, and the pane lists them. Press Shuffle to roll their places again.
 A member that can't go where it was rolled shows red and the pane says
 why. Place stays greyed out until a shuffle or another spot works.
 
-"Join to nearby systems" lays lanes from what you add to its
-neighbours, as a shape's New and nearby lanes do, so it isn't left as
-an island. The map shows those lanes before you place. Untick it to add
-it with no lanes to the rest of the galaxy. The picker remembers your
-choice.
+"Join to nearby systems" connects what you place to its neighbours, as
+a shape's New and nearby option does, so it isn't left as an island.
+The map shows these connections before you place. Untick it to place
+it unconnected to the rest of the galaxy. The picker remembers your choice.
 
 A cluster's first system is also in the list on its own. Added alone,
 its events look for the rest of its cluster, which isn't there. The
