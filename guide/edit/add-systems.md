@@ -17,7 +17,7 @@ bodies.
 Random can roll a binary or trinary too, about as often as the game
 does.
 
-![The right-click menu on empty space, with Add system here open on Random, the star classes and Special…](../images/edit/add-system-menu.png)
+![The right-click menu on empty space, with Add system here open on Random, the star classes, Binary or trinary and Special…](../images/edit/add-system-menu.png)
 
 A system added inside a nebula joins it. To add many systems at once,
 draw a [shape](shapes.md#in-a-save).
@@ -30,6 +30,8 @@ from the game's own pairs and trios of stars.
 
 To choose the stars yourself, select "Build one…". A picker opens beside
 the spot.
+
+![The binary and trinary builder beside the right-clicked spot, with Two distant companions chosen, three star slots, the preview of where each star goes and the map icon the system will show](../images/edit/star-builder.png)
 
 1. Pick an arrangement. In a close pair or close trio the stars sit near
    the middle. A distant companion is a star far out with planets of its

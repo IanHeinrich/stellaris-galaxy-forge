@@ -125,6 +125,19 @@
   flex-direction: column;
 }
 
+/* The entry's label starts where a plain row's does: the same padding and the same row height. */
+.context-menu button.context-submenu-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 22px;
+  padding: 0 6px;
+}
+
+.context-menu button.context-submenu-item.hinted {
+  padding-block: 2px;
+}
+
 .context-submenu-label {
   display: flex;
   align-items: center;
