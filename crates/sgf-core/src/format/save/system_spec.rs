@@ -75,6 +75,15 @@ pub struct BodySpec {
     /// `previously_terraformed_planet_entity`, ….
     #[serde(default)]
     pub entity_name: Option<String>,
+    /// The picture the game shows for the body in place of its class's, as
+    /// `set_planet_entity = { picture = pc_junkheap }` sets it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub picture: Option<String>,
+    /// No anomaly is rolled on it when it is surveyed, as `prevent_anomaly = yes` sets.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(as = "Option<bool>", optional)]
+    pub prevent_anomaly: bool,
     /// Planet modifiers that never expire, `terraforming_candidate`, ….
     #[serde(default)]
     pub modifiers: Vec<String>,

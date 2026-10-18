@@ -3,6 +3,7 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import type { SpecialKind } from "../generated/SpecialKind";
 import { DEFAULT_LANE_DENSITY, densityOfBeta } from "../lib/geometry/mesh";
 import type { Pt } from "../lib/geometry/pt";
+import type { ShapePreview } from "../lib/shapes/types";
 import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
@@ -126,6 +127,8 @@ export interface MapChromeState {
   /** Whether the lanes the brushes and the mesh action add are grouped into islands as the game does. */
   laneIslands: boolean;
   addSystemPreview: AddSystemPreview | null;
+  /** The Special picker's highlighted cluster, which the map draws as it draws a pending shape's systems. */
+  clusterPreview: ShapePreview | null;
   /** Lanes the map draws as ghosts while the mesh action is being considered. */
   lanePreview: Array<[number, number]> | null;
   /** Initializer key the initializer browser is highlighting; its systems are ringed on the map. */
@@ -170,6 +173,7 @@ export interface MapChromeState {
   setLayerQuietly(id: GalaxyLayerId, on: boolean): void;
   setLanePreview(pairs: Array<[number, number]> | null): void;
   setAddSystemPreview(preview: AddSystemPreview | null): void;
+  setClusterPreview(preview: ShapePreview | null): void;
   setHighlightInitializer(key: string | null): void;
   setGesture(gesture: MapGesture | null): void;
   setSceneHint(text: string | null): void;
@@ -185,6 +189,7 @@ const NO_OVERLAYS = {
   tooltip: null,
   lanePreview: null,
   addSystemPreview: null,
+  clusterPreview: null,
   highlightInitializer: null,
   gesture: null,
   sceneHint: null,
@@ -428,6 +433,10 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
 
   setAddSystemPreview(preview) {
     set({ addSystemPreview: preview });
+  },
+
+  setClusterPreview(preview) {
+    set({ clusterPreview: preview });
   },
 
   setHighlightInitializer(key) {

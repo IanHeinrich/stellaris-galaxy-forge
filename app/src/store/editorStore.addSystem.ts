@@ -16,7 +16,7 @@ import {
   type TrackedSystem,
 } from "./editorEdits";
 import type { EditorState } from "./editorStore";
-import { useFileSessionStore } from "./fileSessionStore";
+import { canEdit, useCanEdit, useFileSessionStore } from "./fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useSceneStore } from "./sceneStore";
@@ -25,6 +25,7 @@ type AddSystemActions = Pick<
   EditorState,
   | "addRandomSystemAt"
   | "addSpecialSystemAt"
+  | "addSpecialClusterAt"
   | "addBodyAt"
   | "addMegastructure"
   | "addHabitat"
@@ -33,8 +34,12 @@ type AddSystemActions = Pick<
   | "renameAddedSystem"
 >;
 
-/** What a refusal at a spot reads: the open save, whether game data is loaded and the galaxy. */
+/**
+ * What a refusal at a spot reads: the open save, whether game data is loaded and the galaxy, and
+ * whether its systems are statements, which take any spot.
+ */
 interface RefusalSources {
+  statements: boolean;
   meta: SaveMeta | null;
   gameData: boolean;
   systems: Systems;
@@ -43,6 +48,7 @@ interface RefusalSources {
 }
 
 function refusalFrom(from: RefusalSources, x: number, y: number): AddRefusal | null {
+  if (from.statements) return null;
   const near = nearestSystem({ x, y }, from.systems.values());
   return addSystemRefusal({
     meta: from.meta,
@@ -57,12 +63,13 @@ function refusalFrom(from: RefusalSources, x: number, y: number): AddRefusal | n
   });
 }
 
-/** Why a rolled system cannot go at a world point of the open save, or null when it can. */
+/** Why a rolled system cannot go at a world point of the open document, or null when it can. */
 export function addSystemRefusalAt(x: number, y: number): AddRefusal | null {
   const galaxy = useGalaxyStore.getState();
   const data = useGameDataStore.getState();
   return refusalFrom(
     {
+      statements: canEdit("create_systems"),
       meta: useFileSessionStore.getState().meta,
       gameData: data.status === "ready",
       systems: galaxy.systems,
@@ -76,12 +83,13 @@ export function addSystemRefusalAt(x: number, y: number): AddRefusal | null {
 
 /** `addSystemRefusalAt`, re-rendered whenever what it reads changes. */
 export function useAddSystemRefusal(x: number, y: number): AddRefusal | null {
+  const statements = useCanEdit("create_systems");
   const meta = useFileSessionStore((s) => s.meta);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const names = useGameDataStore((s) => s.names);
   const systems = useGalaxyStore((s) => s.systems);
   const radius = useGalaxyStore((s) => s.galaxy?.galaxy_radius ?? 0);
-  return refusalFrom({ meta, gameData, systems, names, radius }, x, y);
+  return refusalFrom({ statements, meta, gameData, systems, names, radius }, x, y);
 }
 
 /** The system a queued edit was asked about, as it stands when the edit runs, if it is still an added one. */
@@ -112,6 +120,10 @@ export function addSystemActions(
 
     addSpecialSystemAt(x, y, layout, extras) {
       return addAt(x, y, () => ipc.addSpecialSystem(newSeed(), x, y, layout, extras));
+    },
+
+    addSpecialClusterAt(seed, x, y, cluster, extras) {
+      return addAt(x, y, () => ipc.addSpecialCluster(seed, x, y, cluster, extras));
     },
 
     addBodyAt(system, at, parent = null, planetClass = null) {

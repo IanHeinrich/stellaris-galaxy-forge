@@ -1,12 +1,12 @@
+import type { DlcNeed } from "../generated/DlcNeed";
 import type { Feature } from "../generated/Feature";
 import type { LeftOut } from "../generated/LeftOut";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SystemNode } from "../generated/SystemNode";
 import { ADDED_SYSTEMS_FROM_MAJOR, GALAXY_REACH, SPAWN_BUFFER } from "../generated/constants";
-import { counted, listed, needsGameData } from "./text";
+import { capitalised, counted, listed, needsGameData } from "./text";
 import type { Span } from "../generated/Span";
-import type { SpecialLayout } from "../generated/SpecialLayout";
 import { versionNumber } from "./version";
 
 export { SPAWN_BUFFER };
@@ -93,10 +93,15 @@ export interface PickCardCopy {
   storyKept: string | null;
   /** The line saying the save lacks the layout's DLC; null when it has it or needs none. */
   missingDlc: string | null;
+  /** The line saying the layout's event chain uses the rest of its cluster; null for a layout no cluster holds. */
+  clusterSystems: string | null;
 }
 
-/** What a system added from a layout comes without, in the words a player would use. */
-const LEFT_OUT_WORDS: Record<LeftOut, string> = {
+/**
+ * What a system added from a layout comes without, in the words a player would use. The rest of
+ * its cluster has a sentence of its own, `CLUSTER_SYSTEMS`.
+ */
+const LEFT_OUT_WORDS: Record<Exclude<LeftOut, "cluster_systems">, string> = {
   pre_ftl_civilisation: "a pre-FTL civilisation",
   colony: "colonies and pops",
   empire: "its empire",
@@ -107,6 +112,8 @@ const LEFT_OUT_WORDS: Record<LeftOut, string> = {
   spawned_planets: "some of its planets",
   ambient_objects: "debris, wrecks and storms",
 };
+
+export const CLUSTER_SYSTEMS = "Its event chain also uses the other systems of its cluster.";
 
 function spanText({ min, max }: Span): string {
   return min === max ? `${min}` : `${min}–${max}`;
@@ -121,16 +128,36 @@ function starText(names: string[]): string {
   return listed(names, "or");
 }
 
+/** A cluster a card is about, by what a sentence calls it: `the Junk Ratlings`. */
+export interface ClusterName {
+  phrase: string;
+}
+
 /**
- * The card of the pick called `name`, leaving out the lines it has nothing for. Without `extras`
- * what the layout plants is listed under Comes without.
+ * How the open document takes a layout: built here, with what its script plants when `extras`, or
+ * as a statement whose script the game runs, which plants it all and checks no DLC here.
  */
-export function pickCard(summary: PickSummary, name: string, extras = true): PickCardCopy {
+export type LayoutAdd = { kind: "built"; extras: boolean } | { kind: "script" };
+
+const BUILT_WITH_EXTRAS: LayoutAdd = { kind: "built", extras: true };
+
+/**
+ * The card of the pick called `name`, or of a cluster, leaving out the lines it has nothing for.
+ * Built without extras, what the layout plants is listed under Comes without; left to the game's
+ * script, neither list applies.
+ */
+export function pickCard(
+  summary: PickSummary,
+  name: string | ClusterName,
+  how: LayoutAdd = BUILT_WITH_EXTRAS,
+): PickCardCopy {
   const lines: CardLine[] = [];
   const add = (label: string, text: string) => {
     if (text !== "") lines.push({ label, text });
   };
-  add("Star", starText(summary.star_classes.map((c) => c.name)));
+  const stars = summary.star_classes.map((c) => c.name);
+  if (typeof name === "string") add("Star", starText(stars));
+  else add("Stars", listed(stars, "and"));
   add("Planets", spanText(summary.planets));
   if (summary.belts.max > 0) {
     const kinds = featureText(summary.belt_kinds);
@@ -139,9 +166,14 @@ export function pickCard(summary: PickSummary, name: string, extras = true): Pic
   add("Notable", featureText([...summary.named_bodies, ...summary.notable_classes]));
   add("Modifiers", featureText(summary.modifiers));
   const planted = (summary.comes_with ?? []).map((planting) => planting.name);
-  const leftOut = (summary.comes_without ?? []).map((left) => LEFT_OUT_WORDS[left]);
-  add("Comes with", extras ? planted.join(", ") : "");
-  add("Comes without", [...(extras ? [] : planted), ...leftOut].join(", "));
+  const without = summary.comes_without ?? [];
+  const leftOut = without.flatMap((left) =>
+    left === "cluster_systems" ? [] : [LEFT_OUT_WORDS[left]],
+  );
+  if (how.kind === "built") {
+    add("Comes with", how.extras ? planted.join(", ") : "");
+    add("Comes without", [...(how.extras ? [] : planted), ...leftOut].join(", "));
+  }
   if (summary.dlc) add("DLC", summary.dlc.name);
   const inGalaxy = summary.in_galaxy ?? 0;
   const cap = summary.max_instances;
@@ -159,13 +191,18 @@ export function pickCard(summary: PickSummary, name: string, extras = true): Pic
               inGalaxy === 0 ? `${limit} Not in this galaxy yet.` : `${limit} ${inGalaxy} so far.`,
             warn: false,
           };
-  const storyKept = summary.story_kept_by_existing
-    ? `${name} is already in this galaxy, so its event chain stays with that one.`
-    : null;
+  const storyKept = !summary.story_kept_by_existing
+    ? null
+    : typeof name === "string"
+      ? `${name} is already in this galaxy, so its event chain stays with that one.`
+      : `${capitalised(name.phrase)} are already in this galaxy, so their event chain stays with those.`;
   const dlc = summary.dlc;
   const missingDlc =
-    dlc && !dlc.met ? `This save doesn't have ${dlc.name}, so its events won't run.` : null;
-  return { lines, unique, storyKept, missingDlc };
+    how.kind === "built" && dlc && !dlc.met
+      ? `This save doesn't have ${dlc.name}, so its events won't run.`
+      : null;
+  const clusterSystems = without.includes("cluster_systems") ? CLUSTER_SYSTEMS : null;
+  return { lines, unique, storyKept, missingDlc, clusterSystems };
 }
 
 /** The marks a row of the Special picker carries. */
@@ -176,9 +213,17 @@ export interface SpecialMarks {
   dlc: "tag" | "lock" | null;
 }
 
-export function specialMarks(layout: SpecialLayout, cap: number | null): SpecialMarks {
+/**
+ * The marks of a layout or a cluster, which the galaxy holds `in_galaxy` of and `cap` at most. Its
+ * DLC is a tag where the document has no DLC to check it against: the `script` kind of add.
+ */
+export function specialMarks(
+  pick: { in_galaxy: number; dlc: DlcNeed | null },
+  cap: number | null,
+  how: LayoutAdd["kind"] = "built",
+): SpecialMarks {
   return {
-    inGalaxy: cap !== null && layout.in_galaxy >= cap,
-    dlc: layout.dlc === null ? null : layout.dlc.met ? "tag" : "lock",
+    inGalaxy: cap !== null && pick.in_galaxy >= cap,
+    dlc: pick.dlc === null ? null : pick.dlc.met || how === "script" ? "tag" : "lock",
   };
 }

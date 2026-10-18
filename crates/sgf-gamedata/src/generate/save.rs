@@ -8,7 +8,7 @@ use sgf_core::ops::{
     SystemAdd, SystemSpec,
 };
 use sgf_core::session::Session;
-use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
+use sgf_core::views::{Capabilities, ErrorKind, OrbitPlacement, SgfError};
 use ts_rs::TS;
 
 use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, layout_system_for, roll_body};
@@ -73,6 +73,10 @@ pub enum ForSaveError {
     NoNames,
     #[error("system {0} does not exist")]
     NoSystem(u32),
+    #[error("the Special menu offers no cluster {0}")]
+    UnknownCluster(String),
+    #[error("this document takes no added systems")]
+    NoAddedSystems,
     #[error(transparent)]
     Generate(#[from] GenerateError),
     #[error(transparent)]
@@ -167,10 +171,13 @@ pub fn for_save(
     roll(gd, session, &mut NameDraw::new(session), seed, at, pick).map(|add| add.spec)
 }
 
-/// The op that adds a system of the layout `layout` to `session`'s save at `at` from `seed`,
-/// named as [`for_save`] names it, with what the layout's script plants beside its bodies:
-/// [`SaveQueries::add_systems_op`] for that one system, writing its anomalies and dig sites
-/// only with `extras`, and its planet flags and global event targets whatever it says.
+/// The op that adds a system of the layout `layout` to `session`'s document at `at` from
+/// `seed`. In a save, it is named as [`for_save`] names it, with what the layout's script
+/// plants beside its bodies: [`SaveQueries::add_systems_op`] for that one system, writing its
+/// anomalies and dig sites only with `extras`, and its planet flags and global event targets
+/// whatever it says. In a document of system statements, it is one [`Op::AddSystem`] naming
+/// the layout as its initializer, which the game runs, and `extras` says nothing. Refused for
+/// a layout the install does not define, and for a document that takes neither.
 ///
 /// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
 pub fn special_op(
@@ -181,7 +188,25 @@ pub fn special_op(
     layout: &str,
     extras: bool,
 ) -> Result<Op, ForSaveError> {
-    special_op_with(gd, session, seed, at, layout, extras, None, &[])
+    let can = Capabilities::of(session.doc());
+    if can.added_systems {
+        return special_op_with(gd, session, seed, at, layout, extras, None, &[]);
+    }
+    if !can.create_systems {
+        return Err(ForSaveError::NoAddedSystems);
+    }
+    if gd.initializers.get(layout).is_none() {
+        return Err(GenerateError::UnknownLayout(layout.to_owned()).into());
+    }
+    Ok(Op::AddSystem {
+        system: None,
+        x: at.0,
+        y: at.1,
+        name: None,
+        initializer: Some(layout.to_owned()),
+        spawn_weight: None,
+        spawn_script: None,
+    })
 }
 
 /// [`special_op`] with `lanes` laid between the new system, `LaneEnd::New { index: 0 }`, and
@@ -207,30 +232,37 @@ pub fn special_op_with(
     Ok(save.add_systems_op(vec![add], lanes, extras, None)?)
 }
 
-/// A system for `session`'s save at each of `asks`, rolled around its star class from a seed
-/// of its own drawn from `seed`, and named from one draw so that no two share a name. Refused
-/// with [`ForSaveError::NoNames`] when the names run out before the asks do.
+/// A system asked of [`for_save_many`]: what it is built from, and where it stands.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PickAt {
+    pub pick: Pick,
+    pub at: (f64, f64),
+}
+
+impl From<&SystemAsk> for PickAt {
+    /// A system rolled around the ask's star class.
+    fn from(ask: &SystemAsk) -> Self {
+        Self {
+            pick: Pick::Random(Some(ask.star_class.clone())),
+            at: (ask.x, ask.y),
+        }
+    }
+}
+
+/// A system for `session`'s save at each of `asks`, as its pick gives it, from a seed of its
+/// own drawn from `seed`, and named from one draw so that no two share a name, with what a
+/// layout's script plants beside its bodies. Refused with [`ForSaveError::NoNames`] when the
+/// names run out before the asks do.
 pub fn for_save_many(
     gd: &GameData,
     session: &Session,
     seed: u64,
-    asks: &[SystemAsk],
-) -> Result<Vec<SystemSpec>, ForSaveError> {
+    asks: &[PickAt],
+) -> Result<Vec<SystemAdd>, ForSaveError> {
     let mut seeds = Rng::new(seed ^ SHAPE_STREAM);
     let mut draw = NameDraw::new(session);
     asks.iter()
-        .map(|ask| {
-            let pick = Pick::Random(Some(ask.star_class.clone()));
-            roll(
-                gd,
-                session,
-                &mut draw,
-                seeds.next_u64(),
-                (ask.x, ask.y),
-                &pick,
-            )
-            .map(|add| add.spec)
-        })
+        .map(|ask| roll(gd, session, &mut draw, seeds.next_u64(), ask.at, &ask.pick))
         .collect()
 }
 
@@ -256,10 +288,8 @@ pub fn systems_op(
         }
         .into());
     }
-    let systems = for_save_many(gd, session, seed, asks)?
-        .into_iter()
-        .map(SystemAdd::from)
-        .collect();
+    let asks: Vec<PickAt> = asks.iter().map(PickAt::from).collect();
+    let systems = for_save_many(gd, session, seed, &asks)?;
     Ok(save.add_systems_op(systems, lanes, false, Some(description))?)
 }
 

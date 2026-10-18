@@ -71,6 +71,7 @@ Added Durbatur #601 with its anomaly and dig site
 + 
 +				}
 +			}
++			binary_flags=72
 +			coordinate=
 +			{
 +				x=0
@@ -103,7 +104,7 @@ Added Durbatur #601 with its anomaly and dig site
 +			{
 +				key="NAME_Orek_Vuul"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=-49.32289
@@ -132,7 +133,7 @@ Added Durbatur #601 with its anomaly and dig site
 +			{
 +				key="NAME_Zhaduva"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=1.46605
@@ -162,7 +163,7 @@ Added Durbatur #601 with its anomaly and dig site
 +			{
 +				key="NAME_Ghanek"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=-198.05235

@@ -10,6 +10,7 @@ use sgf_core::views::details::OrbitFit;
 use sgf_gamedata::GameData;
 use sgf_gamedata::body_effects::{BodyEffect, Dropping};
 use sgf_gamedata::condition::Condition;
+use sgf_gamedata::deposit_roll::RandomDeposit;
 use sgf_gamedata::generate::{Pick, for_save, generate, generate_layout_for};
 use sgf_gamedata::layouts::SaveFacts;
 
@@ -26,7 +27,7 @@ const EFFECTS: [(&str, &str); 2] = [
          \tplanet = { count = 1 class = star orbit_distance = 0 init_effect = { set_deposit = d_fx_bright } }\n\
          \tchange_orbit = 40\n\
          \tplanet = {\n\t\tcount = 1 class = pc_rock orbit_distance = 20\n\t\tinit_effect = {\n\t\t\tclear_deposits = yes\n\t\t\tadd_deposit = d_fx_gem\n\t\t\tadd_deposit = d_fx_gem\n\
-         \t\t\tif = { limit = { always = yes } add_deposit = d_fx_bright }\n\t\t\tadd_deposit = random_blocker\n\t\t}\n\t}\n\
+         \t\t\tif = { limit = { always = yes } add_deposit = d_fx_bright }\n\t\t\tadd_deposit = fx_unknown\n\t\t}\n\t}\n\
          \tplanet = {\n\t\tcount = 1 class = pc_rock orbit_distance = 20\n\t\tinit_effect = { add_deposit = d_fx_gem }\n\
          \t\tmoon = { count = 1 class = pc_rock orbit_distance = 5 init_effect = { clear_deposits = yes } }\n\t}\n\
          \tplanet = { count = 1 class = pc_rock orbit_distance = 20 init_effect = { add_deposit = d_fx_gem set_deposit = d_fx_bright } }\n}\n",
@@ -84,7 +85,7 @@ fn a_layouts_body_effects_are_read_in_order_with_what_cannot_be_written() {
     assert_eq!(
         init.planets[1].unwritten.get(Dropping::Script).as_deref(),
         Some("add_deposit"),
-        "a random blocker is no deposit key"
+        "a key that names no deposit"
     );
     assert_eq!(
         init.planets[2].effects,
@@ -192,6 +193,68 @@ fn deposit_blockers_none_draws_no_blocker_and_skips_its_minimum() {
             spec.planets[1].deposits.is_empty(),
             "seed {seed}: deposit_blockers = none draws no blocker and skips the top-up: {:?}",
             spec.planets[1].deposits
+        );
+    }
+}
+
+/// A world whose script shows a picture, sets a carrier flag and adds and removes deposits at
+/// random, against [`BLOCKERS`]' one blocker and no other deposit.
+const SCRIPTED: &str = "fx_scripted = {
+	class = sc_fx
+	usage = misc_system_init
+	usage_odds = 5
+     	planet = { count = 1 class = star orbit_distance = 0 }
+	change_orbit = 40
+     	planet = {
+		count = 1 class = pc_fx_meadow orbit_distance = 20
+		init_effect = {
+     			set_planet_entity = { picture = pc_fx_heap }
+			set_carrier_flag = fx_carried
+     			clear_deposits = yes
+			add_deposit = random_blocker
+     			while = { count = 2 random_deposit = { limit = { } remove_deposit = yes } }
+     			add_deposit = random_blocker
+			add_deposit = random
+		}
+	}
+}
+";
+
+#[test]
+fn a_worlds_picture_carrier_flag_and_random_deposits_are_written() {
+    let files: Vec<(&str, &str)> = BLOCKERS
+        .iter()
+        .map(|&(rel, text)| match rel {
+            "common/solar_system_initializers/00_fx.txt" => (rel, SCRIPTED),
+            _ => (rel, text),
+        })
+        .collect();
+    let (_dir, gd) = common::hand_written(&files);
+    let init = gd.initializers.get("fx_scripted").expect("fx_scripted");
+    assert_eq!(
+        init.planets[1].effects,
+        [
+            BodyEffect::Picture("pc_fx_heap".to_owned()),
+            BodyEffect::Flag("fx_carried".to_owned()),
+            BodyEffect::ClearDeposits,
+            BodyEffect::AddRandomDeposit(RandomDeposit::Blocker),
+            BodyEffect::Repeat(2, vec![BodyEffect::RemoveRandomDeposit]),
+            BodyEffect::AddRandomDeposit(RandomDeposit::Blocker),
+            BodyEffect::AddRandomDeposit(RandomDeposit::Any),
+        ]
+    );
+    assert_eq!(init.planets[1].unwritten.get(Dropping::Script), &None);
+    let save = SaveFacts::default();
+    for seed in 0..5 {
+        let spec = generate_layout_for(&gd, &save, seed, "Fx", (0.0, 0.0), "fx_scripted", 2.0)
+            .expect("fx_scripted");
+        let world = &spec.planets[0];
+        assert_eq!(world.picture.as_deref(), Some("pc_fx_heap"));
+        assert_eq!(world.flags, ["fx_carried"]);
+        assert_eq!(
+            world.deposits,
+            ["d_fx_rubble"],
+            "seed {seed}: the blocker drawn, removed, drawn again, and no other deposit to draw"
         );
     }
 }

@@ -143,6 +143,26 @@ fn add_system_needs_its_seed_and_place_and_refuses_clashing_options() {
             "trappist_initializer",
         ],
         &["--seed", "1", "--at", "0,0", "--keep-special"],
+        &[
+            "--seed",
+            "1",
+            "--at",
+            "0,0",
+            "--cluster",
+            "junk_ratlings",
+            "--layout",
+            "trappist_initializer",
+        ],
+        &[
+            "--seed",
+            "1",
+            "--at",
+            "0,0",
+            "--cluster",
+            "junk_ratlings",
+            "--star-class",
+            "sc_g",
+        ],
     ] {
         let mut command = vec!["add-system", SAMPLE_4_5];
         command.extend_from_slice(args);
@@ -212,6 +232,41 @@ fn add_system_generates_the_special_layout_asked_for() {
     );
     assert!(text.contains("(named after the system)"), "{text}");
     assert!(text.contains("modifiers terraforming_candidate"), "{text}");
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+}
+
+/// `--cluster` adds a Special menu cluster as the app does: its systems and the lanes between
+/// them as one edit, which leaves a save the validator passes.
+#[test]
+fn add_system_cluster_adds_its_systems_and_lanes() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("ratlings.sav");
+    let out_str = out_path.to_str().unwrap();
+    let out = sgf(&[
+        "add-system",
+        SAMPLE_4_5,
+        "--seed",
+        "3",
+        "--at",
+        "-292.23404,-137.62265",
+        "--cluster",
+        "junk_ratlings",
+        "--no-mods",
+        "-o",
+        out_str,
+    ]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Added the Junk Ratlings: 3 systems and 2 lanes"),
+        "{text}"
+    );
+    for layout in ["ratling_1_1, capped", "ratling_1_2", "ratling_1_3"] {
+        assert!(text.contains(&format!("({layout})")), "{layout}: {text}");
+    }
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }
 

@@ -152,7 +152,8 @@ pub enum Command {
     /// planet flags and event targets it saves are written either way. --then-reroll 8 rolls it
     /// again from seed 8, keeping its name, position and lanes. --print-spec prints the
     /// system as JSON, which an `AddSystemFromSpec` edit file for `sgf apply` holds as its
-    /// `spec`.
+    /// `spec`. --cluster junk_ratlings adds a Special menu cluster instead, its home at --at
+    /// and its other systems placed from the seed, with the lanes between them, as one edit.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
@@ -178,10 +179,19 @@ pub enum Command {
         #[arg(long, conflicts_with = "layout")]
         star_class: Option<String>,
         /// The initializer to build the system from, plain or special.
-        #[arg(long)]
+        #[arg(long, group = "special")]
         layout: Option<String>,
-        /// With --layout, leave out the anomalies and dig sites the layout's script plants.
-        #[arg(long, requires = "layout")]
+        /// The Special menu cluster to add (`junk_ratlings`, `legendary_leader`), its home
+        /// at --at.
+        #[arg(
+            long,
+            group = "special",
+            conflicts_with_all = ["star_class", "lanes", "name", "print_spec", "then_reroll"]
+        )]
+        cluster: Option<String>,
+        /// With --layout or --cluster, leave out the anomalies, dig sites and megastructures
+        /// the layouts' scripts make.
+        #[arg(long, requires = "special")]
         no_extras: bool,
         /// Print the spec as JSON and write nothing, so it takes no --then-remove or
         /// --then-reroll.

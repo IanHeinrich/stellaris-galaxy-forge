@@ -1,0 +1,2225 @@
+---
+source: crates/sgf-gamedata/tests/special_clusters.rs
+assertion_line: 56
+expression: report
+---
+Added the Junk Ratlings: 3 systems and 2 lanes
+@@ line 71406
++	601=
++	{
++		coordinate=
++		{
++			x=-292.23404
++			y=-137.62265
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="Glyderrum"
++		}
++		planet=16777273
++		planet=6375
++		planet=6376
++		planet=6377
++		planet=6378
++		planet=6379
++		planet=6380
++		star_class="sc_pulsar"
++		hyperlane=
++		{
++			
++			{
++				to=602
++				length=12
++			}
++ 
++			{
++				to=603
++				length=27
++			}
++ 
++		}
++		asteroid_belts=
++		{
++			
++			{
++				type="rocky_asteroid_belt"
++				inner_radius=130
++			}
++ 
++		}
++		flags=
++		{
++			ruined_empire=62808000
++			ratling_home_system=62808000
++			ratling_system=62808000
++		}
++		initializer="ratling_1_1"
++		inner_radius=240
++		outer_radius=340
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 71406
++	602=
++	{
++		coordinate=
++		{
++			x=-304.01128
++			y=-135.3212
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="Saldar"
++		}
++		planet=6381
++		planet=6382
++		planet=6383
++		planet=6384
++		planet=6385
++		planet=6386
++		star_class="sc_m"
++		hyperlane=
++		{
++			
++			{
++				to=601
++				length=12
++			}
++ 
++		}
++		flags=
++		{
++			ruined_empire=62808000
++			ratling_system=62808000
++		}
++		initializer="ratling_1_2"
++		inner_radius=229
++		outer_radius=329
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 71406
++	603=
++	{
++		coordinate=
++		{
++			x=-295.09395
++			y=-110.77454
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="Acahuabene"
++		}
++		planet=6387
++		planet=6388
++		planet=6389
++		planet=6390
++		planet=6391
++		planet=6392
++		planet=6393
++		planet=6394
++		planet=6395
++		star_class="sc_k"
++		hyperlane=
++		{
++			
++			{
++				to=601
++				length=27
++			}
++ 
++		}
++		flags=
++		{
++			ruined_empire=62808000
++			ratling_system=62808000
++		}
++		initializer="ratling_1_3"
++		inner_radius=300
++		outer_radius=400
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 82372
+-57=none
++16777273=
++		{
++			planet_class="pc_pulsar"
++			planet_size=32
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Glyderrum"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=601
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777216 
++			}
++		}
+@@ line 411931
++		6375=
++		{
++			planet_class="pc_barren"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Glyderrum"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=-16.95053
++				y=-57.55588
++				origin=601
++			}
++			orbit=60
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6376=
++		{
++			planet_class="pc_barren"
++			planet_size=11
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Glyderrum"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=88.69472
++				y=15.27242
++				origin=601
++			}
++			orbit=90
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6377=
++		{
++			planet_class="pc_barren"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Glyderrum"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=-75.9895
++				y=92.87409
++				origin=601
++			}
++			orbit=120
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6378=
++		{
++			planet_class="pc_nuked"
++			planet_size=18
++			picture="pc_junkheap"
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Ruinous_Core"
++			}
++			binary_flags=73
++			coordinate=
++			{
++				x=98.70376
++				y=-125.92683
++				origin=601
++			}
++			orbit=160
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6379 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				ratling_planet=62808000
++				ruinous_core_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777217 16777218 16777219 16777220 16777221 16777222 16777223 16777224 16777225 16777226 16777227 
++			}
++		}
+@@ line 411931
++		6379=
++		{
++			planet_class="pc_nuked"
++			planet_size=12
++			picture="pc_junkheap"
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Lost_Encampment"
++			}
++			binary_flags=585
++			coordinate=
++			{
++				x=108.1395
++				y=-114.26635
++				origin=601
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=6378
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				ratling_planet=62808000
++				lost_encampment_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777228 16777229 16777230 16777231 16777232 16777233 16777242 16777243 
++			}
++		}
+@@ line 411931
++		6380=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=22
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Glyderrum"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=328
++			coordinate=
++			{
++				x=-10.69773
++				y=209.72734
++				origin=601
++			}
++			orbit=210
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777244 
++			}
++		}
+@@ line 411931
++		6381=
++		{
++			planet_class="pc_m_star"
++			planet_size=29
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Saldar"
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=602
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777245 
++			}
++		}
+@@ line 411931
++		6382=
++		{
++			planet_class="pc_toxic"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Saldar"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=29.30814
++				y=-52.35488
++				origin=602
++			}
++			orbit=60
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6383=
++		{
++			planet_class="pc_nuked"
++			planet_size=18
++			picture="pc_junkheap"
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Silent_Colony"
++			}
++			binary_flags=73
++			coordinate=
++			{
++				x=44.2482
++				y=94.11746
++				origin=602
++			}
++			orbit=104
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				ratling_planet=62808000
++				silent_colony_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777246 16777247 16777248 16777249 16777250 16777251 16777252 16777253 16777254 16777255 16777256 
++			}
++		}
+@@ line 411931
++		6384=
++		{
++			planet_class="pc_nuked"
++			planet_size=23
++			picture="pc_junkheap"
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Decayed_Hub"
++			}
++			binary_flags=73
++			coordinate=
++			{
++				x=124.46211
++				y=-90.6928
++				origin=602
++			}
++			orbit=154
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				ratling_planet=62808000
++				decayed_hub_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777257 16777258 16777259 16777260 16777269 16777270 16777271 16777272 16777273 16777274 
++			}
++		}
+@@ line 411931
++		6385=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=30
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Saldar"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=328
++			coordinate=
++			{
++				x=-47.65372
++				y=177.72204
++				origin=602
++			}
++			orbit=184
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6386 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6386=
++		{
++			planet_class="pc_nuked"
++			planet_size=11
++			picture="pc_junkheap"
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Crumbling_Borough"
++			}
++			binary_flags=585
++			coordinate=
++			{
++				x=-47.5778
++				y=192.72185
++				origin=602
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=6385
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				ratling_planet=62808000
++				crumbling_borough_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777275 16777276 16777277 16777278 16777279 16777280 16777285 16777286 16777287 16777288 
++			}
++		}
+@@ line 411931
++		6387=
++		{
++			planet_class="pc_k_star"
++			planet_size=30
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Acahuabene"
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=603
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777289 
++			}
++		}
+@@ line 411931
++		6388=
++		{
++			planet_class="pc_toxic"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Acahuabene"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=57.88724
++				y=15.78187
++				origin=603
++			}
++			orbit=60
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6389=
++		{
++			planet_class="pc_nuked"
++			planet_size=24
++			picture="pc_junkheap"
++			carrier_binary_flags=1
++			name=
++			{
++				key="NAME_Fallen_Outpost"
++			}
++			binary_flags=73
++			coordinate=
++			{
++				x=-72.41719
++				y=68.96195
++				origin=603
++			}
++			orbit=100
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				ratling_planet=62808000
++				fallen_outpost_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777290 16777291 16777292 16777293 16777294 16777295 16777296 16777297 16777298 16777299 
++			}
++		}
+@@ line 411931
++		6390=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=29
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Acahuabene"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=-77.52069
++				y=-139.96622
++				origin=603
++			}
++			orbit=160
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6391 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6391=
++		{
++			planet_class="pc_barren"
++			planet_size=8
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Acahuabene"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="II"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-63.72953
++				y=-134.06672
++				origin=603
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=6390
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6392=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=28
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Acahuabene"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=328
++			coordinate=
++			{
++				x=70.24383
++				y=208.48454
++				origin=603
++			}
++			orbit=220
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777300 
++			}
++		}
+@@ line 411931
++		6393=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=19
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Acahuabene"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=328
++			coordinate=
++			{
++				x=188.90622
++				y=-163.75115
++				origin=603
++			}
++			orbit=250
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6394 6395 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777309 
++			}
++		}
+@@ line 411931
++		6394=
++		{
++			planet_class="pc_frozen"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Acahuabene"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=202.99353
++				y=-158.59872
++				origin=603
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=6393
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777310 
++			}
++		}
+@@ line 411931
++		6395=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Acahuabene"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="b"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=192.88332
++				y=-183.35173
++				origin=603
++			}
++			orbit=20
++			last_bombardment=			"0.01.01"
++			moon_of=6393
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 692052
+-last_created_system=600
++last_created_system=603
+@@ line 709169
+-system_initializer_counter=
+-{
+-	count=
+-	{
+-		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 
+-	}
+-	initializer=
+-	{
+-		"ai_system_01"
+-		"ai_system_03"
+-		"ai_system_02"
+-		"ai_system_04"
+-		"distantstars_init_06"
+-		"mega_shipyard_init_01"
+-		"voidworms_spawn_system_medium"
+-		"megacorp_matter_decompressor_init_01"
+-		"megacorp_interstellar_assembly_init_01"
+-		"debris_belt_initializer"
+-		"ring_world_init_01"
+-		"megacorp_strategic_coordination_center_init_01"
+-		"marauder_2_1"
+-		"voidworms_spawn_system_small"
+-		"ruined_arc_furnace_system"
+-		"distar_crystal_system"
+-		"voidworms_spawn_system_tiny"
+-		"hauer_system_initializer"
+-		"guardians_init_technosphere"
+-		"guardians_curator_init_01"
+-		"guardians_init_hive"
+-		"salvager_enclave_init_03"
+-		"crystal_manufactory_system"
+-		"mindwarden_enclave_initializer"
+-		"guardians_artist_init_03"
+-		"guardians_artist_init_01"
+-		"guardians_curator_init_02"
+-		"guardians_artist_init_02"
+-		"sentry_array_init_01"
+-		"megacorp_mega_art_installation_init_01"
+-		"science_nexus_init_01"
+-		"marauder_1_1"
+-		"guardians_init_wraith"
+-		"megacorp_caravaneer_init"
+-		"shroudwalker_enclave_init_01"
+-		"dyson_sphere_init_01"
+-		"special_init_06"
+-		"salvager_enclave_init_02"
+-		"hostile_init_16"
+-		"abandoned_gateways_01"
+-		"star_lifting_system"
+-		"quantum_catapult_init_01"
+-		"guardians_init_dreadnought"
+-		"guardians_trader_init_01"
+-		"unique_system_initializer_08"
+-		"orbital_ring_init_01"
+-		"guardians_init_hatchling"
+-		"hostile_init_20"
+-		"unique_system_initializer_04"
+-		"shroudwalker_enclave_init_03"
+-		"guardians_init_horror"
+-		"guardians_init_stellarites"
+-		"hostile_init_21"
+-		"distantstars_init_00"
+-		"breachsealer_system"
+-		"legendary_leader_start_site"
+-		"guardians_curator_init_03"
+-		"guardians_init_dragon"
+-		"scavenger_system"
+-		"great_wound_system"
+-		"high_energy_system"
+-		"oasis_system"
+-		"shroudwalker_enclave_init_02"
+-		"salvager_enclave_init_01"
+-		"hostile_init_06"
+-		"guardians_trader_init_02"
+-		"mechanocalibrator_system"
+-		"guardians_init_fortress"
+-		"guardians_trader_init_03"
+-		"broken_shroudwalker_init_01"
+-		"unique_system_initializer_03"
+-		"wooden_planet_system_initializer"
+-		"asteroid_system"
+-		"hostile_init_22"
+-		"collapse_system"
+-		"superflare_system"
+-		"pre_ftl_deneb_system"
+-		"metal_planet_system_initializer"
+-		"fumongus_init_01"
+-		"hostile_init_void_cloud"
+-		"elderly_tiyanki_system"
+-		"distar_phaseshift_system"
+-		"living_planet_system"
+-		"hostile_init_mining_drones"
+-		"toxic_planet_toxic_moon"
+-		"wenkwort_initializer"
+-		"polaris_civilization"
+-		"unique_system_initializer_05"
+-		"ice_system"
+-		"big_rip_system"
+-		"ghost_ship_system_initializer_01"
+-		"shattered_world_system"
+-		"special_init_07"
+-		"hostile_init_07"
+-		"hostile_init_amoeba"
+-		"locust_system_initializer_01"
+-		"pre_ftl_shattered_ring"
+-		"primitive_robot_system"
+-		"time_loop_world_system"
+-		"unique_system_initializer_06"
+-		"unique_system_initializer_09"
+-		"distar_pod_system"
+-		"previously_terraformed_planet_system_initializer"
+-		"lone_defender"
+-		"hostile_init_14"
+-		"trappist_initializer"
+-		"ratling_1_1"
+-		"sanctuary_system"
+-	}
+-}
++system_initializer_counter=
++{
++	count=
++	{
++		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 2 1 
++	}
++	initializer=
++	{
++		"ai_system_01"
++		"ai_system_03"
++		"ai_system_02"
++		"ai_system_04"
++		"distantstars_init_06"
++		"mega_shipyard_init_01"
++		"voidworms_spawn_system_medium"
++		"megacorp_matter_decompressor_init_01"
++		"megacorp_interstellar_assembly_init_01"
++		"debris_belt_initializer"
++		"ring_world_init_01"
++		"megacorp_strategic_coordination_center_init_01"
++		"marauder_2_1"
++		"voidworms_spawn_system_small"
++		"ruined_arc_furnace_system"
++		"distar_crystal_system"
++		"voidworms_spawn_system_tiny"
++		"hauer_system_initializer"
++		"guardians_init_technosphere"
++		"guardians_curator_init_01"
++		"guardians_init_hive"
++		"salvager_enclave_init_03"
++		"crystal_manufactory_system"
++		"mindwarden_enclave_initializer"
++		"guardians_artist_init_03"
++		"guardians_artist_init_01"
++		"guardians_curator_init_02"
++		"guardians_artist_init_02"
++		"sentry_array_init_01"
++		"megacorp_mega_art_installation_init_01"
++		"science_nexus_init_01"
++		"marauder_1_1"
++		"guardians_init_wraith"
++		"megacorp_caravaneer_init"
++		"shroudwalker_enclave_init_01"
++		"dyson_sphere_init_01"
++		"special_init_06"
++		"salvager_enclave_init_02"
++		"hostile_init_16"
++		"abandoned_gateways_01"
++		"star_lifting_system"
++		"quantum_catapult_init_01"
++		"guardians_init_dreadnought"
++		"guardians_trader_init_01"
++		"unique_system_initializer_08"
++		"orbital_ring_init_01"
++		"guardians_init_hatchling"
++		"hostile_init_20"
++		"unique_system_initializer_04"
++		"shroudwalker_enclave_init_03"
++		"guardians_init_horror"
++		"guardians_init_stellarites"
++		"hostile_init_21"
++		"distantstars_init_00"
++		"breachsealer_system"
++		"legendary_leader_start_site"
++		"guardians_curator_init_03"
++		"guardians_init_dragon"
++		"scavenger_system"
++		"great_wound_system"
++		"high_energy_system"
++		"oasis_system"
++		"shroudwalker_enclave_init_02"
++		"salvager_enclave_init_01"
++		"hostile_init_06"
++		"guardians_trader_init_02"
++		"mechanocalibrator_system"
++		"guardians_init_fortress"
++		"guardians_trader_init_03"
++		"broken_shroudwalker_init_01"
++		"unique_system_initializer_03"
++		"wooden_planet_system_initializer"
++		"asteroid_system"
++		"hostile_init_22"
++		"collapse_system"
++		"superflare_system"
++		"pre_ftl_deneb_system"
++		"metal_planet_system_initializer"
++		"fumongus_init_01"
++		"hostile_init_void_cloud"
++		"elderly_tiyanki_system"
++		"distar_phaseshift_system"
++		"living_planet_system"
++		"hostile_init_mining_drones"
++		"toxic_planet_toxic_moon"
++		"wenkwort_initializer"
++		"polaris_civilization"
++		"unique_system_initializer_05"
++		"ice_system"
++		"big_rip_system"
++		"ghost_ship_system_initializer_01"
++		"shattered_world_system"
++		"special_init_07"
++		"hostile_init_07"
++		"hostile_init_amoeba"
++		"locust_system_initializer_01"
++		"pre_ftl_shattered_ring"
++		"primitive_robot_system"
++		"time_loop_world_system"
++		"unique_system_initializer_06"
++		"unique_system_initializer_09"
++		"distar_pod_system"
++		"previously_terraformed_planet_system_initializer"
++		"lone_defender"
++		"hostile_init_14"
++		"trappist_initializer"
++		"ratling_1_1"
++		"sanctuary_system"
++	}
++}
+@@ line 1076223
+-0=none
++16777216=
++	{
++		type="d_engineering_4"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
+@@ line 1076224
+-1=none
++16777217=
++	{
++		type="d_lichen_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076225
+-2=none
++16777218=
++	{
++		type="d_ore_rich_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076226
+-3=none
++16777219=
++	{
++		type="d_lichen_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076227
+-4=none
++16777220=
++	{
++		type="d_betharian_deposit"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076228
+-5=none
++16777221=
++	{
++		type="d_dust_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076229
+-6=none
++16777222=
++	{
++		type="d_radioactive_wasteland"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076230
+-7=none
++16777223=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076231
+-8=none
++16777224=
++	{
++		type="d_ore_rich_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076232
+-9=none
++16777225=
++	{
++		type="d_junk_wastes"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076233
+-10=none
++16777226=
++	{
++		type="d_junk_canals"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076234
+-11=none
++16777227=
++	{
++		type="d_junk_hollows"
++		deposit_holder=
++		{
++			type=0
++			id=6378
++		}
++	}
+@@ line 1076235
+-12=none
++16777228=
++	{
++		type="d_veiny_cliffs"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076236
+-13=none
++16777229=
++	{
++		type="d_radioactive_wasteland"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076237
+-14=none
++16777230=
++	{
++		type="d_veiny_cliffs"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076238
+-15=none
++16777231=
++	{
++		type="d_mountain_range"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076239
+-16=none
++16777232=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076240
+-17=none
++16777233=
++	{
++		type="d_junk_wastes"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076313
+-26=none
++16777242=
++	{
++		type="d_junk_canals"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076314
+-27=none
++16777243=
++	{
++		type="d_junk_hollows"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076315
+-28=none
++16777244=
++	{
++		type="d_trade_value_2"
++		deposit_holder=
++		{
++			type=0
++			id=6380
++		}
++	}
+@@ line 1076316
+-29=none
++16777245=
++	{
++		type="d_energy_3"
++		deposit_holder=
++		{
++			type=0
++			id=6381
++		}
++	}
+@@ line 1076317
+-30=none
++16777246=
++	{
++		type="d_dust_desert"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076318
+-31=none
++16777247=
++	{
++		type="d_underwater_vent"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076319
+-32=none
++16777248=
++	{
++		type="d_veiny_cliffs"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076320
+-33=none
++16777249=
++	{
++		type="d_lichen_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076321
+-34=none
++16777250=
++	{
++		type="d_crystalline_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076322
+-35=none
++16777251=
++	{
++		type="d_bubbling_swamp"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076323
+-36=none
++16777252=
++	{
++		type="d_mountain_range"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076324
+-37=none
++16777253=
++	{
++		type="d_veiny_cliffs"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076325
+-38=none
++16777254=
++	{
++		type="d_junk_wastes"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076326
+-39=none
++16777255=
++	{
++		type="d_junk_canals"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076327
+-40=none
++16777256=
++	{
++		type="d_junk_hollows"
++		deposit_holder=
++		{
++			type=0
++			id=6383
++		}
++	}
+@@ line 1076328
+-41=none
++16777257=
++	{
++		type="d_ore_rich_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076329
+-42=none
++16777258=
++	{
++		type="d_lichen_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076330
+-43=none
++16777259=
++	{
++		type="d_veiny_cliffs"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076331
+-44=none
++16777260=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076404
+-53=none
++16777269=
++	{
++		type="d_lichen_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076405
+-54=none
++16777270=
++	{
++		type="d_dangerous_wildlife_blocker"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076406
+-55=none
++16777271=
++	{
++		type="d_searing_desert"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076407
+-56=none
++16777272=
++	{
++		type="d_junk_wastes"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076408
+-57=none
++16777273=
++	{
++		type="d_junk_canals"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076409
+-58=none
++16777274=
++	{
++		type="d_junk_hollows"
++		deposit_holder=
++		{
++			type=0
++			id=6384
++		}
++	}
+@@ line 1076410
+-59=none
++16777275=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076411
+-60=none
++16777276=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076412
+-61=none
++16777277=
++	{
++		type="d_radioactive_wasteland"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076413
+-62=none
++16777278=
++	{
++		type="d_lichen_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076414
+-63=none
++16777279=
++	{
++		type="d_ore_rich_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076415
+-64=none
++16777280=
++	{
++		type="d_bomb_crater"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076452
+-69=none
++16777285=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076453
+-70=none
++16777286=
++	{
++		type="d_junk_wastes"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076454
+-71=none
++16777287=
++	{
++		type="d_junk_canals"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076455
+-72=none
++16777288=
++	{
++		type="d_junk_hollows"
++		deposit_holder=
++		{
++			type=0
++			id=6386
++		}
++	}
+@@ line 1076456
+-73=none
++16777289=
++	{
++		type="d_energy_4"
++		deposit_holder=
++		{
++			type=0
++			id=6387
++		}
++	}
+@@ line 1076457
+-74=none
++16777290=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076458
+-75=none
++16777291=
++	{
++		type="d_submerged_ore_veins"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076459
+-76=none
++16777292=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076460
+-77=none
++16777293=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076461
+-78=none
++16777294=
++	{
++		type="d_crystalline_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076462
+-79=none
++16777295=
++	{
++		type="d_underwater_vent"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076463
+-80=none
++16777296=
++	{
++		type="d_submerged_ore_veins"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076464
+-81=none
++16777297=
++	{
++		type="d_junk_wastes"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076465
+-82=none
++16777298=
++	{
++		type="d_junk_canals"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076466
+-83=none
++16777299=
++	{
++		type="d_junk_hollows"
++		deposit_holder=
++		{
++			type=0
++			id=6389
++		}
++	}
+@@ line 1076467
+-84=none
++16777300=
++	{
++		type="d_energy_3"
++		deposit_holder=
++		{
++			type=0
++			id=6392
++		}
++	}
+@@ line 1076540
+-93=none
++16777309=
++	{
++		type="d_society_2"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076541
+-94=none
++16777310=
++	{
++		type="d_rare_crystals_1"
++		deposit_holder=
++		{
++			type=0
++			id=6394
++		}
++	}
+@@ line 1121923
+-		"Saldar"
+@@ line 1122075
+-		"Glyderrum"
+@@ line 1122213
+-		"Acahuabene"
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6378
++	opener_id=4294967295
++	name="ratling_capital"
++}
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6379
++	opener_id=4294967295
++	name="ratling_planet_2_tar"
++}
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6383
++	opener_id=4294967295
++	name="ratling_planet_3_tar"
++}
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6384
++	opener_id=4294967295
++	name="ratling_planet_4_tar"
++}
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6386
++	opener_id=4294967295
++	name="ratling_planet_5_tar"
++}
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6389
++	opener_id=4294967295
++	name="ratling_planet_6_tar"
++}

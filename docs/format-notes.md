@@ -411,6 +411,15 @@ for planets or deposits.
   a model without the bit and clears the bit when it removes a model.
   A class change in game, a terraform included, drops `entity_name` and
   leaves bit 2 set. Checked in game on 4.5.1.
+- The effect `set_planet_entity = { picture = pc_junkheap }` writes
+  `picture="pc_junkheap"` on the line after `planet_size`, before
+  `carrier_binary_flags`, and no `entity_name`. The 4.5 sample's Ruinous
+  Core (planet 4913, a Junk Ratlings world) has it.
+- The effect `set_carrier_flag` writes its flag among the planet's
+  `flags`, dated like a planet flag. Ruinous Core holds
+  `ruinous_core_planet=62808000` beside `ratling_planet=62808000`. It
+  leaves `carrier_binary_flags` alone: that is 1 on 4,376 of the 4.5
+  sample's bodies, Ruinous Core among them, and 3 on its stars.
 - The effect `change_pc` writes `planet_class` and removes
   `entity_name`, and nothing else. `entity`, `binary_flags` with bit 2,
   deposits, modifiers, flags and the colony stay as they were. A colony

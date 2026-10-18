@@ -1,8 +1,9 @@
 use super::Session;
 use crate::format::save::write::{
-    add_megastructure, add_ring_world, add_systems, copy_bodies, megastructure_links, move_planet,
+    add_megastructure, add_ring_world, add_system, add_systems, copy_bodies, megastructure_links,
+    move_planet,
 };
-use crate::format::save::{event_targets, site};
+use crate::format::save::{alloc, event_targets, site};
 use crate::ops::{LaneEnd, NewBody, NewRingWorld, Op, OpError, SystemAdd};
 use crate::views::details::ConstructionSite;
 use crate::views::{OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, RingWorldClearing};
@@ -96,6 +97,15 @@ impl SaveQueries<'_> {
         description: Option<String>,
     ) -> Result<Op, OpError> {
         add_systems::add_op(self.session, systems, lanes, extras, description)
+    }
+
+    /// Why [`Self::add_systems_op`] would refuse the place of each of `points`, systems added
+    /// together in that order, or `None` for each place it takes: one nearer than the game
+    /// spawns a system to another, or to one of `points` before it, or outside the galaxy.
+    pub fn place_refusals(&self, points: &[(f64, f64)]) -> Result<Vec<Option<OpError>>, OpError> {
+        let s = self.session;
+        let first = alloc::next_system(&s.doc, &s.graph)?;
+        Ok(add_system::place_refusals(&s.graph, first, points))
     }
 
     /// Whether the save holds a global event target named `name`, which an add of a system

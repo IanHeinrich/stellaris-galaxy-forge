@@ -128,7 +128,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Hari_XXIV"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=-39.4534
@@ -158,7 +158,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Risasi"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=-10.45869
@@ -188,7 +188,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Aridder"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=159.61025
@@ -218,7 +218,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_E'cho"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=157.43155
@@ -248,7 +248,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Rover"
 +			}
-+			binary_flags=321
++			binary_flags=329
 +			coordinate=
 +			{
 +				x=-151.03689
@@ -278,7 +278,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Jasepe"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=-269.34229
@@ -308,7 +308,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Blaxe"
 +			}
-+			binary_flags=321
++			binary_flags=329
 +			coordinate=
 +			{
 +				x=-244.80098
@@ -338,7 +338,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Glavi"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=0
@@ -368,7 +368,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Salvold"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=369.30291
@@ -398,7 +398,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Frince"
 +			}
-+			binary_flags=65
++			binary_flags=73
 +			coordinate=
 +			{
 +				x=366.48012

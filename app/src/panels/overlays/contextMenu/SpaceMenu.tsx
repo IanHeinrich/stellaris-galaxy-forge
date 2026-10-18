@@ -1,5 +1,4 @@
 import { newSystemRows } from "../../../lib/initializer/initializerBrowser";
-import { SPECIAL_GROUP } from "../../../lib/initializer/initializerGroups";
 import { ALL_CLANS_PLACED, nextFreeClan } from "../../../lib/marauder";
 import { useSystemNames } from "../../../store/browserRows";
 import { nearestSystem, useEditorStore } from "../../../store/editorStore";
@@ -11,7 +10,8 @@ import {
   spawnWeightFor,
   useInitializerBrowserStore,
 } from "../../../store/initializerBrowserStore";
-import type { ContextTarget } from "../../../store/mapChromeStore";
+import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
+import { useSpecialPickerStore } from "../../../store/specialPickerStore";
 import { createSystemFrom, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
 import { focusNebulaRadius } from "../../nebula";
 import { AddSystemItems } from "./AddSystemItems";
@@ -40,6 +40,8 @@ export function SpaceMenu({
   const [anchorName] = useSystemNames(anchor ? [anchor.id] : NO_SYSTEMS);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const defaultKey = useInitializerBrowserStore((s) => s.defaultKey);
+  const menu = useMapChromeStore((s) => s.contextMenu);
+  const openSpecial = useSpecialPickerStore((s) => s.openAt);
   useInitializerBrowserStore((s) => s.recent);
 
   if (!canCreate && !canNebulae && !canAdd) return null;
@@ -68,12 +70,12 @@ export function SpaceMenu({
           New system from…
         </MenuItem>
       )}
-      {canCreate && (
+      {canCreate && menu && (
         <MenuItem
           className="menu-item"
           disabled={!gameData}
           title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
-          run={() => createSystemFrom(target.x, target.y, SPECIAL_GROUP)}
+          run={() => openSpecial({ x: target.x, y: target.y }, { x: menu.x, y: menu.y })}
         >
           New special system…
         </MenuItem>

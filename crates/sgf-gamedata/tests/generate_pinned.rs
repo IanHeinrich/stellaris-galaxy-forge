@@ -67,6 +67,8 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
         asteroid,
         name,
         entity_name,
+        picture,
+        prevent_anomaly,
         modifiers,
         ring,
         star,
@@ -90,6 +92,12 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
     }
     if let Some(entity) = entity_name {
         line.push_str(&format!(" entity_name {entity}"));
+    }
+    if let Some(picture) = picture {
+        line.push_str(&format!(" picture {picture}"));
+    }
+    if *prevent_anomaly {
+        line.push_str(" prevent_anomaly");
     }
     if !modifiers.is_empty() {
         line.push_str(&format!(" modifiers {modifiers:?}"));

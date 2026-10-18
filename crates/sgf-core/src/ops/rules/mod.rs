@@ -36,6 +36,16 @@ pub const FURNACE_ENTITY: &str = "invisible_turret_entity";
 /// the star's own model under one.
 pub const FURNACE_FLAG: &str = crate::keys::HAS_ARC_FURNACE;
 
+/// What an add of systems placed together says in the undo list, `group` what a sentence
+/// calls them: "Added the Junk Ratlings: 3 systems and 2 lanes".
+pub fn added_group(group: &str, systems: usize, lanes: usize) -> String {
+    format!(
+        "Added {group}: {} and {}",
+        plural(systems, "system"),
+        plural(lanes, "lane")
+    )
+}
+
 /// How a text stands in the file: between quotes, which the game reads with no escaping,
 /// or as a key the game looks up, one token of printable ASCII whether quoted or not.
 #[derive(Clone, Copy, Debug)]

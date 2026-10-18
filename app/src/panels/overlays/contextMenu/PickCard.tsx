@@ -32,6 +32,7 @@ export function PickCardBody({ title, summary }: { title: string; summary: PickS
           {copy.unique.text}
         </div>
       )}
+      {copy.clusterSystems && <div className="pick-card-note muted">{copy.clusterSystems}</div>}
       {copy.storyKept && <div className="pick-card-note warn">{copy.storyKept}</div>}
       {copy.missingDlc && <div className="pick-card-note muted">{copy.missingDlc}</div>}
     </>

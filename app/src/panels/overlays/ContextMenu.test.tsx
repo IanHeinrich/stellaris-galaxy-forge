@@ -17,7 +17,7 @@ import { clanOf } from "../../lib/marauder";
 import { useEditorStore } from "../../store/editorStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInitializerBrowserStore } from "../../store/initializerBrowserStore";
-import { SPECIAL_GROUP } from "../../lib/initializer/initializerGroups";
+import { useSpecialPickerStore } from "../../store/specialPickerStore";
 import { drawnBy, drawnButton } from "../../test/drawn";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { buttons } from "../../test/elements";
@@ -454,21 +454,18 @@ describe("the add system item", () => {
     expect(menu()).not.toContain("Add system here");
   });
 
-  it("on a scenario, opens the initializer browser on the special systems for that open only", async () => {
+  it("on a scenario, opens the Special picker at the spot", async () => {
     await openWith(SCENARIO_RESULT);
+    vi.mocked(ipc.getSpecialLayouts).mockResolvedValue([]);
+    vi.mocked(ipc.getSpecialClusters).mockResolvedValue([]);
     space(-50, -20);
     drawnBy(menu);
     drawnButton("New special system…").onClick();
 
-    const browser = useInitializerBrowserStore.getState();
-    expect(browser.open).toBe(true);
-    expect(browser.mode).toBe("create");
-    expect(browser.pending).toEqual({ x: -50, y: -20 });
-    expect(browser.group).toBe(SPECIAL_GROUP);
-
-    browser.close();
-    useInitializerBrowserStore.getState().openToCreate(10, 10);
-    expect(useInitializerBrowserStore.getState().group).toBeNull();
+    const picker = useSpecialPickerStore.getState();
+    expect(picker.open).toBe(true);
+    expect(picker.at).toEqual({ x: -50, y: -20 });
+    expect(useInitializerBrowserStore.getState().open).toBe(false);
   });
 
   it("put Delete system on an added system's menu and on no other save system's", () => {

@@ -6,6 +6,7 @@ pub mod layouts;
 pub mod prepare;
 pub mod scripts;
 
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -14,6 +15,8 @@ use image::RgbaImage;
 use tempfile::TempDir;
 
 use sgf_core::document::Document;
+use sgf_core::ops::Op;
+use sgf_core::overlay::Anchor;
 use sgf_core::session::Session;
 use sgf_core::views::details::Bounds;
 use sgf_gamedata::install::discovery::find_install;
@@ -393,4 +396,42 @@ pub fn fixed(n: f64) -> Bounds {
 
 pub fn range(min: f64, max: f64) -> Bounds {
     Bounds { min, max }
+}
+
+/// The ops of `op`: its members when it is a batch, else itself.
+pub fn members(op: &Op) -> Vec<&Op> {
+    match op {
+        Op::Batch { ops, .. } => ops.iter().collect(),
+        other => vec![other],
+    }
+}
+
+/// The name of each of `op`'s ops.
+pub fn names(op: &Op) -> Vec<&'static str> {
+    members(op).iter().map(|op| op.name()).collect()
+}
+
+/// Every slot the session wrote, in file order: the line it stands at, what it replaced and
+/// what it now holds.
+pub fn written(session: &Session) -> String {
+    let doc = session.doc();
+    let original = doc.original();
+    let mut out = String::new();
+    for (anchor, bytes) in doc.overlay().slots() {
+        let line = original[..anchor.start()]
+            .iter()
+            .filter(|&&b| b == b'\n')
+            .count()
+            + 1;
+        writeln!(out, "@@ line {line}").unwrap();
+        if let Anchor::Original(span) = anchor {
+            for old in String::from_utf8_lossy(span.slice(original)).lines() {
+                writeln!(out, "-{old}").unwrap();
+            }
+        }
+        for new in String::from_utf8_lossy(bytes).lines() {
+            writeln!(out, "+{new}").unwrap();
+        }
+    }
+    out
 }

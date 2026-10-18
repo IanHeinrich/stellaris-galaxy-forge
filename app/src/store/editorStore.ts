@@ -210,6 +210,17 @@ export interface EditorState {
    */
   addSpecialSystemAt(x: number, y: number, layout: string, extras: boolean): Promise<boolean>;
   /**
+   * Adds the Special menu's cluster `cluster` with its home at a world point of the open save, as
+   * rolled from `seed`, in one edit, and selects its home, as `addSpecialSystemAt` does.
+   */
+  addSpecialClusterAt(
+    seed: number,
+    x: number,
+    y: number,
+    cluster: string,
+    extras: boolean,
+  ): Promise<boolean>;
+  /**
    * Rolls a body into system `system` of the open save in one edit, at `at` about what it orbits:
    * a moon of `parent`, or a planet for null, of `planetClass` or a class drawn at its orbit for
    * null. The new body is selected alone with its page open. Refused without game data.

@@ -27,8 +27,14 @@
   border-radius: 3px;
 }
 
-.sp-lock {
+.sp-lock,
+.sp-count {
   color: var(--fg-muted);
+}
+
+.sp-count {
+  font-size: var(--text-fine);
+  white-space: nowrap;
 }
 
 .sp-pin {
@@ -84,6 +90,7 @@
 }
 
 .sp-pin-button,
+.sp-shuffle,
 .sp-place {
   flex: none;
 }

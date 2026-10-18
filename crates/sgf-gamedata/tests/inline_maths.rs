@@ -63,8 +63,14 @@ fn an_initializer_reads_inline_maths_written_with_spaces() {
     assert_eq!(
         init.spawn_reach,
         [
-            ("fx_other".to_owned(), Some(10.0)),
-            ("fx_far".to_owned(), Some(20.0))
+            ("fx_other".to_owned(), Some(Range::fixed(10.0))),
+            (
+                "fx_far".to_owned(),
+                Some(Range {
+                    min: 0.0,
+                    max: 20.0
+                })
+            )
         ]
     );
     assert_eq!(init.asteroid_belts.len(), 1);

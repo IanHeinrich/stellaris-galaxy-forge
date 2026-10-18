@@ -1,0 +1,3361 @@
+---
+source: crates/sgf-gamedata/tests/special_clusters.rs
+assertion_line: 56
+expression: report
+---
+Added the Legendary Leader's sites: 4 systems and 3 lanes
+@@ line 71406
++	601=
++	{
++		coordinate=
++		{
++			x=-292.23404
++			y=-137.62265
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="NAME_legendary_crash_site"
++		}
++		planet=16777273
++		planet=6375
++		planet=6376
++		planet=6377
++		planet=6378
++		planet=6379
++		planet=6380
++		planet=6381
++		planet=6382
++		planet=6383
++		planet=6384
++		planet=6385
++		planet=6386
++		star_class="sc_f"
++		hyperlane=
++		{
++			
++			{
++				to=602
++				length=17
++			}
++ 
++			{
++				to=603
++				length=15
++			}
++ 
++			{
++				to=604
++				length=19
++			}
++ 
++		}
++		flags=
++		{
++			legendary_leader_spawn_system=62808000
++		}
++		initializer="legendary_leader_start_site"
++		inner_radius=318
++		outer_radius=418
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 71406
++	602=
++	{
++		coordinate=
++		{
++			x=-294.94305
++			y=-120.83988
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="NAME_Vapob"
++		}
++		planet=6387
++		planet=6388
++		planet=6389
++		planet=6390
++		planet=6391
++		planet=6392
++		planet=6393
++		planet=6394
++		planet=6395
++		planet=6396
++		planet=6397
++		star_class="sc_m"
++		hyperlane=
++		{
++			
++			{
++				to=601
++				length=17
++			}
++ 
++		}
++		flags=
++		{
++			legendary_leader_1st_system=62808000
++		}
++		initializer="legendary_leader_1st_site"
++		inner_radius=266
++		outer_radius=366
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 71406
++	603=
++	{
++		coordinate=
++		{
++			x=-308.23305
++			y=-137.80031
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="NAME_Ivusheh"
++		}
++		planet=6398
++		planet=6399
++		planet=6400
++		planet=6401
++		planet=6402
++		planet=6403
++		planet=6404
++		planet=6405
++		planet=6406
++		planet=6407
++		planet=6408
++		star_class="sc_m"
++		hyperlane=
++		{
++			
++			{
++				to=601
++				length=15
++			}
++ 
++		}
++		flags=
++		{
++			legendary_leader_2nd_system=62808000
++		}
++		initializer="legendary_leader_2nd_site"
++		inner_radius=202
++		outer_radius=302
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 71406
++	604=
++	{
++		coordinate=
++		{
++			x=-277.49693
++			y=-125.63025
++			origin=4294967295
++			visual_height=3.65056
++		}
++		name=
++		{
++			key="NAME_Taprib"
++		}
++		planet=6409
++		planet=6410
++		planet=6411
++		planet=6412
++		planet=6413
++		planet=6414
++		planet=6415
++		planet=6416
++		planet=6417
++		planet=6418
++		star_class="sc_m"
++		hyperlane=
++		{
++			
++			{
++				to=601
++				length=19
++			}
++ 
++		}
++		asteroid_belts=
++		{
++			
++			{
++				type="rocky_asteroid_belt"
++				inner_radius=100
++			}
++ 
++		}
++		flags=
++		{
++			legendary_leader_3rd_system=62808000
++		}
++		initializer="legendary_leader_3rd_site"
++		inner_radius=254
++		outer_radius=354
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+@@ line 82372
+-57=none
++16777273=
++		{
++			planet_class="pc_f_star"
++			planet_size=35
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="NAME_legendary_crash_site"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=601
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777216 
++			}
++		}
+@@ line 411931
++		6375=
++		{
++			planet_class="pc_molten"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_legendary_crash_site"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-71.13337
++				y=-20.39716
++				origin=601
++			}
++			orbit=74
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6376=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="JX4-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="937"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=85.98278
++				y=-35.43955
++				origin=601
++			}
++			orbit=93
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6377=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="IU11-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="742"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-99.50844
++				y=22.40695
++				origin=601
++			}
++			orbit=102
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6378=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="BT-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="845"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=17.20303
++				y=-104.59472
++				origin=601
++			}
++			orbit=106
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6379=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="H4-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="487"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=89.11815
++				y=71.09117
++				origin=601
++			}
++			orbit=114
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777217 
++			}
++		}
+@@ line 411931
++		6380=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="4-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="32-X"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=40.22288
++				y=-110.93295
++				origin=601
++			}
++			orbit=118
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6381=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="133-D-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="BR-F"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=31.94845
++				y=122.91581
++				origin=601
++			}
++			orbit=127
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777218 
++			}
++		}
+@@ line 411931
++		6382=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=22
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_legendary_crash_site"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=45.04174
++				y=-185.61315
++				origin=601
++			}
++			orbit=191
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6383 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6383=
++		{
++			planet_class="pc_barren"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_legendary_crash_site"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="II"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=60.44707
++				y=-181.29161
++				origin=601
++			}
++			orbit=16
++			last_bombardment=			"0.01.01"
++			moon_of=6382
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6384=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=19
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_legendary_crash_site"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-150.32638
++				y=184.51552
++				origin=601
++			}
++			orbit=238
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6385 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6385=
++		{
++			planet_class="pc_frozen"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_legendary_crash_site"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="III"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-138.72232
++				y=173.49983
++				origin=601
++			}
++			orbit=16
++			last_bombardment=			"0.01.01"
++			moon_of=6384
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6386=
++		{
++			planet_class="pc_frozen"
++			planet_size=29
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_legendary_crash_site"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=284.29524
++				y=-46.04578
++				origin=601
++			}
++			orbit=288
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			flags=
++			{
++				legendary_leader_meet_point=62808000
++				legendary_leader_planet=62808000
++			}
++			entity=0
++		}
+@@ line 411931
++		6387=
++		{
++			planet_class="pc_m_star"
++			planet_size=26
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="NAME_Vapob"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=602
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777219 
++			}
++		}
+@@ line 411931
++		6388=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=30
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Vapob"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=320
++			coordinate=
++			{
++				x=-76.27926
++				y=-43.88024
++				origin=602
++			}
++			orbit=88
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777220 
++			}
++		}
+@@ line 411931
++		6389=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="B12-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="XR-1"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=28.1075
++				y=100.12976
++				origin=602
++			}
++			orbit=104
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6390=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="WX12-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="3452"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-53.9369
++				y=-88.92025
++				origin=602
++			}
++			orbit=104
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777221 
++			}
++		}
+@@ line 411931
++		6391=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="14-S-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="717"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-55.82616
++				y=86.55888
++				origin=602
++			}
++			orbit=103
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6392=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="LA4-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="59-C"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-23.08237
++				y=-100.3803
++				origin=602
++			}
++			orbit=103
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6393=
++		{
++			planet_class="pc_alpine"
++			planet_size=18
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Vapob"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=92.75436
++				y=91.08583
++				origin=602
++			}
++			orbit=130
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6394 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="molten_mineral_rivers"
++						days=-1
++					}
++ 
++				}
++			}
++			flags=
++			{
++				legendary_leader_1st_planet=62808000
++				legendary_leader_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777222 16777223 16777224 16777225 16777226 16777227 16777228 16777229 16777230 16777231 
++			}
++		}
+@@ line 411931
++		6394=
++		{
++			planet_class="pc_barren"
++			planet_size=9
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Vapob"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="II"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=114.6693
++				y=93.01856
++				origin=602
++			}
++			orbit=22
++			last_bombardment=			"0.01.01"
++			moon_of=6393
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6395=
++		{
++			planet_class="pc_barren"
++			planet_size=21
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Vapob"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-81.0428
++				y=-150.57577
++				origin=602
++			}
++			orbit=171
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777232 
++			}
++		}
+@@ line 411931
++		6396=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Vapob"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-52.33278
++				y=211.62533
++				origin=602
++			}
++			orbit=218
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6397 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6397=
++		{
++			planet_class="pc_molten"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Vapob"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-34.47669
++				y=213.89691
++				origin=602
++			}
++			orbit=18
++			last_bombardment=			"0.01.01"
++			moon_of=6396
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6398=
++		{
++			planet_class="pc_m_star"
++			planet_size=30
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="NAME_Ivusheh"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=603
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777233 
++			}
++		}
+@@ line 411931
++		6399=
++		{
++			planet_class="pc_molten"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Ivusheh"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=37.20356
++				y=19.49091
++				origin=603
++			}
++			orbit=42
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6400 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777242 
++			}
++		}
+@@ line 411931
++		6400=
++		{
++			planet_class="pc_molten"
++			planet_size=8
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Ivusheh"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="I"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=50.674
++				y=35.60138
++				origin=603
++			}
++			orbit=21
++			last_bombardment=			"0.01.01"
++			moon_of=6399
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6401=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="409F-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="012"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-57.12586
++				y=14.75248
++				origin=603
++			}
++			orbit=59
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6402=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="ZI3-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="PN-98"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=63.94526
++				y=2.64656
++				origin=603
++			}
++			orbit=64
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777243 
++			}
++		}
+@@ line 411931
++		6403=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="UL1M-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="76-1"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-67.30128
++				y=15.21638
++				origin=603
++			}
++			orbit=69
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6404=
++		{
++			planet_class="pc_desert"
++			planet_size=17
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Ivusheh"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=91.33026
++				y=-80.88748
++				origin=603
++			}
++			orbit=122
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="ship_junkyard"
++						days=-1
++					}
++ 
++				}
++			}
++			flags=
++			{
++				legendary_leader_2nd_planet=62808000
++				legendary_leader_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777244 16777245 16777246 16777247 16777248 16777249 16777250 16777251 16777252 16777253 16777254 16777255 
++			}
++		}
+@@ line 411931
++		6405=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="E-9-R"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="9000"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-123.42562
++				y=-61.72614
++				origin=603
++			}
++			orbit=138
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777256 
++			}
++		}
+@@ line 411931
++		6406=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="X9-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="328"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=130.4086
++				y=-48.11027
++				origin=603
++			}
++			orbit=139
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777257 
++			}
++		}
+@@ line 411931
++		6407=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=45
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Ivusheh"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-108.73353
++				y=-107.63837
++				origin=603
++			}
++			orbit=153
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6408 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6408=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Ivusheh"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="III"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-106.13194
++				y=-126.45941
++				origin=603
++			}
++			orbit=19
++			last_bombardment=			"0.01.01"
++			moon_of=6407
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6409=
++		{
++			planet_class="pc_m_star"
++			planet_size=30
++			carrier_binary_flags=3
++			name=
++			{
++				key="NAME_Taprib"
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=604
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777258 
++			}
++		}
+@@ line 411931
++		6410=
++		{
++			planet_class="pc_broken"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Taprib"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-48.06308
++				y=-13.78187
++				origin=604
++			}
++			orbit=50
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6411 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6411=
++		{
++			planet_class="pc_molten"
++			planet_size=7
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Taprib"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="I"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-44.057
++				y=1.70849
++				origin=604
++			}
++			orbit=16
++			last_bombardment=			"0.01.01"
++			moon_of=6410
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777259 
++			}
++		}
+@@ line 411931
++		6412=
++		{
++			planet_class="pc_asteroid"
++			planet_size=2
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="UT-9-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="IJ-087"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=100.68189
++				y=46.73498
++				origin=604
++			}
++			orbit=111
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6413=
++		{
++			planet_class="pc_asteroid"
++			planet_size=3
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="B134-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="0004"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-59.25146
++				y=-95.04349
++				origin=604
++			}
++			orbit=112
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6414=
++		{
++			planet_class="pc_tropical"
++			planet_size=18
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Taprib"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=72
++			coordinate=
++			{
++				x=-112.75813
++				y=89.56341
++				origin=604
++			}
++			orbit=144
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="hostile_planet"
++						days=-1
++					}
++ 
++				}
++			}
++			flags=
++			{
++				legendary_leader_3rd_planet=62808000
++				legendary_leader_planet=62808000
++			}
++			entity=0
++			deposits=
++			{
++				16777260 16777269 16777270 16777271 16777272 16777273 16777274 16777275 16777276 16777277 16777278 
++			}
++		}
+@@ line 411931
++		6415=
++		{
++			planet_class="pc_frozen"
++			planet_size=22
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Taprib"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=92.08342
++				y=-159.30048
++				origin=604
++			}
++			orbit=184
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6416 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6416=
++		{
++			planet_class="pc_frozen"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Taprib"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="III"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=96.00693
++				y=-141.73329
++				origin=604
++			}
++			orbit=18
++			last_bombardment=			"0.01.01"
++			moon_of=6415
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6417=
++		{
++			planet_class="pc_frozen"
++			planet_size=23
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Taprib"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-198.25268
++				y=62.92754
++				origin=604
++			}
++			orbit=208
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6418 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 411931
++		6418=
++		{
++			planet_class="pc_frozen"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="NAME_Taprib"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-197.70545
++				y=78.91818
++				origin=604
++			}
++			orbit=16
++			last_bombardment=			"0.01.01"
++			moon_of=6417
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+@@ line 692052
+-last_created_system=600
++last_created_system=604
+@@ line 709169
+-system_initializer_counter=
+-{
+-	count=
+-	{
+-		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 
+-	}
+-	initializer=
+-	{
+-		"ai_system_01"
+-		"ai_system_03"
+-		"ai_system_02"
+-		"ai_system_04"
+-		"distantstars_init_06"
+-		"mega_shipyard_init_01"
+-		"voidworms_spawn_system_medium"
+-		"megacorp_matter_decompressor_init_01"
+-		"megacorp_interstellar_assembly_init_01"
+-		"debris_belt_initializer"
+-		"ring_world_init_01"
+-		"megacorp_strategic_coordination_center_init_01"
+-		"marauder_2_1"
+-		"voidworms_spawn_system_small"
+-		"ruined_arc_furnace_system"
+-		"distar_crystal_system"
+-		"voidworms_spawn_system_tiny"
+-		"hauer_system_initializer"
+-		"guardians_init_technosphere"
+-		"guardians_curator_init_01"
+-		"guardians_init_hive"
+-		"salvager_enclave_init_03"
+-		"crystal_manufactory_system"
+-		"mindwarden_enclave_initializer"
+-		"guardians_artist_init_03"
+-		"guardians_artist_init_01"
+-		"guardians_curator_init_02"
+-		"guardians_artist_init_02"
+-		"sentry_array_init_01"
+-		"megacorp_mega_art_installation_init_01"
+-		"science_nexus_init_01"
+-		"marauder_1_1"
+-		"guardians_init_wraith"
+-		"megacorp_caravaneer_init"
+-		"shroudwalker_enclave_init_01"
+-		"dyson_sphere_init_01"
+-		"special_init_06"
+-		"salvager_enclave_init_02"
+-		"hostile_init_16"
+-		"abandoned_gateways_01"
+-		"star_lifting_system"
+-		"quantum_catapult_init_01"
+-		"guardians_init_dreadnought"
+-		"guardians_trader_init_01"
+-		"unique_system_initializer_08"
+-		"orbital_ring_init_01"
+-		"guardians_init_hatchling"
+-		"hostile_init_20"
+-		"unique_system_initializer_04"
+-		"shroudwalker_enclave_init_03"
+-		"guardians_init_horror"
+-		"guardians_init_stellarites"
+-		"hostile_init_21"
+-		"distantstars_init_00"
+-		"breachsealer_system"
+-		"legendary_leader_start_site"
+-		"guardians_curator_init_03"
+-		"guardians_init_dragon"
+-		"scavenger_system"
+-		"great_wound_system"
+-		"high_energy_system"
+-		"oasis_system"
+-		"shroudwalker_enclave_init_02"
+-		"salvager_enclave_init_01"
+-		"hostile_init_06"
+-		"guardians_trader_init_02"
+-		"mechanocalibrator_system"
+-		"guardians_init_fortress"
+-		"guardians_trader_init_03"
+-		"broken_shroudwalker_init_01"
+-		"unique_system_initializer_03"
+-		"wooden_planet_system_initializer"
+-		"asteroid_system"
+-		"hostile_init_22"
+-		"collapse_system"
+-		"superflare_system"
+-		"pre_ftl_deneb_system"
+-		"metal_planet_system_initializer"
+-		"fumongus_init_01"
+-		"hostile_init_void_cloud"
+-		"elderly_tiyanki_system"
+-		"distar_phaseshift_system"
+-		"living_planet_system"
+-		"hostile_init_mining_drones"
+-		"toxic_planet_toxic_moon"
+-		"wenkwort_initializer"
+-		"polaris_civilization"
+-		"unique_system_initializer_05"
+-		"ice_system"
+-		"big_rip_system"
+-		"ghost_ship_system_initializer_01"
+-		"shattered_world_system"
+-		"special_init_07"
+-		"hostile_init_07"
+-		"hostile_init_amoeba"
+-		"locust_system_initializer_01"
+-		"pre_ftl_shattered_ring"
+-		"primitive_robot_system"
+-		"time_loop_world_system"
+-		"unique_system_initializer_06"
+-		"unique_system_initializer_09"
+-		"distar_pod_system"
+-		"previously_terraformed_planet_system_initializer"
+-		"lone_defender"
+-		"hostile_init_14"
+-		"trappist_initializer"
+-		"ratling_1_1"
+-		"sanctuary_system"
+-	}
+-}
++system_initializer_counter=
++{
++	count=
++	{
++		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 2 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
++	}
++	initializer=
++	{
++		"ai_system_01"
++		"ai_system_03"
++		"ai_system_02"
++		"ai_system_04"
++		"distantstars_init_06"
++		"mega_shipyard_init_01"
++		"voidworms_spawn_system_medium"
++		"megacorp_matter_decompressor_init_01"
++		"megacorp_interstellar_assembly_init_01"
++		"debris_belt_initializer"
++		"ring_world_init_01"
++		"megacorp_strategic_coordination_center_init_01"
++		"marauder_2_1"
++		"voidworms_spawn_system_small"
++		"ruined_arc_furnace_system"
++		"distar_crystal_system"
++		"voidworms_spawn_system_tiny"
++		"hauer_system_initializer"
++		"guardians_init_technosphere"
++		"guardians_curator_init_01"
++		"guardians_init_hive"
++		"salvager_enclave_init_03"
++		"crystal_manufactory_system"
++		"mindwarden_enclave_initializer"
++		"guardians_artist_init_03"
++		"guardians_artist_init_01"
++		"guardians_curator_init_02"
++		"guardians_artist_init_02"
++		"sentry_array_init_01"
++		"megacorp_mega_art_installation_init_01"
++		"science_nexus_init_01"
++		"marauder_1_1"
++		"guardians_init_wraith"
++		"megacorp_caravaneer_init"
++		"shroudwalker_enclave_init_01"
++		"dyson_sphere_init_01"
++		"special_init_06"
++		"salvager_enclave_init_02"
++		"hostile_init_16"
++		"abandoned_gateways_01"
++		"star_lifting_system"
++		"quantum_catapult_init_01"
++		"guardians_init_dreadnought"
++		"guardians_trader_init_01"
++		"unique_system_initializer_08"
++		"orbital_ring_init_01"
++		"guardians_init_hatchling"
++		"hostile_init_20"
++		"unique_system_initializer_04"
++		"shroudwalker_enclave_init_03"
++		"guardians_init_horror"
++		"guardians_init_stellarites"
++		"hostile_init_21"
++		"distantstars_init_00"
++		"breachsealer_system"
++		"legendary_leader_start_site"
++		"guardians_curator_init_03"
++		"guardians_init_dragon"
++		"scavenger_system"
++		"great_wound_system"
++		"high_energy_system"
++		"oasis_system"
++		"shroudwalker_enclave_init_02"
++		"salvager_enclave_init_01"
++		"hostile_init_06"
++		"guardians_trader_init_02"
++		"mechanocalibrator_system"
++		"guardians_init_fortress"
++		"guardians_trader_init_03"
++		"broken_shroudwalker_init_01"
++		"unique_system_initializer_03"
++		"wooden_planet_system_initializer"
++		"asteroid_system"
++		"hostile_init_22"
++		"collapse_system"
++		"superflare_system"
++		"pre_ftl_deneb_system"
++		"metal_planet_system_initializer"
++		"fumongus_init_01"
++		"hostile_init_void_cloud"
++		"elderly_tiyanki_system"
++		"distar_phaseshift_system"
++		"living_planet_system"
++		"hostile_init_mining_drones"
++		"toxic_planet_toxic_moon"
++		"wenkwort_initializer"
++		"polaris_civilization"
++		"unique_system_initializer_05"
++		"ice_system"
++		"big_rip_system"
++		"ghost_ship_system_initializer_01"
++		"shattered_world_system"
++		"special_init_07"
++		"hostile_init_07"
++		"hostile_init_amoeba"
++		"locust_system_initializer_01"
++		"pre_ftl_shattered_ring"
++		"primitive_robot_system"
++		"time_loop_world_system"
++		"unique_system_initializer_06"
++		"unique_system_initializer_09"
++		"distar_pod_system"
++		"previously_terraformed_planet_system_initializer"
++		"lone_defender"
++		"hostile_init_14"
++		"trappist_initializer"
++		"ratling_1_1"
++		"sanctuary_system"
++		"legendary_leader_1st_site"
++		"legendary_leader_2nd_site"
++		"legendary_leader_3rd_site"
++	}
++}
+@@ line 1076223
+-0=none
++16777216=
++	{
++		type="d_energy_2"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
+@@ line 1076224
+-1=none
++16777217=
++	{
++		type="d_trade_value_2"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
+@@ line 1076225
+-2=none
++16777218=
++	{
++		type="d_volatile_motes_1"
++		deposit_holder=
++		{
++			type=0
++			id=6381
++		}
++	}
+@@ line 1076226
+-3=none
++16777219=
++	{
++		type="d_energy_3"
++		deposit_holder=
++		{
++			type=0
++			id=6387
++		}
++	}
+@@ line 1076227
+-4=none
++16777220=
++	{
++		type="d_energy_3"
++		deposit_holder=
++		{
++			type=0
++			id=6388
++		}
++	}
+@@ line 1076228
+-5=none
++16777221=
++	{
++		type="d_trade_value_4"
++		deposit_holder=
++		{
++			type=0
++			id=6390
++		}
++	}
+@@ line 1076229
+-6=none
++16777222=
++	{
++		type="d_volcanic_active_planet"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076230
+-7=none
++16777223=
++	{
++		type="d_volcanic_active_planet"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076231
+-8=none
++16777224=
++	{
++		type="d_volcanic_active_planet"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076232
+-9=none
++16777225=
++	{
++		type="d_fungal_caves"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076233
+-10=none
++16777226=
++	{
++		type="d_crystalline_caverns"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076234
+-11=none
++16777227=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076235
+-12=none
++16777228=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076236
+-13=none
++16777229=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076237
+-14=none
++16777230=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076238
+-15=none
++16777231=
++	{
++		type="d_active_volcano"
++		deposit_holder=
++		{
++			type=0
++			id=6393
++		}
++	}
+@@ line 1076239
+-16=none
++16777232=
++	{
++		type="d_minerals_2"
++		deposit_holder=
++		{
++			type=0
++			id=6395
++		}
++	}
+@@ line 1076240
+-17=none
++16777233=
++	{
++		type="d_energy_4"
++		deposit_holder=
++		{
++			type=0
++			id=6398
++		}
++	}
+@@ line 1076313
+-26=none
++16777242=
++	{
++		type="d_energy_4"
++		deposit_holder=
++		{
++			type=0
++			id=6399
++		}
++	}
+@@ line 1076314
+-27=none
++16777243=
++	{
++		type="d_minerals_2"
++		deposit_holder=
++		{
++			type=0
++			id=6402
++		}
++	}
+@@ line 1076315
+-28=none
++16777244=
++	{
++		type="d_fallen_orbital_shipyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076316
+-29=none
++16777245=
++	{
++		type="d_space_ship_graveyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076317
+-30=none
++16777246=
++	{
++		type="d_space_ship_graveyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076318
+-31=none
++16777247=
++	{
++		type="d_space_ship_graveyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076319
+-32=none
++16777248=
++	{
++		type="d_space_ship_graveyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076320
+-33=none
++16777249=
++	{
++		type="d_space_ship_graveyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076321
+-34=none
++16777250=
++	{
++		type="d_space_ship_graveyard"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076322
+-35=none
++16777251=
++	{
++		type="d_mineral_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076323
+-36=none
++16777252=
++	{
++		type="d_bubbling_swamp"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076324
+-37=none
++16777253=
++	{
++		type="d_quicksand_basin"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076325
+-38=none
++16777254=
++	{
++		type="d_quicksand_basin"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076326
+-39=none
++16777255=
++	{
++		type="d_mountain_range"
++		deposit_holder=
++		{
++			type=0
++			id=6404
++		}
++	}
+@@ line 1076327
+-40=none
++16777256=
++	{
++		type="d_trade_value_2"
++		deposit_holder=
++		{
++			type=0
++			id=6405
++		}
++	}
+@@ line 1076328
+-41=none
++16777257=
++	{
++		type="d_minerals_2"
++		deposit_holder=
++		{
++			type=0
++			id=6406
++		}
++	}
+@@ line 1076329
+-42=none
++16777258=
++	{
++		type="d_energy_2"
++		deposit_holder=
++		{
++			type=0
++			id=6409
++		}
++	}
+@@ line 1076330
+-43=none
++16777259=
++	{
++		type="d_energy_2"
++		deposit_holder=
++		{
++			type=0
++			id=6411
++		}
++	}
+@@ line 1076331
+-44=none
++16777260=
++	{
++		type="d_hostile_fauna"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076404
+-53=none
++16777269=
++	{
++		type="d_lush_jungle"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076405
+-54=none
++16777270=
++	{
++		type="d_lush_jungle"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076406
+-55=none
++16777271=
++	{
++		type="d_hostile_flora"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076407
+-56=none
++16777272=
++	{
++		type="d_hostile_flora"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076408
+-57=none
++16777273=
++	{
++		type="d_hostile_flora"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076409
+-58=none
++16777274=
++	{
++		type="d_mineral_fields"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076410
+-59=none
++16777275=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076411
+-60=none
++16777276=
++	{
++		type="d_dangerous_wildlife_blocker"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076412
+-61=none
++16777277=
++	{
++		type="d_toxic_kelp"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1076413
+-62=none
++16777278=
++	{
++		type="d_mountain_range"
++		deposit_holder=
++		{
++			type=0
++			id=6414
++		}
++	}
+@@ line 1123760
+-		"845"
+@@ line 1124373
+-		"XR-1"
+@@ line 1126515
+-		"328"
+@@ line 1127187
+-		"IJ-087"
+@@ line 1127871
+-		"717"
+@@ line 1129043
+-		"9000"
+@@ line 1129390
+-		"0004"
+@@ line 1130944
+-		"BR-F"
+@@ line 1131483
+-		"32-X"
+@@ line 1132379
+-		"76-1"
+@@ line 1133691
+-		"487"
+@@ line 1133895
+-		"937"
+@@ line 1134354
+-		"PN-98"
+@@ line 1134592
+-		"3452"
+@@ line 1136936
+-		"59-C"
+@@ line 1137105
+-		"742"
+@@ line 1139709
+-		"012"
+@@ line 1140882
++saved_event_target=
++{
++	type=planet
++	id=6386
++	opener_id=4294967295
++	name="exakeides_planet"
++}

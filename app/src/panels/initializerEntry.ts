@@ -19,11 +19,8 @@ export function browseInitializers(targets: readonly number[]): void {
   useInitializerBrowserStore.getState().openFor([...targets]);
 }
 
-/**
- * Opens the browser to spawn a new system at a world point, chosen from the initializers, or from
- * `group`'s when given.
- */
-export function createSystemFrom(x: number, y: number, group?: string): void {
+/** Opens the browser to spawn a new system at a world point, chosen from the initializers. */
+export function createSystemFrom(x: number, y: number): void {
   if (!canBrowseInitializers()) return;
-  useInitializerBrowserStore.getState().openToCreate(x, y, group);
+  useInitializerBrowserStore.getState().openToCreate(x, y);
 }

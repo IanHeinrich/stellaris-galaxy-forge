@@ -1,4 +1,7 @@
 import type { CampaignListing } from "../generated/CampaignListing";
+import type { ClusterMember } from "../generated/ClusterMember";
+import type { ClusterPick } from "../generated/ClusterPick";
+import type { SpecialCluster } from "../generated/SpecialCluster";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { CampaignRow, SaveRow, ScenarioRow } from "../lib/openRows";
@@ -899,4 +902,29 @@ export function pickSummary(over: Partial<PickSummary> = {}): PickSummary {
     in_galaxy: null,
     ...over,
   };
+}
+
+/** A Special menu cluster with its card: the Junk Ratlings, three systems and two lanes, none in the galaxy. */
+export function clusterPick(
+  over: Partial<SpecialCluster> = {},
+  card: Partial<PickSummary> = {},
+): ClusterPick {
+  return {
+    cluster: {
+      key: "junk_ratlings",
+      label: "Junk Ratlings",
+      phrase: "the Junk Ratlings",
+      layouts: ["ratling_1_1", "ratling_1_2", "ratling_1_3"],
+      lanes: 2,
+      in_galaxy: 0,
+      dlc: null,
+      ...over,
+    },
+    summary: pickSummary(card),
+  };
+}
+
+/** One system of a cluster's roll, called `name`, whose place is taken. */
+export function clusterMember(name: string, over: Partial<ClusterMember> = {}): ClusterMember {
+  return { layout: "ratling_1_1", name, x: 0, y: 0, star_class: "sc_m", refused: null, ...over };
 }

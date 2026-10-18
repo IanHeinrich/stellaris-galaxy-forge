@@ -12,10 +12,13 @@ use crate::generate::{GenerateError, layout_structures, layouts_for, star_classe
 use crate::initializers::{BodyClass, InitPlanet, Initializer};
 use crate::install::script::{Range, whole};
 use crate::layouts::{
-    DlcNeed, SaveFacts, layout_stars, notable, plain_initializers, special_initializers, star_body,
+    Cluster, DlcNeed, SaveFacts, cluster_home, layout_stars, notable, plain_initializers,
+    special_initializers, star_body,
 };
 use crate::loc::localisation::Localisation;
-use crate::menu::{SpecialLayout, special_layouts};
+use crate::menu::{
+    SpecialCluster, SpecialLayout, menu_clusters, special_clusters, special_layouts,
+};
 
 /// The smallest and largest number a pick can give.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -132,19 +135,28 @@ pub struct SpecialPick {
     pub summary: PickSummary,
 }
 
+/// A cluster of the Special menu with its card, which merges what its systems give.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ClusterPick {
+    pub cluster: SpecialCluster,
+    pub summary: PickSummary,
+}
+
 /// Everything the Add system menu offers for a save, each with its card: Random, a star
-/// class in the order [`star_classes`] gives them, and the Special menu's layouts by label.
+/// class in the order [`star_classes`] gives them, the Special menu's layouts by label, and
+/// its clusters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AddSystemPicks {
     pub random: PickSummary,
     pub star_classes: Vec<StarPick>,
     pub special: Vec<SpecialPick>,
+    pub clusters: Vec<ClusterPick>,
 }
 
 /// The Add system menu's picks for `session`'s save.
 pub fn add_system_picks(gd: &GameData, session: &Session) -> AddSystemPicks {
-    let save = SaveFacts::read(session);
     let star_classes = star_classes(gd)
         .into_iter()
         .filter_map(|key| {
@@ -153,19 +165,38 @@ pub fn add_system_picks(gd: &GameData, session: &Session) -> AddSystemPicks {
             Some(StarPick { key, name, summary })
         })
         .collect();
-    let special = special_layouts(gd, session)
+    AddSystemPicks {
+        random: random_summary(gd),
+        star_classes,
+        special: special_picks(gd, session),
+        clusters: cluster_picks(gd, session),
+    }
+}
+
+/// The Special menu's layouts for `session`'s document, each with its card.
+pub fn special_picks(gd: &GameData, session: &Session) -> Vec<SpecialPick> {
+    let save = SaveFacts::read(session);
+    special_layouts(gd, session)
         .into_iter()
         .filter_map(|layout| {
             let init = gd.initializers.get(&layout.key)?;
             let summary = special_summary(gd, init, &save, session);
             Some(SpecialPick { layout, summary })
         })
-        .collect();
-    AddSystemPicks {
-        random: random_summary(gd),
-        star_classes,
-        special,
-    }
+        .collect()
+}
+
+/// The Special menu's clusters for `session`'s document, each with its card.
+pub fn cluster_picks(gd: &GameData, session: &Session) -> Vec<ClusterPick> {
+    let save = SaveFacts::read(session);
+    menu_clusters(gd)
+        .into_iter()
+        .zip(special_clusters(gd, session))
+        .map(|(cluster, row)| ClusterPick {
+            summary: cluster_summary(gd, cluster, &save, session),
+            cluster: row,
+        })
+        .collect()
 }
 
 /// The card for the Special entry `key`.
@@ -192,17 +223,64 @@ fn special_summary(
     save: &SaveFacts,
     session: &Session,
 ) -> PickSummary {
-    let mut summary = merge(gd, &[init]);
-    summary.dlc = save.dlc_need(gd, init);
-    summary.max_instances = init.max_instances;
-    summary.in_galaxy = Some(save.in_galaxy(&init.name));
-    let (comes_with, sites_left) = comes_with(gd, init);
-    summary.comes_with = comes_with;
-    summary.comes_without = comes_without(init, sites_left);
+    let mut summary = layouts_summary(gd, init, &[init], save, session);
+    if cluster_home(init) {
+        summary.comes_without.push(LeftOut::ClusterSystems);
+    }
+    summary
+}
+
+/// The card for `cluster`: what its systems give, merged, and what each comes with and
+/// without, together.
+fn cluster_summary(
+    gd: &GameData,
+    cluster: &Cluster,
+    save: &SaveFacts,
+    session: &Session,
+) -> PickSummary {
+    let layouts: Vec<&Initializer> = cluster
+        .layouts()
+        .filter_map(|layout| gd.initializers.get(layout))
+        .collect();
+    match layouts.first() {
+        Some(home) => layouts_summary(gd, home, &layouts, save, session),
+        None => merge(gd, &[]),
+    }
+}
+
+/// The card for the systems of `layouts` added together, `home` the one whose DLC, cap and
+/// count in the galaxy it shows: what they give, merged, the anomalies, dig sites and
+/// megastructures each comes with and what each comes without, and whether the save holds a
+/// global event target any of them saves.
+fn layouts_summary(
+    gd: &GameData,
+    home: &Initializer,
+    layouts: &[&Initializer],
+    save: &SaveFacts,
+    session: &Session,
+) -> PickSummary {
+    let mut summary = merge(gd, layouts);
+    summary.dlc = save.dlc_need(gd, home);
+    summary.max_instances = home.max_instances;
+    summary.in_galaxy = Some(save.in_galaxy(&home.name));
+    for init in layouts {
+        let (comes_with, sites_left) = comes_with(gd, init);
+        for planting in comes_with {
+            if !summary.comes_with.contains(&planting) {
+                summary.comes_with.push(planting);
+            }
+        }
+        summary
+            .comes_without
+            .extend(comes_without(init, sites_left));
+    }
+    summary.comes_without.sort_unstable();
+    summary.comes_without.dedup();
     summary.story_kept_by_existing = session.save("reading event targets").is_ok_and(|save| {
-        saved_targets(init)
+        layouts
             .iter()
-            .any(|name| save.holds_event_target(name))
+            .flat_map(|init| saved_targets(init))
+            .any(|name| save.holds_event_target(&name))
     });
     summary
 }

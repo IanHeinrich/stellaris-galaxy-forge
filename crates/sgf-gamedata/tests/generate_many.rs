@@ -6,10 +6,12 @@ use crate::common;
 
 use std::collections::{BTreeSet, HashSet};
 
-use sgf_core::ops::{BULK_ADD_CAP, LaneEnd, OpError, SPAWN_BUFFER};
+use sgf_core::ops::{BULK_ADD_CAP, LaneEnd, OpError, SPAWN_BUFFER, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
-use sgf_gamedata::generate::{ForSaveError, SystemAsk, for_save_many, star_classes, systems_op};
+use sgf_gamedata::generate::{
+    ForSaveError, PickAt, SystemAsk, for_save_many, star_classes, systems_op,
+};
 
 use common::INSTALL;
 
@@ -26,7 +28,7 @@ fn a_shape_of_systems_takes_distinct_names_none_the_save_holds_and_the_classes_a
         .map(|((x, y), class)| ask(x, y, class))
         .collect();
 
-    let specs = for_save_many(gd, &session, 7, &asks).expect("a system per ask");
+    let specs = many(gd, &session, 7, &asks).expect("a system per ask");
 
     assert_eq!(specs.len(), BULK_ADD_CAP);
     let held: HashSet<&str> = session
@@ -43,14 +45,11 @@ fn a_shape_of_systems_takes_distinct_names_none_the_save_holds_and_the_classes_a
         assert_eq!((spec.x, spec.y), (ask.x, ask.y));
     }
     assert_eq!(
-        for_save_many(gd, &session, 7, &asks).expect("again"),
+        many(gd, &session, 7, &asks).expect("again"),
         specs,
         "the same seed gives the same systems"
     );
-    assert_ne!(
-        for_save_many(gd, &session, 8, &asks).expect("another seed"),
-        specs
-    );
+    assert_ne!(many(gd, &session, 8, &asks).expect("another seed"), specs);
 }
 
 #[test]
@@ -65,7 +64,7 @@ fn black_holes_rolled_together_take_distinct_black_hole_names() {
         .map(|(x, y)| ask(x, y, &class))
         .collect();
 
-    let specs = for_save_many(gd, &session, 3, &asks).expect("a black hole per ask");
+    let specs = many(gd, &session, 3, &asks).expect("a black hole per ask");
 
     let names: HashSet<&str> = specs.iter().map(|spec| spec.name.as_str()).collect();
     assert_eq!(names.len(), specs.len(), "{names:?}");
@@ -225,6 +224,18 @@ fn a_hex_lattice_at_the_spawn_buffer_off_a_whole_number_centre_is_added() {
 
     let added = session.graph().systems.values().filter(|s| s.added).count();
     assert_eq!(added, 19);
+}
+
+/// The specs [`for_save_many`] rolls for `asks`, each around its star class.
+fn many(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    asks: &[SystemAsk],
+) -> Result<Vec<SystemSpec>, ForSaveError> {
+    let asks: Vec<PickAt> = asks.iter().map(PickAt::from).collect();
+    let adds = for_save_many(gd, session, seed, &asks)?;
+    Ok(adds.into_iter().map(|add| add.spec).collect())
 }
 
 fn ask(x: f64, y: f64, class: &str) -> SystemAsk {

@@ -4,7 +4,8 @@ use serde_json::json;
 use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{EditResult, ErrorKind, GalaxyView, SystemDetail};
-use sgf_gamedata::summary::AddSystemPicks;
+use sgf_gamedata::generate::ClusterRoll;
+use sgf_gamedata::summary::{AddSystemPicks, ClusterPick, SpecialPick};
 
 use crate::common;
 use common::{SAMPLE, SAMPLE_45, SCENARIO, invoke, kind, open, webview, with_game_data};
@@ -270,15 +271,9 @@ fn a_scenario_takes_no_rolled_system() {
         json!({ "system": 0, "seed": 1, "starClass": null }),
     )
     .expect_err("a scenario is refused");
-    let special = invoke::<EditResult>(
-        &w,
-        "add_special_system",
-        json!({ "seed": 1, "x": 0.0, "y": 0.0, "layout": "trappist_initializer", "extras": true }),
-    )
-    .expect_err("a scenario is refused");
     let picks = invoke::<AddSystemPicks>(&w, "get_add_system_picks", json!({}))
         .expect_err("a scenario has no picks");
-    for refused in [added, rolled, special, picks] {
+    for refused in [added, rolled, picks] {
         assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
         assert_eq!(refused.message, "this document takes no rolled system");
     }
@@ -289,6 +284,62 @@ fn a_scenario_takes_no_rolled_system() {
         removed.message,
         "this document has no systems added this session"
     );
+}
+
+/// A scenario lists the Special menu's layouts and clusters as a save does, and takes each as
+/// system statements naming their initializers: one for a layout, one per system and the
+/// lanes between them for a cluster.
+#[test]
+fn a_scenario_takes_special_systems_and_clusters_as_statements() {
+    let Some((w, opened)) = with_game_data(SCENARIO) else {
+        return;
+    };
+    let layouts: Vec<SpecialPick> =
+        invoke(&w, "get_special_layouts", json!({})).expect("the special layouts");
+    assert!(
+        layouts
+            .iter()
+            .any(|pick| pick.layout.key == "trappist_initializer")
+    );
+    let clusters: Vec<ClusterPick> =
+        invoke(&w, "get_special_clusters", json!({})).expect("the clusters");
+    let keys: Vec<&str> = clusters.iter().map(|c| c.cluster.key.as_str()).collect();
+    assert_eq!(keys, ["junk_ratlings", "legendary_leader"]);
+
+    let (x, y) = free_spot(&opened.galaxy, 12.0);
+    let special: EditResult = invoke(
+        &w,
+        "add_special_system",
+        json!({ "seed": 1, "x": x, "y": y, "layout": "trappist_initializer", "extras": true }),
+    )
+    .expect("a special system's statement");
+    assert!(
+        special
+            .delta
+            .systems
+            .iter()
+            .any(|s| s.initializer == "trappist_initializer")
+    );
+
+    let (x, y) = free_spot(&opened.galaxy, 30.0);
+    let args = json!({ "seed": 3, "x": x, "y": y, "cluster": "legendary_leader" });
+    let roll: ClusterRoll = invoke(&w, "roll_special_cluster", args).expect("the roll");
+    assert_eq!(roll.members.len(), 4);
+    assert_eq!(roll.lanes.len(), 3);
+    let args = json!({ "seed": 3, "x": x, "y": y, "cluster": "legendary_leader", "extras": false });
+    let cluster: EditResult = invoke(&w, "add_special_cluster", args).expect("the cluster");
+    assert_eq!(
+        cluster.entry.description,
+        "Added the Legendary Leader's sites: 4 systems and 3 lanes"
+    );
+    let added: Vec<&str> = cluster
+        .delta
+        .systems
+        .iter()
+        .map(|s| s.initializer.as_str())
+        .filter(|init| init.starts_with("legendary_leader"))
+        .collect();
+    assert_eq!(added.len(), 4, "{added:?}");
 }
 
 /// The picks the menu offers for the open save.

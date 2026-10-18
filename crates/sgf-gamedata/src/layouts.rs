@@ -105,6 +105,120 @@ pub const CONVERTED_LAYOUTS: [Converted; 16] = [
     Converted::special("unique_system_initializer_01"),
 ];
 
+/// Systems the game places together, which the Special menu adds as one: a home layout and
+/// the members its chain of `neighbor_system` and `spawn_system` places, with the lanes the
+/// game lays between them. How far each member lands is read from that chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Cluster {
+    pub key: &'static str,
+    /// What the menu calls it: `Junk Ratlings`.
+    pub label: &'static str,
+    /// What a sentence calls it: `the Junk Ratlings`.
+    pub phrase: &'static str,
+    pub home: &'static str,
+    /// The other layouts, each placed after the one its lane leads from.
+    pub members: &'static [&'static str],
+    pub lanes: ClusterLanes,
+}
+
+/// Which members of a [`Cluster`] a lane joins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClusterLanes {
+    /// One lane from the home to each member.
+    Star,
+    /// One lane per pair, the first of each spawning the second.
+    Pairs(&'static [(&'static str, &'static str)]),
+}
+
+impl Cluster {
+    /// Its layouts, the home first.
+    pub fn layouts(&self) -> impl Iterator<Item = &'static str> + '_ {
+        std::iter::once(self.home).chain(self.members.iter().copied())
+    }
+
+    /// Each lane as the layout it leads from and the one it leads to, which that one's
+    /// chain places.
+    pub fn links(&self) -> Vec<(&'static str, &'static str)> {
+        match self.lanes {
+            ClusterLanes::Star => self
+                .members
+                .iter()
+                .map(|&member| (self.home, member))
+                .collect(),
+            ClusterLanes::Pairs(pairs) => pairs.to_vec(),
+        }
+    }
+}
+
+const SOL_LANES: [(&str, &str); 4] = [
+    ("sol_system_initializer", "sol_neighbor_t1"),
+    (
+        "sol_system_initializer",
+        "sol_neighbor_t1_no_guaranteed_colony",
+    ),
+    ("sol_neighbor_t1", "sol_neighbor_t2_no_guaranteed_colony"),
+    ("sol_neighbor_t1_no_guaranteed_colony", "sol_neighbor_t2"),
+];
+
+/// The clusters the Special menu offers.
+pub const CLUSTERS: [Cluster; 3] = [
+    Cluster {
+        key: "junk_ratlings",
+        label: "Junk Ratlings",
+        phrase: "the Junk Ratlings",
+        home: "ratling_1_1",
+        members: &["ratling_1_2", "ratling_1_3"],
+        // distar.295 joins the home to each partner when the game starts.
+        lanes: ClusterLanes::Star,
+    },
+    Cluster {
+        key: "legendary_leader",
+        label: "Legendary Leader",
+        phrase: "the Legendary Leader's sites",
+        home: "legendary_leader_start_site",
+        members: &[
+            "legendary_leader_1st_site",
+            "legendary_leader_2nd_site",
+            "legendary_leader_3rd_site",
+        ],
+        lanes: ClusterLanes::Star,
+    },
+    Cluster {
+        key: "sol_neighbours",
+        label: "Sol and Its Neighbours",
+        phrase: "Sol and its neighbours",
+        home: "sol_system_initializer",
+        members: &[
+            "sol_neighbor_t1",
+            "sol_neighbor_t1_no_guaranteed_colony",
+            "sol_neighbor_t2",
+            "sol_neighbor_t2_no_guaranteed_colony",
+        ],
+        lanes: ClusterLanes::Pairs(&SOL_LANES),
+    },
+];
+
+/// What a cluster layout's own `init_effect` runs to place the other systems, which the
+/// cluster's add places itself.
+const CLUSTER_PLACED: [&str; 2] = ["spawn_system", "reroll_random"];
+
+/// The entry of [`CLUSTERS`] keyed `key`.
+pub fn cluster(key: &str) -> Option<&'static Cluster> {
+    CLUSTERS.iter().find(|cluster| cluster.key == key)
+}
+
+/// `init` is the home of a cluster.
+pub fn cluster_home(init: &Initializer) -> bool {
+    CLUSTERS.iter().any(|cluster| cluster.home == init.name)
+}
+
+/// The layout is a member of a cluster, and not its home.
+pub fn cluster_member(init: &Initializer) -> bool {
+    CLUSTERS
+        .iter()
+        .any(|cluster| cluster.members.contains(&init.name.as_str()))
+}
+
 /// The entry of [`CONVERTED_LAYOUTS`] for `init`, when it has one.
 pub fn converted(init: &Initializer) -> Option<&'static Converted> {
     CONVERTED_LAYOUTS
@@ -426,7 +540,8 @@ pub(crate) fn star_body(gd: &GameData, class: &BodyClass) -> bool {
 
 fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     let converted = converted(init).is_some();
-    let by_name = converted || unplaced(gd, init);
+    let clustered = cluster_home(init) || cluster_member(init);
+    let by_name = converted || clustered || unplaced(gd, init);
     if !by_name && init.usage.as_deref() != Some(USAGE) {
         return Some(Unsupported::Usage);
     }
@@ -439,7 +554,7 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if init.flags.iter().any(|flag| flag == "guardian") {
         return Some(Unsupported::Guardian);
     }
-    if !converted && !init.spawns.is_empty() {
+    if !converted && !clustered && !init.spawns.is_empty() {
         return Some(Unsupported::Linked);
     }
     if let Err(why) = layout_structures(gd, init) {
@@ -483,7 +598,11 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     def.node
         .find_all("init_effect", &def.src)
         .find_map(|block| {
-            body_effects::undropped(block, def, Dropping::Script, &[SPAWN_MEGASTRUCTURE])
+            let written: &[&str] = match clustered {
+                true => &[SPAWN_MEGASTRUCTURE, CLUSTER_PLACED[0], CLUSTER_PLACED[1]],
+                false => &[SPAWN_MEGASTRUCTURE],
+            };
+            body_effects::undropped(block, def, Dropping::Script, written)
         })
         .map(Unsupported::Effect)
 }

@@ -335,6 +335,16 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "science_nexus_init_01",
         "sentry_array_init_01",
     ];
+    // The systems of the Ratlings' and the Legendary Leader's clusters.
+    let clusters = [
+        "legendary_leader_start_site",
+        "legendary_leader_1st_site",
+        "legendary_leader_2nd_site",
+        "legendary_leader_3rd_site",
+        "ratling_1_1",
+        "ratling_1_2",
+        "ratling_1_3",
+    ];
     let converted: Vec<&str> = CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect();
     assert_eq!(
         special,
@@ -342,11 +352,12 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
             .iter()
             .chain(&group_b)
             .chain(&ruins)
+            .chain(&clusters)
             .chain(&converted)
             .copied()
             .collect(),
         "A and B with odds, less the layouts whose point is their spawn, time loop's shield \
-         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, and the converted layouts"
+         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, the clusters' systems, and the converted layouts"
     );
     let why = |layout: &str| match of(gd, layout) {
         Eligibility::Unsupported(why) => why,
