@@ -105,18 +105,6 @@ export function multiStarNameKeys(
   return [...new Set(keys.flatMap((key) => eachStarKeys(starClasses.get(key))))];
 }
 
-/** `picks` with each multiple star named by its bodies, as the star class picker names it. */
-export function namedStarPicks<P extends { key: string; label: string }>(
-  picks: readonly P[],
-  starClasses: ReadonlyMap<string, StarClassView>,
-  label: (key: string) => string,
-): P[] {
-  return picks.map((p) => ({
-    ...p,
-    label: starClassLabel(starClasses.get(p.key), p.label, label),
-  }));
-}
-
 /** A class list split by star count: binaries and trinaries apart, every other class in `rows`. */
 export interface StarPicksByCount<P> {
   rows: P[];

@@ -112,6 +112,13 @@ export interface MapTooltip {
   tone?: "warn";
 }
 
+/** A row of the open context menu, or of one of its submenus, with the pick card it shows. */
+export interface MenuRow {
+  el: HTMLElement;
+  /** The pick card that goes with the row; null for a row without one, such as a submenu's entry. */
+  card: string | null;
+}
+
 export interface MapChromeState {
   layers: GalaxyLayers;
   /** What the system scene draws of the layers it shares with the galaxy, switched apart from it. */
@@ -123,6 +130,11 @@ export interface MapChromeState {
   /** Precursor keys the legend has filtered out; `NO_PRECURSOR` hides the grey "no precursor" mark. */
   hiddenPrecursors: Set<string>;
   contextMenu: ContextMenu | null;
+  /**
+   * The row of the context menu the pointer or the focus came to last, whose pick card alone
+   * shows; null with none.
+   */
+  menuRow: MenuRow | null;
   tooltip: MapTooltip | null;
   /** The Lane density slider's value in [0, 1], shared by the brushes, shapes and the mesh action. */
   laneDensity: number;
@@ -164,6 +176,10 @@ export interface MapChromeState {
   toggleGroup(source: Source): void;
   openContextMenu(menu: ContextMenu): void;
   closeContextMenu(): void;
+  /** The pointer or the focus came to a row of the context menu. */
+  enterMenuRow(row: MenuRow): void;
+  /** The pointer or the focus left `el`; a row another has taken the turn from changes nothing. */
+  leaveMenuRow(el: HTMLElement): void;
   showTooltip(tip: MapTooltip): void;
   hideTooltip(): void;
   setLaneDensity(density: number): void;
@@ -188,6 +204,7 @@ const DEFAULT_SHOWN_KINDS: SpecialKind[] = ["leviathan", "enclave"];
 
 const NO_OVERLAYS = {
   contextMenu: null,
+  menuRow: null,
   tooltip: null,
   lanePreview: null,
   addSystemPreview: null,
@@ -397,13 +414,22 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   },
 
   openContextMenu(menu) {
-    set({ contextMenu: menu, addSystemPreview: null });
+    set({ contextMenu: menu, menuRow: null, addSystemPreview: null });
   },
 
   closeContextMenu() {
-    if (get().contextMenu || get().addSystemPreview) {
-      set({ contextMenu: null, addSystemPreview: null });
+    if (get().contextMenu || get().menuRow || get().addSystemPreview) {
+      set({ contextMenu: null, menuRow: null, addSystemPreview: null });
     }
+  },
+
+  enterMenuRow(row) {
+    const was = get().menuRow;
+    if (was?.el !== row.el || was.card !== row.card) set({ menuRow: row });
+  },
+
+  leaveMenuRow(el) {
+    if (get().menuRow?.el === el) set({ menuRow: null });
   },
 
   showTooltip(tip) {

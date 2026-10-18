@@ -108,6 +108,25 @@ describe("overlays", () => {
     expect(chrome().tooltip).toBeNull();
   });
 
+  it("shows one row's card at a time: a submenu's entry takes the turn from a focused row", () => {
+    const row = (name: string) => ({ name }) as unknown as HTMLElement;
+    const [classA, binaries, pair] = [row("Class A Star"), row("Binary stars"), row("A + B")];
+    chrome().openContextMenu({ target: { kind: "space", x: 0, y: 0 }, x: 0, y: 0 });
+    chrome().enterMenuRow({ el: classA, card: "class-a" });
+    expect(chrome().menuRow?.card).toBe("class-a");
+
+    chrome().enterMenuRow({ el: binaries, card: null });
+    chrome().leaveMenuRow(classA);
+    expect(chrome().menuRow).toEqual({ el: binaries, card: null });
+
+    chrome().leaveMenuRow(binaries);
+    chrome().enterMenuRow({ el: pair, card: "pair" });
+    expect(chrome().menuRow?.card).toBe("pair");
+
+    chrome().closeContextMenu();
+    expect(chrome().menuRow).toBeNull();
+  });
+
   it("opening and closing a save clear the menu, the tooltip and the lane ghosts", async () => {
     chrome().setLanePreview([[0, 5]]);
     chrome().openContextMenu({ target: { kind: "lane", lane: { a: 0, b: 1 } }, x: 1, y: 1 });

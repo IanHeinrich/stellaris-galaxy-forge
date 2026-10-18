@@ -1,8 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { multiStarNameKeys, namedStarPicks } from "../lib/details/starClass";
 import { useGameDataStore } from "../store/gameDataStore";
 import { starClassPicks, useGeneratorStore } from "../store/generatorStore";
-import { useNamed } from "./useNamed";
+import { useStarClassLabel } from "./useStarClassLabel";
 
 /**
  * The generator's star classes, each multiple star named by its bodies, and the add-system picks,
@@ -20,14 +19,8 @@ export function useGeneratorData(fresh = false) {
     generator.request();
     if (askPicks) generator.refreshPicks();
   }, [gameData, askPicks]);
-  const views = useGameDataStore((s) => s.starClasses);
   const plain = useMemo(() => starClassPicks(picks, starClasses), [picks, starClasses]);
-  const named = useNamed(
-    multiStarNameKeys(
-      plain.map((c) => c.key),
-      views,
-    ),
-  );
-  const stars = namedStarPicks(plain, views, named);
+  const label = useStarClassLabel(plain.map((c) => c.key));
+  const stars = plain.map((c) => ({ ...c, label: label(c.key, c.label) }));
   return { gameData, picks, stars };
 }

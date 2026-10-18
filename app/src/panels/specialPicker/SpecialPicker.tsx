@@ -27,6 +27,7 @@ import {
 import { BrowseDialog } from "../browseDialog/BrowseDialog";
 import { LockGlyph } from "../Glyph";
 import { useAddSystemPreview } from "../useAddSystemPreview";
+import { useStarNamedSummary } from "../useStarClassLabel";
 import "./specialPicker.css";
 
 const IN_GALAXY = "Already in this galaxy";
@@ -120,14 +121,14 @@ function Detail({
   const setExtras = useSpecialPickerStore((s) => s.setExtras);
   const join = useSpecialPickerStore((s) => s.join);
   const setJoin = useSpecialPickerStore((s) => s.setJoin);
-  if (entry === null) {
+  const summary = useStarNamedSummary(entry?.pick.summary);
+  if (entry === null || summary === undefined) {
     return (
       <div className="browse-detail">
         <div className="muted">Nothing highlighted.</div>
       </div>
     );
   }
-  const { summary } = entry.pick;
   const cluster = entry.kind === "cluster" ? entry.pick.cluster : null;
   const label = specialLabel(entry);
   const card = pickCard(

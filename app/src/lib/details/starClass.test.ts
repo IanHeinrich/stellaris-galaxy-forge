@@ -8,12 +8,12 @@ import {
   crisisVariantKeys,
   currentStarBodies,
   multiStarNameKeys,
-  namedStarPicks,
   planStarClass,
   setStarClassOp,
   skippedNote,
   starBodies,
   starClassNameKeys,
+  starClassLabel,
   starClassRows,
   starPicksByCount,
   visibleStarClassRows,
@@ -238,9 +238,11 @@ describe("the generator's star classes", () => {
     { key: "sc_modded", label: "Modded Star" },
   ];
   const keys = (list: readonly { key: string }[]) => list.map((p) => p.key);
+  const namedIn = (classes: ReadonlyMap<string, StarClassView>, list: typeof picks) =>
+    list.map((p) => ({ ...p, label: starClassLabel(classes.get(p.key), p.label, named) }));
 
   it("name each multiple star by its stars, as the star class picker does, and keep a single star's name", () => {
-    expect(namedStarPicks(picks, CLASSES, named).map((p) => p.label)).toEqual([
+    expect(namedIn(CLASSES, picks).map((p) => p.label)).toEqual([
       "Class G",
       "Class G Star + Class M Star + Class K Star",
       "Class M Star + Class G Star",
@@ -261,11 +263,11 @@ describe("the generator's star classes", () => {
     renamed.set("sc_pair", starClassView("sc_pair", "pc_m_star", "pc_k_star"));
     renamed.set("sc_binary_odd", starClassView("sc_binary_odd", "pc_g_star"));
     const split = starPicksByCount(
-      namedStarPicks(
-        [...picks, { key: "sc_pair", label: "Pair" }, { key: "sc_binary_odd", label: "Odd" }],
-        renamed,
-        named,
-      ),
+      namedIn(renamed, [
+        ...picks,
+        { key: "sc_pair", label: "Pair" },
+        { key: "sc_binary_odd", label: "Odd" },
+      ]),
       renamed,
     );
     expect(keys(split.rows)).toEqual(["sc_g", "sc_neutron_star", "sc_modded", "sc_binary_odd"]);

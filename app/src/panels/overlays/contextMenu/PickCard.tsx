@@ -1,15 +1,10 @@
-import {
-  useContext,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type SyntheticEvent,
-} from "react";
+import { useContext, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { PickSummary } from "../../../generated/PickSummary";
 import { pickCard } from "../../../lib/addSystem";
 import { placeBeside } from "../../../lib/menuAim";
+import { useStarNamedSummary } from "../../useStarClassLabel";
 import { MenuItem } from "./MenuItem";
+import { useMapChromeStore } from "../../../store/mapChromeStore";
 import { MenuSide } from "./menuState";
 
 /** The space between a card and the menu it sits beside. */
@@ -17,7 +12,7 @@ const CARD_GAP_PX = 6;
 
 /** What a pick's card says, under its title. */
 export function PickCardBody({ title, summary }: { title: string; summary: PickSummary }) {
-  const copy = pickCard(summary, title);
+  const copy = pickCard(useStarNamedSummary(summary), title);
   return (
     <>
       <div className="map-tooltip-title">{title}</div>
@@ -80,8 +75,8 @@ function PickCard({
 }
 
 /**
- * A menu entry that shows its pick's card while the pointer or the focus is on it. Without a
- * summary yet, it is a plain entry.
+ * A menu entry that shows its pick's card while it is the menu's active row: the pointer or the
+ * focus came to it last. Without a summary yet, it is a plain entry.
  */
 export function PickItem({
   run,
@@ -96,18 +91,12 @@ export function PickItem({
   summary: PickSummary | undefined;
   children: ReactNode;
 }) {
-  const [row, setRow] = useState<HTMLElement | null>(null);
-  const show = (e: SyntheticEvent<HTMLElement>) => setRow(e.currentTarget);
-  const hide = () => setRow(null);
+  const id = useId();
+  const active = useMapChromeStore((s) => s.menuRow);
+  const row = active?.card === id ? active.el : null;
   return (
-    <div
-      className="pick-item"
-      onPointerEnter={show}
-      onPointerLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-    >
-      <MenuItem run={run} className={className}>
+    <div className="pick-item">
+      <MenuItem card={id} run={run} className={className}>
         {children}
       </MenuItem>
       {row && summary && <PickCard row={row} title={title} summary={summary} />}
