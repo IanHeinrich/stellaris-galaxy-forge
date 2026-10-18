@@ -60,6 +60,7 @@ pub(crate) mod restore;
 pub(crate) mod shared;
 pub(crate) mod spawned_planet;
 pub(crate) mod star_class;
+pub(crate) mod swap_system;
 pub(crate) mod system_height;
 pub(crate) mod teardown;
 pub(crate) mod timed_modifiers;

@@ -26,6 +26,7 @@ mod home;
 mod lanes;
 mod nebula;
 mod spawn;
+mod swap_system;
 mod system;
 mod wormhole;
 
@@ -47,6 +48,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
     match op {
         Op::MoveSystem { system, x, y } => system::move_one(plan, s, *system, *x, *y),
         Op::MoveSystems { moves } => system::move_many(plan, s, moves),
+        Op::SwapSystems { system, with } => swap_system::swap(plan, s, *system, *with),
         Op::AddLane { a, b, bridge } => lanes::add_lane(plan, s, *a, *b, *bridge),
         Op::AddLanes { from, to } => lanes::add_lanes(plan, s, *from, to),
         Op::AddLanePairs { lanes } => lanes::add_lane_pairs(plan, s, lanes),

@@ -1,0 +1,121 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Swapped Aspharelle #592 and Taremes #594
+inverse: SwapSystems { system: 592, with: 594 }
+
+--- gamestate
++++ gamestate
+@@ -70820,8 +70820,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=307.92199
+-			y=-356.80112
++			x=324.6187
++			y=-357.22963
+ 			origin=4294967295
+ 			visual_height=4.31213
+ 		}
+@@ -70844,18 +70844,23 @@
+ 		{
+ 			
+ 			{
++				to=595
++				length=21.92927
++			}
++ 
++			{
+ 				to=594
+ 				length=16.7022
+ 			}
+  
+ 			{
+ 				to=599
+-				length=15.69152
++				length=31.7843
+ 			}
+  
+ 			{
+ 				to=600
+-				length=15.8962
++				length=32.14608
+ 			}
+  
+ 		}
+@@ -70952,8 +70957,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=324.6187
+-			y=-357.22963
++			x=307.92199
++			y=-356.80112
+ 			origin=4294967295
+ 			visual_height=4.31213
+ 		}
+@@ -70977,23 +70982,18 @@
+ 		{
+ 			
+ 			{
+-				to=595
+-				length=21.92927
+-			}
+- 
+-			{
+ 				to=592
+ 				length=16.7022
+ 			}
+  
+ 			{
+ 				to=599
+-				length=31.7843
++				length=15.69152
+ 			}
+  
+ 			{
+ 				to=600
+-				length=32.14608
++				length=15.8962
+ 			}
+  
+ 		}
+@@ -71069,7 +71069,7 @@
+ 			}
+  
+ 			{
+-				to=594
++				to=592
+ 				length=21.92927
+ 			}
+  
+@@ -71299,12 +71299,12 @@
+ 		{
+ 			
+ 			{
+-				to=592
++				to=594
+ 				length=15.69152
+ 			}
+  
+ 			{
+-				to=594
++				to=592
+ 				length=31.7843
+ 			}
+  
+@@ -71368,12 +71368,12 @@
+ 		{
+ 			
+ 			{
+-				to=592
++				to=594
+ 				length=15.8962
+ 			}
+  
+ 			{
+-				to=594
++				to=592
+ 				length=32.14608
+ 			}

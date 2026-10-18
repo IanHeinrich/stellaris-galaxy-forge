@@ -5,6 +5,10 @@
 //! entries take their single-space separator line with them, and a `hyperlane`
 //! block left empty is removed whole, as the game omits it.
 
+use std::collections::BTreeMap;
+
+use crate::Span;
+use crate::cst::Node;
 use crate::emit::{coord, hyperlane_block, lane_entry};
 use crate::format::save::write::bulk;
 use crate::keys;
@@ -249,18 +253,8 @@ pub(crate) fn insert_entries(edit: &mut Edit, entries: &[(u32, u32, bool)]) -> R
             (edit.line_start(close), edit.indent(key.start), true)
         }
         None => {
-            let entity = edit.entity()?;
-            match entity.find(keys::STAR_CLASS, &edit.buf) {
-                Some(star_class) => (
-                    edit.line_end(star_class.span().end),
-                    edit.indent(star_class.span().start),
-                    false,
-                ),
-                None => {
-                    let (at, indent) = edit.before_close(entity);
-                    (at, indent, false)
-                }
-            }
+            let (at, indent) = new_block_at(edit)?;
+            (at, indent, false)
         }
     };
     let mut entry_indent = key_indent.clone();
@@ -273,6 +267,53 @@ pub(crate) fn insert_entries(edit: &mut Edit, entries: &[(u32, u32, bool)]) -> R
         text = hyperlane_block(&key_indent, &text);
     }
     edit.insert(at, text);
+    Ok(())
+}
+
+/// Where a `hyperlane` block the system lacks goes, and the indentation of its key: after
+/// `star_class=`, else last in the entity.
+pub(crate) fn new_block_at(edit: &Edit) -> Result<(usize, Vec<u8>), OpError> {
+    let entity = edit.entity()?;
+    Ok(match entity.find(keys::STAR_CLASS, &edit.buf) {
+        Some(star_class) => (
+            edit.line_end(star_class.span().end),
+            edit.indent(star_class.span().start),
+        ),
+        None => edit.before_close(entity),
+    })
+}
+
+/// The `to` of every lane entry of `block` naming a key of `renamed`, with the id it takes.
+pub(crate) fn retargets(
+    edit: &Edit,
+    block: &Node,
+    renamed: &BTreeMap<u32, u32>,
+) -> Result<Vec<(Span, u32)>, OpError> {
+    let mut found = Vec::new();
+    for entry in block.children() {
+        let Some(&new) = edit.lane_to(entry).and_then(|to| renamed.get(&to)) else {
+            continue;
+        };
+        let span = entry
+            .find(keys::TO, &edit.buf)
+            .and_then(Node::scalar_span)
+            .ok_or_else(|| edit.parse_error(entry.span().start, "lane entry has no to"))?;
+        found.push((span, new));
+    }
+    Ok(found)
+}
+
+/// Rewrite the `to` of every lane entry naming a key of `renamed` to the id it maps to.
+pub(crate) fn retarget_entries(
+    edit: &mut Edit,
+    renamed: &BTreeMap<u32, u32>,
+) -> Result<(), OpError> {
+    let Some(block) = edit.hyperlane()? else {
+        return Ok(());
+    };
+    for (span, new) in retargets(edit, block, renamed)? {
+        edit.replace_span(span, new.to_string());
+    }
     Ok(())
 }
 

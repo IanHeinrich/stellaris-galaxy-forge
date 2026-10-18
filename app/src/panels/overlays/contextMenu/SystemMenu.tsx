@@ -37,6 +37,7 @@ export function SystemMenu({
   const closeContextMenu = useMapChromeStore((s) => s.closeContextMenu);
   const applySymmetric = useEditorStore((s) => s.applySymmetric);
   const connectSelectedTo = useEditorStore((s) => s.connectSelectedTo);
+  const swapSystems = useEditorStore((s) => s.swapSystems);
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
   const preventLanesToSelected = useEditorStore((s) => s.preventLanesToSelected);
   const allowLanesToSelected = useEditorStore((s) => s.allowLanesToSelected);
@@ -95,6 +96,11 @@ export function SystemMenu({
               <MenuItem disabled={connectable === 0} run={() => connectSelectedTo(target.id)}>
                 Connect selected to {name} ({connectable})
               </MenuItem>
+              {selected !== undefined && (
+                <MenuItem run={() => swapSystems(target.id, selected.id)}>
+                  Swap with {selectedName}
+                </MenuItem>
+              )}
               <MenuItem disabled={cuttable === 0} run={() => cutLanesToSelected(target.id)}>
                 Cut hyperlanes to selected ({cuttable})
               </MenuItem>

@@ -92,6 +92,54 @@ describe("a scenario's prevented pairs", () => {
   });
 });
 
+describe("the swap items", () => {
+  const openOn = (id: number) =>
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id }, x: 0, y: 0 });
+
+  it("offers Swap systems with exactly two selected systems, whichever is right-clicked", async () => {
+    await useEditorStore.getState().setSelection([0, 1], "replace");
+    for (const id of [0, 1]) {
+      openOn(id);
+      const html = menu();
+      expect(html).toContain(">Swap systems</button>");
+      expect(html).not.toContain("Swap with");
+    }
+  });
+
+  it("offers no Swap systems with three selected systems, or with one", async () => {
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+    openOn(1);
+    expect(menu()).not.toContain("Swap");
+
+    await useEditorStore.getState().setSelection([1], "replace");
+    openOn(1);
+    expect(menu()).not.toContain("Swap systems");
+  });
+
+  it("offers Swap with the selected system's name on another system, on a save and a scenario", async () => {
+    await useEditorStore.getState().setSelection([0], "replace");
+    openOn(1);
+    const selectedName = menu().match(/Swap with ([^<]+)<\/button>/)?.[1];
+    expect(selectedName).toBeTruthy();
+    expect(menu()).not.toContain("Swap systems");
+
+    await openWith(SCENARIO_RESULT);
+    await useEditorStore.getState().setSelection([0], "replace");
+    openOn(1);
+    expect(menu()).toContain(`>Swap with ${selectedName}</button>`);
+  });
+
+  it("offers no Swap with on the selected system itself, or with nothing selected", async () => {
+    await useEditorStore.getState().setSelection([0], "replace");
+    openOn(0);
+    expect(menu()).not.toContain("Swap");
+
+    await useEditorStore.getState().setSelection([], "replace");
+    openOn(1);
+    expect(menu()).not.toContain("Swap");
+  });
+});
+
 describe("a scenario system's spawn point item", () => {
   /** A scenario whose one system names no initializer. */
   async function openEmptySystem(): Promise<void> {

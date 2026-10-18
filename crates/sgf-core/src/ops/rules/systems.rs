@@ -1,6 +1,8 @@
 //! What the graph says about where a system stands: that it exists and that the
-//! destination is a place. Both formats' move writers start here and differ only in the
-//! bytes they then splice. A save's height writer starts here too.
+//! destination is a place. Both formats' move and swap writers start here and differ only
+//! in the bytes they then splice. A save's height writer starts here too.
+
+use std::collections::BTreeMap;
 
 use crate::emit::coord;
 use crate::ops::rules::{each_once, named};
@@ -99,6 +101,62 @@ pub(crate) fn decide_moves(
         });
     }
     Ok(origin)
+}
+
+/// Two systems trading places, each going to the spot the other stands at.
+pub(crate) struct Swap {
+    pub system: u32,
+    pub with: u32,
+    /// `system` to `with`'s spot and `with` to `system`'s.
+    pub moves: [SystemMove; 2],
+    names: [String; 2],
+}
+
+impl Swap {
+    /// `Swapped <name> #<id> and <name> #<id>`, which both formats open with.
+    pub fn describe(&self) -> String {
+        format!("Swapped {} and {}", self.names[0], self.names[1])
+    }
+
+    pub fn inverse(&self) -> Op {
+        Op::SwapSystems {
+            system: self.system,
+            with: self.with,
+        }
+    }
+
+    /// The other of the two for each, which a lane naming one of them names afterwards.
+    pub fn renamed(&self) -> BTreeMap<u32, u32> {
+        BTreeMap::from([(self.system, self.with), (self.with, self.system)])
+    }
+}
+
+/// What the graph says about swapping `system` and `with`: that they are two systems and
+/// both exist. Shared by both formats' swap writers.
+pub(crate) fn decide_swap(graph: &GalaxyGraph, system: u32, with: u32) -> Result<Swap, OpError> {
+    each_once(&[system, with], |&id| id)?;
+    let spot = |id: u32| {
+        let node = graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
+        Ok::<_, OpError>((node.x, node.y))
+    };
+    let (a, b) = (spot(system)?, spot(with)?);
+    Ok(Swap {
+        system,
+        with,
+        moves: [
+            SystemMove {
+                system,
+                x: b.0,
+                y: b.1,
+            },
+            SystemMove {
+                system: with,
+                x: a.0,
+                y: a.1,
+            },
+        ],
+        names: [named(graph, system), named(graph, with)],
+    })
 }
 
 /// What the graph says about setting `heights` as one: every system exists, is listed once

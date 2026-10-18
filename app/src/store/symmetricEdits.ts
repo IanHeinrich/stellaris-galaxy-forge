@@ -299,6 +299,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   AddSystem: addSystems,
   MoveSystem: (op) => plannedMoveOp(movePlan(movedIds(op)), op),
   MoveSystems: (op) => plannedMoveOp(movePlan(movedIds(op)), op),
+  SwapSystems: null,
   AddLane: (op) => addLanes(op, [{ a: op.a, b: op.b, bridge: op.bridge }]),
   AddLanes: (op) =>
     addLanes(

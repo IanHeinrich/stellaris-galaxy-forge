@@ -66,6 +66,12 @@ describe("bulk lane actions", () => {
         op: { type: "RemoveLanes", from: 1, to: [0] },
       },
       {
+        what: "swapSystems sends SwapSystems for the two systems",
+        ids: [],
+        run: async (s) => void (await s.swapSystems(3, 1)),
+        op: { type: "SwapSystems", system: 3, with: 1 },
+      },
+      {
         what: "isolateSelected sends IsolateSystems with only the systems that have lanes",
         ids: [4, 5],
         run: (s) => s.isolateSelected(),

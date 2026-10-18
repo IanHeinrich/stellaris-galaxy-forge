@@ -1,7 +1,7 @@
 ---
 title: Select and move systems
 description: Select one or many systems and move them to a new place on the galaxy map.
-aliases: [move system, drag star, relocate, reposition, nudge, position, coordinates, selection box, multi select]
+aliases: [move system, drag star, relocate, reposition, nudge, position, coordinates, selection box, multi select, swap systems, exchange systems, trade places]
 ---
 # Select and move systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -28,5 +28,23 @@ Its planets and fleets move with it.
 You can move a system past the galaxy edge, as far out as you like. To
 add new systems out there, see
 [Systems outside the galaxy edge](add-systems.md#systems-outside-the-galaxy-edge).
+
+## Swap two systems
+
+Two systems can trade places on the map. Each one takes its name, star,
+planets, starbase and owner to the other's place. The hyperlanes stay
+where they were, so each system takes over the other's neighbours. A
+hyperlane between the two stays.
+
+1. Select the two systems.
+2. Right-click one of them and choose Swap systems.
+
+With one system selected, you can also right-click another system and
+choose Swap with and the selected system's name.
+
+Each place keeps its height. A system that lands inside a nebula joins
+it, and the one that leaves drops out. In a save, an empire's border
+follows the systems it owns. Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to swap
+them back.
 
 To remove systems, see [Delete systems](add-systems.md#delete-systems).
