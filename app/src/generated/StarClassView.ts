@@ -38,4 +38,9 @@ alternatives?: boolean,
  * Each modifier its `modifier` block puts on a system of it, with the game's name for
  * it; `None` for a class with none.
  */
-modifiers?: Array<StarClassModifier>, };
+modifiers?: Array<StarClassModifier>, 
+/**
+ * `Some(true)` for a class a system can be filed under, which a built system's class
+ * list offers; `None` for a placeholder, a list of alternatives or a class with no star.
+ */
+fileable?: boolean, };
