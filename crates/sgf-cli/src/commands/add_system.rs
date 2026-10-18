@@ -5,14 +5,16 @@ use std::path::Path;
 
 use sgf_core::ops::{BodyKind, BodySpec, LaneEnd, Op, PrimaryName, SystemSpec};
 use sgf_core::session::Session;
-use sgf_gamedata::LoadOptions;
-use sgf_gamedata::generate::{self, BuiltSystem, ForSaveError, Pick};
+use sgf_core::views::Capabilities;
+use sgf_gamedata::generate::{self, BuiltSystem, ForSaveError, GenerateError, Pick};
 use sgf_gamedata::multi_star::{FiledReason, file_star_class};
+use sgf_gamedata::{GameData, LoadOptions};
 
 use super::{Outcome, Run, game_data, mutate};
 
 const NONE_ADDED: &str = "none of the systems --then-remove names was added by this command";
 const NO_NAMES: &str = "no star name is left that the save does not use; pass --name";
+const NO_BUILT: &str = "this document takes no built binary or trinary systems";
 
 /// What `--generate` rolls and where it puts it.
 pub struct Generate {
@@ -66,19 +68,33 @@ pub fn generated(
         remove_added(&mut session, then_remove, &mut issues)?;
         return mutate::save(session, out, &issues);
     }
-    let (spec, op) = match (&generating.layout, generating.print_spec) {
-        (Some(layout), false) => {
+    let pick = match (&generating.layout, &generating.built, generating.star_count) {
+        (Some(layout), _, _) => Pick::Layout(layout.clone()),
+        (None, Some(built), _) => Pick::Built(built.clone()),
+        (None, None, Some(count)) => Pick::Stars(count),
+        (None, None, None) => Pick::Random(generating.star_class.clone()),
+    };
+    if matches!(pick, Pick::Built(_) | Pick::Stars(_))
+        && !Capabilities::of(session.doc()).added_systems
+    {
+        return Err(NO_BUILT.into());
+    }
+    if let Pick::Built(built) = &pick {
+        eprintln!("{}", filed_line(&gd, built)?);
+    }
+    let (spec, op) = match (&pick, generating.print_spec) {
+        (Pick::Layout(_) | Pick::Built(_), false) => {
             let lanes: Vec<(LaneEnd, LaneEnd)> = generating
                 .lanes
                 .iter()
                 .map(|&system| (LaneEnd::Held { system }, LaneEnd::New { index: 0 }))
                 .collect();
-            let op = generate::special_op_with(
+            let op = generate::pick_op(
                 &gd,
                 &session,
                 seed,
                 at,
-                layout,
+                &pick,
                 generating.extras,
                 generating.name.as_deref(),
                 &lanes,
@@ -86,17 +102,7 @@ pub fn generated(
             .map_err(for_save_error)?;
             (added_spec(&op).cloned(), Some(op))
         }
-        (layout, _) => {
-            let pick = match (layout, &generating.built, generating.star_count) {
-                (Some(layout), _, _) => Pick::Layout(layout.clone()),
-                (None, Some(built), _) => {
-                    let filed = file_star_class(&gd, &built.stars, built.star_class.as_deref())?;
-                    println!("filed as {} ({})", filed.class, reason(&filed.reason));
-                    Pick::Built(built.clone())
-                }
-                (None, None, Some(count)) => Pick::Stars(count),
-                (None, None, None) => Pick::Random(generating.star_class.clone()),
-            };
+        _ => {
             let mut spec = match &generating.name {
                 Some(name) => pick.spec(&gd, &session, seed, name, at)?,
                 None => {
@@ -139,16 +145,59 @@ pub fn generated(
     mutate::save(session, out, &issues)
 }
 
-/// Which step of the builder's rule filed the stars, in a few words.
-fn reason(reason: &FiledReason) -> String {
-    match reason {
-        FiledReason::Exact => "its stars are the class's".to_owned(),
-        FiledReason::EffectStar { star } => format!("{star} has effects, kept with as many stars"),
-        FiledReason::EffectStarAlone { star } => format!("{star} has effects, its own class"),
-        FiledReason::MostShared { shared } => format!("shares {shared} of its stars"),
-        FiledReason::FirstStar => "the first star's own class".to_owned(),
-        FiledReason::Commonest => "the commonest class of as many stars".to_owned(),
+/// The class the builder's rule files `built`'s stars under and why, in the game's names:
+/// "filed as Pulsar: no class with 3 stars has a Pulsar".
+fn filed_line(gd: &GameData, built: &BuiltSystem) -> Result<String, GenerateError> {
+    let filed = file_star_class(gd, &built.stars, built.star_class.as_deref())?;
+    let name = |key: &str| gd.loc.name_or_readable(key);
+    let count = built.stars.len();
+    let first = built
+        .stars
+        .first()
+        .map_or_else(String::new, |star| name(star));
+    let why = match &filed.reason {
+        FiledReason::Exact => "its stars are the class's own".to_owned(),
+        FiledReason::EffectStar { star } => format!(
+            "the {} has effects, and this class with {} has one",
+            name(star),
+            stars(count)
+        ),
+        FiledReason::EffectStarAlone { star } => {
+            format!("no class with {} has a {}", stars(count), name(star))
+        }
+        FiledReason::MostShared { shared } => format!(
+            "it shares {shared} of the {count} stars, the most of any class with {}",
+            stars(count)
+        ),
+        FiledReason::FirstStar => format!(
+            "no class with {} shares a star, so the {first}'s own class",
+            stars(count)
+        ),
+        FiledReason::Commonest => format!(
+            "no class with {} shares a star and the {first} has no class of its own, so the \
+             commonest class with {}",
+            stars(count),
+            stars(count)
+        ),
         FiledReason::Chosen => "chosen".to_owned(),
+    };
+    // The game names every binary "Binary Stars", so a class of several stars goes by them.
+    let class = match gd.star_classes.get(&filed.class) {
+        Some(class) if class.planets.len() > 1 => class
+            .planet_keys()
+            .map(name)
+            .collect::<Vec<_>>()
+            .join(" + "),
+        _ => name(&filed.class),
+    };
+    Ok(format!("filed as {class}: {why}"))
+}
+
+/// `1 star`, `3 stars`.
+fn stars(n: usize) -> String {
+    match n {
+        1 => "1 star".to_owned(),
+        n => format!("{n} stars"),
     }
 }
 

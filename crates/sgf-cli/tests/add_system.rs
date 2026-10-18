@@ -489,7 +489,11 @@ fn add_system_builds_a_binary_from_chosen_stars_and_rolls_a_random_trinary() {
     }
     ok(&out);
     let text = stdout(&out);
-    assert!(text.contains("filed as sc_black_hole ("), "{text}");
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        said.contains("filed as ") && said.contains(": no class with 2 stars has a "),
+        "{said}"
+    );
     assert!(text.contains(" sc_black_hole (binary_init_02)"), "{text}");
     assert!(text.contains("star pc_black_hole "), "{text}");
     assert!(text.contains("pc_t_star size"), "{text}");
@@ -499,7 +503,9 @@ fn add_system_builds_a_binary_from_chosen_stars_and_rolls_a_random_trinary() {
     let out = run(&chosen);
     ok(&out);
     let text = stdout(&out);
-    assert!(text.contains("filed as sc_binary_10 (chosen)"), "{text}");
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(said.contains(": chosen"), "{said}");
+    assert!(text.contains(" sc_binary_10 (binary_init_02)"), "{text}");
     let bodies = text.lines().filter(|l| l.contains(" size ")).count();
     assert_eq!(bodies, 2, "the stars alone: {text}");
 
@@ -507,6 +513,14 @@ fn add_system_builds_a_binary_from_chosen_stars_and_rolls_a_random_trinary() {
     assert_eq!(out.status.code(), Some(1));
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("places 2 stars, not 1"), "{err}");
+
+    let mut printed = built.to_vec();
+    printed.push("--print-spec");
+    let out = run(&printed);
+    ok(&out);
+    let spec: serde_json::Value =
+        serde_json::from_str(&stdout(&out)).expect("--print-spec prints JSON alone");
+    assert_eq!(spec["star_class"], "sc_black_hole");
 
     let out = run(&["--random-trinary"]);
     ok(&out);

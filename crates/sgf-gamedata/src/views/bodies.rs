@@ -3,6 +3,7 @@ use sgf_core::ops::{ClassChange, PlanetClassRule};
 use ts_rs::TS;
 
 use super::hex;
+use crate::multi_star::fileable;
 use crate::registries::deposits::DepositDef;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
@@ -42,6 +43,11 @@ pub struct StarClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub modifiers: Option<Vec<StarClassModifier>>,
+    /// `Some(true)` for a class a system can be filed under, which a built system's class
+    /// list offers; `None` for a placeholder, a list of alternatives or a class with no star.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub fileable: Option<bool>,
 }
 
 /// A modifier a star class puts on its systems: `ship_shield_reduction`, named as the game
@@ -68,6 +74,7 @@ impl StarClassView {
             localised: loc.raw(&sc.key).is_some(),
             placeholder: marker(sc.placeholder),
             alternatives: marker(sc.alternatives),
+            fileable: marker(fileable(sc)),
             modifiers: sc.effects().then(|| {
                 sc.modifiers
                     .iter()

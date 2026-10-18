@@ -7,7 +7,7 @@ use sgf_gamedata::multi_star::{Arrangement, StarType};
 use sgf_gamedata::views::StarClassView;
 
 use crate::common;
-use common::{SAMPLE_45, SCENARIO, invoke, kind, with_game_data};
+use common::{SAMPLE_45, SCENARIO, invoke, invoke_raw, kind, with_game_data};
 
 type Webview = tauri::WebviewWindow<tauri::test::MockRuntime>;
 
@@ -68,6 +68,7 @@ fn a_built_system_is_added_rolled_again_and_undone() {
             "layout": "binary_init_02",
             "stars": ["pc_black_hole", "pc_t_star"],
             "starClass": null,
+            "planets": true,
             "links": [near],
         }),
     );
@@ -77,18 +78,39 @@ fn a_built_system_is_added_rolled_again_and_undone() {
     assert!(system.lanes.iter().any(|lane| lane.to == near));
     assert_eq!(built.history.undo.len(), 1, "one step");
     let id = system.id;
+    let kept = |rolled: &SystemNode| {
+        assert_eq!(rolled.id, id);
+        assert_eq!(rolled.name, system.name, "the name stays");
+        assert_eq!(
+            (rolled.x, rolled.y),
+            (system.x, system.y),
+            "the place stays"
+        );
+        let to = |node: &SystemNode| node.lanes.iter().map(|l| l.to).collect::<Vec<u32>>();
+        assert_eq!(to(rolled), to(system), "the lanes stay");
+    };
 
+    let built = |layout: &str, stars: [&str; 2], star_class: Option<&str>, planets: bool| {
+        json!({
+            "kind": "built",
+            "layout": layout,
+            "stars": stars,
+            "star_class": star_class,
+            "planets": planets,
+        })
+    };
     let rerolled = step(
         &w,
         "reroll_system",
-        json!({ "system": id, "seed": 6, "stars": ["pc_g_star", "pc_g_star"] }),
+        json!({
+            "system": id,
+            "seed": 6,
+            "pick": built("binary_init_02", ["pc_g_star", "pc_g_star"], None, true),
+        }),
     );
+    kept(added(&rerolled));
     assert_eq!(added(&rerolled).star_class, "sc_binary_8", "filed as G + F");
-    assert_eq!(
-        added(&rerolled).initializer,
-        "binary_init_02",
-        "its own layout"
-    );
+    assert_eq!(added(&rerolled).initializer, "binary_init_02");
 
     let chosen = step(
         &w,
@@ -96,22 +118,29 @@ fn a_built_system_is_added_rolled_again_and_undone() {
         json!({
             "system": id,
             "seed": 6,
-            "layout": "binary_init_01",
-            "stars": ["pc_g_star", "pc_g_star"],
-            "starClass": "sc_g",
-            "planets": false,
+            "pick": built("binary_init_01", ["pc_g_star", "pc_g_star"], Some("sc_g"), false),
         }),
     );
+    kept(added(&chosen));
     assert_eq!(added(&chosen).star_class, "sc_g", "the class chosen");
     assert_eq!(added(&chosen).initializer, "binary_init_01");
 
     let trinary = step(
         &w,
         "reroll_system",
-        json!({ "system": id, "seed": 6, "starCount": 3 }),
+        json!({ "system": id, "seed": 6, "pick": { "kind": "stars", "count": 3 } }),
     );
+    kept(added(&trinary));
     assert!(added(&trinary).initializer.starts_with("trinary_init_"));
     assert_eq!(trinary.history.undo.len(), 4);
+
+    let four = invoke_raw(
+        &w,
+        "reroll_system",
+        json!({ "system": id, "seed": 6, "pick": { "kind": "stars", "count": 4 } }),
+    )
+    .expect_err("a random system has 2 or 3 stars");
+    assert!(four.to_string().contains("2 or 3 stars, not 4"), "{four}");
 
     for _ in 0..3 {
         invoke::<Option<EditResult>>(&w, "undo", json!({})).expect("undo a reroll");
@@ -133,7 +162,12 @@ fn a_random_binary_or_trinary_has_that_many_stars() {
         let result = step(
             &w,
             "add_random_system",
-            json!({ "seed": 3, "x": radius + 40.0, "y": y, "starClass": null, "starCount": count }),
+            json!({
+                "seed": 3,
+                "x": radius + 40.0,
+                "y": y,
+                "pick": { "kind": "stars", "count": count },
+            }),
         );
         let system = added(&result);
         assert!(
@@ -191,7 +225,7 @@ fn a_scenario_takes_no_built_system() {
             "add_built_system",
             json!({
                 "seed": 1, "x": 0.0, "y": 0.0, "layout": "binary_init_01",
-                "stars": ["pc_g_star", "pc_k_star"], "links": [],
+                "stars": ["pc_g_star", "pc_k_star"], "planets": true, "links": [],
             }),
         ),
     ] {

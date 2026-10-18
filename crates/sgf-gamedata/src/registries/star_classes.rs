@@ -42,6 +42,11 @@ pub struct StarClass {
     /// It is never rolled and lists more star bodies than any class the base game rolls has,
     /// so the list holds the stars a system of it may have rather than one entry per star.
     pub alternatives: bool,
+    /// Where its definition starts in its file.
+    pub offset: usize,
+    /// Its place in the order the game reads the definitions: by file in load order, then
+    /// within its file. A tie between classes goes to the earlier.
+    pub order: usize,
 }
 
 /// One `planet = { key = pc_… class = … }` of a [`StarClass`].
@@ -79,8 +84,22 @@ impl StarClass {
 impl StarClasses {
     /// These classes, each never rolled marked [`StarClass::alternatives`] against the most
     /// star bodies a class with `spawn_odds` above 0 has among those `in_base_game` says the
-    /// base game defines, or one when none has any, so no mod moves the count.
-    pub(crate) fn marked(&self, in_base_game: impl Fn(&StarClass) -> bool) -> Self {
+    /// base game defines, or one when none has any, so no mod moves the count. Each takes its
+    /// [`StarClass::order`] from `files`, the directory's files in load order.
+    pub(crate) fn marked(
+        &self,
+        in_base_game: impl Fn(&StarClass) -> bool,
+        files: &[PathBuf],
+    ) -> Self {
+        let mut read: Vec<(usize, usize, &str)> = self
+            .iter()
+            .map(|c| {
+                let file = files.iter().position(|f| *f == c.source);
+                (file.unwrap_or(usize::MAX), c.offset, c.key.as_str())
+            })
+            .collect();
+        read.sort_unstable();
+        let order = |key: &str| read.iter().position(|(_, _, held)| *held == key);
         let rolled = self
             .iter()
             .filter(|c| c.spawn_odds > 0.0 && in_base_game(c))
@@ -92,6 +111,7 @@ impl StarClasses {
             .map(|class| {
                 let class = StarClass {
                     alternatives: class.spawn_odds == 0.0 && class.planets.len() > rolled,
+                    order: order(&class.key).unwrap_or(usize::MAX),
                     ..class.clone()
                 };
                 (class.key.clone(), class)
@@ -168,6 +188,8 @@ impl FromDef for StarClass {
                 .collect(),
             placeholder: only_named && spawn_odds == 0.0,
             alternatives: false,
+            offset: def.node.key.map_or(0, |key| key.start),
+            order: 0,
         }
     }
 }

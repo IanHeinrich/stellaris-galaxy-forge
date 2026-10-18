@@ -62,6 +62,76 @@ fn settle_in(draw: &mut NameDraw, gd: &GameData, spec: &mut SystemSpec, fallback
     draw.take(&spec.name);
 }
 
+/// What a system added to a save, or one rolled again, is built from, as the app asks for it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SystemPick {
+    /// Any system the plain layouts draw, at their odds.
+    Random,
+    /// Rolled around this star class.
+    Class { star_class: String },
+    /// A random binary or trinary, drawn among the plain layouts of that many stars.
+    Stars {
+        #[ts(type = "2 | 3")]
+        count: StarCount,
+    },
+    /// Built in the plain layout `layout` with `stars` in its star slots, in order, filed
+    /// under `star_class` when given, with planets rolled about them when `planets`.
+    Built {
+        layout: String,
+        stars: Vec<String>,
+        star_class: Option<String>,
+        planets: bool,
+    },
+    /// Built from this plain or special layout, as the Special menu builds it.
+    Layout { layout: String },
+}
+
+/// How many stars a random multi-star system has: two or three.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "u8", into = "u8")]
+pub struct StarCount(u8);
+
+impl TryFrom<u8> for StarCount {
+    type Error = String;
+
+    fn try_from(count: u8) -> Result<Self, String> {
+        match count {
+            2 | 3 => Ok(Self(count)),
+            n => Err(format!("a random system has 2 or 3 stars, not {n}")),
+        }
+    }
+}
+
+impl From<StarCount> for u8 {
+    fn from(count: StarCount) -> Self {
+        count.0
+    }
+}
+
+impl From<SystemPick> for Pick {
+    fn from(pick: SystemPick) -> Self {
+        match pick {
+            SystemPick::Random => Self::Random(None),
+            SystemPick::Class { star_class } => Self::Random(Some(star_class)),
+            SystemPick::Stars { count } => Self::Stars(usize::from(count.0)),
+            SystemPick::Built {
+                layout,
+                stars,
+                star_class,
+                planets,
+            } => Self::Built(BuiltSystem {
+                layout,
+                stars,
+                star_class,
+                planets,
+            }),
+            SystemPick::Layout { layout } => Self::Layout(layout),
+        }
+    }
+}
+
 /// What a system added to a save is built from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pick {
@@ -138,33 +208,6 @@ impl Pick {
             true => Self::Layout(node.initializer.clone()),
             false => Self::Random(star_class),
         })
-    }
-
-    /// How the added system `system` of `session`'s save is rolled again with `stars`: in
-    /// `layout`, else in its own layout, filed under `star_class` when given, with planets
-    /// when `planets`.
-    pub fn built_for(
-        session: &Session,
-        system: u32,
-        layout: Option<String>,
-        stars: Vec<String>,
-        star_class: Option<String>,
-        planets: bool,
-    ) -> Result<Self, ForSaveError> {
-        let layout = match layout {
-            Some(layout) => layout,
-            None => session
-                .system(system)
-                .ok_or(ForSaveError::NoSystem(system))?
-                .initializer
-                .clone(),
-        };
-        Ok(Self::Built(BuiltSystem {
-            layout,
-            stars,
-            star_class,
-            planets,
-        }))
     }
 
     /// The system this pick gives for `session`'s save, named `name` at `at`: its deposits
@@ -248,11 +291,8 @@ pub fn special_op(
     joins: &[u32],
 ) -> Result<Op, ForSaveError> {
     if !runs_scripts(session) {
-        let lanes: Vec<(LaneEnd, LaneEnd)> = joins
-            .iter()
-            .map(|&system| (LaneEnd::New { index: 0 }, LaneEnd::Held { system }))
-            .collect();
-        return special_op_with(gd, session, seed, at, layout, extras, None, &lanes);
+        let pick = Pick::Layout(layout.to_owned());
+        return joined_op(gd, session, seed, at, &pick, extras, joins);
     }
     if gd.initializers.get(layout).is_none() {
         return Err(GenerateError::UnknownLayout(layout.to_owned()).into());
@@ -280,50 +320,52 @@ pub fn special_op(
     )
 }
 
-/// [`special_op`] with `lanes` laid between the new system, `LaneEnd::New { index: 0 }`, and
-/// the systems the save holds, and the system named `name` when given instead of from the
-/// save's pool.
-#[allow(clippy::too_many_arguments)]
-pub fn special_op_with(
+/// The op that adds the system `pick` gives to `session`'s save at `at` from `seed`, with what
+/// its layout's script plants beside its bodies, writing the anomalies and dig sites only with
+/// `extras`, joined by a lane to each of the systems the save holds in `joins`, as one step.
+/// Named from the save's pool. Refused with nothing applied as [`pick_op`] refuses.
+pub fn joined_op(
     gd: &GameData,
     session: &Session,
     seed: u64,
     at: (f64, f64),
-    layout: &str,
+    pick: &Pick,
+    extras: bool,
+    joins: &[u32],
+) -> Result<Op, ForSaveError> {
+    let lanes: Vec<(LaneEnd, LaneEnd)> = joins
+        .iter()
+        .map(|&system| (LaneEnd::New { index: 0 }, LaneEnd::Held { system }))
+        .collect();
+    pick_op(gd, session, seed, at, pick, extras, None, &lanes)
+}
+
+/// The op that adds the system `pick` gives to `session`'s save at `at` from `seed`, as
+/// [`SaveQueries::add_systems_op`] writes that one system with `lanes` laid between it,
+/// `LaneEnd::New { index: 0 }`, and the systems the save holds: what its layout's script
+/// plants beside its bodies, the anomalies and dig sites only with `extras`. It is named
+/// `name` when given, else from the save's pool. Refused with nothing applied for a document
+/// other than a save, whose systems name their initializers, as the pick's roll refuses, and
+/// for a lane naming no system.
+///
+/// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
+#[allow(clippy::too_many_arguments)]
+pub fn pick_op(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    at: (f64, f64),
+    pick: &Pick,
     extras: bool,
     name: Option<&str>,
     lanes: &[(LaneEnd, LaneEnd)],
 ) -> Result<Op, ForSaveError> {
     let save = session.save("adding a system")?;
-    let pick = Pick::Layout(layout.to_owned());
     let add = match name {
         Some(name) => pick.system(gd, session, seed, name, at)?,
-        None => roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?,
+        None => roll(gd, session, &mut NameDraw::new(session), seed, at, pick)?,
     };
     Ok(save.add_systems_op(vec![add], lanes, extras, None)?)
-}
-
-/// The op that adds the system [`Pick::Built`] gives `built` to `session`'s save at `at` from
-/// `seed`, named from the save's pool, joined by a lane to each of the systems the save holds
-/// in `joins`, as one step. Refused with nothing applied for a document other than a save,
-/// whose systems name their initializers, as [`generate_built`] refuses, and for a join naming
-/// no system.
-pub fn built_op(
-    gd: &GameData,
-    session: &Session,
-    seed: u64,
-    at: (f64, f64),
-    built: &BuiltSystem,
-    joins: &[u32],
-) -> Result<Op, ForSaveError> {
-    let save = session.save("building a system")?;
-    let pick = Pick::Built(built.clone());
-    let add = roll(gd, session, &mut NameDraw::new(session), seed, at, &pick)?;
-    let lanes: Vec<(LaneEnd, LaneEnd)> = joins
-        .iter()
-        .map(|&system| (LaneEnd::New { index: 0 }, LaneEnd::Held { system }))
-        .collect();
-    Ok(save.add_systems_op(vec![add], &lanes, false, None)?)
 }
 
 /// A system asked of [`for_save_many`]: what it is built from, and where it stands.

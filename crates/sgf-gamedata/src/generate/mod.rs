@@ -36,9 +36,9 @@ pub use megastructure::{
 };
 pub(crate) use megastructure::{SpawnedAt, layout_structures, spawned_row};
 pub use save::{
-    BodyAsk, BuiltSystem, ClassRulesError, ForSaveError, Pick, PickAt, SystemAsk, added_among,
-    body_for_save, built_op, for_save, for_save_many, reroll, settle_name, special_op,
-    special_op_with, systems_op,
+    BodyAsk, BuiltSystem, ClassRulesError, ForSaveError, Pick, PickAt, StarCount, SystemAsk,
+    SystemPick, added_among, body_for_save, for_save, for_save_many, joined_op, pick_op, reroll,
+    settle_name, special_op, systems_op,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.
@@ -82,16 +82,26 @@ pub enum GenerateError {
     NoStars,
     #[error("{0} is not a star")]
     NotAStar(String),
-    #[error("the install has no star class of {0} stars to file them under")]
+    #[error("the install has no star class of {} to file them under", star_count(*.0))]
     NoClassFor(usize),
-    #[error("{layout} places {blocks} stars, not {stars}")]
+    #[error("{0} is no star class a system can be filed under")]
+    NotFileable(String),
+    #[error("{layout} places {}, not {stars}", star_count(*blocks))]
     StarCount {
         layout: String,
         blocks: usize,
         stars: usize,
     },
-    #[error("no plain {USAGE} initializer of the install places {0} stars")]
+    #[error("no plain {USAGE} initializer of the install places {}", star_count(*.0))]
     NoArrangement(usize),
+}
+
+/// `1 star`, `3 stars`.
+fn star_count(n: usize) -> String {
+    match n {
+        1 => "1 star".to_owned(),
+        n => format!("{n} stars"),
+    }
 }
 
 /// The star classes [`generate`] can give a system: each class a plain initializer fixes
