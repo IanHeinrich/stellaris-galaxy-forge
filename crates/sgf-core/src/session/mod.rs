@@ -130,10 +130,10 @@ impl Session {
         self.format().title(&self.doc)
     }
 
-    /// The id the next system added to the document takes, by its format's rule: the one
-    /// `AddSystemFromSpec` or `AddSystem` with no id gives it.
-    pub fn next_system_id(&self) -> Result<u32, OpError> {
-        self.format().next_system(&self.doc, &self.graph)
+    /// The ids `n` systems added to the document one after another take, by its format's
+    /// rule: those `AddSystemFromSpec`, or `AddSystem` with no id, gives each in turn.
+    pub fn next_system_ids(&self, n: usize) -> Result<Vec<u32>, OpError> {
+        self.format().next_systems(&self.doc, &self.graph, n)
     }
 
     pub(crate) fn format(&self) -> &'static dyn Format {

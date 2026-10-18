@@ -18,6 +18,7 @@ pub use systems::GALAXY_REACH;
 use std::collections::BTreeSet;
 
 use crate::cst::{self, Node};
+use crate::emit::coord;
 use crate::keys;
 use crate::ops::OpError;
 use crate::plural;
@@ -44,6 +45,22 @@ pub fn added_group(group: &str, systems: usize, lanes: usize) -> String {
         plural(systems, "system"),
         plural(lanes, "lane")
     )
+}
+
+/// What adding a system statement with no name says in the undo list, as the add of one
+/// does: "Added system #602 at (12.5, -3)", and the lanes laid with it, "with 2 lanes", as a
+/// save's add counts them.
+pub fn added_statement(id: u32, (x, y): (f64, f64), lanes: usize) -> String {
+    let added = format!(
+        "Added {} at ({}, {})",
+        labelled("", false, id),
+        coord(x),
+        coord(y)
+    );
+    match lanes {
+        0 => added,
+        n => format!("{added} with {}", plural(n, "lane")),
+    }
 }
 
 /// How a text stands in the file: between quotes, which the game reads with no escaping,

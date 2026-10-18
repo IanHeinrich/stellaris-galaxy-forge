@@ -111,7 +111,9 @@ pub struct Capabilities {
     pub precursors: bool,
     /// The scenario's system statements: any system added, removed, named and given an
     /// initializer, so the paint and erase brushes, spawn points, marauder clans and the
-    /// day-one layers.
+    /// day-one layers. The game runs those systems' initializers itself when it makes the
+    /// galaxy, their `spawn_system`s among them, so a system goes in as a statement naming
+    /// its initializer.
     pub create_systems: bool,
     /// Waystations and the waylines the game derives between them.
     pub waylines: bool,

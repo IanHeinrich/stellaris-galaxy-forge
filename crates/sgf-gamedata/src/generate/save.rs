@@ -3,19 +3,19 @@
 //! the planet class rules a class change in a save takes from the install.
 
 use serde::{Deserialize, Serialize};
-use sgf_core::ops::rules::added_group;
+use sgf_core::ops::rules::added_statement;
 use sgf_core::ops::{
     BULK_ADD_CAP, BodyName, BodyNaming, GivenName, LaneEnd, NewBody, Op, OpError, PlanetClassRule,
     SystemAdd, SystemSpec,
 };
 use sgf_core::session::Session;
-use sgf_core::views::{Capabilities, ErrorKind, OrbitPlacement, SgfError};
+use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
 use ts_rs::TS;
 
 use super::cluster::statements_op;
 use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, layout_system_for, roll_body};
 use crate::GameData;
-use crate::layouts::SaveFacts;
+use crate::layouts::{SaveFacts, runs_scripts};
 use crate::menu::menu_initializers;
 use crate::naming::NameDraw;
 use crate::rng::Rng;
@@ -77,8 +77,6 @@ pub enum ForSaveError {
     NoSystem(u32),
     #[error("the Special menu offers no cluster {0}")]
     UnknownCluster(String),
-    #[error("this document takes no added systems")]
-    NoAddedSystems,
     #[error(transparent)]
     Generate(#[from] GenerateError),
     #[error(transparent)]
@@ -180,8 +178,9 @@ pub fn for_save(
 /// sites only with `extras`, and its planet flags and global event targets whatever it says.
 /// In a document whose systems run their own script, it is an [`Op::AddSystem`] naming the
 /// layout as its initializer, which the game runs, and `extras` says nothing; with joins, it
-/// is [`statements_op`]'s. Refused with nothing applied for a join naming no system, a layout
-/// the install does not define, and a document that takes neither.
+/// is [`statements_op`]'s, described as a statement's add with its lanes. Refused with nothing
+/// applied for a join naming no system, a layout the install does not define, and as a save
+/// refuses its queries.
 ///
 /// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
 /// [`statements_op`]: super::cluster::statements_op
@@ -194,21 +193,16 @@ pub fn special_op(
     extras: bool,
     joins: &[u32],
 ) -> Result<Op, ForSaveError> {
-    let can = Capabilities::of(session.doc());
-    if can.added_systems {
+    if !runs_scripts(session) {
         let lanes: Vec<(LaneEnd, LaneEnd)> = joins
             .iter()
             .map(|&system| (LaneEnd::New { index: 0 }, LaneEnd::Held { system }))
             .collect();
         return special_op_with(gd, session, seed, at, layout, extras, None, &lanes);
     }
-    if !can.create_systems {
-        return Err(ForSaveError::NoAddedSystems);
+    if gd.initializers.get(layout).is_none() {
+        return Err(GenerateError::UnknownLayout(layout.to_owned()).into());
     }
-    let init = gd
-        .initializers
-        .get(layout)
-        .ok_or_else(|| GenerateError::UnknownLayout(layout.to_owned()))?;
     if joins.is_empty() {
         return Ok(Op::AddSystem {
             system: None,
@@ -220,10 +214,8 @@ pub fn special_op(
             spawn_script: None,
         });
     }
-    let name = gd
-        .loc
-        .name_or_readable(init.display_name.as_deref().unwrap_or(&init.name));
-    let description = added_group(&name, 1, joins.len());
+    let id = session.next_system_ids(1)?[0];
+    let description = added_statement(id, at, joins.len());
     let joins: Vec<(usize, u32)> = joins.iter().map(|&system| (0, system)).collect();
     statements_op(
         session,

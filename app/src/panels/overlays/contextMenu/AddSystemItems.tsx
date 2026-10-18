@@ -55,7 +55,7 @@ function Rolls({
       {picks && picks.special.length > 0 && menu && (
         <MenuItem
           className="menu-item context-menu-separated"
-          run={() => openSpecial({ x, y }, { x: menu.x, y: menu.y })}
+          run={() => openSpecial({ x, y }, { x: menu.x, y: menu.y }, menu.perUnit)}
         >
           {SPECIAL_LABEL}
         </MenuItem>

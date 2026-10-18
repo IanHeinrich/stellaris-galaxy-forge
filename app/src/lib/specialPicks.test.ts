@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { byId, clusterMember, placedNode } from "../test/builders";
 import { PlacementGround } from "./placement/ground";
 import { SpatialGrid } from "./spatialGrid";
-import { specialLinks, specialPlacement, type NewSystems } from "./specialPicks";
+import { SPAWN_BUFFER } from "../generated/constants";
+import { previewArea, specialLinks, specialPlacement, type NewSystems } from "./specialPicks";
 
 const RATLINGS: NewSystems = {
   places: [
@@ -62,5 +63,29 @@ describe("joining a special system to the galaxy", () => {
   it("lays none with no system in reach", () => {
     const one = { places: [{ x: 0, y: 0, star_class: null, refused: null }], lanes: [] };
     expect(specialLinks(one, ground(placedNode(3, 900, 900)), 1)).toEqual([]);
+  });
+});
+
+describe("the area the picker keeps clear", () => {
+  it("holds the preview's systems, the far ends of its links and the spawn ring, as the map shows them", () => {
+    const one = { places: [{ x: 10, y: 0, star_class: null, refused: null }], lanes: [] };
+    const preview = specialPlacement(one, [[0, 7]]);
+    const systems = byId(placedNode(7, 40 + SPAWN_BUFFER, 5));
+    const area = previewArea(preview, systems, { x: 0, y: 0 }, { x: 100, y: 100 }, { x: 2, y: -2 });
+    expect(area).toEqual({
+      left: 100 - 2 * SPAWN_BUFFER,
+      top: 100 - 2 * SPAWN_BUFFER,
+      right: 100 + 2 * (40 + SPAWN_BUFFER),
+      bottom: 100 + 2 * SPAWN_BUFFER,
+    });
+  });
+
+  it("is the right-clicked point where the map's scale is unknown", () => {
+    expect(previewArea(null, new Map(), { x: 5, y: 5 }, { x: 30, y: 40 }, { x: 0, y: 0 })).toEqual({
+      left: 30,
+      top: 40,
+      right: 30,
+      bottom: 40,
+    });
   });
 });

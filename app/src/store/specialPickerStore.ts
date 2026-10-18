@@ -28,6 +28,8 @@ export interface SpecialPickerState extends BrowseState {
   at: Pt | null;
   /** The same point in the map area's pixels, which the dialog opens beside. */
   anchor: Pt | null;
+  /** The map area's pixels per world unit about the point, which places the dialog clear of the preview. */
+  perUnit: Pt;
   /** The rows the open document offers, read each time the picker opens; null until they land. */
   entries: SpecialEntry[] | null;
   /** Whether the layout comes with its anomalies, dig sites and megastructures; remembered. */
@@ -39,8 +41,11 @@ export interface SpecialPickerState extends BrowseState {
   /** The highlighted cluster rolled at the point from `seed`; null while no cluster is highlighted. */
   roll: ClusterRollState | null;
 
-  /** Opens the picker for the world point `at`, right-clicked at `anchor` in the map area. */
-  openAt(at: Pt, anchor: Pt): void;
+  /**
+   * Opens the picker for the world point `at`, right-clicked at `anchor` in the map area, where the
+   * map shows `perUnit` pixels to a world unit; without it the dialog clears only the point.
+   */
+  openAt(at: Pt, anchor: Pt, perUnit?: Pt): void;
   close(): void;
   setExtras(extras: boolean): void;
   setJoin(join: boolean): void;
@@ -56,6 +61,7 @@ export interface SpecialPickerState extends BrowseState {
 const EXTRAS = prefField(PREF_KEYS.specialExtras, true, isBoolean);
 const JOIN = prefField(PREF_KEYS.specialJoin, true, isBoolean);
 const NO_ENTRIES: SpecialEntry[] = [];
+const NO_EXTENT: Pt = { x: 0, y: 0 };
 
 /** The row `key` names among `entries`, or null. */
 function entryOf(entries: readonly SpecialEntry[] | null, key: string | null): SpecialEntry | null {
@@ -114,6 +120,7 @@ export const useSpecialPickerStore = create<SpecialPickerState>((set, get) => {
     open: false,
     at: null,
     anchor: null,
+    perUnit: NO_EXTENT,
     entries: null,
     extras: EXTRAS.read(),
     join: JOIN.read(),
@@ -126,8 +133,15 @@ export const useSpecialPickerStore = create<SpecialPickerState>((set, get) => {
       void rollCluster();
     },
 
-    openAt(at, anchor) {
-      set({ open: true, at: { ...at }, anchor: { ...anchor }, seed: newSeed(), entries: null });
+    openAt(at, anchor, perUnit = NO_EXTENT) {
+      set({
+        open: true,
+        at: { ...at },
+        anchor: { ...anchor },
+        perUnit: { ...perUnit },
+        seed: newSeed(),
+        entries: null,
+      });
       void rollCluster();
       void readEntries();
     },

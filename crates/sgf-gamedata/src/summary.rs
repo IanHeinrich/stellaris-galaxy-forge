@@ -12,8 +12,8 @@ use crate::generate::{GenerateError, layout_structures, layouts_for, star_classe
 use crate::initializers::{BodyClass, InitPlanet, Initializer};
 use crate::install::script::{Range, whole};
 use crate::layouts::{
-    CLUSTERS, ClusterPlan, DlcNeed, SaveFacts, layout_stars, notable, plain_initializers,
-    runs_scripts, special_initializers, star_body,
+    ClusterPlan, DlcNeed, SaveFacts, layout_stars, notable, plain_initializers,
+    special_initializers, star_body,
 };
 use crate::loc::localisation::Localisation;
 use crate::menu::{SpecialCluster, SpecialLayout, cluster_row, document_clusters, special_layouts};
@@ -221,10 +221,9 @@ fn special_summary(
     session: &Session,
 ) -> PickSummary {
     let mut summary = layouts_summary(gd, init, &[init], save, session);
-    let runs = runs_scripts(session);
-    let heads_more = CLUSTERS
+    let heads_more = document_clusters(gd, session)
         .iter()
-        .any(|cluster| cluster.home == init.name && cluster.plan(gd, runs).layouts.len() > 1);
+        .any(|(cluster, _)| cluster.home == init.name);
     if heads_more {
         summary.comes_without.push(LeftOut::ClusterSystems);
     }

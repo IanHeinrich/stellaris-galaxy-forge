@@ -141,10 +141,10 @@ pub struct ClusterPlan {
     pub links: Vec<(usize, usize)>,
 }
 
-/// Whether the game builds `session`'s systems from their initializers when it starts, as a
-/// scenario's: their scripts run, `spawn_system` among them.
+/// Whether a system goes into `session`'s document as a statement naming its initializer,
+/// which the game runs itself when it makes the galaxy, `spawn_system` among it.
 pub fn runs_scripts(session: &Session) -> bool {
-    Capabilities::of(session.doc()).rolled_layout
+    Capabilities::of(session.doc()).create_systems
 }
 
 impl Cluster {

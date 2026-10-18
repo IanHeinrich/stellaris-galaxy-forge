@@ -6,13 +6,12 @@ use serde::{Deserialize, Serialize};
 use sgf_core::ops::rules::added_group;
 use sgf_core::ops::{LaneEnd, LanePair, NewSystem, Op, OpError, SystemAdd};
 use sgf_core::session::Session;
-use sgf_core::views::Capabilities;
 use ts_rs::TS;
 
 use super::save::{ForSaveError, Pick, PickAt, for_save_many};
 use crate::GameData;
 use crate::install::script::Range;
-use crate::layouts::{Cluster, ClusterPlan};
+use crate::layouts::{Cluster, ClusterPlan, runs_scripts};
 use crate::menu::document_clusters;
 use crate::orbit_walk::draw;
 use crate::rng::Rng;
@@ -163,7 +162,7 @@ pub fn roll_cluster(
 /// [`SaveQueries::add_systems_op`] for its systems and lanes, writing their anomalies, dig
 /// sites and megastructures only with `extras`; in a document whose systems run their own
 /// script, [`statements_op`]. Refused with nothing applied as the add refuses, a join naming a
-/// system of neither among them, and for a document that takes neither.
+/// system of neither among them, and as a save refuses its queries.
 ///
 /// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
 pub fn cluster_op(
@@ -181,7 +180,7 @@ pub fn cluster_op(
         rolled.systems.len(),
         rolled.links.len() + joins.len(),
     );
-    if Capabilities::of(session.doc()).added_systems {
+    if !runs_scripts(session) {
         let lanes: Vec<(LaneEnd, LaneEnd)> = rolled
             .links
             .iter()
@@ -207,8 +206,8 @@ pub fn cluster_op(
 /// which the game runs, with lanes between them by their indices in `links` and to the
 /// systems the document holds in `joins`: one [`Op::AddSystems`] taking the ids the document
 /// hands out next, and one [`Op::AddLanePairs`] when there are lanes, as one step described as
-/// `description`. Refused with nothing applied for a join naming no system of either, and
-/// for a document that takes no system statements.
+/// `description`. The ids are those the document's rule gives systems added one after
+/// another. Refused with nothing applied for a join naming no system of either.
 pub(super) fn statements_op(
     session: &Session,
     systems: &[(String, (f64, f64))],
@@ -216,13 +215,16 @@ pub(super) fn statements_op(
     joins: &[(usize, u32)],
     description: String,
 ) -> Result<Op, ForSaveError> {
-    if !Capabilities::of(session.doc()).create_systems {
-        return Err(ForSaveError::NoAddedSystems);
-    }
-    let first = session.next_system_id()?;
-    let new = |index: usize| match index < systems.len() {
-        true => Ok(first + index as u32),
-        false => Err(OpError::UnknownSystem(first.saturating_add(index as u32))),
+    let ids = session.next_system_ids(systems.len())?;
+    let new = |index: usize| match ids.get(index) {
+        Some(&id) => Ok(id),
+        None => Err(OpError::UnknownSystem(
+            session
+                .next_system_ids(index + 1)?
+                .last()
+                .copied()
+                .unwrap_or_default(),
+        )),
     };
     let held = |system: u32| match session.graph().systems.contains_key(&system) {
         true => Ok(system),
@@ -235,7 +237,9 @@ pub(super) fn statements_op(
     for &(index, system) in joins {
         lanes.push((new(index)?, held(system)?));
     }
-    let systems = (first..)
+    let systems = ids
+        .iter()
+        .copied()
         .zip(systems)
         .map(|(system, (initializer, (x, y)))| NewSystem {
             system,
@@ -289,8 +293,8 @@ fn refusals(
     session: &Session,
     points: &[(f64, f64)],
 ) -> Result<Vec<Option<OpError>>, ForSaveError> {
-    match Capabilities::of(session.doc()).added_systems {
-        true => Ok(session.save("placing systems")?.place_refusals(points)?),
-        false => Ok(points.iter().map(|_| None).collect()),
+    match runs_scripts(session) {
+        true => Ok(points.iter().map(|_| None).collect()),
+        false => Ok(session.save("placing systems")?.place_refusals(points)?),
     }
 }

@@ -69,6 +69,8 @@ export interface ContextMenu {
   y: number;
   /** The galaxy map's world point under the right-click; absent for a menu opened elsewhere. */
   at?: Pt;
+  /** The map area's pixels per world unit along x and y about `at`, signed; set with it. */
+  perUnit?: Pt;
 }
 
 /** Tooltip text: plain, or pieces with inline icons named by texture key. */

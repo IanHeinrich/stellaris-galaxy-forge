@@ -11,6 +11,8 @@ import { FollowGround, type ImageOfNew, type PlacementGround } from "./placement
 import { placedLanes, provisionalId, provisionalIndex } from "./placement/lanes";
 import { LEAST_SPACING, MOST_SPACING } from "./placement/limits";
 import type { ShapePreview } from "./shapes/types";
+import { SPAWN_BUFFER } from "../generated/constants";
+import { boxAround, type Rect } from "./menuAim";
 
 /** A row of the Special picker: one layout, or a cluster of several systems placed together. */
 export type SpecialEntry =
@@ -216,4 +218,28 @@ export function specialPlacement(added: NewSystems, links: readonly Link[]): Sha
     classes: classes.every((c) => c !== null) ? classes : null,
     arranged: null,
   };
+}
+
+/**
+ * The box in the map area's pixels round what the picker previews: `preview`'s systems, the
+ * existing ends of its lanes and the spawn ring round `at`, which the map shows at `anchor` with
+ * `perUnit` pixels to a world unit.
+ */
+export function previewArea(
+  preview: ShapePreview | null,
+  systems: ReadonlyMap<number, Pt>,
+  at: Pt,
+  anchor: Pt,
+  perUnit: Pt,
+): Rect {
+  const ends = (preview?.pairs ?? []).flat().flatMap((id) => systems.get(id) ?? []);
+  const ring = [-1, 1].flatMap((dx) =>
+    [-1, 1].map((dy) => ({ x: at.x + dx * SPAWN_BUFFER, y: at.y + dy * SPAWN_BUFFER })),
+  );
+  const world = [...(preview?.points ?? []), ...(preview?.outside ?? []), ...ends, ...ring];
+  const shown = world.map((p) => ({
+    x: anchor.x + (p.x - at.x) * perUnit.x,
+    y: anchor.y + (p.y - at.y) * perUnit.y,
+  }));
+  return boxAround(shown) ?? { left: anchor.x, top: anchor.y, right: anchor.x, bottom: anchor.y };
 }

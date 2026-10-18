@@ -163,8 +163,13 @@ fn is_home_system(effect: &Node, src: &[u8]) -> bool {
 pub(crate) struct Scenario;
 
 impl Format for Scenario {
-    fn next_system(&self, doc: &Document, _graph: &GalaxyGraph) -> Result<u32, OpError> {
-        Ok(index(doc).next_id())
+    fn next_systems(
+        &self,
+        doc: &Document,
+        _graph: &GalaxyGraph,
+        n: usize,
+    ) -> Result<Vec<u32>, OpError> {
+        Ok(index(doc).next_ids(n))
     }
 
     fn build_graph(&self, doc: &Document) -> Result<GalaxyGraph, ProjectionError> {

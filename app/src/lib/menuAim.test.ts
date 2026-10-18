@@ -5,7 +5,7 @@ import {
   aimsAt,
   inTriangle,
   placeBeside,
-  placeBesidePoint,
+  placeBesideRect,
 } from "./menuAim";
 
 /** A submenu to the right of an entry that the pointer left at (100, 50). */
@@ -147,12 +147,15 @@ describe("where a submenu or card goes beside its anchor", () => {
   });
 });
 
+/** A point as an area with no size. */
+const spot = (x: number, y: number) => ({ left: x, top: y, right: x, bottom: y });
+
 describe("a dialog placed beside a point", () => {
   const SIZE = { width: 600, height: 400 };
   const WINDOW = { width: 1600, height: 1000 };
 
   it("goes left of a point mid-window, level with it", () => {
-    expect(placeBesidePoint({ x: 800, y: 500 }, SIZE, WINDOW, 16)).toEqual({
+    expect(placeBesideRect(spot(800, 500), SIZE, WINDOW, 16)).toEqual({
       left: 184,
       top: 300,
       side: "left",
@@ -160,16 +163,16 @@ describe("a dialog placed beside a point", () => {
   });
 
   it("goes right of a point near the left edge, and stays inside the top and bottom", () => {
-    expect(placeBesidePoint({ x: 100, y: 20 }, SIZE, WINDOW, 16)).toEqual({
+    expect(placeBesideRect(spot(100, 20), SIZE, WINDOW, 16)).toEqual({
       left: 116,
       top: 8,
       side: "right",
     });
-    expect(placeBesidePoint({ x: 100, y: 990 }, SIZE, WINDOW, 16).top).toBe(592);
+    expect(placeBesideRect(spot(100, 990), SIZE, WINDOW, 16).top).toBe(592);
   });
 
   it("stays left of a point near the right edge", () => {
-    expect(placeBesidePoint({ x: 1550, y: 500 }, SIZE, WINDOW, 16)).toMatchObject({
+    expect(placeBesideRect(spot(1550, 500), SIZE, WINDOW, 16)).toMatchObject({
       left: 934,
       side: "left",
     });
@@ -177,11 +180,26 @@ describe("a dialog placed beside a point", () => {
 
   it("in a window too narrow for either side, takes the side with more room, inside the window", () => {
     const narrow = { width: 900, height: 700 };
-    const left = placeBesidePoint({ x: 500, y: 350 }, SIZE, narrow, 16);
+    const left = placeBesideRect(spot(500, 350), SIZE, narrow, 16);
     expect(left).toMatchObject({ left: 8, side: "left" });
 
-    const right = placeBesidePoint({ x: 300, y: 350 }, SIZE, narrow, 16);
+    const right = placeBesideRect(spot(300, 350), SIZE, narrow, 16);
     expect(right).toMatchObject({ left: 292, side: "right" });
     expect(right.left + SIZE.width).toBeLessThanOrEqual(narrow.width - 8);
+  });
+});
+
+describe("a dialog placed beside an area", () => {
+  const SIZE = { width: 600, height: 400 };
+  const WINDOW = { width: 1600, height: 1000 };
+
+  it("clears the whole area, level with its middle", () => {
+    const area = { left: 700, top: 300, right: 900, bottom: 500 };
+    expect(placeBesideRect(area, SIZE, WINDOW, 16)).toEqual({ left: 84, top: 200, side: "left" });
+  });
+
+  it("goes right of an area too near the left edge, and stays inside the window", () => {
+    const area = { left: 500, top: 900, right: 700, bottom: 980 };
+    expect(placeBesideRect(area, SIZE, WINDOW, 16)).toEqual({ left: 716, top: 592, side: "right" });
   });
 });

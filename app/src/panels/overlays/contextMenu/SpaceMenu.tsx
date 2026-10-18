@@ -75,7 +75,9 @@ export function SpaceMenu({
           className="menu-item"
           disabled={!gameData}
           title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
-          run={() => openSpecial({ x: target.x, y: target.y }, { x: menu.x, y: menu.y })}
+          run={() =>
+            openSpecial({ x: target.x, y: target.y }, { x: menu.x, y: menu.y }, menu.perUnit)
+          }
         >
           New special system…
         </MenuItem>

@@ -4,6 +4,7 @@ import type { Pt } from "../../lib/geometry/pt";
 import {
   clusterRefusal,
   memberName,
+  previewArea,
   rolledSystems,
   specialKey,
   specialLabel,
@@ -14,6 +15,7 @@ import {
 } from "../../lib/specialPicks";
 import { counted } from "../../lib/text";
 import { useCanEdit } from "../../store/fileSessionStore";
+import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSpecialLinks } from "../../store/specialLinks";
 import {
@@ -208,13 +210,15 @@ function useSpecialPreview(
     return { places: [{ x, y, star_class: null, refused }], lanes: [] };
   }, [entry, roll, x, y, refused]);
   const links = useSpecialLinks(join ? added : null);
+  const preview = useMemo(() => added && specialPlacement(added, links), [added, links]);
   useEffect(() => {
-    setPreview(added && specialPlacement(added, links));
+    setPreview(preview);
     return () => setPreview(null);
-  }, [added, links, setPreview]);
+  }, [preview, setPreview]);
+  return preview;
 }
 
-function Browsing({ at, anchor }: { at: Pt; anchor: Pt }) {
+function Browsing({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) {
   const close = useSpecialPickerStore((s) => s.close);
   const query = useSpecialPickerStore((s) => s.query);
   const setQuery = useSpecialPickerStore((s) => s.setQuery);
@@ -242,7 +246,12 @@ function Browsing({ at, anchor }: { at: Pt; anchor: Pt }) {
   const keys = useMemo(() => visible.map(specialKey), [visible]);
   const entry = useHighlightedSpecial();
   const cluster = entry?.kind === "cluster" ? entry.pick.cluster : null;
-  useSpecialPreview(entry, roll, at, refusal?.reason ?? null);
+  const preview = useSpecialPreview(entry, roll, at, refusal?.reason ?? null);
+  const systems = useGalaxyStore((s) => s.systems);
+  const area = useMemo(
+    () => previewArea(preview, systems, at, anchor, perUnit),
+    [preview, systems, at, anchor, perUnit],
+  );
   const pinnedNow = highlighted !== null && pinnedKeys.includes(highlighted);
   const blocked = cluster ? clusterRefusal(roll) : (refusal?.reason ?? null);
   const canPlace = entry !== null && blocked === null;
@@ -255,7 +264,7 @@ function Browsing({ at, anchor }: { at: Pt; anchor: Pt }) {
     <BrowseDialog
       label="Add a special system"
       className="sp"
-      beside={anchor}
+      beside={area}
       onClose={close}
       searchLabel="Search special systems"
       query={query}
@@ -332,5 +341,8 @@ export function SpecialPicker() {
   const open = useSpecialPickerStore((s) => s.open);
   const at = useSpecialPickerStore((s) => s.at);
   const anchor = useSpecialPickerStore((s) => s.anchor);
-  return open && at !== null && anchor !== null ? <Browsing at={at} anchor={anchor} /> : null;
+  const perUnit = useSpecialPickerStore((s) => s.perUnit);
+  return open && at !== null && anchor !== null ? (
+    <Browsing at={at} anchor={anchor} perUnit={perUnit} />
+  ) : null;
 }
