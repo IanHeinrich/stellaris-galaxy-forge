@@ -7,4 +7,8 @@ export type DiagramStar = { x: number, y: number,
 /**
  * The radius of its path about the centre; 0 at the centre.
  */
-orbit: number, };
+orbit: number, 
+/**
+ * It stands further than [`CLOSE`] from the centre: a distant companion.
+ */
+distant: boolean, };

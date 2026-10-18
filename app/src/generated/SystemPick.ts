@@ -3,4 +3,4 @@
 /**
  * What a system added to a save, or one rolled again, is built from, as the app asks for it.
  */
-export type SystemPick = { "kind": "random" } | { "kind": "class", star_class: string, } | { "kind": "stars", count: 2 | 3, } | { "kind": "built", layout: string, stars: Array<string>, star_class: string | null, planets: boolean, } | { "kind": "layout", layout: string, };
+export type SystemPick = { "kind": "random" } | { "kind": "class", star_class: string, } | { "kind": "stars", count: 2 | 3, } | { "kind": "built", layout: string, stars: Array<string>, star_class: string | null, planets: boolean, } | { "kind": "layout", layout: string, } | { "kind": "same" };
