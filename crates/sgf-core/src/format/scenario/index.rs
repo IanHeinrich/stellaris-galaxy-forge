@@ -323,15 +323,29 @@ impl ScenarioIndex {
     /// [`NULL_ID`] is what a file writes for "no system", so the lowest free id stands
     /// in when one past the highest would be it.
     pub fn next_id(&self) -> u32 {
-        let after = self
-            .systems
-            .keys()
-            .next_back()
-            .map_or(1, |max| max.saturating_add(1));
+        self.next_id_beside(&BTreeSet::new())
+    }
+
+    /// The ids `n` systems added one after another take, each by [`Self::next_id`]'s rule with
+    /// the ones before it held too.
+    pub fn next_ids(&self, n: usize) -> Vec<u32> {
+        let mut taken = BTreeSet::new();
+        (0..n)
+            .map(|_| {
+                let id = self.next_id_beside(&taken);
+                taken.insert(id);
+                id
+            })
+            .collect()
+    }
+
+    /// [`Self::next_id`] with `taken` held as well.
+    fn next_id_beside(&self, taken: &BTreeSet<u32>) -> u32 {
+        let held = |id: &u32| self.systems.contains_key(id) || taken.contains(id);
+        let highest = self.systems.keys().next_back().max(taken.last());
+        let after = highest.map_or(1, |max| max.saturating_add(1));
         if after == NULL_ID {
-            return (1..NULL_ID)
-                .find(|id| !self.systems.contains_key(id))
-                .unwrap_or(1);
+            return (1..NULL_ID).find(|id| !held(id)).unwrap_or(1);
         }
         after
     }

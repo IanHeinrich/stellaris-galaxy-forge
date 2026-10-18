@@ -294,7 +294,9 @@ export class InteractionController {
       contextMenu: (target, x, y) => {
         this.hover(null);
         const at = this.cam.screenToWorld(x, y);
-        useMapChromeStore.getState().openContextMenu({ target, x, y, at });
+        const one = this.cam.worldToScreen(at.x + 1, at.y + 1);
+        const perUnit = { x: one.x - x, y: one.y - y };
+        useMapChromeStore.getState().openContextMenu({ target, x, y, at, perUnit });
       },
       hoverBrush: (tool, x, y, flipped) => this.brushes.hover(tool, x, y, flipped),
       beginStroke: (tool, x, y, flipped) => this.brushes.begin(tool, x, y, flipped),

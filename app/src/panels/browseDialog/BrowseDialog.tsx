@@ -4,7 +4,8 @@ import { GroupTree, type GroupTreeProps } from "./GroupTree";
 import { ListBox, type ListBoxProps } from "./ListBox";
 import "./browse.css";
 import { fallbackHighlight } from "./highlight";
-import { useBeside, type BesidePoint } from "./useBeside";
+import type { Rect } from "../../lib/menuAim";
+import { useBeside } from "./useBeside";
 import { useBrowserKeys } from "./useBrowserKeys";
 
 /** How many rows are drawn before the list asks for a narrower search. */
@@ -16,11 +17,11 @@ export interface BrowseDialogProps<K extends string> {
   /** A class of the caller's own beside the dialog's. */
   className?: string;
   /**
-   * A point of the map area to open beside, with no scrim, so the map around it stays in view;
+   * An area of the map, in its pixels, to open beside, with no scrim, so it stays in view;
    * a press or a wheel turn outside the dialog closes it. Without one the dialog sits centred on
    * a scrim.
    */
-  beside?: BesidePoint;
+  beside?: Rect;
   onClose: () => void;
   /** The search field's label and placeholder. */
   searchLabel: string;

@@ -44,6 +44,15 @@ name: string | null,
  */
 entity_name: string | null, 
 /**
+ * The picture the game shows for the body in place of its class's, as
+ * `set_planet_entity = { picture = pc_junkheap }` sets it.
+ */
+picture?: string, 
+/**
+ * No anomaly is rolled on it when it is surveyed, as `prevent_anomaly = yes` sets.
+ */
+prevent_anomaly?: boolean, 
+/**
  * Planet modifiers that never expire, `terraforming_candidate`, ….
  */
 modifiers: Array<string>, 

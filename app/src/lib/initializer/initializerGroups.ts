@@ -53,7 +53,7 @@ const MEGASTRUCTURE =
   /dyson|ring_world|megastructure|science_nexus|sentry|art_install|interstellar_assembly|matter_decompressor|mega_shipyard|strategic_coord/;
 
 /** The group of the game's unique and special systems. */
-export const SPECIAL_GROUP = "unique";
+const SPECIAL_GROUP = "unique";
 
 interface Category {
   id: string;

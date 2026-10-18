@@ -32,8 +32,6 @@ export interface InitializerBrowserState extends BrowseState {
   targets: number[];
   /** Where create mode puts the new system, in world coordinates. */
   pending: { x: number; y: number } | null;
-  /** The group the browser had before an open on a group of its own, to go back to on close. */
-  groupBefore: { group: string | null } | null;
   /** This machine's initializer for a new system, `null` for random. */
   defaultKey: string | null;
   /** What `assign` writes; back to the highlighted entry's default on every change of it. */
@@ -41,11 +39,8 @@ export interface InitializerBrowserState extends BrowseState {
 
   /** Opens the browser over `targets`, reading the initializers if that has not happened. */
   openFor(targets: number[]): void;
-  /**
-   * Opens the browser to spawn a new system at a world point instead of assigning to one, on
-   * `group` when given; the group it had comes back when it closes.
-   */
-  openToCreate(x: number, y: number, group?: string): void;
+  /** Opens the browser to spawn a new system at a world point instead of assigning to one. */
+  openToCreate(x: number, y: number): void;
   close(): void;
   highlight(key: string | null): void;
   setSpawnWeight(w: number | null): void;
@@ -202,12 +197,6 @@ function openingKey(targets: readonly number[], state: InitializerBrowserState):
 
 const DEFAULT_KEY = prefField<string | null>(PREF_KEYS.initializerDefault, null, isString);
 
-function restoreGroup(state: InitializerBrowserState): void {
-  if (state.groupBefore === null) return;
-  state.setGroup(state.groupBefore.group);
-  useInitializerBrowserStore.setState({ groupBefore: null });
-}
-
 export const useInitializerBrowserStore = create<InitializerBrowserState>((set, get) => ({
   ...browseSlice(set, get, {
     pinned: PREF_KEYS.initializerPins,
@@ -217,13 +206,11 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
   mode: "assign",
   targets: [],
   pending: null,
-  groupBefore: null,
   defaultKey: DEFAULT_KEY.read(),
   spawnWeight: null,
 
   openFor(targets) {
     if (targets.length === 0) return;
-    restoreGroup(get());
     set({ open: true, mode: "assign", targets: [...targets], pending: null });
     if (useGameDataStore.getState().initializers === null) {
       void useGameDataStore.getState().loadInitializers();
@@ -233,13 +220,8 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
     useMapChromeStore.getState().setHighlightInitializer(mapKey(get().highlighted));
   },
 
-  openToCreate(x, y, group) {
-    restoreGroup(get());
+  openToCreate(x, y) {
     set({ open: true, mode: "create", targets: [], pending: { x, y } });
-    if (group !== undefined) {
-      set({ groupBefore: { group: get().group } });
-      get().setGroup(group);
-    }
     if (useGameDataStore.getState().initializers === null) {
       void useGameDataStore.getState().loadInitializers();
     }
@@ -248,7 +230,6 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
 
   close() {
     set({ open: false });
-    restoreGroup(get());
     useMapChromeStore.getState().setHighlightInitializer(null);
   },
 

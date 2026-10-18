@@ -1,5 +1,6 @@
 //! What a layout's body runs in its `init_effect` that the generator writes: deposit,
-//! blocker, class, model, modifier and planet flag changes, the anomalies and dig sites it
+//! blocker, class, model, picture, modifier and planet flag changes, random deposits added
+//! or removed, the anomalies and dig sites it
 //! plants and the global event targets it saves, repeated by a `while` with a count or
 //! chosen by an `if` on the DLC. Other flags, local event targets, events and ambient
 //! objects are dropped with the script, and so, in a converted layout, is what makes or runs
@@ -13,7 +14,9 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::condition::{Condition, Subject};
+use crate::deposit_roll::{self, Kind, RandomDeposit, RollBody};
 use crate::install::script::Def;
+use crate::rng::Rng;
 use crate::scripts::scope::{is_guard, keeps_scope};
 
 /// One statement of a body's `init_effect`, run on the body once its deposits are rolled.
@@ -33,9 +36,19 @@ pub enum BodyEffect {
     ChangeClass(String),
     /// `set_planet_entity = { entity = … }`.
     Entity(String),
+    /// `set_planet_entity = { picture = … }`.
+    Picture(String),
+    /// `prevent_anomaly = yes`: no anomaly is rolled on the body when it is surveyed.
+    PreventAnomaly,
+    /// `add_deposit = random`, or `= random_blocker`: one deposit drawn for the body.
+    AddRandomDeposit(RandomDeposit),
+    /// `random_deposit = { remove_deposit = yes }` with no `limit` beyond an empty one: one
+    /// of the body's deposits, each alike, goes.
+    RemoveRandomDeposit,
     /// `add_modifier = { modifier = … }`.
     Modifier(String),
-    /// `set_planet_flag = …`.
+    /// `set_planet_flag = …`, or `set_carrier_flag = …`, which the game writes among the
+    /// planet's flags.
     Flag(String),
     /// `add_anomaly = { category = … }`, or the block's own `anomaly`.
     Anomaly(String),
@@ -52,8 +65,7 @@ pub enum BodyEffect {
 
 /// Effects dropped with the script: local event targets, events, ambient objects and
 /// logging. Flags are matched by [`dropped`].
-const DROPPED: [&str; 14] = [
-    "prevent_anomaly",
+const DROPPED: [&str; 13] = [
     "save_event_target_as",
     "country_event",
     "fleet_event",
@@ -70,11 +82,12 @@ const DROPPED: [&str; 14] = [
 ];
 /// Effects the generator plants on the body that runs them, read as [`BodyEffect`]s. In a
 /// scope or chance it does not follow they are dropped with the script.
-const COLLECTED: [&str; 4] = [
+const COLLECTED: [&str; 5] = [
     "add_anomaly",
     "create_archaeological_site",
     "save_global_event_target_as",
     "set_planet_flag",
+    "set_carrier_flag",
 ];
 /// Keys inside an effect block that hold its parameters beside its guards.
 const PARAMETERS: [&str; 2] = ["modifier", "count"];
@@ -147,7 +160,10 @@ fn dropped(key: &str, dropping: Dropping) -> bool {
     DROPPED.contains(&key)
         || (key.starts_with("set_")
             && key.ends_with("_flag")
-            && !matches!(key, "set_country_flag" | "set_planet_flag"))
+            && !matches!(
+                key,
+                "set_country_flag" | "set_planet_flag" | "set_carrier_flag"
+            ))
         || key == "remove_global_flag"
         || (dropping == Dropping::Converted && owned(key))
 }
@@ -288,7 +304,9 @@ fn read_block(
             continue;
         }
         let scalar = child.scalar_str(src);
-        if key == "set_planet_flag" && scalar.is_some_and(|flag| flag.contains('@')) {
+        if matches!(key, "set_planet_flag" | "set_carrier_flag")
+            && scalar.is_some_and(|flag| flag.contains('@'))
+        {
             // The game's dynamic form, named from a scope at run time: no fixed flag to write.
             continue;
         }
@@ -297,8 +315,19 @@ fn read_block(
         let effect = match key {
             "clear_deposits" => (scalar == Some("yes")).then_some(BodyEffect::ClearDeposits),
             "clear_blockers" => (scalar == Some("yes")).then_some(BodyEffect::ClearBlockers),
+            "prevent_anomaly" => match scalar {
+                Some("yes") => Some(BodyEffect::PreventAnomaly),
+                _ => continue,
+            },
             "set_deposit" => deposit.map(BodyEffect::SetDeposit),
-            "add_deposit" => deposit.map(BodyEffect::AddDeposit),
+            "add_deposit" => match scalar {
+                Some("random") => Some(BodyEffect::AddRandomDeposit(RandomDeposit::Any)),
+                Some("random_blocker") => {
+                    Some(BodyEffect::AddRandomDeposit(RandomDeposit::Blocker))
+                }
+                _ => deposit.map(BodyEffect::AddDeposit),
+            },
+            "random_deposit" => removes_any(child, def).then_some(BodyEffect::RemoveRandomDeposit),
             "add_blocker" => field("type")
                 .filter(|d| d.starts_with("d_"))
                 .map(|d| BodyEffect::AddBlocker(d.to_owned())),
@@ -307,9 +336,20 @@ fn read_block(
                 None if field("inherit_entity") == Some("yes") => None,
                 None => field("class").map(|c| BodyEffect::ChangeClass(c.to_owned())),
             },
-            "set_planet_entity" => field("entity").map(|e| BodyEffect::Entity(e.to_owned())),
+            "set_planet_entity" => {
+                let picture = field("picture").map(|p| BodyEffect::Picture(p.to_owned()));
+                match field("entity") {
+                    Some(entity) => {
+                        out.extend(picture);
+                        Some(BodyEffect::Entity(entity.to_owned()))
+                    }
+                    None => picture,
+                }
+            }
             "add_modifier" => field("modifier").map(|m| BodyEffect::Modifier(m.to_owned())),
-            "set_planet_flag" => scalar.map(|f| BodyEffect::Flag(f.to_owned())),
+            "set_planet_flag" | "set_carrier_flag" => {
+                scalar.map(|f| BodyEffect::Flag(f.to_owned()))
+            }
             "add_anomaly" => field("category").map(|c| BodyEffect::Anomaly(c.to_owned())),
             "create_archaeological_site" => scalar.map(|s| BodyEffect::DigSite(s.to_owned())),
             "save_global_event_target_as" => scalar.map(|t| BodyEffect::EventTarget(t.to_owned())),
@@ -348,6 +388,21 @@ fn read_block(
             }
         }
     }
+}
+
+/// A `random_deposit` block that removes one deposit of any kind: `remove_deposit = yes`
+/// and nothing else but an empty `limit`.
+fn removes_any(node: &Node, def: &Def) -> bool {
+    let src = &def.src;
+    let mut removes = false;
+    for child in node.children() {
+        match (child.key_str(src), child.scalar_str(src)) {
+            (Some("limit"), None) if child.children().is_empty() => {}
+            (Some("remove_deposit"), Some("yes")) => removes = true,
+            _ => return false,
+        }
+    }
+    removes
 }
 
 fn repeat(
@@ -460,13 +515,16 @@ fn collect_plantable(effects: &[BodyEffect], out: &mut Planted) {
     }
 }
 
-/// Run `effects` on `body` in order, with `dlc` answering the `if`s, and keep in `planted`
-/// what they plant on it.
+/// Run `effects` on `body`, a body of `kind`, in order, with `dlc` answering the `if`s and
+/// `rng` drawing the deposits they add or remove at random, and keep in `planted` what they
+/// plant on it.
 pub(crate) fn apply(
     gd: &GameData,
     effects: &[BodyEffect],
     body: &mut BodySpec,
+    kind: Kind,
     dlc: &dyn Subject,
+    rng: &mut Rng,
     planted: &mut Planted,
 ) {
     for effect in effects {
@@ -482,6 +540,23 @@ pub(crate) fn apply(
             BodyEffect::ClearBlockers => body.deposits.retain(|d| !gd.is_blocker(d)),
             BodyEffect::ChangeClass(class) => body.class.clone_from(class),
             BodyEffect::Entity(entity) => body.entity_name = Some(entity.clone()),
+            BodyEffect::Picture(picture) => body.picture = Some(picture.clone()),
+            BodyEffect::PreventAnomaly => body.prevent_anomaly = true,
+            &BodyEffect::AddRandomDeposit(which) => {
+                let rolled = RollBody {
+                    class: &body.class,
+                    size: body.size,
+                    kind,
+                };
+                let drawn = deposit_roll::draw_one(gd, &rolled, &body.deposits, rng, which);
+                body.deposits.extend(drawn);
+            }
+            BodyEffect::RemoveRandomDeposit => {
+                if let Some(last) = body.deposits.len().checked_sub(1) {
+                    let at = rng.int(0, last as i64) as usize;
+                    body.deposits.remove(at);
+                }
+            }
             BodyEffect::Modifier(modifier) => {
                 if !body.modifiers.contains(modifier) {
                     body.modifiers.push(modifier.clone());
@@ -497,7 +572,7 @@ pub(crate) fn apply(
             }
             BodyEffect::Repeat(count, inner) => {
                 for _ in 0..*count {
-                    apply(gd, inner, body, dlc, planted);
+                    apply(gd, inner, body, kind, dlc, rng, planted);
                 }
             }
             BodyEffect::Branch(arms) => {
@@ -505,7 +580,7 @@ pub(crate) fn apply(
                     check.as_ref().is_none_or(|c| c.evaluate(dlc) == Some(true))
                 });
                 if let Some((_, inner)) = taken {
-                    apply(gd, inner, body, dlc, planted);
+                    apply(gd, inner, body, kind, dlc, rng, planted);
                 }
             }
         }
@@ -535,6 +610,9 @@ pub enum LeftOut {
     SpawnedPlanets,
     /// Storms, wrecks and the other objects the game places in space for show.
     AmbientObjects,
+    /// The other systems of the cluster a home layout heads, which its event chain also
+    /// uses.
+    ClusterSystems,
 }
 
 /// What dropping the statement `key` leaves out, of what a player would see: `None` for one

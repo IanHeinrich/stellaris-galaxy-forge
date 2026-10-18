@@ -290,6 +290,45 @@ pub(crate) fn first_draw<'a>(
         .collect()
 }
 
+/// What `add_deposit = random` and `add_deposit = random_blocker` add.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RandomDeposit {
+    /// A deposit that is no blocker.
+    Any,
+    Blocker,
+}
+
+/// One deposit of the kind `which` names drawn for `body`, which holds `deposits`, from the
+/// deposits the game's roll could give it, each as likely as its `drop_weight` for the body
+/// (assumed: no game file says how the effect draws). `None` when none fits.
+pub(crate) fn draw_one(
+    gd: &GameData,
+    body: &RollBody<'_>,
+    deposits: &[String],
+    rng: &mut Rng,
+    which: RandomDeposit,
+) -> Option<String> {
+    let class_def = gd.planet_classes.get(body.class);
+    let blocker = which == RandomDeposit::Blocker;
+    let draw = Draw {
+        colonizable: body.kind != Kind::Star && class_def.is_some_and(|c| c.colonizable),
+        blockers: blocker,
+        null: false,
+        part: Part::Any,
+    };
+    let subject = NewBody {
+        body,
+        class_def,
+        deposits,
+        triggers: &gd.scripted_triggers,
+    };
+    let pool: Vec<(&DepositDef, f64)> = weighed(gd, &subject, &draw)
+        .into_iter()
+        .filter(|(deposit, _)| gd.is_blocker(&deposit.key) == blocker)
+        .collect();
+    rng.weighted(&pool).map(|deposit| deposit.key.clone())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Part {
     Any,

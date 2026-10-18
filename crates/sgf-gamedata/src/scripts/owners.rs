@@ -264,7 +264,7 @@ fn spawn_reaches<'g>(gd: &'g GameData, home: &str) -> HashMap<&'g str, f64> {
                 continue;
             };
             for (child, step) in &init.spawn_reach {
-                let total = so_far + step.unwrap_or(f64::INFINITY);
+                let total = so_far + step.map_or(f64::INFINITY, |reach| reach.max);
                 if child != home && best.get(child.as_str()).is_none_or(|known| total < *known) {
                     best.insert(child, total);
                     next.push((child.as_str(), total));

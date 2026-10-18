@@ -117,7 +117,23 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
             "{generic} is left to the star pick that draws it"
         );
     }
-    assert_eq!(entries.len(), special_initializers(gd).len() - 3);
+    let cluster_only = [
+        "ratling_1_2",
+        "ratling_1_3",
+        "legendary_leader_1st_site",
+        "legendary_leader_2nd_site",
+        "legendary_leader_3rd_site",
+    ];
+    for member in cluster_only {
+        assert!(
+            !keys.contains(member),
+            "{member} is offered only in its cluster"
+        );
+    }
+    assert_eq!(
+        entries.len(),
+        special_initializers(gd).len() - 3 - cluster_only.len()
+    );
     let entry = |key: &str| entries.iter().find(|e| e.key == key).expect(key);
     assert_eq!(entry("trappist_initializer").label, "Trappist");
     for unique in ["unique_system_initializer_03", "oasis_system"] {

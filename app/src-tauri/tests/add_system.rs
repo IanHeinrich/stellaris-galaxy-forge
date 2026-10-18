@@ -4,10 +4,11 @@ use serde_json::json;
 use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{EditResult, ErrorKind, GalaxyView, SystemDetail};
-use sgf_gamedata::summary::AddSystemPicks;
+use sgf_gamedata::generate::ClusterRoll;
+use sgf_gamedata::summary::{AddSystemPicks, ClusterPick, SpecialPick};
 
 use crate::common;
-use common::{SAMPLE, SAMPLE_45, SCENARIO, invoke, kind, open, webview, with_game_data};
+use common::{SAMPLE, SAMPLE_34, SAMPLE_45, SCENARIO, invoke, kind, open, webview, with_game_data};
 use sgf_gamedata::picks::StarClassPick;
 
 /// A point inside the galaxy at least `clear` from every system.
@@ -270,15 +271,9 @@ fn a_scenario_takes_no_rolled_system() {
         json!({ "system": 0, "seed": 1, "starClass": null }),
     )
     .expect_err("a scenario is refused");
-    let special = invoke::<EditResult>(
-        &w,
-        "add_special_system",
-        json!({ "seed": 1, "x": 0.0, "y": 0.0, "layout": "trappist_initializer", "extras": true }),
-    )
-    .expect_err("a scenario is refused");
     let picks = invoke::<AddSystemPicks>(&w, "get_add_system_picks", json!({}))
         .expect_err("a scenario has no picks");
-    for refused in [added, rolled, special, picks] {
+    for refused in [added, rolled, picks] {
         assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
         assert_eq!(refused.message, "this document takes no rolled system");
     }
@@ -289,6 +284,113 @@ fn a_scenario_takes_no_rolled_system() {
         removed.message,
         "this document has no systems added this session"
     );
+}
+
+/// A scenario lists the Special menu's layouts and clusters as a save does, and takes each as
+/// system statements naming their initializers: one for a layout, one per system and the
+/// lanes between them for a cluster.
+#[test]
+fn a_scenario_takes_special_systems_and_clusters_as_statements() {
+    let Some((w, opened)) = with_game_data(SCENARIO) else {
+        return;
+    };
+    let layouts: Vec<SpecialPick> =
+        invoke(&w, "get_special_layouts", json!({})).expect("the special layouts");
+    assert!(
+        layouts
+            .iter()
+            .any(|pick| pick.layout.key == "trappist_initializer")
+    );
+    let clusters: Vec<ClusterPick> =
+        invoke(&w, "get_special_clusters", json!({})).expect("the clusters");
+    let keys: Vec<&str> = clusters.iter().map(|c| c.cluster.key.as_str()).collect();
+    assert_eq!(
+        keys,
+        ["junk_ratlings"],
+        "the Legendary Leader's start site creates its sites itself in a scenario"
+    );
+
+    let (x, y) = free_spot(&opened.galaxy, 12.0);
+    let special: EditResult = invoke(
+        &w,
+        "add_special_system",
+        json!({ "seed": 1, "x": x, "y": y, "layout": "trappist_initializer", "extras": true, "links": [] }),
+    )
+    .expect("a special system's statement");
+    let held = opened.galaxy.systems[0].id;
+    assert!(
+        special
+            .delta
+            .systems
+            .iter()
+            .any(|s| s.initializer == "trappist_initializer")
+    );
+
+    let (x, y) = free_spot(&opened.galaxy, 30.0);
+    let args = json!({ "seed": 3, "x": x, "y": y, "cluster": "junk_ratlings" });
+    let roll: ClusterRoll = invoke(&w, "roll_special_cluster", args).expect("the roll");
+    assert_eq!(roll.members.len(), 3);
+    assert_eq!(roll.lanes.len(), 2);
+    let args = json!({
+        "seed": 3, "x": x, "y": y, "cluster": "junk_ratlings", "extras": false,
+        "links": [[0, held]],
+    });
+    let cluster: EditResult = invoke(&w, "add_special_cluster", args).expect("the cluster");
+    assert_eq!(
+        cluster.entry.description,
+        "Added the Junk Ratlings: 3 systems and 3 lanes"
+    );
+    let mut added: Vec<&str> = cluster
+        .delta
+        .systems
+        .iter()
+        .map(|s| s.initializer.as_str())
+        .filter(|init| init.starts_with("ratling"))
+        .collect();
+    added.sort_unstable();
+    assert_eq!(added, ["ratling_1_1", "ratling_1_2", "ratling_1_3"]);
+}
+
+/// A save before Stellaris 4.0 takes no special system, and each command for them says so.
+#[test]
+fn the_special_commands_refuse_a_document_that_takes_no_special_systems() {
+    let Some((w, _)) = with_game_data(SAMPLE_34) else {
+        return;
+    };
+    let at = |extra: serde_json::Value| {
+        let mut args = json!({ "seed": 1, "x": 0.0, "y": 0.0, "extras": true });
+        args.as_object_mut()
+            .expect("an object")
+            .extend(extra.as_object().expect("an object").clone());
+        args
+    };
+    let refusals = [
+        invoke::<Vec<SpecialPick>>(&w, "get_special_layouts", json!({})).map(|_| ()),
+        invoke::<Vec<ClusterPick>>(&w, "get_special_clusters", json!({})).map(|_| ()),
+        invoke::<ClusterRoll>(
+            &w,
+            "roll_special_cluster",
+            at(json!({ "cluster": "junk_ratlings" })),
+        )
+        .map(|_| ()),
+        invoke::<EditResult>(
+            &w,
+            "add_special_cluster",
+            at(json!({ "cluster": "junk_ratlings", "links": [] })),
+        )
+        .map(|_| ()),
+        invoke::<EditResult>(
+            &w,
+            "add_special_system",
+            at(json!({ "layout": "trappist_initializer", "links": [] })),
+        )
+        .map(|_| ()),
+    ];
+    for refused in refusals {
+        let refused = refused.expect_err("a 3.4 save is refused");
+        assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
+        assert_eq!(refused.message, "this document takes no special systems");
+    }
 }
 
 /// The picks the menu offers for the open save.
@@ -350,7 +452,7 @@ fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
     let placed: EditResult = invoke(
         &w,
         "add_special_system",
-        json!({ "seed": 5, "x": x, "y": y, "layout": layout, "extras": true }),
+        json!({ "seed": 5, "x": x, "y": y, "layout": layout, "extras": true, "links": [] }),
     )
     .expect("placed though the galaxy has one");
     let system = added(&placed).clone();
@@ -408,7 +510,7 @@ fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
     let unique: EditResult = invoke(
         &w,
         "add_special_system",
-        json!({ "seed": 8, "x": x, "y": y, "layout": "unique_system_initializer_03", "extras": true }),
+        json!({ "seed": 8, "x": x, "y": y, "layout": "unique_system_initializer_03", "extras": true, "links": [] }),
     )
     .expect("place Zevox");
     assert_eq!(
@@ -431,7 +533,7 @@ fn a_special_system_comes_with_its_anomalies_and_dig_sites_only_when_asked() {
         let placed: EditResult = invoke(
             &w,
             "add_special_system",
-            json!({ "seed": seed, "x": x, "y": y, "layout": "breachsealer_system", "extras": extras }),
+            json!({ "seed": seed, "x": x, "y": y, "layout": "breachsealer_system", "extras": extras, "links": [] }),
         )
         .unwrap_or_else(|e| panic!("extras {extras}: {e:?}"));
         let system = added_with(&placed, "breachsealer_system");
@@ -454,7 +556,7 @@ fn a_special_system_comes_with_its_anomalies_and_dig_sites_only_when_asked() {
     let ort: EditResult = invoke(
         &w,
         "add_special_system",
-        json!({ "seed": 33, "x": x, "y": y, "layout": "hostile_init_21", "extras": true }),
+        json!({ "seed": 33, "x": x, "y": y, "layout": "hostile_init_21", "extras": true, "links": [] }),
     )
     .expect("Tiyun Ort with extras");
     let system = added_with(&ort, "hostile_init_21");

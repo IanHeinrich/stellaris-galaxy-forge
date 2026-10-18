@@ -3,9 +3,9 @@
 
 use sgf_core::ops::{LaneEnd, Op};
 use sgf_core::views::{EditResult, ErrorKind, SgfError};
-use sgf_gamedata::generate::{self, Pick, SystemAsk};
+use sgf_gamedata::generate::{self, ClusterRoll, Pick, SystemAsk};
 use sgf_gamedata::picks::StarClassPick;
-use sgf_gamedata::summary::{self, AddSystemPicks};
+use sgf_gamedata::summary::{self, AddSystemPicks, ClusterPick, SpecialPick};
 use tauri::{AppHandle, Runtime, State};
 
 use super::{game_data, require, with_session};
@@ -14,6 +14,7 @@ use crate::state::GameDataState;
 const ADD_A_SYSTEM: &str = "add a system";
 const NO_ROLLS: &str = "this document takes no rolled system";
 const NO_BULK_ADD: &str = "this document takes no systems added together";
+const NO_SPECIAL: &str = "this document takes no special systems";
 const NO_ADDED: &str = "this document has no systems added this session";
 const NONE_ADDED: &str = "none of these systems was added this session";
 
@@ -63,7 +64,10 @@ pub async fn add_random_systems<R: Runtime>(
 /// open save with what its script plants beside its bodies, as one `Batch`: the planet flags
 /// and global event targets always, the anomalies and dig sites when `extras`. It takes the
 /// layout's fixed name unless a system of the save holds it, and a name from the pool
-/// otherwise. A capped layout the galaxy already has is placed all the same.
+/// otherwise. A capped layout the galaxy already has is placed all the same. A scenario takes
+/// a system statement naming the layout as its initializer, and `extras` says nothing. Each
+/// of `links`, a system the document holds, is joined to the new one by a lane in the same
+/// step; an id naming no system refuses the add with nothing applied.
 #[tauri::command]
 pub async fn add_special_system<R: Runtime>(
     app: AppHandle<R>,
@@ -72,13 +76,90 @@ pub async fn add_special_system<R: Runtime>(
     y: f64,
     layout: String,
     extras: bool,
+    links: Vec<u32>,
 ) -> Result<EditResult, SgfError> {
     let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), |c| c.added_systems, NO_ROLLS)?;
-        let op = generate::special_op(&gd, session, seed, (x, y), &layout, extras)?;
+        let session = require(guard.as_mut(), |c| c.bulk_add_systems, NO_SPECIAL)?;
+        let op = generate::special_op(&gd, session, seed, (x, y), &layout, extras, &links)?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))
+    })
+    .await
+}
+
+/// The Special menu's cluster `cluster` rolled from `seed` with its home at (`x`, `y`), as
+/// `add_special_cluster` adds it from the same arguments: each system's layout, name, place
+/// and star class, why the add refuses its place, and the lanes between them. Nothing is
+/// written; another seed places and rolls them again.
+#[tauri::command]
+pub async fn roll_special_cluster<R: Runtime>(
+    app: AppHandle<R>,
+    seed: u64,
+    x: f64,
+    y: f64,
+    cluster: String,
+) -> Result<ClusterRoll, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.bulk_add_systems, NO_SPECIAL)?;
+        let rolled = generate::roll_cluster(&gd, session, seed, (x, y), &cluster)?;
+        Ok(rolled.view(&gd))
+    })
+    .await
+}
+
+/// Add the Special menu's cluster `cluster`, rolled from `seed` with its home at (`x`, `y`)
+/// as `roll_special_cluster` previews it, as one `Batch` with the lanes between its systems.
+/// A save takes each system as `add_special_system` does, with the anomalies, dig sites and
+/// megastructures of all of them when `extras`; a scenario takes a statement naming each
+/// one's initializer, and `extras` says nothing. Each of `links`, an index into the roll's
+/// systems and a system the document holds, is a lane laid after the cluster's own. Refused
+/// with nothing applied when a system's place is refused, or a link names no system.
+#[tauri::command]
+pub async fn add_special_cluster<R: Runtime>(
+    app: AppHandle<R>,
+    seed: u64,
+    x: f64,
+    y: f64,
+    cluster: String,
+    extras: bool,
+    links: Vec<(usize, u32)>,
+) -> Result<EditResult, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.bulk_add_systems, NO_SPECIAL)?;
+        let op = generate::cluster_op(&gd, session, seed, (x, y), &cluster, extras, &links)?;
+        let result = session.apply(op)?;
+        Ok(session.edit_result(result))
+    })
+    .await
+}
+
+/// The Special menu's layouts for the open document, each with its card, in a scenario as in a
+/// save: what `get_add_system_picks` lists as its `special`.
+#[tauri::command]
+pub async fn get_special_layouts<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<SpecialPick>, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.bulk_add_systems, NO_SPECIAL)?;
+        Ok(summary::special_picks(&gd, session))
+    })
+    .await
+}
+
+/// The Special menu's clusters for the open document, each with its card, in a scenario as
+/// in a save: what `get_add_system_picks` lists as its `clusters`.
+#[tauri::command]
+pub async fn get_special_clusters<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<ClusterPick>, SgfError> {
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
+    with_session(app, move |mut guard| {
+        let session = require(guard.as_mut(), |c| c.bulk_add_systems, NO_SPECIAL)?;
+        Ok(summary::cluster_picks(&gd, session))
     })
     .await
 }

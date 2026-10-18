@@ -182,6 +182,7 @@ save_keys! {
     OWNED_MEGASTRUCTURES = "owned_megastructures",
     OWNED_PLANETS = "owned_planets",
     OWNER = "owner",
+    PICTURE = "picture",
     PLANET = "planet",
     PLANETS = "planets",
     PLANET_CLASS = "planet_class",

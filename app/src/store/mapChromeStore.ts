@@ -3,6 +3,7 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import type { SpecialKind } from "../generated/SpecialKind";
 import { DEFAULT_LANE_DENSITY, densityOfBeta } from "../lib/geometry/mesh";
 import type { Pt } from "../lib/geometry/pt";
+import type { ShapePreview } from "../lib/shapes/types";
 import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
@@ -68,6 +69,8 @@ export interface ContextMenu {
   y: number;
   /** The galaxy map's world point under the right-click; absent for a menu opened elsewhere. */
   at?: Pt;
+  /** The map area's pixels per world unit along x and y about `at`, signed; set with it. */
+  perUnit?: Pt;
 }
 
 /** Tooltip text: plain, or pieces with inline icons named by texture key. */
@@ -126,6 +129,8 @@ export interface MapChromeState {
   /** Whether the lanes the brushes and the mesh action add are grouped into islands as the game does. */
   laneIslands: boolean;
   addSystemPreview: AddSystemPreview | null;
+  /** What the Special picker's highlighted row would add, which the map draws as it draws a pending shape's systems. */
+  specialPreview: ShapePreview | null;
   /** Lanes the map draws as ghosts while the mesh action is being considered. */
   lanePreview: Array<[number, number]> | null;
   /** Initializer key the initializer browser is highlighting; its systems are ringed on the map. */
@@ -170,6 +175,7 @@ export interface MapChromeState {
   setLayerQuietly(id: GalaxyLayerId, on: boolean): void;
   setLanePreview(pairs: Array<[number, number]> | null): void;
   setAddSystemPreview(preview: AddSystemPreview | null): void;
+  setSpecialPreview(preview: ShapePreview | null): void;
   setHighlightInitializer(key: string | null): void;
   setGesture(gesture: MapGesture | null): void;
   setSceneHint(text: string | null): void;
@@ -185,6 +191,7 @@ const NO_OVERLAYS = {
   tooltip: null,
   lanePreview: null,
   addSystemPreview: null,
+  specialPreview: null,
   highlightInitializer: null,
   gesture: null,
   sceneHint: null,
@@ -428,6 +435,10 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
 
   setAddSystemPreview(preview) {
     set({ addSystemPreview: preview });
+  },
+
+  setSpecialPreview(preview) {
+    set({ specialPreview: preview });
   },
 
   setHighlightInitializer(key) {

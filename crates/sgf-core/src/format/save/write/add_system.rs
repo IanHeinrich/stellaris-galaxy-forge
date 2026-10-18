@@ -359,6 +359,8 @@ pub(crate) fn write_body(
         features: &body.features,
         entity: body.spec.entity,
         entity_name: body.spec.entity_name.as_deref(),
+        picture: body.spec.picture.as_deref(),
+        prevent_anomaly: body.spec.prevent_anomaly,
         deposits: &held,
         flags: &body.spec.flags,
         flag_date: &flag_date,
@@ -599,18 +601,38 @@ pub(crate) fn check_places(
     first: u32,
     points: &[(f64, f64)],
 ) -> Result<(), OpError> {
+    match place_refusals(graph, first, points)
+        .into_iter()
+        .flatten()
+        .next()
+    {
+        Some(refused) => Err(refused),
+        None => Ok(()),
+    }
+}
+
+/// Why [`check_places`] refuses each of `points`, or `None` for one it takes.
+pub(crate) fn place_refusals(
+    graph: &GalaxyGraph,
+    first: u32,
+    points: &[(f64, f64)],
+) -> Vec<Option<OpError>> {
     let points: Vec<(f64, f64)> = points
         .iter()
         .map(|&(x, y)| (rounded(x), rounded(y)))
         .collect();
-    for (i, &(x, y)) in points.iter().enumerate() {
-        check_place(graph, x, y)?;
-        let earlier = (first..)
-            .zip(&points[..i])
-            .map(|(id, &(ox, oy))| (id, ox, oy));
-        check_apart(x, y, earlier)?;
-    }
-    Ok(())
+    points
+        .iter()
+        .enumerate()
+        .map(|(i, &(x, y))| {
+            let earlier = (first..)
+                .zip(&points[..i])
+                .map(|(id, &(ox, oy))| (id, ox, oy));
+            check_place(graph, x, y)
+                .and_then(|()| check_apart(x, y, earlier))
+                .err()
+        })
+        .collect()
 }
 
 /// No nearer to any of `others`, each an id and a position, than the game spawns a system.

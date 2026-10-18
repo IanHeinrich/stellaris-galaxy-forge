@@ -23,6 +23,8 @@ pub struct Generate {
     pub star_class: Option<String>,
     /// The layout to build the system from, in place of a drawn one.
     pub layout: Option<String>,
+    /// The Special menu cluster to add, its home at `at`, in place of one system.
+    pub cluster: Option<String>,
     /// Write the layout's anomalies and dig sites too, as the app does.
     pub extras: bool,
     pub print_spec: bool,
@@ -44,6 +46,21 @@ pub fn generated(
     let gd = game_data(opts)?;
     let mut session = Session::open(sav)?;
     let (seed, at) = (generating.seed, generating.at);
+    if let Some(cluster) = &generating.cluster {
+        let joins: Vec<(usize, u32)> = generating.lanes.iter().map(|&system| (0, system)).collect();
+        let op = generate::cluster_op(&gd, &session, seed, at, cluster, generating.extras, &joins)
+            .map_err(for_save_error)?;
+        let Op::Batch { description, ops } = &op else {
+            return Err("the cluster's add is no batch".into());
+        };
+        println!("{description}");
+        for added in ops.iter().filter_map(added_spec) {
+            print_summary(added, seed);
+        }
+        let mut issues = mutate::apply(&mut session, vec![op])?;
+        remove_added(&mut session, then_remove, &mut issues)?;
+        return mutate::save(session, out, &issues);
+    }
     let (spec, op) = match (&generating.layout, generating.print_spec) {
         (Some(layout), false) => {
             let lanes: Vec<(LaneEnd, LaneEnd)> = generating

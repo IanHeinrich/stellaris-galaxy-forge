@@ -20,6 +20,7 @@ pub use systems::GALAXY_REACH;
 use std::collections::BTreeSet;
 
 use crate::cst::{self, Node};
+use crate::emit::coord;
 use crate::keys;
 use crate::ops::OpError;
 use crate::plural;
@@ -37,6 +38,32 @@ pub const FURNACE_ENTITY: &str = "invisible_turret_entity";
 /// [`FURNACE_ENTITY`] is a furnace, which may be moved onto a star: the game was seen to keep
 /// the star's own model under one.
 pub const FURNACE_FLAG: &str = crate::keys::HAS_ARC_FURNACE;
+
+/// What an add of systems placed together says in the undo list, `group` what a sentence
+/// calls them: "Added the Junk Ratlings: 3 systems and 2 lanes".
+pub fn added_group(group: &str, systems: usize, lanes: usize) -> String {
+    format!(
+        "Added {group}: {} and {}",
+        plural(systems, "system"),
+        plural(lanes, "lane")
+    )
+}
+
+/// What adding a system statement with no name says in the undo list, as the add of one
+/// does: "Added system #602 at (12.5, -3)", and the lanes laid with it, "with 2 lanes", as a
+/// save's add counts them.
+pub fn added_statement(id: u32, (x, y): (f64, f64), lanes: usize) -> String {
+    let added = format!(
+        "Added {} at ({}, {})",
+        labelled("", false, id),
+        coord(x),
+        coord(y)
+    );
+    match lanes {
+        0 => added,
+        n => format!("{added} with {}", plural(n, "lane")),
+    }
+}
 
 /// How a text stands in the file: between quotes, which the game reads with no escaping,
 /// or as a key the game looks up, one token of printable ASCII whether quoted or not.

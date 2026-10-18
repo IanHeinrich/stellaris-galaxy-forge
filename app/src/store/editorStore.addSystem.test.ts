@@ -150,11 +150,13 @@ describe("placing a special layout", () => {
     addSpecialSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
     mockedIpc.getSystem.mockResolvedValue({ system, neighbours: [], nebula: null });
 
-    expect(await editor().addSpecialSystemAt(-50, -20, "trappist_initializer", false)).toBe(true);
+    expect(await editor().addSpecialSystemAt(-50, -20, "trappist_initializer", false, false)).toBe(
+      true,
+    );
 
-    const [seed, x, y, layout, extras] = addSpecialSystem.mock.calls[0];
+    const [seed, x, y, layout, extras, links] = addSpecialSystem.mock.calls[0];
     expect(Number.isSafeInteger(seed)).toBe(true);
-    expect([x, y, layout, extras]).toEqual([-50, -20, "trappist_initializer", false]);
+    expect([x, y, layout, extras, links]).toEqual([-50, -20, "trappist_initializer", false, []]);
     expect(editor().selection).toEqual([6]);
     expect(editor().inspected?.system.id).toBe(6);
     expect(addRandomSystem).not.toHaveBeenCalled();
@@ -174,7 +176,7 @@ describe("placing a special layout", () => {
   });
 
   it("reports a refused spot without asking the core", async () => {
-    expect(await editor().addSpecialSystemAt(3, 0, "trappist_initializer", true)).toBe(false);
+    expect(await editor().addSpecialSystemAt(3, 0, "trappist_initializer", true, true)).toBe(false);
     expect(addSpecialSystem).not.toHaveBeenCalled();
     expect(sessionError()).toMatch(/^Too close to .+/);
   });

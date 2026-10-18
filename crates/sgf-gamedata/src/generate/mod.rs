@@ -23,17 +23,19 @@ use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
 use crate::rolls::{ClassDraw, RingRoll, can_be, fixed_name, list_members, ring_roll};
 
+mod cluster;
 mod megastructure;
 mod save;
 
+pub use cluster::{ClusterMember, ClusterRoll, RolledCluster, cluster_op, roll_cluster};
 pub use megastructure::{
     AddSpot, HostMoons, HostMoonsFit, MegastructureFit, Planned, Refusal, habitat_op,
     megastructure_fits, megastructure_op, ring_world_op,
 };
 pub(crate) use megastructure::{SpawnedAt, layout_structures, spawned_row};
 pub use save::{
-    BodyAsk, ClassRulesError, ForSaveError, Pick, SystemAsk, added_among, body_for_save, for_save,
-    for_save_many, reroll, settle_name, special_op, special_op_with, systems_op,
+    BodyAsk, ClassRulesError, ForSaveError, Pick, PickAt, SystemAsk, added_among, body_for_save,
+    for_save, for_save_many, reroll, settle_name, special_op, special_op_with, systems_op,
 };
 
 /// Separates the deposit draw from the system draw of the same seed.
@@ -702,7 +704,9 @@ pub fn roll_body(gd: &GameData, seed: u64, roll: &BodyRoll<'_>) -> Result<BodySp
             gd,
             &effect,
             &mut spec,
+            rolled.kind,
             &Dlc::of(gd, None),
+            &mut Rng::new(seed ^ DEPOSIT_STREAM),
             &mut Planted::default(),
         );
     }
@@ -919,7 +923,15 @@ impl Deposits<'_> {
         }
         let mut planted = Planted::default();
         let dlc = Dlc::of(self.gd, self.save);
-        body_effects::apply(self.gd, &block.effects, body, &dlc, &mut planted);
+        body_effects::apply(
+            self.gd,
+            &block.effects,
+            body,
+            kind,
+            &dlc,
+            &mut self.rng,
+            &mut planted,
+        );
         if planted != Planted::default() {
             self.planted
                 .push((at, star_body(self.gd, &block.class), planted));

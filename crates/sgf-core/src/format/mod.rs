@@ -105,6 +105,15 @@ pub(crate) trait Format: Sync {
 
     /// The layers, tabs and ops the app may offer for this document.
     fn capabilities(&self, doc: &Document) -> Capabilities;
+
+    /// The ids `n` systems added to the document one after another take, by the format's own
+    /// rule; `graph` is the document's galaxy.
+    fn next_systems(
+        &self,
+        doc: &Document,
+        graph: &GalaxyGraph,
+        n: usize,
+    ) -> Result<Vec<u32>, OpError>;
 }
 
 pub(crate) fn of(kind: DocumentKind) -> &'static dyn Format {

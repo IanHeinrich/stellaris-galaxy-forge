@@ -11,11 +11,12 @@ use crate::projections::name::NameTemplate;
 pub(crate) const STAR_CARRIER_FLAGS: u32 = 3;
 const BODY_CARRIER_FLAGS: u32 = 1;
 /// The `binary_flags` bits of a body: a name fixed by its layout, a model its layout set in
-/// `entity_name`, a ring and a moon. The game sets 64 beside any of them, and writes no
+/// `entity_name`, `prevent_anomaly`, a ring and a moon. The game sets 64 beside any of them, and writes no
 /// `binary_flags` when none is set. A model set by an event's `set_planet_entity` has no bit
 /// 2, and the game draws `entity_name` either way.
 pub(crate) const FIXED_NAME_FLAG: u32 = 1;
 pub(crate) const ENTITY_NAME_FLAG: u32 = 2;
+pub(crate) const PREVENT_ANOMALY_FLAG: u32 = 8;
 pub(crate) const ANY_FLAG: u32 = 64;
 /// The bit `trigger_megastructure_icon = yes` sets on the body that shows a megastructure's
 /// icon, a ring world's habitable section.
@@ -72,6 +73,10 @@ pub struct PlanetEntry<'a> {
     pub features: &'a [&'a str],
     pub entity: u32,
     pub entity_name: Option<&'a str>,
+    /// The picture shown in place of its class's.
+    pub picture: Option<&'a str>,
+    /// Its layout ran `prevent_anomaly = yes`.
+    pub prevent_anomaly: bool,
     pub deposits: &'a [u32],
     /// Planet flags, each dated `flag_date`.
     pub flags: &'a [String],
@@ -136,6 +141,7 @@ struct Entry<'a> {
     at: (f64, f64),
     system: u32,
     orbit: f64,
+    picture: Option<&'a str>,
     carrier_flags: u32,
     binary_flags: u32,
     moon_of: Option<u32>,
@@ -169,6 +175,7 @@ impl<'a> Entry<'a> {
             at,
             system,
             orbit,
+            picture: None,
             carrier_flags: BODY_CARRIER_FLAGS,
             binary_flags: 0,
             moon_of: None,
@@ -189,6 +196,9 @@ fn entry(indent: &[u8], e: &Entry<'_>) -> Vec<u8> {
     w.open(0, &e.id.to_string());
     w.pair(1, keys::PLANET_CLASS, &quoted(e.class));
     w.pair(1, keys::PLANET_SIZE, &e.size.to_string());
+    if let Some(picture) = e.picture {
+        w.pair(1, keys::PICTURE, &quoted(picture));
+    }
     w.pair(1, keys::CARRIER_BINARY_FLAGS, &e.carrier_flags.to_string());
     w.line(1, &format!("{}=", keys::NAME));
     w.name(1, e.name);
@@ -323,6 +333,7 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
             features: p.features,
             entity: p.entity,
             entity_name: p.entity_name,
+            picture: p.picture,
             deposits: p.deposits,
             flags: p.flags,
             flag_date: p.flag_date,
@@ -335,6 +346,7 @@ fn binary_flags(p: &PlanetEntry<'_>) -> u32 {
     let bits = [
         (p.fixed_name, FIXED_NAME_FLAG),
         (p.entity_name.is_some(), ENTITY_NAME_FLAG),
+        (p.prevent_anomaly, PREVENT_ANOMALY_FLAG),
         (p.ring, RING_FLAG),
         (p.moon_of.is_some(), MOON_FLAG),
     ];

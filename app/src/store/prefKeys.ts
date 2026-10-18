@@ -22,6 +22,7 @@ export const PREF_KEYS = {
   specialPins: "sgf.special.pinned",
   specialRecent: "sgf.special.recent",
   specialExtras: "sgf.special.extras",
+  specialJoin: "sgf.special.join",
   nebulaRadius: "sgf.nebula.radius",
   /** Read only to carry a setting from before `laneDensity` over. */
   meshBeta: "sgf.mesh.beta",

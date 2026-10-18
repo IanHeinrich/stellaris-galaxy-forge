@@ -8,7 +8,7 @@ import { SEGMENT_CELL, type Segment } from "../geometry/segments";
 import { copies, COUNTERPART_REACH, images, type Symmetry } from "../geometry/symmetry";
 import { insideExtent } from "../guides";
 import type { ImageOfNew } from "../placement/ground";
-import { PlacementGround } from "../placement/ground";
+import { FollowGround, PlacementGround } from "../placement/ground";
 import { LEAST_SPACING, MOST_SPACING, ON_TOP } from "../placement/limits";
 import { placedLanes, provisionalId, provisionalIndex } from "../placement/lanes";
 import { PointGrid } from "../placement/pointGrid";
@@ -488,20 +488,6 @@ export function laidCount(
 ): number {
   const anywhere: Where = { inside: () => true, places: () => true };
   return basePoints(layout(pending, sym, rules, spacing), sym, rules, anywhere).base.length;
-}
-
-/** A placement ground that also counts `follow` as lanes, so the mesh never crosses them. */
-export class FollowGround extends PlacementGround {
-  constructor(
-    private readonly inner: PlacementGround,
-    private readonly follow: ReadonlyArray<Segment<MeshPoint>>,
-  ) {
-    super(inner.systems, inner.grid, inner.symmetry);
-  }
-
-  override lanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
-    return [...this.inner.lanesNear(points, d), ...this.follow];
-  }
 }
 
 /** Whether existing systems `a` and `b` are linked already, or kept apart. */

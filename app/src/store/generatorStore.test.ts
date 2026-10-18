@@ -41,6 +41,7 @@ describe("the Add system menu's picks", () => {
     random: summary(planets),
     star_classes: [],
     special: [],
+    clusters: [],
   });
 
   it("are read again each time, keeping the last ones until the next land, and drop a late answer", async () => {

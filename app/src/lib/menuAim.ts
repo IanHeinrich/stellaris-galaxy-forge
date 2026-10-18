@@ -53,28 +53,42 @@ export function placeBeside(
 }
 
 /**
- * Where a box of `size` goes beside `point` inside a `bounds` box, `gap` away from it: on the
- * point's left, else on its right, level with it. Where neither side holds the box, it goes on the
- * side with more room, as near the point as the bounds' edge allows, so as little of the box
- * covers the point as can be. It is kept inside the edge top and bottom.
+ * Where a box of `size` goes beside `area` inside a `bounds` box, `gap` away from it: on the
+ * area's left, else on its right, level with its middle. Where neither side holds the box, it goes
+ * on the side with more room, as near the area as the bounds' edge allows, so as little of the box
+ * covers the area as can be. It is kept inside the edge top and bottom.
  */
-export function placeBesidePoint(
-  point: Pt,
+export function placeBesideRect(
+  area: Rect,
   size: { width: number; height: number },
   bounds: { width: number; height: number },
   gap: number,
 ): Placed {
-  const roomLeft = point.x - gap - EDGE_PX;
-  const roomRight = bounds.width - EDGE_PX - point.x - gap;
+  const roomLeft = area.left - gap - EDGE_PX;
+  const roomRight = bounds.width - EDGE_PX - area.right - gap;
   const side: Side =
     size.width <= roomLeft || (size.width > roomRight && roomLeft >= roomRight) ? "left" : "right";
   const lastLeft = bounds.width - EDGE_PX - size.width;
   const left =
     side === "left"
-      ? Math.min(Math.max(EDGE_PX, point.x - gap - size.width), Math.max(EDGE_PX, lastLeft))
-      : Math.max(EDGE_PX, Math.min(point.x + gap, lastLeft));
+      ? Math.min(Math.max(EDGE_PX, area.left - gap - size.width), Math.max(EDGE_PX, lastLeft))
+      : Math.max(EDGE_PX, Math.min(area.right + gap, lastLeft));
+  const middle = (area.top + area.bottom) / 2;
   const lowest = bounds.height - EDGE_PX - size.height;
-  return { left, top: Math.max(EDGE_PX, Math.min(point.y - size.height / 2, lowest)), side };
+  return { left, top: Math.max(EDGE_PX, Math.min(middle - size.height / 2, lowest)), side };
+}
+
+/** The box round `points`; null for none. */
+export function boxAround(points: readonly Pt[]): Rect | null {
+  if (points.length === 0) return null;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  return {
+    left: Math.min(...xs),
+    top: Math.min(...ys),
+    right: Math.max(...xs),
+    bottom: Math.max(...ys),
+  };
 }
 
 function cross(o: Pt, a: Pt, b: Pt): number {

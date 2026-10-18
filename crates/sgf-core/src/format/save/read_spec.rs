@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::system::{RING_FLAG, STAR_CARRIER_FLAGS};
+use crate::emit::system::{PREVENT_ANOMALY_FLAG, RING_FLAG, STAR_CARRIER_FLAGS};
 use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::systems::timed_modifiers;
@@ -79,6 +79,8 @@ struct ReadBody {
     asteroid: bool,
     name: Option<String>,
     entity_name: Option<String>,
+    picture: Option<String>,
+    prevent_anomaly: bool,
     modifiers: Vec<String>,
     ring: bool,
     star: bool,
@@ -100,6 +102,8 @@ impl ReadBody {
             asteroid: self.asteroid,
             name: self.name.clone(),
             entity_name: self.entity_name.clone(),
+            picture: self.picture.clone(),
+            prevent_anomaly: self.prevent_anomaly,
             modifiers: self.modifiers.clone(),
             ring: self.ring,
             star: self.star,
@@ -140,6 +144,8 @@ fn read_body(
         asteroid: asteroid_names::parts(&name).is_some(),
         name: fixed.then_some(name.key),
         entity_name: read::scalar(&node, keys::ENTITY_NAME, src).map(str::to_owned),
+        picture: read::scalar(&node, keys::PICTURE, src).map(str::to_owned),
+        prevent_anomaly: flags & PREVENT_ANOMALY_FLAG != 0,
         modifiers,
         ring: flags & RING_FLAG != 0,
         star: read::scalar_u32(&node, keys::CARRIER_BINARY_FLAGS, src) == Some(STAR_CARRIER_FLAGS),

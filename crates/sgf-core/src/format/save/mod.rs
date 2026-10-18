@@ -46,6 +46,16 @@ use crate::views::{Capabilities, DocumentKind, SaveMeta};
 pub(crate) struct Save;
 
 impl Format for Save {
+    fn next_systems(
+        &self,
+        doc: &Document,
+        graph: &GalaxyGraph,
+        n: usize,
+    ) -> Result<Vec<u32>, OpError> {
+        let first = crate::format::save::alloc::next_system(doc, graph)?;
+        Ok((first..).take(n).collect())
+    }
+
     fn build_graph(&self, doc: &Document) -> Result<GalaxyGraph, ProjectionError> {
         GalaxyGraph::build(doc)
     }

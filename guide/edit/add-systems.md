@@ -1,7 +1,7 @@
 ---
 title: Add and delete systems
 description: Add a new star system, a special system such as Sol or Zevox, or a system from an initializer, and delete systems again.
-aliases: [new system, add star, create system, special system, sol, zevox, trappist, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
+aliases: [new system, add star, create system, special system, sol, zevox, trappist, junk ratlings, legendary leader, special cluster, join special system, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
 ---
 # Add and delete systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -31,6 +31,8 @@ The list has these groups:
 
 - Pinned and Recent. Press <kbd>Ctrl</kbd>+<kbd>D</kbd> or the star on a
   row to pin it.
+- Clusters, such as the Junk Ratlings, which the game places as a group.
+  Each row shows how many members it has.
 - Unique systems, such as Zevox and Sol.
 - Other special systems, such as Trappist.
 - One group for each mod that adds special systems.
@@ -47,6 +49,21 @@ The pane on the right shows the highlighted system's star, planets,
 belts and notable bodies. Press Place or <kbd>Enter</kbd>, or
 double-click a row, to add it at the spot. If the spot is too close to
 another system, the pane says so and Place is greyed out.
+
+A cluster places all its members, joined to each other, as one edit,
+with its first member at the spot. The map shows where each one would
+go, and the pane lists them. Press Shuffle to roll their places again.
+A member that can't go where it was rolled shows red and the pane says
+why. Place stays greyed out until a shuffle or another spot works.
+
+"Join to nearby systems" connects what you place to its neighbours, as
+a shape's New and nearby option does, so it isn't left as an island.
+The map shows these connections before you place. Untick it to place
+it unconnected to the rest of the galaxy. The picker remembers your choice.
+
+A cluster's first system is also in the list on its own. Added alone,
+its events look for the rest of its cluster, which isn't there. The
+pane says so.
 
 A special system comes with its own anomalies and dig sites, as the game
 gives them. The pane lists them under "Comes with", and what the system
@@ -73,10 +90,12 @@ If the galaxy already has the system, the game's events about it stay with
 the one that is there. The pane says so.
 
 In a scenario, right-click empty space and select "New special
-system…". The [initializer browser](../scenario/initializers.md) opens on
-its "Unique & special" group. The game builds the whole system from its
-initializer when the galaxy is made, so the scenario has no option to
-leave anything out.
+system…". The same picker opens, with the clusters too. The game builds
+each system from its initializer when the galaxy is made, so there is
+no option to leave anything out and no "Comes with" or "Comes without"
+list. A DLC shows as a tag only: the game you start decides. The game
+also names the systems, so the pane lists a cluster's systems by their
+initializers.
 
 ## Systems outside the galaxy edge
 

@@ -5,10 +5,7 @@
 
 use crate::common;
 
-use std::fmt::Write as _;
-
 use sgf_core::ops::{EventTargetOf, Op};
-use sgf_core::overlay::Anchor;
 use sgf_core::session::Session;
 use sgf_gamedata::body_effects::LeftOut;
 use sgf_gamedata::generate::{SystemAsk, special_op, systems_op};
@@ -16,7 +13,9 @@ use sgf_gamedata::summary::{Planting, PlantingKind, layout_summary};
 
 use common::generate::FILES;
 use common::prepare::current;
-use common::{SPOT, hand_written, open_4_5, open_4_5_edited, sample_install};
+use common::{
+    SPOT, hand_written, members, names, open_4_5, open_4_5_edited, sample_install, written,
+};
 
 const SEDDOM: &str = "breachsealer_system";
 const TIYUN_ORT: &str = "hostile_init_21";
@@ -26,43 +25,7 @@ const GRAVEYARD: &str = "tiyanki_graveyard_system";
 const NEW: u32 = 601;
 
 fn special(session: &Session, layout: &str, extras: bool) -> Op {
-    special_op(sample_install(), session, 1, SPOT, layout, extras).expect("the op")
-}
-
-fn members(op: &Op) -> Vec<&Op> {
-    match op {
-        Op::Batch { ops, .. } => ops.iter().collect(),
-        other => vec![other],
-    }
-}
-
-fn names(op: &Op) -> Vec<&'static str> {
-    members(op).iter().map(|op| op.name()).collect()
-}
-
-/// Every slot the session wrote, in file order: the line it stands at, what it replaced and
-/// what it now holds.
-fn written(session: &Session) -> String {
-    let doc = session.doc();
-    let original = doc.original();
-    let mut out = String::new();
-    for (anchor, bytes) in doc.overlay().slots() {
-        let line = original[..anchor.start()]
-            .iter()
-            .filter(|&&b| b == b'\n')
-            .count()
-            + 1;
-        writeln!(out, "@@ line {line}").unwrap();
-        if let Anchor::Original(span) = anchor {
-            for old in String::from_utf8_lossy(span.slice(original)).lines() {
-                writeln!(out, "-{old}").unwrap();
-            }
-        }
-        for new in String::from_utf8_lossy(bytes).lines() {
-            writeln!(out, "+{new}").unwrap();
-        }
-    }
-    out
+    special_op(sample_install(), session, 1, SPOT, layout, extras, &[]).expect("the op")
 }
 
 /// Apply `op`, snapshot what it wrote as `name`, and undo it back to the original bytes.
@@ -276,7 +239,7 @@ fn an_anomaly_or_dig_site_in_a_scope_the_generator_does_not_follow_is_on_the_car
 fn a_planet_flag_written_from_a_scope_at_run_time_is_not_written() {
     let (_dir, gd) = scoped_install();
     let session = open_4_5();
-    let op = special_op(&gd, &session, 1, SPOT, "fx_scoped_body", true).expect("the op");
+    let op = special_op(&gd, &session, 1, SPOT, "fx_scoped_body", true, &[]).expect("the op");
     assert_eq!(names(&op), ["AddSystemFromSpec", "AddAnomaly"]);
     let Op::AddSystemFromSpec { spec } = members(&op)[0] else {
         unreachable!()
@@ -314,7 +277,7 @@ fn a_ruined_dyson_sphere_comes_with_its_row() {
         return;
     };
     let mut session = open_4_5();
-    let op = special_op(gd, &session, 1, SPOT, "dyson_sphere_init_01", true).expect("the op");
+    let op = special_op(gd, &session, 1, SPOT, "dyson_sphere_init_01", true, &[]).expect("the op");
     assert_eq!(names(&op), ["AddSystemFromSpec", "AddMegastructure"]);
     let text = applied(&mut session, "dyson_sphere", op);
     assert!(text.contains("type=\"dyson_sphere_ruined\""), "{text}");
