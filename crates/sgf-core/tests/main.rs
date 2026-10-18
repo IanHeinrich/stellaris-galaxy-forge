@@ -41,6 +41,7 @@ mod ops_add_megastructure;
 mod ops_add_megastructure_construction;
 mod ops_add_megastructure_planet;
 mod ops_add_megastructure_planet_change;
+mod ops_add_multi_star_system;
 mod ops_add_ring_world;
 mod ops_add_special_system;
 mod ops_add_special_system_counts;

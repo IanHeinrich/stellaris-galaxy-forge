@@ -10,12 +10,14 @@ use std::collections::BTreeMap;
 
 use crate::document::Document;
 use crate::emit::system::{
-    DepositEntry, PlanetEntry, SystemEntry, deposit_entry, planet_entry, system_entry,
+    DepositEntry, Orbiting, PlanetEntry, SystemEntry, deposit_entry, planet_entry, system_entry,
 };
 use crate::emit::{coord, roman, rounded};
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
-use crate::format::save::system_spec::{BodySpec, SpecBody, SystemSpec, polar};
+use crate::format::save::system_spec::{
+    BodyKind, BodySpec, PrimaryName, SpecBody, SpecStar, SystemSpec, polar,
+};
 use crate::format::save::write::asteroid_names::Pool;
 use crate::format::save::write::deposits::check_deposit_kind;
 use crate::format::save::write::flags::day_one;
@@ -32,10 +34,9 @@ use crate::ops::rules::{Form, check_name, check_text, labelled};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::plural;
 use crate::projections::galaxy::{GalaxyGraph, lane_length, nearest_prospective};
-use crate::projections::name::{NameTemplate, format, letter, literal};
+use crate::projections::name::{NameTemplate, format, letter, literal, star_name_keys};
 use crate::session::Session;
 
-const STAR_NAME: &str = "STAR_NAME_1_OF_1";
 pub(crate) const PLANET_NAME: &str = "PLANET_NAME_FORMAT";
 pub(crate) const MOON_NAME: &str = "SUBPLANET_NAME_FORMAT";
 pub(crate) const NAME_VAR: &str = "NAME";
@@ -89,7 +90,7 @@ pub(crate) fn add_description(s: &Session, id: u32, spec: &SystemSpec, lanes: us
         labelled(&spec.name, written_literal(&spec.name), id),
         coord(x),
         coord(y),
-        bodies(spec, order(spec).count()),
+        bodies(spec, order(spec).len()),
         plural(lanes, "lane")
     )
 }
@@ -127,7 +128,10 @@ pub(crate) fn write_bodies(
     id: u32,
     spec: &SystemSpec,
 ) -> Result<Written, OpError> {
-    let asteroids = spec.planets.iter().filter(|p| p.asteroid).count();
+    let asteroids = order(spec)
+        .iter()
+        .filter(|(_, body)| body.kind == BodyKind::Asteroid)
+        .count();
     let picks = Pool::read(&s.doc).pick(&s.doc, &spec.name, asteroids)?;
     let names: Vec<NameTemplate> = picks.iter().map(|pick| pick.name.clone()).collect();
     let layout = layout(spec, names);
@@ -141,11 +145,12 @@ pub(crate) fn write_bodies(
     for (i, placed) in layout.iter().enumerate() {
         let body = Body {
             spec: placed.spec,
-            star: i == 0,
+            star: placed.star,
             name: &placed.name,
+            fixed_name: placed.fixed,
             x: placed.x,
             y: placed.y,
-            moon_of: placed.parent.map(|p| ids[p]),
+            moon_of: placed.parent.map(|p| Orbiting::new(ids[p], layout[p].star)),
             moons: layout
                 .iter()
                 .enumerate()
@@ -169,9 +174,9 @@ pub(crate) fn write_bodies(
     for entry in picks.iter().filter_map(|pick| pick.entry) {
         plan.erase(&s.doc, Subject::Record(entry), entry)?;
     }
-    let extent = layout.iter().map(|b| b.extent).fold(0.0, f64::max);
+    let reach = layout.iter().map(|b| b.reach).fold(0.0, f64::max);
     let radii = s.radii();
-    let inner_radius = radii.inner_about(extent);
+    let inner_radius = radii.inner_about(reach);
     Ok(Written {
         ids,
         inner_radius,
@@ -294,10 +299,12 @@ pub(crate) struct Body<'a> {
     pub spec: &'a BodySpec,
     pub star: bool,
     pub name: &'a NameTemplate,
+    /// The name is the layout's own, and takes the fixed-name bit.
+    pub fixed_name: bool,
     /// Relative to the system's centre.
     pub x: f64,
     pub y: f64,
-    pub moon_of: Option<u32>,
+    pub moon_of: Option<Orbiting>,
     pub moons: Vec<u32>,
     /// Timed modifiers with their days, written after the spec's permanent ones.
     pub timed: Vec<(&'a str, i32)>,
@@ -345,7 +352,7 @@ pub(crate) fn write_body(
         id: planet,
         class: &body.spec.class,
         size: body.spec.size,
-        star: body.star || body.spec.star,
+        star: body.star || body.spec.kind == BodyKind::Star,
         name: body.name,
         x: body.x,
         y: body.y,
@@ -353,7 +360,7 @@ pub(crate) fn write_body(
         orbit: body.spec.orbit,
         moon_of: body.moon_of,
         moons: &body.moons,
-        fixed_name: body.spec.name.is_some(),
+        fixed_name: body.fixed_name,
         ring: body.spec.ring,
         modifiers: &modifiers,
         features: &body.features,
@@ -371,37 +378,62 @@ pub(crate) fn write_body(
 }
 
 /// A body of the spec with its name and position, in the order the system lists them:
-/// the star, then each planet followed by its moons. An asteroid takes the next of
-/// `asteroid_names` and no numeral, and a body with a fixed name takes that and none.
+/// the star, then each body about the centre followed by what orbits it. An asteroid takes
+/// the next of `asteroid_names` and no numeral, and a body with a fixed name takes that and
+/// none.
 struct Placed<'a> {
     spec: &'a BodySpec,
+    /// Of a star class: the system's star, a companion, or a star written as a moon.
+    star: bool,
     name: NameTemplate,
+    /// The name is the layout's own.
+    fixed: bool,
     x: f64,
     y: f64,
-    /// The index of the planet a moon orbits.
+    /// The place of the body it orbits.
     parent: Option<usize>,
-    /// How far from the star it reaches.
-    extent: f64,
+    /// How far from the centre its orbits reach: the length of each step of its chain,
+    /// summed.
+    reach: f64,
 }
 
 /// The spec's bodies in the order the system lists them, which is the order
-/// [`write_bodies`] gives them their slots in: the star, then each planet followed by its
-/// moons.
-pub(crate) fn order(spec: &SystemSpec) -> impl Iterator<Item = (SpecBody, &BodySpec)> {
-    let planets = spec.planets.iter().enumerate().flat_map(|(of, planet)| {
-        let moons = planet
-            .moons
-            .iter()
-            .enumerate()
-            .map(move |(index, moon)| (SpecBody::Moon { of, index }, moon));
-        std::iter::once((SpecBody::Planet { index: of }, planet)).chain(moons)
-    });
-    std::iter::once((SpecBody::Star, &spec.star)).chain(planets)
+/// [`write_bodies`] gives them their slots in: the star followed by its planets, then each
+/// body about the centre followed by what orbits it, each child followed by its own.
+pub(crate) fn order(spec: &SystemSpec) -> Vec<(SpecBody, &BodySpec)> {
+    let mut out = vec![(SpecBody::Star, &spec.star)];
+    satellites(&mut out, SpecStar::Primary, &spec.star);
+    for (of, planet) in spec.planets.iter().enumerate() {
+        out.push((SpecBody::Planet { index: of }, planet));
+        match planet.kind {
+            BodyKind::Star => satellites(&mut out, SpecStar::Companion(of), planet),
+            BodyKind::Planet | BodyKind::Asteroid => {
+                let moons = planet.moons.iter().enumerate();
+                out.extend(moons.map(|(index, moon)| (SpecBody::Moon { of, index }, moon)));
+            }
+        }
+    }
+    out
+}
+
+/// The planets of `star`, each followed by its moons, onto `out`.
+fn satellites<'a>(out: &mut Vec<(SpecBody, &'a BodySpec)>, star: SpecStar, body: &'a BodySpec) {
+    for (index, satellite) in body.moons.iter().enumerate() {
+        out.push((SpecBody::Satellite { star, index }, satellite));
+        out.extend(satellite.moons.iter().enumerate().map(|(moon, body)| {
+            let at = SpecBody::SatelliteMoon {
+                star,
+                satellite: index,
+                index: moon,
+            };
+            (at, body)
+        }));
+    }
 }
 
 /// Where `body` stands in [`order`]; `None` for a body the spec lacks.
 pub(crate) fn body_place(spec: &SystemSpec, body: SpecBody) -> Option<usize> {
-    order(spec).position(|(at, _)| at == body)
+    order(spec).iter().position(|&(at, _)| at == body)
 }
 
 /// The ids [`write_bodies`] gives the bodies of each of `specs`, added one after another to
@@ -411,87 +443,115 @@ pub(crate) fn body_ids(doc: &Document, specs: &[&SystemSpec]) -> Result<Vec<Vec<
     let mut planets = SlotTable::planets(doc)?;
     Ok(specs
         .iter()
-        .map(|spec| order(spec).map(|_| planets.take().id()).collect())
+        .map(|spec| order(spec).iter().map(|_| planets.take().id()).collect())
         .collect())
 }
 
+/// The name of the `n`th numbered body, from 1, orbiting the body named `parent`: a star's
+/// planets take roman numerals, and a planet's moons letters.
+pub(crate) fn satellite_name(parent: &NameTemplate, of_star: bool, n: usize) -> NameTemplate {
+    let numeral = match of_star {
+        true => roman(n),
+        false => letter(n - 1),
+    };
+    format(
+        MOON_NAME,
+        vec![
+            (PARENT_VAR, parent.clone()),
+            (NUMERAL_VAR, literal(&numeral)),
+        ],
+    )
+}
+
+/// Each body of `spec` placed and named. When the star is lettered, each star about the
+/// centre without a fixed name is lettered with it; otherwise such a star is numbered as a
+/// planet is.
 fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_>> {
+    let order = order(spec);
+    let system = NameTemplate::plain(&spec.name);
+    let lettered = spec.star_name == PrimaryName::Lettered;
+    // The stars a lettered system names `STAR_NAME_k_OF_n`: its own and those about the centre.
+    let lettering = |at: SpecBody, body: &BodySpec| match at {
+        SpecBody::Star => lettered,
+        SpecBody::Planet { .. } => lettered && body.kind == BodyKind::Star,
+        _ => false,
+    };
+    let named = order
+        .iter()
+        .filter(|&&(at, body)| lettering(at, body))
+        .map(|&(at, body)| at != SpecBody::Star && body.name.is_some());
+    let mut star_keys = star_name_keys(named).into_iter();
     let mut asteroid_names = asteroid_names.into_iter();
-    let mut numeral = 0;
-    let mut letters = 0;
-    let mut placed: Vec<Placed<'_>> = Vec::new();
-    // The planet the moons that follow orbit: its place, name and position.
-    let mut planet_at: (usize, NameTemplate, (f64, f64)) = (0, NameTemplate::default(), (0.0, 0.0));
-    for (at, body) in order(spec) {
+    // How many numbered bodies orbit the centre, and how many orbit each placed body.
+    let mut about_centre = 0;
+    let mut numbered = vec![0; order.len()];
+    // The places of the latest body about the centre and of the latest satellite.
+    let (mut top, mut satellite) = (0, 0);
+    let mut placed: Vec<Placed<'_>> = Vec::with_capacity(order.len());
+    for (at, body) in order {
+        let parent = match at {
+            SpecBody::Star | SpecBody::Planet { .. } => None,
+            SpecBody::Satellite {
+                star: SpecStar::Primary,
+                ..
+            } => Some(0),
+            SpecBody::Moon { .. } | SpecBody::Satellite { .. } => Some(top),
+            SpecBody::SatelliteMoon { .. } => Some(satellite),
+        };
+        let star = at == SpecBody::Star || body.kind == BodyKind::Star;
+        let key = match lettering(at, body) {
+            true => star_keys.next().flatten(),
+            false => None,
+        };
+        let fixed = match at {
+            SpecBody::Star => matches!(spec.star_name, PrimaryName::Fixed(_)),
+            _ => body.name.is_some(),
+        };
+        let name = match (at, key, &body.name, body.kind) {
+            (_, Some(key), _, _) => format(&key, vec![(NAME_VAR, system.clone())]),
+            (SpecBody::Star, None, _, _) => match &spec.star_name {
+                PrimaryName::Fixed(name) => NameTemplate::plain(name),
+                PrimaryName::Lettered | PrimaryName::System => system.clone(),
+            },
+            (_, None, Some(fixed), _) => NameTemplate::plain(fixed),
+            (_, None, None, BodyKind::Asteroid) => asteroid_names.next().unwrap_or_default(),
+            (_, None, None, _) => match parent {
+                None => {
+                    about_centre += 1;
+                    format(
+                        PLANET_NAME,
+                        vec![
+                            (PARENT_VAR, system.clone()),
+                            (NUMERAL_VAR, literal(&roman(about_centre))),
+                        ],
+                    )
+                }
+                Some(p) => {
+                    numbered[p] += 1;
+                    satellite_name(&placed[p].name, placed[p].star, numbered[p])
+                }
+            },
+        };
+        let (from_x, from_y, reach) = match parent {
+            None => (0.0, 0.0, 0.0),
+            Some(p) => (placed[p].x, placed[p].y, placed[p].reach),
+        };
+        let (x, y) = polar(from_x, from_y, body);
         match at {
-            SpecBody::Star => {
-                let (x, y) = polar(0.0, 0.0, body);
-                let name = match spec.star_named_by_class {
-                    true => NameTemplate::plain(&spec.name),
-                    false => format(STAR_NAME, vec![(NAME_VAR, NameTemplate::plain(&spec.name))]),
-                };
-                placed.push(Placed {
-                    spec: body,
-                    name,
-                    x,
-                    y,
-                    parent: None,
-                    extent: body.orbit,
-                });
-            }
-            SpecBody::Planet { .. } => {
-                let name = match (&body.name, body.asteroid) {
-                    (Some(fixed), _) => NameTemplate::plain(fixed),
-                    (None, true) => asteroid_names.next().unwrap_or_default(),
-                    (None, false) => {
-                        numeral += 1;
-                        format(
-                            PLANET_NAME,
-                            vec![
-                                (PARENT_VAR, NameTemplate::plain(&spec.name)),
-                                (NUMERAL_VAR, literal(&roman(numeral))),
-                            ],
-                        )
-                    }
-                };
-                let (x, y) = polar(0.0, 0.0, body);
-                letters = 0;
-                planet_at = (placed.len(), name.clone(), (x, y));
-                placed.push(Placed {
-                    spec: body,
-                    name,
-                    x,
-                    y,
-                    parent: None,
-                    extent: body.orbit,
-                });
-            }
-            SpecBody::Moon { of, .. } => {
-                let (parent, ref planet_name, (px, py)) = planet_at;
-                let (x, y) = polar(px, py, body);
-                let name = match &body.name {
-                    Some(fixed) => NameTemplate::plain(fixed),
-                    None => {
-                        letters += 1;
-                        format(
-                            MOON_NAME,
-                            vec![
-                                (PARENT_VAR, planet_name.clone()),
-                                (NUMERAL_VAR, literal(&letter(letters - 1))),
-                            ],
-                        )
-                    }
-                };
-                placed.push(Placed {
-                    spec: body,
-                    name,
-                    x,
-                    y,
-                    parent: Some(parent),
-                    extent: spec.planets[of].orbit + body.orbit,
-                });
-            }
+            SpecBody::Planet { .. } => top = placed.len(),
+            SpecBody::Satellite { .. } => satellite = placed.len(),
+            _ => {}
         }
+        placed.push(Placed {
+            spec: body,
+            star,
+            name,
+            fixed,
+            x,
+            y,
+            parent,
+            reach: reach + body.orbit.abs(),
+        });
     }
     placed
 }
@@ -511,16 +571,19 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
     for flag in &spec.flags {
         check_text("a star flag", flag, Form::Bare)?;
     }
-    if !spec.star.moons.is_empty() {
-        return Err(OpError::MoonsNotAllowed("the star"));
-    }
-    if spec.star.asteroid {
+    if spec.star.kind == BodyKind::Asteroid {
         return Err(OpError::AsteroidNotAllowed("the star"));
     }
     if spec.star.name.is_some() {
-        return Err(OpError::FixedNameNotAllowed("the star"));
+        return Err(OpError::FixedNameNotAllowed(
+            "the star's body, which takes the star's name,",
+        ));
+    }
+    if let PrimaryName::Fixed(name) = &spec.star_name {
+        check_name(name)?;
     }
     check_body(&spec.star)?;
+    check_satellites(&spec.star)?;
     for belt in &spec.belts {
         check_text("a belt type", &belt.kind, Form::Bare)?;
         if !belt.inner_radius.is_finite() {
@@ -528,29 +591,67 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
         }
     }
     for planet in &spec.planets {
-        check_body(planet)?;
-        if planet.asteroid && !planet.moons.is_empty() {
-            return Err(OpError::MoonsNotAllowed("an asteroid"));
-        }
-        if planet.asteroid && planet.name.is_some() {
-            return Err(OpError::FixedNameNotAllowed(
-                "an asteroid named from the pool",
-            ));
-        }
-        for moon in &planet.moons {
-            if !moon.moons.is_empty() {
-                return Err(OpError::MoonsNotAllowed("a moon"));
+        check_orbiter(planet)?;
+        match planet.kind {
+            BodyKind::Star => check_satellites(planet)?,
+            BodyKind::Planet | BodyKind::Asteroid => {
+                for moon in &planet.moons {
+                    check_moon(moon)?;
+                }
             }
-            if moon.asteroid {
-                return Err(OpError::AsteroidNotAllowed("a moon"));
-            }
-            if moon.ring {
-                return Err(OpError::RingNotAllowed("a moon"));
-            }
-            check_body(moon)?;
         }
     }
     Ok(())
+}
+
+/// The planets of `star` and their moons, none of them a star.
+fn check_satellites(star: &BodySpec) -> Result<(), OpError> {
+    for satellite in &star.moons {
+        check_star_parent(satellite)?;
+        check_orbiter(satellite)?;
+        for moon in &satellite.moons {
+            check_star_parent(moon)?;
+            check_moon(moon)?;
+        }
+    }
+    Ok(())
+}
+
+/// A body about the centre or about a star.
+fn check_orbiter(body: &BodySpec) -> Result<(), OpError> {
+    check_body(body)?;
+    if body.kind == BodyKind::Asteroid && !body.moons.is_empty() {
+        return Err(OpError::MoonsNotAllowed("an asteroid"));
+    }
+    if body.kind == BodyKind::Asteroid && body.name.is_some() {
+        return Err(OpError::FixedNameNotAllowed(
+            "an asteroid named from the pool",
+        ));
+    }
+    Ok(())
+}
+
+fn check_moon(moon: &BodySpec) -> Result<(), OpError> {
+    if !moon.moons.is_empty() {
+        return Err(OpError::MoonsNotAllowed("a moon"));
+    }
+    if moon.kind == BodyKind::Asteroid {
+        return Err(OpError::AsteroidNotAllowed("a moon"));
+    }
+    if moon.ring {
+        return Err(OpError::RingNotAllowed("a moon"));
+    }
+    check_body(moon)
+}
+
+/// No star orbits a star, or a star's planet.
+fn check_star_parent(body: &BodySpec) -> Result<(), OpError> {
+    match body.kind {
+        BodyKind::Star => Err(OpError::InvalidParent {
+            reason: "a star cannot orbit a star or a star's planet".to_owned(),
+        }),
+        BodyKind::Planet | BodyKind::Asteroid => Ok(()),
+    }
 }
 
 pub(crate) fn check_body(body: &BodySpec) -> Result<(), OpError> {

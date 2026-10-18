@@ -5,11 +5,13 @@ use std::collections::HashMap;
 
 use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::system::{PREVENT_ANOMALY_FLAG, RING_FLAG, STAR_CARRIER_FLAGS};
+use crate::emit::system::{FIXED_NAME_FLAG, PREVENT_ANOMALY_FLAG, RING_FLAG, STAR_CARRIER_FLAGS};
 use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::systems::timed_modifiers;
-use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec, polar};
+use crate::format::save::system_spec::{
+    BeltSpec, BodyKind, BodySpec, PrimaryName, SystemSpec, polar,
+};
 use crate::format::save::write::asteroid_names;
 use crate::format::save::write::flags::day_one;
 use crate::format::save::write::initializer_counter::counted;
@@ -21,9 +23,21 @@ pub(crate) use crate::projections::geometry::written_angle;
 use crate::projections::read;
 use crate::session::Session;
 
+/// Where a body read back that others may orbit stands in the spec: the star, a body about
+/// the centre, or a planet of a star (`None` for the system's own).
+#[derive(Clone, Copy)]
+enum Place {
+    Star,
+    Centre(usize),
+    Satellite(Option<usize>, usize),
+}
+
 /// System `id` as the spec that writes it: its bodies read back from their entries, each
-/// angle measured from the star, or from where the add placed its planet for a moon. A
-/// star whose name is the system's own was named by its class.
+/// angle measured from where the add placed what it orbits, or from the centre. A body
+/// joins the `moons` of the body its `moon_of` names when that is the star, a body about
+/// the centre or a star's planet; any other orbits the centre. The star's name is its own
+/// when it has the fixed-name bit, the system's when it is the system's key alone, and
+/// lettered otherwise.
 pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError> {
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let mut read = Vec::new();
@@ -32,23 +46,50 @@ pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpe
             read.push((planet, read_body(&s.doc, planet, id, anchor)?));
         }
     }
-    let Some(((_, star), rest)) = read.split_first() else {
+    let Some(((primary, star), rest)) = read.split_first() else {
         return Err(Subject::System(id).parse_error(0, "the system lists no bodies"));
     };
+    let (star_spec, star_point) = star.spec((0.0, 0.0));
+    let mut star_spec = BodySpec {
+        name: None,
+        ..star_spec
+    };
     let mut planets: Vec<BodySpec> = Vec::new();
-    let mut planet_at: HashMap<u32, (usize, (f64, f64))> = HashMap::new();
+    let mut placed: HashMap<u32, (Place, (f64, f64))> =
+        HashMap::from([(*primary, (Place::Star, star_point))]);
     for (planet, body) in rest {
-        match body.moon_of.and_then(|parent| planet_at.get(&parent)) {
-            Some(&(at, centre)) => planets[at].moons.push(body.spec(centre).0),
-            None => {
-                let (spec, placed) = body.spec((0.0, 0.0));
-                planet_at.insert(*planet, (planets.len(), placed));
-                planets.push(spec);
-            }
+        let Some((parent, centre)) = body.moon_of.and_then(|parent| placed.get(&parent).copied())
+        else {
+            let (spec, point) = body.spec((0.0, 0.0));
+            planets.push(spec);
+            placed.insert(*planet, (Place::Centre(planets.len() - 1), point));
+            continue;
+        };
+        // The star whose planet the body is, `None` for the system's own.
+        let of_star = match parent {
+            Place::Star => Some(None),
+            Place::Centre(at) if planets[at].kind == BodyKind::Star => Some(Some(at)),
+            Place::Centre(_) | Place::Satellite(..) => None,
+        };
+        let moons = match parent {
+            Place::Star => &mut star_spec.moons,
+            Place::Centre(at) => &mut planets[at].moons,
+            Place::Satellite(None, index) => &mut star_spec.moons[index].moons,
+            Place::Satellite(Some(at), index) => &mut planets[at].moons[index].moons,
+        };
+        let (spec, point) = body.spec(centre);
+        moons.push(spec);
+        if let Some(star) = of_star {
+            let place = Place::Satellite(star, moons.len() - 1);
+            placed.insert(*planet, (place, point));
         }
     }
-    let mut star = star.spec((0.0, 0.0)).0;
-    let star_named_by_class = star.name.take().is_some();
+    let star_name = match (star.fixed_flag, star.name.clone()) {
+        (true, Some(name)) => PrimaryName::Fixed(name),
+        (false, Some(_)) => PrimaryName::System,
+        (_, None) => PrimaryName::Lettered,
+    };
+    let star = star_spec;
     Ok(SystemSpec {
         name: system.name.key.clone(),
         x: system.x,
@@ -56,7 +97,7 @@ pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpe
         star_class: system.star_class.clone(),
         initializer: system.initializer.clone(),
         capped: counted(&s.doc, &system.initializer),
-        star_named_by_class,
+        star_name,
         star,
         planets,
         belts: belts(&s.doc, id)?,
@@ -76,14 +117,15 @@ struct ReadBody {
     entity: u32,
     moon_of: Option<u32>,
     deposits: Vec<String>,
-    asteroid: bool,
+    kind: BodyKind,
     name: Option<String>,
+    /// The fixed-name bit is set.
+    fixed_flag: bool,
     entity_name: Option<String>,
     picture: Option<String>,
     prevent_anomaly: bool,
     modifiers: Vec<String>,
     ring: bool,
-    star: bool,
     flags: Vec<String>,
 }
 
@@ -99,14 +141,13 @@ impl ReadBody {
             entity: self.entity,
             deposits: self.deposits.clone(),
             moons: Vec::new(),
-            asteroid: self.asteroid,
+            kind: self.kind,
             name: self.name.clone(),
             entity_name: self.entity_name.clone(),
             picture: self.picture.clone(),
             prevent_anomaly: self.prevent_anomaly,
             modifiers: self.modifiers.clone(),
             ring: self.ring,
-            star: self.star,
             flags: self.flags.clone(),
         };
         let placed = polar(cx, cy, &spec);
@@ -132,6 +173,12 @@ fn read_body(
     let fixed = !name.literal && name.variables.is_empty();
     let modifiers = timed_modifiers(&node, src).map(str::to_owned).collect();
     let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
+    let star = read::scalar_u32(&node, keys::CARRIER_BINARY_FLAGS, src) == Some(STAR_CARRIER_FLAGS);
+    let kind = match (star, asteroid_names::parts(&name).is_some()) {
+        (true, _) => BodyKind::Star,
+        (false, true) => BodyKind::Asteroid,
+        (false, false) => BodyKind::Planet,
+    };
     Ok(ReadBody {
         class: read::text(&node, keys::PLANET_CLASS, src),
         size: read::required(&node, keys::PLANET_SIZE, src).map_err(field)?,
@@ -141,14 +188,14 @@ fn read_body(
         entity: read::scalar_u32(&node, keys::ENTITY, src).unwrap_or(0),
         moon_of: read::scalar_u32(&node, keys::MOON_OF, src),
         deposits,
-        asteroid: asteroid_names::parts(&name).is_some(),
+        kind,
         name: fixed.then_some(name.key),
+        fixed_flag: flags & FIXED_NAME_FLAG != 0,
         entity_name: read::scalar(&node, keys::ENTITY_NAME, src).map(str::to_owned),
         picture: read::scalar(&node, keys::PICTURE, src).map(str::to_owned),
         prevent_anomaly: flags & PREVENT_ANOMALY_FLAG != 0,
         modifiers,
         ring: flags & RING_FLAG != 0,
-        star: read::scalar_u32(&node, keys::CARRIER_BINARY_FLAGS, src) == Some(STAR_CARRIER_FLAGS),
         flags: spec_flags(doc, &node, src),
     })
 }

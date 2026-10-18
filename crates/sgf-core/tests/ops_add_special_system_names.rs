@@ -2,7 +2,7 @@
 //! reopen: lettered and fixed body names, binary flags, a star named by its class, what a
 //! rename leaves alone and what the random name pool keeps.
 
-use sgf_core::ops::{Op, initializer_counts};
+use sgf_core::ops::{Op, PrimaryName, initializer_counts};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -234,7 +234,7 @@ fn a_rename_leaves_fixed_names_alone_and_renames_a_star_named_by_class() {
         let Op::AddSystemFromSpec { spec } = &result.inverse else {
             panic!("{:?}", result.inverse);
         };
-        assert!(spec.star_named_by_class && spec.capped);
+        assert!(spec.star_name == PrimaryName::System && spec.capped);
         assert_eq!(spec.name, "Sgf_Trappist");
         while session.undo().expect("undo").is_some() {}
         assert_eq!(current(&session), session.doc().original());

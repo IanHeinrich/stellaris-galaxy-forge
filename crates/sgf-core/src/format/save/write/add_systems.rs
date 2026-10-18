@@ -13,7 +13,7 @@ use crate::format::save::write::nebula::written_literal;
 use crate::ops::rules::{Form, check_text, labelled};
 use crate::ops::{
     EventTargetOf, LaneEnd, LanePair, NewMegastructure, NewMegastructurePlace, Op, OpError,
-    SpecBody,
+    SpecBody, SpecStar,
 };
 use crate::session::Session;
 use crate::{plural, plural_of};
@@ -254,11 +254,33 @@ fn describe(
     }
 }
 
+/// What the refusal of an extra calls the star `star` of a spec: "the star", or "star 2"
+/// for the companion that is its second planet.
+fn star_named(star: SpecStar) -> String {
+    match star {
+        SpecStar::Primary => "the star".to_owned(),
+        SpecStar::Companion(index) => format!("star {}", index + 1),
+    }
+}
+
 /// What the refusal of an extra calls the body `at` of a spec: "moon 3 of planet 2".
 fn spec_body_named(at: SpecBody) -> String {
     match at {
         SpecBody::Star => "star".to_owned(),
         SpecBody::Planet { index } => format!("planet {}", index + 1),
         SpecBody::Moon { of, index } => format!("moon {} of planet {}", index + 1, of + 1),
+        SpecBody::Satellite { star, index } => {
+            format!("planet {} of {}", index + 1, star_named(star))
+        }
+        SpecBody::SatelliteMoon {
+            star,
+            satellite,
+            index,
+        } => format!(
+            "moon {} of planet {} of {}",
+            index + 1,
+            satellite + 1,
+            star_named(star)
+        ),
     }
 }

@@ -1,6 +1,6 @@
 //! The system the in-game spike added to each sample save, as an `AddSystemFromSpec` spec: a
 //! G star and six planets, the fourth a gas giant with two moons.
-use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodyKind, BodySpec, SystemSpec};
 use sgf_core::session::Session;
 
 /// A sample save the add-system tests run on, with the spike's system for it.
@@ -67,7 +67,7 @@ pub fn dorellion() -> SystemSpec {
 /// belt at 240 past the last.
 pub fn belted(mut spec: SystemSpec) -> SystemSpec {
     let asteroid = |class: &str, orbit: f64, angle: f64| BodySpec {
-        asteroid: true,
+        kind: BodyKind::Asteroid,
         ..body(class, 5, orbit, angle, 0)
     };
     spec.initializer = "basic_init_05".to_owned();
@@ -122,7 +122,10 @@ pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> Body
 
 /// `body` as the generator marks a body of a star class.
 pub fn star(body: BodySpec) -> BodySpec {
-    BodySpec { star: true, ..body }
+    BodySpec {
+        kind: BodyKind::Star,
+        ..body
+    }
 }
 
 pub fn with_deposits(mut body: BodySpec, deposits: &[&str]) -> BodySpec {

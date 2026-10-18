@@ -77,7 +77,12 @@ fn what_the_op_refuses_of_the_new_fields() {
     let cases: Vec<Case> = vec![
         (
             |s| s.star.name = Some("NAME_Star".to_owned()),
-            |e| matches!(e, OpError::FixedNameNotAllowed("the star")),
+            |e| {
+                matches!(
+                    e,
+                    OpError::FixedNameNotAllowed("the star's body, which takes the star's name,")
+                )
+            },
         ),
         (
             |s| s.planets[1].name = Some("NAME_Rock".to_owned()),

@@ -6,7 +6,7 @@ use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodyKind, BodySpec, Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::generate;
@@ -156,14 +156,14 @@ fn check_rocks(spec: &SystemSpec, seed: u64) {
     assert!((2..=4).contains(&rocks.len()), "seed {seed}");
     for rock in rocks {
         assert_eq!(
-            (rock.class.as_str(), rock.size, rock.orbit, rock.asteroid),
-            ("pc_boulder", 5, 40.0, true),
+            (rock.class.as_str(), rock.size, rock.orbit, rock.kind),
+            ("pc_boulder", 5, 40.0, BodyKind::Asteroid),
             "seed {seed}"
         );
         assert!(rock.moons.is_empty());
     }
     assert_eq!(rest[0].orbit, 70.0, "seed {seed}");
-    assert!(!rest[0].asteroid);
+    assert_ne!(rest[0].kind, BodyKind::Asteroid);
     assert_ne!(
         rest[0].class, "pc_boulder",
         "a drawn class is never an asteroid"
@@ -250,7 +250,7 @@ fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
         for planet in &spec.planets {
             let class = gd.planet_classes.get(&planet.class).expect("a real class");
             assert!(!class.star, "seed {seed}: {}", planet.class);
-            assert_eq!(planet.asteroid, class.asteroid);
+            assert_eq!(planet.kind == BodyKind::Asteroid, class.asteroid);
             if class.asteroid {
                 assert!(
                     belts.contains(&planet.orbit),
@@ -327,7 +327,11 @@ fn belt_layouts_are_drawn_with_their_asteroids_on_the_belts() {
                 "seed {seed}: the layout's belts in order, each within its radius"
             );
         }
-        let asteroids: Vec<&BodySpec> = spec.planets.iter().filter(|p| p.asteroid).collect();
+        let asteroids: Vec<&BodySpec> = spec
+            .planets
+            .iter()
+            .filter(|p| p.kind == BodyKind::Asteroid)
+            .collect();
         assert_eq!(asteroids.is_empty(), spec.belts.is_empty(), "seed {seed}");
         for belt in &spec.belts {
             let class = match belt.kind.as_str() {

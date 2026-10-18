@@ -3,7 +3,7 @@
 
 use crate::common;
 
-use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodyKind, BodySpec, PrimaryName, SystemSpec};
 use sgf_gamedata::generate::generate;
 
 use common::layouts::{self, by_name};
@@ -21,7 +21,7 @@ fn pinned(name: &str, spec: &SystemSpec) {
         star_class,
         initializer,
         capped,
-        star_named_by_class,
+        star_name,
         star,
         planets,
         belts,
@@ -32,8 +32,10 @@ fn pinned(name: &str, spec: &SystemSpec) {
     if *capped {
         out.push_str(" capped");
     }
-    if *star_named_by_class {
-        out.push_str(" star_named_by_class");
+    match star_name {
+        PrimaryName::Lettered => {}
+        PrimaryName::System => out.push_str(" star_named_by_class"),
+        PrimaryName::Fixed(name) => out.push_str(&format!(" star_name {name}")),
     }
     if !flags.is_empty() {
         out.push_str(&format!(" flags {flags:?}"));
@@ -64,14 +66,13 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
         entity,
         deposits,
         moons,
-        asteroid,
+        kind,
         name,
         entity_name,
         picture,
         prevent_anomaly,
         modifiers,
         ring,
-        star,
         flags,
     } = body;
     let mut line = format!("{indent}{class} {size} orbit {orbit} angle {angle}");
@@ -81,7 +82,9 @@ fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
     if !deposits.is_empty() {
         line.push_str(&format!(" deposits {deposits:?}"));
     }
-    for (set, word) in [(star, "star"), (asteroid, "asteroid"), (ring, "ring")] {
+    let star = *kind == BodyKind::Star;
+    let asteroid = *kind == BodyKind::Asteroid;
+    for (set, word) in [(&star, "star"), (&asteroid, "asteroid"), (ring, "ring")] {
         if *set {
             line.push(' ');
             line.push_str(word);

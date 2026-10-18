@@ -265,12 +265,14 @@ fn angle_delta(a: f64, b: f64) -> f64 {
     diff.min(360.0 - diff)
 }
 
-/// The angle, in degrees, at which a body written at `at` stands `radius` from `centre`.
-/// The angle measured from the written coordinates can miss them in the last decimal, so
-/// the nearest hundredth of a degree, which the generator writes, is taken instead
-/// whenever it gives the same coordinates.
+/// The angle, in degrees, at which a body written at `at` stands `radius` from `centre`;
+/// a negative radius stands on the far side of its angle. The angle measured from the
+/// written coordinates can miss them in the last decimal, so the nearest hundredth of a
+/// degree, which the generator writes, is taken instead whenever it gives the same
+/// coordinates.
 pub(crate) fn written_angle(centre: (f64, f64), at: (f64, f64), radius: f64) -> f64 {
-    let measured = angle_about(centre, at);
+    let far_side = if radius < 0.0 { 180.0 } else { 0.0 };
+    let measured = angle_about(centre, at) + far_side;
     let hundredth = (measured * 100.0).round() / 100.0;
     let written = (coord(at.0), coord(at.1));
     [hundredth, normalised(hundredth)]

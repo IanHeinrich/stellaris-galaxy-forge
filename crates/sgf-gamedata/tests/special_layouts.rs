@@ -6,7 +6,7 @@ use crate::common;
 
 use std::collections::BTreeSet;
 
-use sgf_core::ops::Op;
+use sgf_core::ops::{BodyKind, Op, PrimaryName};
 use sgf_gamedata::generate::GenerateError;
 use sgf_gamedata::layouts::{
     CONVERTED_LAYOUTS, Eligibility, SaveFacts, Unsupported, odds, special_initializers,
@@ -112,7 +112,11 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
             ["fx_haven", "unique_system"],
             "the layout's star flags"
         );
-        assert!(spec.star_named_by_class, "a star written as a class");
+        assert_eq!(
+            spec.star_name,
+            PrimaryName::System,
+            "a star written as a class"
+        );
         assert_eq!(spec.star_class, "sc_sun");
         assert_eq!(
             (spec.star.class.as_str(), spec.star.size),
@@ -130,7 +134,7 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
         assert_eq!(husk.modifiers, ["fx_mod"]);
         assert_eq!(husk.deposits, ["d_fx_gem"], "set_deposit after the roll");
         assert!(husk.ring, "has_ring = yes");
-        assert!(!husk.asteroid);
+        assert_ne!(husk.kind, BodyKind::Asteroid);
         assert_eq!(husk.moons.len(), 1);
         let moon = &husk.moons[0];
         assert_eq!(
@@ -163,7 +167,7 @@ fn an_off_centre_star_stands_at_its_orbit_once_and_the_planets_count_from_the_ce
         let spec = by_name(&gd, seed, "Fx", (0.0, 0.0), "fx_offcentre").expect("a system");
         assert_eq!(spec.name, "Fx", "no fixed name");
         assert!(!spec.capped, "no max_instances");
-        assert!(!spec.star_named_by_class);
+        assert_eq!(spec.star_name, PrimaryName::Lettered);
         assert_eq!(spec.star.orbit, 40.0);
         assert_eq!(
             spec.planets.len(),
@@ -247,7 +251,7 @@ fn a_star_written_as_a_class_takes_the_class_of_the_list_that_has_it() {
             ("sc_hole", "pc_hole"),
             "seed {seed}: rl_both's other class has another star"
         );
-        assert!(spec.star_named_by_class);
+        assert_eq!(spec.star_name, PrimaryName::System);
     }
 }
 

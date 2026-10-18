@@ -4,8 +4,8 @@
 //! abundance and install give the same spec.
 
 use sgf_core::ops::{
-    BeltSpec, BodySpec, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget, SpecTarget, SystemAdd,
-    SystemExtras, SystemSpec,
+    BeltSpec, BodyKind, BodySpec, PrimaryName, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget,
+    SpecTarget, SystemAdd, SystemExtras, SystemSpec,
 };
 
 use crate::GameData;
@@ -285,7 +285,10 @@ fn build(
         star_class: star_class.key.clone(),
         initializer: init.name.clone(),
         capped: init.max_instances.is_some(),
-        star_named_by_class: roller.star_named_by_class,
+        star_name: match roller.star_named_by_class {
+            true => PrimaryName::System,
+            false => PrimaryName::Lettered,
+        },
         star,
         planets,
         belts: {
@@ -515,7 +518,7 @@ impl<'g> Roller<'g> {
         let size = self.size(block, class, false)?;
         Ok(BodySpec {
             name: None,
-            star: true,
+            kind: BodyKind::Star,
             ..body(class, size, orbit, angle, block)
         })
     }
@@ -816,10 +819,10 @@ impl<'g> Bodies<'g> for Moons<'g> {
             return Ok(());
         };
         let size = roller.size(block, class, true)?;
-        let spec = BodySpec {
-            asteroid: false,
-            ..body(class, size, placed.orbit, placed.angle, block)
-        };
+        let mut spec = body(class, size, placed.orbit, placed.angle, block);
+        if spec.kind == BodyKind::Asteroid {
+            spec.kind = BodyKind::Planet;
+        }
         self.moons.push(Rolled { spec, block });
         Ok(())
     }
@@ -836,10 +839,13 @@ fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitP
         orbit,
         angle: (angle.rem_euclid(360.0) * 100.0).round() / 100.0,
         entity: 0,
-        asteroid: class.asteroid && name.is_none(),
+        kind: match (class.star, class.asteroid && name.is_none()) {
+            (true, _) => BodyKind::Star,
+            (false, true) => BodyKind::Asteroid,
+            (false, false) => BodyKind::Planet,
+        },
         name,
         entity_name: block.entity.clone(),
-        star: class.star,
         ..Default::default()
     }
 }

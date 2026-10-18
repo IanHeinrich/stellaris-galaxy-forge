@@ -4,7 +4,7 @@ assertion_line: 360
 expression: value
 ---
 Removed Devils Maw #601 and 1 lane
-inverse: AddSystemFromSpec { spec: SystemSpec { name: "Devils_Maw", x: -292.23404, y: -137.62265, star_class: "sc_black_hole", initializer: "special_init_01", capped: false, star_named_by_class: false, star: BodySpec { class: "pc_black_hole", size: 30, orbit: 0.0, angle: 0.0, entity: 0, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, picture: None, prevent_anomaly: false, modifiers: [], ring: false, flags: [], star: true }, planets: [], belts: [], flags: [], lanes: [169] } }
+inverse: AddSystemFromSpec { spec: SystemSpec { name: "Devils_Maw", x: -292.23404, y: -137.62265, star_class: "sc_black_hole", initializer: "special_init_01", capped: false, star_name: Lettered, star: BodySpec { class: "pc_black_hole", size: 30, orbit: 0.0, angle: 0.0, entity: 0, deposits: [], moons: [], kind: Star, name: None, entity_name: None, picture: None, prevent_anomaly: false, modifiers: [], ring: false, flags: [] }, planets: [], belts: [], flags: [], lanes: [169] } }
 renumbered: [(601, None)]
 --- before
 +++ after

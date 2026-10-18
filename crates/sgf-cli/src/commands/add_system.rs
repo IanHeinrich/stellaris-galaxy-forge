@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use sgf_core::ops::{BodySpec, LaneEnd, Op, SystemSpec};
+use sgf_core::ops::{BodyKind, BodySpec, LaneEnd, Op, PrimaryName, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
 use sgf_gamedata::generate::{self, ForSaveError, Pick};
@@ -179,10 +179,10 @@ fn print_summary(spec: &SystemSpec, seed: u64) {
     for belt in &spec.belts {
         println!("  belt {} at {}", belt.kind, belt.inner_radius);
     }
-    let named = if spec.star_named_by_class {
-        " (named after the system)"
-    } else {
-        ""
+    let named = match &spec.star_name {
+        PrimaryName::Lettered => String::new(),
+        PrimaryName::System => " (named after the system)".to_owned(),
+        PrimaryName::Fixed(name) => format!(" name {name}"),
     };
     println!("  star {}{named}", body(&spec.star));
     for (i, planet) in spec.planets.iter().enumerate() {
@@ -201,7 +201,7 @@ fn body(body: &BodySpec) -> String {
     if let Some(name) = &body.name {
         text.push_str(&format!(" name {name}"));
     }
-    if body.asteroid {
+    if body.kind == BodyKind::Asteroid {
         text.push_str(" (asteroid)");
     }
     if body.ring {

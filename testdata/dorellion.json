@@ -14,7 +14,7 @@
       "d_energy_5"
     ],
     "moons": [],
-    "star": true
+    "kind": "Star"
   },
   "planets": [
     {

@@ -26,6 +26,36 @@ pub(crate) const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
 pub(crate) const PLANET_HOLDER: &str = "0";
 
+/// What a body named in another's `moons` orbits: a planet, which makes it a moon, or a
+/// star, which makes it that star's planet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Orbiting {
+    Planet(u32),
+    Star(u32),
+}
+
+impl Orbiting {
+    /// Body `id`, a star or not.
+    pub(crate) fn new(id: u32, star: bool) -> Self {
+        match star {
+            true => Self::Star(id),
+            false => Self::Planet(id),
+        }
+    }
+
+    pub fn id(self) -> u32 {
+        match self {
+            Self::Planet(id) | Self::Star(id) => id,
+        }
+    }
+
+    /// Whether a body orbiting `parent` takes the moon bit: only a moon of a planet does,
+    /// and a star's planet is written without it.
+    pub(crate) fn moon_bit(parent: Option<Self>) -> bool {
+        matches!(parent, Some(Self::Planet(_)))
+    }
+}
+
 /// A `galactic_object` entry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SystemEntry<'a> {
@@ -61,8 +91,8 @@ pub struct PlanetEntry<'a> {
     pub y: f64,
     pub system: u32,
     pub orbit: f64,
-    /// The planet a moon orbits.
-    pub moon_of: Option<u32>,
+    /// The body it orbits, written as `moon_of`; `None` round the system's centre.
+    pub moon_of: Option<Orbiting>,
     pub moons: &'a [u32],
     /// The name is the layout's own rather than one built from the system's.
     pub fixed_name: bool,
@@ -327,7 +357,7 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
         &Entry {
             carrier_flags,
             binary_flags: binary_flags(p),
-            moon_of: p.moon_of,
+            moon_of: p.moon_of.map(Orbiting::id),
             moons: p.moons,
             modifiers: p.modifiers,
             features: p.features,
@@ -348,7 +378,7 @@ fn binary_flags(p: &PlanetEntry<'_>) -> u32 {
         (p.entity_name.is_some(), ENTITY_NAME_FLAG),
         (p.prevent_anomaly, PREVENT_ANOMALY_FLAG),
         (p.ring, RING_FLAG),
-        (p.moon_of.is_some(), MOON_FLAG),
+        (Orbiting::moon_bit(p.moon_of), MOON_FLAG),
     ];
     let flags: u32 = bits
         .iter()

@@ -3,7 +3,7 @@
 
 use crate::cst::Node;
 use crate::emit::coord;
-use crate::emit::system::MOON_FLAG;
+use crate::emit::system::{MOON_FLAG, Orbiting};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, rows};
 use crate::format::save::read_spec::{bodies as listed, written_angle};
@@ -110,7 +110,8 @@ pub(crate) fn plan_parent(
 
     let edit = plan.edit_planet(&s.doc, body, system)?;
     set_moon_of(edit, parent)?;
-    set_flag(edit, MOON_FLAG, parent.is_some() && !star)?;
+    let orbiting = parent.map(|parent| Orbiting::new(parent, star));
+    set_flag(edit, MOON_FLAG, Orbiting::moon_bit(orbiting))?;
     if let Some(old_parent) = old.parent.filter(|&p| before.iter().any(|b| b.id == p)) {
         unlist_moon(plan.edit_planet(&s.doc, old_parent, system)?, body)?;
     }
