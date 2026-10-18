@@ -120,6 +120,30 @@ export function PickerField({
   );
 }
 
+/** A choice made in a dialog of its own: a picker's button that opens the dialog, not a list. */
+export function DialogField({
+  label,
+  text,
+  title,
+  disabledReason,
+  onOpen,
+}: FieldBase & { text: string; title?: string; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      className="icon-picker-trigger edit-field"
+      aria-haspopup="dialog"
+      aria-label={`${label}: ${text}`}
+      title={disabledReason ?? title}
+      disabled={disabledReason !== undefined}
+      onClick={onOpen}
+    >
+      <span className="icon-picker-label">{text}</span>
+      <span className="icon-picker-caret">▾</span>
+    </button>
+  );
+}
+
 /** One colour a swatch field offers; one with no `color` is named without a swatch. */
 export interface Swatch {
   key: string;

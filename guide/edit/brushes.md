@@ -16,9 +16,9 @@ The Connect lanes (<kbd>C</kbd>) and Cut lanes (<kbd>X</kbd>) brushes
 add and cut hyperlanes under the brush. Holding <kbd>Alt</kbd> swaps the
 two. The Connect brush has a Lane density option. The left end lays the
 fewest lanes, and the new lanes form no loops of their own. At the right
-end, each system links to every neighbour. Tick Generate lanes like the
-game to link the swept systems in small clusters joined by single lanes,
-as the game does, instead of an even mesh.
+end, each system links to every neighbour. Generate lanes like the game is
+ticked by default. It links the swept systems in small clusters joined by
+single lanes, as the game does. Untick it for an even spread of lanes.
 
 ![The Connect lanes brush active on the tool strip, with its Size, Lane density and Generate lanes like the game options](../images/edit/connect-brush-options.png)
 
@@ -38,13 +38,15 @@ Paint has these options:
   fewest lanes, and the new lanes form no loops of their own. At the right
   end, each system links to every neighbour.
 - Generate lanes like the game links the new systems in small clusters
-  joined by single lanes, as the game does, instead of an even mesh. Lane
-  density still sets how many lanes each cluster keeps. Under New and
-  nearby, the lanes to the systems around the stroke are the usual mesh.
-  The option is hidden while Lanes is Off.
+  joined by single lanes, as the game does. It is ticked by default.
+  Untick it for an even spread of lanes. Lane density still sets how many
+  lanes each cluster keeps. Under New and nearby, the lanes to the systems
+  around the stroke are the usual mesh. The option is hidden while Lanes
+  is Off.
 
-The Connect brush, Paint and Connect as mesh share Lane density and
-Generate lanes like the game.
+The Connect brush, Paint and the Inspector's Nearby choice share Lane
+density and Generate lanes like the game, so a change in one shows in the
+others.
 
 ![The Paint brush options: Size, Density, Lanes set to New and nearby, Lane density and Generate lanes like the game](../images/edit/paint-brush-options.png)
 

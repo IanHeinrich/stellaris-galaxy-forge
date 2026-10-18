@@ -1,95 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
-import { CONNECT_ALL_MAX, deletableSystems, useEditorStore } from "../store/editorStore";
-import { deleteAddedLabel } from "../lib/addSystem";
-import { documentCapabilities } from "../lib/capabilities";
 import { clanMenuItem, nextFreeClan } from "../lib/marauder";
-import { arrangeRefusal, spreadOf } from "../lib/shapes/arrange";
 import { useWormholePairAction } from "../store/bypassSelectors";
-import { useCanEdit, useFileSessionStore } from "../store/fileSessionStore";
-import { useMapChromeStore } from "../store/mapChromeStore";
-import { useBarMode } from "../store/sceneStore";
-import { toolAllowed, useToolStore } from "../store/toolStore";
-import {
-  linkedSystems,
-  meshLanes,
-  selectionLanes,
-  staleLaneCount,
-  useGalaxyStore,
-} from "../store/galaxyStore";
-import { BulkHeight } from "./BulkHeight";
-import { LaneDensitySlider, LaneIslandsCheckbox } from "./LaneDensitySlider";
+import { useEditorStore } from "../store/editorStore";
+import { useGalaxyStore } from "../store/galaxyStore";
+import { useArrange } from "./useSelectionActions";
 import "./panels.css";
 
-/** Above this many selected systems the mesh is worked out only while its row is previewed. */
-const MESH_COUNT_MAX = 1000;
-
-/**
- * The bulk lane buttons and the mesh row for the current selection. `dismiss` closes a hosting
- * menu before the action runs.
- */
-export function BulkActions({
-  dismiss,
-  itemRole,
-}: {
+/** What a bulk button shares: closing a hosting menu first, and its role there. */
+export interface BulkHost {
   dismiss?: () => void;
   itemRole?: "menuitem";
+}
+
+/** One bulk action labelled with how many things it changes, off when that is none. */
+export function CountedButton({
+  label,
+  count,
+  run,
+  refusal = null,
+  className,
+  dismiss,
+  itemRole,
+}: BulkHost & {
+  label: string;
+  count: number;
+  run: () => unknown;
+  refusal?: string | null;
+  className?: string;
 }) {
-  const selection = useEditorStore((s) => s.selection);
-  const connectSelected = useEditorStore((s) => s.connectSelected);
-  const cutLanesBetweenSelected = useEditorStore((s) => s.cutLanesBetweenSelected);
-  const isolateSelected = useEditorStore((s) => s.isolateSelected);
-  const resetSelectedLaneLengths = useEditorStore((s) => s.resetSelectedLaneLengths);
-  const removeSystems = useEditorStore((s) => s.removeSystems);
-  const systems = useGalaxyStore((s) => s.systems);
-  const capabilities = useFileSessionStore(documentCapabilities);
-  const laneLengths = useCanEdit("lane_lengths");
-  const canCreate = useCanEdit("create_systems");
-  const heights = useCanEdit("system_heights");
-
-  const counts = useMemo(
-    () => ({
-      lanes: selectionLanes(systems, selection),
-      laned: linkedSystems(systems, selection).length,
-      stale: laneLengths ? staleLaneCount(systems, selection) : 0,
-    }),
-    [systems, selection, laneLengths],
-  );
-  const deletable = useMemo(
-    () => deletableSystems(selection, capabilities, systems),
-    [selection, capabilities, systems],
-  );
-  const deleteAdded =
-    deletable?.kind === "added" && selection.length > 1
-      ? deleteAddedLabel(deletable.ids.length, selection.length - deletable.ids.length)
-      : null;
-
-  const tooMany = selection.length > CONNECT_ALL_MAX;
-  const actions = [
-    {
-      label: "Connect to each other",
-      count: counts.lanes.unlinked,
-      run: connectSelected,
-      disabled: tooMany,
-      title: tooMany ? `Limited to ${CONNECT_ALL_MAX} systems — use Connect as mesh` : undefined,
-    },
-    {
-      label: "Cut hyperlanes between",
-      count: counts.lanes.linked.length,
-      run: cutLanesBetweenSelected,
-    },
-    { label: "Isolate", count: counts.laned, run: isolateSelected },
-    ...(laneLengths
-      ? [{ label: "Reset lane lengths", count: counts.stale, run: resetSelectedLaneLengths }]
-      : []),
-  ];
-  const [connectAll, ...rest] = actions.map(({ label, count, run, disabled, title }) => (
+  return (
     <button
-      key={label}
       type="button"
       role={itemRole}
-      disabled={count === 0 || disabled}
-      title={title}
+      className={className}
+      disabled={count === 0 || refusal !== null}
+      title={refusal ?? undefined}
       onClick={() => {
         dismiss?.();
         void run();
@@ -97,85 +41,32 @@ export function BulkActions({
     >
       {label} ({count})
     </button>
-  ));
-  return (
-    <>
-      {connectAll}
-      <MeshRow dismiss={dismiss} itemRole={itemRole} />
-      {rest}
-      {selection.length === 2 && (
-        <WormholePairButton
-          a={selection[0]}
-          b={selection[1]}
-          dismiss={dismiss}
-          itemRole={itemRole}
-        />
-      )}
-      {canCreate && selection.length === 3 && (
-        <MarauderClanButton ids={selection} dismiss={dismiss} itemRole={itemRole} />
-      )}
-      <ArrangeButton ids={selection} dismiss={dismiss} itemRole={itemRole} />
-      {deletable?.kind === "systems" && selection.length > 1 && (
-        <button
-          type="button"
-          role={itemRole}
-          onClick={() => {
-            dismiss?.();
-            void removeSystems(selection);
-          }}
-        >
-          Delete systems ({selection.length})
-        </button>
-      )}
-      {deleteAdded !== null && (
-        <button
-          type="button"
-          role={itemRole}
-          onClick={() => {
-            dismiss?.();
-            void removeSystems(selection);
-          }}
-        >
-          {deleteAdded}
-        </button>
-      )}
-      {heights && itemRole === undefined && <BulkHeight ids={selection} />}
-    </>
   );
 }
 
-/**
- * Arrange…: opens the Shape tool to move the selected systems onto a shape, centred where the
- * menu was opened, or among them from the inspector. Off under symmetry, with the reason.
- */
-function ArrangeButton({
+/** The Shape tool opened on the selection, where the bar mode offers it; off under symmetry, with the reason. */
+export function ArrangeButton({
   ids,
+  label,
+  className,
   dismiss,
   itemRole,
-}: {
-  ids: readonly number[];
-  dismiss?: () => void;
-  itemRole?: "menuitem";
-}) {
-  const at = useMapChromeStore((s) => s.contextMenu?.at ?? null);
-  const systems = useGalaxyStore((s) => s.systems);
-  const symmetry = useToolStore((s) => s.symmetry);
-  const startArrange = useToolStore((s) => s.startArrange);
-  const barMode = useBarMode();
-  if (ids.length < 2 || !toolAllowed("shape", barMode)) return null;
-  const refusal = arrangeRefusal(ids.length, symmetry);
+}: BulkHost & { ids: readonly number[]; label: string; className?: string }) {
+  const arrange = useArrange(ids);
+  if (arrange === null) return null;
   return (
     <button
       type="button"
       role={itemRole}
-      disabled={refusal !== null}
-      title={refusal ?? undefined}
+      className={className}
+      disabled={arrange.refusal !== null}
+      title={arrange.refusal ?? undefined}
       onClick={() => {
         dismiss?.();
-        startArrange(ids, at ?? spreadOf(ids.flatMap((id) => systems.get(id) ?? [])).mid);
+        arrange.run();
       }}
     >
-      Arrange…
+      {label}
     </button>
   );
 }
@@ -183,13 +74,10 @@ function ArrangeButton({
 /** Three selected systems on a scenario: made the next free marauder clan, the middle one its home. */
 export function MarauderClanButton({
   ids,
+  className,
   dismiss,
   itemRole,
-}: {
-  ids: readonly number[];
-  dismiss?: () => void;
-  itemRole?: "menuitem";
-}) {
+}: BulkHost & { ids: readonly number[]; className?: string }) {
   const makeMarauderClan = useEditorStore((s) => s.makeMarauderClan);
   const systems = useGalaxyStore((s) => s.systems);
   const item = clanMenuItem(ids, systems, nextFreeClan(systems));
@@ -197,7 +85,7 @@ export function MarauderClanButton({
     <button
       type="button"
       role={itemRole}
-      className="hinted"
+      className={className === undefined ? "hinted" : `hinted ${className}`}
       disabled={item.clan === null}
       title={item.hint}
       onClick={() => {
@@ -219,14 +107,10 @@ export function MarauderClanButton({
 export function WormholePairButton({
   a,
   b,
+  className,
   dismiss,
   itemRole,
-}: {
-  a: number;
-  b: number;
-  dismiss?: () => void;
-  itemRole?: "menuitem";
-}) {
+}: BulkHost & { a: number; b: number; className?: string }) {
   const linkWormholePair = useEditorStore((s) => s.linkWormholePair);
   const unlinkWormholePair = useEditorStore((s) => s.unlinkWormholePair);
   const action = useWormholePairAction(a, b);
@@ -236,6 +120,7 @@ export function WormholePairButton({
     <button
       type="button"
       role={itemRole}
+      className={className}
       onClick={() => {
         dismiss?.();
         void run(a, b);
@@ -243,58 +128,5 @@ export function WormholePairButton({
     >
       {action === "link" ? "Link as wormhole pair" : "Unlink wormhole pair"}
     </button>
-  );
-}
-
-function MeshRow({ dismiss, itemRole }: { dismiss?: () => void; itemRole?: "menuitem" }) {
-  const selection = useEditorStore((s) => s.selection);
-  const laneDensity = useMapChromeStore((s) => s.laneDensity);
-  const laneIslands = useMapChromeStore((s) => s.laneIslands);
-  const setLanePreview = useMapChromeStore((s) => s.setLanePreview);
-  const connectSelectedMesh = useEditorStore((s) => s.connectSelectedMesh);
-  const galaxy = useGalaxyStore(useShallow((s) => ({ systems: s.systems, version: s.version })));
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-
-  const previewing = hovered || focused;
-  const counted = previewing || selection.length <= MESH_COUNT_MAX;
-  const pairs = useMemo(
-    () => (counted ? meshLanes(galaxy.systems, selection, laneDensity, laneIslands) : null),
-    [counted, galaxy, selection, laneDensity, laneIslands],
-  );
-  useEffect(() => {
-    if (!previewing || pairs === null) return;
-    setLanePreview(pairs);
-    return () => setLanePreview(null);
-  }, [previewing, pairs, setLanePreview]);
-
-  return (
-    <div
-      className="mesh-row"
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-    >
-      <label className="mesh-slider">
-        <span className="muted">sparse</span>
-        <LaneDensitySlider
-          label="Mesh density"
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-        <span className="muted">dense</span>
-      </label>
-      <LaneIslandsCheckbox className="mesh-slider" />
-      <button
-        type="button"
-        role={itemRole}
-        disabled={pairs?.length === 0}
-        onClick={() => {
-          dismiss?.();
-          void connectSelectedMesh();
-        }}
-      >
-        Connect as mesh{pairs === null ? "" : ` (${pairs.length})`}
-      </button>
-    </div>
   );
 }

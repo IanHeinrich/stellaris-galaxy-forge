@@ -34,15 +34,17 @@ add new systems out there, see
 To turn a group of systems, select two or more. A round handle appears
 above them on the map. Drag it to turn the selection about its centre.
 Hold <kbd>Shift</kbd> to snap the turn to 15°. To turn about another
-point, drag the pivot marker there first. **Centre pivot** in the
-Inspector's Rotate section puts it back.
+point, drag the pivot marker there first. Once you have moved it, the
+Pivot row in the Inspector's Position section reads "moved", and its
+**Centre** link puts the pivot back.
 
-For an exact turn, type an angle in the Inspector's Rotate section and
-press <kbd>Enter</kbd>, or use the 90° left, 90° right and 180° buttons.
+For an exact turn, open the Rotate block in the Inspector's Position
+section. Type an angle in the Degrees field and press <kbd>Enter</kbd> or
+click **Rotate**, or use the Quick buttons: 90° left, 90° right and 180°.
 A positive angle turns clockwise. The typed angle stays in the field, so
 you can apply it again.
 
-Tick **Nebulae too** and the nebulae centred inside the selection turn
-with it. Each turn is one undo step.
+Nebulae centred inside the selection turn with it. Untick **Nebulae too**
+to leave them where they are. Each turn is one undo step.
 
 To remove systems, see [Delete systems](add-systems.md#delete-systems).

@@ -16,11 +16,12 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
-import { BulkActions, MarauderClanButton } from "../../BulkActions";
+import { MarauderClanButton } from "../../BulkActions";
 import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem, RefusableMenuItem } from "./MenuItem";
 import { PasteItem } from "./PlanetMoveItems";
+import { SelectionItems } from "./SelectionItems";
 import { useSelected, useZoneLink, useZones } from "./menuState";
 
 /**
@@ -81,7 +82,7 @@ export function SystemMenu({
       <PasteItem system={target.id} className="context-menu-lead" />
       {enterable && <MenuItem run={() => enterSystem(target.id)}>Open system view</MenuItem>}
       {selection.length > 1 && inSelection ? (
-        <BulkActions dismiss={closeContextMenu} itemRole="menuitem" />
+        <SelectionItems dismiss={closeContextMenu} />
       ) : (
         <>
           <MenuItem
