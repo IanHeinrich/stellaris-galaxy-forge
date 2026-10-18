@@ -123,9 +123,7 @@ describe("several systems selected", () => {
     await useEditorStore.getState().selectAll();
     const html = render();
     expect(button(html, "Every pair")).toContain('disabled=""');
-    expect(button(html, "Every pair")).toContain(
-      'title="Every pair is for up to 5 systems; use Nearby."',
-    );
+    expect(button(html, "Every pair")).toContain('title="Every pair is for up to 5 systems."');
     expect(html).toContain('aria-pressed="true">Nearby</button>');
     expect(html).toContain('<span class="edit-label">Density</span>');
     expect(html).toContain('aria-label="Lane density"');
@@ -230,9 +228,10 @@ describe("the rotate block", () => {
     expect(degrees).toContain('aria-label="Degrees"');
     expect(degrees).toContain('value="45"');
     expect(degrees).toContain(">Rotate</button>");
-    const quick = editRow(html, "Quick");
-    expect(quick.indexOf("90° left")).toBeLessThan(quick.indexOf("90° right"));
-    expect(quick).toContain("180°");
+    expect(html).toContain(
+      '<div class="rotate-turns edit-wide" role="group" aria-label="Quick turns"><button type="button">90° left</button><button type="button">90° right</button><button type="button">180°</button></div>',
+    );
+    expect(html).not.toContain('<span class="edit-label">Quick</span>');
     expect(html).toMatch(/<input type="checkbox" checked=""\/>Nebulae too<\/label>/);
     expect(html).toContain("Or drag the handle on the map. Shift snaps to 15°.");
     expect(html).not.toContain('<span class="edit-label">Pivot</span>');

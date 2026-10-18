@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { typedNumber } from "../lib/text";
-import { IconPicker, type IconPickerItem } from "./IconPicker";
+import { IconPicker, PickerTrigger, type IconPickerItem } from "./IconPicker";
 import { useDraft } from "./useDraft";
 import "./panels.css";
 
@@ -129,18 +129,15 @@ export function DialogField({
   onOpen,
 }: FieldBase & { text: string; title?: string; onOpen: () => void }) {
   return (
-    <button
-      type="button"
-      className="icon-picker-trigger edit-field"
-      aria-haspopup="dialog"
-      aria-label={`${label}: ${text}`}
+    <PickerTrigger
+      className="edit-field"
+      popup="dialog"
+      label={label}
+      current={{ key: "", label: text }}
       title={disabledReason ?? title}
       disabled={disabledReason !== undefined}
       onClick={onOpen}
-    >
-      <span className="icon-picker-label">{text}</span>
-      <span className="icon-picker-caret">▾</span>
-    </button>
+    />
   );
 }
 

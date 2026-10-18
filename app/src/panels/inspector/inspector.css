@@ -448,6 +448,17 @@ button.link.ins-drill:hover {
   min-width: 0;
 }
 
+/* The quarter and half turns, one row across the block. */
+.rotate-turns {
+  display: flex;
+  gap: 4px;
+}
+
+.rotate-turns button {
+  flex: 1 1 0;
+  white-space: nowrap;
+}
+
 .rotate-pivot {
   display: flex;
   align-items: center;

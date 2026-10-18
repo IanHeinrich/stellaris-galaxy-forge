@@ -1,9 +1,14 @@
 import { useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { CONNECT_ALL_MAX, deletableSystems, useEditorStore } from "../store/editorStore";
+import {
+  CONNECT_ALL_MAX,
+  deletableSystems,
+  useEditorStore,
+  type EditorState,
+} from "../store/editorStore";
 import { deleteAddedLabel } from "../lib/addSystem";
 import { documentCapabilities } from "../lib/capabilities";
-import { everyPairLimit } from "../lib/selectionCopy";
+import { everyPairLimit, type LinkChoice } from "../lib/selectionCopy";
 import { arrangeRefusal, spreadOf } from "../lib/shapes/arrange";
 import { useCanEdit, useFileSessionStore } from "../store/fileSessionStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
@@ -29,10 +34,15 @@ export interface BulkLanes {
   linked: number;
   /** Selected systems with any lane. */
   laned: number;
-  /** Lanes between selected systems whose length is not the game's; null where lengths are not edited. */
+  /** Lanes touching a selected system whose length is not the game's; null where lengths are not edited. */
   stale: number | null;
   /** Why every pair cannot be linked, past `CONNECT_ALL_MAX` systems. */
   everyPairRefusal: string | null;
+}
+
+/** Why `count` selected systems are too many to link every pair of, or null. */
+export function everyPairRefusal(count: number): string | null {
+  return count > CONNECT_ALL_MAX ? everyPairLimit(CONNECT_ALL_MAX) : null;
 }
 
 export function useBulkLanes(): BulkLanes {
@@ -46,25 +56,54 @@ export function useBulkLanes(): BulkLanes {
       linked: lanes.linked.length,
       laned: linkedSystems(systems, selection).length,
       stale: laneLengths ? staleLaneCount(systems, selection) : null,
-      everyPairRefusal: selection.length > CONNECT_ALL_MAX ? everyPairLimit(CONNECT_ALL_MAX) : null,
+      everyPairRefusal: everyPairRefusal(selection.length),
     };
   }, [systems, selection, laneLengths]);
+}
+
+/** The way Add lanes links: the player's pick, unless the limit rules Every pair out. */
+export function linkChoice(picked: LinkChoice, refusal: string | null): LinkChoice {
+  return refusal === null ? picked : "nearby";
+}
+
+/** The store action Add lanes runs for each way of linking. */
+const ADD_LANES_ACTION = {
+  every: "connectSelected",
+  nearby: "connectSelectedMesh",
+} as const satisfies Record<LinkChoice, keyof EditorState>;
+
+/** Adds the lanes `link` says among the selected systems, as one edit. */
+export function addLanes(link: LinkChoice): Promise<void> {
+  return useEditorStore.getState()[ADD_LANES_ACTION[link]]();
+}
+
+/** The lanes the map previews: an action's lanes while it is pointed at or focused, else none. */
+export function previewedLanes(
+  previewing: boolean,
+  pairs: Array<[number, number]> | null,
+): Array<[number, number]> | null {
+  return previewing ? pairs : null;
+}
+
+/** Shows `pairs` as the lanes an action would add, and returns what takes them off again. */
+export function showLanePreview(
+  pairs: Array<[number, number]> | null,
+  setLanePreview: (pairs: Array<[number, number]> | null) => void,
+): (() => void) | undefined {
+  if (pairs === null) return undefined;
+  setLanePreview(pairs);
+  return () => setLanePreview(null);
 }
 
 /** Shows `pairs` on the map as the lanes an action would add, until they change or go. */
 export function useLanePreview(pairs: Array<[number, number]> | null): void {
   const setLanePreview = useMapChromeStore((s) => s.setLanePreview);
-  useEffect(() => {
-    if (pairs === null) return;
-    setLanePreview(pairs);
-    return () => setLanePreview(null);
-  }, [pairs, setLanePreview]);
+  useEffect(() => showLanePreview(pairs, setLanePreview), [pairs, setLanePreview]);
 }
 
 /**
  * The lanes linking the selection to its neighbours would add, at the Lane density and island
- * setting, previewed while `previewing`. Null when `enabled` is off, and for a selection over
- * `MESH_COUNT_MAX` while it is not previewed.
+ * setting. Null when `enabled` is off, and for a selection over `MESH_COUNT_MAX` unless `previewing`.
  */
 export function useNearbyLanes(
   enabled: boolean,
@@ -75,28 +114,23 @@ export function useNearbyLanes(
   const laneIslands = useMapChromeStore((s) => s.laneIslands);
   const galaxy = useGalaxyStore(useShallow((s) => ({ systems: s.systems, version: s.version })));
   const counted = enabled && (previewing || selection.length <= MESH_COUNT_MAX);
-  const pairs = useMemo(
+  return useMemo(
     () => (counted ? meshLanes(galaxy.systems, selection, laneDensity, laneIslands) : null),
     [counted, galaxy, selection, laneDensity, laneIslands],
   );
-  useLanePreview(previewing ? pairs : null);
-  return pairs;
 }
 
-/** The lanes linking every pair of selected systems would add, previewed while `previewing`; null past the limit. */
-export function useEveryPairLanes(
-  enabled: boolean,
-  previewing: boolean,
-): Array<[number, number]> | null {
+/** The lanes linking every pair of selected systems would add; null when `enabled` is off or past the limit. */
+export function useEveryPairLanes(enabled: boolean): Array<[number, number]> | null {
   const selection = useEditorStore((s) => s.selection);
   const systems = useGalaxyStore((s) => s.systems);
-  const pairs = useMemo(
+  return useMemo(
     () =>
-      enabled && selection.length <= CONNECT_ALL_MAX ? unlinkedPairs(systems, selection) : null,
+      enabled && everyPairRefusal(selection.length) === null
+        ? unlinkedPairs(systems, selection)
+        : null,
     [enabled, systems, selection],
   );
-  useLanePreview(previewing ? pairs : null);
-  return pairs;
 }
 
 /**

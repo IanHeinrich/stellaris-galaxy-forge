@@ -57,12 +57,12 @@ describe("the system menu's items for a selection", () => {
     expect(listed).not.toContain("Reset lane lengths (0)");
   });
 
-  it("turns Link every pair off past five systems, and says to link nearby instead", async () => {
+  it("turns Link every pair off past five systems, and says why", async () => {
     await openWith(SCENARIO_RESULT);
     await useEditorStore.getState().selectAll();
     const html = renderToStaticMarkup(<SelectionItems dismiss={() => undefined} />);
     expect(html).toMatch(
-      /<button type="button" role="menuitem" disabled="" title="Every pair is for up to 5 systems; use Nearby.">Link every pair \(\d+\)<\/button>/,
+      /<button type="button" role="menuitem" disabled="" title="Every pair is for up to 5 systems.">Link every pair \(\d+\)<\/button>/,
     );
     expect(html).not.toContain("height-dot");
   });

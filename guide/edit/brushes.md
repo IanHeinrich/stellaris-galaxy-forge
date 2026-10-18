@@ -44,9 +44,9 @@ Paint has these options:
   around the stroke are the usual mesh. The option is hidden while Lanes
   is Off.
 
-The Connect brush, Paint and the Inspector's Nearby choice share Lane
-density and Generate lanes like the game, so a change in one shows in the
-others.
+The Connect brush, Paint, the Inspector's Nearby choice and Link nearby
+in the right-click menu share Lane density and Generate lanes like the
+game, so a change in one shows in the others.
 
 ![The Paint brush options: Size, Density, Lanes set to New and nearby, Lane density and Generate lanes like the game](../images/edit/paint-brush-options.png)
 

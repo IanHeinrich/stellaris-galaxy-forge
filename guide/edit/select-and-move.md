@@ -38,7 +38,7 @@ point, drag the pivot marker there first. Once you have moved it, the
 Pivot row in the Inspector's Position section reads "moved", and its
 **Centre** link puts the pivot back.
 
-For an exact turn, open the Rotate block in the Inspector's Position
+For an exact turn, use the Rotate block in the Inspector's Position
 section. Type an angle in the Degrees field and press <kbd>Enter</kbd> or
 click **Rotate**, or use the Quick buttons: 90° left, 90° right and 180°.
 A positive angle turns clockwise. The typed angle stays in the field, so

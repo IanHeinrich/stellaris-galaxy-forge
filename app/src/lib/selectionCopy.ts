@@ -16,7 +16,7 @@ export const LINK_CHOICES: ReadonlyArray<{ choice: LinkChoice; label: string }> 
 
 /** Why Every pair is off for a selection of more than `max` systems. */
 export function everyPairLimit(max: number): string {
-  return `Every pair is for up to ${max} systems; use Nearby.`;
+  return `Every pair is for up to ${max} systems.`;
 }
 
 /** The page's one Add button; `n` is null while the nearby lanes are not counted. */

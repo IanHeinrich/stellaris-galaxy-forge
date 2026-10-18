@@ -15,7 +15,13 @@ import {
   MarauderClanButton,
   WormholePairButton,
 } from "../../BulkActions";
-import { useBulkLanes, useNearbyLanes, useSelectionDeletion } from "../../useSelectionActions";
+import {
+  previewedLanes,
+  useBulkLanes,
+  useLanePreview,
+  useNearbyLanes,
+  useSelectionDeletion,
+} from "../../useSelectionActions";
 import { LaneDensitySlider, LaneIslandsCheckbox } from "../../LaneDensitySlider";
 
 /** The system menu's items for a selection it is part of: its lanes, its pair or clan, its shape and its removal. */
@@ -78,7 +84,9 @@ function NearbyRow({ dismiss }: { dismiss: () => void }) {
   const connectSelectedMesh = useEditorStore((s) => s.connectSelectedMesh);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const pairs = useNearbyLanes(true, hovered || focused);
+  const previewing = hovered || focused;
+  const pairs = useNearbyLanes(true, previewing);
+  useLanePreview(previewedLanes(previewing, pairs));
   return (
     <div
       className="mesh-row"

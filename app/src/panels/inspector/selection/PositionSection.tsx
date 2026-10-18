@@ -57,13 +57,13 @@ function RotateBlock() {
           </button>
         </span>
       </EditRow>
-      <EditRow label="Quick">
+      <div className="rotate-turns edit-wide" role="group" aria-label="Quick turns">
         {ROTATE_TURNS.map(({ label, degrees: by }) => (
           <button type="button" key={label} onClick={() => turn(by)}>
             {label}
           </button>
         ))}
-      </EditRow>
+      </div>
       <ToggleField
         label="Nebulae too"
         title="Also turn the nebulae centred inside the selection"
