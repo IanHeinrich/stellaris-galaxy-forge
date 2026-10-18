@@ -185,10 +185,26 @@ fn print_summary(spec: &SystemSpec, seed: u64) {
         PrimaryName::Fixed(name) => format!(" name {name}"),
     };
     println!("  star {}{named}", body(&spec.star));
+    print_satellites(&spec.star);
     for (i, planet) in spec.planets.iter().enumerate() {
         println!("  {:<4} {}", i + 1, body(planet));
+        match planet.kind {
+            BodyKind::Star => print_satellites(planet),
+            BodyKind::Planet | BodyKind::Asteroid => {
+                for moon in &planet.moons {
+                    println!("       moon {}", body(moon));
+                }
+            }
+        }
+    }
+}
+
+/// The planets of `star` and their moons.
+fn print_satellites(star: &BodySpec) {
+    for (i, planet) in star.moons.iter().enumerate() {
+        println!("       {:<4} {}", i + 1, body(planet));
         for moon in &planet.moons {
-            println!("       moon {}", body(moon));
+            println!("            moon {}", body(moon));
         }
     }
 }
@@ -201,8 +217,10 @@ fn body(body: &BodySpec) -> String {
     if let Some(name) = &body.name {
         text.push_str(&format!(" name {name}"));
     }
-    if body.kind == BodyKind::Asteroid {
-        text.push_str(" (asteroid)");
+    match body.kind {
+        BodyKind::Asteroid => text.push_str(" (asteroid)"),
+        BodyKind::Star => text.push_str(" (star)"),
+        BodyKind::Planet => {}
     }
     if body.ring {
         text.push_str(" ring");

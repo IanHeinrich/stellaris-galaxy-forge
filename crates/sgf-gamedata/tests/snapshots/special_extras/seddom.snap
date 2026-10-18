@@ -65,6 +65,7 @@ Added Seddom #601 with its anomaly
 +			{
 +				key="NAME_Seddom"
 +			}
++			binary_flags=65
 +			coordinate=
 +			{
 +				x=0

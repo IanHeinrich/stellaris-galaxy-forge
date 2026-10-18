@@ -100,7 +100,7 @@ fn a_body_with_no_orbit_distance_is_rolled_10_to_20_past_the_running_orbit() {
         );
         assert_eq!(
             cabin.orbit,
-            molten.orbit + 86.0,
+            ((molten.orbit + 86.0) * 100.0).round() / 100.0,
             "seed {seed}: The Cabin lies its change_orbit and distance past the molten world"
         );
 

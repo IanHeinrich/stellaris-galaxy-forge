@@ -15,8 +15,9 @@ name. Every other initializer keeps its `class`, `usage`, `usage_odds`, `max_ins
 planets to a class and `generate_pre_ftls_on_planet`. An initializer written through an
 inline script takes these values from the parsed install. Country types keep their
 leviathan, enclave and fallen empire flags. Star classes keep `class`, `planet` and
-`spawn_odds`. Planet classes keep `star` and `asteroid`. `rl_standard_stars` and the global
-`@` variables the copied text uses are copied as written.
+`spawn_odds`. Planet classes keep `star` and `asteroid`. `rl_standard_stars`,
+`rl_binary_stars`, `rl_trinary_stars`, the planet list `rl_unhabitable_planets` and the
+global `@` variables the copied text uses are copied as written.
 
 `prepare_rows::the_sample_install_classifies_the_samples_as_the_real_install_does` fails
 when the game changes something Prepare reads. To cut the install again:

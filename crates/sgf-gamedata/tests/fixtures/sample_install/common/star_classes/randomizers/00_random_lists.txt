@@ -1,3 +1,27 @@
+rl_binary_stars = {
+	stars = {
+		"sc_binary_1"
+		"sc_binary_2"
+		"sc_binary_3"
+		"sc_binary_4"
+		"sc_binary_5"
+		"sc_binary_6"
+		"sc_binary_7"
+		"sc_binary_8"
+		"sc_binary_9"
+		"sc_binary_10"
+	}
+}
+
+rl_trinary_stars = {
+	stars = {
+		"sc_trinary_1"
+		"sc_trinary_2"
+		"sc_trinary_3"
+		"sc_trinary_4"
+	}
+}
+
 rl_standard_stars = {
 	stars = {
 		"sc_a"

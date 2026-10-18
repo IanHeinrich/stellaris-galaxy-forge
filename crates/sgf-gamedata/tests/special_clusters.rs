@@ -14,7 +14,7 @@ use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::body_effects::LeftOut;
 use sgf_gamedata::generate::{ClusterRoll, ForSaveError, cluster_op, roll_cluster, special_op};
-use sgf_gamedata::layouts::{CLUSTERS, Eligibility, Unsupported, eligibility};
+use sgf_gamedata::layouts::{CLUSTERS, Eligibility, eligibility};
 use sgf_gamedata::menu::{menu_clusters, special_layouts};
 use sgf_gamedata::summary::{cluster_picks, layout_summary};
 
@@ -28,6 +28,7 @@ const SCENARIO: &str = concat!(
 const SAMPLE_3_4: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
 const RATLINGS: &str = "junk_ratlings";
 const LEADER: &str = "legendary_leader";
+const SOL: &str = "sol_neighbours";
 
 /// The 4.5 sample with its Ratlings' six global event targets renamed, so that an added
 /// cluster takes them.
@@ -108,26 +109,22 @@ fn every_system_of_a_cluster_is_in_its_homes_chain() {
     }
 }
 
-/// The Ratlings and the Legendary Leader's sites are offered; Sol's binary and trinary
-/// neighbours keep its cluster out. Each home is offered alone too, under the label its
-/// cluster's entry gives it, its card naming the
-/// systems it comes without when its cluster is offered, and the members no galaxy places
-/// alone are offered only through their cluster.
+/// The Ratlings, the Legendary Leader's sites and Sol with its binary and trinary neighbours
+/// are offered. Each home is offered alone too, under the label its cluster's entry gives it,
+/// its card naming the systems it comes without when its cluster is offered, and the members
+/// no galaxy places alone are offered only through their cluster.
 #[test]
 fn a_cluster_is_offered_once_every_system_of_it_can_be_built() {
     let Some(gd) = install() else {
         return;
     };
     let offered: Vec<&str> = menu_clusters(gd).iter().map(|c| c.key).collect();
-    assert_eq!(offered, [RATLINGS, LEADER]);
+    assert_eq!(offered, [RATLINGS, LEADER, SOL]);
     let sirius = gd
         .initializers
         .get("sol_neighbor_t2_no_guaranteed_colony")
         .expect("Sirius");
-    assert_eq!(
-        eligibility(gd, sirius),
-        Eligibility::Unsupported(Unsupported::MultiStar)
-    );
+    assert_eq!(eligibility(gd, sirius), Eligibility::Special);
 
     let session = open_4_5();
     let keys: BTreeSet<String> = special_layouts(gd, &session)
@@ -145,7 +142,7 @@ fn a_cluster_is_offered_once_every_system_of_it_can_be_built() {
             true,
             "Legendary Leader crash site",
         ),
-        ("sol_system_initializer", false, "Sol"),
+        ("sol_system_initializer", true, "Sol"),
     ] {
         assert!(keys.contains(home), "{home} is not offered alone");
         assert!(
@@ -308,7 +305,7 @@ fn a_scenario_takes_a_cluster_as_statements_less_what_its_home_creates() {
         .into_iter()
         .map(|pick| pick.cluster.key)
         .collect();
-    assert_eq!(offered, [RATLINGS]);
+    assert_eq!(offered, [RATLINGS, SOL]);
     assert!(matches!(
         roll_cluster(gd, &session, 3, (0.0, 0.0), LEADER),
         Err(ForSaveError::UnknownCluster(_))
@@ -374,12 +371,10 @@ fn a_cluster_add_refuses_a_bad_join_or_place() {
         .expect("the roll")
         .view(gd);
     assert_eq!(roll.members[0].refused, Some(refused.to_string()));
-    for key in ["nope", "sol_neighbours"] {
-        assert!(matches!(
-            cluster_op(gd, &session, 3, SPOT, key, true, &[]),
-            Err(ForSaveError::UnknownCluster(_))
-        ));
-    }
+    assert!(matches!(
+        cluster_op(gd, &session, 3, SPOT, "nope", true, &[]),
+        Err(ForSaveError::UnknownCluster(_))
+    ));
 }
 
 /// An add whose join names a system gone by the time it is applied is refused whole: the

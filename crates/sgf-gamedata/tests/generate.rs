@@ -178,7 +178,7 @@ fn range_of((min, max): (u32, u32)) -> Range {
 }
 
 #[test]
-fn the_real_install_rolls_its_plain_single_star_initializers() {
+fn the_real_install_rolls_its_plain_initializers() {
     let Some(gd) = INSTALL.as_ref() else {
         return;
     };
@@ -196,13 +196,17 @@ fn the_real_install_rolls_its_plain_single_star_initializers() {
             "basic_init_04",
             "basic_init_05",
             "basic_init_06",
+            "binary_init_01",
+            "binary_init_02",
+            "trinary_init_01",
+            "trinary_init_02",
         ])
     );
     let odds: f64 = plain_initializers(gd)
         .iter()
         .filter_map(|i| i.usage_odds)
         .sum();
-    assert_eq!(odds, 72.0);
+    assert_eq!(odds, 72.0 + 6.0 + 4.0 + 3.0 + 3.0);
     assert_eq!(
         gd.star_lists.get("rl_standard_stars").unwrap().stars.len(),
         7
@@ -233,7 +237,11 @@ fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
             "seed {seed}"
         );
         assert!(gd.planet_classes.get(&spec.star.class).unwrap().star);
-        assert_eq!(spec.star.orbit, 0.0);
+        assert_eq!(
+            Some(spec.star.orbit),
+            init.planets[0].orbit_distance.map(|d| d.min),
+            "seed {seed}: the first star where its block puts it"
+        );
         assert!(within(
             spec.star.size,
             range_of(init.planets[0].size.unwrap())
@@ -242,13 +250,24 @@ fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
         let moon_size = init
             .planets
             .iter()
+            .filter(|p| p.class.written() != "star")
             .flat_map(|p| &p.moons)
             .find_map(|m| m.size)
             .map(range_of);
         let belts: Vec<f64> = spec.belts.iter().map(|b| b.inner_radius).collect();
         let mut last = 0.0;
+        let mut stars = vec![spec.star.class.as_str()];
         for planet in &spec.planets {
             let class = gd.planet_classes.get(&planet.class).expect("a real class");
+            if planet.kind == BodyKind::Star {
+                stars.push(&planet.class);
+                for satellite in &planet.moons {
+                    let class = gd.planet_classes.get(&satellite.class).expect("a class");
+                    assert!(!class.star && !class.asteroid, "seed {seed}");
+                    check_moons(gd, seed, satellite, None);
+                }
+                continue;
+            }
             assert!(!class.star, "seed {seed}: {}", planet.class);
             assert_eq!(planet.kind == BodyKind::Asteroid, class.asteroid);
             if class.asteroid {
@@ -285,6 +304,11 @@ fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
             );
             check_moons(gd, seed, planet, moon_size);
         }
+        assert_eq!(
+            stars,
+            star_class.planet_keys().collect::<Vec<_>>(),
+            "seed {seed}: one star for each of the class's, in its order"
+        );
     }
 }
 
@@ -361,11 +385,12 @@ fn belt_layouts_are_drawn_with_their_asteroids_on_the_belts() {
     }
     let belted: usize = drawn
         .iter()
+        .filter(|(name, _)| name.starts_with("basic_init") || name.starts_with("asteroid_init"))
         .filter(|(name, _)| !matches!(name.as_str(), "basic_init_01" | "basic_init_03"))
         .map(|(_, n)| n)
         .sum();
     let share = belted as f64 / SEEDS as f64;
-    assert!((share - 42.0 / 72.0).abs() < 0.05, "{share:.3} {drawn:?}");
+    assert!((share - 42.0 / 88.0).abs() < 0.05, "{share:.3} {drawn:?}");
 }
 
 #[test]

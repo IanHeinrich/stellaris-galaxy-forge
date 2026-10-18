@@ -6,7 +6,7 @@ Prepared 601 systems for a new game
 RenameSystem: 601
 SetHeaderKeys: 1
 SetHomeSystem: 18
-SetInitializer: 540
+SetInitializer: 532
 SetSpawnWeight: 22
 -marauder_empire_max = 2
 +marauder_empire_max = 3
@@ -17,7 +17,7 @@ SetSpawnWeight: 22
 -system = { id = "2" name = "Millistamu" position = { x = -149.52 y = 316.01 } initializer = ai_system_02 }
 +system = { id = "2" position = { x = -149.52 y = 316.01 } }
 -system = { id = "3" name = "Zavarys" position = { x = 387.61 y = -9.94 } initializer = ai_system_04 }
-+system = { id = "3" position = { x = 387.61 y = -9.94 } initializer = basic_init_06 }
++system = { id = "3" position = { x = 387.61 y = -9.94 } initializer = trinary_init_02 }
 -system = { id = "4" name = "Gaping_Maw" position = { x = 303.32 y = 151.44 } initializer = distantstars_init_06 }
 +system = { id = "4" position = { x = 303.32 y = 151.44 } initializer = basic_init_01 }
 -system = { id = "5" name = "Tuzhik" position = { x = -215.9 y = -125.14 } initializer = binary_init_01 }
@@ -39,7 +39,7 @@ SetSpawnWeight: 22
 -system = { id = "13" name = "Enigmas_End" position = { x = -144.96 y = 235.8 } initializer = salvager_enclave_init_03 }
 +system = { id = "13" position = { x = -144.96 y = 235.8 } }
 -system = { id = "14" name = "Mareenius" position = { x = 381.84 y = -89.39 } initializer = mindwarden_enclave_initializer }
-+system = { id = "14" position = { x = 381.84 y = -89.39 } initializer = basic_init_03 }
++system = { id = "14" position = { x = 381.84 y = -89.39 } initializer = basic_init_05 }
 -system = { id = "15" name = "Canopus" position = { x = 99.71 y = -251.18 } initializer = basic_init_03 }
 +system = { id = "15" position = { x = 99.71 y = -251.18 } }
 -system = { id = "16" name = "Eglrarvis" position = { x = 201.11 y = -17.8 } initializer = guardians_artist_init_01 }
@@ -69,7 +69,7 @@ SetSpawnWeight: 22
 -system = { id = "28" name = "NAME_Tiyana_Vek" position = { x = -45.98 y = 137.71 } initializer = hostile_init_16 }
 +system = { id = "28" position = { x = -45.98 y = 137.71 } }
 -system = { id = "29" name = "Asterope" position = { x = 117.23 y = -357.42 } initializer = star_lifting_system }
-+system = { id = "29" position = { x = 117.23 y = -357.42 } initializer = basic_init_05 }
++system = { id = "29" position = { x = 117.23 y = -357.42 } initializer = binary_init_02 }
 -system = { id = "30" name = "Baxom" position = { x = 324.19 y = 51.06 } initializer = basic_init_05 }
 +system = { id = "30" position = { x = 324.19 y = 51.06 } initializer = basic_init_05 }
 -system = { id = "31" name = "Anaxador" position = { x = -149.52 y = 77.94 } initializer = guardians_init_dreadnought }

@@ -20,3 +20,55 @@ pc_ice_asteroid = {
 	asteroid = yes
 	planet_size = 5
 }
+
+pc_a_star = {
+	star = yes
+}
+
+pc_b_star = {
+	star = yes
+}
+
+pc_f_star = {
+	star = yes
+}
+
+pc_k_star = {
+	star = yes
+}
+
+pc_m_star = {
+	star = yes
+}
+
+pc_neutron_star = {
+	star = yes
+}
+
+pc_pulsar = {
+	star = yes
+}
+
+pc_t_star = {
+	star = yes
+}
+
+pc_molten = { }
+
+pc_barren_cold = { }
+
+pc_toxic = { }
+
+pc_frozen = { }
+
+random_list = {
+	name = "rl_unhabitable_planets"
+	planets = {
+		"pc_gas_giant"
+		"pc_molten"
+		"pc_barren"
+		"pc_barren_cold"
+		"pc_toxic"
+		"pc_frozen"
+	}
+}

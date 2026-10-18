@@ -349,6 +349,20 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "ratling_1_2",
         "ratling_1_3",
     ];
+    // The multi-star layouts with no other blocker, Sol's three neighbours among them.
+    let multi_star = [
+        "broken_shroudwalker_init_01",
+        "distar_phaseshift_system",
+        "distar_pod_system",
+        "living_planet_system",
+        "mechanocalibrator_system",
+        "megacorp_mega_art_installation_init_01",
+        "orbital_ring_init_01",
+        "sol_neighbor_t1_no_guaranteed_colony",
+        "sol_neighbor_t2",
+        "sol_neighbor_t2_no_guaranteed_colony",
+        "solarpunk_01",
+    ];
     let converted: Vec<&str> = CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect();
     assert_eq!(
         special,
@@ -357,11 +371,12 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
             .chain(&group_b)
             .chain(&ruins)
             .chain(&clusters)
+            .chain(&multi_star)
             .chain(&converted)
             .copied()
             .collect(),
         "A and B with odds, less the layouts whose point is their spawn, time loop's shield \
-         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, the clusters' systems, and the converted layouts"
+         and relic_system_4's scripted deposits, the single-star landmarks whose ruins the add \n         writes, the clusters' systems, the multi-star layouts and the converted layouts"
     );
     let why = |layout: &str| match of(gd, layout) {
         Eligibility::Unsupported(why) => why,
@@ -371,7 +386,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         why("fumongus_init_01"),
         Unsupported::Effect("create_tiyanki_country".to_owned())
     );
-    assert_eq!(why("binary_init_01"), Unsupported::MultiStar);
+    assert_eq!(of(gd, "binary_init_01"), Eligibility::Plain);
     assert_eq!(
         why("time_loop_world_system"),
         Unsupported::Effect("change_pc".to_owned())

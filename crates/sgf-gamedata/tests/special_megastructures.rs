@@ -19,7 +19,7 @@ use common::{INSTALL, SPOT, open_4_5};
 
 /// The layouts whose spawned megastructures an add writes, and the rows each leaves: one row
 /// on a body, or a ring world's four.
-const ADDABLE: [(&str, &[&str]); 9] = [
+const ADDABLE: [(&str, &[&str]); 11] = [
     ("dyson_sphere_init_01", &["dyson_sphere_ruined"]),
     ("science_nexus_init_01", &["think_tank_ruined"]),
     ("sentry_array_init_01", &["spy_orb_ruined"]),
@@ -35,6 +35,11 @@ const ADDABLE: [(&str, &[&str]); 9] = [
     ),
     ("ring_world_init_01", &["ring_world_ruined"; 4]),
     ("cybrex_system", &["ring_world_ruined"; 4]),
+    ("orbital_ring_init_01", &["orbital_ring_ruined"]),
+    (
+        "megacorp_mega_art_installation_init_01",
+        &["mega_art_installation_ruined"],
+    ),
 ];
 
 /// The layouts with megastructures that stay refused, and why.
@@ -43,11 +48,6 @@ fn refused() -> Vec<(&'static str, Unsupported)> {
         (
             "ruined_arc_furnace_system",
             Unsupported::Effect("set_planet_entity".to_owned()),
-        ),
-        ("orbital_ring_init_01", Unsupported::MultiStar),
-        (
-            "megacorp_mega_art_installation_init_01",
-            Unsupported::MultiStar,
         ),
         (
             "megacorp_interstellar_assembly_init_01",

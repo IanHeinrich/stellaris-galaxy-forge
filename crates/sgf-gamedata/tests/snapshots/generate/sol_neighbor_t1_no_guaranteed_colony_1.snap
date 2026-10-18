@@ -1,0 +1,17 @@
+---
+source: crates/sgf-gamedata/tests/generate_pinned.rs
+expression: out
+---
+NAME_Alpha_Centauri at -292.23404 -137.62265 sc_trinary_1 sol_neighbor_t1_no_guaranteed_colony star_name NAME_Alpha_Centauri_A
+pc_g_star 32 orbit 15 angle 170 deposits ["d_energy_2"] star
+  pc_k_star 27 orbit -20 angle 180 deposits ["d_energy_2"] star name NAME_Alpha_Centauri_B
+  pc_m_star 15 orbit 240 angle 310 deposits ["d_energy_4"] star name NAME_Proxima_Centauri
+    pc_barren_cold 20 orbit 35 angle 339.97 name NAME_Proxima_Centauri_b prevent_anomaly modifiers ["tidal_locked"]
+    pc_gas_giant 18 orbit 60 angle 139.9 deposits ["d_society_3"] name NAME_Proxima_Centauri_c
+  pc_molten 20 orbit 45 angle 224.64
+  pc_barren_cold 16 orbit 70 angle 150.48 deposits ["d_minerals_4"]
+  pc_barren_cold 16 orbit 100 angle 335.89
+  pc_frozen 24 orbit 125 angle 208.22
+  pc_barren 15 orbit 150 angle 231.96
+  pc_barren 16 orbit 175 angle 335.25 ring
+    pc_frozen 7 orbit 15 angle 195.75

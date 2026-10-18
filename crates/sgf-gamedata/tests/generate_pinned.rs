@@ -149,3 +149,29 @@ fn the_real_install_rolls_the_same_bodies_for_a_seed_as_before() {
         pinned(&format!("{layout}_{seed}"), &spec);
     }
 }
+
+/// Sol's trinary neighbour, Procyon, and the first seed of each random multi-star layout a
+/// class pick draws: each star in its class's order, a companion's planets and their moons
+/// under it.
+#[test]
+fn the_real_install_rolls_the_same_multi_star_systems_for_a_seed_as_before() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for layout in ["sol_neighbor_t1_no_guaranteed_colony", "sol_neighbor_t2"] {
+        let spec = by_name(gd, 1, "Gen", SPOT, layout).unwrap();
+        pinned(&format!("{layout}_1"), &spec);
+    }
+    for (layout, class) in [
+        ("binary_init_01", "sc_binary_7"),
+        ("binary_init_02", "sc_binary_7"),
+        ("trinary_init_01", "sc_trinary_1"),
+        ("trinary_init_02", "sc_trinary_1"),
+    ] {
+        let spec = (0..200)
+            .map(|seed| generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE).unwrap())
+            .find(|spec| spec.initializer == layout)
+            .expect(layout);
+        pinned(&format!("{layout}_{class}"), &spec);
+    }
+}

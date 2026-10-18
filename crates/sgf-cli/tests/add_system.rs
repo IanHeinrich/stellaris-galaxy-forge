@@ -235,6 +235,46 @@ fn add_system_generates_the_special_layout_asked_for() {
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }
 
+/// The summary lists a companion star's planets under it and their moons under them.
+#[test]
+fn add_system_prints_a_companions_planets_under_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("alpha.sav");
+    let out_str = out_path.to_str().unwrap();
+    let out = sgf(&[
+        "add-system",
+        SAMPLE_4_5,
+        "--seed",
+        "1",
+        "--at",
+        "-292.23404,-137.62265",
+        "--layout",
+        "sol_neighbor_t1_no_guaranteed_colony",
+        "--no-mods",
+        "-o",
+        out_str,
+    ]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains(" name NAME_Alpha_Centauri_A"), "{text}");
+    let lines: Vec<&str> = text.lines().collect();
+    let proxima = lines
+        .iter()
+        .position(|line| line.contains("name NAME_Proxima_Centauri (star)"))
+        .unwrap_or_else(|| panic!("{text}"));
+    assert!(
+        lines[proxima + 1]
+            .trim_start()
+            .starts_with("1    pc_barren_cold")
+            && lines[proxima + 1].contains("name NAME_Proxima_Centauri_b"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+}
+
 /// `--cluster` adds a Special menu cluster as the app does: its systems, the lanes between
 /// them and one from its home to each `--lane` as one edit, which leaves a save the validator
 /// passes.

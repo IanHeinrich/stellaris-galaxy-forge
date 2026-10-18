@@ -123,6 +123,9 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
         "legendary_leader_1st_site",
         "legendary_leader_2nd_site",
         "legendary_leader_3rd_site",
+        "sol_neighbor_t1_no_guaranteed_colony",
+        "sol_neighbor_t2",
+        "sol_neighbor_t2_no_guaranteed_colony",
     ];
     for member in cluster_only {
         assert!(
@@ -364,7 +367,11 @@ fn the_real_install_summarises_pulsar_black_hole_trappist_and_random() {
         [("terraforming_candidate", true)]
     );
     assert_eq!(trappist.max_instances, Some(1));
-    assert_eq!(random.star_classes.len(), 7);
+    assert_eq!(
+        random.star_classes.len(),
+        21,
+        "the standard stars, 10 binaries and 4 trinaries"
+    );
     assert_eq!(random.star_description, None);
     assert_eq!(random.rings, Presence::SomeLayouts);
     assert!(random.belt_kinds.iter().all(|kind| !kind.every));

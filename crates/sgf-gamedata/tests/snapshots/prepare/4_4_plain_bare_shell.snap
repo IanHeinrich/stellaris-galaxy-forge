@@ -6,7 +6,7 @@ Prepared 791 systems for a new game
 RenameSystem: 791
 SetHeaderKeys: 1
 SetHomeSystem: 29
-SetInitializer: 686
+SetInitializer: 676
 SetSpawnWeight: 34
 -marauder_empire_max = 2
 +marauder_empire_max = 3
@@ -37,11 +37,11 @@ SetSpawnWeight: 34
 -system = { id = "12" name = "Quiet_Dark" position = { x = -146.97 y = 134.84 } initializer = marauder_2_1 }
 +system = { id = "12" position = { x = -146.97 y = 134.84 } }
 -system = { id = "13" name = "Golovia" position = { x = -251.82 y = -333 } initializer = marauder_1_1 }
-+system = { id = "13" position = { x = -251.82 y = -333 } initializer = basic_init_02 }
++system = { id = "13" position = { x = -251.82 y = -333 } initializer = basic_init_03 }
 -system = { id = "14" name = "Samderaan" position = { x = 14.18 y = -306.8 } initializer = neighbor_t2 }
 +system = { id = "14" position = { x = 14.18 y = -306.8 } }
 -system = { id = "15" name = "VOIDWORM_SYSTEM_02" position = { x = -249.08 y = 249.36 } initializer = voidworms_spawn_system_medium }
-+system = { id = "15" position = { x = -249.08 y = 249.36 } initializer = basic_init_02 }
++system = { id = "15" position = { x = -249.08 y = 249.36 } initializer = basic_init_03 }
 -system = { id = "16" name = "Bas" position = { x = -103.3 y = 397.64 } initializer = shroudwalker_enclave_init_01 }
 +system = { id = "16" position = { x = -103.3 y = 397.64 } }
 -system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } initializer = salvager_enclave_init_01 }

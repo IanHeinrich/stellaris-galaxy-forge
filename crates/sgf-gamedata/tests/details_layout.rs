@@ -318,8 +318,8 @@ fn a_fixture_systems_bodies_step_and_turn_as_the_walk_drew_them() {
 }
 
 /// An example roll places every body the details list, by the same id, within its bounds and
-/// at whole-number distances where the initializer writes whole ones; the same system and roll
-/// give the same roll, and every walk turns from 180°.
+/// on the 0.02 grid the game draws distances on; the same system and roll give the same roll,
+/// and every walk turns from 180°.
 #[test]
 fn a_fixture_systems_example_roll_is_its_walk_drawn_once() {
     let gd = common::cached_fixture();
@@ -336,15 +336,12 @@ fn a_fixture_systems_example_roll_is_its_walk_drawn_once() {
         let layout = planet.layout.as_ref().expect("a layout");
         let (orbit, step) = (layout.orbit.unwrap(), layout.orbit_step.unwrap());
         let stepped = body.orbit - body.base;
+        let within = |n: f64, min: f64, max: f64| min - 1e-9 <= n && n <= max + 1e-9;
+        assert!(within(body.orbit, orbit.min, orbit.max), "{body:?}");
+        assert!(within(stepped, step.min, step.max), "{body:?}");
         assert!(
-            orbit.min <= body.orbit && body.orbit <= orbit.max,
-            "{body:?}"
-        );
-        assert!(step.min <= stepped && stepped <= step.max, "{body:?}");
-        assert_eq!(
-            body.orbit.fract(),
-            0.0,
-            "whole distances draw whole: {body:?}"
+            (body.orbit * 50.0 - (body.orbit * 50.0).round()).abs() < 1e-6,
+            "distances draw on the 0.02 grid: {body:?}"
         );
         assert!((0.0..360.0).contains(&body.angle) && (0.0..360.0).contains(&body.from));
         if let Some(turn) = layout.angle_step {

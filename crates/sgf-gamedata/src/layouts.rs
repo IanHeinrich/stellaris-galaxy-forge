@@ -19,8 +19,10 @@ use crate::generate::layout_structures;
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::layers::VANILLA;
 use crate::install::script::Range;
+use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::registries::star_classes::{StarClass, StarList};
+use crate::rolls::list_members;
 use crate::structure_spawns::SPAWN_MEGASTRUCTURE;
 
 /// The `usage` of the initializers a galaxy fills its ordinary systems with.
@@ -317,7 +319,14 @@ pub enum Unsupported {
     EventOnly,
     /// Its `class` names no star class or list.
     NoStar,
-    MultiStar,
+    /// A class it can give has fewer stars than it has `class = star` blocks.
+    StarCount {
+        blocks: usize,
+        stars: usize,
+    },
+    /// A body numbers what orbits it by this `satellite_naming_policy`, which the add does
+    /// not write.
+    Naming(String),
     /// Its star is written as this planet class, which none of its star classes has.
     StarMismatch(String),
     /// Flagged `guardian`: events find it to spawn or wake its guardian.
@@ -347,7 +356,13 @@ impl fmt::Display for Unsupported {
             Self::Usage => write!(f, "its usage is not {USAGE}"),
             Self::EventOnly => write!(f, "only an event places it"),
             Self::NoStar => write!(f, "it names no star class"),
-            Self::MultiStar => write!(f, "it has more than one star"),
+            Self::StarCount { blocks, stars } => {
+                write!(
+                    f,
+                    "it places {blocks} stars where its star class has {stars}"
+                )
+            }
+            Self::Naming(policy) => write!(f, "it numbers a body's satellites by {policy}"),
             Self::StarMismatch(class) => {
                 write!(f, "its star is a {class}, which its star class is not")
             }
@@ -523,26 +538,60 @@ pub fn ordinary(init: &Initializer) -> bool {
         && init.starbase.is_none()
 }
 
-/// An [`ordinary`] system of one star, drawn from a star list, with no special bodies:
-/// one the generator builds. Its belts and fixed asteroids are kept.
+/// An [`ordinary`] system drawn from a star list, its stars the `class = star` blocks, with
+/// no special bodies: one the generator builds. A star may stand off the centre and have
+/// planets of its own. Its belts and fixed asteroids are kept.
 fn plain(gd: &GameData, init: &Initializer) -> bool {
-    let Some((star, rest)) = init.planets.split_first() else {
+    let Some(first) = init.planets.first() else {
         return false;
     };
     ordinary(init)
         && init.asteroid_belts.iter().all(belt_measured)
-        && single_star_list(gd, init)
-        && star.class == BodyClass::Star
-        && star.count == Range::fixed(1.0)
-        && star.orbit_distance.is_none_or(|d| d == Range::fixed(0.0))
-        && rest.iter().all(|planet| {
-            plain_body(gd, planet, true)
-                && (planet.moons.is_empty() || !asteroid(gd, &planet.class))
-                && planet
-                    .moons
-                    .iter()
-                    .all(|moon| plain_body(gd, moon, false) && moon.moons.is_empty())
+        && star_list(gd, init, star_blocks(init))
+        && first.class == BodyClass::Star
+        && unnamed_policy(&init.planets).is_none()
+        && init.planets.iter().all(|block| match block.class {
+            BodyClass::Star => {
+                block.count == Range::fixed(1.0)
+                    && block.moons.iter().all(|planet| plain_planet(gd, planet))
+            }
+            _ => plain_planet(gd, block),
         })
+}
+
+/// A plain body about the centre or a star, with plain moons.
+fn plain_planet(gd: &GameData, planet: &InitPlanet) -> bool {
+    plain_body(gd, planet, true)
+        && (planet.moons.is_empty() || !asteroid(gd, &planet.class))
+        && planet
+            .moons
+            .iter()
+            .all(|moon| plain_body(gd, moon, false) && moon.moons.is_empty())
+}
+
+/// How many of `init`'s own blocks are written `class = star`.
+fn star_blocks(init: &Initializer) -> usize {
+    init.planets
+        .iter()
+        .filter(|p| p.class == BodyClass::Star)
+        .count()
+}
+
+/// The `satellite_naming_policy` values the game's saves show: a star's planets in roman
+/// numerals and a planet's moons in letters, as the add writes them.
+const NAMING_POLICIES: [&str; 2] = ["upper_case_roman_numerals", "lower_case_latin_letters"];
+
+/// The first `satellite_naming_policy` of `blocks` or what they hold that is not one of
+/// [`NAMING_POLICIES`].
+fn unnamed_policy(blocks: &[InitPlanet]) -> Option<String> {
+    blocks.iter().find_map(|block| {
+        block
+            .stated
+            .satellite_naming
+            .clone()
+            .filter(|policy| !NAMING_POLICIES.contains(&policy.as_str()))
+            .or_else(|| unnamed_policy(&block.moons))
+    })
 }
 
 pub(crate) fn belt_measured(belt: &InitAsteroidBelt) -> bool {
@@ -556,27 +605,29 @@ fn asteroid(gd: &GameData, class: &BodyClass) -> bool {
         .is_some_and(|c| c.asteroid)
 }
 
-/// A star list whose every class has one star body.
-fn single_star_list(gd: &GameData, init: &Initializer) -> bool {
+/// A star list whose every class has `stars` star bodies, one for each `class = star` block.
+fn star_list(gd: &GameData, init: &Initializer, stars: usize) -> bool {
     let StarSource::List(list) = star_source(gd, init) else {
         return false;
     };
     list.stars.iter().all(|key| {
         gd.star_classes
             .get(key)
-            .is_some_and(|class| class.planets.len() == 1)
+            .is_some_and(|class| class.planets.len() == stars)
     })
 }
 
-/// A random body, or one of a fixed class that is no star; an asteroid only when
-/// `asteroids` allows it.
+/// A random body, or one of a fixed class or a planet list whose classes are no star; an
+/// asteroid only when `asteroids` allows it.
 fn plain_body(gd: &GameData, body: &InitPlanet, asteroids: bool) -> bool {
+    let fits = |class: &PlanetClassDef| !class.star && (asteroids || !class.asteroid);
     let class = match &body.class {
         BodyClass::Random(None) => true,
-        BodyClass::Named(key) => gd
-            .planet_classes
-            .get(key)
-            .is_some_and(|class| !class.star && (asteroids || !class.asteroid)),
+        BodyClass::Named(key) => match gd.planet_classes.get(key) {
+            Some(class) => fits(class),
+            None => list_members(gd, key, !asteroids)
+                .is_some_and(|listed| !listed.is_empty() && listed.into_iter().all(fits)),
+        },
         _ => false,
     };
     class && !body.colonised && !body.pre_ftl && body.sites.is_empty()
@@ -603,6 +654,9 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     }
     if let Some(why) = star_unsupported(gd, init) {
         return Some(why);
+    }
+    if let Some(policy) = unnamed_policy(&init.planets) {
+        return Some(Unsupported::Naming(policy));
     }
     if init.flags.iter().any(|flag| flag == "guardian") {
         return Some(Unsupported::Guardian);
@@ -680,26 +734,24 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
         StarSource::List(list) => list.stars.iter().map(String::as_str).collect(),
         StarSource::Unknown => return Some(Unsupported::NoStar),
     };
-    let mut counts = stars
+    let counts: Vec<Option<usize>> = stars
         .iter()
-        .map(|star| gd.star_classes.get(star).map(|c| c.planets.len()));
-    if counts.clone().any(|count| count.is_none_or(|n| n == 0)) {
+        .map(|star| gd.star_classes.get(star).map(|c| c.planets.len()))
+        .collect();
+    if counts.iter().any(|count| count.is_none_or(|n| n == 0)) {
         return Some(Unsupported::NoStar);
     }
-    if counts.any(|count| count != Some(1)) {
-        return Some(Unsupported::MultiStar);
+    let blocks = star_blocks(init);
+    let fewest = counts.into_iter().flatten().min().unwrap_or(0);
+    if fewest < blocks {
+        return Some(Unsupported::StarCount {
+            blocks,
+            stars: fewest,
+        });
     }
-    let star_blocks = init
-        .planets
-        .iter()
-        .filter(|p| p.class == BodyClass::Star)
-        .count();
     let Some(star) = init.planets.iter().find(|p| star_body(gd, &p.class)) else {
         return Some(Unsupported::NoStar);
     };
-    if star_blocks > 1 {
-        return Some(Unsupported::MultiStar);
-    }
     match layout_stars(gd, init).is_empty() {
         true => Some(Unsupported::StarMismatch(star.class.written().to_owned())),
         false => None,
@@ -709,9 +761,12 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
 /// The star classes `init` can give a system: its fixed class, or those of its list. A
 /// star written as a planet class (`class = pc_m_giant_star`) keeps only the classes whose
 /// star is that class, and when the layout names none, takes the install's that are:
-/// `oasis_system` writes `sc_m` with a red giant, and so gives `sc_m_giant`.
+/// `oasis_system` writes `sc_m` with a red giant, and so gives `sc_m_giant`. A fixed class of
+/// several stars is kept as written, as the game keeps Procyon's `sc_binary_8` (G and F) with
+/// its two F stars.
 pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g StarClass> {
     let stars: Vec<&StarClass> = match star_source(gd, init) {
+        StarSource::Fixed(fixed) if fixed.planets.len() > 1 => return vec![fixed],
         StarSource::Fixed(fixed) => vec![fixed],
         StarSource::List(list) => list
             .stars
@@ -758,7 +813,8 @@ pub(crate) fn star_source<'g>(gd: &'g GameData, init: &Initializer) -> StarSourc
 
 /// `home_planet = yes` alone makes no colony of a body in an unowned system; the effects
 /// that would are caught with the rest of the script. A converted layout's colonies and
-/// pre-FTL civilisations are left out.
+/// pre-FTL civilisations are left out. What a star holds are its planets, which may have
+/// moons.
 fn body_unsupported(
     gd: &GameData,
     body: &InitPlanet,
@@ -778,9 +834,10 @@ fn body_unsupported(
     if !body.moons.is_empty() && (moon || asteroid(gd, &body.class)) {
         return Some(Unsupported::Moons);
     }
+    let star = !moon && star_body(gd, &body.class);
     body.moons
         .iter()
-        .find_map(|moon| body_unsupported(gd, moon, true, dropping))
+        .find_map(|child| body_unsupported(gd, child, !star, dropping))
 }
 
 /// A class the generator can give a body: the star, a class of the install, one of the

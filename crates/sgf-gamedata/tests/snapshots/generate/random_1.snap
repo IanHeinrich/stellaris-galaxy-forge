@@ -2,16 +2,11 @@
 source: crates/sgf-gamedata/tests/generate.rs
 expression: out
 ---
-Gen at -292.23404 -137.62265 sc_m basic_init_02
-belt rocky_asteroid_belt 95
+Gen at -292.23404 -137.62265 sc_m basic_init_03
 pc_m_star 27 orbit 0 angle 181 deposits ["d_energy_2"] star
-  pc_molten 22 orbit 50 angle 350.97
-  pc_barren_cold 27 orbit 70 angle 175.12
-  pc_asteroid 5 orbit 95 angle 14.1 deposits ["d_trade_value_2"] asteroid
-  pc_asteroid 5 orbit 95 angle 185.98 deposits ["d_trade_value_2"] asteroid
-  pc_barren 21 orbit 120 angle 354.46
-    pc_frozen 7 orbit 15 angle 32.71
-  pc_barren_cold 19 orbit 145 angle 99.11
-    pc_barren_cold 7 orbit 15 angle 278.62
-  pc_gas_giant 21 orbit 170 angle 196.99 deposits ["d_society_2"]
-  pc_barren_cold 30 orbit 195 angle 358.48
+  pc_molten 20 orbit 55 angle 48.32
+  pc_gas_giant 25 orbit 115 angle 281.24
+    pc_barren 19 orbit 16 angle 18.98
+    pc_barren 10 orbit 22 angle 187.45
+  pc_gas_giant 21 orbit 155 angle 133.95
+  pc_barren_cold 19 orbit 175 angle 238.6 deposits ["d_minerals_4"]
