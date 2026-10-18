@@ -117,6 +117,9 @@ pub struct Cluster {
     /// What a sentence calls it: `the Junk Ratlings`.
     pub phrase: &'static str,
     pub home: &'static str,
+    /// What the menu calls the home offered alone, in place of the label it builds; `None`
+    /// keeps that label.
+    pub home_label: Option<&'static str>,
     /// The other layouts, each placed after the one its lane leads from.
     pub members: &'static [&'static str],
     pub lanes: ClusterLanes,
@@ -213,6 +216,7 @@ pub const CLUSTERS: [Cluster; 3] = [
         label: "Junk Ratlings",
         phrase: "the Junk Ratlings",
         home: "ratling_1_1",
+        home_label: Some("Junk Ratlings home"),
         members: &["ratling_1_2", "ratling_1_3"],
         // distar.295 joins the home to each partner when the game starts.
         lanes: ClusterLanes::Star,
@@ -222,6 +226,8 @@ pub const CLUSTERS: [Cluster; 3] = [
         label: "Legendary Leader",
         phrase: "the Legendary Leader's sites",
         home: "legendary_leader_start_site",
+        // Its fixed name, Dugar, tells a player nothing of the Legendary Leader.
+        home_label: Some("Legendary Leader crash site"),
         members: &[
             "legendary_leader_1st_site",
             "legendary_leader_2nd_site",
@@ -234,6 +240,7 @@ pub const CLUSTERS: [Cluster; 3] = [
         label: "Sol and Its Neighbours",
         phrase: "Sol and its neighbours",
         home: "sol_system_initializer",
+        home_label: None,
         members: &[
             "sol_neighbor_t1",
             "sol_neighbor_t1_no_guaranteed_colony",

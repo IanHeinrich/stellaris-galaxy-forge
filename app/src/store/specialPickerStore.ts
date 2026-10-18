@@ -74,6 +74,13 @@ export const useSpecialPickerStore = create<SpecialPickerState>((set, get) => {
   const rolls = latest();
   const entryNow = (key: string | null) => entryOf(get().entries, key);
 
+  /** The highlighted row, while the list shows it under the search and the group. */
+  function shownNow(): SpecialEntry | null {
+    const { entries, pinned, recent, group, query, highlighted } = get();
+    const tree = specialTree(entries ?? NO_ENTRIES, pinned, recent);
+    return entryOf(visibleSpecials(tree, group, query), highlighted);
+  }
+
   /** Reads the rows the open document offers, then rolls a cluster left highlighted. */
   async function readEntries() {
     const token = reads.next();
@@ -169,7 +176,7 @@ export const useSpecialPickerStore = create<SpecialPickerState>((set, get) => {
 
     async place() {
       const { at, highlighted, extras, join, seed, roll } = get();
-      const entry = entryNow(highlighted);
+      const entry = shownNow();
       if (at === null || highlighted === null || entry === null) return false;
       const editor = useEditorStore.getState();
       let added: boolean;
@@ -217,12 +224,8 @@ export function useVisibleSpecials(tree: readonly PickedGroup<SpecialEntry>[]): 
   return useMemo(() => visibleSpecials(tree, group, query), [tree, group, query]);
 }
 
-/** The detail pane's row, or null while nothing the save offers is highlighted. */
-export function useHighlightedSpecial(): SpecialEntry | null {
-  const entries = useSpecialEntries();
+/** The detail pane's row among those the list shows, or null while none of them is highlighted. */
+export function useHighlightedSpecial(visible: readonly SpecialEntry[]): SpecialEntry | null {
   const highlighted = useSpecialPickerStore((s) => s.highlighted);
-  return useMemo(
-    () => entries.find((e) => specialKey(e) === highlighted) ?? null,
-    [entries, highlighted],
-  );
+  return useMemo(() => entryOf(visible, highlighted), [visible, highlighted]);
 }

@@ -244,7 +244,7 @@ function Browsing({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
   const visible = useVisibleSpecials(tree);
   const byKey = useMemo(() => new Map(visible.map((p) => [specialKey(p), p])), [visible]);
   const keys = useMemo(() => visible.map(specialKey), [visible]);
-  const entry = useHighlightedSpecial();
+  const entry = useHighlightedSpecial(visible);
   const cluster = entry?.kind === "cluster" ? entry.pick.cluster : null;
   const preview = useSpecialPreview(entry, roll, at, refusal?.reason ?? null);
   const systems = useGalaxyStore((s) => s.systems);
@@ -295,9 +295,11 @@ function Browsing({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
       foot={
         <>
           <span className="sp-summary">
-            {cluster
-              ? `${cluster.layouts.length} new systems around ${spot}`
-              : `New system at ${spot}`}
+            {entry === null
+              ? ""
+              : cluster
+                ? `${cluster.layouts.length} new systems around ${spot}`
+                : `New system at ${spot}`}
           </span>
           <span className="muted sp-hints">
             Up/Down move · Enter place · Ctrl+D pin · Esc close

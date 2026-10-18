@@ -171,6 +171,7 @@ describe("the Special picker", () => {
 
   it("opens beside the right-clicked point with no scrim", async () => {
     await openPicker({ x: -50, y: -20 }, { x: 400, y: 300 });
+    picker().highlight(METAL.layout.key);
     const html = render();
     expect(html).toMatch(/role="dialog" aria-modal="true" aria-label="Add a special system"/);
     expect(html).not.toContain("browse-scrim");
@@ -218,6 +219,20 @@ describe("the Special picker", () => {
     expect(rowKeys(render())).toEqual(["wooden"]);
     picker().setQuery("nothing like it");
     expect(render()).toContain("Nothing matches that search.");
+  });
+
+  it("shows and places nothing while the search leaves no row", async () => {
+    await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
+    picker().highlight(METAL.layout.key);
+    picker().setQuery("nothing like it");
+    const html = render();
+    expect(html).toContain("Nothing highlighted.");
+    expect(html).not.toContain("New system at");
+    expect(drawnButton("Place").disabled).toBe(true);
+
+    press("Enter");
+    expect(await picker().place()).toBe(false);
+    expect(mockedIpc.addSpecialSystem).not.toHaveBeenCalled();
   });
 
   it("marks a layout already in the galaxy, a DLC the save has and one it lacks", async () => {

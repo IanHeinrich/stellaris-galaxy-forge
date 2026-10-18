@@ -231,6 +231,16 @@ fn label_parts(gd: &GameData, init: &Initializer) -> LabelParts {
             belts.push(name);
         }
     }
+    let home_label = CLUSTERS
+        .iter()
+        .find(|cluster| cluster.home == init.name)
+        .and_then(|cluster| cluster.home_label);
+    if let Some(label) = home_label {
+        return LabelParts {
+            main: vec![label.to_owned()],
+            belts,
+        };
+    }
     // The layout's fixed name, whether written for the Special menu or as `name = …`, with
     // the readable fallback each takes when the install has no localisation for it.
     let fixed = converted(init)

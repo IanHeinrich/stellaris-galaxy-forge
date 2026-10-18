@@ -109,7 +109,8 @@ fn every_system_of_a_cluster_is_in_its_homes_chain() {
 }
 
 /// The Ratlings and the Legendary Leader's sites are offered; Sol's binary and trinary
-/// neighbours keep its cluster out. Each home is offered alone too, its card naming the
+/// neighbours keep its cluster out. Each home is offered alone too, under the label its
+/// cluster's entry gives it, its card naming the
 /// systems it comes without when its cluster is offered, and the members no galaxy places
 /// alone are offered only through their cluster.
 #[test]
@@ -133,12 +134,24 @@ fn a_cluster_is_offered_once_every_system_of_it_can_be_built() {
         .into_iter()
         .map(|layout| layout.key)
         .collect();
-    for (home, heads_offered) in [
-        ("ratling_1_1", true),
-        ("legendary_leader_start_site", true),
-        ("sol_system_initializer", false),
+    let labels: Vec<(String, String)> = special_layouts(gd, &session)
+        .into_iter()
+        .map(|layout| (layout.key, layout.label))
+        .collect();
+    for (home, heads_offered, label) in [
+        ("ratling_1_1", true, "Junk Ratlings home"),
+        (
+            "legendary_leader_start_site",
+            true,
+            "Legendary Leader crash site",
+        ),
+        ("sol_system_initializer", false, "Sol"),
     ] {
         assert!(keys.contains(home), "{home} is not offered alone");
+        assert!(
+            labels.contains(&(home.to_owned(), label.to_owned())),
+            "{home} is listed as {label}"
+        );
         let card = layout_summary(gd, home, &session).expect(home);
         assert_eq!(
             card.comes_without.contains(&LeftOut::ClusterSystems),
