@@ -26,7 +26,7 @@ use crate::format::save::ring_world::RingWorldTypes;
 use crate::format::{self, Format};
 pub use crate::ops::Created;
 use crate::ops::history::History;
-use crate::ops::{Op, Subject, SystemRadii};
+use crate::ops::{Op, OpError, Subject, SystemRadii};
 use crate::projections::galaxy::{
     BypassLink, GalaxyGraph, ProjectionError, StarClasses, SystemNode, Wayline,
 };
@@ -128,6 +128,12 @@ impl Session {
     /// The document's own name: the empire's, or the scenario's `name`.
     pub fn title(&self) -> String {
         self.format().title(&self.doc)
+    }
+
+    /// The id the next system added to the document takes, by its format's rule: the one
+    /// `AddSystemFromSpec` or `AddSystem` with no id gives it.
+    pub fn next_system_id(&self) -> Result<u32, OpError> {
+        self.format().next_system(&self.doc, &self.graph)
     }
 
     pub(crate) fn format(&self) -> &'static dyn Format {

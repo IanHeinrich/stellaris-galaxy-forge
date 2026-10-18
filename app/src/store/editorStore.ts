@@ -12,6 +12,7 @@ import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PrepareOptions } from "../generated/PrepareOptions";
 import type { RingStage } from "../generated/RingStage";
 import type { RowChoice } from "../generated/RowChoice";
+import type { NewSystems } from "../lib/specialPicks";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import type { HeightsOver } from "../lib/brush/heightBrush";
@@ -205,13 +206,21 @@ export interface EditorState {
    */
   addRandomSystemAt(x: number, y: number, starClass?: string | null): Promise<boolean>;
   /**
-   * Builds a system of the special layout `layout` at a world point of the open save in one edit,
-   * with its anomalies and dig sites when `extras`, and selects it, as `addRandomSystemAt` does.
+   * Builds a system of the special layout `layout` at a world point of the open document in one
+   * edit, with its anomalies and dig sites when `extras`, joined to the systems near it when
+   * `join`, and selects it, as `addRandomSystemAt` does.
    */
-  addSpecialSystemAt(x: number, y: number, layout: string, extras: boolean): Promise<boolean>;
+  addSpecialSystemAt(
+    x: number,
+    y: number,
+    layout: string,
+    extras: boolean,
+    join: boolean,
+  ): Promise<boolean>;
   /**
-   * Adds the Special menu's cluster `cluster` with its home at a world point of the open save, as
-   * rolled from `seed`, in one edit, and selects its home, as `addSpecialSystemAt` does.
+   * Adds the Special menu's cluster `cluster` with its home at a world point of the open document,
+   * as rolled from `seed`, in one edit, and selects its home, as `addSpecialSystemAt` does. With
+   * `join`, the cluster as rolled, its systems are joined to the systems near them.
    */
   addSpecialClusterAt(
     seed: number,
@@ -219,6 +228,7 @@ export interface EditorState {
     y: number,
     cluster: string,
     extras: boolean,
+    join: NewSystems | null,
   ): Promise<boolean>;
   /**
    * Rolls a body into system `system` of the open save in one edit, at `at` about what it orbits:

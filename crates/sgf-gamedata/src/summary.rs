@@ -12,13 +12,11 @@ use crate::generate::{GenerateError, layout_structures, layouts_for, star_classe
 use crate::initializers::{BodyClass, InitPlanet, Initializer};
 use crate::install::script::{Range, whole};
 use crate::layouts::{
-    Cluster, DlcNeed, SaveFacts, cluster_home, layout_stars, notable, plain_initializers,
-    special_initializers, star_body,
+    CLUSTERS, ClusterPlan, DlcNeed, SaveFacts, layout_stars, notable, plain_initializers,
+    runs_scripts, special_initializers, star_body,
 };
 use crate::loc::localisation::Localisation;
-use crate::menu::{
-    SpecialCluster, SpecialLayout, menu_clusters, special_clusters, special_layouts,
-};
+use crate::menu::{SpecialCluster, SpecialLayout, cluster_row, document_clusters, special_layouts};
 
 /// The smallest and largest number a pick can give.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -189,12 +187,11 @@ pub fn special_picks(gd: &GameData, session: &Session) -> Vec<SpecialPick> {
 /// The Special menu's clusters for `session`'s document, each with its card.
 pub fn cluster_picks(gd: &GameData, session: &Session) -> Vec<ClusterPick> {
     let save = SaveFacts::read(session);
-    menu_clusters(gd)
-        .into_iter()
-        .zip(special_clusters(gd, session))
-        .map(|(cluster, row)| ClusterPick {
-            summary: cluster_summary(gd, cluster, &save, session),
-            cluster: row,
+    document_clusters(gd, session)
+        .iter()
+        .map(|(cluster, plan)| ClusterPick {
+            summary: cluster_summary(gd, plan, &save, session),
+            cluster: cluster_row(gd, &save, cluster, plan),
         })
         .collect()
 }
@@ -224,22 +221,27 @@ fn special_summary(
     session: &Session,
 ) -> PickSummary {
     let mut summary = layouts_summary(gd, init, &[init], save, session);
-    if cluster_home(init) {
+    let runs = runs_scripts(session);
+    let heads_more = CLUSTERS
+        .iter()
+        .any(|cluster| cluster.home == init.name && cluster.plan(gd, runs).layouts.len() > 1);
+    if heads_more {
         summary.comes_without.push(LeftOut::ClusterSystems);
     }
     summary
 }
 
-/// The card for `cluster`: what its systems give, merged, and what each comes with and
-/// without, together.
+/// The card for a cluster whose add writes `plan`: what its systems give, merged, and what
+/// each comes with and without, together.
 fn cluster_summary(
     gd: &GameData,
-    cluster: &Cluster,
+    plan: &ClusterPlan,
     save: &SaveFacts,
     session: &Session,
 ) -> PickSummary {
-    let layouts: Vec<&Initializer> = cluster
-        .layouts()
+    let layouts: Vec<&Initializer> = plan
+        .layouts
+        .iter()
         .filter_map(|layout| gd.initializers.get(layout))
         .collect();
     match layouts.first() {

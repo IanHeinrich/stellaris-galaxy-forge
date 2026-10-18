@@ -6,6 +6,7 @@ import type { Pt } from "../lib/geometry/pt";
 import { newSeed } from "../lib/random";
 import {
   clusterRefusal,
+  rolledSystems,
   specialEntries,
   specialKey,
   specialTree,
@@ -31,6 +32,8 @@ export interface SpecialPickerState extends BrowseState {
   entries: SpecialEntry[] | null;
   /** Whether the layout comes with its anomalies, dig sites and megastructures; remembered. */
   extras: boolean;
+  /** Whether what is added is joined to the systems near it by lanes; remembered. */
+  join: boolean;
   /** What a cluster's places are rolled from: a new one each time the picker opens, and on Shuffle. */
   seed: number;
   /** The highlighted cluster rolled at the point from `seed`; null while no cluster is highlighted. */
@@ -40,6 +43,7 @@ export interface SpecialPickerState extends BrowseState {
   openAt(at: Pt, anchor: Pt): void;
   close(): void;
   setExtras(extras: boolean): void;
+  setJoin(join: boolean): void;
   /** Rolls the highlighted cluster's places again from a new seed. */
   shuffle(): void;
   /**
@@ -50,6 +54,7 @@ export interface SpecialPickerState extends BrowseState {
 }
 
 const EXTRAS = prefField(PREF_KEYS.specialExtras, true, isBoolean);
+const JOIN = prefField(PREF_KEYS.specialJoin, true, isBoolean);
 const NO_ENTRIES: SpecialEntry[] = [];
 
 /** The row `key` names among `entries`, or null. */
@@ -111,6 +116,7 @@ export const useSpecialPickerStore = create<SpecialPickerState>((set, get) => {
     anchor: null,
     entries: null,
     extras: EXTRAS.read(),
+    join: JOIN.read(),
     seed: 0,
     roll: null,
 
@@ -137,29 +143,35 @@ export const useSpecialPickerStore = create<SpecialPickerState>((set, get) => {
       EXTRAS.save(extras);
     },
 
+    setJoin(join) {
+      set({ join });
+      JOIN.save(join);
+    },
+
     shuffle() {
       set({ seed: newSeed() });
       void rollCluster();
     },
 
     async place() {
-      const { at, highlighted, extras, seed, roll } = get();
+      const { at, highlighted, extras, join, seed, roll } = get();
       const entry = entryNow(highlighted);
       if (at === null || highlighted === null || entry === null) return false;
       const editor = useEditorStore.getState();
       let added: boolean;
       switch (entry.kind) {
         case "layout":
-          added = await editor.addSpecialSystemAt(at.x, at.y, entry.pick.layout.key, extras);
+          added = await editor.addSpecialSystemAt(at.x, at.y, entry.pick.layout.key, extras, join);
           break;
         case "cluster":
-          if (roll === null || clusterRefusal(roll) !== null) return false;
+          if (roll?.kind !== "rolled" || clusterRefusal(roll) !== null) return false;
           added = await editor.addSpecialClusterAt(
             seed,
             at.x,
             at.y,
             entry.pick.cluster.key,
             extras,
+            join ? rolledSystems(roll.roll) : null,
           );
           break;
       }

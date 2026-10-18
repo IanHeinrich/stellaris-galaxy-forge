@@ -235,8 +235,9 @@ fn add_system_generates_the_special_layout_asked_for() {
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }
 
-/// `--cluster` adds a Special menu cluster as the app does: its systems and the lanes between
-/// them as one edit, which leaves a save the validator passes.
+/// `--cluster` adds a Special menu cluster as the app does: its systems, the lanes between
+/// them and one from its home to each `--lane` as one edit, which leaves a save the validator
+/// passes.
 #[test]
 fn add_system_cluster_adds_its_systems_and_lanes() {
     let dir = tempfile::tempdir().unwrap();
@@ -251,6 +252,8 @@ fn add_system_cluster_adds_its_systems_and_lanes() {
         "-292.23404,-137.62265",
         "--cluster",
         "junk_ratlings",
+        "--lane",
+        "169",
         "--no-mods",
         "-o",
         out_str,
@@ -261,7 +264,7 @@ fn add_system_cluster_adds_its_systems_and_lanes() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Added the Junk Ratlings: 3 systems and 2 lanes"),
+        text.contains("Added the Junk Ratlings: 3 systems and 3 lanes"),
         "{text}"
     );
     for layout in ["ratling_1_1, capped", "ratling_1_2", "ratling_1_3"] {

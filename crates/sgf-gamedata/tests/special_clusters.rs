@@ -9,11 +9,11 @@ use crate::common;
 use std::collections::BTreeSet;
 
 use sgf_core::document::Document;
-use sgf_core::ops::Op;
+use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::body_effects::LeftOut;
-use sgf_gamedata::generate::{ClusterRoll, cluster_op, roll_cluster};
+use sgf_gamedata::generate::{ClusterRoll, ForSaveError, cluster_op, roll_cluster};
 use sgf_gamedata::layouts::{CLUSTERS, Eligibility, Unsupported, eligibility};
 use sgf_gamedata::menu::{menu_clusters, special_layouts};
 use sgf_gamedata::summary::{cluster_picks, layout_summary};
@@ -25,6 +25,7 @@ const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.4-early.scenario.txt"
 );
+const SAMPLE_3_4: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
 const RATLINGS: &str = "junk_ratlings";
 const LEADER: &str = "legendary_leader";
 
@@ -188,7 +189,7 @@ fn the_junk_ratlings_go_in_as_one_step_with_their_lanes_pictures_flags_and_targe
         return;
     };
     let mut session = without_ratling_targets();
-    let op = cluster_op(gd, &session, 3, SPOT, RATLINGS, true).expect("the op");
+    let op = cluster_op(gd, &session, 3, SPOT, RATLINGS, true, &[]).expect("the op");
     let ops = names(&op);
     assert_eq!(ops.iter().filter(|n| **n == "AddSystemFromSpec").count(), 3);
     assert_eq!(ops.iter().filter(|n| **n == "AddEventTarget").count(), 6);
@@ -223,7 +224,7 @@ fn a_cluster_whose_targets_the_save_holds_leaves_them_and_its_card_says_so() {
         return;
     };
     let session = open_4_5();
-    let op = cluster_op(gd, &session, 3, SPOT, RATLINGS, true).expect("the op");
+    let op = cluster_op(gd, &session, 3, SPOT, RATLINGS, true, &[]).expect("the op");
     assert!(!names(&op).contains(&"AddEventTarget"));
     let card = |session: &Session| {
         cluster_picks(gd, session)
@@ -260,7 +261,7 @@ fn the_legendary_leaders_sites_go_in_as_one_step() {
         return;
     };
     let mut session = open_4_5();
-    let op = cluster_op(gd, &session, 5, SPOT, LEADER, true).expect("the op");
+    let op = cluster_op(gd, &session, 5, SPOT, LEADER, true, &[]).expect("the op");
     let Op::Batch { description, .. } = &op else {
         unreachable!()
     };
@@ -278,25 +279,138 @@ fn the_legendary_leaders_sites_go_in_as_one_step() {
     }
 }
 
+/// A scenario's systems run their own script: the Ratlings' partners come from
+/// `neighbor_system`, which places nothing in a static galaxy, so the add writes all three; the
+/// Legendary Leader's start site creates its sites with `spawn_system`, so its cluster comes to
+/// its home alone and is not offered, and the start site's card names no systems it comes
+/// without.
 #[test]
-fn a_scenario_takes_a_cluster_as_a_statement_per_system_and_its_lanes() {
+fn a_scenario_takes_a_cluster_as_statements_less_what_its_home_creates() {
     let Some(gd) = install() else {
         return;
     };
     let mut session = open_scenario();
-    let before = session.graph().systems.len();
-    let op = cluster_op(gd, &session, 3, (0.0, 0.0), LEADER, true).expect("the op");
+    let offered: Vec<String> = cluster_picks(gd, &session)
+        .into_iter()
+        .map(|pick| pick.cluster.key)
+        .collect();
+    assert_eq!(offered, [RATLINGS]);
+    assert!(matches!(
+        roll_cluster(gd, &session, 3, (0.0, 0.0), LEADER),
+        Err(ForSaveError::UnknownCluster(_))
+    ));
+    let site = layout_summary(gd, "legendary_leader_start_site", &session).expect("its card");
+    assert!(!site.comes_without.contains(&LeftOut::ClusterSystems));
+    let ratlings = layout_summary(gd, "ratling_1_1", &session).expect("its card");
+    assert!(ratlings.comes_without.contains(&LeftOut::ClusterSystems));
+
+    let held: Vec<u32> = session.graph().systems.keys().copied().collect();
+    let op = cluster_op(gd, &session, 3, (0.0, 0.0), RATLINGS, true, &[]).expect("the op");
     assert_eq!(names(&op), ["AddSystems", "AddLanePairs"]);
     session.apply(op).expect("the add");
-    let graph = session.graph();
-    assert_eq!(graph.systems.len(), before + 4);
-    let added: BTreeSet<&str> = graph
+    let mut written: Vec<&str> = session
+        .graph()
         .systems
         .values()
+        .filter(|s| !held.contains(&s.id))
         .map(|s| s.initializer.as_str())
-        .filter(|init| init.starts_with("legendary_leader"))
         .collect();
-    assert_eq!(added.len(), 4, "{added:?}");
+    written.sort_unstable();
+    assert_eq!(written, ["ratling_1_1", "ratling_1_2", "ratling_1_3"]);
     session.undo().expect("undo").expect("the add");
     assert_eq!(current(&session), session.doc().original(), "undo");
+}
+
+/// Joins lay lanes from the cluster's systems to those the save holds, counted in the undo
+/// text; a join naming no system refuses the add, and so does a place too near a system.
+/// The roll says why it refuses that place.
+#[test]
+fn a_cluster_add_refuses_with_nothing_applied() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let session = open_4_5();
+    let op =
+        cluster_op(gd, &session, 3, SPOT, RATLINGS, true, &[(0, 169), (2, 169)]).expect("the op");
+    let Op::Batch { description, .. } = &op else {
+        unreachable!()
+    };
+    assert_eq!(
+        description,
+        "Added the Junk Ratlings: 3 systems and 4 lanes"
+    );
+
+    for joins in [[(0, 4_000_000)], [(3, 169)]] {
+        let refused = cluster_op(gd, &session, 3, SPOT, RATLINGS, true, &joins);
+        assert!(
+            matches!(
+                refused,
+                Err(ForSaveError::Refused(OpError::UnknownSystem(_)))
+            ),
+            "{joins:?}: {refused:?}"
+        );
+    }
+    let held = &session.graph().systems[&169];
+    let on_it = (held.x, held.y);
+    let refused = match cluster_op(gd, &session, 3, on_it, RATLINGS, true, &[]) {
+        Err(ForSaveError::Refused(refused @ OpError::TooClose { .. })) => refused,
+        other => panic!("{other:?}"),
+    };
+    let roll = roll_cluster(gd, &session, 3, on_it, RATLINGS)
+        .expect("the roll")
+        .view(gd);
+    assert_eq!(roll.members[0].refused, Some(refused.to_string()));
+    for key in ["nope", "sol_neighbours"] {
+        assert!(matches!(
+            cluster_op(gd, &session, 3, SPOT, key, true, &[]),
+            Err(ForSaveError::UnknownCluster(_))
+        ));
+    }
+    assert_eq!(
+        current(&session),
+        session.doc().original(),
+        "nothing applied"
+    );
+}
+
+/// A save before Stellaris 4.0 takes no added system, and a cluster's add says so.
+#[test]
+fn a_save_before_4_0_takes_no_cluster() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let doc = Document::load(SAMPLE_3_4).expect("load the 3.4 sample");
+    let session = Session::from_document(Some(SAMPLE_3_4.into()), doc).expect("open it");
+    assert!(matches!(
+        cluster_op(gd, &session, 3, (0.0, 0.0), RATLINGS, true, &[]),
+        Err(ForSaveError::NoAddedSystems)
+    ));
+}
+
+/// The last Ratling system removed and put back is written as it was: its junk heap
+/// pictures and its `prevent_anomaly` bits come back with the system read back as a spec.
+#[test]
+fn a_removed_ratling_system_comes_back_with_its_pictures_and_bits() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let mut session = without_ratling_targets();
+    let op = cluster_op(gd, &session, 3, SPOT, RATLINGS, true, &[]).expect("the op");
+    session.apply(op).expect("the add");
+    let added = current(&session);
+    let last = session
+        .graph()
+        .systems
+        .values()
+        .filter(|s| s.added)
+        .map(|s| s.id)
+        .max()
+        .expect("an added system");
+    session
+        .apply(Op::RemoveSystem { system: last })
+        .expect("the removal");
+    session.undo().expect("undo").expect("the removal");
+    let back = current(&session);
+    assert!(String::from_utf8_lossy(&back).contains("picture=\"pc_junkheap\""));
+    assert_eq!(back, added, "the system comes back as it was written");
 }

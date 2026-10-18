@@ -43,7 +43,8 @@ export function rollSpecialCluster(
 /**
  * Calls `add_special_cluster`: add the cluster `rollSpecialCluster` previews from the same
  * arguments as one edit, with its anomalies, dig sites and megastructures when `extras` (saves
- * only). The command's doc says what it refuses.
+ * only), and a lane for each of `links`: a member's index in the roll and an existing system's
+ * id. The command's doc says what it refuses.
  */
 export function addSpecialCluster(
   seed: number,
@@ -51,8 +52,9 @@ export function addSpecialCluster(
   y: number,
   cluster: string,
   extras: boolean,
+  links: Array<[number, number]>,
 ): Promise<EditResult> {
-  return invoke<EditResult>("add_special_cluster", { seed, x, y, cluster, extras });
+  return invoke<EditResult>("add_special_cluster", { seed, x, y, cluster, extras, links });
 }
 
 /** Calls `get_special_layouts`: the Special menu's layouts with their cards, in a save or a scenario. */

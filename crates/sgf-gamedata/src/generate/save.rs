@@ -3,6 +3,7 @@
 //! the planet class rules a class change in a save takes from the install.
 
 use serde::{Deserialize, Serialize};
+use sgf_core::ops::rules::added_group;
 use sgf_core::ops::{
     BULK_ADD_CAP, BodyName, BodyNaming, GivenName, LaneEnd, NewBody, Op, OpError, PlanetClassRule,
     SystemAdd, SystemSpec,
@@ -11,6 +12,7 @@ use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, OrbitPlacement, SgfError};
 use ts_rs::TS;
 
+use super::cluster::statements_op;
 use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, layout_system_for, roll_body};
 use crate::GameData;
 use crate::layouts::SaveFacts;
@@ -172,14 +174,17 @@ pub fn for_save(
 }
 
 /// The op that adds a system of the layout `layout` to `session`'s document at `at` from
-/// `seed`. In a save, it is named as [`for_save`] names it, with what the layout's script
-/// plants beside its bodies: [`SaveQueries::add_systems_op`] for that one system, writing its
-/// anomalies and dig sites only with `extras`, and its planet flags and global event targets
-/// whatever it says. In a document of system statements, it is one [`Op::AddSystem`] naming
-/// the layout as its initializer, which the game runs, and `extras` says nothing. Refused for
-/// a layout the install does not define, and for a document that takes neither.
+/// `seed`, joined by a lane to each of the systems the document holds in `joins`. In a save,
+/// it is named as [`for_save`] names it, with what the layout's script plants beside its
+/// bodies: [`SaveQueries::add_systems_op`] for that one system, writing its anomalies and dig
+/// sites only with `extras`, and its planet flags and global event targets whatever it says.
+/// In a document whose systems run their own script, it is an [`Op::AddSystem`] naming the
+/// layout as its initializer, which the game runs, and `extras` says nothing; with joins, it
+/// is [`statements_op`]'s. Refused with nothing applied for a join naming no system, a layout
+/// the install does not define, and a document that takes neither.
 ///
 /// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
+/// [`statements_op`]: super::cluster::statements_op
 pub fn special_op(
     gd: &GameData,
     session: &Session,
@@ -187,26 +192,46 @@ pub fn special_op(
     at: (f64, f64),
     layout: &str,
     extras: bool,
+    joins: &[u32],
 ) -> Result<Op, ForSaveError> {
     let can = Capabilities::of(session.doc());
     if can.added_systems {
-        return special_op_with(gd, session, seed, at, layout, extras, None, &[]);
+        let lanes: Vec<(LaneEnd, LaneEnd)> = joins
+            .iter()
+            .map(|&system| (LaneEnd::New { index: 0 }, LaneEnd::Held { system }))
+            .collect();
+        return special_op_with(gd, session, seed, at, layout, extras, None, &lanes);
     }
     if !can.create_systems {
         return Err(ForSaveError::NoAddedSystems);
     }
-    if gd.initializers.get(layout).is_none() {
-        return Err(GenerateError::UnknownLayout(layout.to_owned()).into());
+    let init = gd
+        .initializers
+        .get(layout)
+        .ok_or_else(|| GenerateError::UnknownLayout(layout.to_owned()))?;
+    if joins.is_empty() {
+        return Ok(Op::AddSystem {
+            system: None,
+            x: at.0,
+            y: at.1,
+            name: None,
+            initializer: Some(layout.to_owned()),
+            spawn_weight: None,
+            spawn_script: None,
+        });
     }
-    Ok(Op::AddSystem {
-        system: None,
-        x: at.0,
-        y: at.1,
-        name: None,
-        initializer: Some(layout.to_owned()),
-        spawn_weight: None,
-        spawn_script: None,
-    })
+    let name = gd
+        .loc
+        .name_or_readable(init.display_name.as_deref().unwrap_or(&init.name));
+    let description = added_group(&name, 1, joins.len());
+    let joins: Vec<(usize, u32)> = joins.iter().map(|&system| (0, system)).collect();
+    statements_op(
+        session,
+        &[(layout.to_owned(), at)],
+        &[],
+        &joins,
+        description,
+    )
 }
 
 /// [`special_op`] with `lanes` laid between the new system, `LaneEnd::New { index: 0 }`, and

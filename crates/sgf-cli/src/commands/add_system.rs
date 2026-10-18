@@ -47,7 +47,8 @@ pub fn generated(
     let mut session = Session::open(sav)?;
     let (seed, at) = (generating.seed, generating.at);
     if let Some(cluster) = &generating.cluster {
-        let op = generate::cluster_op(&gd, &session, seed, at, cluster, generating.extras)
+        let joins: Vec<(usize, u32)> = generating.lanes.iter().map(|&system| (0, system)).collect();
+        let op = generate::cluster_op(&gd, &session, seed, at, cluster, generating.extras, &joins)
             .map_err(for_save_error)?;
         let Op::Batch { description, ops } = &op else {
             return Err("the cluster's add is no batch".into());

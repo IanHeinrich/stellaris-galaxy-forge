@@ -12,8 +12,8 @@ use ts_rs::TS;
 use super::save::{ForSaveError, Pick, PickAt, for_save_many};
 use crate::GameData;
 use crate::install::script::Range;
-use crate::layouts::Cluster;
-use crate::menu::menu_clusters;
+use crate::layouts::{Cluster, ClusterPlan};
+use crate::menu::document_clusters;
 use crate::orbit_walk::draw;
 use crate::rng::Rng;
 
@@ -94,12 +94,13 @@ impl RolledCluster {
     }
 }
 
-/// The cluster keyed `key` rolled for `session`'s document from `seed`, its home at `at`. Each
-/// other system is drawn inside the range its chain gives from the system its lane leads
-/// from, again until the add takes its place or [`PLACE_TRIES`] draws have been made, and is
-/// then built from its layout with [`for_save_many`], which names them all from one draw. The
-/// same seed gives the same cluster; another rolls places and systems again. Refused for a
-/// key the Special menu offers no cluster for.
+/// The cluster keyed `key` rolled for `session`'s document from `seed`, its home at `at`: the
+/// systems [`Cluster::plan`] writes into the document. Each other system is drawn inside the
+/// range its chain gives from the system its lane leads from, again until the add takes its
+/// place or [`PLACE_TRIES`] draws have been made, and is then built from its layout with
+/// [`for_save_many`], which names them all from one draw. The same seed gives the same
+/// cluster; another rolls places and systems again. Refused for a key the Special menu offers
+/// the document no cluster for.
 pub fn roll_cluster(
     gd: &GameData,
     session: &Session,
@@ -107,17 +108,11 @@ pub fn roll_cluster(
     at: (f64, f64),
     key: &str,
 ) -> Result<RolledCluster, ForSaveError> {
-    let cluster = menu_clusters(gd)
+    let unknown = || ForSaveError::UnknownCluster(key.to_owned());
+    let (cluster, ClusterPlan { layouts, links }) = document_clusters(gd, session)
         .into_iter()
-        .find(|cluster| cluster.key == key)
-        .ok_or_else(|| ForSaveError::UnknownCluster(key.to_owned()))?;
-    let layouts: Vec<&str> = cluster.layouts().collect();
-    let index = |layout: &str| layouts.iter().position(|held| *held == layout);
-    let links: Vec<(usize, usize)> = cluster
-        .links()
-        .into_iter()
-        .filter_map(|(from, to)| Some((index(from)?, index(to)?)))
-        .collect();
+        .find(|(cluster, _)| cluster.key == key)
+        .ok_or_else(unknown)?;
     let mut rng = Rng::new(seed ^ PLACE_STREAM);
     let mut points = vec![at];
     for (i, layout) in layouts.iter().enumerate().skip(1) {
@@ -125,7 +120,7 @@ pub fn roll_cluster(
             .iter()
             .find(|&&(from, to)| to == i && from < i)
             .map(|&(from, _)| from)
-            .ok_or_else(|| ForSaveError::UnknownCluster(key.to_owned()))?;
+            .ok_or_else(unknown)?;
         let reach = link_reach(gd, layouts[from], layout);
         let (ox, oy) = points[from];
         let mut point = (ox, oy);
@@ -162,12 +157,13 @@ pub fn roll_cluster(
     })
 }
 
-/// The op that adds the cluster [`roll_cluster`] rolls, as one step described by
-/// [`added_group`]: in a save, [`SaveQueries::add_systems_op`] for its systems and lanes,
-/// writing their anomalies, dig sites and megastructures only with `extras`; in a document of
-/// system statements, one [`Op::AddSystems`] naming each system's initializer, which the game
-/// runs, and one [`Op::AddLanePairs`]. Refused as the add refuses, and for a document that
-/// takes neither.
+/// The op that adds the cluster [`roll_cluster`] rolls, joined to the systems the document
+/// holds by `joins`, each a system of the roll by its index and a held system's id, as one
+/// step described by [`added_group`], every lane counted: in a save,
+/// [`SaveQueries::add_systems_op`] for its systems and lanes, writing their anomalies, dig
+/// sites and megastructures only with `extras`; in a document whose systems run their own
+/// script, [`statements_op`]. Refused with nothing applied as the add refuses, a join naming a
+/// system of neither among them, and for a document that takes neither.
 ///
 /// [`SaveQueries::add_systems_op`]: sgf_core::session::SaveQueries::add_systems_op
 pub fn cluster_op(
@@ -177,58 +173,94 @@ pub fn cluster_op(
     at: (f64, f64),
     key: &str,
     extras: bool,
+    joins: &[(usize, u32)],
 ) -> Result<Op, ForSaveError> {
     let rolled = roll_cluster(gd, session, seed, at, key)?;
     let description = added_group(
         rolled.cluster.phrase,
         rolled.systems.len(),
-        rolled.links.len(),
+        rolled.links.len() + joins.len(),
     );
-    let can = Capabilities::of(session.doc());
-    if can.added_systems {
+    if Capabilities::of(session.doc()).added_systems {
         let lanes: Vec<(LaneEnd, LaneEnd)> = rolled
             .links
             .iter()
             .map(|&(from, to)| (new_end(from), new_end(to)))
+            .chain(
+                joins
+                    .iter()
+                    .map(|&(index, system)| (new_end(index), LaneEnd::Held { system })),
+            )
             .collect();
         let save = session.save("adding systems")?;
         return Ok(save.add_systems_op(rolled.systems, &lanes, extras, Some(description))?);
     }
-    if !can.create_systems {
+    let systems: Vec<(String, (f64, f64))> = rolled
+        .systems
+        .iter()
+        .map(|add| (add.spec.initializer.clone(), (add.spec.x, add.spec.y)))
+        .collect();
+    statements_op(session, &systems, &rolled.links, joins, description)
+}
+
+/// The op that writes a system statement naming each of `systems`' initializers at its place,
+/// which the game runs, with lanes between them by their indices in `links` and to the
+/// systems the document holds in `joins`: one [`Op::AddSystems`] taking the ids the document
+/// hands out next, and one [`Op::AddLanePairs`] when there are lanes, as one step described as
+/// `description`. Refused with nothing applied for a join naming no system of either, and
+/// for a document that takes no system statements.
+pub(super) fn statements_op(
+    session: &Session,
+    systems: &[(String, (f64, f64))],
+    links: &[(usize, usize)],
+    joins: &[(usize, u32)],
+    description: String,
+) -> Result<Op, ForSaveError> {
+    if !Capabilities::of(session.doc()).create_systems {
         return Err(ForSaveError::NoAddedSystems);
     }
-    let first = session
-        .graph()
-        .systems
-        .keys()
-        .max()
-        .map_or(0, |last| last + 1);
+    let first = session.next_system_id()?;
+    let new = |index: usize| match index < systems.len() {
+        true => Ok(first + index as u32),
+        false => Err(OpError::UnknownSystem(first.saturating_add(index as u32))),
+    };
+    let held = |system: u32| match session.graph().systems.contains_key(&system) {
+        true => Ok(system),
+        false => Err(OpError::UnknownSystem(system)),
+    };
+    let mut lanes = Vec::with_capacity(links.len() + joins.len());
+    for &(from, to) in links {
+        lanes.push((new(from)?, new(to)?));
+    }
+    for &(index, system) in joins {
+        lanes.push((new(index)?, held(system)?));
+    }
     let systems = (first..)
-        .zip(&rolled.systems)
-        .map(|(system, add)| NewSystem {
+        .zip(systems)
+        .map(|(system, (initializer, (x, y)))| NewSystem {
             system,
-            x: add.spec.x,
-            y: add.spec.y,
+            x: *x,
+            y: *y,
             name: None,
-            initializer: Some(add.spec.initializer.clone()),
+            initializer: Some(initializer.clone()),
             spawn_weight: None,
             spawn_script: None,
             statement: None,
         })
         .collect();
-    let lanes = rolled
-        .links
-        .iter()
-        .map(|&(from, to)| LanePair {
-            a: first + from as u32,
-            b: first + to as u32,
-            bridge: false,
-        })
-        .collect();
-    Ok(Op::Batch {
-        description,
-        ops: vec![Op::AddSystems { systems }, Op::AddLanePairs { lanes }],
-    })
+    let mut ops = vec![Op::AddSystems { systems }];
+    if !lanes.is_empty() {
+        let lanes = lanes
+            .into_iter()
+            .map(|(a, b)| LanePair {
+                a,
+                b,
+                bridge: false,
+            })
+            .collect();
+        ops.push(Op::AddLanePairs { lanes });
+    }
+    Ok(Op::Batch { description, ops })
 }
 
 fn new_end(index: usize) -> LaneEnd {

@@ -12,8 +12,9 @@ use crate::body_effects;
 use crate::generate;
 use crate::initializers::{Initializer, expand};
 use crate::layouts::{
-    CLUSTERS, Cluster, DlcNeed, Eligibility, SaveFacts, UNIQUE_SYSTEM, cluster_member, converted,
-    defining_mod, eligibility, notable, special_initializers, star_body, unplaced,
+    CLUSTERS, Cluster, ClusterPlan, DlcNeed, Eligibility, SaveFacts, UNIQUE_SYSTEM, cluster_member,
+    converted, defining_mod, eligibility, notable, runs_scripts, special_initializers, star_body,
+    unplaced,
 };
 use crate::loc::localisation::Localisation;
 
@@ -98,24 +99,49 @@ pub fn menu_clusters(gd: &GameData) -> Vec<&'static Cluster> {
         .collect()
 }
 
-/// The Special menu's clusters for `session`'s save.
-pub fn special_clusters(gd: &GameData, session: &Session) -> Vec<SpecialCluster> {
-    let save = SaveFacts::read(session);
+/// The clusters of [`menu_clusters`] `session`'s document takes, each with what an add writes
+/// into it: those that come to more than their home.
+pub fn document_clusters(gd: &GameData, session: &Session) -> Vec<(&'static Cluster, ClusterPlan)> {
+    let runs = runs_scripts(session);
     menu_clusters(gd)
         .into_iter()
-        .map(|cluster| SpecialCluster {
-            key: cluster.key.to_owned(),
-            label: cluster.label.to_owned(),
-            phrase: cluster.phrase.to_owned(),
-            layouts: cluster.layouts().map(str::to_owned).collect(),
-            lanes: cluster.links().len() as u32,
-            in_galaxy: save.in_galaxy(cluster.home),
-            dlc: gd
-                .initializers
-                .get(cluster.home)
-                .and_then(|home| save.dlc_need(gd, home)),
-        })
+        .map(|cluster| (cluster, cluster.plan(gd, runs)))
+        .filter(|(_, plan)| plan.layouts.len() > 1)
         .collect()
+}
+
+/// The Special menu's clusters for `session`'s document.
+pub fn special_clusters(gd: &GameData, session: &Session) -> Vec<SpecialCluster> {
+    let save = SaveFacts::read(session);
+    document_clusters(gd, session)
+        .iter()
+        .map(|(cluster, plan)| cluster_row(gd, &save, cluster, plan))
+        .collect()
+}
+
+/// The menu's row for `cluster`, whose add writes `plan`.
+pub(crate) fn cluster_row(
+    gd: &GameData,
+    save: &SaveFacts,
+    cluster: &Cluster,
+    plan: &ClusterPlan,
+) -> SpecialCluster {
+    SpecialCluster {
+        key: cluster.key.to_owned(),
+        label: cluster.label.to_owned(),
+        phrase: cluster.phrase.to_owned(),
+        layouts: plan
+            .layouts
+            .iter()
+            .map(|&layout| layout.to_owned())
+            .collect(),
+        lanes: plan.links.len() as u32,
+        in_galaxy: save.in_galaxy(cluster.home),
+        dlc: gd
+            .initializers
+            .get(cluster.home)
+            .and_then(|home| save.dlc_need(gd, home)),
+    }
 }
 
 /// The Special menu's entries for `session`'s save, by label.

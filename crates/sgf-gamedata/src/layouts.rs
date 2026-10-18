@@ -9,6 +9,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use sgf_core::archive;
 use sgf_core::session::Session;
+use sgf_core::views::Capabilities;
 use ts_rs::TS;
 
 use crate::GameData;
@@ -130,7 +131,52 @@ pub enum ClusterLanes {
     Pairs(&'static [(&'static str, &'static str)]),
 }
 
+/// The systems of a [`Cluster`] an add writes into one document, and the lanes between them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClusterPlan {
+    /// The home first.
+    pub layouts: Vec<&'static str>,
+    /// Each lane as the indices into `layouts` of the system it leads from and the one it
+    /// leads to.
+    pub links: Vec<(usize, usize)>,
+}
+
+/// Whether the game builds `session`'s systems from their initializers when it starts, as a
+/// scenario's: their scripts run, `spawn_system` among them.
+pub fn runs_scripts(session: &Session) -> bool {
+    Capabilities::of(session.doc()).rolled_layout
+}
+
 impl Cluster {
+    /// What an add writes of it: every layout, but in a document whose systems run their own
+    /// script, one that the system its lane leads from creates with `spawn_system`, which the
+    /// game makes there itself, and the lanes to it.
+    pub fn plan(&self, gd: &GameData, runs_scripts: bool) -> ClusterPlan {
+        let created = |from: &str, to: &str| {
+            runs_scripts
+                && gd
+                    .initializers
+                    .get(from)
+                    .is_some_and(|init| init.creates.iter().any(|created| created == to))
+        };
+        let links = self.links();
+        let mut layouts = vec![self.home];
+        for &member in self.members {
+            let led = links
+                .iter()
+                .any(|&(from, to)| to == member && layouts.contains(&from) && !created(from, to));
+            if led {
+                layouts.push(member);
+            }
+        }
+        let index = |layout: &str| layouts.iter().position(|held| *held == layout);
+        let links = links
+            .iter()
+            .filter_map(|&(from, to)| Some((index(from)?, index(to)?)))
+            .collect();
+        ClusterPlan { layouts, links }
+    }
+
     /// Its layouts, the home first.
     pub fn layouts(&self) -> impl Iterator<Item = &'static str> + '_ {
         std::iter::once(self.home).chain(self.members.iter().copied())

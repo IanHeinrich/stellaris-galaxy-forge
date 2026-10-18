@@ -45,8 +45,8 @@ export function addRandomSystems({
 
 /**
  * Calls `add_special_system`: build a system of the special layout `layout` at (x, y) from
- * `seed`, with its anomalies and dig sites when `extras`. The command's doc says how it is
- * named and what it refuses.
+ * `seed`, with its anomalies and dig sites when `extras`, joined by a lane to each system of
+ * `links`. The command's doc says how it is named and what it refuses.
  */
 export function addSpecialSystem(
   seed: number,
@@ -54,8 +54,9 @@ export function addSpecialSystem(
   y: number,
   layout: string,
   extras: boolean,
+  links: number[],
 ): Promise<EditResult> {
-  return invoke<EditResult>("add_special_system", { seed, x, y, layout, extras });
+  return invoke<EditResult>("add_special_system", { seed, x, y, layout, extras, links });
 }
 
 /**

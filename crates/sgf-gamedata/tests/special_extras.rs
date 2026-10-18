@@ -25,7 +25,7 @@ const GRAVEYARD: &str = "tiyanki_graveyard_system";
 const NEW: u32 = 601;
 
 fn special(session: &Session, layout: &str, extras: bool) -> Op {
-    special_op(sample_install(), session, 1, SPOT, layout, extras).expect("the op")
+    special_op(sample_install(), session, 1, SPOT, layout, extras, &[]).expect("the op")
 }
 
 /// Apply `op`, snapshot what it wrote as `name`, and undo it back to the original bytes.
@@ -239,7 +239,7 @@ fn an_anomaly_or_dig_site_in_a_scope_the_generator_does_not_follow_is_on_the_car
 fn a_planet_flag_written_from_a_scope_at_run_time_is_not_written() {
     let (_dir, gd) = scoped_install();
     let session = open_4_5();
-    let op = special_op(&gd, &session, 1, SPOT, "fx_scoped_body", true).expect("the op");
+    let op = special_op(&gd, &session, 1, SPOT, "fx_scoped_body", true, &[]).expect("the op");
     assert_eq!(names(&op), ["AddSystemFromSpec", "AddAnomaly"]);
     let Op::AddSystemFromSpec { spec } = members(&op)[0] else {
         unreachable!()
@@ -277,7 +277,7 @@ fn a_ruined_dyson_sphere_comes_with_its_row() {
         return;
     };
     let mut session = open_4_5();
-    let op = special_op(gd, &session, 1, SPOT, "dyson_sphere_init_01", true).expect("the op");
+    let op = special_op(gd, &session, 1, SPOT, "dyson_sphere_init_01", true, &[]).expect("the op");
     assert_eq!(names(&op), ["AddSystemFromSpec", "AddMegastructure"]);
     let text = applied(&mut session, "dyson_sphere", op);
     assert!(text.contains("type=\"dyson_sphere_ruined\""), "{text}");

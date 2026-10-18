@@ -97,7 +97,7 @@ fn each_megastructure_layout_writes_its_rows_and_undoes() {
     let mut session = open_4_5();
     let original = current(&session);
     for (key, rows) in ADDABLE {
-        let op = special_op(gd, &session, 1, SPOT, key, true).expect(key);
+        let op = special_op(gd, &session, 1, SPOT, key, true, &[]).expect(key);
         let tied: Vec<bool> = match &op {
             Op::Batch { ops, .. } => ops
                 .iter()
@@ -141,7 +141,7 @@ fn without_extras_no_megastructure_is_written() {
     };
     let session = open_4_5();
     for (key, _) in ADDABLE {
-        let op = special_op(gd, &session, 1, SPOT, key, false).expect(key);
+        let op = special_op(gd, &session, 1, SPOT, key, false, &[]).expect(key);
         assert_eq!(kinds(&op), ["AddSystemFromSpec"], "{key}");
     }
 }
@@ -160,7 +160,7 @@ fn an_anomaly_only_a_chance_plants_is_left_out_and_said_so() {
         "{:?}",
         card.comes_without
     );
-    let op = special_op(gd, &session, 1, SPOT, "ring_world_init_01", true).expect("the op");
+    let op = special_op(gd, &session, 1, SPOT, "ring_world_init_01", true, &[]).expect("the op");
     assert_eq!(kinds(&op), ["AddSystemFromSpec", "AddRingWorld"]);
 }
 
@@ -187,7 +187,7 @@ fn federations_end_comes_with_its_habitats_but_not_their_civilisation() {
         card.comes_without
     );
 
-    let op = special_op(gd, &session, 1, SPOT, key, true).expect("the op");
+    let op = special_op(gd, &session, 1, SPOT, key, true, &[]).expect("the op");
     let spec = match &op {
         Op::AddSystemFromSpec { spec } => spec,
         Op::Batch { ops, .. } => match &ops[0] {

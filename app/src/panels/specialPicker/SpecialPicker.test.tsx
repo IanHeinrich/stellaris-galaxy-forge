@@ -13,6 +13,8 @@ import type { SpecialPick } from "../../generated/SpecialPick";
 import { bindStores } from "../../store/bindStores";
 import { editResult, OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { rolledSystems } from "../../lib/specialPicks";
+import { specialLinksNow } from "../../store/specialLinks";
 import { useSpecialPickerStore } from "../../store/specialPickerStore";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { drawnBrowseKeys, drawnButton, drawnBy, drawnCheckbox, lastDrawn } from "../../test/drawn";
@@ -116,6 +118,12 @@ const REFUSED: ClusterRoll = {
 
 const picker = () => useSpecialPickerStore.getState();
 const rolledWith = () => mockedIpc.rollSpecialCluster.mock.calls.map(([seed]) => seed);
+
+/** The existing systems a layout placed at (x, y) is joined to, as the planner lays them now. */
+const linksAt = (x: number, y: number) =>
+  specialLinksNow({ places: [{ x, y, star_class: null, refused: null }], lanes: [] }).map(
+    ([, system]) => system,
+  );
 
 /** Opens the picker at the world point `at`, beside `anchor`, once its rows are read. */
 async function openPicker(at: { x: number; y: number }, anchor: { x: number; y: number }) {
@@ -253,10 +261,25 @@ describe("the Special picker", () => {
     drawnButton("Place").onClick();
 
     await until(() => expect(picker().open).toBe(false));
-    const [seed, x, y, key, extras] = mockedIpc.addSpecialSystem.mock.calls[0];
+    const [seed, x, y, key, extras, links] = mockedIpc.addSpecialSystem.mock.calls[0];
     expect(Number.isSafeInteger(seed)).toBe(true);
     expect([x, y, key, extras]).toEqual([-50, -20, "metal", true]);
+    expect(links).toEqual(linksAt(-50, -20));
+    expect(links.length).toBeGreaterThan(0);
     expect(picker().recent).toEqual(["metal"]);
+  });
+
+  it("joins to nearby systems unless told not to, and remembers it", async () => {
+    await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
+    picker().highlight(METAL.layout.key);
+    expect(render()).toContain("Join to nearby systems");
+    picker().setJoin(false);
+    expect(stored.get("sgf.special.join")).toBe("false");
+
+    render();
+    drawnButton("Place").onClick();
+    await until(() => expect(mockedIpc.addSpecialSystem).toHaveBeenCalledTimes(1));
+    expect(mockedIpc.addSpecialSystem.mock.calls[0][5]).toEqual([]);
   });
 
   it("places on Enter and on a double click", async () => {
@@ -289,7 +312,7 @@ describe("the Special picker", () => {
 
     drawnButton("Place").onClick();
     await until(() => expect(mockedIpc.addSpecialSystem).toHaveBeenCalledTimes(1));
-    expect(mockedIpc.addSpecialSystem.mock.calls[0].slice(1)).toEqual([
+    expect(mockedIpc.addSpecialSystem.mock.calls[0].slice(1, 5)).toEqual([
       -50,
       -20,
       "breachsealer_system",
@@ -347,8 +370,10 @@ describe("a cluster in the Special picker", () => {
     press("Enter");
 
     await until(() => expect(picker().open).toBe(false));
+    const links = specialLinksNow(rolledSystems(ROLL));
+    expect(links.length).toBeGreaterThan(0);
     expect(mockedIpc.addSpecialCluster.mock.calls).toEqual([
-      [rolledWith()[0], -50, -20, "junk_ratlings", true],
+      [rolledWith()[0], -50, -20, "junk_ratlings", true, links],
     ]);
     expect(mockedIpc.addSpecialSystem).not.toHaveBeenCalled();
     expect(picker().recent).toEqual([RATLINGS_KEY]);
@@ -372,6 +397,15 @@ describe("a cluster in the Special picker", () => {
     render();
     expect(drawnButton("Place").disabled).toBe(false);
     expect(mockedIpc.addSpecialCluster).not.toHaveBeenCalled();
+  });
+
+  it("won't place before its systems are rolled", async () => {
+    mockedIpc.rollSpecialCluster.mockReturnValueOnce(new Promise(() => {}));
+    await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
+    picker().highlight(RATLINGS_KEY);
+    render();
+    expect(drawnButton("Place").disabled).toBe(true);
+    expect(await picker().place()).toBe(false);
   });
 
   it("keeps the newest roll when an older one answers late", async () => {
@@ -425,6 +459,12 @@ describe("the Special picker in a scenario", () => {
     picker().highlight(RATLINGS_KEY);
     await until(() => expect(picker().roll?.kind).toBe("rolled"));
     expect(shown(render())).toContain("Systems ratling_1_1, ratling_1_2, ratling_1_3");
+  });
+
+  it("leaves out the Clusters group when the scenario offers none", async () => {
+    mockedIpc.getSpecialClusters.mockResolvedValue([]);
+    await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
+    expect(groupLabels(render())).not.toContain("Clusters");
   });
 
   it("places a layout at any spot", async () => {

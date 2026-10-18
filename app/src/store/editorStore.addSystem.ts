@@ -20,6 +20,7 @@ import { canEdit, useCanEdit, useFileSessionStore } from "./fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useSceneStore } from "./sceneStore";
+import { specialLinksNow } from "./specialLinks";
 
 type AddSystemActions = Pick<
   EditorState,
@@ -118,12 +119,18 @@ export function addSystemActions(
       return addAt(x, y, () => ipc.addRandomSystem(newSeed(), x, y, starClass));
     },
 
-    addSpecialSystemAt(x, y, layout, extras) {
-      return addAt(x, y, () => ipc.addSpecialSystem(newSeed(), x, y, layout, extras));
+    addSpecialSystemAt(x, y, layout, extras, join) {
+      return addAt(x, y, () => {
+        const here = { places: [{ x, y, star_class: null, refused: null }], lanes: [] };
+        const links = specialLinksNow(join ? here : null).map(([, system]) => system);
+        return ipc.addSpecialSystem(newSeed(), x, y, layout, extras, links);
+      });
     },
 
-    addSpecialClusterAt(seed, x, y, cluster, extras) {
-      return addAt(x, y, () => ipc.addSpecialCluster(seed, x, y, cluster, extras));
+    addSpecialClusterAt(seed, x, y, cluster, extras, join) {
+      return addAt(x, y, () =>
+        ipc.addSpecialCluster(seed, x, y, cluster, extras, specialLinksNow(join)),
+      );
     },
 
     addBodyAt(system, at, parent = null, planetClass = null) {

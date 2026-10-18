@@ -323,6 +323,16 @@ for planets or deposits.
   as the game writes one on every body.
 - A blocker deposit may carry `swap_type`, the deposit that clearing it
   reveals. The planet page shows it beside the blocker.
+- A layout body's `init_effect` runs after the body's own deposit roll,
+  in its written order, and the save lists the deposits in the order they
+  ended up. The six Junk Ratlings worlds of the 4.5 sample (planets 4913,
+  4914, 4918, 4919, 4921 and 4926) each list 4 to 11 rolled deposits, then
+  `d_junk_wastes`, `d_junk_canals` and `d_junk_hollows` last. So the roll
+  runs, the script's `random_deposit` removals take three of its deposits,
+  and the junk is added after. The roll repeats types, blockers included:
+  Lost Encampment (4914) holds `d_radioactive_wasteland` three times, 4919
+  holds `d_dangerous_wildlife_blocker` twice, and 100 of the sample's
+  6,385 bodies repeat a type.
 - The system's name is taken out of `random_name_database.star_names`,
   or out of `black_hole_names` when that pool holds it instead. Body
   names are templates. The star is `STAR_NAME_1_OF_1`, a planet is

@@ -1,7 +1,7 @@
 ---
 title: Add and delete systems
 description: Add a new star system, a special system such as Sol or Zevox, or a system from an initializer, and delete systems again.
-aliases: [new system, add star, create system, special system, sol, zevox, trappist, junk ratlings, legendary leader, special cluster, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
+aliases: [new system, add star, create system, special system, sol, zevox, trappist, junk ratlings, legendary leader, special cluster, join special system, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
 ---
 # Add and delete systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -31,8 +31,8 @@ The list has these groups:
 
 - Pinned and Recent. Press <kbd>Ctrl</kbd>+<kbd>D</kbd> or the star on a
   row to pin it.
-- Clusters, which are several systems the game places together, such as
-  the Junk Ratlings. Each row shows how many systems it has.
+- Clusters, such as the Junk Ratlings, which the game places as a group.
+  Each row shows how many members it has.
 - Unique systems, such as Zevox and Sol.
 - Other special systems, such as Trappist.
 - One group for each mod that adds special systems.
@@ -50,11 +50,17 @@ belts and notable bodies. Press Place or <kbd>Enter</kbd>, or
 double-click a row, to add it at the spot. If the spot is too close to
 another system, the pane says so and Place is greyed out.
 
-A cluster adds all its systems and the lanes between them as one edit,
-with its first system at the spot. The map shows where each one would
+A cluster adds all its members and the lanes between them as one edit,
+with its first member at the spot. The map shows where each one would
 go, and the pane lists them. Press Shuffle to roll their places again.
-A system that would land too close to another shows red, the pane names
-it, and Place stays greyed out until a shuffle or another spot fits.
+A member that can't go where it was rolled shows red and the pane says
+why. Place stays greyed out until a shuffle or another spot works.
+
+"Join to nearby systems" lays lanes from what you add to its
+neighbours, as a shape's New and nearby lanes do, so it isn't left as
+an island. The map shows those lanes before you place. Untick it to add
+it with no lanes to the rest of the galaxy. The picker remembers your
+choice.
 
 A cluster's first system is also in the list on its own. Added alone,
 its events look for the rest of its cluster, which isn't there. The

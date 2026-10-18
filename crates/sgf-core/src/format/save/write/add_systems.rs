@@ -81,7 +81,8 @@ pub(crate) fn add_op(
     }
     let planted = planted(s, first, &systems, extras)?;
     let described = description.is_some();
-    let description = description.unwrap_or_else(|| describe(s, first, &systems, &planted));
+    let description =
+        description.unwrap_or_else(|| describe(s, first, &systems, &planted, lanes.len()));
     let mut ops: Vec<Op> = systems
         .into_iter()
         .map(|add| Op::AddSystemFromSpec { spec: add.spec })
@@ -195,10 +196,17 @@ fn planted(
     Ok(ops)
 }
 
-/// What the add says in the undo list: "Added Seddom #601 with its anomaly", or "Added 3
-/// systems with their 2 anomalies" for several, naming the anomalies, dig sites, megastructures
-/// and ring worlds `planted` writes. A lone system with neither says what its add says.
-fn describe(s: &Session, first: u32, systems: &[SystemAdd], planted: &[Op]) -> String {
+/// What the add says in the undo list: "Added Seddom #601 with its anomaly and 1 lane", or
+/// "Added 3 systems with their 2 anomalies" for several, naming the anomalies, dig sites,
+/// megastructures and ring worlds `planted` writes and counting the `lanes`. A lone system
+/// with none of those extras says what its add says, its lanes counted.
+fn describe(
+    s: &Session,
+    first: u32,
+    systems: &[SystemAdd],
+    planted: &[Op],
+    lanes: usize,
+) -> String {
     let count = |matches: fn(&Op) -> bool| planted.iter().filter(|op| matches(op)).count();
     let anomalies = count(|op| matches!(op, Op::AddAnomaly { .. }));
     let sites = count(|op| matches!(op, Op::AddDigSite { .. }));
@@ -225,8 +233,15 @@ fn describe(s: &Session, first: u32, systems: &[SystemAdd], planted: &[Op]) -> S
         1 => parts.push("ring world".to_owned()),
         n => parts.push(plural(n, "ring world")),
     }
+    if let [one] = systems
+        && parts.is_empty()
+    {
+        return add_description(s, first, &one.spec, lanes);
+    }
+    if lanes > 0 {
+        parts.push(plural(lanes, "lane"));
+    }
     let (added, possessive) = match systems {
-        [one] if parts.is_empty() => return add_description(s, first, &one.spec, 0),
         [one] => (
             labelled(&one.spec.name, written_literal(&one.spec.name), first),
             "its",

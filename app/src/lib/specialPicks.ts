@@ -7,7 +7,9 @@ import { pickedGroups, PINNED_GROUP, RECENT_GROUP, type PickedGroup } from "./br
 import { pairOf, type Pair } from "./geometry/pairs";
 import type { Pt } from "./geometry/pt";
 import { initializerLabel } from "./initializer/initializerLabels";
-import { provisionalId } from "./placement/lanes";
+import { FollowGround, type ImageOfNew, type PlacementGround } from "./placement/ground";
+import { placedLanes, provisionalId, provisionalIndex } from "./placement/lanes";
+import { LEAST_SPACING, MOST_SPACING } from "./placement/limits";
 import type { ShapePreview } from "./shapes/types";
 
 /** A row of the Special picker: one layout, or a cluster of several systems placed together. */
@@ -110,9 +112,13 @@ export function memberName(member: ClusterMember, how: LayoutAdd["kind"]): strin
   return how === "built" ? member.name : initializerLabel(member.layout);
 }
 
-/** Why the cluster rolled as `state` cannot be placed: the first refused member, by name; null when it can. */
-export function clusterRefusal(state: ClusterRollState): string | null {
-  switch (state.kind) {
+/**
+ * Why the cluster rolled as `state` cannot be placed: the first refused member, by name; null when
+ * it can. With no roll yet, it is still being rolled.
+ */
+export function clusterRefusal(state: ClusterRollState | null): string | null {
+  switch (state?.kind) {
+    case undefined:
     case "rolling":
       return CLUSTER_ROLLING;
     case "failed":
@@ -124,30 +130,90 @@ export function clusterRefusal(state: ClusterRollState): string | null {
   }
 }
 
+/** A system the picker would add: where it stands, its star class once rolled, and why its place is refused. */
+export interface NewPlace {
+  x: number;
+  y: number;
+  star_class: string | null;
+  refused: string | null;
+}
+
+/** The systems the picker would add, and the lanes between them by index, which the add lays. */
+export interface NewSystems {
+  places: readonly NewPlace[];
+  lanes: ReadonlyArray<readonly [number, number]>;
+}
+
+/** A lane from new system `index` to the existing system `system`. */
+export type Link = [index: number, system: number];
+
+/** A cluster's roll as the systems it adds. */
+export function rolledSystems({ members, lanes }: ClusterRoll): NewSystems {
+  return { places: members, lanes };
+}
+
+const NO_SYMMETRY: ImageOfNew = () => null;
+
 /**
- * A cluster's roll as the Shape tool's preview draws it: the members whose place is taken as new
- * systems in their stars' colours with the lanes between them, and the refused ones as points
- * left outside, with no lanes.
+ * The lanes that join `added` to the existing systems near it, as the Shape tool's New and nearby
+ * lanes are laid: meshed at the Lane density, crossing no lane, the new systems' own included, and
+ * reaching `LANE_REACH` times as far as the existing system nearest them stands.
  */
-export function clusterPlacement({ members, lanes }: ClusterRoll): ShapePreview {
-  const fits = members.flatMap((m, i) => (m.refused === null ? [i] : []));
-  const point = new Map(fits.map((member, index) => [member, index]));
-  const pairs = lanes.flatMap(([a, b]): Pair[] => {
-    const p = point.get(a);
-    const q = point.get(b);
-    return p === undefined || q === undefined ? [] : [pairOf(provisionalId(p), provisionalId(q))];
+export function specialLinks(added: NewSystems, ground: PlacementGround, density: number): Link[] {
+  const points = added.places.map(({ x, y }) => ({ x, y }));
+  let nearest = Infinity;
+  for (const p of points) {
+    const near = ground.grid.nearestSystem(p.x, p.y, MOST_SPACING);
+    if (near) nearest = Math.min(nearest, Math.hypot(near.x - p.x, near.y - p.y));
+  }
+  if (!Number.isFinite(nearest)) return [];
+  const own = added.lanes.map(([a, b]) => ({
+    a: { id: provisionalId(a), ...points[a] },
+    b: { id: provisionalId(b), ...points[b] },
+  }));
+  const pairs = placedLanes({
+    points,
+    base: points.length,
+    mode: "nearby",
+    density,
+    spacing: Math.max(nearest, LEAST_SPACING),
+    ground: own.length > 0 ? new FollowGround(ground, own) : ground,
+    imageOfNew: NO_SYMMETRY,
+    keep: (a, b) => a < 0 !== b < 0,
+    islandSeed: null,
   });
+  return pairs.map(([a, b]): Link => [provisionalIndex(Math.min(a, b)), Math.max(a, b)]);
+}
+
+/**
+ * What the picker would add as the Shape tool's preview draws it: the systems whose place is taken,
+ * in their stars' colours once rolled, with their own lanes and `links`, and the refused ones as
+ * points left outside, with no lanes.
+ */
+export function specialPlacement(added: NewSystems, links: readonly Link[]): ShapePreview {
+  const { places, lanes } = added;
+  const fits = places.flatMap((m, i) => (m.refused === null ? [i] : []));
+  const point = new Map(fits.map((member, index) => [member, index]));
+  const id = (index: number) => {
+    const p = point.get(index);
+    return p === undefined ? undefined : provisionalId(p);
+  };
+  const pairs = [
+    ...lanes.map(([a, b]) => [id(a), id(b)] as const),
+    ...links.map(([index, system]) => [id(index), system] as const),
+  ].flatMap(([a, b]): Pair[] => (a === undefined || b === undefined ? [] : [pairOf(a, b)]));
+  const classes = fits.map((i) => places[i].star_class);
   const at = ({ x, y }: Pt): Pt => ({ x, y });
   return {
-    points: fits.map((i) => at(members[i])),
+    points: fits.map((i) => at(places[i])),
     pairs,
     left: [],
-    outside: members.filter((m) => m.refused !== null).map(at),
+    outside: places.filter((m) => m.refused !== null).map(at),
     overlaps: 0,
     crowded: 0,
     capped: false,
     interleaved: null,
-    classes: fits.map((i) => members[i].star_class),
+    classes: classes.every((c) => c !== null) ? classes : null,
     arranged: null,
   };
 }

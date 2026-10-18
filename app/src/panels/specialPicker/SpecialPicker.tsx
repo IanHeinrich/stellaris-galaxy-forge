@@ -2,17 +2,20 @@ import { useEffect, useMemo } from "react";
 import { pickCard, specialMarks, type AddRefusal, type LayoutAdd } from "../../lib/addSystem";
 import type { Pt } from "../../lib/geometry/pt";
 import {
-  clusterPlacement,
   clusterRefusal,
   memberName,
+  rolledSystems,
   specialKey,
   specialLabel,
+  specialPlacement,
   type ClusterRollState,
+  type NewSystems,
   type SpecialEntry,
 } from "../../lib/specialPicks";
 import { counted } from "../../lib/text";
 import { useCanEdit } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSpecialLinks } from "../../store/specialLinks";
 import {
   useHighlightedSpecial,
   useSpecialPickerStore,
@@ -26,6 +29,7 @@ import "./specialPicker.css";
 
 const IN_GALAXY = "Already in this galaxy";
 const EXTRAS_LABEL = "Add its anomalies, dig sites and megastructures";
+const JOIN_LABEL = "Join to nearby systems";
 
 /** One row: its name, a cluster's count of systems, its marks and its pin. */
 function Row({ entry, how }: { entry: SpecialEntry; how: LayoutAdd["kind"] }) {
@@ -112,6 +116,8 @@ function Detail({
 }) {
   const extras = useSpecialPickerStore((s) => s.extras);
   const setExtras = useSpecialPickerStore((s) => s.setExtras);
+  const join = useSpecialPickerStore((s) => s.join);
+  const setJoin = useSpecialPickerStore((s) => s.setJoin);
   if (entry === null) {
     return (
       <div className="browse-detail">
@@ -164,6 +170,10 @@ function Detail({
       ) : (
         refusal && <div className="sp-note warn">{refusal.reason}</div>
       )}
+      <label className="sp-extras">
+        <input type="checkbox" checked={join} onChange={(e) => setJoin(e.currentTarget.checked)} />
+        {JOIN_LABEL}
+      </label>
       {how === "built" && (summary.comes_with ?? []).length > 0 && (
         <label className="sp-extras">
           <input
@@ -178,14 +188,30 @@ function Detail({
   );
 }
 
-/** Draws the cluster's places on the map as the Shape tool draws a shape's, while the caller shows. */
-function useClusterPreview(roll: ClusterRollState | null) {
-  const setPreview = useMapChromeStore((s) => s.setClusterPreview);
-  const rolled = roll?.kind === "rolled" ? roll.roll : null;
+/**
+ * Draws what the highlighted row would add at `at`, a cluster as rolled, with its lanes to the
+ * systems near it when the picker joins them, as the Shape tool draws a shape's systems, while the
+ * caller shows.
+ */
+function useSpecialPreview(
+  entry: SpecialEntry | null,
+  roll: ClusterRollState | null,
+  at: Pt,
+  refused: string | null,
+) {
+  const setPreview = useMapChromeStore((s) => s.setSpecialPreview);
+  const join = useSpecialPickerStore((s) => s.join);
+  const { x, y } = at;
+  const added = useMemo((): NewSystems | null => {
+    if (entry === null) return null;
+    if (entry.kind === "cluster") return roll?.kind === "rolled" ? rolledSystems(roll.roll) : null;
+    return { places: [{ x, y, star_class: null, refused }], lanes: [] };
+  }, [entry, roll, x, y, refused]);
+  const links = useSpecialLinks(join ? added : null);
   useEffect(() => {
-    setPreview(rolled && clusterPlacement(rolled));
+    setPreview(added && specialPlacement(added, links));
     return () => setPreview(null);
-  }, [rolled, setPreview]);
+  }, [added, links, setPreview]);
 }
 
 function Browsing({ at, anchor }: { at: Pt; anchor: Pt }) {
@@ -204,7 +230,6 @@ function Browsing({ at, anchor }: { at: Pt; anchor: Pt }) {
   const read = useSpecialPickerStore((s) => s.entries !== null);
   const how: LayoutAdd["kind"] = useCanEdit("create_systems") ? "script" : "built";
   const refusal = useAddSystemPreview(at.x, at.y);
-  useClusterPreview(roll);
 
   const tree = useSpecialTree();
   const groups = useMemo(
@@ -217,8 +242,9 @@ function Browsing({ at, anchor }: { at: Pt; anchor: Pt }) {
   const keys = useMemo(() => visible.map(specialKey), [visible]);
   const entry = useHighlightedSpecial();
   const cluster = entry?.kind === "cluster" ? entry.pick.cluster : null;
+  useSpecialPreview(entry, roll, at, refusal?.reason ?? null);
   const pinnedNow = highlighted !== null && pinnedKeys.includes(highlighted);
-  const blocked = cluster ? roll && clusterRefusal(roll) : (refusal?.reason ?? null);
+  const blocked = cluster ? clusterRefusal(roll) : (refusal?.reason ?? null);
   const canPlace = entry !== null && blocked === null;
   const spot = `${at.x.toFixed(2)}, ${at.y.toFixed(2)}`;
   const choose = () => {

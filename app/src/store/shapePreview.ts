@@ -3,7 +3,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Symmetry } from "../lib/geometry/symmetry";
 import { reachOf } from "../lib/guides";
 import { needsGameData } from "../lib/text";
-import { PlacementGround } from "../lib/placement/ground";
+import { groundFor } from "../lib/placement/ground";
 import { arrangement } from "../lib/shapes/arrange";
 import { shapePlacement } from "../lib/shapes/placement";
 import { PLACEMENT_RULES, shapePath, type PlacementPath } from "../lib/placement/rules";
@@ -62,21 +62,6 @@ function inputsNow(): Inputs {
   };
 }
 
-/** The last `PlacementGround` built, kept while the galaxy and the symmetry stay the same objects. */
-let placed: PlacementGround | null = null;
-
-/** The galaxy to place into, built again only when the systems, the grid or the symmetry change. */
-function placementGround(
-  systems: Inputs["systems"],
-  grid: SpatialGrid,
-  symmetry: Symmetry,
-): PlacementGround {
-  if (placed?.systems !== systems || placed.grid !== grid || placed.symmetry !== symmetry) {
-    placed = new PlacementGround(systems, grid, symmetry);
-  }
-  return placed;
-}
-
 function groundOf(inputs: Inputs, pending: PendingShape): ShapeGround | null {
   const { grid, radius, starClasses } = inputs;
   const path = shapePath(inputs.capabilities);
@@ -85,7 +70,7 @@ function groundOf(inputs: Inputs, pending: PendingShape): ShapeGround | null {
   const extent = reachOf(rules.edge, radius);
   if (extent === null) return null;
   return {
-    placement: placementGround(inputs.systems, grid, inputs.symmetry),
+    placement: groundFor(inputs.systems, grid, inputs.symmetry),
     extent,
     laneDensity: inputs.laneDensity,
     rules,

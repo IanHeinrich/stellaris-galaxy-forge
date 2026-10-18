@@ -153,7 +153,8 @@ pub enum Command {
     /// again from seed 8, keeping its name, position and lanes. --print-spec prints the
     /// system as JSON, which an `AddSystemFromSpec` edit file for `sgf apply` holds as its
     /// `spec`. --cluster junk_ratlings adds a Special menu cluster instead, its home at --at
-    /// and its other systems placed from the seed, with the lanes between them, as one edit.
+    /// and joined by --lane, and its other systems placed from the seed, with the lanes
+    /// between them, as one edit.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
@@ -186,7 +187,7 @@ pub enum Command {
         #[arg(
             long,
             group = "special",
-            conflicts_with_all = ["star_class", "lanes", "name", "print_spec", "then_reroll"]
+            conflicts_with_all = ["star_class", "name", "print_spec", "then_reroll"]
         )]
         cluster: Option<String>,
         /// With --layout or --cluster, leave out the anomalies, dig sites and megastructures

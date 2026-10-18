@@ -125,3 +125,35 @@ export class PlacementGround {
     return s ? counterpartAt(this.grid, s, this.symmetry, m) : null;
   }
 }
+
+/** A placement ground that also counts `follow` as lanes, so the mesh never crosses them. */
+export class FollowGround extends PlacementGround {
+  constructor(
+    private readonly inner: PlacementGround,
+    private readonly follow: ReadonlyArray<Segment<MeshPoint>>,
+  ) {
+    super(inner.systems, inner.grid, inner.symmetry);
+  }
+
+  override lanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
+    return [...this.inner.lanesNear(points, d), ...this.follow];
+  }
+}
+
+/** The last ground `groundFor` built. */
+let built: PlacementGround | null = null;
+
+/**
+ * The ground over `systems`, built again only when the systems, the grid or the symmetry change:
+ * the previews ask on every redraw.
+ */
+export function groundFor(
+  systems: ReadonlyMap<number, SystemNode>,
+  grid: SpatialGrid,
+  symmetry: Symmetry,
+): PlacementGround {
+  if (built?.systems !== systems || built.grid !== grid || built.symmetry !== symmetry) {
+    built = new PlacementGround(systems, grid, symmetry);
+  }
+  return built;
+}

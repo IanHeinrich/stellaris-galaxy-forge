@@ -5,5 +5,3 @@
   ones you use, and the list keeps the ones you placed recently.
 - You can add a special system without its anomalies and dig sites. The
   list remembers that choice.
-- In a scenario, "New special system…" opens the initializer browser on
-  the unique and special systems.

@@ -36,7 +36,7 @@ export interface ShapeSink {
  * pending shape as it was.
  * The pending shape and what placing it would add are drawn at most once a frame, and a
  * placed shape's systems stay drawn until its edit lands. With neither, the Special picker's
- * highlighted cluster is drawn the same way.
+ * highlighted row is drawn the same way.
  */
 export class ShapeDrags {
   /** The pending shape at the drag's first step, which a cancelled drag puts back. */
@@ -161,9 +161,9 @@ export class ShapeDrags {
     if (force) this.shown = { pending: null, preview: null, erasing: null };
     if (this.frame !== 0) return;
     const { pendingShape, placingShape } = useToolStore.getState();
-    const cluster = useMapChromeStore.getState().clusterPreview;
+    const special = useMapChromeStore.getState().specialPreview;
     const idle =
-      pendingShape === null && placingShape === null && cluster === null && this.erasing === null;
+      pendingShape === null && placingShape === null && special === null && this.erasing === null;
     const { pending, preview, erasing } = this.shown;
     if (idle && pending === null && preview === null && erasing === null) return;
     this.frame = requestAnimationFrame(() => {
@@ -186,7 +186,7 @@ export class ShapeDrags {
       ? null
       : pending
         ? shapePreview()
-        : (tools.placingShape ?? useMapChromeStore.getState().clusterPreview);
+        : (tools.placingShape ?? useMapChromeStore.getState().specialPreview);
     const was = this.shown;
     if (pending === was.pending && preview === was.preview && erasing === was.erasing) return;
     this.shown = { pending, preview, erasing };
