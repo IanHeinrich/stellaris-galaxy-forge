@@ -341,15 +341,21 @@ export function starTypeName(starTypes: readonly StarType[] | null, key: string)
 
 /**
  * Short names for the star types: each name less the words at least half the usual types' names
- * share, such as "Class" and "Star" in English, so "Class A Star" reads "A" and "Pulsar" stays. A
- * name those words make up entirely, or a key `starTypes` lack, keeps its full name.
+ * share, such as "Class" and "Star" in English, so "Class A Star" reads "A" and "Pulsar" stays. With
+ * `leading` only the first word goes, and only when at least half the usual names start with it,
+ * so "Class A Star" reads "A Star" and "Neutron Star" stays. A name those words make up entirely,
+ * or a key `starTypes` lack, keeps its full name.
  */
-export function shortStarNames(starTypes: readonly StarType[]): (key: string) => string {
+export function shortStarNames(
+  starTypes: readonly StarType[],
+  leading = false,
+): (key: string) => string {
   const usual = starTypes.filter((t) => t.usual);
   const words = (name: string) => name.split(/\s+/).filter((w) => w !== "");
   const counts = new Map<string, number>();
   for (const t of usual) {
-    for (const word of new Set(words(t.name).map((w) => w.toLowerCase()))) {
+    const all = words(t.name).map((w) => w.toLowerCase());
+    for (const word of new Set(leading ? all.slice(0, 1) : all)) {
       counts.set(word, (counts.get(word) ?? 0) + 1);
     }
   }
@@ -358,7 +364,10 @@ export function shortStarNames(starTypes: readonly StarType[]): (key: string) =>
   );
   const short = new Map(
     starTypes.map((t) => {
-      const kept = words(t.name).filter((w) => !common.has(w.toLowerCase()));
+      const all = words(t.name);
+      const kept = leading
+        ? all.filter((w, i) => i > 0 || !common.has(w.toLowerCase()))
+        : all.filter((w) => !common.has(w.toLowerCase()));
       return [t.key, kept.length > 0 ? kept.join(" ") : t.name];
     }),
   );

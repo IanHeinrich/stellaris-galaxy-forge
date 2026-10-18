@@ -221,6 +221,45 @@ describe("the builder", () => {
     expect(builder().starClass).toBeNull();
   });
 
+  it("names the map icon's classes by their stars less a shared leading word, the full name kept", async () => {
+    const named: [string, string][] = [
+      ["pc_a_star", "Class A Star"],
+      ["pc_black_hole", "Black Hole"],
+      ["pc_m_star", "Class M Star"],
+      ["pc_k_star", "Class K Star"],
+    ];
+    mockedIpc.getStarTypes.mockResolvedValue(
+      named.map(([key, name]) => ({ ...starType(key), name })),
+    );
+    const { starClasses } = useGameDataStore.getState();
+    useGameDataStore.setState({
+      starClasses: new Map([...starClasses].map(([k, v]) => [k, { ...v, fileable: true }])),
+    });
+    await openBuilder();
+    builder().setLayout(PAIR.layout);
+    await until(() => expect(useGeneratorStore.getState().filed.size).toBeGreaterThan(0));
+    const label = "Shows on the galaxy map as";
+    const html = render();
+    const pick = lastDrawn(
+      ({ props }) => props.label === label && typeof props.onPick === "function",
+      label,
+    ) as { items: { key: string; label: string; fullLabel?: string }[] };
+    expect(pick.items.map((i) => [i.key, i.label])).toEqual([
+      ["sc_a", "A Star"],
+      ["sc_black_hole", "Black Hole"],
+      ["sc_pair_mk", "M Star + K Star"],
+      ["sc_trio", "A Star + M Star + K Star"],
+    ]);
+    expect(pick.items[0].fullLabel).toBe("sc_a");
+    expect(html).toContain('aria-label="Shows on the galaxy map as: sc_a"');
+    expect(html).toContain('<span class="icon-picker-label">A Star</span>');
+    expect(html).not.toMatch(/icon-picker-label">Class/);
+    expect(html).toContain('aria-label="Star 1: Class A Star" title="Class A Star"');
+    expect(html).toContain(
+      '<span class="icon-picker-label">A Star</span></span><span class="icon-picker-caret">',
+    );
+  });
+
   it("holds the room of the other count's chips, empty, so a pair and a trio are as tall", async () => {
     await openBuilder();
     builder().setLayout(PAIR.layout);

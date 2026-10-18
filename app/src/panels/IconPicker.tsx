@@ -30,6 +30,8 @@ export interface IconPickerItem {
   icon?: ReactNode;
   /** The header the item sits under; a new header starts wherever the group changes. */
   group?: string;
+  /** The full name where `label` is a short form of it: the row's hover and its trigger's name. */
+  fullLabel?: string;
   note?: ReactNode;
   /** Runs instead of picking this row: a local action (revealing more rows) that leaves the list open. */
   onSelect?: () => void;
@@ -83,7 +85,7 @@ export function PickerTrigger({
       ref={ref}
       aria-haspopup={popup}
       aria-expanded={expanded}
-      aria-label={`${label}: ${current.label}`}
+      aria-label={`${label}: ${current.fullLabel ?? current.label}`}
       title={title}
       disabled={disabled}
       onClick={onClick}
@@ -440,6 +442,7 @@ function Option({
           active ? "icon-picker-option listbox-option active" : "icon-picker-option listbox-option"
         }
         aria-selected={selected}
+        title={item.fullLabel}
         onMouseMove={active ? undefined : onHover}
         onClick={onPick}
       >

@@ -237,6 +237,25 @@ describe("short star names", () => {
     expect(short("pc_unknown")).toBe("pc_unknown");
   });
 
+  it("drop only a shared leading word in leading mode", () => {
+    const short = shortStarNames(types, true);
+    expect(USUAL.map(([key]) => short(key))).toEqual([
+      "A Star",
+      "B Star",
+      "F Star",
+      "G Star",
+      "K Star",
+      "M Star",
+      "M Red Giant",
+      "T Brown Dwarf",
+      "Black Hole",
+      "Neutron Star",
+      "Pulsar",
+    ]);
+    expect(short("pc_protostar")).toBe("Protostar");
+    expect(short("pc_unknown")).toBe("pc_unknown");
+  });
+
   it("keep a name those words make up entirely", () => {
     const short = shortStarNames([
       { key: "a", name: "Star", usual: true, effects: false },
