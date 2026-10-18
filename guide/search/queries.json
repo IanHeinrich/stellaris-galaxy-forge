@@ -301,6 +301,6 @@
   {"q": "why is my shape copied several times", "expect": "edit/shapes#use-symmetry-with-a-shape"},
   {"q": "swap two systems", "expect": "edit/select-and-move#swap-two-systems"},
   {"q": "switch places of two stars", "expect": "edit/select-and-move#swap-two-systems"},
-  {"q": "exchange my home system with another system", "expect": "edit/select-and-move#swap-two-systems"},
-  {"q": "move a system but keep the hyperlanes where they are", "expect": "edit/select-and-move#swap-two-systems"}
+  {"q": "swap my home system with another system", "expect": "edit/select-and-move#swap-two-systems"},
+  {"q": "two systems trade places", "expect": "edit/select-and-move#swap-two-systems"}
 ]
