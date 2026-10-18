@@ -38,8 +38,10 @@ export interface IconPickerItem {
 function Row({ item }: { item: IconPickerItem }) {
   return (
     <>
-      {item.icon !== undefined && <span className="icon-picker-icon">{item.icon}</span>}
-      <span className="icon-picker-label">{item.label}</span>
+      <span className="icon-picker-main">
+        {item.icon !== undefined && <span className="icon-picker-icon">{item.icon}</span>}
+        <span className="icon-picker-label">{item.label}</span>
+      </span>
       {item.note !== undefined && <span className="icon-picker-note muted">{item.note}</span>}
     </>
   );

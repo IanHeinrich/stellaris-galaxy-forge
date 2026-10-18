@@ -25,6 +25,11 @@
 }
 
 /* The icon may be taller than the line; it overflows its box so the line keeps its height. */
+/* Groups an icon with its name for the floating popup; elsewhere it adds no box. */
+.icon-picker-main {
+  display: contents;
+}
+
 .icon-picker-trigger .icon-picker-icon {
   width: 22px;
   height: 12px;
@@ -89,6 +94,7 @@
 /* A floating popup is sized in script to its rows, from its picker's width to a cap. Names keep
    to a line, and a row's tags sit after the name or wrap under it, none cut off. */
 .icon-picker-pop.icon-picker-floating {
+  width: max-content;
   min-width: 0;
   max-width: none;
   overflow-x: hidden;
@@ -100,8 +106,13 @@
   padding-block: 3px;
 }
 
-.icon-picker-floating .icon-picker-label {
+/* The icon and its name stay on one line; only the tags wrap away from them. */
+.icon-picker-floating .icon-picker-main {
+  display: flex;
   flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .icon-picker-floating .icon-picker-note {
