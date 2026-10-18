@@ -18,7 +18,7 @@ use crate::layouts::{
     layout_stars, odds, plain_initializers, special_initializers, star_blocks, star_body,
     star_source, unplaced,
 };
-use crate::multi_star::{Filed, file_star_class};
+use crate::multi_star::{Filed, file_star_class, own_class};
 use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
@@ -238,9 +238,10 @@ fn draw_among(
 /// A system the builder makes: the plain layout `built.layout` with the planet classes
 /// `built.stars` in its `class = star` blocks, in order, named `name` at `at` and rolled from
 /// `seed` as [`generate`] rolls a layout. Its star class is `built.star_class` when given,
-/// else the one [`file_star_class`] files the stars under, and its planets are drawn at that
-/// class's odds, or none without `built.planets`. Each star rolls its deposits as its own
-/// class. Refused for a layout that is not plain, a count of stars other than its star blocks, and as [`file_star_class`] refuses.
+/// else the one [`file_star_class`] files the stars under. Without `built.planets` it holds its
+/// stars alone; with them, each star keeps as many of its planets as its own class's range draws
+/// and draws their classes at that class's odds. Each star rolls its deposits as its
+/// own class. Refused for a layout that is not plain, a count of stars other than its star blocks, and as [`file_star_class`] refuses.
 pub fn generate_built(
     gd: &GameData,
     seed: u64,
@@ -386,6 +387,8 @@ fn build(
         star_class,
         stars: draw.stars.map(<[String]>::to_vec),
         stars_only: draw.stars_only,
+        shares: draw.stars.map(|_| Vec::new()),
+        about: 0,
         rng,
         rings: Rng::new(seed ^ RING_STREAM),
         star_blocks: 0,
@@ -594,12 +597,25 @@ struct Roller<'g> {
     stars: Option<Vec<String>>,
     /// Only the star bodies are placed: no planets, moons or belts.
     stars_only: bool,
+    /// Each star placed so far with its share of the planets, when the stars are chosen.
+    shares: Option<Vec<Share<'g>>>,
+    /// The star of `shares` whose planets the walk is at: the system's own about the centre.
+    about: usize,
     rng: Rng,
     /// Each planet's ring, drawn apart so the bodies a seed gives stay as they were.
     rings: Rng,
     /// The `class = star` blocks placed so far.
     star_blocks: usize,
     star_named_by_class: bool,
+}
+
+/// A chosen star's planets: its own class, or the system's when it has none, whose odds they
+/// are drawn at, and how many more of the layout's places for them it keeps, drawn from that
+/// class's `num_planets`. The system's own star takes the planets about the centre with its
+/// own, a companion its own alone, each the first the walk reaches.
+struct Share<'g> {
+    class: &'g StarClass,
+    left: u32,
 }
 
 /// A body just rolled, beside the block it came from, so [`Deposits`] can roll its deposits
@@ -693,6 +709,10 @@ impl<'g> Roller<'g> {
             kind: BodyKind::Star,
             ..body(class, size, placed.orbit, placed.angle, block)
         };
+        let about = self.about;
+        if let Some(share) = self.share(&key) {
+            self.about = share;
+        }
         let mut walk = Walker {
             roller: self,
             bodies: Satellites(Vec::new()),
@@ -700,26 +720,63 @@ impl<'g> Roller<'g> {
         if !walk.roller.stars_only {
             orbit_walk::walk(&block.moons, &mut walk)?;
         }
+        let planets = walk.bodies.0;
+        self.about = about;
         Ok(RolledStar {
             spec,
             block,
-            planets: walk.bodies.0,
+            planets,
         })
     }
 
+    /// For a chosen star `key` of a system with planets, its [`Share`], drawn from the roll's
+    /// stream, and its place among the shares.
+    fn share(&mut self, key: &str) -> Option<usize> {
+        if self.stars_only || self.shares.is_none() {
+            return None;
+        }
+        let class = own_class(self.gd, key).unwrap_or(self.star_class);
+        let left = match class.num_planets {
+            Some(range) => {
+                let drawn = self
+                    .rng
+                    .int(range.min.round() as i64, range.max.round() as i64);
+                u32::try_from(drawn).unwrap_or(0)
+            }
+            None => u32::MAX,
+        };
+        let shares = self.shares.as_mut()?;
+        shares.push(Share { class, left });
+        Some(shares.len() - 1)
+    }
+
+    /// The star class a planet where the walk is now is drawn at: its star's [`Share`], which it
+    /// takes a place of, else the system's. `None` when that share is used up.
+    fn planet_star(&mut self) -> Option<&'g StarClass> {
+        let Some(share) = self.shares.as_mut().and_then(|s| s.get_mut(self.about)) else {
+            return Some(self.star_class);
+        };
+        share.left = share.left.checked_sub(1)?;
+        Some(share.class)
+    }
+
     /// A planet of `block` where the walk placed it about the centre or a star, its class
-    /// drawn at that orbit, with its moons; `None` when no class fits there.
+    /// drawn at that orbit, with its moons; `None` when no class fits there, or its star keeps
+    /// no more planets.
     fn planet(
         &mut self,
         block: &'g InitPlanet,
         placed: Placed<f64>,
     ) -> Result<Option<RolledPlanet<'g>>, GenerateError> {
         let Placed { orbit, angle, .. } = placed;
-        let Some(class) = self.class(&block.class, orbit, false)? else {
+        let Some(star) = self.planet_star() else {
+            return Ok(None);
+        };
+        let Some(class) = self.class(star, &block.class, orbit, false)? else {
             return Ok(None);
         };
         let size = self.size(block, class, false)?;
-        let moons = self.moons(&block.moons, orbit)?;
+        let moons = self.moons(star, &block.moons, orbit)?;
         let ring = self.ring(block, class);
         Ok(Some(RolledPlanet {
             spec: BodySpec {
@@ -733,12 +790,14 @@ impl<'g> Roller<'g> {
 
     fn moons(
         &mut self,
+        star: &'g StarClass,
         blocks: &'g [InitPlanet],
         planet_orbit: f64,
     ) -> Result<Vec<Rolled<'g>>, GenerateError> {
         let mut walk = Walker {
             roller: self,
             bodies: Moons {
+                star,
                 planet_orbit,
                 moons: Vec::new(),
             },
@@ -751,11 +810,12 @@ impl<'g> Roller<'g> {
         draw_ring(&mut self.rings, Some(block), class)
     }
 
-    /// The class of a body written as `class` at `orbit` from the star: one drawn alike among
-    /// a planet list's, a class of the install, or one drawn there; `None` when no class a
-    /// random draw can give fits the orbit.
+    /// The class of a body written as `class` at `orbit` from a star of `star`: one drawn alike
+    /// among a planet list's, a class of the install, or one drawn there; `None` when no class
+    /// a random draw can give fits the orbit.
     fn class(
         &mut self,
+        star: &StarClass,
         class: &BodyClass,
         orbit: f64,
         moon: bool,
@@ -774,7 +834,7 @@ impl<'g> Roller<'g> {
                 return Ok(Some(fixed));
             }
         }
-        let draw = ClassDraw::of(self.gd, self.star_class, class, moon).ok_or_else(unknown)?;
+        let draw = ClassDraw::of(self.gd, star, class, moon).ok_or_else(unknown)?;
         let mut weighted = draw.at(orbit).0;
         // Both samples' orbital ring systems hold their random_colonizable world at 125, past
         // the habitable classes' 60 to 100, while example.txt says one too near the star fails.
@@ -1050,8 +1110,9 @@ impl<'g> Bodies<'g> for Satellites<'g> {
     }
 }
 
-/// A planet's moons, each class drawn for the planet's orbit.
+/// A planet's moons, each class drawn for the planet's orbit about a star of `star`.
 struct Moons<'g> {
+    star: &'g StarClass,
     planet_orbit: f64,
     moons: Vec<Rolled<'g>>,
 }
@@ -1063,7 +1124,7 @@ impl<'g> Bodies<'g> for Moons<'g> {
         block: &'g InitPlanet,
         placed: Placed<f64>,
     ) -> Result<(), GenerateError> {
-        let Some(class) = roller.class(&block.class, self.planet_orbit, true)? else {
+        let Some(class) = roller.class(self.star, &block.class, self.planet_orbit, true)? else {
             return Ok(());
         };
         let size = roller.size(block, class, true)?;

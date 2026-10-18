@@ -1,6 +1,6 @@
 //! A binary or trinary built star by star: the star types a slot may take, the plain layouts
 //! that arrange the stars, and the star class the chosen stars are filed under, which sets
-//! the system's galaxy-map icon, its effects and the odds its planets are drawn at.
+//! the system's galaxy-map icon and its effects.
 
 use std::cmp::Ordering;
 use std::convert::Infallible;
@@ -213,8 +213,9 @@ fn is_star(gd: &GameData, key: &str) -> bool {
     gd.planet_classes.get(key).is_some_and(|class| class.star)
 }
 
-/// The class of one star that is `star` alone, the higher odds first.
-fn own_class<'g>(gd: &'g GameData, star: &str) -> Option<&'g StarClass> {
+/// The class of one star that is `star` alone, the higher odds first: the star's own, whose
+/// planet count and odds a built system's planets about it take.
+pub(crate) fn own_class<'g>(gd: &'g GameData, star: &str) -> Option<&'g StarClass> {
     in_order(gd)
         .into_iter()
         .filter(|c| c.planet_keys().eq([star]))
