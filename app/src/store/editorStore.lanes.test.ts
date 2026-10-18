@@ -101,6 +101,7 @@ describe("bulk lane actions", () => {
   });
 
   it("connectSelectedMesh sends the mesh's missing lanes and clears the preview", async () => {
+    useMapChromeStore.getState().setLaneIslands(false);
     await editor().selectAll();
     const { selection } = editor();
     const laneDensity = useMapChromeStore.getState().laneDensity;

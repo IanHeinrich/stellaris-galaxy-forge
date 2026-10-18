@@ -14,6 +14,8 @@ import type { RenderContext } from "../RenderContext";
 export interface DragState {
   readonly ghosts: readonly MoveGhost[];
   readonly byId: ReadonlyMap<number, MoveGhost>;
+  /** The degrees a rotate drag turns the ghosts by, clockwise on screen; null for a move. */
+  readonly turn: number | null;
 }
 
 /** Whether two sets, or the keys of two maps, hold the same ids. */

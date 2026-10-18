@@ -200,7 +200,7 @@ const NO_OVERLAYS = {
 } satisfies Partial<MapChromeState>;
 
 const LANE_DENSITY_PREF = prefField(PREF_KEYS.laneDensity, DEFAULT_LANE_DENSITY, isFiniteNumber);
-const LANE_ISLANDS_PREF = prefField(PREF_KEYS.laneIslands, false, isBoolean);
+const LANE_ISLANDS_PREF = prefField(PREF_KEYS.laneIslands, true, isBoolean);
 
 /** The stored density, or the one whose cut is a β the slider stored before it kept a density. */
 function storedLaneDensity(): number {

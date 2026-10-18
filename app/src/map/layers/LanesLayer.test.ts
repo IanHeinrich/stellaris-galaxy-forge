@@ -73,6 +73,7 @@ describe("a prevented pair", () => {
     layer.setDragState?.({
       ghosts: [],
       byId: new Map([[ALPHA.id, { id: ALPHA.id, x: 40, y: 0 }]]),
+      turn: null,
     });
 
     expect(dashes(layer)).toEqual([]);

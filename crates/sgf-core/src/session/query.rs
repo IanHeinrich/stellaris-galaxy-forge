@@ -1,6 +1,6 @@
 use super::Session;
 use crate::format::scenario::effect;
-use crate::ops::{Op, OpError, Plan};
+use crate::ops::{self, Op, OpError, Plan};
 use crate::search;
 use crate::views::{SearchKind, SearchResult};
 
@@ -73,7 +73,12 @@ impl Session {
     /// The error the format refuses `op` with, planned against the session as it is, or
     /// `None` when it would apply. Nothing is written. Unlike [`Self::check_op`], it plans any
     /// op it is given, so a caller checking a batch or a two-step op owns what that means.
+    /// An op made of others is refused for its own reasons or for the first of its ops'.
     pub fn refusal(&self, op: &Op) -> Option<OpError> {
-        self.format().write(&mut Plan::new(), self, op).err()
+        match ops::composed(&self.graph, op) {
+            Some(Ok((_, members))) => members.iter().find_map(|member| self.refusal(member)),
+            Some(Err(error)) => Some(error),
+            None => self.format().write(&mut Plan::new(), self, op).err(),
+        }
     }
 }

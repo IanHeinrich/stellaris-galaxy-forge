@@ -18,6 +18,7 @@ import {
   pickFeZone,
   pickNebula,
   pickPrevented,
+  pickRotate,
   pickSystem,
   snapTarget,
 } from "../picking";
@@ -25,6 +26,7 @@ import type { MapEdge } from "../picking/edges";
 import { PickIndex } from "../picking/pickIndex";
 import { pickShape } from "../picking/shapeHandles";
 import { trackGalaxy } from "../picking/trackGalaxy";
+import { rotateGizmo } from "../rotateGizmo";
 import { AddedTooltip } from "./addedTooltip";
 import { BrushModel } from "./BrushModel";
 import { BrushStrokes } from "./brushStrokes";
@@ -34,8 +36,9 @@ import { GestureReporter } from "./gesture";
 import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./MapIntent";
 import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
+import { PivotDrag } from "./pivotDrag";
 import { PointerBridge } from "./pointerBridge";
-import { groupOf } from "./press";
+import { gizmoOf, groupOf } from "./press";
 import { ShapeDrags } from "./shapeDrags";
 import { ShapeModel } from "./ShapeModel";
 
@@ -107,6 +110,7 @@ export class InteractionController {
   private readonly nebulae: NebulaDrag;
   private readonly feZones: FeZoneDrag;
   private readonly moves: MoveDrag;
+  private readonly pivot = new PivotDrag();
   private readonly shapes: ShapeDrags;
   private tool: Tool = "select";
   private model: MapModel = this.models.select;
@@ -273,6 +277,12 @@ export class InteractionController {
       previewFeZone: (anchor, x, y) => this.feZones.move(anchor, x, y),
       commitFeZone: (anchor, x, y) => this.feZones.commit(anchor, x, y),
       endFeZone: () => this.feZones.end(),
+      previewRotate: (degrees) => this.moves.rotate(degrees),
+      commitRotate: (degrees) => this.moves.commitRotate(degrees),
+      cancelRotate: () => this.moves.cancel(),
+      previewPivot: (x, y) => this.pivot.move(x, y),
+      commitPivot: (x, y) => this.pivot.commit(x, y),
+      cancelPivot: () => this.pivot.cancel(),
       cut: (edge) => {
         this.hover(null);
         if (edge.kind === "lane") {
@@ -369,6 +379,7 @@ export class InteractionController {
       nebula: null,
       shape: null,
       prevented: null,
+      rotate: null,
     });
   }
 
@@ -386,9 +397,13 @@ export class InteractionController {
     }
   }
 
-  /** What is under the pointer: systems and lanes where they draw, zones and nebulae on the plane. */
+  /**
+   * What is under the pointer: systems and lanes where they draw, zones and nebulae on the plane,
+   * and a multi-selection's pivot and rotate handle on the screen.
+   */
   private pick(input: MapInput, w: Pt): MapInput {
     const { systems, nebulae } = useGalaxyStore.getState();
+    const gizmo = rotateGizmo(systems, editor(), this.cam, this.drawn.at);
     const grid = this.drawn.pickGrid();
     const at = this.drawn.toPick(w, this.pickAt);
     const picked = grid ? pickSystem(grid, this.cam, at) : { system: null, zone: null };
@@ -432,6 +447,7 @@ export class InteractionController {
             }),
       nebula,
       prevented,
+      rotate: pickRotate(gizmo, this.cam, input.sx, input.sy),
     };
   }
 
@@ -451,7 +467,9 @@ export class InteractionController {
   /** What a lane drag would start from, and where on the system or nebula the press grabbed it. */
   private pressed(input: MapInput): void {
     const pressed =
-      input.system === null ? null : useGalaxyStore.getState().systems.get(input.system);
+      input.system === null || gizmoOf(input)
+        ? null
+        : useGalaxyStore.getState().systems.get(input.system);
     this.laneFrom = pressed
       ? { kind: "systems", ids: groupOf(input.selection, pressed.id) ?? [pressed.id] }
       : input.feZone

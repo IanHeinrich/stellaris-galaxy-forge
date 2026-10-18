@@ -25,10 +25,11 @@ selected wormhole has a ring around it in the system view.
 ## Add a wormhole pair
 
 In a Stellaris 4.x save, you can add a wormhole pair. Select two
-systems, right-click one and select "Link as wormhole pair". Each end
-starts near the inner edge of its system, where the game puts the
-wormholes it spawns, so drag it where you want it. The option only
-shows when neither system already has a wormhole or shroud tunnel.
+systems, right-click one and select "Link as wormhole pair". The
+Inspector's Hyperlanes section has the same action in its Wormholes
+block. Each end starts near the inner edge of its system, where the game
+puts the wormholes it spawns, so drag it where you want it. The option
+only shows when neither system already has a wormhole or shroud tunnel.
 
 ## Remove a wormhole pair
 

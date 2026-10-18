@@ -1,7 +1,10 @@
+import type { Pt } from "../../lib/geometry/pt";
 import type { NebulaPick } from "../picking";
+import { dragTurn } from "../rotateGizmo";
 import type { LaneSource, LaneTarget, MapInput, MapIntent, MapModel } from "./MapIntent";
 import {
   doubles,
+  gizmoOf,
   groupOf,
   laneSourceOf,
   pastThreshold,
@@ -19,9 +22,14 @@ type Drag =
   | { kind: "lane"; from: LaneSource; target: LaneTarget | null }
   | { kind: "nebula"; index: number }
   | { kind: "nebulaRadius"; index: number }
-  | { kind: "feZone"; anchor: number };
+  | { kind: "feZone"; anchor: number }
+  | { kind: "rotate"; pivot: Pt }
+  /** The offset from the pointer to the pivot, so the drag keeps the grab point. */
+  | { kind: "pivot"; dx: number; dy: number };
 
 function idleCursor(input: MapInput): string {
+  const gizmo = gizmoOf(input);
+  if (gizmo) return gizmo.part === "handle" ? "grab" : "move";
   if (input.zone === "port" || (input.zone !== null && input.shift)) return "crosshair";
   if (input.zone !== null) return "move";
   if (input.midpointHit) return "pointer";
@@ -76,6 +84,8 @@ export class GestureModel implements MapModel {
       case "nebula":
       case "nebulaRadius":
       case "feZone":
+      case "rotate":
+      case "pivot":
       case "pan":
         return "grabbing";
       case "none":
@@ -109,6 +119,12 @@ export class GestureModel implements MapModel {
         break;
       case "feZone":
         intent.endFeZone();
+        break;
+      case "rotate":
+        intent.cancelRotate();
+        break;
+      case "pivot":
+        intent.cancelPivot();
         break;
       case "pan":
       case "none":
@@ -182,6 +198,12 @@ export class GestureModel implements MapModel {
       case "feZone":
         intent.previewFeZone(this.drag.anchor, input.wx, input.wy);
         return "consumed";
+      case "rotate":
+        intent.previewRotate(turnOf(this.drag.pivot, press, input));
+        return "consumed";
+      case "pivot":
+        intent.previewPivot(input.wx + this.drag.dx, input.wy + this.drag.dy);
+        return "consumed";
     }
   }
 
@@ -226,6 +248,12 @@ export class GestureModel implements MapModel {
       case "feZone":
         intent.commitFeZone(drag.anchor, input.wx, input.wy);
         break;
+      case "rotate":
+        intent.commitRotate(turnOf(drag.pivot, press, input));
+        break;
+      case "pivot":
+        intent.commitPivot(input.wx + drag.dx, input.wy + drag.dy);
+        break;
       case "pan":
       case "none":
         break;
@@ -237,6 +265,7 @@ export class GestureModel implements MapModel {
   private click(press: Press, intent: MapIntent): void {
     const last = this.lastClick;
     this.lastClick = null;
+    if (gizmoOf(press)) return;
     if (press.system !== null) {
       if (press.ctrl || press.shift) intent.toggleSelect(press.system);
       else if (last?.system === press.system && doubles(last, press)) {
@@ -261,7 +290,20 @@ export class GestureModel implements MapModel {
   }
 }
 
+/** The turn about `pivot` from the press point to the pointer, snapped while Shift is held. */
+function turnOf(pivot: Pt, press: Press, input: MapInput): number {
+  return dragTurn(pivot, { x: press.wx, y: press.wy }, { x: input.wx, y: input.wy }, input.shift);
+}
+
+/** A press on the gizmo wins over the Shift marquee and lane drag under it. */
 function dragFrom(press: Press): Drag {
+  const gizmo = gizmoOf(press);
+  if (gizmo) {
+    const { part, pivot } = gizmo;
+    return part === "handle"
+      ? { kind: "rotate", pivot }
+      : { kind: "pivot", dx: pivot.x - press.wx, dy: pivot.y - press.wy };
+  }
   const from = laneSourceOf(press);
   if (from) return { kind: "lane", from, target: null };
   if (press.system === null) {

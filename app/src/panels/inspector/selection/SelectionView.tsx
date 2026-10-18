@@ -4,10 +4,15 @@ import { useCanEdit } from "../../../store/fileSessionStore";
 import { useSystemNames } from "../../../store/browserRows";
 import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { deleteSystemsLabel } from "../../../lib/selectionCopy";
 import { counted } from "../../../lib/text";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
-import { BulkActions } from "../../BulkActions";
+import { MarauderClanButton } from "../../BulkActions";
+import { useSelectionDeletion } from "../../useSelectionActions";
+import { DialogField, EditBlock, EditRow } from "../../EditField";
 import { BulkStarClass } from "./BulkStarClass";
+import { LanesSection } from "./LanesSection";
+import { PositionSection } from "./PositionSection";
 import { Chip, FILTER_MIN, FilterField } from "../../parts";
 import { Section, Swatch } from "../parts";
 import { shortcutLabel } from "../../../lib/keys";
@@ -15,14 +20,14 @@ import { shortcutLabel } from "../../../lib/keys";
 /** How many chips a long selection shows before asking for a filter. */
 const CHIPS_SHOWN = 60;
 
-/** Several systems selected: what they have in common, and where the actions live. */
+/**
+ * Several systems selected: what they have in common, then their lanes, their positions, what is
+ * set for all of them, the list of them and their removal.
+ */
 export function SelectionView() {
   const selection = useEditorStore((s) => s.selection);
   const select = useEditorStore((s) => s.select);
   const systems = useGalaxyStore((s) => s.systems);
-  const gameData = useGameDataStore((s) => s.status === "ready");
-  const canAssign = useCanEdit("create_systems");
-  const bodies = useCanEdit("bodies");
 
   const owners = new Set(
     selection.map((id) => systems.get(id)?.owner ?? null).filter((o) => o !== null),
@@ -47,30 +52,63 @@ export function SelectionView() {
           {between} · {isolated} isolated
         </span>
       </div>
-      <Section id="selection.actions" title="Actions">
-        <div className="ins-bulk">
-          <BulkActions />
-          {bodies && <BulkStarClass ids={selection} />}
-          {canAssign && (
-            <button
-              type="button"
-              disabled={!gameData}
-              title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
-              onClick={() => browseInitializers(selection)}
-            >
-              Set initializer… ({selection.length} systems)
-            </button>
-          )}
-        </div>
-        <div className="muted ins-hint">Also in the right-click menu on the map.</div>
-      </Section>
-      <SelectedChips />
       {selection.some((id) => !systems.has(id)) && (
         <div className="ins-line">
           <Chip warn>some selected systems are no longer in the galaxy</Chip>
         </div>
       )}
+      <LanesSection />
+      <PositionSection />
+      <SetForAllSection />
+      <SelectedChips />
+      <DeleteSelection />
     </>
+  );
+}
+
+/** One value given to every selected system: the star class in a save, the initializer in a scenario. */
+function SetForAllSection() {
+  const selection = useEditorStore((s) => s.selection);
+  const gameData = useGameDataStore((s) => s.status === "ready");
+  const canAssign = useCanEdit("create_systems");
+  const bodies = useCanEdit("bodies");
+  if (!bodies && !canAssign) return null;
+  return (
+    <Section id="selection.setAll" title={`Set for all ${selection.length}`}>
+      {bodies && (
+        <EditBlock title="Stars">
+          <BulkStarClass ids={selection} />
+        </EditBlock>
+      )}
+      {canAssign && (
+        <EditBlock title="Scripts">
+          <EditRow label="Initializer">
+            <DialogField
+              label="Initializer"
+              text="Choose…"
+              title="Give every selected system one initializer"
+              disabledReason={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
+              onOpen={() => browseInitializers(selection)}
+            />
+          </EditRow>
+          {selection.length === 3 && <MarauderClanButton className="edit-wide" ids={selection} />}
+        </EditBlock>
+      )}
+    </Section>
+  );
+}
+
+/** The selection's delete button, apart from the rest under a rule, where the document deletes them. */
+function DeleteSelection() {
+  const selection = useEditorStore((s) => s.selection);
+  const deletion = useSelectionDeletion();
+  if (deletion === null) return null;
+  return (
+    <div className="ins-delete">
+      <button type="button" onClick={deletion.run}>
+        {deletion.kind === "systems" ? deleteSystemsLabel(selection.length) : deletion.label}
+      </button>
+    </div>
   );
 }
 

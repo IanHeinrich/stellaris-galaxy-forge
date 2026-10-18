@@ -190,7 +190,7 @@ describe("the fallen empire zones layer", () => {
   it("moves the ring with its anchor's ghost while it is dragged, and back when the drag ends", () => {
     const layer = drawn([ZONED]);
     const ghost = { id: 0, x: 100, y: 50 };
-    layer.setDragState({ ghosts: [ghost], byId: new Map([[0, ghost]]) });
+    layer.setDragState({ ghosts: [ghost], byId: new Map([[0, ghost]]), turn: null });
     expect(rings(layer).map((g) => [g.x, g.y, g.alpha])).toEqual([[60, 50, GHOST_ALPHA]]);
     layer.setDragState(null);
     expect(rings(layer).map((g) => [g.x, g.y, g.alpha])).toEqual([[-40, 0, 1]]);
@@ -297,7 +297,7 @@ describe("the fallen empire zones layer", () => {
   it("moves a line's end with the linked system's ghost while it is dragged", () => {
     const layer = drawn([taking(2, ZONED), linked(PLAIN, 2)]);
     const ghost = { id: 1, x: 100, y: 0 };
-    layer.setDragState({ ghosts: [ghost], byId: new Map([[1, ghost]]) });
+    layer.setDragState({ ghosts: [ghost], byId: new Map([[1, ghost]]), turn: null });
     expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(140);
     layer.setDragState(null);
     expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(240);

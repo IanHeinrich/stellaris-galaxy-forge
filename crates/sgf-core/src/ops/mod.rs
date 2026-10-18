@@ -138,8 +138,37 @@ impl MetaEdit {
 pub(crate) fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     match op {
         Op::Batch { description, ops } => apply_batch(session, description, ops),
-        op => apply_one(session, op),
+        op => apply_member(session, op),
     }
+}
+
+/// The description and the ops of the batch that `op`, an op made of others, writes, as
+/// planned against `graph`; `None` for an op its format writes itself.
+pub(crate) fn composed(graph: &GalaxyGraph, op: &Op) -> Option<Result<(String, Vec<Op>), OpError>> {
+    match op {
+        Op::RotateSystems {
+            systems,
+            pivot,
+            degrees,
+            nebulae,
+        } => Some(
+            rules::rotation::decide(graph, systems, *pivot, *degrees, *nebulae)
+                .map(|rotation| (rotation.describe(), rotation.ops())),
+        ),
+        _ => None,
+    }
+}
+
+/// Apply one op that is not a batch: one made of others as the batch of them, recorded as
+/// itself.
+fn apply_member(session: &mut Session, op: Op) -> Result<Applied, OpError> {
+    let Some(batch) = composed(&session.graph, &op) else {
+        return apply_one(session, op);
+    };
+    op.check_kind(session.kind())?;
+    let (description, ops) = batch?;
+    let applied = apply_batch(session, description, ops)?;
+    Ok(Applied { op, ..applied })
 }
 
 /// Apply one op that is not a batch, and keep beside each row it added what the bytes
@@ -213,7 +242,7 @@ fn apply_batch(
     };
     let mut members: Vec<Applied> = Vec::with_capacity(ops.len());
     for member in ops {
-        match apply_one(session, member) {
+        match apply_member(session, member) {
             Ok(applied) => members.push(applied),
             Err(e) => {
                 let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();

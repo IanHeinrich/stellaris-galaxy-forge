@@ -45,6 +45,12 @@ export function recorder(): Recorder<MapIntent> {
     previewFeZone: true,
     commitFeZone: true,
     endFeZone: true,
+    previewRotate: true,
+    commitRotate: true,
+    cancelRotate: true,
+    previewPivot: true,
+    commitPivot: true,
+    cancelPivot: true,
     contextMenu: true,
     hoverBrush: true,
     beginStroke: true,
@@ -119,6 +125,7 @@ export function at(
     nebula: null,
     shape: null,
     prevented: null,
+    rotate: null,
     ...extra,
   };
 }

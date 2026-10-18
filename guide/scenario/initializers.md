@@ -13,7 +13,9 @@ there.
 
 Select one or more systems and press <kbd>Shift</kbd>+<kbd>I</kbd> to
 open the initializer browser. Pick an initializer to see what it places,
-then click Assign to give it to the selected systems.
+then click Assign to give it to the selected systems. With several
+systems selected, the Scripts block under "Set for all" in the Inspector
+also sets their initializer.
 
 <Annotated :marks="[
   { n: 1, box: [15, 13, 1115, 36], label: 'Search, with the filter prefixes listed under it' },

@@ -18,6 +18,7 @@ import {
   NEBULA_HANDLE_HIT_PX,
   NEBULA_RING_HIT_PX,
   ringZoneOf,
+  ROTATE_HIT_PX,
   SNAP_RADIUS_PX,
   systemReachPx,
   zoneOf,
@@ -27,6 +28,7 @@ import { portCapable as portsAt } from "../../lib/visual/labels";
 import { markerScale } from "../layers/MapLayer";
 import type { Systems } from "../RenderContext";
 import type { SpatialGrid } from "../../lib/spatialGrid";
+import type { RotateGizmo } from "../rotateGizmo";
 
 /** So a near-zero nebula or zone stays grabbable. */
 const CENTRE_MIN_HIT_PX = 4;
@@ -122,6 +124,33 @@ function hitOn(
   }
   const ringPx = Math.abs(toCentre - n.radius) * cam.scale;
   return ringPx <= NEBULA_RING_HIT_PX ? { part: "ring", dist: ringPx } : null;
+}
+
+/** Where on a multi-selection's gizmo a point landed: the pivot it turns about, or the rotate handle. */
+export type RotatePart = "pivot" | "handle";
+
+export interface RotatePick {
+  part: RotatePart;
+  /** The pivot the selection turns about, in world-container units. */
+  pivot: Pt;
+}
+
+/** The part of `gizmo` within reach of the screen point (sx, sy), the nearer where both are. */
+export function pickRotate(
+  gizmo: RotateGizmo | null,
+  cam: Camera,
+  sx: number,
+  sy: number,
+): RotatePick | null {
+  if (!gizmo) return null;
+  const px = (p: Pt) => {
+    const s = cam.worldToScreen(p.x, p.y);
+    return Math.hypot(s.x - sx, s.y - sy);
+  };
+  const handle = px(gizmo.handle);
+  const pivot = px(gizmo.pivot);
+  if (Math.min(handle, pivot) > ROTATE_HIT_PX) return null;
+  return { part: handle <= pivot ? "handle" : "pivot", pivot: gizmo.pivot };
 }
 
 /** A fallen empire zone under the pointer, named by the system that anchors it, and where on it. */
