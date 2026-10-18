@@ -358,6 +358,27 @@ fn the_random_multi_star_layouts_roll_their_stars_and_companions_planets() {
     );
 }
 
+/// A scenario system whose planets the game rolls shows only planets about the centre for a
+/// trinary class: its stars, and the planets of its companions, are no placeholders.
+#[test]
+fn a_rolled_trinary_systems_placeholders_are_its_planets_alone() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let mut shown = 0;
+    for roll in 0..40 {
+        let rolled = gd.system_roll(7, "", "sc_trinary_1", roll, 400.0);
+        assert!(rolled.rolls_planets);
+        for body in &rolled.placeholders {
+            let class = gd.planet_classes.get(&body.class).expect("a class");
+            assert!(!class.star, "roll {roll}: {}", body.class);
+            assert!(body.orbit <= 400.0);
+        }
+        shown += rolled.placeholders.len();
+    }
+    assert!(shown > 0);
+}
+
 /// Sol's cluster is offered now that its neighbours build, and rolls inside its chain.
 #[test]
 fn sols_cluster_is_offered_and_rolls() {

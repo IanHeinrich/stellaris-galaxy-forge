@@ -5,6 +5,7 @@ use crate::common;
 
 use std::collections::BTreeSet;
 
+use sgf_gamedata::body_effects::LeftOut;
 use sgf_gamedata::generate::{GenerateError, generate};
 use sgf_gamedata::layouts::{DlcNeed, special_initializers};
 use sgf_gamedata::menu::special_layouts;
@@ -123,9 +124,6 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
         "legendary_leader_1st_site",
         "legendary_leader_2nd_site",
         "legendary_leader_3rd_site",
-        "sol_neighbor_t1_no_guaranteed_colony",
-        "sol_neighbor_t2",
-        "sol_neighbor_t2_no_guaranteed_colony",
     ];
     for member in cluster_only {
         assert!(
@@ -139,6 +137,22 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
     );
     let entry = |key: &str| entries.iter().find(|e| e.key == key).expect(key);
     assert_eq!(entry("trappist_initializer").label, "Trappist");
+    for (neighbour, label) in [
+        ("sol_neighbor_t1_no_guaranteed_colony", "Alpha Centauri"),
+        ("sol_neighbor_t2", "Procyon"),
+        ("sol_neighbor_t2_no_guaranteed_colony", "Sirius"),
+    ] {
+        assert_eq!(entry(neighbour).label, label);
+        assert!(
+            entry(neighbour).unique,
+            "{neighbour}: with the unique systems"
+        );
+        let card = layout_summary(gd, neighbour, &session).expect(neighbour);
+        assert!(
+            !card.comes_without.contains(&LeftOut::ClusterSystems),
+            "{neighbour}: no event of Sol's looks for it"
+        );
+    }
     for unique in ["unique_system_initializer_03", "oasis_system"] {
         assert!(entry(unique).unique, "{unique} is flagged unique_system");
     }

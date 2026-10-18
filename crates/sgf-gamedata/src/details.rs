@@ -11,6 +11,7 @@ mod save;
 use std::convert::Infallible;
 
 use sgf_core::format::save::details::DetailsResolver;
+use sgf_core::ops::{BodyKind, BodySpec};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
@@ -542,20 +543,26 @@ impl GameData {
             .is_none_or(|init| init.inline_script && init.planets.is_empty())
     }
 
-    /// The planets [`generate`] rolls for `star_class`, or for any class when none of the
-    /// install's layouts makes it, drawn in about the centre until the outermost lies
-    /// [`PLACEHOLDER_MARGIN`] inside `within`.
+    /// The planets [`generate`] rolls about the centre for `star_class`, or for any class when
+    /// none of the install's layouts makes it, drawn in until the outermost lies
+    /// [`PLACEHOLDER_MARGIN`] inside `within`. No star is one, the system's own or a
+    /// companion, and a companion's planets go with it.
     fn placeholders(&self, seed: u64, star_class: &str, within: f64) -> Vec<PlaceholderBody> {
         let roll = |class| generate(self, seed, "", (0.0, 0.0), class, 1.0);
         let Ok(spec) = roll(Some(star_class)).or_else(|_| roll(None)) else {
             return Vec::new();
         };
-        let outermost = spec.planets.iter().map(|p| p.orbit).fold(0.0, f64::max);
+        let planets: Vec<&BodySpec> = spec
+            .planets
+            .iter()
+            .filter(|p| p.kind != BodyKind::Star)
+            .collect();
+        let outermost = planets.iter().map(|p| p.orbit).fold(0.0, f64::max);
         let fit = match outermost > 0.0 {
             true => ((within - PLACEHOLDER_MARGIN) / outermost).clamp(0.0, 1.0),
             false => 1.0,
         };
-        spec.planets
+        planets
             .iter()
             .map(|p| PlaceholderBody {
                 class: p.class.clone(),

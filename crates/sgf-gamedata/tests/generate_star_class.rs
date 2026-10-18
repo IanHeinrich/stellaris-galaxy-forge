@@ -7,7 +7,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::ops::BodyKind;
 use sgf_gamedata::generate::{GenerateError, generate, star_classes};
-use sgf_gamedata::layouts::{plain_initializers, special_initializers};
+use sgf_gamedata::layouts::{
+    Eligibility, Unsupported, eligibility, plain_initializers, special_initializers,
+};
 
 use common::generate::{SEEDS, hand_written, specs};
 use common::{ABUNDANCE, INSTALL, SPOT};
@@ -61,10 +63,14 @@ fn star_classes_come_up_about_as_often_as_their_layouts_and_odds_give_them() {
 #[test]
 fn a_hand_written_install_rolls_the_star_class_asked_for() {
     let (_dir, gd) = hand_written();
+    assert_eq!(star_classes(&gd), ["sc_sun", "sc_ember", "sc_blaze"]);
     assert_eq!(
-        star_classes(&gd),
-        ["sc_sun", "sc_ember", "sc_blaze", "sc_pair"],
-        "fx_pair's one star block takes the first of sc_pair's two stars, so it is special"
+        eligibility(&gd, gd.initializers.get("fx_pair").unwrap()),
+        Eligibility::Unsupported(Unsupported::StarCount {
+            blocks: 1,
+            stars: 2
+        }),
+        "one star block for sc_pair's two stars"
     );
     for seed in 0..50 {
         let spec =
@@ -77,12 +83,11 @@ fn a_hand_written_install_rolls_the_star_class_asked_for() {
             "the same seed and class"
         );
     }
-    let pair = generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pair"), ABUNDANCE).unwrap();
     assert_eq!(
-        (pair.initializer.as_str(), pair.star.class.as_str()),
-        ("fx_pair", "pc_sun_star")
+        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pair"), ABUNDANCE),
+        Err(GenerateError::NoLayoutFor("sc_pair".to_owned())),
+        "no layout has a star block for each of its stars"
     );
-    assert!(pair.planets.is_empty(), "no companion without a block");
     assert_eq!(
         generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_nowhere"), ABUNDANCE),
         Err(GenerateError::UnknownStar("sc_nowhere".to_owned())),

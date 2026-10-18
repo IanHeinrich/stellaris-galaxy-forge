@@ -61,6 +61,14 @@ impl Converted {
         }
     }
 
+    /// A layout the menu lists with the unique systems, keeping no flag of its own.
+    const fn unique(key: &'static str) -> Self {
+        Self {
+            unique: true,
+            ..Self::special(key)
+        }
+    }
+
     /// The system keeps `flag`: events find the systems they placed by flag.
     pub fn keeps(&self, flag: &str) -> bool {
         !EMPIRE_START_FLAGS.contains(&flag) && !self.drops.contains(&flag)
@@ -79,7 +87,7 @@ const EMPIRE_START_FLAGS: [&str; 6] = [
 ];
 
 /// The layouts the generator builds by converting them.
-pub const CONVERTED_LAYOUTS: [Converted; 16] = [
+pub const CONVERTED_LAYOUTS: [Converted; 19] = [
     Converted {
         key: "sol_system_initializer",
         unique: true,
@@ -100,6 +108,9 @@ pub const CONVERTED_LAYOUTS: [Converted; 16] = [
     Converted::special("irass_system"),
     Converted::special("last_baol_system"),
     Converted::special("sol_neighbor_t1"),
+    Converted::unique("sol_neighbor_t1_no_guaranteed_colony"),
+    Converted::unique("sol_neighbor_t2"),
+    Converted::unique("sol_neighbor_t2_no_guaranteed_colony"),
     Converted::special("hostile_init_16"),
     Converted::special("hostile_init_21"),
     Converted::special("holibrae_initializer"),
@@ -319,7 +330,9 @@ pub enum Unsupported {
     EventOnly,
     /// Its `class` names no star class or list.
     NoStar,
-    /// A class it can give has fewer stars than it has `class = star` blocks.
+    /// A class it can give has several stars, and its star blocks, `class = star` or a star's
+    /// class, are not as many. A class of one star takes any number: the Great Wound's extra
+    /// black holes.
     StarCount {
         blocks: usize,
         stars: usize,
@@ -741,13 +754,14 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if counts.iter().any(|count| count.is_none_or(|n| n == 0)) {
         return Some(Unsupported::NoStar);
     }
-    let blocks = star_blocks(init);
-    let fewest = counts.into_iter().flatten().min().unwrap_or(0);
-    if fewest < blocks {
-        return Some(Unsupported::StarCount {
-            blocks,
-            stars: fewest,
-        });
+    let blocks = init
+        .planets
+        .iter()
+        .filter(|p| star_body(gd, &p.class))
+        .count();
+    let several = counts.into_iter().flatten().find(|&n| n > 1 && n != blocks);
+    if let Some(stars) = several {
+        return Some(Unsupported::StarCount { blocks, stars });
     }
     let Some(star) = init.planets.iter().find(|p| star_body(gd, &p.class)) else {
         return Some(Unsupported::NoStar);
