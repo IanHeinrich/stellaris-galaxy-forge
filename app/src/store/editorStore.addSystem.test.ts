@@ -21,7 +21,6 @@ import { useGeneratorStore } from "./generatorStore";
 import { useInspectorStore } from "./inspectorStore";
 import { editResult, saveMeta } from "./fixture";
 import { mockedIpc } from "../test/ipc";
-import { pickSummary } from "../test/builders";
 import { until } from "../test/wait";
 
 const addRandomSystem = mockedIpc.addRandomSystem;
@@ -163,29 +162,18 @@ describe("placing a special layout", () => {
     expect(addRandomSystem).not.toHaveBeenCalled();
   });
 
-  it("rolls the same layout again, and a new class rolls a regular system", async () => {
-    useGeneratorStore.setState({
-      picks: {
-        random: pickSummary(),
-        star_classes: [],
-        special: [{ layout: { key: "trappist_initializer" }, summary: pickSummary() }],
-        clusters: [],
-      } as never,
-    });
+  it("rolls it again as it was built, and a new class rolls a regular system", async () => {
     useGalaxyStore.getState().applyDelta({ systems: [trappist()] });
     rerollSystem.mockResolvedValue(editResult());
 
     expect(await editor().rerollSystem(6)).toBe(true);
     expect(await editor().rerollSystem(6, "sc_g")).toBe(true);
     expect(await editor().rerollSystem(6, null)).toBe(true);
-    useGeneratorStore.setState({ picks: null });
-    expect(await editor().rerollSystem(6)).toBe(true);
 
     expect(rerollSystem.mock.calls.map(([id, , pick]) => [id, pick])).toEqual([
-      [6, { kind: "layout", layout: "trappist_initializer" }],
+      [6, { kind: "same" }],
       [6, { kind: "class", star_class: "sc_g" }],
       [6, { kind: "random" }],
-      [6, { kind: "class", star_class: "sc_m" }],
     ]);
   });
 

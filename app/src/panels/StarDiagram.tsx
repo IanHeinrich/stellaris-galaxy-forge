@@ -1,37 +1,44 @@
 import { useMemo } from "react";
 import type { LayoutDiagram } from "../generated/LayoutDiagram";
 import { singleStarClasses } from "../lib/details/starBody";
-import { diagramPlaces, starArtKeys } from "../lib/multiStar";
+import { fitDiagram, placeLabels, starArtKeys } from "../lib/multiStar";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useTextureUrl } from "./useTextureUrl";
 import "./panels.css";
 
-/** The space kept under a star of a diagram for its name. */
-const NAME_PX = 14;
-
-/** The art the galaxy view draws for a star of the planet class `star`, `size` pixels square. */
+/**
+ * The art the galaxy view draws for a star of the planet class `star`, `size` pixels square, on a
+ * ground of its own that its texture's black blends into, as the map adds a star's light.
+ */
 export function StarArt({ star, size }: { star: string; size: number }) {
   const starClasses = useGameDataStore((s) => s.starClasses);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const singles = useMemo(() => singleStarClasses(starClasses), [starClasses]);
   const url = useTextureUrl(starArtKeys(star, singles, planetClasses));
-  if (url === undefined) {
-    return <span className="star-art blank" style={{ width: size, height: size }} aria-hidden />;
-  }
-  return <img className="star-art star-class-icon" src={url} width={size} height={size} alt="" />;
+  return (
+    <span className="star-art" style={{ width: size, height: size }} aria-hidden="true">
+      {url !== undefined && <img src={url} width={size} height={size} alt="" />}
+    </span>
+  );
 }
+
+/** The space kept under the stars for their labels. */
+const LABEL_PX = 12;
 
 /**
  * A layout's stars alone, each where the layout puts it with the art of the star in its slot, and
- * a distant companion's path round the centre: in a box `size` pixels square, under each star its
- * name when `names` are given.
+ * a distant companion's path round the centre, scaled to fill a box `size` pixels square. The art
+ * is at most `starSize` across and shrinks, to `minStar`, so neighbours keep a gap. Each star
+ * carries its label under it when `labels` are given and none would touch, else none does.
  */
 export function StarDiagram({
   diagram,
   stars,
   size,
   starSize,
-  names,
+  minStar = Math.min(starSize, 8),
+  labels,
+  reach,
   label,
 }: {
   diagram: LayoutDiagram;
@@ -39,12 +46,22 @@ export function StarDiagram({
   stars: readonly string[];
   size: number;
   starSize: number;
-  names?: readonly string[];
+  minStar?: number;
+  /** A label for each star, in the diagram's order. */
+  labels?: readonly string[];
+  /** How far a whole system reaches, in game units, one scale for every diagram; unset, its own. */
+  reach?: number;
   label?: string;
 }) {
-  const margin = starSize / 2 + (names === undefined ? 2 : NAME_PX);
-  const places = diagramPlaces(diagram, size, margin);
-  const mid = size / 2;
+  const fit = fitDiagram(diagram, {
+    size,
+    maxStar: starSize,
+    minStar,
+    below: labels === undefined ? 0 : LABEL_PX,
+    reach,
+  });
+  const shown = labels === undefined ? null : placeLabels(fit, labels);
+  const art = fit.starSize;
   return (
     <span
       className="star-diagram"
@@ -53,20 +70,37 @@ export function StarDiagram({
       aria-label={label}
     >
       <svg width={size} height={size} aria-hidden="true">
-        {places.flatMap((p, i) =>
+        {fit.stars.flatMap((p, i) =>
           p.path === null
             ? []
-            : [<circle key={i} className="star-diagram-path" cx={mid} cy={mid} r={p.path} />],
+            : [
+                <circle
+                  key={i}
+                  className="star-diagram-path"
+                  cx={fit.centre.x}
+                  cy={fit.centre.y}
+                  r={p.path}
+                />,
+              ],
         )}
       </svg>
-      {places.map((p, i) => (
+      {fit.stars.map((p, i) => (
         <span
           key={i}
           className="star-diagram-star"
-          style={{ left: p.x, top: p.y, transform: `translate(-50%, -${starSize / 2}px)` }}
+          style={{ left: p.x - art / 2, top: p.y - art / 2 }}
         >
-          <StarArt star={stars[i] ?? ""} size={starSize} />
-          {names !== undefined && <span className="star-diagram-name">{names[i] ?? ""}</span>}
+          <StarArt star={stars[i] ?? ""} size={art} />
+        </span>
+      ))}
+      {shown?.map((place, i) => (
+        <span
+          key={i}
+          className="star-diagram-label"
+          aria-hidden="true"
+          style={{ left: place.x, top: place.top }}
+        >
+          {labels?.[i]}
         </span>
       ))}
     </span>

@@ -262,7 +262,7 @@ describe("edits queued behind others", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
   });
 
-  it("roll a reroll around the class a pick ahead of it chose", async () => {
+  it("roll a reroll behind a class pick after it, leaving the build to the core", async () => {
     const [six] = withAddedSystems();
     const pick = deferred<EditResult>();
     rerollSystem.mockReturnValueOnce(pick.promise).mockResolvedValueOnce(editResult());
@@ -272,10 +272,9 @@ describe("edits queued behind others", () => {
     pick.resolve(editResult({ delta: { systems: [{ ...six, star_class: "sc_m" }] } }));
     await Promise.all([picking, rolling]);
 
-    const sc_m = { kind: "class", star_class: "sc_m" };
     expect(rerollSystem.mock.calls.map(([id, , pick]) => [id, pick])).toEqual([
-      [6, sc_m],
-      [6, sc_m],
+      [6, { kind: "class", star_class: "sc_m" }],
+      [6, { kind: "same" }],
     ]);
   });
 });

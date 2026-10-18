@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { opensUp, popupPlace, type Across, type Down } from "./iconPickerPlace";
+import { floatPlace, opensUp, popupPlace, type Across, type Down } from "./iconPickerPlace";
 import { listStep } from "./gridKeys";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
@@ -133,6 +133,44 @@ function fitPopup(popup: HTMLElement, picker: HTMLElement) {
   }
 }
 
+/** The space between a floating popup and its picker. */
+const POPUP_GAP_PX = 4;
+
+/**
+ * Floats `popup` over everything, fixed to the window beside `picker`: on the side with room, no
+ * taller than the window leaves there, so opening it never grows or scrolls a box around it.
+ */
+function floatPopup(popup: HTMLElement, picker: HTMLElement) {
+  const { style } = popup;
+  Object.assign(style, {
+    position: "fixed",
+    margin: "0",
+    right: "auto",
+    bottom: "auto",
+    maxHeight: "",
+    minWidth: "",
+    maxWidth: "",
+  });
+  popup.classList.remove("up");
+  const box = picker.getBoundingClientRect();
+  const view = { top: 0, bottom: window.innerHeight };
+  const { up, maxHeight } = floatPlace(box, popup.offsetHeight, view, POPUP_GAP_PX, POPUP_EDGE_PX);
+  style.maxHeight = `${maxHeight}px`;
+  const height = Math.min(popup.offsetHeight, maxHeight);
+  style.top = `${up ? box.top - POPUP_GAP_PX - height : box.bottom + POPUP_GAP_PX}px`;
+  const across = {
+    left: POPUP_EDGE_PX,
+    right: document.documentElement.clientWidth - POPUP_EDGE_PX,
+  };
+  const { edge, maxWidth } = popupPlace(box, across, popup.offsetWidth);
+  if (maxWidth !== null) {
+    style.minWidth = "0";
+    style.maxWidth = `${maxWidth}px`;
+  }
+  const width = Math.min(popup.offsetWidth, maxWidth ?? Infinity);
+  style.left = `${edge === "left" ? box.left : box.right - width}px`;
+}
+
 /**
  * While `open`, fits `popup` to the box that shows `picker`, so it never widens that box into
  * scrolling sideways: before it paints, again as `rows` change and as the window resizes.
@@ -142,16 +180,21 @@ function usePopupFit(
   picker: RefObject<HTMLElement | null>,
   popup: RefObject<HTMLElement | null>,
   rows: unknown,
+  floating: boolean,
 ): void {
   useLayoutEffect(() => {
     const at = picker.current;
     const el = popup.current;
     if (!open || at === null || el === null) return undefined;
-    const place = () => fitPopup(el, at);
+    const place = () => (floating ? floatPopup(el, at) : fitPopup(el, at));
     place();
     window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [open, picker, popup, rows]);
+    if (floating) window.addEventListener("scroll", place, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, { capture: true });
+    };
+  }, [open, picker, popup, rows, floating]);
 }
 
 /**
@@ -170,6 +213,7 @@ export function IconPicker({
   disabled,
   empty,
   triggerClassName,
+  floating = false,
   onOpen,
   onActive,
   onPick,
@@ -181,6 +225,11 @@ export function IconPicker({
   disabled?: boolean;
   empty?: ReactNode;
   triggerClassName?: string;
+  /**
+   * Floats the list over everything, fixed to the window, for a picker in a box that must not
+   * grow or scroll as the list opens, such as a dialog beside the map.
+   */
+  floating?: boolean;
   onOpen?: () => void;
   onActive?: (key: string | null) => void;
   onPick: (key: string) => void;
@@ -205,7 +254,7 @@ export function IconPicker({
   const activeKey = open && at >= 0 ? rows[at].item.key : null;
 
   useOutsidePress(open, () => setOpen(false), root);
-  usePopupFit(open, root, filtered ? filteredPop : list, items);
+  usePopupFit(open, root, filtered ? filteredPop : list, items, floating);
   useEffect(() => {
     if (open) (filter.current ?? list.current)?.focus();
   }, [open]);

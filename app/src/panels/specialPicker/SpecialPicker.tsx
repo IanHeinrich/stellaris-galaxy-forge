@@ -11,9 +11,10 @@ import {
   type NewSystems,
   type SpecialEntry,
 } from "../../lib/specialPicks";
-import { specialStars } from "../../lib/multiStar";
+import { specialStars, systemReach } from "../../lib/multiStar";
 import { counted } from "../../lib/text";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useGeneratorStore } from "../../store/generatorStore";
 import { useCanEdit } from "../../store/fileSessionStore";
 import {
   useHighlightedSpecial,
@@ -26,6 +27,7 @@ import { LockGlyph } from "../Glyph";
 import { useAddSystemPreview } from "../useAddSystemPreview";
 import { useNewSystemPreview } from "../useNewSystemPreview";
 import { StarDiagram } from "../StarDiagram";
+import { useNamed } from "../useNamed";
 import { useStarNamedSummary } from "../useStarClassLabel";
 import "./specialPicker.css";
 
@@ -38,17 +40,28 @@ const DIAGRAM_STAR_PX = 32;
 /** A layout of several stars drawn stars only, each with the art of its class's star in that place. */
 function SpecialStars({ entry }: { entry: SpecialEntry }) {
   const starClasses = useGameDataStore((s) => s.starClasses);
-  if (entry.kind !== "layout") return null;
-  const diagram = entry.pick.diagram;
-  if (diagram === undefined || diagram.stars.length < 2) return null;
+  const diagram = entry.kind === "layout" ? entry.pick.diagram : undefined;
   const first = entry.pick.summary.star_classes[0]?.key;
-  const stars = specialStars(
-    first === undefined ? undefined : starClasses.get(first),
-    diagram.stars.length,
-  );
+  const stars =
+    diagram === undefined || diagram.stars.length < 2
+      ? []
+      : specialStars(
+          first === undefined ? undefined : starClasses.get(first),
+          diagram.stars.length,
+        );
+  const named = useNamed(stars);
+  const reach = useGeneratorStore((s) => systemReach(s.arrangements));
+  if (diagram === undefined || stars.length === 0) return null;
   return (
     <div className="sp-diagram">
-      <StarDiagram diagram={diagram} stars={stars} size={DIAGRAM_PX} starSize={DIAGRAM_STAR_PX} />
+      <StarDiagram
+        diagram={diagram}
+        stars={stars}
+        size={DIAGRAM_PX}
+        starSize={DIAGRAM_STAR_PX}
+        labels={stars.map(named)}
+        reach={reach}
+      />
     </div>
   );
 }

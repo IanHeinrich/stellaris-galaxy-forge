@@ -272,8 +272,8 @@ describe("the Special picker", () => {
       ...layout("twin", "Twin Stars", {}, { star_classes: [{ key: "sc_pair", name: "Pair" }] }),
       diagram: {
         stars: [
-          { x: -10, y: 0, orbit: 10 },
-          { x: 10, y: 0, orbit: 10 },
+          { x: -10, y: 0, orbit: 10, distant: false },
+          { x: 10, y: 0, orbit: 10, distant: false },
         ],
       },
     };

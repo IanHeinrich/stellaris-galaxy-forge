@@ -299,9 +299,8 @@ export interface EditorState {
   ): Promise<Omit<Added, "edit"> | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
-   * null. Left out, a system of a Special menu layout is built from that layout again, and any
-   * other is rolled around the class it has when the edit runs. The id is followed through the
-   * edits queued before it.
+   * null. Left out, it is built again as it was built, which the core reads when the edit runs.
+   * The id is followed through the edits queued before it.
    */
   rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
   /** Builds a system added this session again in place as `pick` says, as `rerollSystem` follows the id. */

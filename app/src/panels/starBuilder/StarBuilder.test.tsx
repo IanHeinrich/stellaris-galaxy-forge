@@ -15,7 +15,7 @@ import { useSpecialPickerStore } from "../../store/specialPickerStore";
 import { useStarBuilderStore } from "../../store/starBuilderStore";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { arrangement, starClassesOf, starType } from "../../test/builders";
-import { drawnBy, drawnButton } from "../../test/drawn";
+import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
 import { flush } from "../../test/flush";
 import { mockedIpc } from "../../test/ipc";
 import { stubPrefs } from "../../test/prefs";
@@ -32,8 +32,8 @@ const COMPANION = arrangement("binary_2", 2, "Distant companion", 0.4, {
   shape: "distant_companion",
   diagram: {
     stars: [
-      { x: 0, y: 0, orbit: 0 },
-      { x: 120, y: 0, orbit: 120 },
+      { x: 0, y: 0, orbit: 0, distant: false },
+      { x: 120, y: 0, orbit: 120, distant: true },
     ],
   },
 });
@@ -43,6 +43,20 @@ const TYPES = ["pc_a_star", "pc_black_hole", "pc_m_star", "pc_k_star"].map((key)
 const builder = () => useStarBuilderStore.getState();
 const slots = () => useStarBuilderStore.getState().stars;
 const render = () => drawnBy(() => renderToStaticMarkup(<StarBuilder />));
+
+/**
+ * Submits the builder's form, as Place and Enter do: Place is its submit button, and the dialog
+ * submits its form on Enter.
+ */
+function submit() {
+  render();
+  expect((drawnButton("Place") as { type?: string }).type).toBe("submit");
+  const form = lastDrawn(({ type }) => type === "form", "the builder's form") as {
+    onSubmit(e: { preventDefault(): void }): void;
+  };
+  form.onSubmit({ preventDefault: vi.fn() });
+}
+
 const linksAt = (x: number, y: number) =>
   specialLinksNow({ places: [{ x, y, star_class: null, refused: null }], lanes: [] }).map(
     ([, system]) => system,
@@ -83,6 +97,11 @@ describe("the builder", () => {
     expect(html).not.toContain("browse-scrim");
     expect(html).toContain("Planets are generated to suit the stars you choose.");
     expect(html).toContain("New system at -50.00, -20.00");
+    const numbers = [...html.matchAll(/class="star-diagram-label"[^>]*>([^<]+)</g)].map(
+      (m) => m[1],
+    );
+    expect(numbers).toEqual(["1", "2"]);
+    expect(html).not.toContain("browse-detail-name");
   });
 
   it("gives the arrangement as many slots as it has stars, keeping the first two from a trio", async () => {
@@ -105,10 +124,11 @@ describe("the builder", () => {
     await openBuilder();
     builder().setLayout(PAIR.layout);
     const html = render();
-    expect(html).toContain("The game&#x27;s pairs:");
-    expect(html).not.toContain("The game&#x27;s trios:");
-    const chips = [...html.matchAll(/class="sb-chip">([^<]+)</g)].map((m) => m[1]);
-    expect(chips).toHaveLength(1);
+    expect(html).toContain("The game&#x27;s pairs");
+    expect(html).not.toContain("The game&#x27;s trios");
+    const chips = [...html.matchAll(/class="sb-chip"[^>]*>([^<]+)</g)].map((m) => m[1]);
+    expect(chips).toEqual(["pc_m_star + pc_k_star"]);
+    expect(html).toContain('title="Named pc_m_star + Named pc_k_star"');
     drawnButton(chips[0]).onClick();
     expect(slots()).toEqual(["pc_m_star", "pc_k_star"]);
   });
@@ -122,15 +142,18 @@ describe("the builder", () => {
     expect(asked).toContainEqual(["pc_a_star", "pc_black_hole"]);
     expect(asked).toContainEqual(["pc_m_star", "pc_k_star"]);
     await flush();
-    expect(useGeneratorStore.getState().filed.get("pc_m_star+pc_k_star")).toBe("sc_a");
+    expect(useGeneratorStore.getState().filed.get("pc_m_star+pc_k_star")).toEqual({
+      kind: "filed",
+      starClass: "sc_a",
+    });
   });
 
-  it("adds the stars with a fresh seed, no class of its own unless chosen, and planets", async () => {
+  it("adds the stars on Place with a fresh seed, no class of its own unless chosen, and planets", async () => {
     await openBuilder();
     builder().setLayout(COMPANION.layout);
     builder().fillStars(["pc_black_hole", "pc_k_star"]);
-    expect(await builder().place()).toBe(true);
-    expect(builder().open).toBe(false);
+    submit();
+    await until(() => expect(builder().open).toBe(false));
 
     const [seed, x, y, built, links] = mockedIpc.addBuiltSystem.mock.calls[0];
     expect(Number.isSafeInteger(seed)).toBe(true);
@@ -148,13 +171,32 @@ describe("the builder", () => {
     builder().setNoPlanets(true);
     expect(stored.get("sgf.starBuilder.noPlanets")).toBe("true");
     useSpecialPickerStore.getState().setJoin(true);
-    render();
-    drawnButton("Place");
-    expect(await builder().place()).toBe(true);
+    submit();
+    await until(() => expect(mockedIpc.addBuiltSystem).toHaveBeenCalledTimes(2));
     const [, , , second, joined] = mockedIpc.addBuiltSystem.mock.calls[1];
     expect(second).toMatchObject({ starClass: "sc_black_hole", planets: false });
     expect(joined).toEqual(linksAt(-50, -20));
     expect(joined.length).toBeGreaterThan(0);
+  });
+
+  it("places nothing where the spot is refused, with Place disabled and saying why", async () => {
+    await openBuilder({ x: 3, y: 0 });
+    render();
+    const place = drawnButton("Place") as { disabled?: boolean; title?: string };
+    expect(place.disabled).toBe(true);
+    expect(place.title).toMatch(/^Too close to .+: 3 away, the game needs 10$/);
+    submit();
+    await flush();
+    expect(mockedIpc.addBuiltSystem).not.toHaveBeenCalled();
+    expect(builder().open).toBe(true);
+  });
+
+  it("leaves out a remembered star the install no longer offers", async () => {
+    useStarBuilderStore.setState({ layout: PAIR.layout, stars: ["pc_mod_star", "pc_m_star"] });
+    await openBuilder();
+    const html = render();
+    expect(html).toContain('aria-label="Star 1: Named pc_m_star"');
+    expect(html).toContain('aria-label="Star 2: Named pc_m_star"');
   });
 
   it("starts with Join unticked, shared with the Special picker", async () => {
@@ -180,8 +222,8 @@ describe("a stars-only diagram", () => {
       ...html.matchAll(/class="star-diagram-star" style="left:([\d.]+)px;top:([\d.]+)px/g),
     ];
     expect(lefts.map((m) => [Number(m[1]), Number(m[2])])).toEqual([
-      [50, 50],
-      [88, 50],
+      [40, 40],
+      [78, 40],
     ]);
     expect(html.match(/class="star-diagram-path"/g)).toHaveLength(1);
   });

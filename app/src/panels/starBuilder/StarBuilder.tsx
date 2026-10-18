@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Arrangement } from "../../generated/Arrangement";
+import type { StarType } from "../../generated/StarType";
 import { crisisVariantKeys } from "../../lib/details/starClass";
 import type { Pt } from "../../lib/geometry/pt";
 import {
   gameStarSets,
-  slotsFor,
+  shortStarNames,
+  systemReach,
+  fitSlots,
   starSetNoun,
   starTypeName,
   type StarCount,
@@ -19,7 +22,6 @@ import { Dialog, DialogFrame } from "../Dialog";
 import { useAddSystemPreview } from "../useAddSystemPreview";
 import { useStarData } from "../useGeneratorData";
 import { useNewSystemPreview } from "../useNewSystemPreview";
-import { useStarClassLabel } from "../useStarClassLabel";
 import { StarDiagram } from "../StarDiagram";
 import { MapIconPicker, StarSlot } from "../StarPickers";
 import "./starBuilder.css";
@@ -32,34 +34,45 @@ const PLANETS_NOTE = "Planets are generated to suit the stars you choose.";
 const TILE_PX = 64;
 const TILE_STAR_PX = 14;
 const PREVIEW_PX = 200;
-const PREVIEW_STAR_PX = 40;
+const PREVIEW_STAR_PX = 32;
 
-/** The game's own sets of as many stars as the slots, each a chip that fills them. */
-function GameSets({ count }: { count: number }) {
+/**
+ * The game's own sets of as many stars as the slots, each a chip named short by its stars that
+ * fills them, its full name its title.
+ */
+function GameSets({ count, starTypes }: { count: number; starTypes: readonly StarType[] | null }) {
   const views = useGameDataStore((s) => s.starClasses);
   const fillStars = useStarBuilderStore((s) => s.fillStars);
   const sets = useMemo(
     () => gameStarSets(views.values(), count, crisisVariantKeys(views.values())),
     [views, count],
   );
-  const label = useStarClassLabel(sets.map((c) => c.key));
+  const short = useMemo(() => shortStarNames(starTypes ?? []), [starTypes]);
   if (sets.length === 0 || (count !== 2 && count !== 3)) return null;
   const chips = sets
-    .map((view) => ({ view, label: label(view.key, view.key) }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .map((view) => ({
+      view,
+      text: view.planet_keys.map(short).join(" + "),
+      full: view.planet_keys.map((key) => starTypeName(starTypes, key)).join(" + "),
+    }))
+    .sort((a, b) => a.text.localeCompare(b.text));
   return (
-    <div className="sb-chips">
-      <span className="muted">{`The game's ${starSetNoun(count as StarCount).many}:`}</span>
-      {chips.map(({ view, label: text }) => (
-        <button
-          key={view.key}
-          type="button"
-          className="sb-chip"
-          onClick={() => fillStars(view.planet_keys)}
-        >
-          {text}
-        </button>
-      ))}
+    <div className="sb-sets">
+      <div className="muted sb-sets-label">{`The game's ${starSetNoun(count as StarCount).many}`}</div>
+      <div className="sb-chips">
+        {chips.map(({ view, text, full }) => (
+          <button
+            key={view.key}
+            type="button"
+            className="sb-chip"
+            title={full}
+            aria-label={full}
+            onClick={() => fillStars(view.planet_keys)}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -68,12 +81,14 @@ function GameSets({ count }: { count: number }) {
 function Tile({
   arrangement,
   slots,
-  pad,
+  starTypes,
+  reach,
   chosen,
 }: {
   arrangement: Arrangement;
   slots: readonly string[];
-  pad: string | undefined;
+  starTypes: readonly StarType[] | null;
+  reach: number | undefined;
   chosen: boolean;
 }) {
   const setLayout = useStarBuilderStore((s) => s.setLayout);
@@ -82,13 +97,13 @@ function Tile({
       type="button"
       className="sb-tile"
       aria-pressed={chosen}
-      title={arrangement.layout}
       onClick={() => setLayout(arrangement.layout)}
     >
       <StarDiagram
         diagram={arrangement.diagram}
-        stars={slotsFor(slots, arrangement.stars, pad)}
+        stars={fitSlots(slots, arrangement.stars, starTypes)}
         size={TILE_PX}
+        reach={reach}
         starSize={TILE_STAR_PX}
       />
       <span>{arrangement.name}</span>
@@ -103,13 +118,16 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
   const setJoin = useSpecialPickerStore((s) => s.setJoin);
   const filed = useGeneratorStore((s) => s.filed);
   const { arrangements, starTypes } = useStarData();
-  const { arrangement, slots } = builtStars(state.layout, state.stars, arrangements, starTypes);
-  const pad = starTypes?.[0]?.key;
-  const automatic = filed.get(starsKey(slots));
-  const slotsKey = starsKey(slots);
+  const reach = useMemo(() => systemReach(arrangements), [arrangements]);
+  const { arrangement, slots } = useMemo(
+    () => builtStars(state.layout, state.stars, arrangements, starTypes),
+    [state.layout, state.stars, arrangements, starTypes],
+  );
+  const known = filed.get(starsKey(slots));
+  const automatic = known?.kind === "filed" ? known.starClass : undefined;
   useEffect(() => {
-    if (slotsKey !== "") useGeneratorStore.getState().fileStars(slotsKey.split("+"));
-  }, [slotsKey]);
+    useGeneratorStore.getState().fileStars(slots);
+  }, [slots]);
 
   const refusal = useAddSystemPreview(at.x, at.y);
   const added = useMemo(
@@ -163,7 +181,8 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
                     key={a.layout}
                     arrangement={a}
                     slots={slots}
-                    pad={pad}
+                    starTypes={starTypes}
+                    reach={reach}
                     chosen={a.layout === arrangement?.layout}
                   />
                 ))}
@@ -177,17 +196,19 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
                     star={star}
                     starTypes={starTypes}
                     triggerClassName="edit-field"
+                    floating
                     onPick={(key) => setStar(i, key)}
                   />
                 </div>
               ))}
-              <GameSets count={slots.length} />
+              <GameSets count={slots.length} starTypes={starTypes} />
               <h4>{MAP_ICON_LABEL}</h4>
               <MapIconPicker
                 label={MAP_ICON_LABEL}
                 automatic={automatic}
                 chosen={state.starClass}
                 triggerClassName="edit-field"
+                floating
                 onPick={setStarClass}
               />
               <label className="sp-extras">
@@ -208,14 +229,14 @@ function Building({ at, anchor, perUnit }: { at: Pt; anchor: Pt; perUnit: Pt }) 
               </label>
             </div>
             <div className="sb-preview">
-              <div className="browse-detail-name">{names.join(" + ")}</div>
               {arrangement && (
                 <StarDiagram
                   diagram={arrangement.diagram}
                   stars={slots}
                   size={PREVIEW_PX}
+                  reach={reach}
                   starSize={PREVIEW_STAR_PX}
-                  names={names}
+                  labels={slots.map((_, i) => `${i + 1}`)}
                   label={names.join(" + ")}
                 />
               )}

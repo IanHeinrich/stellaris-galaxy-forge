@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Arrangement } from "../generated/Arrangement";
 import type { StarType } from "../generated/StarType";
 import type { Pt } from "../lib/geometry/pt";
-import { arrangementOf, slotsFor } from "../lib/multiStar";
+import { arrangementOf, fitSlots } from "../lib/multiStar";
 import { useEditorStore } from "./editorStore";
 import { useGeneratorStore } from "./generatorStore";
 import { PREF_KEYS } from "./prefKeys";
@@ -68,10 +68,7 @@ export interface BuiltView {
   slots: string[];
 }
 
-/**
- * The arrangement `layout` names, or the first offered, and `stars` fitted to its slots: the first
- * ones kept, a missing one the first star type offered.
- */
+/** The arrangement `layout` names, or the first offered, and `stars` fitted to its slots. */
 export function builtStars(
   layout: string | null,
   stars: readonly string[],
@@ -82,7 +79,7 @@ export function builtStars(
   const arrangement =
     (layout === null ? null : arrangementOf(offered, layout)) ?? offered[0] ?? null;
   if (arrangement === null) return { arrangement, slots: [...stars] };
-  return { arrangement, slots: slotsFor(stars, arrangement.stars, starTypes?.[0]?.key) };
+  return { arrangement, slots: fitSlots(stars, arrangement.stars, starTypes) };
 }
 
 export const useStarBuilderStore = create<StarBuilderState>((set, get) => {

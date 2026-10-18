@@ -3,12 +3,20 @@
   position: absolute;
   z-index: 5;
   width: min(600px, calc(100% - 16px));
-  max-height: calc(100% - 16px);
-  overflow-y: auto;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* The pickers' lists float over the dialog, so opening one never grows or scrolls it. */
+.sb .dialog-body {
+  overflow: visible;
+}
+
+.sb .sp-extras {
+  margin-top: 6px;
+  padding: 4px 8px;
 }
 
 .sb h4 {
@@ -62,13 +70,19 @@
   margin: 4px 0;
 }
 
+.sb-sets {
+  margin: 6px 0;
+}
+
+.sb-sets-label {
+  margin-bottom: 3px;
+  font-size: var(--text-fine);
+}
+
 .sb-chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 4px;
-  margin: 6px 0;
-  font-size: var(--text-fine);
 }
 
 .sb-chip {

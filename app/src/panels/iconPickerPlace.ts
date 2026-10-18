@@ -42,3 +42,28 @@ export function opensUp(picker: Down, height: number, box: Down): boolean {
   const below = box.bottom - picker.bottom;
   return height > below && picker.top - box.top > below;
 }
+
+/** Which side of its picker a floating popup opens on, and the tallest it may be there. */
+export interface FloatPlace {
+  up: boolean;
+  maxHeight: number;
+}
+
+/**
+ * Where a popup `height` tall floats from `picker` inside `box`, the window, `gap` from the
+ * picker and `margin` inside the box's edge: below when it fits there, else above when it fits
+ * there, else on the side with more room, no taller than that room, so it never leaves the box.
+ */
+export function floatPlace(
+  picker: Down,
+  height: number,
+  box: Down,
+  gap: number,
+  margin: number,
+): FloatPlace {
+  const below = Math.max(0, box.bottom - picker.bottom - gap - margin);
+  const above = Math.max(0, picker.top - box.top - gap - margin);
+  if (height <= below) return { up: false, maxHeight: below };
+  if (height <= above) return { up: true, maxHeight: above };
+  return above > below ? { up: true, maxHeight: above } : { up: false, maxHeight: below };
+}

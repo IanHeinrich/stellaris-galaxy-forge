@@ -838,11 +838,22 @@ button.link.snippet-more .tri {
   border-color: var(--accent);
 }
 
-/* A star type's art beside its name, or a gap the same size while it loads. */
+/*
+ * A star type's art on its own dark ground, isolated so its texture's black screens into that
+ * ground wherever it sits, as the map adds a star's light.
+ */
 .star-art {
   display: inline-block;
   flex: none;
   vertical-align: middle;
+  background: var(--star-ground);
+  border-radius: 3px;
+  isolation: isolate;
+}
+
+.star-art img {
+  display: block;
+  mix-blend-mode: screen;
 }
 
 /* A layout's stars alone, each at its place, with a distant companion's path dashed round the centre. */
@@ -850,6 +861,9 @@ button.link.snippet-more .tri {
   position: relative;
   display: inline-block;
   flex: none;
+  background: var(--star-ground);
+  border-radius: 4px;
+  isolation: isolate;
 }
 
 .star-diagram svg {
@@ -867,12 +881,14 @@ button.link.snippet-more .tri {
 .star-diagram-star {
   position: absolute;
   display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
-.star-diagram-name {
+/* A star's label under it: its slot's number, or a special layout's star name where they fit. */
+.star-diagram-label {
+  position: absolute;
+  transform: translateX(-50%);
   font-size: var(--text-fine);
+  line-height: 12px;
   color: var(--fg-muted);
   white-space: nowrap;
 }

@@ -20,7 +20,6 @@ import type { EditorState } from "./editorStore";
 import { canEdit, useCanEdit, useFileSessionStore } from "./fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { specialFor, useGeneratorStore } from "./generatorStore";
 import { useSceneStore } from "./sceneStore";
 import { specialLinksNow } from "./specialLinks";
 
@@ -104,20 +103,11 @@ function linksAt(x: number, y: number, join: boolean): number[] {
   return specialLinksNow(join ? here : null).map(([, system]) => system);
 }
 
-/**
- * What a reroll of `system` around `starClass` asks for: a random class for null; left out, the
- * Special menu layout the system was built from again, or else the class it has.
- */
-function rerollPick(
-  system: { initializer: string; star_class: string },
-  starClass: string | null | undefined,
-): SystemPick {
+/** What a reroll around `starClass` asks for: a random class for null, the system as it is built when left out. */
+function rerollPick(starClass: string | null | undefined): SystemPick {
   if (starClass === null) return { kind: "random" };
-  if (starClass !== undefined) return { kind: "class", star_class: starClass };
-  if (specialFor(useGeneratorStore.getState().picks, system.initializer) !== null) {
-    return { kind: "layout", layout: system.initializer };
-  }
-  return { kind: "class", star_class: system.star_class };
+  if (starClass === undefined) return { kind: "same" };
+  return { kind: "class", star_class: starClass };
 }
 
 /** The system a queued edit was asked about, as it stands when the edit runs, if it is still an added one. */
@@ -197,7 +187,7 @@ export function addSystemActions(
         const result = await runEdit(async () => {
           const system = addedNow(tracked);
           if (!system) return null;
-          return ipc.rerollSystem(system.id, newSeed(), rerollPick(system, starClass));
+          return ipc.rerollSystem(system.id, newSeed(), rerollPick(starClass));
         });
         return result !== null;
       });

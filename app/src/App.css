@@ -3,6 +3,8 @@
   --bg: #0b0f18;
   --bg-panel: #111827;
   --bg-elevated: #172033;
+  /* The dark a star's art is drawn on, so its texture's black blends away as on the map. */
+  --star-ground: #05070d;
   --border: #243044;
   --fg: #d6dde8;
   --fg-muted: #7f8ca3;

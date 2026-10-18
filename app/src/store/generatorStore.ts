@@ -6,8 +6,7 @@ import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SpecialLayout } from "../generated/SpecialLayout";
 import type { StarType } from "../generated/StarType";
-import { buildsStars, documentCapabilities } from "../lib/capabilities";
-import { useFileSessionStore } from "./fileSessionStore";
+import { canEdit } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { keyedReads } from "./reads";
 
@@ -39,8 +38,8 @@ export interface GeneratorState {
   arrangements: Arrangement[] | null;
   /** Every star type a star slot offers, the usual ones first; null until read. */
   starTypes: StarType[] | null;
-  /** The class each set of stars asked of `fileStars` is filed under, by `starsKey`. */
-  filed: ReadonlyMap<string, string>;
+  /** What `file_star_class` answered for each set of stars asked of `fileStars`, by `starsKey`. */
+  filed: ReadonlyMap<string, FiledClass>;
   /** Reads the classes once per loaded game data; a no-op without it. */
   request(): void;
   /**
@@ -62,6 +61,9 @@ export interface GeneratorState {
   clear(): void;
 }
 
+/** The class a set of stars is filed under, or why the core would not say. */
+export type FiledClass = { kind: "filed"; starClass: string } | { kind: "refused"; reason: string };
+
 /** The key `filed` holds a set of stars under. */
 export function starsKey(stars: readonly string[]): string {
   return stars.join("+");
@@ -75,11 +77,13 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
   const filing = keyedReads((asks: string[][]) => ipc.fileStarClass(asks[0]), {
     key: starsKey,
     batch: 1,
-    answered([stars], filed: string) {
+    answered([stars], starClass: string) {
+      const filed: FiledClass = { kind: "filed", starClass };
       set({ filed: new Map(get().filed).set(starsKey(stars), filed) });
     },
-    failed(_asks, message) {
-      console.warn("file star class", message);
+    failed([stars], message) {
+      const refused: FiledClass = { kind: "refused", reason: message };
+      set({ filed: new Map(get().filed).set(starsKey(stars), refused) });
     },
   });
   /** The latest picks read asked for; an older answer landing after it is dropped. */
@@ -133,7 +137,7 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
 
     requestStars() {
       if (starsAsked || useGameDataStore.getState().status !== "ready") return;
-      if (!buildsStars(documentCapabilities(useFileSessionStore.getState()))) return;
+      if (!canEdit("added_systems")) return;
       starsAsked = true;
       const mine = generation;
       Promise.all([ipc.getStarArrangements(), ipc.getStarTypes()]).then(
@@ -148,7 +152,7 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
     },
 
     fileStars(stars) {
-      if (stars.length === 0 || get().filed.has(starsKey(stars))) return;
+      if (stars.length === 0 || get().filed.get(starsKey(stars))?.kind === "filed") return;
       void filing.read([[...stars]]);
     },
 

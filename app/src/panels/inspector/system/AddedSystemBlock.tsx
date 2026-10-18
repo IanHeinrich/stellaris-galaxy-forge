@@ -3,7 +3,7 @@ import type { Arrangement } from "../../../generated/Arrangement";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { ADDED_THIS_SESSION, NEEDS_GAME_DATA } from "../../../lib/addSystem";
 import { isStarBody, singleStarClasses } from "../../../lib/details/starBody";
-import { arrangementOf, slotsFor } from "../../../lib/multiStar";
+import { arrangementOf, fitSlots } from "../../../lib/multiStar";
 import { nodeName } from "../../../lib/names";
 import { useEditorStore } from "../../../store/editorStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -24,6 +24,7 @@ const ROLL_BODIES = "Roll new bodies around the same star class";
 /** The key of the Arrangement picker's single star: never a layout. */
 const ONE_STAR = "__one_star__";
 const ONE_STAR_LABEL = "One star";
+const READING_CLASS = "Reading which star class these stars are filed under…";
 
 function rebuildsSpecial(label: string): string {
   return `Reroll builds ${label} again. Changing the class rolls a regular system around that star. The name, position and lanes stay.`;
@@ -77,20 +78,30 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
   const { stars, arrangement, planets } = useAddedStars(system, arrangements);
   const filed = useGeneratorStore((s) => s.filed);
   const built = arrangement !== null && stars.length === arrangement.stars ? arrangement : null;
-  const automatic = built ? filed.get(starsKey(stars)) : undefined;
+  const known = built ? filed.get(starsKey(stars)) : undefined;
+  const automatic = known?.kind === "filed" ? known.starClass : undefined;
   const override =
     automatic !== undefined && system.star_class !== automatic ? system.star_class : null;
-  const asked = built ? starsKey(stars) : "";
   useEffect(() => {
-    if (asked !== "") useGeneratorStore.getState().fileStars(asked.split("+"));
-  }, [asked]);
+    if (built) useGeneratorStore.getState().fileStars(stars);
+  }, [built, stars]);
+  const reason = gameData ? undefined : NEEDS_GAME_DATA;
+  // A change keeps a chosen map icon, which tells only once the automatic class is known.
+  const builtReason =
+    reason ??
+    (!built || automatic !== undefined
+      ? undefined
+      : known?.kind === "refused"
+        ? known.reason
+        : READING_CLASS);
+  const offersArrangement = built !== null || stars.length === 1;
   const singles = useMemo(() => singleStarClasses(views), [views]);
 
   const rebuild = (layout: Arrangement, chosen: readonly string[], starClass: string | null) =>
     void rebuildSystem(system.id, {
       kind: "built",
       layout: layout.layout,
-      stars: slotsFor(chosen, layout.stars, starTypes?.[0]?.key),
+      stars: fitSlots(chosen, layout.stars, starTypes),
       star_class: starClass,
       planets,
     });
@@ -126,7 +137,6 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
       system.star_class,
     icon: icon(system.star_class, StarTriggerIcon),
   };
-  const reason = gameData ? undefined : NEEDS_GAME_DATA;
   return (
     <EditBlock title={ADDED_THIS_SESSION} className="added">
       <EditRow label="Name">
@@ -139,12 +149,12 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
           onCommit={(name) => void renameAddedSystem(system.id, name)}
         />
       </EditRow>
-      {arrangements !== null && arrangements.length > 0 && (
+      {offersArrangement && arrangements !== null && arrangements.length > 0 && (
         <EditRow label="Arrangement">
           <PickerField
             label="Arrangement"
             title="Pick how the system's stars are arranged"
-            disabledReason={reason}
+            disabledReason={builtReason}
             current={
               built
                 ? { key: built.layout, label: built.name }
@@ -166,6 +176,7 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
                   star={star}
                   starTypes={starTypes}
                   triggerClassName="edit-field"
+                  disabledReason={builtReason}
                   onPick={(key) => {
                     if (key !== star) {
                       rebuild(
@@ -182,8 +193,8 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
           <EditRow label="Map icon">
             <MapIconPicker
               label="Map icon"
-              title="Pick the star class the galaxy map shows for this system"
-              disabled={!gameData}
+              title={builtReason ?? "Pick the star class the galaxy map shows for this system"}
+              disabled={builtReason !== undefined}
               automatic={automatic}
               chosen={override}
               triggerClassName="edit-field"
@@ -209,16 +220,17 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
         <button
           type="button"
           className="ins-reroll"
-          disabled={!gameData}
-          title={reason ?? (special ? `Build ${special} again with new bodies` : ROLL_BODIES)}
-          onClick={() => {
-            if (built) rebuild(built, stars, override);
-            else void rerollSystem(system.id);
-          }}
+          disabled={(built ? builtReason : reason) !== undefined}
+          title={
+            (built ? builtReason : reason) ??
+            (special ? `Build ${special} again with new bodies` : ROLL_BODIES)
+          }
+          onClick={() => void rerollSystem(system.id)}
         >
           <span aria-hidden="true">↻</span> Reroll
         </button>
       </EditRow>
+      {known?.kind === "refused" && <EditNote warn>{known.reason}</EditNote>}
       <EditNote>
         {special ? rebuildsSpecial(special) : built ? REBUILDS_STARS : REPLACES_BODIES}
       </EditNote>

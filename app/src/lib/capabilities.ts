@@ -23,8 +23,3 @@ export function supports(
 ): boolean {
   return requires === undefined || capabilities[requires];
 }
-
-/** Whether the document takes a system built from chosen stars: a save that takes added systems. */
-export function buildsStars(capabilities: Capabilities): boolean {
-  return capabilities.bulk_add_systems && !capabilities.create_systems;
-}

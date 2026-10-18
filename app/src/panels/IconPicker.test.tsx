@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { IconPickerItem } from "./IconPicker";
-import { popupPlace } from "./iconPickerPlace";
+import { floatPlace, popupPlace } from "./iconPickerPlace";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { FILTER_MIN, FilterField } from "./parts";
 
@@ -121,5 +121,34 @@ describe("a filter field", () => {
     expect(html).toContain('aria-controls="list"');
     expect(html).toContain('aria-activedescendant="list-2"');
     expect(html).toContain('aria-label="Filter 30 choices"');
+  });
+});
+
+describe("a floating popup's side", () => {
+  const view = { top: 0, bottom: 1000 };
+
+  it("opens below where it fits, as tall as the room there", () => {
+    expect(floatPlace({ top: 100, bottom: 130 }, 300, view, 4, 4)).toEqual({
+      up: false,
+      maxHeight: 862,
+    });
+  });
+
+  it("flips up where only the room above fits it", () => {
+    expect(floatPlace({ top: 800, bottom: 830 }, 300, view, 4, 4)).toEqual({
+      up: true,
+      maxHeight: 792,
+    });
+  });
+
+  it("takes the side with more room, capped to it, where neither fits", () => {
+    expect(floatPlace({ top: 600, bottom: 630 }, 900, view, 4, 4)).toEqual({
+      up: true,
+      maxHeight: 592,
+    });
+    expect(floatPlace({ top: 300, bottom: 330 }, 900, view, 4, 4)).toEqual({
+      up: false,
+      maxHeight: 662,
+    });
   });
 });

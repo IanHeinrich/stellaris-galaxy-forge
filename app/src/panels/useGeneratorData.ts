@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { buildsStars, documentCapabilities } from "../lib/capabilities";
-import { useFileSessionStore } from "../store/fileSessionStore";
+import { useCanEdit } from "../store/fileSessionStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { starClassPicks, useGeneratorStore } from "../store/generatorStore";
 import { useStarClassLabel } from "./useStarClassLabel";
@@ -33,7 +32,7 @@ export function useGeneratorData(fresh = false) {
  */
 export function useStarData() {
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const builds = useFileSessionStore((s) => buildsStars(documentCapabilities(s)));
+  const builds = useCanEdit("added_systems");
   const arrangements = useGeneratorStore((s) => s.arrangements);
   const starTypes = useGeneratorStore((s) => s.starTypes);
   useEffect(() => {

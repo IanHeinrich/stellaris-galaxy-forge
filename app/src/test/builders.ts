@@ -946,8 +946,14 @@ export function arrangement(
     name,
     odds: share * 10,
     share,
+    planets: { min: 3, max: 11 },
     diagram: {
-      stars: Array.from({ length: stars }, (_, i) => ({ x: i * 10 - 10, y: 0, orbit: 10 })),
+      stars: Array.from({ length: stars }, (_, i) => ({
+        x: i * 10 - 10,
+        y: 0,
+        orbit: 10,
+        distant: false,
+      })),
     },
     ...over,
   };

@@ -12,7 +12,7 @@ import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useGeneratorStore } from "../../../store/generatorStore";
+import { useGeneratorStore, type FiledClass } from "../../../store/generatorStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import {
@@ -465,20 +465,23 @@ describe("a system added this session", () => {
     expect(html.indexOf("Added this session")).toBeLessThan(html.indexOf(">Position<"));
   });
 
-  it("shows a binary's arrangement, stars and map icon, each rebuilding it from its stars", async () => {
-    const binary = {
+  const BLACK_HOLE_AND_M = ["pc_black_hole", "pc_m_star"];
+
+  /** Opens an added system built of `bodies` from `initializer`, its stars filed as `filed` says. */
+  async function openAdded(
+    initializer: string,
+    bodies: string[],
+    filed: [string, FiledClass][] = [],
+  ): Promise<string> {
+    const added = {
       star_class: "sc_m",
       added: true,
-      initializer: "binary_2",
-      bodies: [
-        { class: "pc_black_hole", size: 30 },
-        { class: "pc_m_star", size: 20 },
-        { class: "pc_barren", size: 10 },
-      ],
+      initializer,
+      bodies: [...bodies, "pc_barren"].map((cls) => ({ class: cls, size: 10 })),
     };
     mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
-      return { ...detail, system: { ...detail.system, ...binary } };
+      return { ...detail, system: { ...detail.system, ...added } };
     });
     armStarClasses({ sc_m: ["pc_m_star"], sc_black_hole: ["pc_black_hole"] }, {}, ["pc_barren"]);
     useGeneratorStore.setState({
@@ -488,16 +491,39 @@ describe("a system added this session", () => {
         arrangement("trinary_1", 3, "Close trio", 1),
       ],
       starTypes: ["pc_black_hole", "pc_m_star", "pc_k_star"].map((key) => starType(key)),
-      filed: new Map([["pc_black_hole+pc_m_star", "sc_black_hole"]]),
+      filed: new Map(filed),
     });
     await open("save");
     useGalaxyStore.getState().applyDelta({
-      systems: [{ ...useGalaxyStore.getState().systems.get(SYSTEM)!, ...binary }],
+      systems: [{ ...useGalaxyStore.getState().systems.get(SYSTEM)!, ...added }],
     });
     await land(details({ planets: [planet(100, "Tarkin")] }));
     mockedIpc.rerollSystem.mockResolvedValue(editResult());
+    return overview();
+  }
 
-    const html = overview();
+  const picker = (label: string) =>
+    lastDrawn(
+      ({ props }) => props.label === label && typeof props.onPick === "function",
+      label,
+    ) as {
+      onPick(key: string | null): void;
+      disabled?: boolean;
+      title?: string;
+    };
+  const sentPicks = () => mockedIpc.rerollSystem.mock.calls.map(([id, , pick]) => [id, pick]);
+  const built = (layout: string, stars: string[], starClass: string | null) => ({
+    kind: "built",
+    layout,
+    stars,
+    star_class: starClass,
+    planets: true,
+  });
+
+  it("shows a binary's arrangement, stars and map icon, each rebuilding it from its stars", async () => {
+    const html = await openAdded("binary_2", BLACK_HOLE_AND_M, [
+      ["pc_black_hole+pc_m_star", { kind: "filed", starClass: "sc_black_hole" }],
+    ]);
     expect(html).toContain(">Arrangement<");
     expect(html).toContain("Distant companion");
     expect(html).toContain('aria-label="Star 1: Named pc_black_hole"');
@@ -505,13 +531,6 @@ describe("a system added this session", () => {
     expect(html).toContain(">Map icon<");
     expect(html).not.toContain(">Star class<");
 
-    const picker = (label: string) =>
-      lastDrawn(
-        ({ props }) => props.label === label && typeof props.onPick === "function",
-        label,
-      ) as {
-        onPick(key: string | null): void;
-      };
     picker("Star 2").onPick("pc_k_star");
     await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(1));
     picker("Map icon").onPick(null);
@@ -519,19 +538,42 @@ describe("a system added this session", () => {
     picker("Arrangement").onPick("trinary_1");
     await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(3));
 
-    const calls = mockedIpc.rerollSystem.mock.calls.map(([id, , pick]) => [id, pick]);
-    const built = (layout: string, stars: string[], starClass: string | null) => ({
-      kind: "built",
-      layout,
-      stars,
-      star_class: starClass,
-      planets: true,
-    });
-    expect(calls).toEqual([
+    expect(sentPicks()).toEqual([
       [SYSTEM, built("binary_2", ["pc_black_hole", "pc_k_star"], "sc_m")],
       [SYSTEM, built("binary_2", ["pc_black_hole", "pc_m_star"], null)],
       [SYSTEM, built("trinary_1", ["pc_black_hole", "pc_m_star", "pc_black_hole"], "sc_m")],
     ]);
+  });
+
+  it("holds a binary's changes until its automatic class is known, and says why it is not", async () => {
+    await openAdded("binary_2", BLACK_HOLE_AND_M);
+    expect(picker("Star 1").disabled).toBe(true);
+    expect(picker("Map icon").disabled).toBe(true);
+    expect(picker("Arrangement").disabled).toBe(true);
+
+    const refused = "pc_rock is no star";
+    const html = await openAdded("binary_2", BLACK_HOLE_AND_M, [
+      ["pc_black_hole+pc_m_star", { kind: "refused", reason: refused }],
+    ]);
+    expect(html).toContain(refused);
+    expect(picker("Star 2").disabled).toBe(true);
+    expect(picker("Star 2").title).toBe(refused);
+  });
+
+  it("keeps the star class picker for a special layout of two stars", async () => {
+    const html = await openAdded("special_pair", BLACK_HOLE_AND_M);
+    expect(html).toContain(">Star class<");
+    expect(html).not.toContain(">Arrangement<");
+    expect(html).not.toContain(">Map icon<");
+  });
+
+  it("turns a single star into a pair of it, filed automatically", async () => {
+    const html = await openAdded("basic_init_01", ["pc_m_star"]);
+    expect(html).toContain(">Arrangement<");
+    expect(html).toContain(">Star class<");
+    picker("Arrangement").onPick("binary_1");
+    await until(() => expect(mockedIpc.rerollSystem).toHaveBeenCalledTimes(1));
+    expect(sentPicks()).toEqual([[SYSTEM, built("binary_1", ["pc_m_star", "pc_m_star"], null)]]);
   });
 
   it("is plain on a system the file already held", async () => {

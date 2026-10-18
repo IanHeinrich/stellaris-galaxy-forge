@@ -16,12 +16,18 @@ export function StarSlot({
   star,
   starTypes,
   triggerClassName,
+  floating,
+  disabledReason,
   onPick,
 }: {
   label: string;
   star: string;
   starTypes: readonly StarType[] | null;
   triggerClassName?: string;
+  /** Floats the list over everything, as a picker in a dialog needs. */
+  floating?: boolean;
+  /** Why the slot cannot change now, shown as its title; unset, it can. */
+  disabledReason?: string;
   onPick: (star: string) => void;
 }) {
   const items = useMemo(
@@ -42,9 +48,12 @@ export function StarSlot({
   return (
     <IconPicker
       label={label}
+      title={disabledReason}
+      disabled={disabledReason !== undefined}
       current={current}
       items={items}
       triggerClassName={triggerClassName}
+      floating={floating}
       onPick={onPick}
     />
   );
@@ -62,6 +71,7 @@ export function MapIconPicker({
   title,
   disabled,
   triggerClassName,
+  floating,
   onPick,
 }: {
   label: string;
@@ -72,6 +82,8 @@ export function MapIconPicker({
   title?: string;
   disabled?: boolean;
   triggerClassName?: string;
+  /** Floats the list over everything, as a picker in a dialog needs. */
+  floating?: boolean;
   onPick: (starClass: string | null) => void;
 }) {
   const starClasses = useGameDataStore((s) => s.starClasses);
@@ -108,6 +120,7 @@ export function MapIconPicker({
       current={current}
       items={items}
       triggerClassName={triggerClassName}
+      floating={floating}
       onPick={(key) => onPick(key === AUTOMATIC_KEY ? null : key)}
     />
   );
