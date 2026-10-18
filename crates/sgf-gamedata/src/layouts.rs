@@ -562,7 +562,7 @@ fn plain(gd: &GameData, init: &Initializer) -> bool {
         && init.asteroid_belts.iter().all(belt_measured)
         && star_list(gd, init, star_blocks(init))
         && first.class == BodyClass::Star
-        && unnamed_policy(&init.planets).is_none()
+        && unnamed_policy(gd, &init.planets).is_none()
         && init.planets.iter().all(|block| match block.class {
             BodyClass::Star => {
                 block.count == Range::fixed(1.0)
@@ -590,20 +590,27 @@ fn star_blocks(init: &Initializer) -> usize {
         .count()
 }
 
-/// The `satellite_naming_policy` values the game's saves show: a star's planets in roman
-/// numerals and a planet's moons in letters, as the add writes them.
-const NAMING_POLICIES: [&str; 2] = ["upper_case_roman_numerals", "lower_case_latin_letters"];
+/// The `satellite_naming_policy` the add writes for what a star holds: its planets in roman
+/// numerals, as the game's saves show.
+const STAR_NAMING: &str = "upper_case_roman_numerals";
+/// The `satellite_naming_policy` the add writes for what a planet holds: its moons in letters.
+const PLANET_NAMING: &str = "lower_case_latin_letters";
 
-/// The first `satellite_naming_policy` of `blocks` or what they hold that is not one of
-/// [`NAMING_POLICIES`].
-fn unnamed_policy(blocks: &[InitPlanet]) -> Option<String> {
+/// The first `satellite_naming_policy` of `blocks` or what they hold that is not the one the
+/// add writes for a body of that kind: [`STAR_NAMING`] on a star, [`PLANET_NAMING`] on any
+/// other body.
+fn unnamed_policy(gd: &GameData, blocks: &[InitPlanet]) -> Option<String> {
     blocks.iter().find_map(|block| {
+        let written = match star_body(gd, &block.class) {
+            true => STAR_NAMING,
+            false => PLANET_NAMING,
+        };
         block
             .stated
             .satellite_naming
             .clone()
-            .filter(|policy| !NAMING_POLICIES.contains(&policy.as_str()))
-            .or_else(|| unnamed_policy(&block.moons))
+            .filter(|policy| policy != written)
+            .or_else(|| unnamed_policy(gd, &block.moons))
     })
 }
 
@@ -668,7 +675,7 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if let Some(why) = star_unsupported(gd, init) {
         return Some(why);
     }
-    if let Some(policy) = unnamed_policy(&init.planets) {
+    if let Some(policy) = unnamed_policy(gd, &init.planets) {
         return Some(Unsupported::Naming(policy));
     }
     if init.flags.iter().any(|flag| flag == "guardian") {
@@ -754,13 +761,16 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if counts.iter().any(|count| count.is_none_or(|n| n == 0)) {
         return Some(Unsupported::NoStar);
     }
-    let blocks = init
-        .planets
-        .iter()
-        .filter(|p| star_body(gd, &p.class))
-        .count();
-    let several = counts.into_iter().flatten().find(|&n| n > 1 && n != blocks);
+    let (fewest, most) = star_bodies(gd, init);
+    let several = counts
+        .into_iter()
+        .flatten()
+        .find(|&n| n > 1 && (fewest != n || most != n));
     if let Some(stars) = several {
+        let blocks = match fewest == stars {
+            true => most,
+            false => fewest,
+        };
         return Some(Unsupported::StarCount { blocks, stars });
     }
     let Some(star) = init.planets.iter().find(|p| star_body(gd, &p.class)) else {
@@ -772,12 +782,26 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     }
 }
 
+/// How many star bodies `init`'s own blocks spawn, the fewest and the most: one for each
+/// `class = star` block, and each instance of a block written as a star's class.
+fn star_bodies(gd: &GameData, init: &Initializer) -> (usize, usize) {
+    init.planets
+        .iter()
+        .filter(|p| star_body(gd, &p.class))
+        .map(|p| p.copies())
+        .fold((0, 0), |(fewest, most), copies| {
+            (fewest + copies.min as usize, most + copies.max as usize)
+        })
+}
+
 /// The star classes `init` can give a system: its fixed class, or those of its list. A
 /// star written as a planet class (`class = pc_m_giant_star`) keeps only the classes whose
 /// star is that class, and when the layout names none, takes the install's that are:
-/// `oasis_system` writes `sc_m` with a red giant, and so gives `sc_m_giant`. A fixed class of
-/// several stars is kept as written, as the game keeps Procyon's `sc_binary_8` (G and F) with
-/// its two F stars.
+/// `oasis_system` writes `sc_m` with a red giant, and so gives `sc_m_giant`. A list class of
+/// several stars is kept when each star the layout writes as a class is that class's star in
+/// the same place (`hostile_init_20` writes B, A and F, and so gives `sc_trinary_2`), and no
+/// other class is taken in its place. A fixed class of several stars is kept as written, as
+/// the game keeps Procyon's `sc_binary_8` (G and F) with its two F stars.
 pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g StarClass> {
     let stars: Vec<&StarClass> = match star_source(gd, init) {
         StarSource::Fixed(fixed) if fixed.planets.len() > 1 => return vec![fixed],
@@ -789,20 +813,43 @@ pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g 
             .collect(),
         StarSource::Unknown => Vec::new(),
     };
-    let written = init
+    let written: Vec<Option<&str>> = init
         .planets
         .iter()
-        .find(|p| star_body(gd, &p.class))
-        .and_then(|p| p.class.named());
-    let Some(class) = written else {
-        return stars;
+        .filter(|p| star_body(gd, &p.class))
+        .map(|p| p.class.named())
+        .collect();
+    let Some(&Some(class)) = written.first() else {
+        if written.iter().all(Option::is_none) {
+            return stars;
+        }
+        return stars
+            .into_iter()
+            .filter(|star| star.planets.len() == 1 || in_place(star, &written))
+            .collect();
     };
     let is = |star: &&StarClass| star.planet_keys().eq([class]);
-    let agreeing: Vec<&StarClass> = stars.into_iter().filter(is).collect();
-    match agreeing.is_empty() {
+    let several = stars.iter().any(|star| star.planets.len() > 1);
+    let agreeing: Vec<&StarClass> = stars
+        .into_iter()
+        .filter(|star| match star.planets.len() {
+            1 => is(star),
+            _ => in_place(star, &written),
+        })
+        .collect();
+    match agreeing.is_empty() && !several {
         true => gd.star_classes.iter().filter(is).collect(),
         false => agreeing,
     }
+}
+
+/// Each star of `class` is the one `written` names in its place, a `class = star` block naming
+/// none.
+fn in_place(class: &StarClass, written: &[Option<&str>]) -> bool {
+    class
+        .planet_keys()
+        .zip(written)
+        .all(|(key, named)| named.is_none_or(|named| named == key))
 }
 
 /// What an initializer's `class` names.

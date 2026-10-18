@@ -306,7 +306,7 @@ fn a_scenario_takes_special_systems_and_clusters_as_statements() {
     let keys: Vec<&str> = clusters.iter().map(|c| c.cluster.key.as_str()).collect();
     assert_eq!(
         keys,
-        ["junk_ratlings"],
+        ["junk_ratlings", "sol_neighbours"],
         "the Legendary Leader's start site creates its sites itself in a scenario"
     );
 

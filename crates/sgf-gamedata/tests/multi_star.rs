@@ -12,11 +12,12 @@ use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{
     Pick, cluster_op, for_save, layout_system_for, roll_cluster, special_op,
 };
-use sgf_gamedata::layouts::{Eligibility, SaveFacts, eligibility};
+use sgf_gamedata::layouts::{Eligibility, SaveFacts, Unsupported, eligibility};
 use sgf_gamedata::menu::menu_clusters;
 
+use common::layouts::{by_name, of};
 use common::prepare::current;
-use common::{ABUNDANCE, INSTALL, SPOT, open_4_5};
+use common::{ABUNDANCE, INSTALL, SPOT, hand_written, open_4_5};
 
 const ALPHA_CENTAURI: &str = "sol_neighbor_t1_no_guaranteed_colony";
 const PROCYON: &str = "sol_neighbor_t2";
@@ -89,7 +90,7 @@ fn the_multi_star_layouts_with_no_other_blocker_are_special_or_plain() {
             Eligibility::Plain => plain.insert(init.name.as_str()),
             Eligibility::Unsupported(why) => {
                 assert!(
-                    !matches!(why, sgf_gamedata::layouts::Unsupported::StarCount { .. }),
+                    !matches!(why, Unsupported::StarCount { .. }),
                     "{}: {why}",
                     init.name
                 );
@@ -514,4 +515,125 @@ fn same(got: &[u8], want: &[u8], what: &str) {
         around(&got),
         around(&want)
     );
+}
+
+/// Stars of two classes, a list of the two binaries, and layouts that write their stars as
+/// classes, count them, and number what they hold.
+const STAR_FILES: [(&str, &str); 3] = [
+    (
+        "common/planet_classes/00_planets.txt",
+        "pc_x_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_y_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_z_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_rock = {\n\tspawn_odds = 10\n\tplanet_size = 10\n\tmoon_size = 5\n}\n",
+    ),
+    (
+        "common/star_classes/00_stars.txt",
+        "sc_x = {\n\tclass = x_star\n\tplanet = { key = pc_x_star }\n\tspawn_odds = 10\n}\n\
+         sc_xy = {\n\tclass = x_star\n\tplanet = { key = pc_x_star }\n\tplanet = { key = pc_y_star }\n\tspawn_odds = 5\n}\n\
+         sc_yx = {\n\tclass = y_star\n\tplanet = { key = pc_y_star }\n\tplanet = { key = pc_x_star }\n\tspawn_odds = 5\n}\n\
+         rl_one = {\n\tstars = { sc_x }\n}\n\
+         rl_two = {\n\tstars = { sc_xy sc_yx }\n}\n",
+    ),
+    (
+        "common/solar_system_initializers/00_fx.txt",
+        "fx_written = {\n\tclass = rl_two\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = pc_y_star orbit_distance = 20 }\n\
+         \tplanet = { class = pc_x_star orbit_distance = 0 orbit_angle = 180 }\n}\n\
+         fx_unmatched = {\n\tclass = rl_two\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = pc_z_star orbit_distance = 20 }\n\
+         \tplanet = { class = pc_z_star orbit_distance = 0 }\n}\n\
+         fx_counted = {\n\tclass = sc_xy\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = pc_x_star count = 2 orbit_distance = 20 orbit_angle = 180 }\n}\n\
+         fx_ranged = {\n\tclass = sc_xy\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = pc_x_star count = { min = 1 max = 2 } orbit_distance = 20 }\n}\n\
+         fx_one_star_block = {\n\tclass = sc_xy\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = star count = 2 orbit_distance = 20 }\n}\n\
+         fx_numbered = {\n\tclass = rl_two\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = star orbit_distance = 0 }\n\
+         \tplanet = {\n\t\tclass = star orbit_distance = 200\n\t\tsatellite_naming_policy = upper_case_roman_numerals\n\
+         \t\tplanet = {\n\t\t\tclass = pc_rock orbit_distance = 30\n\t\t\tsatellite_naming_policy = lower_case_latin_letters\n\
+         \t\t\tmoon = { class = pc_rock orbit_distance = 5 }\n\t\t}\n\t}\n}\n\
+         fx_roman_planet = {\n\tclass = rl_one\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = star orbit_distance = 0 }\n\
+         \tplanet = { class = pc_rock orbit_distance = 40 satellite_naming_policy = upper_case_roman_numerals }\n}\n\
+         fx_latin_star = {\n\tclass = rl_one\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { class = star orbit_distance = 0 satellite_naming_policy = lower_case_latin_letters }\n}\n",
+    ),
+];
+
+/// A list layout whose stars are written as classes takes the list's class with those stars
+/// in that order, or none; star bodies are counted by instance; and a naming policy is the
+/// one the add writes only where it sits on a body of that kind.
+#[test]
+fn stars_written_as_classes_counted_and_numbered_are_judged_where_they_sit() {
+    let (_dir, gd) = hand_written(&STAR_FILES);
+    assert_eq!(of(&gd, "fx_written"), Eligibility::Special);
+    for seed in 0..20 {
+        let spec = by_name(&gd, seed, "Fx", (0.0, 0.0), "fx_written").expect("fx_written");
+        assert_eq!(spec.star_class, "sc_yx", "seed {seed}: Y then X");
+        let classes: Vec<&str> = stars(&spec).iter().map(|s| s.class.as_str()).collect();
+        assert_eq!(classes, ["pc_y_star", "pc_x_star"]);
+    }
+    assert_eq!(
+        of(&gd, "fx_unmatched"),
+        Eligibility::Unsupported(Unsupported::StarMismatch("pc_z_star".to_owned())),
+        "no class of the list has its stars"
+    );
+
+    assert_eq!(of(&gd, "fx_counted"), Eligibility::Special);
+    let spec = by_name(&gd, 1, "Fx", (0.0, 0.0), "fx_counted").expect("fx_counted");
+    let classes: Vec<&str> = stars(&spec).iter().map(|s| s.class.as_str()).collect();
+    assert_eq!(
+        classes,
+        ["pc_x_star", "pc_x_star"],
+        "two instances, kept as written"
+    );
+    assert_eq!(
+        of(&gd, "fx_ranged"),
+        Eligibility::Unsupported(Unsupported::StarCount {
+            blocks: 1,
+            stars: 2
+        }),
+        "one or two stars for a class of two"
+    );
+    assert_eq!(
+        of(&gd, "fx_one_star_block"),
+        Eligibility::Unsupported(Unsupported::StarCount {
+            blocks: 1,
+            stars: 2
+        }),
+        "class = star spawns once whatever its count"
+    );
+
+    assert_eq!(of(&gd, "fx_numbered"), Eligibility::Plain);
+    for (layout, policy) in [
+        ("fx_roman_planet", "upper_case_roman_numerals"),
+        ("fx_latin_star", "lower_case_latin_letters"),
+    ] {
+        assert_eq!(
+            of(&gd, layout),
+            Eligibility::Unsupported(Unsupported::Naming(policy.to_owned())),
+            "{layout}"
+        );
+    }
+}
+
+/// A fixed distance that is not whole is taken as written, with no draw: Jupiter's moons in
+/// Sol step 10, 2.5 and 2.5 out from its change_orbit of 6.
+#[test]
+fn a_fractional_fixed_distance_is_taken_as_written() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for seed in 0..10 {
+        let sol = by_name(gd, seed, "Gen", SPOT, "sol_system_initializer").expect("Sol");
+        let jupiter = sol
+            .planets
+            .iter()
+            .find(|p| p.name.as_deref() == Some("NAME_Jupiter"))
+            .expect("Jupiter");
+        let orbits: Vec<f64> = jupiter.moons.iter().take(3).map(|m| m.orbit).collect();
+        assert_eq!(orbits, [16.0, 18.5, 21.0], "seed {seed}");
+    }
 }

@@ -524,13 +524,14 @@ impl<'g> Roller<'g> {
         })
     }
 
-    /// A star of `block` with its planets, and its class; the system's own when `primary`.
+    /// A star of `block` with its planets; the system's own when `primary`. No star, the
+    /// system's own or a companion, draws a ring.
     fn star(
         &mut self,
         block: &'g InitPlanet,
         placed: Placed<f64>,
         primary: bool,
-    ) -> Result<(RolledStar<'g>, &'g PlanetClassDef), GenerateError> {
+    ) -> Result<RolledStar<'g>, GenerateError> {
         let key = match &block.class {
             BodyClass::Named(key) => {
                 self.star_named_by_class |= primary;
@@ -561,12 +562,11 @@ impl<'g> Roller<'g> {
             bodies: Satellites(Vec::new()),
         };
         orbit_walk::walk(&block.moons, &mut walk)?;
-        let star = RolledStar {
+        Ok(RolledStar {
             spec,
             block,
             planets: walk.bodies.0,
-        };
-        Ok((star, class))
+        })
     }
 
     /// A planet of `block` where the walk placed it about the centre or a star, its class
@@ -640,7 +640,9 @@ impl<'g> Roller<'g> {
         let mut weighted = draw.at(orbit).0;
         // Both samples' orbital ring systems hold their random_colonizable world at 125, past
         // the habitable classes' 60 to 100, while example.txt says one too near the star fails.
-        if *class == BodyClass::Random(Some(true)) && weighted.iter().all(|(_, w)| *w <= 0.0) {
+        // A moon no class fits is still not spawned.
+        let colonizable = *class == BodyClass::Random(Some(true)) && !moon;
+        if colonizable && weighted.iter().all(|(_, w)| *w <= 0.0) {
             weighted = draw
                 .0
                 .into_iter()
@@ -874,12 +876,11 @@ impl<'g> Bodies<'g> for Planets<'g, Option<RolledStar<'g>>> {
     ) -> Result<(), GenerateError> {
         if star_body(roller.gd, &block.class) {
             let primary = self.star.is_none();
-            let (mut star, class) = roller.star(block, placed, primary)?;
+            let mut star = roller.star(block, placed, primary)?;
             if primary {
                 self.star_name = star.spec.name.take();
                 self.star = Some(star);
             } else {
-                star.spec.ring = roller.ring(block, class);
                 self.planets.push(Orbiter::Star(star));
             }
             return Ok(());

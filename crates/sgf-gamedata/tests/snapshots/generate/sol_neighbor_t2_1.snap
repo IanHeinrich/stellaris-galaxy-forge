@@ -15,4 +15,4 @@ pc_f_star 35 orbit 30 angle 181 deposits ["d_energy_2"] star
     pc_frozen 7 orbit 15 angle 65.41
   pc_barren_cold 19 orbit 195 angle 154.24
     pc_barren_cold 7 orbit 15 angle 197.24
-  pc_gas_giant 21 orbit 220 angle 169.99 ring
+  pc_gas_giant 21 orbit 220 angle 169.99

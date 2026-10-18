@@ -8,11 +8,11 @@ pc_g_star 28 orbit 25 angle 180 deposits ["d_physics_2"] star
   pc_k_star 27 orbit 29.16 angle 60 deposits ["d_energy_2"] star
   pc_nuked 22 orbit 94.16 angle 275.72 deposits ["d_dangerous_wildlife_blocker", "d_radioactive_wasteland", "d_lichen_fields", "d_dangerous_wildlife_blocker", "d_underwater_vent", "d_searing_desert", "d_radioactive_wasteland", "d_bubbling_swamp", "d_fungal_caves", "d_mountain_range"]
     pc_toxic 6 orbit 15 angle 39.13 deposits ["d_trade_value_2"]
-  pc_barren 19 orbit 114.16 angle 24.42
+  pc_barren 19 orbit 114.16 angle 24.42 ring
   pc_frozen 11 orbit 134.16 angle 282.85
   pc_barren 23 orbit 154.16 angle 173.07
     pc_frozen 10 orbit 15 angle 66.95 deposits ["d_minerals_2"]
-  pc_gas_giant 26 orbit 174.16 angle 297.09 deposits ["d_energy_3"] ring
+  pc_gas_giant 26 orbit 174.16 angle 297.09 deposits ["d_energy_3"]
   pc_frozen 14 orbit 194.16 angle 112.31
   pc_frozen 25 orbit 214.16 angle 230.61
   pc_frozen 21 orbit 234.16 angle 17.73 deposits ["d_engineering_2"]
