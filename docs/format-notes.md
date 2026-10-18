@@ -521,6 +521,10 @@ for planets or deposits.
   `literal=yes` inside its braces.
 - Moving a cloud moves no system. It rewrites the lines to the systems
   the new centre and radius cover.
+- A cloud with no members is kept. On 4.5.2 the game loaded one with no
+  `galactic_object=` lines, drew it, and wrote it back unchanged in both
+  an immediate and a one-month re-save. It did not recompute any cloud's
+  members.
 - A nebula has no id. It is identified by its index in file order, so
   removing one renumbers those after it. A new one goes at the end of
   the last `nebula=` section. In a save with none, it goes at the line

@@ -6,6 +6,7 @@ import { SPAWN_BUFFER } from "../../lib/addSystem";
 import type { Camera } from "../Camera";
 import { edgeEnds, sameEdge, sameLane, type MapEdge } from "../picking/edges";
 import { MIDPOINT_HIT_PX } from "../picking/zones";
+import { rotateGizmo } from "../rotateGizmo";
 import { portCapable as portsAt } from "../../lib/visual/labels";
 import type { Pt } from "../../lib/geometry/pt";
 import { ghostLaneSegments, type MoveGhost } from "../moveGhosts";
@@ -73,6 +74,8 @@ const CUT_SOURCE = { color: ACCENT_COLOR, radius: RING_RADIUS.target, width: 1.5
 const CUT_SOURCE_DASHES = 16;
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
+/** A multi-selection's pivot, a dark disc on a cross, and its rotate handle, a solid knob on a stalk; in screen pixels. */
+const ROTATE = { color: ACCENT_COLOR, fill: HANDLE_COLOR, discPx: 5, armPx: 9, knobPx: 5 };
 
 /** A world-space rectangle with `x0 <= x1` and `y0 <= y1`. */
 export interface WorldRect {
@@ -117,6 +120,27 @@ function midpointButton(): Graphics {
   return g;
 }
 
+function pivotMark(): Graphics {
+  const g = new Graphics({ label: "rotatePivot" });
+  const a = ROTATE.armPx;
+  g.moveTo(-a, 0).lineTo(a, 0).moveTo(0, -a).lineTo(0, a);
+  g.stroke({ color: ROTATE.color, width: 1.5, alpha: 0.9 });
+  g.circle(0, 0, ROTATE.discPx)
+    .fill({ color: ROTATE.fill, alpha: 0.9 })
+    .stroke({ color: ROTATE.color, width: 1.5, alpha: 1 });
+  g.visible = false;
+  return g;
+}
+
+function rotateKnob(): Graphics {
+  const g = new Graphics({ label: "rotateHandle" });
+  g.circle(0, 0, ROTATE.knobPx)
+    .fill({ color: ROTATE.color, alpha: 1 })
+    .stroke({ color: ROTATE.fill, width: 1, alpha: 0.9 });
+  g.visible = false;
+  return g;
+}
+
 function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
   if (ids.size === 0) return false;
   return d.systems.some((s) => ids.has(s.id)) || (d.removed ?? []).some((id) => ids.has(id));
@@ -129,8 +153,8 @@ function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
  * progress: the ghosts' lanes, the rubber lines of a pending lane or link, the lanes a mesh
  * action would add, the marquee, and the hovered edge (a lane or a zone's link) with its "×"
  * and the selected lane, the brush circle with what a held stroke would add, remove or cut, and
- * the Shape tool's pending shape.
- * It also marks the galaxy origin and, where the galaxy sets one, the
+ * the Shape tool's pending shape, and a multi-selection's pivot and rotate handle while the
+ * Select tool is out. It also marks the galaxy origin and, where the galaxy sets one, the
  * core radius stars are meant to stay outside of.
  */
 export class HighlightsLayer implements MapLayer {
@@ -154,6 +178,9 @@ export class HighlightsLayer implements MapLayer {
   private readonly origin = originCross();
   private readonly coreRing = new Graphics();
   private readonly addPreviewLines = new Graphics({ label: "addSystemPreview" });
+  private readonly rotateStalk = new Graphics({ label: "rotateStalk" });
+  private readonly pivotMark = pivotMark();
+  private readonly rotateKnob = rotateKnob();
   /** The plus on every system added this session. */
   private readonly added = new AddedMarks();
   /** The brush circle and what a held stroke would do. */
@@ -168,6 +195,10 @@ export class HighlightsLayer implements MapLayer {
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private selection: ReadonlySet<number> = new Set();
+  private selectionIds: readonly number[] = [];
+  private rotatePivot: Pt | null = null;
+  /** Whether the Select tool is out, which alone offers the pivot and rotate handle. */
+  private rotateShown = true;
   private hoverId: number | null = null;
   private cutSource: number | null = null;
   private matched: ReadonlySet<number> = new Set();
@@ -175,6 +206,8 @@ export class HighlightsLayer implements MapLayer {
   private prepared: ReadonlySet<number> = new Set();
   private preparedOnZones = false;
   private ghosts: readonly MoveGhost[] = [];
+  /** The turn a rotate drag previews, which the handle follows; null for any other drag. */
+  private turn: number | null = null;
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
   private lanePreview: Array<[number, number]> | null = null;
   private addPreview: AddSystemPreview | null = null;
@@ -183,6 +216,7 @@ export class HighlightsLayer implements MapLayer {
   private hoverEdge: MapEdge | null = null;
   private selectedLane: LaneRef | null = null;
   private camScale = 1;
+  private camSquash = 1;
   private markerK = 1;
   private portCapable = false;
   private readonly scale = { x: 1, y: 1 };
@@ -219,6 +253,9 @@ export class HighlightsLayer implements MapLayer {
       this.leavingRings.container,
       this.added.container,
       this.midpoint,
+      this.rotateStalk,
+      this.pivotMark,
+      this.rotateKnob,
     );
   }
 
@@ -267,11 +304,18 @@ export class HighlightsLayer implements MapLayer {
     this.added.setScale(this.scale);
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
+    this.pivotMark.scale.set(this.pixelScale.x, this.pixelScale.y);
+    this.rotateKnob.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.origin.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.shape.onViewport(cam);
     const portCapable = portsAt(cam.scale);
+    if (cam.squash !== this.camSquash) {
+      this.camSquash = cam.squash;
+      this.placeRotate();
+    }
     if (cam.scale !== this.camScale || portCapable !== this.portCapable) {
       this.camScale = cam.scale;
+      this.placeRotate();
       this.portCapable = portCapable;
       this.laneDrag.onScale(cam.scale, this.markerK, portCapable);
       this.placeAll();
@@ -309,6 +353,7 @@ export class HighlightsLayer implements MapLayer {
 
   setSelection(ids: readonly number[]): void {
     this.selection = new Set(ids);
+    this.selectionIds = ids;
     this.placeSelection();
     this.placeHover();
   }
@@ -334,8 +379,22 @@ export class HighlightsLayer implements MapLayer {
     this.laneDrag.setMoving(this.ghosts.length > 0);
     this.dragged = dragged;
     if (!same) this.placeSelection();
+    this.turn = drag?.turn ?? null;
+    this.placeRotate();
     this.placeAll();
     this.drawPreviews();
+  }
+
+  /** The point the selection turns about, as the store holds it; null for its centroid. */
+  setRotatePivot(pivot: Pt | null): void {
+    this.rotatePivot = pivot;
+    this.placeRotate();
+  }
+
+  /** Whether the pivot and rotate handle are offered: only while the Select tool is out. */
+  setRotateShown(shown: boolean): void {
+    this.rotateShown = shown;
+    this.placeRotate();
   }
 
   setLanePreview(pairs: Array<[number, number]> | null): void {
@@ -419,6 +478,34 @@ export class HighlightsLayer implements MapLayer {
       if (s) (this.dragged.has(id) ? dimmed : bright).push(this.drawn.at(s));
     }
     this.selectionRings.place(bright, dimmed);
+    this.placeRotate();
+  }
+
+  /**
+   * The pivot, the stalk and the rotate handle of two or more selected systems, the handle turned
+   * with a rotate drag; hidden under a move drag, whose ghosts leave them behind.
+   */
+  private placeRotate(): void {
+    const moving = this.ghosts.length > 0 && this.turn === null;
+    const gizmo =
+      this.rotateShown && !moving
+        ? rotateGizmo(
+            this.systems,
+            { selection: this.selectionIds, rotatePivot: this.rotatePivot },
+            { scale: this.camScale, squash: this.camSquash },
+            this.drawn.at,
+            this.turn ?? 0,
+          )
+        : null;
+    const g = this.rotateStalk;
+    g.clear();
+    this.placeAt(this.pivotMark, gizmo?.pivot);
+    this.placeAt(this.rotateKnob, gizmo?.handle);
+    if (!gizmo) return;
+    const { base, handle } = gizmo;
+    g.moveTo(base.x, base.y)
+      .lineTo(handle.x, handle.y)
+      .stroke({ color: ROTATE.color, alpha: 0.9, pixelLine: true });
   }
 
   private placeMatched(): void {

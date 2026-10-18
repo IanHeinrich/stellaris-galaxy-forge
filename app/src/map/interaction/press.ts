@@ -1,3 +1,4 @@
+import type { RotatePick } from "../picking";
 import type { LaneSource, MapInput } from "./MapIntent";
 
 /** Pointer travel before a press becomes a drag rather than a click. */
@@ -48,4 +49,13 @@ export function laneSourceOf(press: Press): LaneSource | null {
     return { kind: "feZone", anchor: press.feZone.anchor };
   }
   return null;
+}
+
+/**
+ * The part of the gizmo a press there drags: the rotate handle always, the pivot only off a
+ * system, so a star under the pivot still moves and starts lanes.
+ */
+export function gizmoOf(input: Pick<MapInput, "rotate" | "system">): RotatePick | null {
+  const pick = input.rotate;
+  return pick && (pick.part === "handle" || input.system === null) ? pick : null;
 }

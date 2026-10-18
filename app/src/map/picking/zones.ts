@@ -17,6 +17,8 @@ export const NEBULA_CENTRE_HIT_PX = 22;
 export const NEBULA_HANDLE_HIT_PX = 8;
 /** Half-width of a nebula's ring band, in screen pixels; inside the disc is not a hit. */
 export const NEBULA_RING_HIT_PX = 6;
+/** Pick radius for a multi-selection's pivot and its rotate handle, in screen pixels. */
+export const ROTATE_HIT_PX = 9;
 /** Half-width of a fallen empire zone's ring band, in screen pixels; the disc itself is not a hit. */
 export const FE_ZONE_RING_HIT_PX = 6;
 

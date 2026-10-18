@@ -326,6 +326,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   NormaliseLaneLength: null,
   NormaliseLaneLengths: null,
   MoveNebula: null,
+  RotateSystems: null,
   AddNebula: null,
   RemoveNebula: null,
   SetNebulaRadius: null,

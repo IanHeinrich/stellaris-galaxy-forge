@@ -7,11 +7,10 @@ import {
   STARS_NEED_GAME_DATA,
   type StarClassTarget,
 } from "../../../lib/details/starClass";
-import { counted } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { PickerField } from "../../EditField";
+import { EditNote, EditRow, PickerField } from "../../EditField";
 import { useApplyOp } from "../../useApplyOp";
 import { useStarClassItems } from "../useStarClassItems";
 
@@ -20,7 +19,7 @@ const STAR_CLASS_COUNT_MAX = 1000;
 
 /**
  * Several save systems selected: one star class for every one with as many stars, as one edit,
- * and a note of the systems it left alone. Their details are read, for their star bodies, only
+ * and a note of the systems it left alone, as a Star class row of an edit block. Their details are read, for their star bodies, only
  * once the picker is opened, and not at all above `STAR_CLASS_COUNT_MAX` systems.
  */
 export function BulkStarClass({ ids }: { ids: readonly number[] }) {
@@ -61,19 +60,21 @@ export function BulkStarClass({ ids }: { ids: readonly number[] }) {
   const choices = bulkStarClassChoices(targets, starClasses);
   const items = useStarClassItems(choices);
 
-  const label = `Star class… (${counted(ids.length, "system")})`;
+  const label = "Choose…";
   const tooMany = ids.length > STAR_CLASS_COUNT_MAX;
   if (!gameData || tooMany) {
     return (
-      <PickerField
-        label="Star class"
-        disabledReason={
-          tooMany ? `Limited to ${STAR_CLASS_COUNT_MAX} systems` : STARS_NEED_GAME_DATA
-        }
-        current={{ key: "", label }}
-        items={[]}
-        onPick={() => undefined}
-      />
+      <EditRow label="Star class">
+        <PickerField
+          label="Star class"
+          disabledReason={
+            tooMany ? `Limited to ${STAR_CLASS_COUNT_MAX} systems` : STARS_NEED_GAME_DATA
+          }
+          current={{ key: "", label }}
+          items={[]}
+          onPick={() => undefined}
+        />
+      </EditRow>
     );
   }
   const waiting = targets.filter((t) => t.bodies === null && !failed.has(t.system.id));
@@ -95,16 +96,18 @@ export function BulkStarClass({ ids }: { ids: readonly number[] }) {
   };
   return (
     <>
-      <PickerField
-        label="Star class"
-        title="Change the star class of the selected systems with as many stars"
-        current={{ key: "", label: loading ? "Star class… (loading…)" : label }}
-        items={loading ? [] : items}
-        empty={loading ? "Reading the systems' stars…" : "No star class fits these systems"}
-        onOpen={open}
-        onPick={pick}
-      />
-      {note?.ids === ids && note.text !== null && <div className="muted ins-hint">{note.text}</div>}
+      <EditRow label="Star class">
+        <PickerField
+          label="Star class"
+          title="Change the star class of the selected systems with as many stars"
+          current={{ key: "", label: loading ? "Loading…" : label }}
+          items={loading ? [] : items}
+          empty={loading ? "Reading the systems' stars…" : "No star class fits these systems"}
+          onOpen={open}
+          onPick={pick}
+        />
+      </EditRow>
+      {note?.ids === ids && note.text !== null && <EditNote>{note.text}</EditNote>}
     </>
   );
 }

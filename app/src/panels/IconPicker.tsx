@@ -38,6 +38,54 @@ function Row({ item }: { item: IconPickerItem }) {
   );
 }
 
+/**
+ * A picker's button: the current choice and a caret, named for the field and its choice. It opens
+ * the picker's list, or a dialog that makes the choice.
+ */
+export function PickerTrigger({
+  className,
+  ref,
+  popup,
+  expanded,
+  label,
+  current,
+  title,
+  disabled,
+  onClick,
+  onKeyDown,
+}: {
+  className?: string;
+  ref?: RefObject<HTMLButtonElement | null>;
+  popup: "listbox" | "dialog";
+  expanded?: boolean;
+  label: string;
+  current: IconPickerItem;
+  title?: string;
+  disabled?: boolean;
+  onClick: () => void;
+  onKeyDown?: (e: KeyboardEvent) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        className === undefined ? "icon-picker-trigger" : `icon-picker-trigger ${className}`
+      }
+      ref={ref}
+      aria-haspopup={popup}
+      aria-expanded={expanded}
+      aria-label={`${label}: ${current.label}`}
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+    >
+      <Row item={current} />
+      <span className="icon-picker-caret">▾</span>
+    </button>
+  );
+}
+
 /** How far a popup stays inside the edge of the box that shows it. */
 const POPUP_EDGE_PX = 4;
 
@@ -254,25 +302,18 @@ export function IconPicker({
 
   return (
     <span className="icon-picker" ref={root}>
-      <button
-        type="button"
-        className={
-          triggerClassName === undefined
-            ? "icon-picker-trigger"
-            : `icon-picker-trigger ${triggerClassName}`
-        }
+      <PickerTrigger
+        className={triggerClassName}
         ref={trigger}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`${label}: ${current.label}`}
+        popup="listbox"
+        expanded={open}
+        label={label}
+        current={current}
         title={title}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={onTriggerKey}
-      >
-        <Row item={current} />
-        <span className="icon-picker-caret">▾</span>
-      </button>
+      />
       {open &&
         !disabled &&
         (filtered ? (

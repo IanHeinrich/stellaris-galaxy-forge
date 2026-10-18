@@ -3,7 +3,7 @@ import type { BrushTool } from "../../lib/brush/brushTools";
 import type { Pt } from "../../lib/geometry/pt";
 import type { ShapeDragMods, ShapeHandleId, ShapePick } from "../../lib/shapes/types";
 import type { ContextTarget } from "../../store/mapChromeStore";
-import type { FeZonePick, NebulaPick } from "../picking";
+import type { FeZonePick, NebulaPick, RotatePick } from "../picking";
 import type { MapEdge } from "../picking/edges";
 import type { Zone } from "../picking/zones";
 
@@ -63,6 +63,8 @@ export interface MapInput {
   nebula: NebulaPick | null;
   /** The pending shape's handle, or its inside, under the pointer; looked up only in the Shape tool. */
   shape: ShapePick | null;
+  /** A multi-selection's pivot or rotate handle under the pointer, looked up only in the Select tool. */
+  rotate: RotatePick | null;
   /**
    * A prevented pair's dash under the pointer, looked up only for a right-click on no system and
    * no edge, so nothing else a pointer does ever meets it.
@@ -114,6 +116,17 @@ export interface MapIntent {
   commitFeZone(anchor: number, x: number, y: number): void;
   /** Drops the previewed ring, whether or not the drag changed anything. */
   endFeZone(): void;
+  /** The selection turned `degrees` about its pivot, clockwise as the map shows it. */
+  previewRotate(degrees: number): void;
+  /** Sends the turn as one edit. */
+  commitRotate(degrees: number): void;
+  /** Drops the turn's preview and sends nothing. */
+  cancelRotate(): void;
+  /** The pivot follows the pointer to the world point (x, y). */
+  previewPivot(x: number, y: number): void;
+  commitPivot(x: number, y: number): void;
+  /** Puts back the pivot the drag started from. */
+  cancelPivot(): void;
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
   /**
    * The brush circle follows the pointer, drawn for the tool a press there would use; `flipped`

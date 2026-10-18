@@ -155,6 +155,20 @@ pub(super) fn examples() -> Vec<Example> {
             index: 0,
             name: "Sgf_Test_Cloud".to_owned(),
         }),
+        Example::each(
+            Op::RotateSystems {
+                systems: vec![438, 623, 164],
+                pivot: (66.15, -136.85),
+                degrees: 45.0,
+                nebulae: true,
+            },
+            Op::RotateSystems {
+                systems: vec![0, 1],
+                pivot: (0.0, 0.0),
+                degrees: 45.0,
+                nebulae: true,
+            },
+        ),
         Example::scenario(Op::AddSystem {
             system: None,
             x: 200.0,

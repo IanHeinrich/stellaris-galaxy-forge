@@ -3,7 +3,8 @@ import { useEditorStore, type HeightChange } from "../store/editorStore";
 import { heightTint, isFlat, relativeHeight } from "../lib/height";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { toCss } from "../lib/visual/color";
-import { TextField } from "./EditField";
+import { FLATTEN_TITLE } from "../lib/selectionCopy";
+import { EditBlock, TextField } from "./EditField";
 import "./panels.css";
 
 const HEIGHT_CHANGES: ReadonlyArray<{ change: HeightChange; label: string }> = [
@@ -42,7 +43,7 @@ function HeightStrip({ heights }: { heights: readonly number[] }) {
   const zero = x(0);
   return (
     <svg
-      className="height-strip"
+      className="height-strip edit-wide"
       viewBox={`0 0 ${STRIP_WIDTH} ${STRIP_HEIGHT}`}
       role="img"
       aria-label="Heights of the selected systems"
@@ -102,17 +103,16 @@ export function BulkHeight({ ids }: { ids: readonly number[] }) {
   );
   const raised = heights.filter((h) => !isFlat(h)).length;
   return (
-    <div className="height-group" role="group" aria-label="Height">
-      <div className="edit-block-title">Height</div>
+    <EditBlock title="Height" className="height-group">
       <HeightStrip heights={heights} />
-      <div className="segmented" role="group" aria-label="Height change">
+      <div className="segmented edit-wide" role="group" aria-label="Height change">
         {HEIGHT_CHANGES.map(({ change: c, label }) => (
           <button key={c} type="button" aria-pressed={change === c} onClick={() => setChange(c)}>
             {label}
           </button>
         ))}
       </div>
-      <div className="height-apply">
+      <div className="height-apply edit-wide">
         <TextField
           kind="number"
           className="coord"
@@ -123,11 +123,15 @@ export function BulkHeight({ ids }: { ids: readonly number[] }) {
         <button type="button" onClick={() => void setSelectedHeights(change, value)}>
           Apply
         </button>
+        <button
+          type="button"
+          disabled={raised === 0}
+          title={FLATTEN_TITLE}
+          onClick={() => void flattenSelected()}
+        >
+          Flatten ({raised})
+        </button>
       </div>
-      <button type="button" disabled={raised === 0} onClick={() => void flattenSelected()}>
-        Flatten ({raised})
-      </button>
-      <div className="muted height-hint">Back to the game&apos;s default height</div>
-    </div>
+    </EditBlock>
   );
 }
