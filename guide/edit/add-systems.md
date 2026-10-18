@@ -1,7 +1,7 @@
 ---
 title: Add and delete systems
 description: Add a new star system, a special system such as Sol or Zevox, or a system from an initializer, and delete systems again.
-aliases: [new system, add star, create system, special system, sol, zevox, trappist, junk ratlings, legendary leader, special cluster, join special system, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
+aliases: [new system, add star, create system, special system, sol, zevox, trappist, junk ratlings, legendary leader, special cluster, binary system, trinary system, binary star, alpha centauri, procyon, sirius, join special system, reroll, rename system, delete system, remove system, galaxy edge, outside the galaxy]
 ---
 # Add and delete systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -13,6 +13,11 @@ different choices in a save and in a scenario.
 Right-click empty space and select "Add system here", then Random or a
 star class. Hover an entry to see its star, planets, belts and notable
 bodies.
+
+Binary and trinary systems are under "Binary stars" and "Trinary
+stars", each named by its stars. A companion star can have planets and
+moons of its own. Random can roll a binary or trinary too, about as
+often as the game does.
 
 ![The right-click menu on empty space, with Add system here open on Random, the star classes and Special…](../images/edit/add-system-menu.png)
 
@@ -31,9 +36,9 @@ The list has these groups:
 
 - Pinned and Recent. Press <kbd>Ctrl</kbd>+<kbd>D</kbd> or the star on a
   row to pin it.
-- Clusters, such as the Junk Ratlings, which the game places as a group.
-  Each row shows how many members it has.
-- Unique systems, such as Zevox and Sol.
+- Clusters, such as Sol and its neighbours or the Junk Ratlings, which
+  the game places as a group. Each row shows how many members it has.
+- Unique systems, such as Zevox, Sol and Alpha Centauri.
 - Other special systems, such as Trappist.
 - One group for each mod that adds special systems.
 
