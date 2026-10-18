@@ -44,8 +44,8 @@ describe("the stars of the system scene's bodies layer", () => {
     expect(labelled("glow").blendMode).toBe("add");
     const halo = labelled("halo");
     expect(halo.blendMode).toBe("add");
-    expect(halo.tint).toBe(starGlyph("sc_g").tint);
-    expect(labelled("disc").tint).toBe(starGlyph("sc_g").tint);
+    expect(halo.tint).toBe(starGlyph("sc_g", new Map()).tint);
+    expect(labelled("disc").tint).toBe(starGlyph("sc_g", new Map()).tint);
 
     await answerFetch();
     await until(() => expect(labelled("lit").visible).toBe(true));

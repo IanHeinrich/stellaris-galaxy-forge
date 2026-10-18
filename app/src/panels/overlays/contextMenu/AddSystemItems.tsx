@@ -1,6 +1,8 @@
 import type { AddSystemPicks } from "../../../generated/AddSystemPicks";
+import { starPicksByCount } from "../../../lib/details/starClass";
 import type { StarClassPick } from "../../../store/generatorStore";
 import { useEditorStore } from "../../../store/editorStore";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
 import { useSpecialPickerStore } from "../../../store/specialPickerStore";
 import { useAddSystemPreview } from "../../useAddSystemPreview";
@@ -12,6 +14,67 @@ import { Submenu } from "./Submenu";
 const ADD_SYSTEM_LABEL = "Add system here";
 const RANDOM_LABEL = "Random";
 const SPECIAL_LABEL = "Special…";
+const BINARY_LABEL = "Binary stars";
+const TRINARY_LABEL = "Trinary stars";
+
+/** One row per star class, each rolling a system around that class. */
+function StarClassRows({
+  x,
+  y,
+  stars,
+  first = "menu-item",
+}: {
+  x: number;
+  y: number;
+  stars: readonly StarClassPick[];
+  /** The first row's class. */
+  first?: string;
+}) {
+  const addRandomSystemAt = useEditorStore((s) => s.addRandomSystemAt);
+  return stars.map((c, i) => (
+    <PickItem
+      key={c.key}
+      className={i === 0 ? first : "menu-item"}
+      title={c.label}
+      summary={c.summary}
+      run={() => addRandomSystemAt(x, y, c.key)}
+    >
+      {c.label}
+    </PickItem>
+  ));
+}
+
+/**
+ * The star class rolls: a row per single star, then a submenu each for the binaries and the
+ * trinaries, shown once the generator offers one, its rows named by their stars.
+ */
+export function StarClassItems({
+  x,
+  y,
+  stars,
+}: {
+  x: number;
+  y: number;
+  stars: readonly StarClassPick[];
+}) {
+  const views = useGameDataStore((s) => s.starClasses);
+  const { rows, binaries, trinaries } = starPicksByCount(stars, views);
+  return (
+    <>
+      <StarClassRows x={x} y={y} stars={rows} first="menu-item context-menu-separated" />
+      {binaries.length > 0 && (
+        <Submenu label={BINARY_LABEL}>
+          <StarClassRows x={x} y={y} stars={binaries} />
+        </Submenu>
+      )}
+      {trinaries.length > 0 && (
+        <Submenu label={TRINARY_LABEL}>
+          <StarClassRows x={x} y={y} stars={trinaries} />
+        </Submenu>
+      )}
+    </>
+  );
+}
 
 /**
  * The rolls "Add system here" offers: any regular system, one around a star class, each with its
@@ -41,17 +104,7 @@ function Rolls({
       >
         {RANDOM_LABEL}
       </PickItem>
-      {stars.map((c, i) => (
-        <PickItem
-          key={c.key}
-          className={i === 0 ? "menu-item context-menu-separated" : "menu-item"}
-          title={c.label}
-          summary={c.summary}
-          run={() => addRandomSystemAt(x, y, c.key)}
-        >
-          {c.label}
-        </PickItem>
-      ))}
+      <StarClassItems x={x} y={y} stars={stars} />
       {picks && picks.special.length > 0 && menu && (
         <MenuItem
           className="menu-item context-menu-separated"

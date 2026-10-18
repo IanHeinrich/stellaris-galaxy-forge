@@ -8,6 +8,7 @@ import {
   isStar,
   isStarBody,
   singleStarClasses,
+  starCount,
   starMismatch,
   starTypeChoices,
   starTypeRows,
@@ -150,5 +151,16 @@ describe("eachStarKeys", () => {
     expect(eachStarKeys(undefined)).toEqual([]);
     const shell = { ...starClassView("sc_shell", "pc_g_star", "pc_m_star"), alternatives: true };
     expect(eachStarKeys(shell)).toEqual([]);
+  });
+});
+
+describe("starCount", () => {
+  it("counts a multiple star's bodies, one for a list of choices, and none for no star", () => {
+    expect(starCount(CLASSES.get("sc_binary_2")!)).toBe(2);
+    expect(starCount(starClassView("sc_trinary_1", "pc_g_star", "pc_m_star", "pc_k_star"))).toBe(3);
+    expect(starCount(CLASSES.get("sc_g")!)).toBe(1);
+    const shell = { ...starClassView("sc_shell", "pc_g_star", "pc_m_star"), alternatives: true };
+    expect(starCount(shell)).toBe(1);
+    expect(starCount(starClassView("sc_nothing"))).toBe(0);
   });
 });

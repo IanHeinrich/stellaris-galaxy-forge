@@ -346,7 +346,7 @@ function freshArt(
   src: ArtSources,
 ): BodyArt {
   if (starClass !== null) {
-    const look = bodyLook({ planetClass, starClass, drawn });
+    const look = bodyLook({ planetClass, starClass, starClasses: src.starClasses, drawn });
     const view = src.starClasses.get(starClass);
     const iconKeys = view?.texture_key ? [view.texture_key] : [];
     return {

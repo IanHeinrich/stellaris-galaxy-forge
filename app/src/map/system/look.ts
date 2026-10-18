@@ -2,10 +2,13 @@
  * How the system view draws a class, read from its key once the scene has resolved which class a
  * body is. The layers draw from what this gives and never from a key.
  */
+import type { StarClassView } from "../../generated/StarClassView";
 import { planetTint, shatteredDiscKey } from "../../lib/details/icons";
 import { starFlare, starGlyph, type StarFlare } from "../../lib/visual/starGlyphs";
 
 export const ICY_TINT = 0xbfd9ee;
+
+const NO_STAR_CLASSES: ReadonlyMap<string, StarClassView> = new Map();
 
 /**
  * A tint for each class family `planetTint` leaves to its neutral grey; every other class takes
@@ -71,8 +74,12 @@ export interface BodyLook {
   readonly waitsForModel: boolean;
 }
 
-function classTint(planetClass: string, starClass: string | null): number {
-  if (starClass !== null) return starGlyph(starClass).tint;
+function classTint(
+  planetClass: string,
+  starClass: string | null,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): number {
+  if (starClass !== null) return starGlyph(starClass, starClasses).tint;
   for (const [pattern, tint] of FAMILY_TINTS) {
     if (pattern.test(planetClass)) return tint;
   }
@@ -84,6 +91,8 @@ export interface LookOf {
   readonly planetClass: string;
   /** The star class a star is drawn as; null for a planet. */
   readonly starClass: string | null;
+  /** The install's star classes, which say how many stars `starClass` has. */
+  readonly starClasses?: ReadonlyMap<string, StarClassView>;
   /** Its class is left to a draw, with no surface of its own. */
   readonly drawn: boolean;
   /** The install draws its class from its icon alone. */
@@ -112,6 +121,7 @@ export interface LookOf {
 export function bodyLook({
   planetClass,
   starClass,
+  starClasses = NO_STAR_CLASSES,
   drawn,
   flat = false,
   hidden = false,
@@ -121,7 +131,7 @@ export function bodyLook({
   bodyModel = null,
   segment = false,
 }: LookOf): BodyLook {
-  const blackHole = starClass !== null && starGlyph(starClass).ring;
+  const blackHole = starClass !== null && starGlyph(starClass, starClasses).ring;
   const luminous = /astral_scar/.test(planetClass);
   const flatArt = (flat || hidden) && starClass === null && !drawn && !luminous;
   const irregular = asteroid || luminous || flatArt;
@@ -136,7 +146,7 @@ export function bodyLook({
       ? [shatteredDiscKey(planetClass, seed)]
       : [...modelKeys, `${kind}:${planetClass}`];
   return {
-    tint: classTint(planetClass, starClass),
+    tint: classTint(planetClass, starClass, starClasses),
     surfaceKeys: baked ? keys : [],
     blackHole,
     flare: starClass !== null ? starFlare(starClass) : null,

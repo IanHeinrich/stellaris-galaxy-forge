@@ -304,7 +304,7 @@ export class SystemsLayer implements MapLayer {
         ring = undefined;
       }
     } else {
-      const glyph = starGlyph(starClass);
+      const glyph = starGlyph(starClass, this.ctx.starClasses);
       sprite.texture = this.glow;
       sprite.tint = glyph.tint;
       sprite.blendMode = "normal";

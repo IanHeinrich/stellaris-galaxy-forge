@@ -7,12 +7,15 @@ import {
   bulkStarClassChoices,
   crisisVariantKeys,
   currentStarBodies,
+  multiStarNameKeys,
+  namedStarPicks,
   planStarClass,
   setStarClassOp,
   skippedNote,
   starBodies,
   starClassNameKeys,
   starClassRows,
+  starPicksByCount,
   visibleStarClassRows,
   type StarClassTarget,
 } from "./starClass";
@@ -145,16 +148,22 @@ describe("starClassRows", () => {
     ]);
   });
 
-  it("names a class listing the stars a system may have by its own name", () => {
+  it("names a class listing the stars a system may have by its own name, among the single stars", () => {
     const shell = {
-      ...starClassView("sc_shell", "pc_g_star", "pc_m_star", "pc_k_star", "pc_b_star"),
+      ...starClassView("sc_shell", "pc_g_star", "pc_m_star"),
       alternatives: true,
     };
+    const binary = CLASSES.get("sc_binary_2") as StarClassView;
     expect(
-      starClassRows([shell], (key) => (key === "sc_shell" ? "Shell" : key), NO_CRISIS).map(
-        (r) => r.label,
-      ),
-    ).toEqual(["Shell"]);
+      starClassRows(
+        [binary, shell],
+        (key) => (key === "sc_shell" ? "Shell" : (names.get(key) ?? key)),
+        NO_CRISIS,
+      ).map((r) => [r.group, r.label]),
+    ).toEqual([
+      ["Stars", "Shell"],
+      ["Binaries", "Class B Star + Neutron Star"],
+    ]);
   });
 
   it("groups classes a new galaxy never rolls after the others: special, then crisis variants", () => {
@@ -208,6 +217,66 @@ describe("starClassNameKeys", () => {
   it("asks for each class and each of its bodies once", () => {
     const choices = ["sc_g", "sc_binary_6"].map((key) => CLASSES.get(key) as StarClassView);
     expect(starClassNameKeys(choices)).toEqual(["sc_g", "pc_g_star", "sc_binary_6", "pc_m_star"]);
+  });
+});
+
+describe("the generator's star classes", () => {
+  const BODY_NAMES = new Map([
+    ["pc_b_star", "Class B Star"],
+    ["pc_g_star", "Class G Star"],
+    ["pc_m_star", "Class M Star"],
+    ["pc_k_star", "Class K Star"],
+    ["pc_neutron_star", "Neutron Star"],
+  ]);
+  const named = (key: string) => BODY_NAMES.get(key) ?? key;
+  const picks = [
+    { key: "sc_g", label: "Class G" },
+    { key: "sc_trinary_1", label: "Trinary Stars" },
+    { key: "sc_binary_6", label: "Binary Stars" },
+    { key: "sc_neutron_star", label: "Neutron Star" },
+    { key: "sc_binary_2", label: "Binary Stars" },
+    { key: "sc_modded", label: "Modded Star" },
+  ];
+  const keys = (list: readonly { key: string }[]) => list.map((p) => p.key);
+
+  it("name each multiple star by its stars, as the star class picker does, and keep a single star's name", () => {
+    expect(namedStarPicks(picks, CLASSES, named).map((p) => p.label)).toEqual([
+      "Class G",
+      "Class G Star + Class M Star + Class K Star",
+      "Class M Star + Class G Star",
+      "Neutron Star",
+      "Class B Star + Neutron Star",
+      "Modded Star",
+    ]);
+    expect(
+      multiStarNameKeys(
+        picks.map((p) => p.key),
+        CLASSES,
+      ),
+    ).toEqual(["pc_g_star", "pc_m_star", "pc_k_star", "pc_b_star", "pc_neutron_star"]);
+  });
+
+  it("split by the install's star count, not the key, with the binaries and trinaries by name", () => {
+    const renamed = new Map(CLASSES);
+    renamed.set("sc_pair", starClassView("sc_pair", "pc_m_star", "pc_k_star"));
+    renamed.set("sc_binary_odd", starClassView("sc_binary_odd", "pc_g_star"));
+    const split = starPicksByCount(
+      namedStarPicks(
+        [...picks, { key: "sc_pair", label: "Pair" }, { key: "sc_binary_odd", label: "Odd" }],
+        renamed,
+        named,
+      ),
+      renamed,
+    );
+    expect(keys(split.rows)).toEqual(["sc_g", "sc_neutron_star", "sc_modded", "sc_binary_odd"]);
+    expect(keys(split.binaries)).toEqual(["sc_binary_2", "sc_binary_6", "sc_pair"]);
+    expect(keys(split.trinaries)).toEqual(["sc_trinary_1"]);
+  });
+
+  it("leave the binaries and trinaries empty while the generator offers none", () => {
+    const split = starPicksByCount(picks.slice(0, 1), CLASSES);
+    expect(split.binaries).toEqual([]);
+    expect(split.trinaries).toEqual([]);
   });
 });
 
@@ -321,6 +390,16 @@ describe("a bulk star class edit", () => {
       "sc_binary_5",
     ]);
     expect(bulkStarClassChoices([TARGETS[4], TARGETS[5]], CLASSES)).toEqual([]);
+  });
+
+  it("offers a class listing the stars a system may have to a single star, not a binary", () => {
+    const shell = { ...starClassView("sc_shell", "pc_g_star", "pc_m_star"), alternatives: true };
+    const classes = new Map([...CLASSES, [shell.key, shell]]);
+    const keysFor = (targets: StarClassTarget[]) =>
+      bulkStarClassChoices(targets, classes).map((c) => c.key);
+    expect(keysFor([TARGETS[0]])).toContain("sc_shell");
+    expect(keysFor([TARGETS[3]])).not.toContain("sc_shell");
+    expect(planStarClass([TARGETS[0]], shell, "Shell", classes).changed).toBe(1);
   });
 
   it("changes every system with as many stars as one batch, skipping the rest and saying why", () => {
