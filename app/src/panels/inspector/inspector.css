@@ -437,6 +437,16 @@ button.link.ins-drill:hover {
   width: 72px;
 }
 
+/* The angle's Enter wrapper sits between the cell and the field, so it passes the row's width on. */
+.rotate-angle {
+  display: flex;
+}
+
+.rotate-angle > .edit-field {
+  flex: 1;
+  min-width: 0;
+}
+
 .ins-random-name {
   font-style: italic;
   color: var(--fg-muted);

@@ -20,6 +20,7 @@ export function RotateSection() {
       <EditBlock title="Angle">
         <EditRow label="Degrees">
           <span
+            className="rotate-angle"
             onKeyDown={(e) => {
               // Runs after the field's own Enter, which commits the draft: the typed text applies once.
               if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement)) return;
