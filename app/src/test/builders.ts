@@ -1,3 +1,5 @@
+import type { Arrangement } from "../generated/Arrangement";
+import type { StarType } from "../generated/StarType";
 import type { CampaignListing } from "../generated/CampaignListing";
 import type { ClusterMember } from "../generated/ClusterMember";
 import type { ClusterPick } from "../generated/ClusterPick";
@@ -927,4 +929,31 @@ export function clusterPick(
 /** One system of a cluster's roll, called `name`, whose place is taken. */
 export function clusterMember(name: string, over: Partial<ClusterMember> = {}): ClusterMember {
   return { layout: "ratling_1_1", name, x: 0, y: 0, star_class: "sc_m", refused: null, ...over };
+}
+
+/** An arrangement of the builder: a close pair at the centre unless its stars are given. */
+export function arrangement(
+  layout: string,
+  stars: number,
+  name: string,
+  share: number,
+  over: Partial<Arrangement> = {},
+): Arrangement {
+  return {
+    layout,
+    stars,
+    shape: stars === 3 ? "close_trio" : "close_pair",
+    name,
+    odds: share * 10,
+    share,
+    diagram: {
+      stars: Array.from({ length: stars }, (_, i) => ({ x: i * 10 - 10, y: 0, orbit: 10 })),
+    },
+    ...over,
+  };
+}
+
+/** A star type a slot offers, named by its key, usual unless told. */
+export function starType(key: string, usual = true): StarType {
+  return { key, name: `Named ${key}`, usual, effects: false };
 }

@@ -21,6 +21,7 @@ import { useGeneratorStore } from "./generatorStore";
 import { useInspectorStore } from "./inspectorStore";
 import { editResult, saveMeta } from "./fixture";
 import { mockedIpc } from "../test/ipc";
+import { pickSummary } from "../test/builders";
 import { until } from "../test/wait";
 
 const addRandomSystem = mockedIpc.addRandomSystem;
@@ -39,9 +40,9 @@ describe("adding a system to a save", () => {
 
     expect(await editor().addRandomSystemAt(-50, -20, "sc_m")).toBe(true);
 
-    const [seed, x, y, starClass] = addRandomSystem.mock.calls[0];
+    const [seed, x, y, pick] = addRandomSystem.mock.calls[0];
     expect(Number.isSafeInteger(seed)).toBe(true);
-    expect([x, y, starClass]).toEqual([-50, -20, "sc_m"]);
+    expect([x, y, pick]).toEqual([-50, -20, { kind: "class", star_class: "sc_m" }]);
     expect(editor().selection).toEqual([6]);
     expect(editor().inspected?.system.id).toBe(6);
   });
@@ -163,15 +164,28 @@ describe("placing a special layout", () => {
   });
 
   it("rolls the same layout again, and a new class rolls a regular system", async () => {
+    useGeneratorStore.setState({
+      picks: {
+        random: pickSummary(),
+        star_classes: [],
+        special: [{ layout: { key: "trappist_initializer" }, summary: pickSummary() }],
+        clusters: [],
+      } as never,
+    });
     useGalaxyStore.getState().applyDelta({ systems: [trappist()] });
     rerollSystem.mockResolvedValue(editResult());
 
     expect(await editor().rerollSystem(6)).toBe(true);
     expect(await editor().rerollSystem(6, "sc_g")).toBe(true);
+    expect(await editor().rerollSystem(6, null)).toBe(true);
+    useGeneratorStore.setState({ picks: null });
+    expect(await editor().rerollSystem(6)).toBe(true);
 
-    expect(rerollSystem.mock.calls.map(([id, , star, keep]) => [id, star, keep])).toEqual([
-      [6, "sc_m", true],
-      [6, "sc_g", false],
+    expect(rerollSystem.mock.calls.map(([id, , pick]) => [id, pick])).toEqual([
+      [6, { kind: "layout", layout: "trappist_initializer" }],
+      [6, { kind: "class", star_class: "sc_g" }],
+      [6, { kind: "random" }],
+      [6, { kind: "class", star_class: "sc_m" }],
     ]);
   });
 
@@ -240,8 +254,8 @@ describe("editing a system added this session", () => {
 
     expect(await editor().rerollSystem(6, "sc_m")).toBe(true);
 
-    const [id, seed, starClass] = rerollSystem.mock.calls[0];
-    expect([id, starClass]).toEqual([6, "sc_m"]);
+    const [id, seed, pick] = rerollSystem.mock.calls[0];
+    expect([id, pick]).toEqual([6, { kind: "class", star_class: "sc_m" }]);
     expect(Number.isSafeInteger(seed)).toBe(true);
     expect(useGalaxyStore.getState().systems.get(6)?.star_class).toBe("sc_m");
   });

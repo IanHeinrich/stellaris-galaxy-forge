@@ -24,6 +24,7 @@ import { useRecentsStore } from "./recentsStore";
 import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
 import { useSceneStore } from "./sceneStore";
 import { useSpecialPickerStore } from "./specialPickerStore";
+import { useStarBuilderStore } from "./starBuilderStore";
 import { useScriptsStore } from "./scriptsStore";
 import { useToolStore } from "./toolStore";
 import { useUpdateStore } from "./updateStore";
@@ -51,6 +52,7 @@ const STORES: StoreApi<object>[] = [
   useSceneStore,
   useScriptsStore,
   useSpecialPickerStore,
+  useStarBuilderStore,
   useToolStore,
   useUpdateStore,
   useWatchlistStore,

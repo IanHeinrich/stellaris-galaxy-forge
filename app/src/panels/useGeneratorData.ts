@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from "react";
+import { buildsStars, documentCapabilities } from "../lib/capabilities";
+import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { starClassPicks, useGeneratorStore } from "../store/generatorStore";
 import { useStarClassLabel } from "./useStarClassLabel";
@@ -23,4 +25,19 @@ export function useGeneratorData(fresh = false) {
   const label = useStarClassLabel(plain.map((c) => c.key));
   const stars = plain.map((c) => ({ ...c, label: label(c.key, c.label) }));
   return { gameData, picks, stars };
+}
+
+/**
+ * The arrangements a binary or trinary is built in and the star types a slot offers, asked for
+ * once game data is loaded and the document builds systems from chosen stars.
+ */
+export function useStarData() {
+  const gameData = useGameDataStore((s) => s.status === "ready");
+  const builds = useFileSessionStore((s) => buildsStars(documentCapabilities(s)));
+  const arrangements = useGeneratorStore((s) => s.arrangements);
+  const starTypes = useGeneratorStore((s) => s.starTypes);
+  useEffect(() => {
+    if (gameData && builds) useGeneratorStore.getState().requestStars();
+  }, [gameData, builds]);
+  return { arrangements, starTypes };
 }

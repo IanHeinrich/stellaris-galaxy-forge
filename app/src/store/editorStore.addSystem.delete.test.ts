@@ -272,9 +272,10 @@ describe("edits queued behind others", () => {
     pick.resolve(editResult({ delta: { systems: [{ ...six, star_class: "sc_m" }] } }));
     await Promise.all([picking, rolling]);
 
-    expect(rerollSystem.mock.calls.map(([id, , star]) => [id, star])).toEqual([
-      [6, "sc_m"],
-      [6, "sc_m"],
+    const sc_m = { kind: "class", star_class: "sc_m" };
+    expect(rerollSystem.mock.calls.map(([id, , pick]) => [id, pick])).toEqual([
+      [6, sc_m],
+      [6, sc_m],
     ]);
   });
 });

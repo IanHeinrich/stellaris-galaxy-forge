@@ -15,8 +15,8 @@ import {
   starClassNameKeys,
   starClassLabel,
   starClassRows,
-  starPicksByCount,
   visibleStarClassRows,
+  withoutMultiStars,
   type StarClassTarget,
 } from "./starClass";
 
@@ -258,27 +258,15 @@ describe("the generator's star classes", () => {
     ).toEqual(["pc_g_star", "pc_m_star", "pc_k_star", "pc_b_star", "pc_neutron_star"]);
   });
 
-  it("split by the install's star count, not the key, with the binaries and trinaries by name", () => {
+  it("leave out the binaries and trinaries by the install's star count, not the key, keeping the order", () => {
     const renamed = new Map(CLASSES);
     renamed.set("sc_pair", starClassView("sc_pair", "pc_m_star", "pc_k_star"));
     renamed.set("sc_binary_odd", starClassView("sc_binary_odd", "pc_g_star"));
-    const split = starPicksByCount(
-      namedIn(renamed, [
-        ...picks,
-        { key: "sc_pair", label: "Pair" },
-        { key: "sc_binary_odd", label: "Odd" },
-      ]),
+    const kept = withoutMultiStars(
+      [...picks, { key: "sc_pair", label: "Pair" }, { key: "sc_binary_odd", label: "Odd" }],
       renamed,
     );
-    expect(keys(split.rows)).toEqual(["sc_g", "sc_neutron_star", "sc_modded", "sc_binary_odd"]);
-    expect(keys(split.binaries)).toEqual(["sc_binary_2", "sc_binary_6", "sc_pair"]);
-    expect(keys(split.trinaries)).toEqual(["sc_trinary_1"]);
-  });
-
-  it("leave the binaries and trinaries empty while the generator offers none", () => {
-    const split = starPicksByCount(picks.slice(0, 1), CLASSES);
-    expect(split.binaries).toEqual([]);
-    expect(split.trinaries).toEqual([]);
+    expect(keys(kept)).toEqual(["sc_g", "sc_neutron_star", "sc_modded", "sc_binary_odd"]);
   });
 });
 

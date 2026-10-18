@@ -7,6 +7,7 @@ import { usePlanetDataStore } from "./planetDataStore";
 import { usePrepareStore } from "./prepareStore";
 import { FILE_SCOPED, PICKERS } from "./resetScopes.file";
 import { useSpecialPickerStore } from "./specialPickerStore";
+import { useStarBuilderStore } from "./starBuilderStore";
 import { useToolStore } from "./toolStore";
 
 /**
@@ -29,6 +30,7 @@ export const GAME_DATA_SCOPED: readonly (() => void)[] = [
   () => usePlanetDataStore.getState().clear(),
   () => useGeneratorStore.getState().clear(),
   () => useSpecialPickerStore.getState().close(),
+  () => useStarBuilderStore.getState().close(),
   () => useInspectorStore.getState().dropPages({ bodies: true }),
   () => useInspectorStore.getState().dropClassPicks(),
   () => useClassRollsStore.getState().clear(),

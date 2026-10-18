@@ -3,11 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
+vi.mock("../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import type { ClusterRoll } from "../../generated/ClusterRoll";
 import type { PickSummary } from "../../generated/PickSummary";
-import { clusterMember, clusterPick, pickSummary as summary } from "../../test/builders";
+import {
+  clusterMember,
+  clusterPick,
+  pickSummary as summary,
+  starClassView,
+} from "../../test/builders";
 import type { SpecialLayout } from "../../generated/SpecialLayout";
 import type { SpecialPick } from "../../generated/SpecialPick";
 import { bindStores } from "../../store/bindStores";
@@ -259,6 +265,26 @@ describe("the Special picker", () => {
     expect(html).not.toContain("Add its anomalies");
   });
 
+  it("draws a layout of several stars, stars only, with its class's stars in their places", async () => {
+    const pair = starClassView("sc_pair", "pc_b_star", "pc_neutron_star");
+    useGameDataStore.setState({ starClasses: new Map([[pair.key, pair]]) });
+    const twin: SpecialPick = {
+      ...layout("twin", "Twin Stars", {}, { star_classes: [{ key: "sc_pair", name: "Pair" }] }),
+      diagram: {
+        stars: [
+          { x: -10, y: 0, orbit: 10 },
+          { x: 10, y: 0, orbit: 10 },
+        ],
+      },
+    };
+    mockedIpc.getSpecialLayouts.mockResolvedValue([...PICKS, twin]);
+    await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
+    picker().highlight("twin");
+    expect(render().match(/class="star-diagram-star"/g)).toHaveLength(2);
+    picker().highlight(METAL.layout.key);
+    expect(render()).not.toContain("star-diagram");
+  });
+
   it("says when the galaxy's own copy keeps the event chain, and what is not added", async () => {
     await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
     picker().highlight(SOL.layout.key);
@@ -270,6 +296,7 @@ describe("the Special picker", () => {
   });
 
   it("places the highlighted layout at the point and closes, noting it as recent", async () => {
+    picker().setJoin(true);
     await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
     picker().highlight(METAL.layout.key);
     render();
@@ -284,10 +311,13 @@ describe("the Special picker", () => {
     expect(picker().recent).toEqual(["metal"]);
   });
 
-  it("joins to nearby systems unless told not to, and remembers it", async () => {
+  it("joins to nearby systems only when told to, and remembers it", async () => {
     await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
     picker().highlight(METAL.layout.key);
     expect(render()).toContain("Join to nearby systems");
+    expect(picker().join).toBe(false);
+    picker().setJoin(true);
+    expect(stored.get("sgf.special.join")).toBe("true");
     picker().setJoin(false);
     expect(stored.get("sgf.special.join")).toBe("false");
 
@@ -379,6 +409,7 @@ describe("a cluster in the Special picker", () => {
   });
 
   it("places the systems as rolled, and notes the cluster as recent", async () => {
+    picker().setJoin(true);
     await openPicker({ x: -50, y: -20 }, { x: 0, y: 0 });
     picker().highlight(RATLINGS_KEY);
     await until(() => expect(picker().roll?.kind).toBe("rolled"));

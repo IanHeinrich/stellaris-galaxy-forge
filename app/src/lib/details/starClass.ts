@@ -105,32 +105,19 @@ export function multiStarNameKeys(
   return [...new Set(keys.flatMap((key) => eachStarKeys(starClasses.get(key))))];
 }
 
-/** A class list split by star count: binaries and trinaries apart, every other class in `rows`. */
-export interface StarPicksByCount<P> {
-  rows: P[];
-  binaries: P[];
-  trinaries: P[];
-}
-
 /**
- * `picks` by how many stars the install gives each class, the single stars in the order given and
- * the binaries and trinaries by name. A class the install does not list stays among the rows.
+ * `picks` in the order given, less the binaries and trinaries the install lists, which the menu's
+ * Binary or trinary submenu rolls instead. A class the install does not list stays.
  */
-export function starPicksByCount<P extends { key: string; label: string }>(
+export function withoutMultiStars<P extends { key: string }>(
   picks: readonly P[],
   starClasses: ReadonlyMap<string, StarClassView>,
-): StarPicksByCount<P> {
-  const split: StarPicksByCount<P> = { rows: [], binaries: [], trinaries: [] };
-  for (const pick of picks) {
+): P[] {
+  return picks.filter((pick) => {
     const view = starClasses.get(pick.key);
     const count = view ? starCount(view) : 1;
-    const into = count === 2 ? split.binaries : count === 3 ? split.trinaries : split.rows;
-    into.push(pick);
-  }
-  const byName = (a: P, b: P) => a.label.localeCompare(b.label);
-  split.binaries.sort(byName);
-  split.trinaries.sort(byName);
-  return split;
+    return count !== 2 && count !== 3;
+  });
 }
 
 /** Every localisation key the picker's rows read: each class and each of its bodies. */

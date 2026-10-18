@@ -837,3 +837,51 @@ button.link.snippet-more .tri {
   background: var(--accent-bg);
   border-color: var(--accent);
 }
+
+/* A star type's art beside its name, or a gap the same size while it loads. */
+.star-art {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
+/* A layout's stars alone, each at its place, with a distant companion's path dashed round the centre. */
+.star-diagram {
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+
+.star-diagram svg {
+  position: absolute;
+  inset: 0;
+}
+
+.star-diagram-path {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+}
+
+.star-diagram-star {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.star-diagram-name {
+  font-size: var(--text-fine);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* A modifier a star class puts on its systems, as a tag on its row. */
+.star-mod-tag {
+  padding: 0 4px;
+  font-size: var(--text-fine);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  white-space: nowrap;
+}

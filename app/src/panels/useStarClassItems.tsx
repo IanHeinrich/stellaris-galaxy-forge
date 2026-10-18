@@ -1,17 +1,17 @@
 import { useMemo, useState } from "react";
-import type { StarClassView } from "../../generated/StarClassView";
+import type { StarClassView } from "../generated/StarClassView";
 import {
   crisisVariantKeys,
   INTERNAL,
   starClassNameKeys,
   starClassRows,
   visibleStarClassRows,
-} from "../../lib/details/starClass";
-import { useGameDataStore } from "../../store/gameDataStore";
-import type { IconPickerItem } from "../IconPicker";
-import { useNamed } from "../useNamed";
-import { StarRowIcon } from "../StarIcon";
-import { counted } from "../../lib/text";
+} from "../lib/details/starClass";
+import { useGameDataStore } from "../store/gameDataStore";
+import type { IconPickerItem } from "./IconPicker";
+import { useNamed } from "./useNamed";
+import { StarRowIcon } from "./StarIcon";
+import { counted } from "../lib/text";
 
 /** The key of the row that reveals the internal classes: never a star class key. */
 const REVEAL_INTERNAL_KEY = "__internal_star_classes__";

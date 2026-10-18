@@ -539,3 +539,10 @@ button.ins-danger:hover:not(:disabled) {
 .ins-script-site .ins-script-line {
   white-space: nowrap;
 }
+
+/* An added binary or trinary's star slots, one picker under another. */
+.ins-star-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

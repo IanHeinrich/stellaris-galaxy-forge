@@ -1,0 +1,97 @@
+/* The builder beside a point of the map, with no scrim, so the map around the point stays in view. */
+.sb {
+  position: absolute;
+  z-index: 5;
+  width: min(600px, calc(100% - 16px));
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+.sb h4 {
+  margin: 10px 0 6px;
+  font-size: var(--text-fine);
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sb h4:first-child {
+  margin-top: 0;
+}
+
+.sb-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 14px;
+}
+
+.sb-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sb-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  font-size: var(--text-fine);
+  color: var(--fg-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.sb-tile[aria-pressed="true"] {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.sb-slot {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.sb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0;
+  font-size: var(--text-fine);
+}
+
+.sb-chip {
+  padding: 1px 8px;
+  font-size: var(--text-fine);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sb-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.sb-note {
+  font-size: var(--text-note);
+}
+
+@media (max-width: 640px) {
+  .sb-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
