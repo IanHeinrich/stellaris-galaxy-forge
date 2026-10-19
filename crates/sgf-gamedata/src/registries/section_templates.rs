@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 
 use sgf_core::cst::Node;
 
-use crate::Diagnostic;
 use crate::install::layers::Layout;
 use crate::install::script::ParsedDir;
 use crate::registries::registry::Registry;
+use crate::{Diagnostic, Meter};
 
 pub(crate) const DIR: &str = "common/section_templates";
 
@@ -44,8 +44,14 @@ impl SectionTemplates {
 
 /// Every template across the layout, keyed by its `key`, the last in load order winning. A
 /// key a later file repeats raises [`Diagnostic::Override`].
-pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> SectionTemplates {
-    let dir = ParsedDir::load(layout, DIR, diagnostics);
+pub(crate) fn load(
+    layout: &Layout,
+    diagnostics: &mut Vec<Diagnostic>,
+    meter: &mut Meter<'_>,
+) -> SectionTemplates {
+    let files = layout.files_in(DIR);
+    meter.expect(files.len());
+    let dir = ParsedDir::read(DIR, files, diagnostics, meter);
     let mut templates: BTreeMap<String, SectionTemplateDef> = BTreeMap::new();
     let blocks = dir.files().flat_map(|(file, root, src)| {
         root.find_all(TEMPLATE, src)

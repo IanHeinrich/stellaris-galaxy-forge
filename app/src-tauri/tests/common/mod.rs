@@ -74,7 +74,7 @@ static GAME_DATA: LazyLock<Option<Arc<GameData>>> = LazyLock::new(|| {
             mods: false,
             ..LoadOptions::default()
         };
-        Arc::new(sgf_gamedata::load(&opts, &mut |_| {}).expect("load game data"))
+        Arc::new(sgf_gamedata::load(&opts, sgf_gamedata::Meter::silent()).expect("load game data"))
     })
 });
 

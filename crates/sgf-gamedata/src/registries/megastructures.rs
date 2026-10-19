@@ -13,8 +13,8 @@ use ts_rs::TS;
 use sgf_core::cst::Node;
 
 use crate::construction::{Construction, PlanetChange};
-use crate::dismantle;
 use crate::scripts::ScriptIndex;
+use crate::{Meter, dismantle};
 
 use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
@@ -681,19 +681,22 @@ fn asks_star(block: &Node, src: &[u8]) -> bool {
 /// inline scripts it calls in place of the calls, with what its dismantle takes back and its
 /// completion leaves as `scripts` resolve the effects they call, the swaps it makes as
 /// `triggers` name star classes, and the mod of `layout` whose file defines it. `vanilla`
-/// holds the keys the game's own files define.
+/// holds the keys the game's own files define. `meter` ticks once a type, which its caller
+/// expects.
 pub(crate) fn load(
     defs: &BTreeMap<String, Def>,
     vanilla: &BTreeSet<String>,
     scripts: &ScriptIndex,
     triggers: &ScriptedTriggers,
     layout: &Layout,
+    meter: &mut Meter<'_>,
 ) -> ReadTypes {
     defs.iter()
         .map(|(key, def)| {
             let read = inline_script::expand(def, layout).unwrap_or_else(|| def.clone());
             let kind =
                 MegastructureRead::read(key.clone(), read, scripts, triggers, layout, vanilla);
+            meter.tick();
             (key.clone(), kind)
         })
         .collect()

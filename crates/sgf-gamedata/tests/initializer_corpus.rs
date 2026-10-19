@@ -11,7 +11,7 @@ use sgf_core::cst;
 use sgf_gamedata::install::discovery::{find_install, steam_libraries};
 use sgf_gamedata::install::layers::VANILLA;
 use sgf_gamedata::install::mods::{enabled_mods, installed_mods};
-use sgf_gamedata::{Diagnostic, GameData, LoadOptions, load};
+use sgf_gamedata::{Diagnostic, GameData, LoadOptions, Meter, load};
 
 mod key_coverage;
 
@@ -177,7 +177,7 @@ fn load_over_vanilla(install: &Path, source: Option<&Source>) -> Result<GameData
         .map_err(|e| e.to_string())?;
         options.mods = true;
     }
-    let result = panic::catch_unwind(AssertUnwindSafe(|| load(&options, &mut |_| {})));
+    let result = panic::catch_unwind(AssertUnwindSafe(|| load(&options, Meter::silent())));
     match result {
         Ok(Ok(gd)) => Ok(gd),
         Ok(Err(e)) => Err(e.to_string()),

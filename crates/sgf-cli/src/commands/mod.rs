@@ -48,7 +48,7 @@ impl From<Outcome> for ExitCode {
 
 /// The install's definitions and localisation, with no progress reporting.
 pub fn game_data(opts: &LoadOptions) -> Result<GameData, LoadError> {
-    sgf_gamedata::load(opts, &mut |_| {})
+    sgf_gamedata::load(opts, sgf_gamedata::Meter::silent())
 }
 
 /// A save-only command's refusal, printed and returned when `path` holds anything but a save.

@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         mods: false,
         ..LoadOptions::default()
     };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {})?;
+    let gd = sgf_gamedata::load(&opts, sgf_gamedata::Meter::silent())?;
     let cache = tempfile::tempdir()?;
     let textures = Textures::new(Some(cache.path().to_path_buf()));
     for model in args {

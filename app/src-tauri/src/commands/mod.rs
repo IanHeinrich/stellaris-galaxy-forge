@@ -53,14 +53,11 @@ pub const PROGRESS_EVENT: &str = "sgf://progress";
 pub const GAME_DATA_CHANGED_EVENT: &str = "sgf://gamedata-changed";
 pub const DOCUMENT_CHANGED_EVENT: &str = "sgf://document-changed";
 
-/// Progress fractions: `START` and `DONE` bracket every job; the rest are where a
-/// phase begins within its job (open: validate; game data: discover, definitions, localisation).
+/// Progress fractions: `START` and `DONE` bracket every job, and an open validates from
+/// `VALIDATE_AT`. A game data load reports its own fractions.
 const START: f64 = 0.0;
 const DONE: f64 = 1.0;
 const VALIDATE_AT: f64 = 0.9;
-const DISCOVER_AT: f64 = 0.1;
-const DEFINITIONS_AT: f64 = 0.4;
-const LOCALISATION_AT: f64 = 0.7;
 
 /// Fit `session` to the loaded game data: systems sized by its defines, and stars and ring
 /// worlds as the install names them, or vanilla's sizes and the key rules without any.

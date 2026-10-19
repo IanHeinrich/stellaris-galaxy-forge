@@ -20,7 +20,7 @@ use sgf_core::overlay::Anchor;
 use sgf_core::session::Session;
 use sgf_core::views::details::Bounds;
 use sgf_gamedata::install::discovery::find_install;
-use sgf_gamedata::{GameData, LoadOptions, Phase};
+use sgf_gamedata::{GameData, LoadOptions, Meter, Phase};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
 pub const SAMPLE_4_5: &str = concat!(
@@ -106,7 +106,9 @@ pub fn load_fixture(mods: bool) -> GameData {
         mods,
     };
     let mut phases = Vec::new();
-    let gd = sgf_gamedata::load(&opts, &mut |p| phases.push(p)).expect("fixture loads");
+    let mut report = |reading: sgf_gamedata::Reading| phases.push(reading.phase);
+    let gd = sgf_gamedata::load(&opts, Meter::new(&mut report)).expect("fixture loads");
+    phases.dedup();
     assert_eq!(
         phases,
         [Phase::Discover, Phase::Definitions, Phase::Localisation]
@@ -260,7 +262,7 @@ pub fn load_tree(install: &Path, user_dir: Option<&Path>, mods: bool) -> GameDat
         language: "english".to_owned(),
         mods,
     };
-    sgf_gamedata::load(&opts, &mut |_| {}).expect("the install tree loads")
+    sgf_gamedata::load(&opts, Meter::silent()).expect("the install tree loads")
 }
 
 /// Write a playset into `user_dir` that enables `mods` in order, each a folder name and
@@ -332,7 +334,7 @@ fn load_real() -> Option<GameData> {
         mods: false,
         ..LoadOptions::default()
     };
-    Some(sgf_gamedata::load(&opts, &mut |_| {}).expect("the real install loads"))
+    Some(sgf_gamedata::load(&opts, Meter::silent()).expect("the real install loads"))
 }
 
 /// The real install with the user's enabled mods, read once for the whole test binary when
@@ -344,7 +346,7 @@ fn load_playset() -> Option<GameData> {
         eprintln!("skipped: SGF_PLAYSET=1 reads the enabled mods");
         return None;
     }
-    let gd = sgf_gamedata::load(&LoadOptions::default(), &mut |_| {});
+    let gd = sgf_gamedata::load(&LoadOptions::default(), Meter::silent());
     Some(gd.expect("SGF_PLAYSET needs an install"))
 }
 

@@ -9,6 +9,7 @@ use sgf_core::cst::Node;
 use sgf_core::format::save::ring_world;
 use sgf_core::ops::ClassChange;
 
+use crate::Meter;
 use crate::construction::{self, Construction, PlanetChange, UnsurePlanetChange};
 use crate::registries::megastructures::{
     ADDED_BYPASSES, BuildType, MegastructureDef, MegastructureRead, Placement, ReadTypes,
@@ -209,7 +210,12 @@ pub(crate) struct Resolved {
 /// it belongs to, as [`families`] links them, when that stage too stands around a body.
 /// Every stage and variant of a gateway or a relay stands where its bypass does. A stage
 /// whose completion always swaps it for another type takes that type's placement.
-pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetClasses) -> Placed {
+pub(crate) fn placed(
+    types: ReadTypes,
+    scripts: &ScriptIndex,
+    classes: &PlanetClasses,
+    meter: &mut Meter<'_>,
+) -> Placed {
     let families = families(&types, scripts);
     let bypassed = bypass_groups(&types, &families);
     let whole = whole_structures(&types);
@@ -280,6 +286,7 @@ pub(crate) fn placed(types: ReadTypes, scripts: &ScriptIndex, classes: &PlanetCl
                 ring_world: rings.members.contains(&def.key),
                 construction,
             };
+            meter.tick();
             (def.key.clone(), resolved)
         })
         .collect();

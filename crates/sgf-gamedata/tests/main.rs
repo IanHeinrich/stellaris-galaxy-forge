@@ -35,6 +35,7 @@ mod inline_maths;
 mod inline_script_reload;
 mod install;
 mod layering;
+mod load_progress;
 mod localisation;
 mod look_only_classes;
 mod megastructure_construction;
