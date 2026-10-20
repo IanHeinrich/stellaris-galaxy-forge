@@ -666,15 +666,24 @@ button.master.init[aria-pressed="true"] {
   position: relative;
 }
 
-/* A reload from the menu has no start screen, so the bar runs along the pill's foot. */
+/* A reload from the menu has no start screen, so the pill itself fills as the bar. */
 .game-data-pill .progress-bar {
   position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 0;
-  height: 3px;
+  inset: 0;
+  height: auto;
   margin-top: 0;
+  border-radius: 3px;
   pointer-events: none;
+}
+
+.game-data-pill .progress-fill {
+  opacity: 0.45;
+}
+
+.game-data-pill.loading .menu-label {
+  position: relative;
+  z-index: 1;
+  color: var(--fg);
 }
 
 .game-data-pill .menu-label {
