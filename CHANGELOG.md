@@ -12,14 +12,10 @@ a release is made.
 
 ### Fixed
 
-- Add system lists stars that a mod places only through its own events, such
-  as Gigastructures' class O star.
-  - Picking one rolls one of the mod's systems for that star, and those systems
-    are no longer listed under Special.
-- The game data loading bar moves steadily through the load, even with a long
-  mod list.
-  - Reloading game data from the status bar fills the Game data button as it
-    runs.
+- Modded stars placed by events, such as Gigastructures' class O star, now
+  show in the Add system menu.
+- The game data loading bar moves steadily, whether you open the app or
+  reload from the status bar.
 
 ## [0.27.0] - 2026-10-18
 
