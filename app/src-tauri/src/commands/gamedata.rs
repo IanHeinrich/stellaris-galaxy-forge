@@ -22,13 +22,10 @@ use sgf_gamedata::views::{
     InitializerDefinition, InitializerView, MapColor, PaintModView, PlanetClassView, PrecursorView,
     ResourceIcon, ShipSizeView, StarClassView, StarbaseLevelView, TerraformCandidateView,
 };
-use sgf_gamedata::{GameData, LoadOptions, Phase};
+use sgf_gamedata::{GameData, LoadOptions, Meter, Phase, Reading};
 use tauri::{AppHandle, Manager, Runtime, State};
 
-use super::{
-    DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress,
-    refit_open_session,
-};
+use super::{DONE, io_error, load_error, progress, refit_open_session};
 use crate::state::{GameDataState, TextureState};
 use crate::watch;
 
@@ -49,15 +46,15 @@ pub async fn load_game_data<R: Runtime>(
     };
     let task_app = app.clone();
     let gd = tauri::async_runtime::spawn_blocking(move || {
-        let mut report = |phase: Phase| {
-            let (phase, fraction) = match phase {
-                Phase::Discover => (ProgressPhase::Discover, DISCOVER_AT),
-                Phase::Definitions => (ProgressPhase::Definitions, DEFINITIONS_AT),
-                Phase::Localisation => (ProgressPhase::Localisation, LOCALISATION_AT),
+        let mut report = |reading: Reading| {
+            let phase = match reading.phase {
+                Phase::Discover => ProgressPhase::Discover,
+                Phase::Definitions => ProgressPhase::Definitions,
+                Phase::Localisation => ProgressPhase::Localisation,
             };
-            progress(&task_app, phase, fraction);
+            progress(&task_app, phase, reading.fraction);
         };
-        sgf_gamedata::load(&opts, &mut report).map_err(load_error)
+        sgf_gamedata::load(&opts, Meter::new(&mut report)).map_err(load_error)
     })
     .await
     .map_err(io_error)??;

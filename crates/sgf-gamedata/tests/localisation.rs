@@ -136,7 +136,7 @@ fn load_language(language: &str) -> sgf_gamedata::GameData {
         language: language.to_owned(),
         mods: false,
     };
-    sgf_gamedata::load(&opts, &mut |_| {}).expect("loads")
+    sgf_gamedata::load(&opts, sgf_gamedata::Meter::silent()).expect("loads")
 }
 
 #[test]

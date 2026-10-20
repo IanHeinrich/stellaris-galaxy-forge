@@ -7,10 +7,10 @@
 
 use sgf_core::cst::Node;
 
-use crate::Diagnostic;
 use crate::install::layers::Layout;
 use crate::install::script;
 use crate::registries::registry::Registry;
+use crate::{Diagnostic, Meter};
 
 pub type Sprites = Registry<SpriteDef>;
 
@@ -53,13 +53,19 @@ impl Sprites {
     }
 }
 
-pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Sprites {
+pub(crate) fn load(
+    layout: &Layout,
+    diagnostics: &mut Vec<Diagnostic>,
+    meter: &mut Meter<'_>,
+) -> Sprites {
     let mut sprites = Sprites::default();
-    for file in layout.every_file_under(INTERFACE_DIR, &["gfx"]) {
-        let Some((root, src)) = script::parse_graphics_file(&file, diagnostics) else {
-            continue;
-        };
-        read_sprite_types(&root, &src, &mut sprites);
+    let files = layout.every_file_under(INTERFACE_DIR, &["gfx"]);
+    meter.expect(files.len());
+    for file in &files {
+        if let Some((root, src)) = script::parse_graphics_file(file, diagnostics) {
+            read_sprite_types(&root, &src, &mut sprites);
+        }
+        meter.tick();
     }
     sprites
 }

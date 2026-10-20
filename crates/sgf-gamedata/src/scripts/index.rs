@@ -10,16 +10,16 @@ use std::sync::{Arc, Mutex, PoisonError};
 use sgf_core::cst::{self, Node};
 use sgf_core::projections::galaxy::FlagRef;
 
-use crate::Diagnostic;
 use crate::initializers::Initializers;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::scenarios::SCENARIO_DIR;
-use crate::install::script::{self, Def, FileLines, LineStarts, Variables, line_of};
+use crate::install::script::{self, Def, FileLines, LineStarts, ParsedDir, Variables, line_of};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
 use crate::scripts::scan::{self, Dir, Scan};
 use crate::scripts::scope::SAVES_TARGET;
 use crate::scripts::view::ScriptRef;
+use crate::{Diagnostic, Meter};
 
 /// Which kind of script a reference sits in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -238,28 +238,52 @@ impl ScriptIndex {
         initializers: &Initializers,
         globals: &Arc<Variables>,
         diagnostics: &mut Vec<Diagnostic>,
+        meter: &mut Meter<'_>,
     ) -> Self {
         let mut index = Self {
             layout: layout.clone(),
             ..Self::default()
         };
+        let dirs = DIRS.map(|(rel, dir, kind, report)| (layout.files_in(rel), dir, kind, report));
+        let class_files: Vec<PathBuf> = CLASS_USE_DIRS
+            .iter()
+            .flat_map(|dir| layout.files_in(dir))
+            .collect();
+        let effect_files = dirs[0].0.clone();
+        // A part for each file parsed or scanned, and one for each of the last three reads.
+        meter.expect(
+            effect_files.len()
+                + dirs.iter().map(|(files, ..)| files.len()).sum::<usize>()
+                + class_files.len()
+                + 3,
+        );
         // A mod overriding a vanilla effect is the point of a mod, not a
         // diagnostic; anything else this parse finds still is.
         let mut parsing = Vec::new();
-        index.effects = script::parse_dir(layout, EFFECTS_DIR, globals, &mut parsing);
+        index.effects = ParsedDir::read(EFFECTS_DIR, effect_files, &mut parsing, meter)
+            .into_defs(globals, &mut parsing);
         diagnostics.extend(
             parsing
                 .into_iter()
                 .filter(|d| !matches!(d, Diagnostic::Override { .. })),
         );
         index.scan_initializers(initializers);
-        for (rel, dir, kind, report) in DIRS {
-            index.ingest(layout, rel, dir, kind, report, diagnostics);
+        for (files, dir, kind, report) in dirs {
+            for file in files {
+                index.ingest(file, dir, kind, report, diagnostics);
+                meter.tick();
+            }
         }
         index.read_prescripted(layout, globals, diagnostics);
+        meter.tick();
         index.read_fallen_empires(layout, globals, diagnostics);
-        index.read_class_uses(layout, diagnostics);
+        meter.tick();
+        for file in class_files {
+            index.read_class_uses(file, diagnostics);
+            meter.tick();
+        }
         let claims = claims::build(&index, layout);
+        meter.tick();
         index.claims = claims;
         index
     }
@@ -386,44 +410,39 @@ impl ScriptIndex {
 
     fn ingest(
         &mut self,
-        layout: &Layout,
-        rel: &str,
+        file: PathBuf,
         dir: Dir,
         kind: SiteKind,
         report: bool,
         diagnostics: &mut Vec<Diagnostic>,
     ) {
-        for file in layout.files_in(rel) {
-            let bytes = match fs::read(&file) {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    diagnostics.push(Diagnostic::Unreadable {
-                        file,
-                        reason: e.to_string(),
-                    });
-                    continue;
-                }
-            };
-            self.record(&file, &bytes, dir, kind);
-            if contains(&bytes, b"create_country") {
-                let mut sink = Vec::new();
-                self.read_countries(&file, &bytes, &mut sink);
-                if report {
-                    diagnostics.append(&mut sink);
-                }
+        let bytes = match fs::read(&file) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                diagnostics.push(Diagnostic::Unreadable {
+                    file,
+                    reason: e.to_string(),
+                });
+                return;
+            }
+        };
+        self.record(&file, &bytes, dir, kind);
+        if contains(&bytes, b"create_country") {
+            let mut sink = Vec::new();
+            self.read_countries(&file, &bytes, &mut sink);
+            if report {
+                diagnostics.append(&mut sink);
             }
         }
     }
 
-    fn read_class_uses(&mut self, layout: &Layout, diagnostics: &mut Vec<Diagnostic>) {
-        for file in CLASS_USE_DIRS.iter().flat_map(|dir| layout.files_in(dir)) {
-            match fs::read(&file) {
-                Ok(bytes) => self.add_class_uses(&mut scan::scan(&bytes, Dir::Effects)),
-                Err(e) => diagnostics.push(Diagnostic::Unreadable {
-                    file,
-                    reason: e.to_string(),
-                }),
-            }
+    fn read_class_uses(&mut self, file: PathBuf, diagnostics: &mut Vec<Diagnostic>) {
+        match fs::read(&file) {
+            Ok(bytes) => self.add_class_uses(&mut scan::scan(&bytes, Dir::Effects)),
+            Err(e) => diagnostics.push(Diagnostic::Unreadable {
+                file,
+                reason: e.to_string(),
+            }),
         }
     }
 

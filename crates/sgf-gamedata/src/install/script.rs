@@ -11,8 +11,8 @@ use std::sync::Arc;
 use sgf_core::cst::{self, Node, Value};
 use sgf_core::span::Span;
 
-use crate::Diagnostic;
 use crate::install::layers::Layout;
+use crate::{Diagnostic, Meter};
 
 /// One definition block with the file bytes its spans point into.
 #[derive(Debug, Clone)]
@@ -492,14 +492,31 @@ pub(crate) struct ParsedDir {
 
 impl ParsedDir {
     pub(crate) fn load(layout: &Layout, rel_dir: &str, diagnostics: &mut Vec<Diagnostic>) -> Self {
+        Self::read(
+            rel_dir,
+            layout.files_in(rel_dir),
+            diagnostics,
+            &mut Meter::silent(),
+        )
+    }
+
+    /// `files`, the winning files of `rel_dir`, read and parsed, with a tick of `meter` for
+    /// each, which its caller expects.
+    pub(crate) fn read(
+        rel_dir: &str,
+        files: Vec<PathBuf>,
+        diagnostics: &mut Vec<Diagnostic>,
+        meter: &mut Meter<'_>,
+    ) -> Self {
         Self {
             dir: rel_dir.to_owned(),
             keeps: Keeps::of(rel_dir),
-            files: layout
-                .files_in(rel_dir)
+            files: files
                 .into_iter()
                 .filter_map(|file| {
-                    let (root, src) = parse_file(&file, diagnostics)?;
+                    let parsed = parse_file(&file, diagnostics);
+                    meter.tick();
+                    let (root, src) = parsed?;
                     Some((file, root, src))
                 })
                 .collect(),

@@ -25,6 +25,7 @@ pub mod layouts;
 pub mod loc;
 pub mod megastructure_views;
 pub mod menu;
+pub mod meter;
 pub mod mod_compatibility;
 pub mod modifier_choices;
 pub mod multi_star;
@@ -72,6 +73,7 @@ use sgf_core::ops::{RingFlags, SystemRadii};
 pub use initializers::Initializers;
 pub use install::layers::Layout;
 pub use loc::localisation::Localisation;
+pub use meter::{Meter, Reading};
 pub use registries::anomalies::AnomalyCategories;
 pub use registries::asteroid_belts::AsteroidBelts;
 pub use registries::bypasses::Bypasses;
@@ -284,8 +286,8 @@ impl std::fmt::Display for Diagnostic {
 }
 
 /// Discover the install and mods, then read definitions and localisation.
-pub fn load(opts: &LoadOptions, progress: &mut dyn FnMut(Phase)) -> Result<GameData, LoadError> {
-    progress(Phase::Discover);
+pub fn load(opts: &LoadOptions, mut meter: Meter<'_>) -> Result<GameData, LoadError> {
+    meter.step("discover");
     let install = discovery::find_install(opts.install.as_deref())?;
     let version = discovery::install_version(&install);
     let user_dir = opts
@@ -306,7 +308,7 @@ pub fn load(opts: &LoadOptions, progress: &mut dyn FnMut(Phase)) -> Result<GameD
         mods,
         &opts.language,
         diagnostics,
-        progress,
+        &mut meter,
     ))
 }
 
@@ -328,14 +330,18 @@ impl GameData {
         mods: Vec<mods::ModInfo>,
         language: &str,
         discovery: Vec<Diagnostic>,
-        progress: &mut dyn FnMut(Phase),
+        meter: &mut Meter<'_>,
     ) -> Self {
         let mut diagnostics = discovery.clone();
-        progress(Phase::Definitions);
+        meter.step("variables");
         let vars = Arc::new(Variables::load(&layout, &mut diagnostics));
+        meter.step("initializers");
         let initializers = Initializers::load(&layout, &vars, &mut diagnostics);
-        let scripts = ScriptIndex::load(&layout, &initializers, &vars, &mut diagnostics);
+        meter.step("scripts");
+        let scripts = ScriptIndex::load(&layout, &initializers, &vars, &mut diagnostics, meter);
+        meter.step("country_types");
         let country_types = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("star_classes");
         let star_defs = script::parse_dir(&layout, StarClass::DIR, &vars, &mut diagnostics);
         let star_classes = StarClasses::marked(
             &registry::from_defs(&star_defs),
@@ -347,12 +353,16 @@ impl GameData {
             &layout.files_in(StarClass::DIR),
         );
         let star_lists = registry::from_defs(&star_defs);
+        meter.step("random_names");
         let random_names = ParsedDir::load(&layout, star_names::DIR, &mut diagnostics);
         let star_names = star_names::names(&random_names, star_names::STARS);
         let nebula_names = star_names::names(&random_names, star_names::NEBULAE);
         let black_hole_names = star_names::names(&random_names, star_names::BLACK_HOLES);
+        meter.step("deposits");
         let deposits = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("deposit_categories");
         let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("static_modifiers");
         // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
         let mut parsing = Vec::new();
         let static_modifiers = registry::load(&layout, &vars, &mut parsing);
@@ -361,12 +371,19 @@ impl GameData {
                 .into_iter()
                 .filter(|d| !matches!(d, Diagnostic::Override { .. })),
         );
+        meter.step("planet_modifiers");
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("anomaly_categories");
         let anomaly_categories = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("colony_types");
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("dig_site_types");
         let dig_site_types = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("asteroid_belts");
         let asteroid_belts = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("bypasses");
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("planet_classes");
         let planet_dir = ParsedDir::load(&layout, PlanetClassDef::DIR, &mut diagnostics);
         let planet_lists = planet_lists::read(&planet_dir);
         let mut overrides = Vec::new();
@@ -375,9 +392,13 @@ impl GameData {
         diagnostics.extend(overrides.into_iter().filter(
             |d| !matches!(d, Diagnostic::Override { key, .. } if key == planet_lists::KEY),
         ));
+        meter.step("terraform_links");
         let terraform_links = TerraformLinks::load(&layout, &mut diagnostics);
+        meter.step("ship_sizes");
         let ship_sizes = registry::load(&layout, &vars, &mut diagnostics);
-        let section_templates = section_templates::load(&layout, &mut diagnostics);
+        meter.step("section_templates");
+        let section_templates = section_templates::load(&layout, &mut diagnostics, meter);
+        meter.step("starbase_levels");
         let starbase_levels = starbase_levels::load(
             &layout,
             &ship_sizes,
@@ -385,26 +406,34 @@ impl GameData {
             &vars,
             &mut diagnostics,
         );
+        meter.step("scripted_triggers");
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("megastructures");
         let megastructure_dir = ParsedDir::load(&layout, MegastructureDef::DIR, &mut diagnostics);
         let vanilla_megastructures = megastructure_dir.vanilla_keys(&layout);
         let megastructure_defs = megastructure_dir.into_defs(&vars, &mut diagnostics);
+        meter.step("graphical_cultures");
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("galaxy_shapes");
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
+        meter.step("galaxy_sizes");
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
+        meter.step("precursors");
         let precursors = PrecursorCivilizations::load(&layout, &mut diagnostics);
-        let sprites = gfx::load(&layout, &mut diagnostics);
+        meter.step("sprites");
+        let sprites = gfx::load(&layout, &mut diagnostics, meter);
+        meter.step("colors");
         let colors = colors::load(&layout, &mut diagnostics);
+        meter.step("flags");
         let flags = flags::Flags::load(&layout);
+        meter.step("defines");
         let define_files = ParsedDir::load(&layout, DEFINES_DIR, &mut diagnostics);
         let border = GraphicsDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
         let system_radii = registries::defines::system_radii(&define_files);
-        let models = textures::Assets::read(&layout, &mut diagnostics);
+        meter.step("models");
+        let models = textures::Assets::read(&layout, &mut diagnostics, meter);
         let planet_classes = Arc::new(planet_classes);
-
-        progress(Phase::Localisation);
-        let loc = Localisation::load(&layout, language, &mut diagnostics);
 
         let mut gd = GameData {
             layout,
@@ -446,7 +475,7 @@ impl GameData {
             deposit_defines: Arc::new(deposit_defines),
             system_radii,
             scripted_triggers: Arc::new(scripted_triggers),
-            loc: Arc::new(loc),
+            loc: Arc::default(),
             diagnostics,
             discovery,
             eligibility: Arc::default(),
@@ -459,29 +488,39 @@ impl GameData {
             megastructure_defs: Arc::new(megastructure_defs),
             vanilla_megastructures: Arc::new(vanilla_megastructures),
         };
-        gd.derive();
+        meter.step("derive");
+        gd.derive(meter);
+        meter.step("localisation");
+        let loc = Localisation::load(&gd.layout, language, &mut gd.diagnostics, meter);
+        gd.loc = Arc::new(loc);
+        meter.finish();
         gd
     }
 
     /// Works out the registries read from other registries rather than from a folder of their
     /// own: the planet classes marked by what the scripts and models say of them, and the
     /// megastructures, whose construction, placement and offers follow the scripts.
-    pub(crate) fn derive(&mut self) {
+    pub(crate) fn derive(&mut self, meter: &mut Meter<'_>) {
+        // A part for each type read and each type placed, and one for each of the last three.
+        meter.expect(2 * self.megastructure_defs.len() + 3);
         let types = megastructures::load(
             &self.megastructure_defs,
             &self.vanilla_megastructures,
             &self.scripts,
             &self.scripted_triggers,
             &self.layout,
+            meter,
         );
-        let placed = megastructures::placed(types, &self.scripts, &self.read_classes);
+        let placed = megastructures::placed(types, &self.scripts, &self.read_classes, meter);
         let megastructures = megastructure_offers::offered(placed, &self.scripted_triggers);
+        meter.tick();
         let models = &self.models;
         let planet_classes =
             self.read_classes
                 .marked(self.scripts.class_uses(), &self.planet_lists, |entity| {
                     textures::planet_disc::draws_nothing(models, entity)
                 });
+        meter.tick();
         self.megastructures = Arc::new(megastructures);
         self.ring_flags = Arc::default();
         self.planet_classes = Arc::new(planet_classes);
@@ -498,6 +537,7 @@ impl GameData {
                 def.planet_change = None;
             }
         }
+        meter.tick();
     }
 }
 

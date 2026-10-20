@@ -11,11 +11,11 @@ use sgf_core::cst::Node;
 
 use super::mesh::{Material, MeshFile};
 use super::space::Affine;
-use crate::Diagnostic;
 use crate::install::layers::Layout;
 use crate::install::script::{last_scalar, parse_graphics_file};
 use crate::textures::Input;
 use crate::textures::planet_disc::{self, EntitySurface};
+use crate::{Diagnostic, Meter};
 
 /// The culture the game falls back to for a model with none of the culture asked for.
 pub(super) const FALLBACK_CULTURE: &str = "mammalian_01";
@@ -132,9 +132,15 @@ pub(super) struct Placed {
 impl Assets {
     /// What the model files of `layout` say; a file that cannot be read or parsed is reported
     /// and adds nothing.
-    pub(crate) fn read(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
+    pub(crate) fn read(
+        layout: &Layout,
+        diagnostics: &mut Vec<Diagnostic>,
+        meter: &mut Meter<'_>,
+    ) -> Self {
         let mut assets = Self::default();
-        for (dir, path) in model_files(layout) {
+        let files = model_files(layout);
+        meter.expect(files.len());
+        for (dir, path) in files {
             let ext = path
                 .extension()
                 .map(|e| e.to_string_lossy().to_ascii_lowercase());
@@ -157,6 +163,7 @@ impl Assets {
                 }
                 _ => {}
             }
+            meter.tick();
         }
         assets
     }

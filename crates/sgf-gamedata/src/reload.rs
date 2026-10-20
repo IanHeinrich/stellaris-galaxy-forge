@@ -37,7 +37,7 @@ use crate::scripts::{ScriptIndex, index};
 use crate::textures::{self, MODELS_DIR, WORLDGFX};
 use crate::{
     Bypasses, Colors, CountryTypes, DEFINES_DIR, Diagnostic, Flags, GalaxyShapes, GameData,
-    Initializers, Sprites,
+    Initializers, Meter, Sprites,
 };
 
 /// A registry a watched file can belong to; the others are only rebuilt by
@@ -211,8 +211,13 @@ impl GameData {
             );
         }
         if kinds.contains(&RegistryKind::Scripts) {
-            let built =
-                ScriptIndex::load(&self.layout, &out.initializers, &self.variables, &mut fresh);
+            let built = ScriptIndex::load(
+                &self.layout,
+                &out.initializers,
+                &self.variables,
+                &mut fresh,
+                &mut Meter::silent(),
+            );
             out.scripts = kept(
                 RegistryKind::Scripts,
                 &self.scripts,
@@ -223,12 +228,16 @@ impl GameData {
             );
         }
         if kinds.contains(&RegistryKind::Graphics) {
-            out.models = Arc::new(textures::Assets::read(&self.layout, &mut fresh));
+            out.models = Arc::new(textures::Assets::read(
+                &self.layout,
+                &mut fresh,
+                &mut Meter::silent(),
+            ));
             out.worlds = Arc::default();
             out.flat_art = Arc::default();
             out.shattered = Arc::default();
             replaced.insert(RegistryKind::Graphics);
-            let built = gfx::load(&self.layout, &mut fresh);
+            let built = gfx::load(&self.layout, &mut fresh, &mut Meter::silent());
             out.sprites = kept(
                 RegistryKind::Graphics,
                 &self.sprites,
@@ -239,7 +248,7 @@ impl GameData {
             );
         }
         if replaced.contains(&RegistryKind::Scripts) || replaced.contains(&RegistryKind::Graphics) {
-            out.derive();
+            out.derive(&mut Meter::silent());
         }
         if kinds.contains(&RegistryKind::CountryTypes) {
             let built = registry::load(&self.layout, &self.variables, &mut fresh);
@@ -286,7 +295,12 @@ impl GameData {
             );
         }
         if kinds.contains(&RegistryKind::Localisation) {
-            let built = Localisation::load(&self.layout, &self.loc.language, &mut fresh);
+            let built = Localisation::load(
+                &self.layout,
+                &self.loc.language,
+                &mut fresh,
+                &mut Meter::silent(),
+            );
             out.loc = kept(
                 RegistryKind::Localisation,
                 &self.loc,
@@ -322,7 +336,7 @@ impl GameData {
             self.mods.clone(),
             &self.loc.language,
             self.discovery.clone(),
-            &mut |_| {},
+            &mut Meter::silent(),
         )
     }
 }
@@ -376,7 +390,7 @@ mod tests {
             mods: true,
         };
         let ((), walked) = Layout::record_walks(|| {
-            let gd = crate::load(&opts, &mut |_| {}).expect("the fixture loads");
+            let gd = crate::load(&opts, crate::Meter::silent()).expect("the fixture loads");
             gd.worlds();
             gd.flat_art("");
             gd.shattered("");

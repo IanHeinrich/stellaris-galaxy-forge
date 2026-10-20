@@ -4,10 +4,11 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
-use crate::Diagnostic;
 use crate::install::layers::Layout;
+use crate::{Diagnostic, Meter};
 
 const MAX_REF_DEPTH: usize = 8;
 
@@ -26,25 +27,37 @@ impl Localisation {
     /// English first, then every file of `language` over it, so a key the
     /// language lacks still resolves; within each pass later files win and
     /// `replace/` files win over all.
-    pub(crate) fn load(layout: &Layout, language: &str, diagnostics: &mut Vec<Diagnostic>) -> Self {
+    pub(crate) fn load(
+        layout: &Layout,
+        language: &str,
+        diagnostics: &mut Vec<Diagnostic>,
+        meter: &mut Meter<'_>,
+    ) -> Self {
         let mut map = HashMap::new();
         let mut languages = vec!["english"];
         if language != "english" {
             languages.push(language);
         }
-        let mut fell_back = false;
-        for lang in languages {
-            let (normal, replace) = layout.localisation_files(lang);
-            fell_back = lang == language && normal.is_empty() && replace.is_empty();
-            for file in normal.iter().chain(&replace) {
-                match fs::read(file) {
-                    Ok(bytes) => parse_into(&mut map, &String::from_utf8_lossy(&bytes)),
-                    Err(e) => diagnostics.push(Diagnostic::Unreadable {
-                        file: file.clone(),
-                        reason: e.to_string(),
-                    }),
-                }
+        let passes: Vec<(&str, Vec<PathBuf>)> = languages
+            .into_iter()
+            .map(|lang| {
+                let (normal, replace) = layout.localisation_files(lang);
+                (lang, normal.into_iter().chain(replace).collect())
+            })
+            .collect();
+        let fell_back = passes
+            .last()
+            .is_some_and(|(lang, files)| *lang == language && files.is_empty());
+        meter.expect(passes.iter().map(|(_, files)| files.len()).sum());
+        for file in passes.iter().flat_map(|(_, files)| files) {
+            match fs::read(file) {
+                Ok(bytes) => parse_into(&mut map, &String::from_utf8_lossy(&bytes)),
+                Err(e) => diagnostics.push(Diagnostic::Unreadable {
+                    file: file.clone(),
+                    reason: e.to_string(),
+                }),
             }
+            meter.tick();
         }
         Self {
             map,

@@ -190,6 +190,14 @@ export function GameDataPanel() {
           </>
         )}
       </Menu>
+      {status === "loading" && (
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${Math.round((progress?.fraction ?? 0) * 100)}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
