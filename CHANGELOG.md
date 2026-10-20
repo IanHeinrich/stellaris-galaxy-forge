@@ -14,8 +14,8 @@ a release is made.
 
 - Modded stars placed by events, such as Gigastructures' class O star, now
   show in the Add system menu.
-- The game data loading bar moves steadily, whether you open the app or
-  reload from the status bar.
+- The loading bar for game data looks better and shows progress more
+  accurately.
 
 ## [0.27.0] - 2026-10-18
 
