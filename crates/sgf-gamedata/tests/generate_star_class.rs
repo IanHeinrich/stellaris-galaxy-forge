@@ -12,6 +12,7 @@ use sgf_gamedata::layouts::{
 };
 
 use common::generate::{SEEDS, hand_written, specs};
+use common::scripts::install_with_mod;
 use common::{ABUNDANCE, INSTALL, SPOT};
 
 /// A random pick draws each plain layout at its odds and then a class of its list at the
@@ -200,4 +201,75 @@ fn a_random_pick_weighs_only_the_classes_plain_layouts_make() {
     let g = pick("sc_g");
     assert!(g.random_odds > 0.0);
     assert!((g.odds - g.random_odds).abs() < 1e-9, "{g:?}");
+}
+
+const EVENT_STARS: [(&str, &str); 4] = [
+    (
+        "common/planet_classes/zz_mod.txt",
+        "pc_mod_o_star = {\n\tstar = yes\n\tplanet_size = { min = 20 max = 30 }\n}\n\
+         pc_mod_named_star = {\n\tstar = yes\n\tplanet_size = { min = 20 max = 30 }\n}\n\
+         pc_mod_rock = {\n\tmin_distance_from_sun = 0\n\tmax_distance_from_sun = 1000\n\tspawn_odds = 10\n\tplanet_size = { min = 10 max = 20 }\n\tmoon_size = { min = 5 max = 8 }\n}\n",
+    ),
+    (
+        "common/star_classes/zz_mod.txt",
+        "sc_mod_plain = {\n\tclass = mod_plain\n\tplanet = { key = pc_mod_o_star }\n\tspawn_odds = 10\n}\n\
+         sc_mod_o = {\n\tclass = mod_o\n\tplanet = { key = pc_mod_o_star }\n\tspawn_odds = 5\n}\n\
+         sc_mod_listed = {\n\tclass = mod_listed\n\tplanet = { key = pc_mod_o_star }\n\tspawn_odds = 10\n}\n\
+         sc_mod_named = {\n\tclass = mod_named\n\tplanet = { key = pc_mod_named_star }\n\tspawn_odds = 0\n}\n",
+    ),
+    (
+        "common/star_classes/randomizers/zz_mod.txt",
+        "rl_mod = {\n\tstars = { sc_mod_plain }\n}\n\
+         rl_mod_script = {\n\tstars = { sc_mod_o sc_mod_listed }\n}\n",
+    ),
+    (
+        "common/solar_system_initializers/zz_mod.txt",
+        "mod_plain = {\n\tclass = rl_mod\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\
+         \tplanet = { count = 2 class = pc_mod_rock orbit_distance = 20 }\n}\n\
+         mod_o_1 = {\n\tclass = sc_mod_o\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\
+         \tplanet = { count = 2 class = pc_mod_rock orbit_distance = 20 }\n}\n\
+         mod_o_2 = {\n\tclass = sc_mod_o\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\
+         \tplanet = { count = 3 class = pc_mod_rock orbit_distance = 20 }\n}\n\
+         mod_branch = {\n\tclass = rl_mod_script\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n\
+         mod_named = {\n\tname = \"NAME_Mod_Named\"\n\tclass = sc_mod_named\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n",
+    ),
+];
+
+/// A mod's layouts with no `usage`, which only its events place, are rolled for their star
+/// class from the star row. One that draws from a star list, or is named, gives no row.
+#[test]
+fn a_mods_event_only_star_is_a_star_row_that_rolls_its_layouts() {
+    let (_dir, gd) = install_with_mod(&EVENT_STARS);
+    let picks = gd.star_class_picks();
+    let pick = picks
+        .iter()
+        .find(|pick| pick.key == "sc_mod_o")
+        .expect("the event-only star is a row");
+    assert_eq!(pick.random_odds, 0.0);
+    assert_eq!(pick.odds, 2.0, "one per layout made for it");
+    assert!(picks.iter().all(|pick| pick.key != "sc_mod_named"));
+    assert!(
+        picks.iter().all(|pick| pick.key != "sc_mod_listed"),
+        "only a layout that draws from a star list gives it"
+    );
+
+    let mut drawn = BTreeSet::new();
+    let mut random = BTreeSet::new();
+    for seed in 0..200 {
+        let spec = generate(&gd, seed, "Fx", SPOT, Some("sc_mod_o"), ABUNDANCE).expect("a system");
+        assert_eq!(spec.star_class, "sc_mod_o");
+        drawn.insert(spec.initializer);
+        let spec = generate(&gd, seed, "Fx", SPOT, None, ABUNDANCE).expect("a system");
+        random.insert(spec.star_class);
+    }
+    assert_eq!(
+        drawn,
+        BTreeSet::from(["mod_o_1".to_owned(), "mod_o_2".to_owned()])
+    );
+    assert!(!random.contains("sc_mod_o"), "{random:?}");
 }

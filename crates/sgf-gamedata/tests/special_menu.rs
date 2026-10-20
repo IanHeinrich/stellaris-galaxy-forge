@@ -9,6 +9,7 @@ use sgf_gamedata::body_effects::LeftOut;
 use sgf_gamedata::generate::{GenerateError, generate};
 use sgf_gamedata::layouts::{DlcNeed, special_initializers};
 use sgf_gamedata::menu::special_layouts;
+use sgf_gamedata::special::{SpecialKind, classify};
 use sgf_gamedata::summary::{
     Feature, Presence, Span, add_system_picks, layout_summary, random_summary, star_pick_summary,
 };
@@ -221,7 +222,8 @@ fn unplaced(key: &str, star: &str) -> String {
 /// Layouts with no `usage` from the install and from a mod. The mod's own has odds and a star
 /// only special layouts make. The mod also replaces the install's `zz_events.txt` by its
 /// filename, redefines the install's event-only `fx_event` without a usage, and writes a
-/// converted layout's key without one.
+/// converted layout's key without one. It also has a star class of its own with three layouts:
+/// one made for the class, one drawing from a star list that holds it, and a named one.
 fn with_unplaced_layouts() -> (tempfile::TempDir, sgf_gamedata::GameData) {
     let dir = tempfile::tempdir().expect("temp dir");
     let install = dir.path().join("install");
@@ -238,12 +240,54 @@ fn with_unplaced_layouts() -> (tempfile::TempDir, sgf_gamedata::GameData) {
         std::fs::write(file, text).expect("an install file");
     }
     let own = unplaced("fx_mod_hole", "sc_hole").replace("{\n", "{\n\tusage_odds = 100\n");
+    let own_class = unplaced("fx_mod_own", "sc_mod_own")
+        + &unplaced("fx_mod_branch", "rl_mod_script")
+        + &unplaced("fx_mod_named", "sc_mod_own").replace(
+            "{
+",
+            "{
+	name = \"NAME_Mod_Named\"
+",
+        );
     let overrides = unplaced("fx_event", "sc_sun") + &unplaced("sol_neighbor_t1", "sc_sun");
     common::add_mod(
         &user_dir,
         "fx_mod",
         &[
             ("common/solar_system_initializers/fx_mod.txt", &own),
+            (
+                "common/solar_system_initializers/fx_mod_own.txt",
+                &own_class,
+            ),
+            (
+                "common/planet_classes/fx_mod.txt",
+                "pc_mod_own_star = {
+	star = yes
+	planet_size = { min = 20 max = 20 }
+}
+",
+            ),
+            (
+                "common/star_classes/fx_mod.txt",
+                "sc_mod_own = {
+	class = mod_own
+	planet = { key = pc_mod_own_star }
+	spawn_odds = 5
+}
+                 sc_mod_listed = {
+	class = mod_listed
+	planet = { key = pc_mod_own_star }
+	spawn_odds = 5
+}
+",
+            ),
+            (
+                "common/star_classes/randomizers/fx_mod.txt",
+                "rl_mod_script = {
+	stars = { sc_mod_own sc_mod_listed }
+}
+",
+            ),
             ("common/solar_system_initializers/zz_events.txt", &story),
             (
                 "common/solar_system_initializers/!fx_mod_ow.txt",
@@ -257,7 +301,8 @@ fn with_unplaced_layouts() -> (tempfile::TempDir, sgf_gamedata::GameData) {
 }
 
 #[test]
-fn a_mods_layouts_with_no_usage_are_listed_by_the_mod_and_never_drawn() {
+fn a_mods_layouts_with_no_usage_are_listed_by_the_mod_unless_a_star_pick_of_their_own_class_draws_them()
+ {
     let (_dir, gd) = with_unplaced_layouts();
     let session = common::open_4_5();
     let entries = special_layouts(&gd, &session);
@@ -284,16 +329,60 @@ fn a_mods_layouts_with_no_usage_are_listed_by_the_mod_and_never_drawn() {
         "the game's own fx_tale is left out, and so are fx_story and fx_event, which the game \
          defines though the mod's copy won; the converted layout keeps no mod group"
     );
+    let keys: Vec<&str> = entries.iter().map(|e| e.key.as_str()).collect();
+    assert!(!keys.contains(&"fx_mod_own"), "a star pick draws it");
+    assert!(keys.contains(&"fx_mod_branch"), "it draws from a star list");
+    assert!(
+        keys.contains(&"fx_mod_named"),
+        "a pick never gives a named layout"
+    );
     for seed in 0..40 {
         for star in [None, Some("sc_hole")] {
             let spec = generate(&gd, seed, "Fx", (0.0, 0.0), star, ABUNDANCE).expect("a system");
             assert!(
-                !["fx_story", "fx_tale", "fx_event", "fx_mod_hole"]
-                    .contains(&spec.initializer.as_str()),
+                ![
+                    "fx_story",
+                    "fx_tale",
+                    "fx_event",
+                    "fx_mod_hole",
+                    "fx_mod_own",
+                    "fx_mod_branch",
+                    "fx_mod_named"
+                ]
+                .contains(&spec.initializer.as_str()),
                 "seed {seed}, {star:?} drew {}",
                 spec.initializer
             );
         }
+        let spec =
+            generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_mod_own"), ABUNDANCE).expect("a system");
+        assert_eq!(spec.initializer, "fx_mod_own", "seed {seed}");
+    }
+}
+
+/// A system of a layout a star pick draws is no scripted one, as a vanilla black hole is not;
+/// a mod's script layouts still are.
+#[test]
+fn a_system_of_a_layout_a_star_pick_draws_is_not_unique() {
+    let (_dir, gd) = with_unplaced_layouts();
+    let mut graph = common::open_4_4().graph().clone();
+    let plain = classify(&graph, Some(&gd));
+    let id = *graph
+        .systems
+        .keys()
+        .find(|id| plain.systems.iter().all(|s| s.id != **id))
+        .expect("a system with nothing special");
+    for (layout, unique) in [
+        ("fx_mod_own", false),
+        ("fx_mod_branch", true),
+        ("fx_mod_named", true),
+    ] {
+        graph.systems.get_mut(&id).unwrap().initializer = layout.to_owned();
+        let found = classify(&graph, Some(&gd))
+            .systems
+            .iter()
+            .any(|s| s.id == id && s.kinds.contains(&SpecialKind::Unique));
+        assert_eq!(found, unique, "{layout}");
     }
 }
 

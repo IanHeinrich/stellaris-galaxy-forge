@@ -106,19 +106,25 @@ fn star_count(n: usize) -> String {
 
 /// The star classes [`generate`] can give a system: each class a plain initializer fixes
 /// or draws from its list with odds above zero, in the order the initializers and their
-/// lists name them, and then each one only generic special layouts make (a black hole, a
-/// pulsar).
+/// lists name them, then each one only generic special layouts make (a black hole, a
+/// pulsar), then each one a mod's unplaced layout is made for: a star its events place.
 pub fn star_classes(gd: &GameData) -> Vec<String> {
-    let mut classes: Vec<String> = Vec::new();
-    for init in plain_initializers(gd)
+    let listed = plain_initializers(gd)
         .into_iter()
         .chain(generic_specials(gd))
-    {
-        for star in layout_stars(gd, init) {
-            let class = star.key.as_str();
-            if share(gd, init, class) > 0.0 && !classes.iter().any(|held| held == class) {
-                classes.push(class.to_owned());
-            }
+        .flat_map(|init| {
+            layout_stars(gd, init)
+                .into_iter()
+                .map(|star| star.key.as_str())
+                .filter(move |class| share(gd, init, class) > 0.0)
+        });
+    let own = unplaced_specials(gd)
+        .into_iter()
+        .filter_map(|init| own_star(gd, init));
+    let mut classes: Vec<String> = Vec::new();
+    for class in listed.chain(own) {
+        if !classes.iter().any(|held| held == class) {
+            classes.push(class.to_owned());
         }
     }
     classes
@@ -140,8 +146,8 @@ pub fn star_class_odds(gd: &GameData, class: &str) -> (f64, f64) {
 }
 
 /// Every layout a star-class pick of [`generate`] can draw, for any class of
-/// [`star_classes`]: the plain ones, and the [`generic`] special ones a class only they make
-/// draws from.
+/// [`star_classes`]: the plain ones, and the [`generic`] special ones, placed or not, that a
+/// class only they make draws from.
 pub(crate) fn star_pick_layouts(gd: &GameData) -> Vec<&Initializer> {
     let mut layouts: Vec<&Initializer> = Vec::new();
     for class in star_classes(gd) {
@@ -159,8 +165,10 @@ pub(crate) fn star_pick_layouts(gd: &GameData) -> Vec<&Initializer> {
 /// each layout that makes it is drawn as often as it would roll it: its odds times the
 /// class's share of its star list. The plain layouts are drawn for a class they make, and
 /// the [`generic`] special layouts for a class only they make, so a draw never gives a
-/// named or capped layout. Every body rolls its deposits at
-/// `abundance`, the save's Resource Abundance, and then runs its layout's deposit effects.
+/// named or capped layout. A class only a mod's unplaced layouts are made for draws among
+/// them evenly, whatever odds they write, since only an event places them. Every body
+/// rolls its deposits at `abundance`, the save's Resource Abundance, and then runs its
+/// layout's deposit effects.
 /// A layout with a fixed system name gives the system that name in place of `name`.
 pub fn generate(
     gd: &GameData,
@@ -324,7 +332,9 @@ pub fn layout_system_for(
 }
 
 /// The layouts a draw is made among, each with its weight: the plain ones, or for a star
-/// class, the plain ones that make it, else the generic special ones that do.
+/// class, the plain ones that make it, else the generic special ones that do, else the
+/// generic unplaced ones made for it ([`own_star`]), evenly whatever odds they write, since
+/// only an event places them.
 pub(crate) fn layouts_for<'g>(
     gd: &'g GameData,
     star_class: Option<&str>,
@@ -343,10 +353,18 @@ pub(crate) fn layouts_for<'g>(
             .collect()
     };
     let plain = weigh(plain_initializers(gd));
-    match star_class {
-        Some(_) if plain.is_empty() => weigh(generic_specials(gd)),
-        _ => plain,
+    if star_class.is_none() || !plain.is_empty() {
+        return plain;
     }
+    let placed = weigh(generic_specials(gd));
+    if !placed.is_empty() {
+        return placed;
+    }
+    unplaced_specials(gd)
+        .into_iter()
+        .filter(|init| own_star(gd, init) == star_class)
+        .map(|init| (init, 1.0))
+        .collect()
 }
 
 fn generic_specials(gd: &GameData) -> Vec<&Initializer> {
@@ -354,6 +372,23 @@ fn generic_specials(gd: &GameData) -> Vec<&Initializer> {
         .into_iter()
         .filter(|init| generic(init) && !unplaced(gd, init))
         .collect()
+}
+
+fn unplaced_specials(gd: &GameData) -> Vec<&Initializer> {
+    special_initializers(gd)
+        .into_iter()
+        .filter(|init| generic(init) && unplaced(gd, init))
+        .collect()
+}
+
+/// The star class `init` is made for: its own `class`, when that is a star class its stars
+/// hold and not a list. A layout drawing from a list is a piece of its mod's script.
+fn own_star<'g>(gd: &'g GameData, init: &Initializer) -> Option<&'g str> {
+    let class = init.class.as_deref()?;
+    layout_stars(gd, init)
+        .into_iter()
+        .map(|star| star.key.as_str())
+        .find(|key| *key == class)
 }
 
 /// What a system is rolled from beside its layout: the seed, the star class asked for, the

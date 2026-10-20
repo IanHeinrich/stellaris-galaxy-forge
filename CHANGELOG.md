@@ -8,6 +8,15 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-10-20
+
+### Fixed
+
+- Modded stars placed by events, such as Gigastructures' class O star, now
+  show in the Add system menu.
+- The loading bar for game data looks better and shows progress more
+  accurately.
+
 ## [0.27.0] - 2026-10-18
 
 ### Added

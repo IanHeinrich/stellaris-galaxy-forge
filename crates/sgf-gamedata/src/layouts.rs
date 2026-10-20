@@ -301,9 +301,9 @@ pub fn defining_mod<'g>(gd: &'g GameData, init: &Initializer) -> Option<&'g str>
 }
 
 /// A mod's layout with no `usage`, which no galaxy places: an event or another layout spawns
-/// it. The Special menu offers it by name, and no random draw gives it. A key the game's own
-/// files define is a story system, offered only as one of [`CONVERTED_LAYOUTS`], even when a
-/// mod's copy of it won.
+/// it. The Special menu offers it by name, unless a star-class pick of its own class draws
+/// it; a random add never gives it. A key the game's own files define is a story system,
+/// offered only as one of [`CONVERTED_LAYOUTS`], even when a mod's copy of it won.
 pub fn unplaced(gd: &GameData, init: &Initializer) -> bool {
     init.usage.is_none()
         && converted(init).is_none()

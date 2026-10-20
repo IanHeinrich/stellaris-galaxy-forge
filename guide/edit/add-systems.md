@@ -22,6 +22,13 @@ does.
 A system added inside a nebula joins it. To add many systems at once,
 draw a [shape](shapes.md#in-a-save).
 
+### Stars from mods
+
+The star classes include modded stars, even ones a mod places only
+through its own events, such as Gigastructures' class O star, quasar
+and Birch core. Picking one rolls one of the mod's systems for that
+star. Random never gives one.
+
 ## Add a binary or trinary system <Badge type="tip" text="Save" />
 
 Right-click empty space and select "Add system here", then "Binary or
