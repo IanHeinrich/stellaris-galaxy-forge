@@ -8,6 +8,19 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-10-20
+
+### Fixed
+
+- Add system lists stars that a mod places only through its own events, such
+  as Gigastructures' class O star.
+  - Picking one rolls one of the mod's systems for that star, and those systems
+    are no longer listed under Special.
+- The game data loading bar moves steadily through the load, even with a long
+  mod list.
+  - Reloading game data from the status bar fills the Game data button as it
+    runs.
+
 ## [0.27.0] - 2026-10-18
 
 ### Added

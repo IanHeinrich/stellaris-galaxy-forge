@@ -71,6 +71,8 @@
   {"q": "place a system outside the galaxy", "expect": "edit/add-systems#systems-outside-the-galaxy-edge"},
   {"q": "past the galaxy edge", "expect": "edit/add-systems#systems-outside-the-galaxy-edge"},
   {"q": "add system", "expect": "edit/add-systems"},
+  {"q": "gigastructures o star", "expect": "edit/add-systems#stars-from-mods"},
+  {"q": "modded star missing from add system", "expect": "edit/add-systems#stars-from-mods"},
   {"q": "special system anomalies", "expect": "edit/add-systems#add-a-special-system"},
   {"q": "special system dig sites", "expect": "edit/add-systems#add-a-special-system"},
   {"q": "why does the special system have no empire", "expect": "edit/add-systems#add-a-special-system"},
