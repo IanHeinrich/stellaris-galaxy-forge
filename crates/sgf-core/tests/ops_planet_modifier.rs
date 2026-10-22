@@ -2,7 +2,7 @@
 //! the planet page reads the modifier back, and undo puts the original bytes back.
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::ops::Op;
+use sgf_core::ops::{Op, PlanetFlag};
 use sgf_core::session::{OpResult, Session};
 
 use crate::common;
@@ -17,12 +17,41 @@ const GAS_GIANT: u32 = 10;
 const MOONS: &str = "extensive_moon_system";
 const PM_MOONS: &str = "pm_extensive_moon_system";
 
+/// Planet flags a modifier is written with, as a mod's marker modifier sets them.
+const MARKER: &str = "candidate_marker";
+const KIND: &str = "candidate_kind";
+/// A flag planets 1 and 40 hold, dated `DAY_ONE`.
+const STARTING: &str = "starting_deposit";
+/// The 4.5 sample's day one as a planet flag's date.
+const DAY_ONE: u32 = 62_808_000;
+/// The 4.5 sample's own date, 2201.03.25, as a planet flag's date.
+const TODAY: u32 = 62_818_656;
+
+/// `op` with the planet flags `listed`, each with its date.
+fn with_flags(mut op: Op, listed: &[(&str, Option<u32>)]) -> Op {
+    let listed = listed
+        .iter()
+        .map(|&(flag, date)| PlanetFlag {
+            flag: flag.to_owned(),
+            date,
+        })
+        .collect();
+    match &mut op {
+        Op::AddBodyModifier { flags, .. } | Op::RemoveBodyModifier { flags, .. } => {
+            *flags = listed;
+        }
+        _ => panic!("{op:?} takes no planet flags"),
+    }
+    op
+}
+
 fn add(planet: u32, modifier: &str, days: &[i32]) -> Op {
     Op::AddBodyModifier {
         body: planet,
         modifier: modifier.to_owned(),
         days: days.to_vec(),
         feature: None,
+        flags: Vec::new(),
     }
 }
 
@@ -32,6 +61,7 @@ fn add_feature(planet: u32, modifier: &str, days: &[i32], feature: &str) -> Op {
         modifier: modifier.to_owned(),
         days: days.to_vec(),
         feature: Some(feature.to_owned()),
+        flags: Vec::new(),
     }
 }
 
@@ -40,6 +70,7 @@ fn remove(planet: u32, modifier: &str, feature: Option<&str>) -> Op {
         body: planet,
         modifier: modifier.to_owned(),
         feature: feature.map(str::to_owned),
+        flags: Vec::new(),
     }
 }
 
@@ -197,6 +228,10 @@ fn a_modifier_round_trips_from_the_file_as_opened() {
     round_trip(open_4_5(), add(40, FROZEN, &[720]));
     round_trip(open_4_5(), remove(GAS_GIANT, MOONS, Some(PM_MOONS)));
     round_trip(open_4_5(), add_feature(GAS_GIANT, MOONS, &[-1], PM_MOONS));
+    round_trip(
+        open_4_5(),
+        with_flags(remove(40, HARVESTED, None), &[(STARTING, None)]),
+    );
 }
 
 #[test]
@@ -332,4 +367,164 @@ fn an_item_whose_days_are_not_a_number_is_not_removed() {
         "{error}"
     );
     assert!(!session.doc().is_dirty());
+}
+
+#[test]
+fn flags_are_written_with_the_modifier_and_its_removal_takes_them_off() {
+    let mut session = open_4_5();
+    let both = [(MARKER, None), (KIND, None)];
+    let op = with_flags(add(585, CANDIDATE, &[-1]), &both);
+    let result = mark(&mut session, 585, op, "flags_4_5");
+    assert_eq!(
+        result.entry.description,
+        "Added modifier terraforming_candidate to Xu Nur I #585"
+    );
+    assert_eq!(
+        result.inverse,
+        with_flags(remove(585, CANDIDATE, None), &both)
+    );
+
+    let removed = session.apply(result.inverse).expect("remove the candidate");
+    assert_eq!(
+        removed.entry.description,
+        "Removed modifier terraforming_candidate from Xu Nur I #585"
+    );
+    let dated = [(MARKER, Some(TODAY)), (KIND, Some(TODAY))];
+    assert_eq!(
+        removed.inverse,
+        with_flags(add(585, CANDIDATE, &[-1]), &dated)
+    );
+    assert_eq!(
+        current(&session),
+        session.doc().original(),
+        "the flags block goes"
+    );
+}
+
+#[test]
+fn a_flag_the_planet_holds_is_left_as_it_is() {
+    let mut session = open_4_5();
+    let op = with_flags(
+        add(1, CANDIDATE, &[-1]),
+        &[(STARTING, None), (MARKER, None)],
+    );
+    let result = mark(&mut session, 1, op, "held_flag_4_5");
+    assert_eq!(
+        result.inverse,
+        with_flags(remove(1, CANDIDATE, None), &[(MARKER, None)])
+    );
+
+    session.apply(result.inverse).expect("remove the candidate");
+    assert_eq!(
+        current(&session),
+        session.doc().original(),
+        "starting_deposit stays"
+    );
+}
+
+#[test]
+fn removing_a_flag_the_file_holds_has_an_inverse_that_writes_its_date_back() {
+    let mut session = open_4_5();
+    let op = with_flags(
+        remove(40, HARVESTED, None),
+        &[(STARTING, None), (MARKER, None)],
+    );
+    let result = snapshot_step(&mut session, "remove_flags_4_5", op);
+    assert_eq!(
+        result.inverse,
+        with_flags(add(40, HARVESTED, &[3426]), &[(STARTING, Some(DAY_ONE))])
+    );
+    assert!(page(&session, 40).is_empty());
+
+    session.apply(result.inverse).expect("write both back");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+#[test]
+fn a_flag_is_refused_when_it_cannot_be_written() {
+    let mut session = open_4_5();
+    let refusals = [
+        (
+            with_flags(add(585, CANDIDATE, &[-1]), &[("two words", None)]),
+            "\"two words\" cannot be written as a planet flag",
+        ),
+        (
+            with_flags(
+                add(585, CANDIDATE, &[-1]),
+                &[(MARKER, None), (MARKER, None)],
+            ),
+            "\"candidate_marker\" cannot be written as a flag listed once",
+        ),
+        (
+            with_flags(remove(40, HARVESTED, None), &[("", None)]),
+            "a planet flag may not be empty",
+        ),
+    ];
+    common::assert_refusals(&mut session, refusals);
+}
+
+#[test]
+fn a_timed_flag_stays_while_the_modifier_and_the_dated_flags_go() {
+    let mut session = open_4_5();
+    const TIMED: &str = "3_year_owner_change_flag";
+    session
+        .apply(with_flags(add(2, CANDIDATE, &[-1]), &[(MARKER, None)]))
+        .expect("add the candidate");
+    let removed = session
+        .apply(with_flags(
+            remove(2, CANDIDATE, None),
+            &[(TIMED, None), (MARKER, None)],
+        ))
+        .expect("remove the candidate");
+    assert_eq!(
+        removed.inverse,
+        with_flags(add(2, CANDIDATE, &[-1]), &[(MARKER, Some(TODAY))])
+    );
+    assert_eq!(
+        current(&session),
+        session.doc().original(),
+        "the timed flag stays"
+    );
+}
+
+#[test]
+fn a_flag_held_twice_goes_and_comes_back_once_with_its_first_date() {
+    let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+        let planets = gamestate
+            .find(
+                "
+planets=",
+            )
+            .expect("the planets");
+        let planet = planets
+            + gamestate[planets..]
+                .find(
+                    "
+		40=
+		{",
+                )
+                .expect("planet 40");
+        let flag = "starting_deposit=62808000\n";
+        let at = planet + gamestate[planet..].find(flag).expect("its flag") + flag.len();
+        gamestate.insert_str(at, "\t\t\t\tstarting_deposit=62818000\n");
+    });
+    let original = current(&session);
+    let removed = session
+        .apply(with_flags(remove(40, HARVESTED, None), &[(STARTING, None)]))
+        .expect("remove the modifier");
+    assert_eq!(
+        removed.inverse,
+        with_flags(add(40, HARVESTED, &[3426]), &[(STARTING, Some(DAY_ONE))])
+    );
+    let later = b"starting_deposit=62818000";
+    assert!(
+        !current(&session).windows(later.len()).any(|w| w == later),
+        "both copies go"
+    );
+    session
+        .apply(removed.inverse)
+        .expect("the inverse is accepted");
+    session.undo().expect("undo").expect("an op to undo");
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), original);
 }

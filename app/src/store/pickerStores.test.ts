@@ -20,6 +20,7 @@ import { bindStores } from "./bindStores";
 import { useDepositPickerStore } from "./depositPickerStore";
 import { useDigSitePickerStore } from "./digSitePickerStore";
 import { editResult } from "./fixture";
+import { modifierChoice } from "./fixtures/planet";
 import { useGameDataStore } from "./gameDataStore";
 import { useModifierPickerStore } from "./modifierPickerStore";
 import { resetStores } from "./storeFixture";
@@ -55,20 +56,7 @@ const SITES: DigSiteChoice[] = [
   },
 ];
 const MODIFIERS: ModifierChoice[] = [
-  {
-    modifier: "mineral_poor",
-    feature: "pm_mineral_poor",
-    category: "Feature",
-    description: null,
-    view: {
-      key: "pm_mineral_poor",
-      name: "Mineral Poor",
-      static_modifier: "mineral_poor",
-      icon: null,
-      icon_frame: null,
-      effects: [],
-    },
-  },
+  modifierChoice("mineral_poor", "Mineral Poor", { feature: "pm_mineral_poor" }),
 ];
 
 const A = pickerTarget(planetPage({ id: 40, class: "pc_barren", size: 12 }));

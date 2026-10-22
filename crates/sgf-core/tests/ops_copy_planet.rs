@@ -64,6 +64,7 @@ fn a_planet_with_its_moons_model_modifier_and_feature_is_pasted_whole() {
             modifier: "harvested_resources_mining".to_owned(),
             days: vec![360],
             feature: None,
+            flags: Vec::new(),
         })
         .expect("a modifier");
     let copies = copy(&source, &[GIANT]);

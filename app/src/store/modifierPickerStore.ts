@@ -7,6 +7,7 @@ import {
   type ModifierPickRow,
 } from "../lib/details/modifierPicker";
 import type { PickerTarget } from "../lib/details/picker";
+import { useGameDataStore } from "./gameDataStore";
 import { pickerSlice, stillOn, type PickerState } from "./pickerSlice";
 
 /** The modifier picker on a planet's page, and how long its next add lasts. */
@@ -19,17 +20,21 @@ export interface ModifierPickerState extends PickerState<ModifierChip, ModifierC
   add(row: ModifierPickRow): Promise<void>;
 }
 
+/** The list's key: every body is offered the same modifiers. */
+const ANY_BODY = "";
+const readChoices = () => ipc.getModifierChoices();
+
 export const useModifierPickerStore = create<ModifierPickerState>((set, get) => ({
   ...pickerSlice<ModifierChip, ModifierChoice>(set, get, {
-    keyOf: () => "",
-    read: () => ipc.getModifierChoices(),
+    keyOf: () => ANY_BODY,
+    read: readChoices,
     name: "modifier choices",
   }),
   days: null,
 
   open(target) {
     get().openOn(target);
-    get().load(target);
+    void get().load(target);
   },
 
   setDays(days) {
@@ -45,3 +50,12 @@ export const useModifierPickerStore = create<ModifierPickerState>((set, get) => 
     }
   },
 }));
+
+/**
+ * The modifiers the game data offers, with the flags each sets, read once per game data into the
+ * picker's list whether or not it is open; rejects when they can't be read.
+ */
+export function modifierChoices(): Promise<ModifierChoice[]> {
+  const { version } = useGameDataStore.getState();
+  return useModifierPickerStore.getState().choicesFor(ANY_BODY, version, readChoices);
+}

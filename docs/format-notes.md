@@ -464,6 +464,13 @@ for planets or deposits.
   day-one sample, such as `pm_extensive_moon_system`, have only the
   line. Stellaris 3.4 writes `timed_modifier` after `planet_orbitals`
   and `planet_modifier` after `entity`.
+- The effect `set_planet_flag = X` writes `X=<date>` as a line of the
+  planet's `flags` block, dated in hours with the day it was set, so the
+  editor dates a flag it sets with the save's own date. A planet without
+  the block gets it after `bombardment_damage` and any `timed_modifier`,
+  before `planet_modifier` and `entity`. A timed flag is a block,
+  `{ flag_date=62808000 flag_days=636 }`, as on planet 2 of the 4.5
+  sample.
 - A habitat has no `megastructure=` key of its own. Its `flags` block
   holds `megastructure=` and `habitat=` instead, and it orbits its
   planet with `moon_of` but without the moon bit (6268 in the 4.5

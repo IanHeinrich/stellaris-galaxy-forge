@@ -163,6 +163,141 @@ fn real_modifier_choices_offer_features_candidates_and_planet_modifiers() {
     assert!((600..1200).contains(&choices.len()), "{}", choices.len());
 }
 
+/// A planet-icon modifier with no effects is offered when a scripted effect adds it beside the
+/// planet flags it marks, with those flags as its callers bind them; one added alone, or set
+/// by no such effect, is not.
+#[test]
+fn a_marker_modifier_is_offered_with_the_flags_set_beside_it() {
+    let icon = "icon = \"gfx/interface/icons/planet_modifiers/pm_fx.dds\"";
+    let statics = format!(
+        "fx_candidate_ore = {{
+	{icon}
+	icon_frame = 1
+}}
+         fx_candidate_gas = {{
+	{icon}
+	icon_frame = 3
+}}
+         fx_candidate_marked = {{
+	{icon}
+	icon_frame = 1
+}}
+         fx_lone_marker = {{
+	{icon}
+	icon_frame = 1
+}}
+         fx_rich = {{
+	{icon}
+	icon_frame = 1
+	planet_jobs_produces_mult = 0.1
+}}
+"
+    );
+    let (_dir, gd) = common::hand_written(&[
+        ("common/static_modifiers/00_fx.txt", &statics),
+        (
+            "common/scripted_effects/00_fx_marks.txt",
+            "@fx_flag = fx_candidate
+             fx_mark_candidate = {
+             	set_planet_flag = @fx_flag
+             	set_planet_flag = fx_candidate_$kind$
+             	add_modifier = {
+		modifier = fx_candidate_$kind$
+	}
+             }
+             fx_mark_system = {
+             	every_system_planet = {
+             		limit = { is_asteroid = yes }
+             		fx_mark_candidate = { kind = $kind$ }
+             	}
+             }
+             fx_setup = {
+             	fx_mark_system = { kind = ore }
+             	random_system_planet = {
+		fx_mark_candidate = { kind = gas }
+	}
+             }
+             fx_enrich = {
+             	set_planet_flag = fx_rich_planet
+             	add_modifier = { modifier = fx_rich }
+             }
+",
+        ),
+        (
+            "events/fx_events.txt",
+            "namespace = fx
+             planet_event = {
+             	id = fx.1
+             	is_triggered_only = yes
+             	hide_window = yes
+             	immediate = {
+		add_modifier = { modifier = fx_candidate_marked days = 360 }
+	}
+             }
+",
+        ),
+    ]);
+    let choices = gd.modifier_choices();
+    let flags = |modifier: &str| {
+        choices
+            .iter()
+            .find(|c| c.modifier == modifier)
+            .map(|c| (c.category, c.flags.clone()))
+    };
+    assert_eq!(
+        flags("fx_candidate_ore"),
+        Some((
+            ModifierCategory::Positive,
+            vec!["fx_candidate".to_owned(), "fx_candidate_ore".to_owned()]
+        ))
+    );
+    assert_eq!(
+        flags("fx_candidate_gas"),
+        Some((
+            ModifierCategory::Negative,
+            vec!["fx_candidate".to_owned(), "fx_candidate_gas".to_owned()]
+        ))
+    );
+    assert_eq!(flags("fx_rich"), Some((ModifierCategory::Positive, vec![])));
+    assert_eq!(flags("fx_candidate_marked"), None);
+    assert_eq!(flags("fx_lone_marker"), None);
+}
+
+/// Gigastructural Engineering's asteroid industry candidates, with the flags its build check
+/// tests. Runs with `SGF_PLAYSET=1` when the enabled mods include Giga.
+#[test]
+fn gigas_asteroid_candidates_are_offered_with_their_flags() {
+    let Some(gd) = common::giga() else {
+        return;
+    };
+    let choices = gd.modifier_choices();
+    for kind in [
+        "alloys",
+        "consumer_goods",
+        "energy",
+        "food",
+        "supertensiles",
+    ] {
+        let modifier = format!("giga_asteroid_industry_candidate_{kind}");
+        let choice = choices
+            .iter()
+            .find(|c| c.modifier == modifier)
+            .unwrap_or_else(|| panic!("{modifier} is offered"));
+        assert_eq!(
+            choice.flags,
+            [
+                "giga_asteroid_industry_candidate".to_owned(),
+                modifier.clone()
+            ]
+        );
+    }
+    assert!(
+        !choices
+            .iter()
+            .any(|c| c.modifier == "giga_asteroid_industry_candidate_marked")
+    );
+}
+
 #[test]
 fn real_planet_models_offer_the_looks_the_install_gives_planets() {
     let Some(gd) = common::INSTALL.as_ref() else {

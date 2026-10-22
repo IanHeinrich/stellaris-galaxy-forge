@@ -1,0 +1,32 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added modifier terraforming_candidate to planet #1
+inverse: RemoveBodyModifier { body: 1, modifier: "terraforming_candidate", feature: None, flags: [PlanetFlag { flag: "candidate_marker", date: None }] }
+
+--- gamestate
++++ gamestate
+@@ -80060,9 +80060,22 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="terraforming_candidate"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_deposit=62808000
++				candidate_marker=62818656
+ 			}
+ 			entity=1
+ 			deposits=

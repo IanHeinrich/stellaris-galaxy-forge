@@ -1,0 +1,32 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed modifier harvested_resources_mining from planet #40
+inverse: AddBodyModifier { body: 40, modifier: "harvested_resources_mining", days: [3426], feature: None, flags: [PlanetFlag { flag: "starting_deposit", date: Some(62808000) }] }
+
+--- gamestate
++++ gamestate
+@@ -81663,22 +81663,6 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="harvested_resources_mining"
+-						days=3426
+-					}
+- 
+-				}
+-			}
+-			flags=
+-			{
+-				starting_deposit=62808000
+-			}
+ 			variables=
+ 			{
+ 				duration=129

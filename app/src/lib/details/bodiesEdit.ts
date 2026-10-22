@@ -6,6 +6,7 @@
  * and each op is the one its own page sends, built by the caller.
  */
 import type { DepositTypeView } from "../../generated/DepositTypeView";
+import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -443,15 +444,48 @@ export function modifierSpread(bodies: readonly SelectedBody[]): ModifierSpread[
   return [...rows.values()];
 }
 
-/** A modifier and the feature that applies it, as an add takes them. */
+/** A modifier, the feature that applies it and the planet flags the game sets with it, as an add takes them. */
 export interface ModifierPick {
   modifier: string;
   feature: string | null;
+  flags: readonly string[];
 }
 
-/** What adding row `row` again means: its modifier, and its feature when it is one. */
-export function pickOf(row: ModifierRow): ModifierPick {
-  return { modifier: row.modifier, feature: row.feature ? row.key : null };
+/** The choice of `choices` that adds row `row`. */
+function choiceOf(
+  row: ModifierRow,
+  choices: readonly ModifierChoice[],
+): ModifierChoice | undefined {
+  const feature = row.feature ? row.key : null;
+  return choices.find((c) => c.modifier === row.modifier && c.feature === feature);
+}
+
+/** What adding row `row` again means: its modifier, its feature when it is one, and its choice's flags. */
+export function pickOf(row: ModifierRow, choices: readonly ModifierChoice[]): ModifierPick {
+  return {
+    modifier: row.modifier,
+    feature: row.feature ? row.key : null,
+    flags: choiceOf(row, choices)?.flags ?? [],
+  };
+}
+
+/**
+ * The planet flags removing row `row` takes off a planet with the modifiers and features `has`:
+ * those its choice sets, less those another choice the planet holds sets too.
+ */
+export function removalFlags(
+  row: ModifierRow,
+  has: readonly string[],
+  choices: readonly ModifierChoice[],
+): string[] {
+  const own = choiceOf(row, choices);
+  if (own === undefined || own.flags.length === 0) return [];
+  const kept = new Set(
+    choices
+      .filter((c) => c !== own && holdsModifier(has, c.modifier, c.feature))
+      .flatMap((c) => c.flags),
+  );
+  return own.flags.filter((flag) => !kept.has(flag));
 }
 
 /** `pick`, named `name`, on every planet that takes modifiers and has not got it. */

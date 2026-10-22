@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ModifierCategory } from "../../generated/ModifierCategory";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
+import { modifierChoice, modifierView } from "../../store/fixtures/planet";
 import { addedModifierLine, modifierPickRows, modifierSections, parseDays } from "./modifierPicker";
 
 function choice(
@@ -9,20 +10,16 @@ function choice(
   category: ModifierCategory,
   feature: string | null = null,
 ): ModifierChoice {
-  return {
-    modifier,
+  return modifierChoice(modifier, name, {
     feature,
     category,
     description: `${name} described`,
-    view: {
-      key: feature ?? modifier,
+    view: modifierView(feature ?? modifier, {
       name,
       static_modifier: modifier,
-      icon: null,
-      icon_frame: null,
       effects: [{ key: "planet_stability_add", value: 5, text: "+5 Stability" }],
-    },
-  };
+    }),
+  });
 }
 
 const CHOICES = [

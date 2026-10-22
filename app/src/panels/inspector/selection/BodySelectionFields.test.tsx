@@ -15,6 +15,7 @@ import { useEntityStore } from "../../../store/entityStore";
 import {
   depositTypeView,
   editResult,
+  modifierChoice,
   modifierView,
   planetClassView,
   planetPage,
@@ -153,6 +154,7 @@ beforeEach(async () => {
     systems: [],
   }));
   mockedIpc.getPlanetPage.mockImplementation(async (id) => PAGES.find((p) => p.id === id)!);
+  mockedIpc.getModifierChoices.mockResolvedValue([]);
   await readPages();
   mockedIpc.applyOp.mockResolvedValue(
     editResult({ touched_entities: PAGES.map((p) => ({ kind: "planet", id: p.id })) }),
@@ -291,13 +293,9 @@ describe("several selected bodies' modifiers", () => {
       ({ type, props }) => type === PlanetPicker && props.kind === MODIFIER_PICKER,
       "modifier picker",
     ) as { target: PickerTarget };
-    const choice = {
-      modifier: "terraforming_candidate",
-      feature: null,
-      category: "Terraforming" as const,
-      description: null,
-      view: modifierView("terraforming_candidate", { name: "Terraforming Candidate" }),
-    };
+    const choice = modifierChoice("terraforming_candidate", "Terraforming Candidate", {
+      category: "Terraforming",
+    });
     const [row] = modifierPickRows([choice], target.modifiers, null, () => "", target.spread);
     expect(row.lacking).toBe(3);
 

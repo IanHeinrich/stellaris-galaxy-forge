@@ -275,11 +275,45 @@ pub(crate) fn scan(
     block(&mut scanner, script, &(), node);
 }
 
+/// Each scripted effect a walk has followed, with the parameters it was given.
+pub(crate) type Followed = HashSet<(String, Vec<(String, String)>)>;
+
+/// What a statement calls, for a walk that follows a scripted effect once per set of
+/// parameters.
+pub(crate) enum Called<'e> {
+    /// A scripted effect not yet followed with these parameters, and its text as the call
+    /// reaches it.
+    First(&'e Def, Script<'e>),
+    /// A scripted effect already followed with these parameters.
+    Again,
+    /// No scripted effect, or one [`MAX_DEPTH`] calls deep.
+    Not,
+}
+
+/// What statement `key = call` calls, noting it in `followed` the first time.
+pub(crate) fn call_once<'e>(
+    scripts: Option<&'e ScriptIndex>,
+    script: &Script<'_>,
+    key: &str,
+    call: &Node,
+    followed: &mut Followed,
+) -> Called<'e> {
+    let called = scripts
+        .and_then(|scripts| scripts.effect(key))
+        .and_then(|effect| Some((effect, script.call(effect, call)?)));
+    match called {
+        Some((effect, inner)) => match followed.insert((key.to_owned(), inner.params.clone())) {
+            true => Called::First(effect, inner),
+            false => Called::Again,
+        },
+        None => Called::Not,
+    }
+}
+
 struct Scanner<'a, 'f> {
     scripts: Option<&'a ScriptIndex>,
     each: &'f mut dyn FnMut(&Statement<'_>) -> Scan,
-    /// Each scripted effect followed, with the parameters it was given.
-    followed: HashSet<(String, Vec<(String, String)>)>,
+    followed: Followed,
     stopped: bool,
 }
 
@@ -290,21 +324,21 @@ impl Scanner<'_, '_> {
             Scan::Skip => {}
             Scan::Enter => {
                 let node = statement.node;
-                let called = self
-                    .scripts
-                    .and_then(|scripts| scripts.effect(statement.key))
-                    .and_then(|effect| Some((effect, script.call(effect, node)?)));
-                match called {
-                    Some((effect, inner)) => {
-                        let call = (statement.key.to_owned(), inner.params.clone());
-                        if self.followed.insert(call) {
-                            block(self, &inner, &(), &effect.node);
-                        }
+                match call_once(
+                    self.scripts,
+                    script,
+                    statement.key,
+                    node,
+                    &mut self.followed,
+                ) {
+                    Called::First(effect, inner) => {
+                        block(self, &inner, &(), &effect.node);
                     }
-                    None if node.scalar_span().is_none() => {
+                    Called::Again => {}
+                    Called::Not if node.scalar_span().is_none() => {
                         block(self, script, &(), node);
                     }
-                    None => {}
+                    Called::Not => {}
                 }
             }
         }

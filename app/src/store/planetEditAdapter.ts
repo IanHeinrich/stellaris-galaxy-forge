@@ -7,6 +7,7 @@
 import type { Bounds } from "../generated/Bounds";
 import type { DigSiteChoice } from "../generated/DigSiteChoice";
 import type { DocumentKind } from "../generated/DocumentKind";
+import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { Op } from "../generated/Op";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
@@ -35,11 +36,13 @@ import type {
   RowRefs,
   StarSystem,
 } from "../lib/details/picker";
-import type { ModifierRow } from "../lib/details/planetPage";
+import { heldModifiers, type ModifierRow } from "../lib/details/planetPage";
 import { useDetailsStore } from "./detailsStore";
+import type { OpSource } from "./editorEdits";
 import { useEditorStore } from "./editorStore";
 import { planetPageKey, useEntityStore } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
+import { modifierChoices } from "./modifierPickerStore";
 import { SAVE_BODY_OPS, type SaveRowRefs } from "./planetEditAdapter.save";
 
 export type { SaveRowRefs };
@@ -72,7 +75,18 @@ export interface BodyOps<R extends RowRefs = RowRefs> {
   removeDeposit(ref: R["deposit"]): Op | null;
   /** Adds `pick` for `days`, or for ever when `null`. */
   addModifier(body: number, pick: ModifierPick, days: number | null): Op | null;
-  removeModifier(body: number, ref: R["modifier"]): Op | null;
+  /** The modifiers and features body `body` holds, read from the session as it is now. */
+  heldModifiers(body: number): Promise<readonly string[]>;
+  /**
+   * Removes `ref` from a body with the modifiers and features `has`, and the planet flags its
+   * choice in `choices` sets that no other it keeps sets too.
+   */
+  removeModifier(
+    body: number,
+    ref: R["modifier"],
+    has: readonly string[],
+    choices: readonly ModifierChoice[],
+  ): Op | null;
   addAnomaly(body: number, category: string): Op | null;
   removeAnomaly(body: number): Op | null;
   addDigSite(body: number, choice: DigSiteChoice): Op | null;
@@ -103,6 +117,7 @@ const NO_BODY_OPS: BodyOps = {
   addDeposit: NO_OP,
   removeDeposit: NO_OP,
   addModifier: NO_OP,
+  heldModifiers: async () => [],
   removeModifier: NO_OP,
   addAnomaly: NO_OP,
   removeAnomaly: NO_OP,
@@ -118,8 +133,19 @@ const PLANET_EDITS: Readonly<Record<DocumentKind, BodyOps>> = {
   scenario: NO_BODY_OPS,
 };
 
-function apply(op: Op | null): Promise<boolean> {
+function apply(op: OpSource | null): Promise<boolean> {
   return op === null ? NOTHING : useEditorStore.getState().applyOp(op);
+}
+
+/**
+ * The removal of row `ref` from body `body`, built inside the edit queue from what the body holds
+ * once every edit queued before it has landed. A failed read of the choices refuses it.
+ */
+function removalOf<R extends RowRefs>(ops: BodyOps<R>, body: number, ref: R["modifier"]): OpSource {
+  return async () => {
+    const [has, choices] = await Promise.all([ops.heldModifiers(body), modifierChoices()]);
+    return ops.removeModifier(body, ref, has, choices);
+  };
 }
 
 /** Body `id` edited by the ops of `ops`. */
@@ -139,7 +165,7 @@ function editsOf<R extends RowRefs>(ops: BodyOps<R>, { id }: PlanetBody): Planet
     addDeposit: (kind) => apply(ops.addDeposit(id, kind)),
     removeDeposit: (ref) => apply(ops.removeDeposit(ref)),
     addModifier: (choice, days) => apply(ops.addModifier(id, choice, days)),
-    removeModifier: (ref) => apply(ops.removeModifier(id, ref)),
+    removeModifier: (ref) => apply(removalOf(ops, id, ref)),
     addAnomaly: (category) => apply(ops.addAnomaly(id, category)),
     removeAnomaly: () => apply(ops.removeAnomaly(id)),
     addDigSite: (choice) => apply(ops.addDigSite(id, choice)),
@@ -199,7 +225,7 @@ export function savePickerTarget(
 ): PickerTarget<SaveRowRefs> {
   const held = {
     deposits: page.deposits.map((d) => d.kind),
-    modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
+    modifiers: heldModifiers(page),
     anomaly,
   };
   const edits = editsOf(SAVE_BODY_OPS, { system, id: summary.id });
@@ -264,26 +290,24 @@ export function bodiesEdits(
   const { bodies, where, lock } = context;
   const ops = PLANET_EDITS[context.kind];
   const ids = bodies.map((b) => b.id);
-  const send = async (planned: () => BodiesPlan): Promise<boolean> => {
+  /** Sends the plan `planned` builds inside the edit queue; its line is reported once applied, or when it sends nothing. */
+  const send = async (planned: () => BodiesPlan | Promise<BodiesPlan>): Promise<boolean> => {
     if (lock.sending || !editsBodies() || bodiesStale(context.system, ids)) return false;
-    const { op, note } = planned();
-    if (op === null) {
-      report(note);
-      return false;
-    }
     lock.sending = true;
+    const built: { plan?: BodiesPlan } = {};
     try {
-      const applied = await useEditorStore.getState().applyOp(op);
-      if (applied) report(note);
+      const applied = await useEditorStore.getState().applyOp(async () => {
+        built.plan = await planned();
+        return built.plan.op;
+      });
+      if (built.plan !== undefined && (applied || built.plan.op === null)) report(built.plan.note);
       return applied;
     } finally {
       lock.sending = false;
     }
   };
-  const addModifier = (pick: ModifierPick, days: number | null, name: string) =>
-    send(() =>
-      planAddModifier(bodies, pick, name, where, (b) => ops.addModifier(b.id, pick, days)),
-    );
+  const planAdd = (pick: ModifierPick, days: number | null, name: string) =>
+    planAddModifier(bodies, pick, name, where, (b) => ops.addModifier(b.id, pick, days));
   return {
     ...NO_EDITS,
     timedModifiers: ops.timedModifiers,
@@ -317,17 +341,21 @@ export function bodiesEdits(
         ),
       ),
     addModifier: (choice, days) =>
-      addModifier(
-        { modifier: choice.modifier, feature: choice.feature },
-        days,
-        choice.view.name || choice.view.key,
+      send(() => planAdd(choice, days, choice.view.name || choice.view.key)),
+    fillModifier: (row) =>
+      send(async () =>
+        planAdd(pickOf(row, await modifierChoices()), null, row.view?.name || row.key),
       ),
-    fillModifier: (row) => addModifier(pickOf(row), null, row.view?.name || row.key),
     removeModifier: (row) =>
-      send(() =>
-        planRemoveModifier(bodies, row.key, row.view?.name || row.key, where, (b, ref) =>
-          ops.removeModifier(b.id, ref),
-        ),
-      ),
+      send(async () => {
+        const [held, choices] = await Promise.all([
+          Promise.all(bodies.map(async (b) => [b.id, await ops.heldModifiers(b.id)] as const)),
+          modifierChoices(),
+        ]);
+        const has = new Map(held);
+        return planRemoveModifier(bodies, row.key, row.view?.name || row.key, where, (b, ref) =>
+          ops.removeModifier(b.id, ref, has.get(b.id) ?? [], choices),
+        );
+      }),
   };
 }

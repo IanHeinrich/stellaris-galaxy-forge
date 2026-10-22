@@ -25,10 +25,13 @@ export interface PickerState<C extends string, T> {
   setChip(chip: C): void;
   /** Opens on `target`, keeping the search and chip when its body is the one already open. */
   openOn(target: PickerTarget): void;
-  /** Reads the list for `key` at game data `version` with `read`, unless it is held or asked. */
-  choicesFor(key: string, version: number, read: () => Promise<T[]>): void;
-  /** Reads what the picker offers `target`'s body, without opening. */
-  load(target: PickerTarget): void;
+  /**
+   * Reads the list for `key` at game data `version` with `read`, unless it is held or asked, and
+   * resolves to it; rejects when that read failed, though the picker then shows an empty list.
+   */
+  choicesFor(key: string, version: number, read: () => Promise<T[]>): Promise<T[]>;
+  /** Reads what the picker offers `target`'s body, without opening, and resolves to it as `choicesFor` does. */
+  load(target: PickerTarget): Promise<T[]>;
   close(): void;
   /** Closed, with nothing read. */
   reset(): void;
@@ -53,6 +56,8 @@ export function pickerSlice<C extends string, T>(
   source: ChoicesSource<T>,
 ) {
   const closed = { ...PICKER_CLOSED, chip: "All" as C };
+  /** The read of the list last asked for, whose `body` the state's `reading` or `choices` names. */
+  let asked: { body: string; list: Promise<T[]> } | null = null;
   return {
     ...closed,
     choices: null,
@@ -69,20 +74,24 @@ export function pickerSlice<C extends string, T>(
     choicesFor(key: string, version: number, read: () => Promise<T[]>) {
       const body = `${version}|${key}`;
       const { choices, reading } = get();
-      if (choices?.body === body || reading === body) return;
+      if (asked?.body === body && (choices?.body === body || reading === body)) return asked.list;
+      if (choices?.body === body) return Promise.resolve(choices.list);
       set({ choices: null, reading: body });
       const land = (list: T[]) => {
         if (get().reading === body) set({ choices: { body, list }, reading: null });
       };
-      read().then(land, (e: unknown) => {
+      const list = read();
+      asked = { body, list };
+      list.then(land, (e: unknown) => {
         console.warn(source.name, errorMessage(e));
         land([]);
       });
+      return list;
     },
 
     load(target: PickerTarget) {
       const { version } = useGameDataStore.getState();
-      get().choicesFor(source.keyOf(target), version, () => source.read(target));
+      return get().choicesFor(source.keyOf(target), version, () => source.read(target));
     },
 
     close() {

@@ -200,12 +200,16 @@ impl Format for Save {
                 modifier,
                 days,
                 feature,
-            } => planet_modifier::plan_add(plan, s, *body, modifier, days, feature.as_deref()),
+                flags,
+            } => {
+                planet_modifier::plan_add(plan, s, *body, modifier, days, feature.as_deref(), flags)
+            }
             Op::RemoveBodyModifier {
                 body,
                 modifier,
                 feature,
-            } => planet_modifier::plan_remove(plan, s, *body, modifier, feature.as_deref()),
+                flags,
+            } => planet_modifier::plan_remove(plan, s, *body, modifier, feature.as_deref(), flags),
             Op::AddAnomaly {
                 body,
                 category,

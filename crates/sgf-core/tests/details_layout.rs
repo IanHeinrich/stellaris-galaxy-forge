@@ -99,6 +99,7 @@ fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
             modifier: "terraforming_candidate".to_owned(),
             days: vec![-1],
             feature: None,
+            flags: Vec::new(),
         })
         .expect("add the candidate");
     assert_eq!(result.details_stale, vec![system]);
