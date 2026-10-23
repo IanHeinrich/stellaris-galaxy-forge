@@ -480,7 +480,7 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
         .iter()
         .map(|v| v.name.as_str())
         .collect();
-    listed_once("a variable listed once", &names, |name| (*name).to_owned())
+    listed_once("a variable", &names, |name| (*name).to_owned())
 }
 
 fn check_row(row: &RingRow) -> Result<(), OpError> {

@@ -55,7 +55,7 @@ function lists(over: Partial<OpenLists> = {}): OpenLists {
     files: { [TERRAN.dir]: [campaignSave()] },
     fileErrors: {},
     expanded: TERRAN.dir,
-    loadingDir: null,
+    loadingDirs: [],
     missing: [],
     ...over,
   };
@@ -206,7 +206,7 @@ describe("rows", () => {
 
   it("says one save, one system, and the newest save's version and date under a campaign", () => {
     const one = campaignListing({
-      files: 1,
+      file_names: ["2210.02.03.sav"],
       meta: saveMeta({ date: "2210.02.03", version: "Cygnus v4.5.0" }),
     });
     const small = modScenario({ path: "C:/mods/tiny.txt", systems: 1 });

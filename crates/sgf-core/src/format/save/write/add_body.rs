@@ -284,14 +284,12 @@ fn check_listed_once(modifiers: &[NewModifier]) -> Result<(), OpError> {
         .filter(|m| !m.days.is_empty())
         .map(|m| m.modifier.as_str())
         .collect();
-    listed_once("a modifier listed once", &timed, |m| (*m).to_owned())?;
+    listed_once("a modifier", &timed, |m| (*m).to_owned())?;
     let features: Vec<&str> = modifiers
         .iter()
         .filter_map(|m| m.feature.as_deref())
         .collect();
-    listed_once("a planet feature listed once", &features, |f| {
-        (*f).to_owned()
-    })
+    listed_once("a planet feature", &features, |f| (*f).to_owned())
 }
 
 /// What the add-system writer takes of `spec`, standing at `orbit` and `angle`. A fixed name

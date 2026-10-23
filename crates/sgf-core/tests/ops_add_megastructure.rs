@@ -361,10 +361,7 @@ fn what_an_add_and_a_removal_refuse() {
                 other_flag,
                 "a think_tank_3 cannot be added there: foo is not a planet flag a megastructure leaves",
             ),
-            (
-                twice,
-                "\"has_megastructure\" cannot be written as a flag listed once",
-            ),
+            (twice, "\"has_megastructure\" is listed twice as a flag"),
             (nan, "value is not a finite number"),
             (
                 on_body(ALARI, "", 6),

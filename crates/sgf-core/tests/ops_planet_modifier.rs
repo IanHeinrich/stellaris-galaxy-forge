@@ -453,7 +453,7 @@ fn a_flag_is_refused_when_it_cannot_be_written() {
                 add(585, CANDIDATE, &[-1]),
                 &[(MARKER, None), (MARKER, None)],
             ),
-            "\"candidate_marker\" cannot be written as a flag listed once",
+            "\"candidate_marker\" is listed twice as a flag",
         ),
         (
             with_flags(remove(40, HARVESTED, None), &[("", None)]),

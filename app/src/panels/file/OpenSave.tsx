@@ -45,7 +45,7 @@ function screenLists(s: OpenScreenState) {
     files: s.files,
     fileErrors: s.fileErrors,
     expanded: s.expanded,
-    loadingDir: s.loadingDir,
+    loadingDirs: s.loadingDirs,
     missing: s.missing,
     busy: s.busy,
     rowError: s.rowError,
@@ -57,7 +57,6 @@ function screenLists(s: OpenScreenState) {
  * `footnote` goes under the buttons.
  */
 export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnote?: ReactNode }) {
-  const token = useFileSessionStore((s) => s.lastSave ?? s.path);
   const pickAndOpen = useFileSessionStore((s) => s.pickAndOpen);
   const requestOpen = useFileSessionStore((s) => s.requestOpen);
   const hide = useLayoutStore((s) => s.hideOpenDialog);
@@ -72,8 +71,8 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
   const focusWithin = useRef(false);
 
   useEffect(() => {
-    void useOpenScreenStore.getState().load(token);
-  }, [token]);
+    void useOpenScreenStore.getState().load();
+  }, []);
 
   useEffect(() => {
     field.current?.focus();

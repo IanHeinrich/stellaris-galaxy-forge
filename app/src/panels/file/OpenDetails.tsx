@@ -279,7 +279,7 @@ function CampaignDetails({ campaign, empire }: { campaign: CampaignListing; empi
       <Block title="Campaign">
         <Facts
           facts={[
-            ["Saves", counted(campaign.files, "save")],
+            ["Saves", counted(campaign.file_names.length, "save")],
             ["Dates", files ? dateRange(files) : null],
             ["Last saved", formatWhen(campaign.newest)],
           ]}

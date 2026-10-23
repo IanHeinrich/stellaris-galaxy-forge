@@ -21,7 +21,7 @@ pub(super) fn marauders(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         let names: Vec<String> = homes
             .iter()
             .filter_map(|id| g.systems.get(id))
-            .map(label)
+            .map(|system| label(g, system))
             .collect();
         let count = match homes.len() {
             2 => "two".to_owned(),
@@ -53,7 +53,7 @@ pub(super) fn marauders(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 IssueCode::MarauderBaseOrphan,
                 format!(
                     "{} is an outpost of clan {clan} with no clan home beside it. Nothing spawns there.",
-                    label(base)
+                    label(g, base)
                 ),
                 vec![base.id],
             ));
@@ -85,7 +85,7 @@ fn marauders_bases_missing(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 IssueCode::MarauderBasesMissing,
                 format!(
                     "{} is the marauder clan {clan} home with {count} beside it. A clan is its home and two outposts hyperlaned to it.",
-                    label(home)
+                    label(g, home)
                 ),
                 vec![home.id],
             );
@@ -104,7 +104,7 @@ pub(super) fn l_cluster(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 IssueCode::LClusterSystem,
                 format!(
                     "{} sits where the game places the L-Cluster.",
-                    label(system)
+                    label(g, system)
                 ),
                 vec![system.id],
             ));
@@ -132,7 +132,7 @@ pub(super) fn rolled_near_seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         return;
     }
     rolled.sort_unstable_by_key(|system| system.id);
-    let names: Vec<String> = rolled.iter().map(|system| label(system)).collect();
+    let names: Vec<String> = rolled.iter().map(|system| label(g, system)).collect();
     issues.push(Issue::new(
         IssueCode::RolledNearSeat,
         format!(

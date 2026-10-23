@@ -155,3 +155,57 @@ fn a_planet_moved_in_its_system_takes_its_megastructure_along() {
     session.undo().expect("undo").expect("the move");
     assert_eq!(row(&session), (47.58375, 115.66625));
 }
+
+/// Fleet 1's `current_order`, made a construction ship's start of a habitat at asteroid 937
+/// of system 38, before the ship lays the site.
+const BUILD_ORDER: &str = "\t\tcurrent_order=
+\t\t{
+\t\t\tbuild_megastructure_fleet_order=
+\t\t\t{
+\t\t\t\ttype=\"habitat_0\"
+\t\t\t\tcoordinate=
+\t\t\t\t{
+\t\t\t\t\tx=-49.6219
+\t\t\t\t\ty=-136.35945
+\t\t\t\t\torigin=38
+\t\t\t\t}
+\t\t\t\tplanet=937
+\t\t\t\tprogress=3
+\t\t\t\tin_progress=yes
+\t\t\t}
+\t\t}
+";
+
+/// Fleet 1 of the 4.5 sample stands in system 59. Given an order to start a megastructure at
+/// asteroid 937 of system 38, the order's `coordinate` moves with the asteroid, because the
+/// game builds there.
+#[test]
+fn a_body_moved_while_a_ship_starts_a_megastructure_at_it_takes_the_build_along() {
+    let mut session = common::open_edited_sample(common::SAMPLE_4_5, |gamestate, _| {
+        let fleets = gamestate.find("\nfleet=\n").expect("the fleets");
+        let order = fleets
+            + gamestate[fleets..]
+                .find("\t\tcurrent_order=\n")
+                .expect("fleet 1's order");
+        let end = order + gamestate[order..].find("\n\t\t}\n").expect("its end") + 4;
+        gamestate.replace_range(order..end, BUILD_ORDER);
+    });
+    let original = common::current(&session);
+    let order = |session: &Session| {
+        let text = common::entity_text(session, EntityKind::Fleet, 1);
+        point_in(&text, Some("build_megastructure_fleet_order="))
+    };
+    let was = at(&session, 38, 937);
+    assert_eq!(order(&session), was);
+    let radius = drawn(&session, 38, 937);
+    snapshot_step(
+        &mut session,
+        "with_a_megastructure_on_order",
+        move_body(38, 937, radius, 300.0),
+    );
+    let now = at(&session, 38, 937);
+    assert_near(order(&session), now, "the order");
+
+    session.undo().expect("undo").expect("the move");
+    assert_eq!(common::current(&session), original);
+}

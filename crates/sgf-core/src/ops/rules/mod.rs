@@ -53,12 +53,7 @@ pub fn added_group(group: &str, systems: usize, lanes: usize) -> String {
 /// does: "Added system #602 at (12.5, -3)", and the lanes laid with it, "with 2 lanes", as a
 /// save's add counts them.
 pub fn added_statement(id: u32, (x, y): (f64, f64), lanes: usize) -> String {
-    let added = format!(
-        "Added {} at ({}, {})",
-        labelled("", false, id),
-        coord(x),
-        coord(y)
-    );
+    let added = format!("Added system #{id} at ({}, {})", coord(x), coord(y));
     match lanes {
         0 => added,
         n => format!("{added} with {}", plural(n, "lane")),
@@ -146,24 +141,26 @@ fn quotable(text: &str) -> bool {
     !text.contains(['"', '\\', '\n', '\r'])
 }
 
-/// What a description calls system `system`: its name as shown and its id ("Ferragon
-/// #489"), or "system #489" when it has no name, the galaxy lacks it, or a word of its
-/// name still reads as a localisation key once [`display_name`] has shortened it.
+/// What a description calls system `system`: its name as the map shows it and its id
+/// ("Ferragon #489"), or "system #489" when it has no name, the galaxy lacks it, or a name
+/// the install does not localise still reads as a key once [`display_name`] has shortened it.
 pub(crate) fn named(galaxy: &Galaxy, system: u32) -> String {
     match galaxy.systems.get(&system) {
-        Some(node) => labelled(&node.name.key, node.name.literal, system),
+        Some(node) => labelled(galaxy, &node.name.key, node.name.literal, system),
         None => format!("system #{system}"),
     }
 }
 
 /// [`named`] for system `system` named `key`, which is written `literal=yes` when
-/// `literal`: one the galaxy does not hold yet.
-pub(crate) fn labelled(key: &str, literal: bool, system: u32) -> String {
+/// `literal`: one `galaxy` does not hold yet.
+pub(crate) fn labelled(galaxy: &Galaxy, key: &str, literal: bool, system: u32) -> String {
     let shown = match literal {
         true => key.to_owned(),
-        false => Some(display_name(key))
-            .filter(|shown| !shown.split(' ').any(looks_like_key))
-            .unwrap_or_default(),
+        false => galaxy.names.get(key).unwrap_or_else(|| {
+            Some(display_name(key))
+                .filter(|shown| !shown.split(' ').any(looks_like_key))
+                .unwrap_or_default()
+        }),
     };
     if shown.is_empty() {
         format!("system #{system}")

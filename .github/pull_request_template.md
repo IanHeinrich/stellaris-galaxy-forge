@@ -40,6 +40,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A modifier added to a planet shows in the planet view with its effect, a timed one expires, a removed one is gone; a planet feature added both ways shows as a feature
 - [ ] A dig site added to a planet shows in game and can be excavated, an event-only type too; a removed one is gone, one removed while a fleet excavates it too, and both hold after a save and reload
 - [ ] A planet given its terraforming candidate modifier from the modifier picker offers terraforming once Climate Restoration is researched; with the modifier removed it no longer does
+- [ ] A planet moved while a construction ship is still starting a megastructure at it gets the megastructure built over the planet's new place
 - [ ] With Gigastructural Engineering, an asteroid given an Asteroid Industrial Site Candidate modifier from the modifier picker lets that site be built there; with the modifier removed it can't, and an asteroid that keeps another candidate still offers that one
 - [ ] An anomaly added to a planet the player has surveyed shows in game and a science ship can research it; one added to a planet you haven't surveyed turns up when you survey it; a removed one is gone. Remove an anomaly the player had already found: the Situation Log has no entry left for it
 - [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept

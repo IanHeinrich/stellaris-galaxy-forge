@@ -305,6 +305,7 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         kaleidoscope: false,
         global_flags: Vec::new(),
         settings: None,
+        names: Default::default(),
     };
     let everything = Changes {
         systems: index(doc).order().iter().copied().collect(),

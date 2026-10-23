@@ -316,7 +316,7 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
                         format!(
                             "system {} ({}) is listed in nebula {} but lies {d:.2} from its centre, beyond its radius {}",
                             system.id,
-                            system.display_name(),
+                            g.shown_name(&system.name),
                             nebula.display_name(),
                             nebula.radius
                         ),
@@ -331,7 +331,7 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
                         format!(
                             "system {} ({}) lies {:.2} from the centre of nebula {} (radius {}) but no nebula lists it",
                             system.id,
-                            system.display_name(),
+                            g.shown_name(&system.name),
                             distance(nebula),
                             nebula.display_name(),
                             nebula.radius

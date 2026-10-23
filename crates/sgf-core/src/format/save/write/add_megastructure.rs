@@ -93,7 +93,7 @@ pub(crate) fn plan_add(
                     "{flag} is not a planet flag a megastructure leaves"
                 )));
             }
-            listed_once("a flag listed once", body_flags, String::clone)?;
+            listed_once("a flag", body_flags, String::clone)?;
             let (node, src) = planet_entity(&s.doc, body)?;
             if planet_system(&node, src, body)? != system {
                 return Err(OpError::NotABody { body, system });

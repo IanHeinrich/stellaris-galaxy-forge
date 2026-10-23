@@ -126,7 +126,12 @@ fn planted(
             body_place(&add.spec, at)
                 .map(|place| bodies[place])
                 .ok_or_else(|| OpError::NoSpecBody {
-                    system: labelled(&add.spec.name, written_literal(&add.spec.name), system),
+                    system: labelled(
+                        &s.graph,
+                        &add.spec.name,
+                        written_literal(&add.spec.name),
+                        system,
+                    ),
                     body: spec_body_named(at),
                 })
         };
@@ -243,7 +248,12 @@ fn describe(
     }
     let (added, possessive) = match systems {
         [one] => (
-            labelled(&one.spec.name, written_literal(&one.spec.name), first),
+            labelled(
+                &s.graph,
+                &one.spec.name,
+                written_literal(&one.spec.name),
+                first,
+            ),
             "its",
         ),
         many => (plural(many.len(), "system"), "their"),

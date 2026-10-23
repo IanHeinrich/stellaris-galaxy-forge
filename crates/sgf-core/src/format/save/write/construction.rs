@@ -51,7 +51,7 @@ pub(crate) fn check(
         .iter()
         .map(|item| (item.on, item.timed.modifier.as_str()))
         .collect();
-    listed_once("a modifier listed once", &hosted, |(_, modifier)| {
+    listed_once("a modifier", &hosted, |(_, modifier)| {
         (*modifier).to_owned()
     })?;
     for deposit in &construction.deposits {

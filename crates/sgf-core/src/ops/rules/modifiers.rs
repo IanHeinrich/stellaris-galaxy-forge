@@ -24,7 +24,7 @@ pub(crate) fn check_timed(timed: &TimedModifier) -> Result<(), OpError> {
     timed.days.map_or(Ok(()), |days| check_days(days.into()))
 }
 
-/// Refuse `items` when one is listed twice, as `what` ("a flag listed once") with the text
+/// Refuse `items` when one is listed twice, as `what` ("a flag") with the text
 /// `text` gives it.
 pub(crate) fn listed_once<T: PartialEq>(
     what: &'static str,
@@ -36,7 +36,7 @@ pub(crate) fn listed_once<T: PartialEq>(
         .enumerate()
         .find(|(i, item)| items[..*i].contains(item))
     {
-        Some((_, item)) => Err(OpError::InvalidText {
+        Some((_, item)) => Err(OpError::ListedTwice {
             what,
             text: text(item),
         }),
@@ -50,5 +50,5 @@ pub(crate) fn check_flags(what: &'static str, flags: &[String]) -> Result<(), Op
     for flag in flags {
         check_text(what, flag, Form::Bare)?;
     }
-    listed_once("a flag listed once", flags, String::clone)
+    listed_once("a flag", flags, String::clone)
 }

@@ -3,9 +3,15 @@ use std::sync::Arc;
 use super::Session;
 use crate::format::save::ring_world::RingWorldTypes;
 use crate::ops::SystemRadii;
-use crate::projections::galaxy::{GalaxyGraph, StarClasses, draw_scenario_stars};
+use crate::projections::galaxy::{GalaxyGraph, LocalisedNames, StarClasses, draw_scenario_stars};
 
 impl Session {
+    /// Name systems in descriptions and issues by `names`, the loaded install's text for
+    /// their keys, as the map does.
+    pub fn set_names(&mut self, names: LocalisedNames) {
+        self.graph.names = names;
+    }
+
     /// How the geometry ops size a system.
     pub fn radii(&self) -> SystemRadii {
         self.radii

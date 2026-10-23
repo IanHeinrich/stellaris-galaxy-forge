@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet B12- #937 from orbit 145.11 at 250° to orbit 145.11 at 300°
+inverse: MoveBody { system: 38, body: 937, radius: 145.107658529, angle: 250.003295172 }
+
+--- gamestate
++++ gamestate
+@@ -128368,8 +128368,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-49.6219
+-				y=-136.35945
++				x=72.55383
++				y=-125.66692
+ 				origin=38
+ 			}
+ 			orbit=145
+@@ -955763,8 +955763,8 @@
+ 				type="habitat_0"
+ 				coordinate=
+ 				{
+-					x=-49.6219
+-					y=-136.35945
++					x=72.55383
++					y=-125.66692
+ 					origin=38
+ 				}
+ 				planet=937

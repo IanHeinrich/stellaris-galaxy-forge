@@ -56,6 +56,11 @@ export function getGalaxy(): Promise<GalaxyView> {
   return invoke<GalaxyView>("get_galaxy");
 }
 
+/** The open document's issues as they stand; see the `get_issues` command. */
+export function getIssues(): Promise<Issue[]> {
+  return invoke<Issue[]>("get_issues");
+}
+
 /** Build the details projection so search also finds planets and fleets. */
 export function warmDetails(): Promise<Issue[]> {
   return invoke<Issue[]>("warm_details");

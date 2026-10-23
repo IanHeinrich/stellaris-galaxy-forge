@@ -172,6 +172,7 @@ fn emit_system(
     let text = cst::with_eol(&text, cst::eol_at(s.doc.original(), scenario.insert_at));
     plan.emit(Emitted::System(id), scenario.insert_at, text);
     let label = labelled(
+        &s.graph,
         name.unwrap_or(""),
         name.is_some_and(|n| !looks_like_key(n)),
         id,

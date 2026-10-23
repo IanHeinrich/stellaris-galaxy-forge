@@ -90,6 +90,7 @@ mod special_megastructures;
 mod special_menu;
 mod star_discs;
 mod star_placeholders;
+mod system_names;
 mod system_radii;
 mod terraform_links;
 mod textures;

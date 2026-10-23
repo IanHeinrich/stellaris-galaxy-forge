@@ -284,7 +284,7 @@ fn adds_and_removals_are_refused() {
                 50.0,
                 0.0,
             ),
-            "\"harvested_resources_mining\" cannot be written as a modifier listed once",
+            "\"harvested_resources_mining\" is listed twice as a modifier",
         ),
         (
             Op::RemoveBody { body: 138 },

@@ -2,6 +2,7 @@
 import type { CampaignListing } from "../generated/CampaignListing";
 import type { PaintModView } from "../generated/PaintModView";
 import type { SaveFile } from "../generated/SaveFile";
+import type { SaveMeta } from "../generated/SaveMeta";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioSource } from "../generated/ScenarioSource";
 import type { DocumentKind } from "../generated/DocumentKind";
@@ -113,8 +114,8 @@ export interface OpenLists {
   fileErrors: Record<string, string>;
   /** The one expanded campaign folder. */
   expanded: string | null;
-  /** The campaign folder whose saves are being read. */
-  loadingDir: string | null;
+  /** The campaign folders whose saves are being read. */
+  loadingDirs: string[];
   /** Recently opened paths that were not there when they were last asked for. */
   missing: string[];
 }
@@ -128,8 +129,14 @@ function matches(words: string[], text: string): boolean {
   return words.every((word) => text.includes(word));
 }
 
-function saveText(file: SaveFile, empire: string | null): string {
-  return haystack([file.file_name, file.campaign, empire, file.meta?.date, file.meta?.version]);
+/** What a save is found by: its file name, campaign and empire, and once read, its date and version. */
+function saveText(
+  fileName: string,
+  campaign: string,
+  empire: string | null,
+  meta: SaveMeta | null = null,
+): string {
+  return haystack([fileName, campaign, empire, meta?.date, meta?.version]);
 }
 
 function empireOf(meta: { name: string } | null): string | null {
@@ -186,33 +193,77 @@ function recentSection(state: OpenLists, recents: RecentDoc[], words: string[]):
   };
 }
 
+function campaignEmpire(campaign: CampaignListing): string {
+  return campaign.empire ? displayName(campaign.empire) : campaign.name;
+}
+
+/** Whether the filter keeps the campaign by its own name, empire or folder. */
+function keepsCampaign(campaign: CampaignListing, words: string[]): boolean {
+  return matches(words, haystack([campaign.name, campaignEmpire(campaign), campaign.dir]));
+}
+
+/**
+ * How many of a campaign's saves the filter keeps, and those of them already read: each save
+ * by its whole text once the folder's saves are read, and before by what the listing knows.
+ */
+function keptSaves(
+  state: OpenLists,
+  campaign: CampaignListing,
+  words: string[],
+): { count: number; files: SaveFile[] } {
+  const files = state.files[campaign.dir];
+  if (keepsCampaign(campaign, words))
+    return { count: campaign.file_names.length, files: files ?? [] };
+  if (files === undefined) {
+    const empire = campaignEmpire(campaign);
+    const named = campaign.file_names.filter((name) =>
+      matches(words, saveText(name, campaign.name, empire)),
+    );
+    return { count: named.length, files: [] };
+  }
+  const kept = files.filter((file) =>
+    matches(words, saveText(file.file_name, file.campaign, empireOf(file.meta), file.meta)),
+  );
+  return { count: kept.length, files: kept };
+}
+
+/** The campaign folders the filter keeps only by their saves, whose saves are still to be read. */
+export function campaignsToRead(state: OpenLists): string[] {
+  const words = filterWords(state.filter);
+  if (words.length === 0) return [];
+  return (state.campaigns ?? [])
+    .filter(
+      (c) =>
+        state.files[c.dir] === undefined &&
+        !keepsCampaign(c, words) &&
+        keptSaves(state, c, words).count > 0,
+    )
+    .map((c) => c.dir);
+}
+
 function savesSection(state: OpenLists, words: string[]): Section {
   const rows: Row[] = [];
   let count = 0;
   for (const campaign of state.campaigns ?? []) {
-    const empire = campaign.empire ? displayName(campaign.empire) : campaign.name;
-    const self = matches(words, haystack([campaign.name, empire, campaign.dir]));
-    const files = state.files[campaign.dir];
-    const shown = (files ?? []).filter(
-      (file) => self || matches(words, saveText(file, empireOf(file.meta))),
-    );
-    if (!self && shown.length === 0 && words.length > 0) continue;
-    count += self ? campaign.files : shown.length;
-    const expanded = self || words.length === 0 ? state.expanded === campaign.dir : true;
+    const self = keepsCampaign(campaign, words);
+    const kept = keptSaves(state, campaign, words);
+    if (!self && kept.count === 0) continue;
+    count += kept.count;
+    const expanded = self ? state.expanded === campaign.dir : true;
     const meta = campaign.meta;
     rows.push({
       kind: "campaign",
       key: `campaign:${campaign.dir}`,
       campaign,
-      empire,
+      empire: campaignEmpire(campaign),
       subtitle: meta ? [versionShort(meta.version), meta.date].filter(Boolean).join(" · ") : "",
-      count: counted(campaign.files, "save"),
+      count: counted(campaign.file_names.length, "save"),
       expanded,
-      loading: state.loadingDir === campaign.dir,
+      loading: state.loadingDirs.includes(campaign.dir),
       error: state.fileErrors[campaign.dir] ?? null,
     });
     if (!expanded) continue;
-    for (const file of shown) rows.push(saveRow(file));
+    for (const file of kept.files) rows.push(saveRow(file));
   }
   return {
     id: "saves",
@@ -279,8 +330,13 @@ function scenariosSection(state: OpenLists, words: string[]): Section {
 /** How many recent documents the All tab lists before it links to the Recent tab. */
 export const ALL_TAB_RECENTS = 5;
 
+/** The words a row has to hold for the filter to keep it; none keeps every row. */
+export function filterWords(filter: string): string[] {
+  return filter.toLowerCase().split(/\s+/).filter(Boolean);
+}
+
 function everySection(state: OpenLists, recents: RecentDoc[]): Section[] {
-  const words = state.filter.toLowerCase().split(/\s+/).filter(Boolean);
+  const words = filterWords(state.filter);
   return [
     recentSection(state, recents, words),
     savesSection(state, words),

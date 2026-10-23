@@ -8,7 +8,7 @@ use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, rows};
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
-use crate::format::save::write::fleets::{move_fleet, parked};
+use crate::format::save::write::fleets::{carry_build_orders, move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::planet_entry::{
     body_is_star, list_moon, named_planet, named_planet_as, set_flag, set_moon_of, unlist_moon,
@@ -237,8 +237,8 @@ fn find(bodies: &[Body], id: u32) -> &Body {
 }
 
 /// Write the point of every body `after` moves, and the orbit of body `id`, the one moved.
-/// The fleets parked in orbit of a moved body and the `megastructures` rows tied to it move
-/// by its step.
+/// The fleets parked in orbit of a moved body, the `megastructures` rows tied to it and the
+/// construction orders starting one at it move by its step.
 fn write_points(
     plan: &mut Plan,
     s: &Session,
@@ -281,7 +281,8 @@ fn write_points(
         let step = step_of(body);
         splice_coordinate(edit, x + step.0, y + step.1)?;
     }
-    Ok(())
+    let steps: Vec<_> = ids.iter().map(|&body| (body, step_of(body))).collect();
+    carry_build_orders(plan, s, system, &steps)
 }
 
 /// The `megastructures` rows of system `system` tied to a body of `bodies` by their `planet`,

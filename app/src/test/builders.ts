@@ -840,7 +840,7 @@ export const CAMPAIGN: CampaignListing = {
   dir: DIR,
   name: "terran_1",
   empire: "Terran Federation",
-  files: 3,
+  file_names: ["2206.11.16.sav", "2206.06.01.sav", "2206.01.01.sav"],
   newest: 200,
   meta: saveMeta({ name: "Terran Federation", date: "2206.11.16" }),
   cloud: false,
@@ -862,7 +862,7 @@ export function campaignRow(): CampaignRow {
 
 /** The terran campaign as the lists show it: two files and no header of its own. */
 export function campaignListing(over: Partial<CampaignListing> = {}): CampaignListing {
-  return { ...CAMPAIGN, files: 2, meta: null, ...over };
+  return { ...CAMPAIGN, file_names: ["2206.11.16.sav", "2206.01.01.sav"], meta: null, ...over };
 }
 
 export const TERRAN = campaignListing();
@@ -870,6 +870,7 @@ export const VOID = campaignListing({
   dir: "C:/saves/void",
   name: "void_2",
   empire: "Void Compact",
+  file_names: ["2230.01.01.sav", "2229.01.01.sav"],
   newest: 100,
 });
 

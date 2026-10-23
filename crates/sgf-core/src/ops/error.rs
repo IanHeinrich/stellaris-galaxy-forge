@@ -22,6 +22,9 @@ pub enum OpError {
     EmptyText { what: &'static str },
     #[error("{text:?} cannot be written as {what}")]
     InvalidText { what: &'static str, text: String },
+    /// Its own variant only because `InvalidText`'s wording can't say "listed twice".
+    #[error("{text:?} is listed twice as {what}")]
+    ListedTwice { what: &'static str, text: String },
     #[error("planet {body}: {error}")]
     OnBody { body: u32, error: Box<OpError> },
     #[error("nebula {0} does not exist")]
@@ -333,6 +336,7 @@ impl OpError {
             | Self::NullSystemId { .. }
             | Self::EmptyText { .. }
             | Self::InvalidText { .. }
+            | Self::ListedTwice { .. }
             | Self::OnBody { .. }
             | Self::SelfLane { .. }
             | Self::LaneExists { .. }

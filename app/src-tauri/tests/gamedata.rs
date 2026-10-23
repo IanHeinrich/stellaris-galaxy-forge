@@ -7,6 +7,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use sgf_app_lib::state::GameDataState;
 use sgf_app_lib::watch;
+use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::textures::TextureView;
@@ -483,4 +484,44 @@ fn an_initializer_a_save_system_names_reads_as_its_file_writes_it() {
         )),
         ErrorKind::NotFound
     );
+}
+
+/// `issues.sav` lists Gidzerak (789) in a nebula it lies outside. Its key `Gidzerak` reads as
+/// written until game data loads, and then as the install localises it.
+#[test]
+fn issues_read_again_name_a_system_as_the_install_loaded_after_the_open_does() {
+    const ISSUES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/issues.sav");
+    let dir = tempfile::tempdir().expect("temp dir");
+    let install = common::hand_written(
+        dir.path(),
+        &[
+            ("common/defines/00_defines.txt", ""),
+            (
+                "localisation/english/names_l_english.yml",
+                "l_english:\n Gidzerak:0 \"Gidzer'ak\"\n",
+            ),
+        ],
+    );
+    let membership = |w: &_| {
+        let issues: Vec<Issue> = invoke(w, "get_issues", json!({})).expect("the issues");
+        let found: Vec<String> = issues
+            .into_iter()
+            .filter(|i| i.code == IssueCode::NebulaMembership && i.systems == [789])
+            .map(|i| i.message)
+            .collect();
+        assert_eq!(found.len(), 1, "{found:?}");
+        found[0].clone()
+    };
+
+    let w = common::opened(ISSUES);
+    let before = membership(&w);
+    assert!(before.starts_with("system 789 (Gidzerak) "), "{before}");
+    invoke::<Value>(
+        &w,
+        "load_game_data",
+        json!({ "installPath": install, "mods": false }),
+    )
+    .unwrap_or_else(|e| panic!("load game data: {}", e.message));
+    let after = membership(&w);
+    assert!(after.starts_with("system 789 (Gidzer'ak) "), "{after}");
 }

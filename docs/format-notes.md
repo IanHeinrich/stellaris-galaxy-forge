@@ -703,7 +703,9 @@ for planets or deposits.
   construction ship's order in `fleet`:
   `current_order={ build_megastructure_fleet_order={ type="hyper_relay"
   coordinate={ x y origin } planet=<id or null> … } }`. `build_queue` on
-  rows is null, and `construction` holds no megastructure items.
+  rows is null, and `construction` holds no megastructure items. The
+  game builds the row at the order's `coordinate`, so a move of the
+  planet must carry that coordinate with it.
 - The game writes a row tied to a body at that body's coordinate, not
   the body plus the type's `entity_offset`. It adds the offset where it
   draws the model. The 4.5 sample's `orbital_ring_ruined` (row 4) is
