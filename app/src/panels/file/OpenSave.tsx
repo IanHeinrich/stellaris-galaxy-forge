@@ -21,7 +21,11 @@ import {
   type Row,
   type Tab,
 } from "../../lib/openRows";
-import { useOpenScreenStore, type OpenScreenState } from "../../store/openScreenStore";
+import {
+  useOpenScreenStore,
+  watchWindowFocus,
+  type OpenScreenState,
+} from "../../store/openScreenStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Dialog } from "../Dialog";
 import { OpenDetails } from "./OpenDetails";
@@ -72,6 +76,7 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
 
   useEffect(() => {
     void useOpenScreenStore.getState().load();
+    return watchWindowFocus();
   }, []);
 
   useEffect(() => {

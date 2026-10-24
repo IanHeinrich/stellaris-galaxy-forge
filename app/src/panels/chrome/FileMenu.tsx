@@ -8,7 +8,7 @@ import { closeDocument, save, saveAs } from "../../store/commands";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { useOpenScreenStore } from "../../store/openScreenStore";
+import { showOpenScreen, useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { usePrepareStore } from "../../store/prepareStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
@@ -65,7 +65,6 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
   const modKnown = usePaintModStore((s) => s.known);
   const paintDir = usePaintModStore((s) => s.paintMod?.scenarios_dir ?? null);
-  const showOpenDialog = useLayoutStore((s) => s.showOpenDialog);
   const showScenarioDialog = useLayoutStore((s) => s.showScenarioDialog);
   const revealPrepare = usePrepareStore((s) => s.reveal);
   const open = status === "ready";
@@ -85,7 +84,7 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
         label="Open…"
         shortcut={shortcutLabel("open")}
         dismiss={dismiss}
-        onClick={showOpenDialog}
+        onClick={showOpenScreen}
       />
       <MenuItem label="Reload from disk" disabled={!open} dismiss={dismiss} onClick={reload} />
       <div className="menu-rule" />

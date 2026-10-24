@@ -7,10 +7,33 @@ import { TERRAN, VOID, campaignSave, modScenario } from "../test/builders";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
+const focus = vi.hoisted(() => {
+  const state = {
+    handler: null as ((e: { payload: boolean }) => void) | null,
+    unlisten: vi.fn(),
+  };
+  return state;
+});
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({
+    onFocusChanged: (handler: (e: { payload: boolean }) => void) => {
+      focus.handler = handler;
+      return Promise.resolve(focus.unlisten);
+    },
+  }),
+}));
+
 import { flush } from "../test/flush";
 import { mockedIpc } from "../test/ipc";
 import { footerOpens, navigableRows, selectedRow, type Row } from "../lib/openRows";
-import { detailsKey, useOpenScreenStore } from "./openScreenStore";
+import { useFileSessionStore } from "./fileSessionStore";
+import { useLayoutStore } from "./layoutStore";
+import {
+  detailsKey,
+  showOpenScreen,
+  useOpenScreenStore,
+  watchWindowFocus,
+} from "./openScreenStore";
 import {
   RECENT,
   armScreen,
@@ -311,6 +334,41 @@ describe("latest save", () => {
     const target = footerOpens(row, screen()).open!;
     await screen().open(target.path, target.mode);
     expect(mockedIpc.openDocument.mock.lastCall?.[0]).toBe(`${VOID.dir}/autosave_2231.01.01.sav`);
+  });
+});
+
+describe("reading the lists again while the screen shows", () => {
+  it("reads on File → Open… while the start screen or the dialog shows, and opens the dialog otherwise", async () => {
+    await screen().load();
+    showOpenScreen();
+    await flush();
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(2);
+
+    useFileSessionStore.setState({ status: "ready" });
+    showOpenScreen();
+    await flush();
+    expect(useLayoutStore.getState().openDialog).toBe(true);
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(2);
+
+    showOpenScreen();
+    await flush();
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(3);
+  });
+
+  it("reads each time the window regains focus while watched, and stops when unwatched", async () => {
+    await screen().load();
+    const unwatch = watchWindowFocus();
+
+    focus.handler?.({ payload: false });
+    await flush();
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(1);
+    focus.handler?.({ payload: true });
+    await flush();
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(2);
+
+    unwatch();
+    await flush();
+    expect(focus.unlisten).toHaveBeenCalledOnce();
   });
 });
 

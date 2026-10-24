@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { CampaignListing } from "../generated/CampaignListing";
@@ -85,6 +86,27 @@ export function resetOpenScreen(): void {
   listedDirs.clear();
   readingDetails.clear();
   useOpenScreenStore.setState({ ...INITIAL });
+}
+
+/**
+ * File → Open…: the dialog over an open document, or, while the Open screen already shows as
+ * the start screen or the dialog, its lists read again.
+ */
+export function showOpenScreen(): void {
+  const layout = useLayoutStore.getState();
+  if (useFileSessionStore.getState().status === "ready" && !layout.openDialog) {
+    layout.showOpenDialog();
+    return;
+  }
+  void useOpenScreenStore.getState().load();
+}
+
+/** Reads the lists again each time the window regains focus, as after the game saved; returns the stop. */
+export function watchWindowFocus(): () => void {
+  const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+    if (focused) void useOpenScreenStore.getState().load();
+  });
+  return () => void unlisten.then((stop) => stop());
 }
 
 /** What a refused open says when the session named no failure of its own. */
