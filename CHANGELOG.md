@@ -8,6 +8,25 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-10-24
+
+### Added
+
+- The Open screen starts with your latest save, already selected, so
+  Enter opens it.
+
+### Fixed
+
+- Add modifier lists the markers mods put on planets, such as
+  Gigastructural Engineering's Asteroid Industrial Site Candidates.
+  - Add one to an asteroid to build that site there. Remove it and the
+    site can no longer be built.
+- A megastructure still being started when you move its planet is built
+  over the planet's new place.
+- The Open screen shows saves the game wrote while Galaxy Forge was open,
+  and its filter finds a save by its file name.
+- The undo list and the Issues tab name systems as the game does.
+
 ## [0.27.1] - 2026-10-20
 
 ### Fixed
