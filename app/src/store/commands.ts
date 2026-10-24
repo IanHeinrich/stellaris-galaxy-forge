@@ -32,7 +32,7 @@ import { useInitializerBrowserStore } from "./initializerBrowserStore";
 import { refKey, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
-import { useOpenScreenStore } from "./openScreenStore";
+import { showOpenScreen, useOpenScreenStore } from "./openScreenStore";
 import { bodiesCanCopy, pastesInto, pointerPlacement, usePlanetMoveStore } from "./planetMoveStore";
 import { canEnterSystem, currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { nudgeBody } from "./systemGeometry";
@@ -346,7 +346,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
   const layout = useLayoutStore.getState();
   switch (action) {
     case "open":
-      if (session.status === "ready") useLayoutStore.getState().showOpenDialog();
+      showOpenScreen();
       return true;
     case "browse":
       if (session.status !== "loading" && useGameDataStore.getState().startup !== "setup") {

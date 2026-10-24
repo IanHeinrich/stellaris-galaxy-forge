@@ -1,7 +1,8 @@
-import type { MouseEvent, RefObject } from "react";
+import { useEffect, useState, type MouseEvent, type RefObject } from "react";
 import {
   recentTitle,
   type CampaignRow,
+  type LatestRow,
   type RecentRow,
   type Row,
   type SaveRow,
@@ -16,7 +17,7 @@ import type { SaveMeta } from "../../generated/SaveMeta";
 import type { ScenarioListing } from "../../generated/ScenarioListing";
 import { saveFlagKey } from "../../lib/flagKey";
 import { SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
-import { formatSize, formatWhen } from "../../lib/text";
+import { formatSize, formatWhen, savedAgo } from "../../lib/text";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useTextureUrl } from "../useTextureUrl";
 import { useForPaint } from "./useForPaint";
@@ -62,6 +63,15 @@ function CloudFlag({ cloud }: { cloud: boolean }) {
   return (
     <span className="flag" title={CLOUD_TITLE}>
       ☁
+    </span>
+  );
+}
+
+function IronmanFlag({ ironman }: { ironman: boolean }) {
+  if (!ironman) return null;
+  return (
+    <span className="flag" title={IRONMAN_TITLE}>
+      ⚿
     </span>
   );
 }
@@ -127,6 +137,49 @@ function CampaignRowLine({ row }: { row: CampaignRow }) {
   );
 }
 
+const MINUTE_MS = 60_000;
+
+/** The clock in seconds, read again each minute while the component stays mounted. */
+function useMinuteClock(): number {
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now() / 1000), MINUTE_MS);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+}
+
+/** The All tab's card: the newest save, how long ago it was saved, and its own Open. */
+function LatestCard({ row, onOpen }: { row: LatestRow; onOpen?: (path: string) => void }) {
+  const now = useMinuteClock();
+  return (
+    <>
+      <span className="open-main">
+        <span className="open-latest-head">Latest save · saved {savedAgo(row.modified, now)}</span>
+        <span className="open-title">
+          <EmpireMark meta={row.campaign.meta} size="row" />
+          {row.empire}
+          <CloudFlag cloud={row.campaign.cloud} />
+          <IronmanFlag ironman={row.campaign.meta?.ironman ?? false} />
+        </span>
+        <span className="open-sub">{row.subtitle}</span>
+      </span>
+      <button
+        type="button"
+        className="primary"
+        tabIndex={-1}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onClick={() => onOpen?.(row.path)}
+      >
+        Open
+      </button>
+    </>
+  );
+}
+
 function SaveRowLine({ row }: { row: SaveRow }) {
   return (
     <>
@@ -135,11 +188,7 @@ function SaveRowLine({ row }: { row: SaveRow }) {
           <span className="open-date">{row.title}</span>
           {row.autosave && <span className="flag">autosave</span>}
           <CloudFlag cloud={row.file.cloud} />
-          {row.file.meta?.ironman && (
-            <span className="flag" title={IRONMAN_TITLE}>
-              ⚿
-            </span>
-          )}
+          <IronmanFlag ironman={row.file.meta?.ironman ?? false} />
         </span>
         {row.sub && <span className="open-sub open-date">{row.sub}</span>}
       </span>
@@ -178,8 +227,18 @@ function ScenarioRowLine({ row }: { row: ScenarioRow }) {
   );
 }
 
-export function RowLine({ row, onForget }: { row: Row; onForget: (path: string) => void }) {
+export function RowLine({
+  row,
+  onForget,
+  onOpen,
+}: {
+  row: Row;
+  onForget: (path: string) => void;
+  onOpen?: (path: string) => void;
+}) {
   switch (row.kind) {
+    case "latest":
+      return <LatestCard row={row} onOpen={onOpen} />;
     case "recent":
       return <RecentRowLine row={row} onForget={() => onForget(row.doc.path)} />;
     case "campaign":
@@ -200,6 +259,8 @@ function rowPath(row: Row): string | null {
       return row.doc.path;
     case "save":
       return row.file.path;
+    case "latest":
+      return row.path;
     case "scenario":
       return row.listing.path;
     case "campaign":
@@ -222,6 +283,7 @@ export function SectionRows({
   rows,
   onPress,
   onForget,
+  onOpen,
   onClear,
   onShowAll,
 }: {
@@ -232,25 +294,28 @@ export function SectionRows({
   rows: RefObject<Map<string, HTMLDivElement>>;
   onPress: (row: Row, e: MouseEvent) => void;
   onForget: (path: string) => void;
+  onOpen: (path: string) => void;
   onClear: () => void;
   onShowAll: () => void;
 }) {
   return (
     <section className="open-section">
-      <div className="open-heading">
-        {section.label}
-        {section.id === "recent" && section.rows.length > 0 && (
-          <button
-            type="button"
-            className="ghost"
-            title="Empty the recent list"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={onClear}
-          >
-            Clear
-          </button>
-        )}
-      </div>
+      {section.id !== "latest" && (
+        <div className="open-heading">
+          {section.label}
+          {section.id === "recent" && section.rows.length > 0 && (
+            <button
+              type="button"
+              className="ghost"
+              title="Empty the recent list"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onClear}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
       {section.note && <div className="open-note">{section.note}</div>}
       {section.notices.map((notice, i) => (
         <div key={`${i}:${notice}`} className="open-note warn">
@@ -291,7 +356,7 @@ export function SectionRows({
                 onPress(row, e);
               }}
             >
-              <RowLine row={row} onForget={onForget} />
+              <RowLine row={row} onForget={onForget} onOpen={onOpen} />
               {error && <div className="open-row-error">{error}</div>}
             </div>
           </div>

@@ -253,7 +253,7 @@ fn a_construction_the_add_cannot_write_is_refused() {
             ),
             (
                 built(twice),
-                "\"shroud_seal_modifier\" cannot be written as a modifier listed once",
+                "\"shroud_seal_modifier\" is listed twice as a modifier",
             ),
         ],
     );

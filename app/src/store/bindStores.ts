@@ -1,3 +1,4 @@
+import * as ipc from "../api/ipc";
 import { followModelPrewarm } from "./modelPrewarm";
 import { detailNameKeys } from "../lib/details/labels";
 import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual/layerGroups";
@@ -16,7 +17,7 @@ import {
   noteInitializerLimits,
   noteReservedSpawns,
 } from "./issueNotes";
-import { useIssuesStore } from "./issuesStore";
+import { issuesDocument, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -50,6 +51,7 @@ export function bindStores(): void {
   followGroups();
   followIssuesTab();
   followGameData();
+  followMissedIssues();
   followDetails();
   followLocks();
   followScenarioInitializers();
@@ -446,7 +448,8 @@ function paintModPollWanted(): boolean {
 }
 
 // Game data loading, reloading or going away drops everything read from what it replaces, and
-// redraws the stars a scenario takes from its initializers.
+// redraws the stars a scenario takes from its initializers and reads the issues again, which
+// name systems as the install localises them.
 function followGameData(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (
@@ -456,8 +459,33 @@ function followGameData(): void {
     ) {
       for (const reset of GAME_DATA_SCOPED) reset();
       void redrawStars();
+      void rereadIssues();
     }
   });
+}
+
+/** Game data changed while a document was opening, so the issues it lands with miss its names. */
+let issuesMissed = false;
+
+// A document that lands after game data changed under its open reads its issues again, once
+// they have loaded.
+function followMissedIssues(): void {
+  useIssuesStore.subscribe(() => {
+    if (!issuesMissed || useFileSessionStore.getState().status !== "ready") return;
+    issuesMissed = false;
+    void rereadIssues();
+  });
+}
+
+async function rereadIssues(): Promise<void> {
+  const { status } = useFileSessionStore.getState();
+  if (status === "loading") issuesMissed = true;
+  if (status !== "ready") return;
+  const opened = issuesDocument();
+  const findings = await ipc.getIssues().catch(() => null);
+  if (findings !== null && opened === issuesDocument()) {
+    useIssuesStore.getState().setFindings(findings);
+  }
 }
 
 // Details that land bring localisation keys of their own, which the game data resolves once.

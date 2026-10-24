@@ -15,7 +15,9 @@ mod systems;
 mod waylines;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::fmt;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -112,6 +114,36 @@ pub struct Galaxy {
     pub global_flags: Vec<String>,
     /// The save's `galaxy` block as the Open dialog reads it; `None` for a scenario.
     pub settings: Option<GalaxySettings>,
+    /// The loaded install's text for name keys, which the session sets.
+    #[serde(skip)]
+    pub(crate) names: LocalisedNames,
+}
+
+type Resolve = dyn Fn(&str) -> Option<String> + Send + Sync;
+
+/// The localised text of a name key as the loaded install gives it, which is what the map
+/// shows; none is known without an install.
+#[derive(Clone, Default)]
+pub struct LocalisedNames(Option<Arc<Resolve>>);
+
+impl LocalisedNames {
+    pub fn new(resolve: impl Fn(&str) -> Option<String> + Send + Sync + 'static) -> Self {
+        Self(Some(Arc::new(resolve)))
+    }
+
+    /// The text of `key`; `None` without an install or when it has no entry.
+    pub fn get(&self, key: &str) -> Option<String> {
+        self.0.as_ref().and_then(|resolve| resolve(key))
+    }
+}
+
+impl fmt::Debug for LocalisedNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self.0 {
+            Some(_) => "LocalisedNames(install)",
+            None => "LocalisedNames(none)",
+        })
+    }
 }
 
 /// The setup screen a save was started with, as its top-level `galaxy` block still holds
@@ -173,6 +205,18 @@ pub fn display_template(name: &NameTemplate) -> String {
 }
 
 impl Galaxy {
+    /// A system's `name` as the map shows it: a literal as written, a key by the loaded
+    /// install's text, and any other through [`display_name`].
+    pub fn shown_name(&self, name: &NameTemplate) -> String {
+        match name.literal {
+            true => name.key.clone(),
+            false => self
+                .names
+                .get(&name.key)
+                .unwrap_or_else(|| display_name(&name.key)),
+        }
+    }
+
     /// The lane from `a` to `b` as listed on `a`.
     pub fn lane(&self, a: u32, b: u32) -> Option<&Lane> {
         self.systems.get(&a)?.lanes.iter().find(|l| l.to == b)

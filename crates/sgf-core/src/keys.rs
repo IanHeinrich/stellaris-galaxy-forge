@@ -290,6 +290,9 @@ pub(crate) const ASTRAL_RIFTS: &str = "astral_rifts";
 /// save-key test cannot look for it.
 pub(crate) const TERRAFORM_PROCESS: &str = "terraform_process";
 
+/// A construction ship's order to start a megastructure, which no sample save's fleet holds.
+pub(crate) const BUILD_MEGASTRUCTURE_FLEET_ORDER: &str = "build_megastructure_fleet_order";
+
 /// A planet flag an Arc Furnace sets on the planet it is built around, which no sample save
 /// has.
 pub(crate) const HAS_ARC_FURNACE: &str = "has_arc_furnace";

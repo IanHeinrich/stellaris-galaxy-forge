@@ -1,0 +1,33 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added modifier terraforming_candidate to Xu Nur I #585
+inverse: RemoveBodyModifier { body: 585, modifier: "terraforming_candidate", feature: None, flags: [PlanetFlag { flag: "candidate_marker", date: None }, PlanetFlag { flag: "candidate_kind", date: None }] }
+
+--- gamestate
++++ gamestate
+@@ -110114,6 +110114,23 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="terraforming_candidate"
++						days=-1
++					}
++ 
++				}
++			}
++			flags=
++			{
++				candidate_marker=62818656
++				candidate_kind=62818656
++			}
+ 			entity=2
+ 		}
+ 		586=

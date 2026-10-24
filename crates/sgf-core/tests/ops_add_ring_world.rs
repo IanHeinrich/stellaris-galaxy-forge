@@ -213,7 +213,7 @@ fn what_an_add_refuses() {
             (add(HABRAQ, sizeless), "a planet size may not be zero"),
             (
                 add(HABRAQ, twice),
-                "\"ring_world_built\" cannot be written as a flag listed once",
+                "\"ring_world_built\" is listed twice as a flag",
             ),
             (
                 add(999_999, finished_ring()),
@@ -552,7 +552,7 @@ fn what_a_segments_modifiers_refuse() {
             ),
             (
                 with(&[None, Some(360)]),
-                "\"giga_titanic_housing\" cannot be written as a modifier listed once",
+                "\"giga_titanic_housing\" is listed twice as a modifier",
             ),
         ],
     );

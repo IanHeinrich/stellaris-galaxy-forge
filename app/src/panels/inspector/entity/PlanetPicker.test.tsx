@@ -15,6 +15,7 @@ import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { bindStores } from "../../../store/bindStores";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { useModifierPickerStore } from "../../../store/modifierPickerStore";
+import { modifierChoice, modifierView } from "../../../store/fixtures/planet";
 import { resetStores } from "../../../store/storeFixture";
 import { ANOMALY_PICKER } from "./AnomalyPicker";
 import { ConfirmLine } from "./ConfirmLine";
@@ -28,20 +29,7 @@ bindStores();
 const TARGET = pickerTarget(planetPage({ id: 40, class: "pc_barren", size: 12 }));
 
 const MODIFIERS: ModifierChoice[] = [
-  {
-    modifier: "mineral_poor",
-    feature: "pm_mineral_poor",
-    category: "Feature",
-    description: null,
-    view: {
-      key: "pm_mineral_poor",
-      name: "Mineral Poor",
-      static_modifier: "mineral_poor",
-      icon: null,
-      icon_frame: null,
-      effects: [],
-    },
-  },
+  modifierChoice("mineral_poor", "Mineral Poor", { feature: "pm_mineral_poor" }),
 ];
 const ANOMALIES: AnomalyChoice[] = [
   { key: "asteroid_category", name: "Asteroid in Orbit", level: 2, description: null, usual: true },
@@ -116,25 +104,19 @@ describe("a planet picker", () => {
 
 describe("a picker's rows and card", () => {
   const effect = (text: string) => ({ key: "planet_stability_add", value: 1, text });
-  const ROCKY: ModifierChoice = {
-    modifier: "rocky_planet",
-    feature: null,
-    category: "Positive",
+  const ROCKY = modifierChoice("rocky_planet", "Rocky Planet", {
     description: "A world of stone.",
-    view: {
-      key: "rocky_planet",
+    view: modifierView("rocky_planet", {
       name: "Rocky Planet",
       static_modifier: "rocky_planet",
-      icon: null,
-      icon_frame: null,
       effects: [
         effect("+10% Minerals"),
         effect("+5 Stability"),
         effect("-1 Max Districts"),
         effect("+2 Housing"),
       ],
-    },
-  };
+    }),
+  });
 
   it("names a row's first two effects and counts the rest, or says it has none", () => {
     useModifierPickerStore.setState({

@@ -340,9 +340,12 @@ pub enum Op {
     /// game's `add_modifier` does. With `feature`, a planet feature (`pm_*`) whose static
     /// modifier `modifier` is, its `planet_modifier` line goes before `entity` too, unless the
     /// planet has it, and `days` may be empty. Days are written as given, a negative count
-    /// that a save holds included. A system's star is refused, and so are a modifier the
-    /// planet has, days of 0, more than `MAX_MODIFIER_COPIES` items and a save before
-    /// Stellaris 4.0. The inverse removes what it wrote. Save documents only.
+    /// that a save holds included. Each of `flags` the planet lacks goes last in its planet
+    /// `flags`, dated its `date` or the save's date; a flag it holds is left as it is. A
+    /// system's star is refused, and so are a modifier the planet has, days of 0, more than
+    /// `MAX_MODIFIER_COPIES` items, a flag that is not an identifier or is listed twice and a
+    /// save before Stellaris 4.0. The inverse removes what it wrote, the flags it wrote
+    /// included. Save documents only.
     AddBodyModifier {
         body: u32,
         modifier: String,
@@ -350,18 +353,27 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         feature: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[ts(optional, as = "Option<Vec<PlanetFlag>>")]
+        flags: Vec<PlanetFlag>,
     },
     /// Every `timed_modifier` item naming `modifier` on a save planet, permanent or not, as
-    /// the game's `remove_modifier` takes it, and with `feature` every `planet_modifier` line
-    /// naming that. A system's star is refused, and so are a planet with neither, an item
-    /// whose days are not a number and a save before Stellaris 4.0. The inverse adds back
-    /// what it took, each item with its days. Save documents only.
+    /// the game's `remove_modifier` takes it, with `feature` every `planet_modifier` line
+    /// naming that, and every line of each of `flags` the planet holds, its `flags` block
+    /// with the last. A flag held as a timed block stays. A system's star is refused, and so
+    /// are a planet with neither the modifier nor the feature, an item whose days are not a
+    /// number, a flag that is not an identifier or is listed twice and a save before
+    /// Stellaris 4.0. The inverse adds back what it took, each item with its days and each
+    /// flag once with the date of its first line. Save documents only.
     RemoveBodyModifier {
         body: u32,
         modifier: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         feature: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[ts(optional, as = "Option<Vec<PlanetFlag>>")]
+        flags: Vec<PlanetFlag>,
     },
     /// A save planet's anomaly, `anomaly="<category>"` written after its `planet_orbitals`
     /// as given. Without `found_by`, the planet also goes last in the player's

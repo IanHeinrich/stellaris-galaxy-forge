@@ -72,6 +72,11 @@ pub(crate) fn fit_to_game_data<R: Runtime>(app: &AppHandle<R>, session: &mut Ses
             .map(|gd| gd.session_star_classes())
             .unwrap_or_default(),
     );
+    session.set_names(
+        gd.as_ref()
+            .map(|gd| gd.loc.session_names())
+            .unwrap_or_default(),
+    );
     session.set_ring_world_types(gd.map(|gd| ring_world_types(&gd)).unwrap_or_default());
 }
 

@@ -124,6 +124,7 @@ impl Galaxy {
             kaleidoscope: kaleidoscope(index, src)?,
             global_flags: global_flags_of_index(index, src)?,
             settings,
+            names: Default::default(),
         };
         galaxy.assign_nebulae();
         galaxy.refresh_turbulence();

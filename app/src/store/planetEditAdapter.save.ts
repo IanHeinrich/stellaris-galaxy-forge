@@ -2,11 +2,14 @@
  * A save's row of `PLANET_EDITS`: the save's own op for each field of a body, and its removals.
  * A save takes no ranges.
  */
+import type { PlanetFlag } from "../generated/PlanetFlag";
 import type { PlanetPageDeposit } from "../generated/PlanetPageDeposit";
+import * as ipc from "../api/ipc";
+import { removalFlags } from "../lib/details/bodiesEdit";
 import { classRule } from "../lib/details/planetClass";
 import { PERMANENT } from "../lib/details/planetEdits";
 import { DEFAULT_MODEL } from "../lib/details/planetModel";
-import type { ModifierRow } from "../lib/details/planetPage";
+import { heldModifiers, type ModifierRow } from "../lib/details/planetPage";
 import { classForBodies } from "../lib/details/starBody";
 import type { BodyOps } from "./planetEditAdapter";
 import { deletePlanet, removeColony } from "./planetRemoval";
@@ -16,6 +19,11 @@ export interface SaveRowRefs {
   deposit: PlanetPageDeposit;
   modifier: ModifierRow;
   digSite: number;
+}
+
+/** The `flags` field of a modifier's op for planet flags `flags`, left out when there are none. */
+function flagsField(flags: readonly string[]): { flags?: PlanetFlag[] } {
+  return flags.length === 0 ? {} : { flags: flags.map((flag) => ({ flag })) };
 }
 
 export const SAVE_BODY_OPS: BodyOps<SaveRowRefs> = {
@@ -59,12 +67,15 @@ export const SAVE_BODY_OPS: BodyOps<SaveRowRefs> = {
     modifier: pick.modifier,
     days: [days ?? PERMANENT],
     ...(pick.feature === null ? {} : { feature: pick.feature }),
+    ...flagsField(pick.flags),
   }),
-  removeModifier: (body, row) => ({
+  heldModifiers: async (body) => heldModifiers(await ipc.getPlanetPage(body)),
+  removeModifier: (body, row, has, choices) => ({
     type: "RemoveBodyModifier",
     body,
     modifier: row.modifier,
     ...(row.feature ? { feature: row.key } : {}),
+    ...flagsField(removalFlags(row, has, choices)),
   }),
   addAnomaly: (body, category) => ({ type: "AddAnomaly", body, category }),
   removeAnomaly: (body) => ({ type: "RemoveAnomaly", body }),

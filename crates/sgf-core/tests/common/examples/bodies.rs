@@ -41,11 +41,13 @@ pub(super) fn examples() -> Vec<Example> {
             modifier: "terraforming_candidate".to_owned(),
             days: vec![-1],
             feature: None,
+            flags: Vec::new(),
         }),
         Example::save_4_5(Op::RemoveBodyModifier {
             body: 151,
             modifier: "mineral_poor".to_owned(),
             feature: Some("pm_mineral_poor".to_owned()),
+            flags: Vec::new(),
         }),
         Example::save_4_5(Op::AddAnomaly {
             body: 3,

@@ -37,7 +37,10 @@ pub(super) fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         if obstacles.off_map {
             issues.push(Issue::new(
                 IssueCode::FeZoneOffMap,
-                format!("Fallen empire zone from {} is off the map.", label(anchor)),
+                format!(
+                    "Fallen empire zone from {} is off the map.",
+                    label(g, anchor)
+                ),
                 vec![anchor.id],
             ));
         }
@@ -46,8 +49,8 @@ pub(super) fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 IssueCode::FeZoneBlocked,
                 format!(
                     "Fallen empire zone from {} is blocked by {}: the mod needs the ring empty.{}",
-                    label(anchor),
-                    label(blocker),
+                    label(g, anchor),
+                    label(g, blocker),
                     recompute(automatic)
                 ),
                 vec![anchor.id, blocker.id],
@@ -59,8 +62,8 @@ pub(super) fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                     IssueCode::FeZoneOverlap,
                     format!(
                         "Fallen empire zones from {} and {} overlap: the mod cannot fill both.{}",
-                        label(anchor),
-                        label(other),
+                        label(g, anchor),
+                        label(g, other),
                         recompute(automatic || other_automatic)
                     ),
                     vec![anchor.id, other.id],
@@ -163,9 +166,9 @@ fn marauders_near_seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                         IssueCode::MarauderNearSeat,
                         format!(
                             "Marauder clan {clan}'s home {} is within {} of the seat {}. Raids hit that empire first.",
-                            label(home),
+                            label(g, home),
                             marauder::SEAT_CLEARANCE,
-                            label(seat)
+                            label(g, seat)
                         ),
                         vec![home.id, seat.id],
                     ));
@@ -213,7 +216,7 @@ pub(super) fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 IssueCode::FeLinkIsolated,
                 format!(
                     "{} takes custom connections but anchors no fallen empire zone.",
-                    label(anchor)
+                    label(g, anchor)
                 ),
                 vec![anchor.id],
             ));
@@ -228,7 +231,7 @@ pub(super) fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 IssueCode::FeLinkIsolated,
                 format!(
                     "{} takes custom connections for its fallen empire zone but no system links to it. The mod will lay no hyperlanes to the fallen empire.",
-                    label(anchor)
+                    label(g, anchor)
                 ),
                 vec![anchor.id],
             ));
@@ -240,14 +243,14 @@ pub(super) fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 .iter()
                 .filter(|other| other.id != anchor.id)
                 .collect();
-            let names: Vec<String> = others.iter().map(|other| label(other)).collect();
+            let names: Vec<String> = others.iter().map(|other| label(g, other)).collect();
             let mut involved = vec![anchor.id];
             involved.extend(others.iter().map(|other| other.id));
             issues.push(Issue::new(
                 IssueCode::FeLinkShared,
                 format!(
                     "{} shares fallen empire connection {n} with {}. The systems linked to it join both fallen empires.",
-                    label(anchor),
+                    label(g, anchor),
                     listed(&names)
                 ),
                 involved,
@@ -261,7 +264,7 @@ pub(super) fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                     IssueCode::FeLinkDangling,
                     format!(
                         "{} links to fallen empire connection {n}, which no zone takes.",
-                        label(system)
+                        label(g, system)
                     ),
                     vec![system.id],
                 ));
@@ -276,7 +279,7 @@ pub(super) fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                         IssueCode::FeLinkFar,
                         format!(
                             "{} is {d:.0} from the fallen empire zone it links to. The mod lays the hyperlane anyway.",
-                            label(system)
+                            label(g, system)
                         ),
                         vec![system.id, anchor.id],
                     ));

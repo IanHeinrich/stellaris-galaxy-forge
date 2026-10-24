@@ -1,19 +1,20 @@
 //! A save planet's modifiers: the items of its `timed_modifier`, as the game's `add_modifier`
 //! and `remove_modifier` write them, and the `planet_modifier="pm_…"` line of a planet
-//! feature whose static modifier one of them is. A new block goes after
-//! `bombardment_damage` and a feature's line before `entity`, where Stellaris 4.x writes
-//! them; an older save puts both elsewhere and is refused.
+//! feature whose static modifier one of them is, with the planet flags set beside them. A
+//! new block goes after `bombardment_damage` and a feature's line before `entity`, where
+//! Stellaris 4.x writes them; an older save puts both elsewhere and is refused.
 
 use crate::cst::Node;
 use crate::emit::quoted;
 use crate::format::save::read_spec::bodies;
+use crate::format::save::write::flags::{add_flags, drop_flags, today};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{PlanetEntry, named_planet, star_refused};
 use crate::format::save::write::timed_modifiers::{self, End, ItemEdit};
 use crate::keys;
-use crate::ops::rules::modifiers::{check_days, check_modifier};
+use crate::ops::rules::modifiers::{check_days, check_flags, check_modifier};
 use crate::ops::rules::{Form, check_text};
-use crate::ops::{Edit, NewModifier, Op, OpError, ParseAt, Plan, Planned, StarEdit};
+use crate::ops::{Edit, NewModifier, Op, OpError, ParseAt, Plan, PlanetFlag, Planned, StarEdit};
 use crate::projections::read;
 use crate::session::Session;
 use crate::span::Span;
@@ -23,19 +24,22 @@ use crate::span::Span;
 /// keeps a hand-typed op from writing thousands.
 pub(crate) const MAX_MODIFIER_COPIES: u32 = 16;
 
-/// The planet `id`'s entity and system, once the save is known to be 4.x, the modifier and
-/// feature are checked and the planet is known not to be its system's star.
+/// The planet `id`'s entity and system, once the save is known to be 4.x, the modifier,
+/// feature and flags are checked and the planet is known not to be its system's star.
 fn planet<'a>(
     s: &'a Session,
     id: u32,
     modifier: &str,
     feature: Option<&str>,
+    flags: &[PlanetFlag],
 ) -> Result<(Node, &'a [u8], u32), OpError> {
     let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     check_modifier(modifier)?;
     if let Some(feature) = feature {
         check_text("a planet feature", feature, Form::Bare)?;
     }
+    let names: Vec<String> = flags.iter().map(|f| f.flag.clone()).collect();
+    check_flags("a planet flag", &names)?;
     if bodies(&s.doc, system)?.first() == Some(&id) {
         return Err(star_refused(&node, src, id, StarEdit::Modifier));
     }
@@ -49,8 +53,9 @@ pub(crate) fn plan_add(
     modifier: &str,
     days: &[i32],
     feature: Option<&str>,
+    flags: &[PlanetFlag],
 ) -> Result<Planned, OpError> {
-    let (node, src, system) = planet(s, id, modifier, feature)?;
+    let (node, src, system) = planet(s, id, modifier, feature, flags)?;
     check_items(days, feature)?;
     if timed_days(&node, src, modifier).next().is_some() {
         return Err(OpError::ModifierPresent(id, modifier.to_owned()));
@@ -60,6 +65,24 @@ pub(crate) fn plan_add(
         let feature = feature.unwrap_or(modifier);
         return Err(OpError::ModifierPresent(id, feature.to_owned()));
     }
+    let lacked: Vec<&PlanetFlag> = flags
+        .iter()
+        .filter(|f| !read::has_flag(&node, src, &f.flag))
+        .collect();
+    let today = if lacked.iter().any(|f| f.date.is_none()) {
+        today(&s.doc)?
+    } else {
+        String::new()
+    };
+    let dated: Vec<(&str, String)> = lacked
+        .iter()
+        .map(|f| {
+            let date = f
+                .date
+                .map_or_else(|| today.clone(), |date| date.to_string());
+            (f.flag.as_str(), date)
+        })
+        .collect();
     let edit = plan.edit_planet(&s.doc, id, system)?;
     let items: Vec<_> = days
         .iter()
@@ -77,12 +100,20 @@ pub(crate) fn plan_add(
     if let Some(feature) = written {
         add_feature_line(edit, feature)?;
     }
+    add_flags(edit, &dated, &place::planet::FLAGS)?;
     Ok(Planned {
         description: add_description(&named_planet(s, id)?, modifier, days, written),
         inverse: Op::RemoveBodyModifier {
             body: id,
             modifier: modifier.to_owned(),
             feature: written.map(str::to_owned),
+            flags: lacked
+                .iter()
+                .map(|f| PlanetFlag {
+                    flag: f.flag.clone(),
+                    date: None,
+                })
+                .collect(),
         },
     })
 }
@@ -93,8 +124,9 @@ pub(crate) fn plan_remove(
     id: u32,
     modifier: &str,
     feature: Option<&str>,
+    flags: &[PlanetFlag],
 ) -> Result<Planned, OpError> {
-    let (node, src, system) = planet(s, id, modifier, feature)?;
+    let (node, src, system) = planet(s, id, modifier, feature, flags)?;
     let days: Vec<i32> = timed_days(&node, src, modifier)
         .map(|(offset, days)| {
             days.parse().map_err(|_| {
@@ -114,6 +146,7 @@ pub(crate) fn plan_remove(
             feature.unwrap_or(modifier).to_owned(),
         ));
     }
+    let taken_flags = held_flags(&node, src, flags);
     let edit = plan.edit_planet(&s.doc, id, system)?;
     let items = [(modifier, ItemEdit::Remove)];
     timed_modifiers::set_items(edit, &place::planet::TIMED_MODIFIER, &items)?;
@@ -125,6 +158,7 @@ pub(crate) fn plan_remove(
             edit.bytes().remove_lines(span);
         }
     }
+    drop_flags(edit, |flag| taken_flags.iter().any(|f| f.flag == flag))?;
     let named = named_planet(s, id)?;
     let description = match taken {
         Some(feature) => format!("Removed planet feature {feature} ({modifier}) from {named}"),
@@ -137,8 +171,37 @@ pub(crate) fn plan_remove(
             modifier: modifier.to_owned(),
             days,
             feature: taken.map(str::to_owned),
+            flags: taken_flags,
         },
     })
+}
+
+/// The flags of `listed` that planet `node` holds dated, in the order its `flags` block holds
+/// them, each once with its first date. A flag held as a timed block is left out, because an
+/// add cannot write it back, and stays on the planet.
+fn held_flags(node: &Node, src: &[u8], listed: &[PlanetFlag]) -> Vec<PlanetFlag> {
+    let Some(block) = node.find(keys::FLAGS, src) else {
+        return Vec::new();
+    };
+    let lines = block.children();
+    let mut held: Vec<PlanetFlag> = Vec::new();
+    for flag in lines.iter().filter_map(|line| line.key_str(src)) {
+        if held.iter().any(|f| f.flag == flag) || !listed.iter().any(|f| f.flag == flag) {
+            continue;
+        }
+        let dates: Option<Vec<u32>> = lines
+            .iter()
+            .filter(|line| line.key_str(src) == Some(flag))
+            .map(|line| line.scalar_str(src).and_then(|date| date.parse().ok()))
+            .collect();
+        if let Some(dates) = dates {
+            held.push(PlanetFlag {
+                flag: flag.to_owned(),
+                date: dates.first().copied(),
+            });
+        }
+    }
+    held
 }
 
 /// Refuse a modifier added for `days`: more items than `MAX_MODIFIER_COPIES`, none without

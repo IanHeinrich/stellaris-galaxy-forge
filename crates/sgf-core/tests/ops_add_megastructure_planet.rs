@@ -107,7 +107,7 @@ fn what_an_add_with_a_planet_refuses() {
             ),
             (
                 timed(&[None, Some(30)]),
-                "\"ringyard_alloys\" cannot be written as a modifier listed once",
+                "\"ringyard_alloys\" is listed twice as a modifier",
             ),
         ],
     );

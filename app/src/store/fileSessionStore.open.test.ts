@@ -395,3 +395,33 @@ describe("game data changing under an open scenario", () => {
     );
   });
 });
+
+describe("game data changing under an open save", () => {
+  it("replaces the findings with the session's, which name systems as the install does", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    const [issue] = OPEN_RESULT.issues;
+    const renamed = { ...issue, message: "Deneb Prime has no lanes" };
+    mockedIpc.getIssues.mockResolvedValueOnce([renamed]);
+
+    useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
+
+    await until(() => expect(useIssuesStore.getState().issues).toEqual([renamed]));
+    expect(useIssuesStore.getState().baseline.has("system_isolated:5")).toBe(true);
+  });
+
+  it("reads the issues again once a save that was opening when it changed lands", async () => {
+    let land: (result: typeof OPEN_RESULT) => void = () => undefined;
+    mockedIpc.openDocument.mockImplementationOnce(() => new Promise((resolve) => (land = resolve)));
+    const opening = session().openSave(OPEN_RESULT.path);
+    await until(() => expect(session().status).toBe("loading"));
+    const [issue] = OPEN_RESULT.issues;
+    const renamed = { ...issue, message: "Deneb Prime has no lanes" };
+    mockedIpc.getIssues.mockResolvedValueOnce([renamed]);
+
+    useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
+    land(OPEN_RESULT);
+    await opening;
+
+    await until(() => expect(useIssuesStore.getState().issues).toEqual([renamed]));
+  });
+});

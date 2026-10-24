@@ -34,21 +34,21 @@ pub(crate) fn decide_set(
     let obstacles = fe_zone::obstacles(graph, id, centre);
     if obstacles.off_map {
         return Err(OpError::FeZoneOffMap {
-            anchor: label(anchor),
+            anchor: label(graph, anchor),
         });
     }
     match obstacles.blockers.first() {
         Some(blocker) => Err(OpError::FeZoneBlocked {
-            anchor: label(anchor),
-            blocker: label(blocker),
+            anchor: label(graph, anchor),
+            blocker: label(graph, blocker),
         }),
         None => Ok(()),
     }
 }
 
-/// What a message calls a system: its name, or `#N` when it has none.
-pub(crate) fn label(system: &SystemNode) -> String {
-    let name = system.display_name();
+/// What a message calls a system: its name as the map shows it, or `#N` when it has none.
+pub(crate) fn label(galaxy: &Galaxy, system: &SystemNode) -> String {
+    let name = galaxy.shown_name(&system.name);
     if name.is_empty() {
         format!("#{}", system.id)
     } else {

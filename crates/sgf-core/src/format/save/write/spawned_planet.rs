@@ -108,7 +108,7 @@ pub(crate) fn check(planet: &NewPlanet, name: Form) -> Result<(), OpError> {
         .iter()
         .map(|m| m.modifier.as_str())
         .collect();
-    listed_once("a modifier listed once", &names, |name| (*name).to_owned())?;
+    listed_once("a modifier", &names, |name| (*name).to_owned())?;
     check_flags("a planet flag", &planet.flags)
 }
 

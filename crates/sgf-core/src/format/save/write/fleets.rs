@@ -2,6 +2,8 @@
 //! another.
 
 use crate::emit::coord;
+use crate::entity::views::EntityKind;
+use crate::format::save::added::{Table, rows_containing};
 use crate::format::save::galaxy::fleets::{position, record};
 use crate::format::save::{entity, entity_at, system_statement};
 use crate::keys;
@@ -87,6 +89,48 @@ pub(crate) fn move_fleet(
         let edit = plan.edit_record(&s.doc, anchor)?;
         shift(edit, &[keys::COORDINATE], systems, step)?;
         shift(edit, &[keys::TARGET_COORDINATE], systems, step)?;
+    }
+    Ok(())
+}
+
+/// Shift by its body's step the `coordinate` of every fleet's
+/// `current_order.build_megastructure_fleet_order` at a body of `steps` in system `system`.
+/// Until the construction ship lays the site the build has no `megastructures` row, and the
+/// game writes the row at that coordinate.
+pub(crate) fn carry_build_orders(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    steps: &[(u32, (f64, f64))],
+) -> Result<(), OpError> {
+    if steps.is_empty() {
+        return Ok(());
+    }
+    let path = [
+        keys::CURRENT_ORDER,
+        keys::BUILD_MEGASTRUCTURE_FLEET_ORDER,
+        keys::COORDINATE,
+    ];
+    let fleets = rows_containing(
+        &s.doc,
+        Table::Entity(EntityKind::Fleet),
+        keys::BUILD_MEGASTRUCTURE_FLEET_ORDER.as_bytes(),
+    )?;
+    for fleet in fleets {
+        let body = fleet
+            .node
+            .find(keys::CURRENT_ORDER, fleet.src)
+            .and_then(|order| order.find(keys::BUILD_MEGASTRUCTURE_FLEET_ORDER, fleet.src))
+            .and_then(|build| read::scalar_u32(build, keys::PLANET, fleet.src));
+        let Some(&(_, step)) = body.and_then(|body| steps.iter().find(|(b, _)| *b == body)) else {
+            continue;
+        };
+        shift(
+            plan.edit_record(&s.doc, fleet.anchor)?,
+            &path,
+            [system, system],
+            Some(step),
+        )?;
     }
     Ok(())
 }

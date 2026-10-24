@@ -8,6 +8,23 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-10-24
+
+### Changed
+
+- The Open screen now shows your latest save at the top, highlighted.
+
+### Fixed
+
+- Add modifier lists the markers mods put on planets, such as
+  Gigastructural Engineering's Asteroid Industrial Site Candidates.
+- A megastructure whose construction has only just started now moves with
+  its planet when you move the planet.
+- The Open screen now updates when the game writes new saves while Galaxy
+  Forge is open.
+- The Open screen's filter can now find saves by file name.
+- The undo list and the Issues tab name systems as the game does.
+
 ## [0.27.1] - 2026-10-20
 
 ### Fixed

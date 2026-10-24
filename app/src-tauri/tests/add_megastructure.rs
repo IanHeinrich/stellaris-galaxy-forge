@@ -180,7 +180,7 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
     .expect("the Arc Furnace");
     assert_eq!(
         furnace.added.edit.entry.description,
-        "Added megastructure #16 (orbital_arc_furnace_4) in Alari system #169, with 11 modifiers, 11 deposits and 1 counter, leaving out 1 effect of its construction"
+        "Added megastructure #16 (orbital_arc_furnace_4) in Alar #169, with 11 modifiers, 11 deposits and 1 counter, leaving out 1 effect of its construction"
     );
     assert_eq!(
         furnace.unsure,

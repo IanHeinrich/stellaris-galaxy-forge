@@ -106,7 +106,7 @@ describe("opening a scenario file", () => {
     });
     mockedIpc.listScenarios.mockResolvedValue(listed([PAINTED, PLAIN]));
     mockedIpc.openDocument.mockResolvedValue(SCENARIO_RESULT);
-    await screen().load(null);
+    await screen().load();
   });
 
   it("opens a scenario for Paint a Galaxy at once while the mod is enabled", async () => {

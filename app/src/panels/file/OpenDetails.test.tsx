@@ -5,6 +5,7 @@ import {
   campaignRow,
   DIR,
   gameDataSummary,
+  latestRow,
   paintModView,
   saveFile,
   saveMeta,
@@ -109,6 +110,18 @@ describe("an empire's mark", () => {
 });
 
 describe("the details pane", () => {
+  it("shows the latest save's campaign until its saves are read, then the save itself", () => {
+    const row = latestRow();
+    const campaign = renderToStaticMarkup(<OpenDetails row={row} />);
+    expect(shown(campaign)).toContain("Last saved");
+    expect(shown(campaign)).not.toContain("Size");
+
+    useOpenScreenStore.setState({ files: { [row.campaign.dir]: [saveFile({ size: 2 << 20 })] } });
+    const save = renderToStaticMarkup(<OpenDetails row={row} />);
+    expect(shown(save)).toContain("2.0 MB");
+    expect(shown(save)).not.toContain("Last saved");
+  });
+
   it("shows a save's header, its galaxy and rules once read, and its file", () => {
     const file = saveFile({
       meta: saveMeta({

@@ -316,6 +316,19 @@ pub struct NewModifier {
     pub feature: Option<String>,
 }
 
+/// A planet flag [`Op::AddBodyModifier`] sets beside its modifier and
+/// [`Op::RemoveBodyModifier`] takes off with it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetFlag {
+    pub flag: String,
+    /// The flag's date in the planet's `flags`, in hours; filled only by the inverse of
+    /// [`Op::RemoveBodyModifier`]. Without it, the flag is dated the save's date.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub date: Option<u32>,
+}
+
 /// A moon of a [`NewBody`], placed about it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]

@@ -55,7 +55,7 @@ describe("what an edit of several bodies skips, and the line it leaves", () => {
   it("names the bodies a modifier add passes over and why", () => {
     const plan = planAddModifier(
       BODIES,
-      { modifier: "terraforming_candidate", feature: null },
+      { modifier: "terraforming_candidate", feature: null, flags: [] },
       "Terraforming Candidate",
       "Meissa #1",
       touch,

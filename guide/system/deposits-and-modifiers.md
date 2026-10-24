@@ -72,6 +72,10 @@ Adding or removing a timed modifier does what the console's
 line of its own, which is added and removed with it, as the game writes
 a rolled feature.
 
+With Gigastructural Engineering (Gigastructures), Add modifier also lists the Asteroid
+Industrial Site Candidate modifiers for alloys, consumer goods, energy,
+food and supertensiles. Add one to an asteroid to build that site there.
+
 ## What a scenario planet can roll <Badge type="info" text="Scenario" />
 
 In a scenario, the Deposits and Modifiers sections list what the

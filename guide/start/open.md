@@ -1,12 +1,19 @@
 ---
 title: Open a save or scenario
 description: Find a save or scenario on the Open screen, reopen a recent one, or browse for any file.
-aliases: [open file, load save, open again, recent files, browse, sav file, cloud save, ironman save]
+aliases: [open file, load save, open again, recent files, browse, sav file, cloud save, ironman save, latest save, most recent save, last save]
 ---
 # Open a save or scenario
 
 The Open screen is the first thing the app shows. It lists the files
 Galaxy Forge can edit.
+
+On the All tab, the latest save card at the top shows your newest save:
+its empire, in-game date, version and file name, and how long ago it was
+saved. The latest save card is selected when the screen opens, so
+<kbd>Enter</kbd> or its Open button opens that save. The latest save
+card hides while you type in the filter, and Recent leaves that save out
+on the All tab.
 
 ## Pick a save or scenario
 

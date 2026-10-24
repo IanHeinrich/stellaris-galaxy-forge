@@ -4,9 +4,9 @@
 use super::flags::rewrite_flags;
 use crate::format::scenario::fe_zone::{FeZone, flags, is_zone_flag};
 use crate::ops::rules::fe_zone::decide_set;
-use crate::ops::rules::labelled;
+use crate::ops::rules::named;
 use crate::ops::{Op, OpError, Plan, Planned};
-use crate::projections::galaxy::SystemNode;
+use crate::projections::galaxy::{Galaxy, SystemNode};
 use crate::session::Session;
 
 pub(super) fn set_zone(
@@ -36,15 +36,15 @@ fn write_zone(
     decide_set(&s.graph, id, zone)?;
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let previous = system.fe_zone.clone();
-    let description = describe(system, zone);
+    let description = describe(&s.graph, system, zone);
     let edit = plan.edit(&s.doc, id)?;
     let new_flags = zone.map(flags).unwrap_or_default();
     rewrite_flags(edit, |flag, _| is_zone_flag(flag), &new_flags)?;
     Ok((description, (id, previous)))
 }
 
-fn describe(system: &SystemNode, zone: Option<&FeZone>) -> String {
-    let label = labelled(&system.name.key, system.name.literal, system.id);
+fn describe(galaxy: &Galaxy, system: &SystemNode, zone: Option<&FeZone>) -> String {
+    let label = named(galaxy, system.id);
     match (system.fe_zone.is_some(), zone.is_some()) {
         (false, true) => format!("Added fallen empire zone to {label}"),
         (true, false) => format!("Removed fallen empire zone from {label}"),

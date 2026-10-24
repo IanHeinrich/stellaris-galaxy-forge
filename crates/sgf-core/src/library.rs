@@ -33,8 +33,8 @@ pub struct SaveFile {
     pub cloud: bool,
 }
 
-/// A campaign folder as a save list shows it before its saves are read: how many it
-/// holds, when it was last written, and the header of its newest save (one archive
+/// A campaign folder as a save list shows it before its saves are read: the file names
+/// it holds, when it was last written, and the header of its newest save (one archive
 /// opened per folder, not one per save).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -45,7 +45,8 @@ pub struct CampaignListing {
     pub name: String,
     /// Empire name of the newest save.
     pub empire: Option<String>,
-    pub files: u32,
+    /// Every save's file name, newest first, from the folder listing alone.
+    pub file_names: Vec<String>,
     /// Newest save's modification, seconds since the Unix epoch.
     #[ts(type = "number")]
     pub newest: i64,
@@ -109,21 +110,18 @@ pub fn list_campaign_saves_in(dir: &Path, cloud: bool) -> Vec<SaveFile> {
 /// `dir` as a campaign, or `None` when it holds no save. Only the newest save's archive
 /// is opened.
 fn campaign_listing(dir: &Path, cloud: bool) -> Option<CampaignListing> {
-    let entries = sav_entries(dir);
-    let newest = entries.iter().max_by(|a, b| {
-        a.modified
-            .cmp(&b.modified)
-            .then_with(|| b.path.cmp(&a.path))
-    })?;
+    let mut entries = sav_entries(dir);
+    entries.sort_by(|a, b| b.modified.cmp(&a.modified).then(a.path.cmp(&b.path)));
+    let newest = entries.first()?;
     let meta = read_meta_only(&newest.path).ok();
     Some(CampaignListing {
         dir: dir.to_string_lossy().into_owned(),
         name: dir_name(dir),
         empire: meta.as_ref().map(|m| m.name.clone()),
-        files: crate::as_u32(entries.len()),
         newest: newest.modified,
         meta,
         cloud,
+        file_names: entries.into_iter().map(|e| e.file_name).collect(),
     })
 }
 

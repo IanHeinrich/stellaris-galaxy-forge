@@ -267,6 +267,13 @@ pub async fn get_galaxy<R: Runtime>(app: AppHandle<R>) -> Result<GalaxyView, Sgf
     with_open(app, |session| Ok(GalaxyView::from(session.graph()))).await
 }
 
+/// The open document's issues as they stand, for the list to read again once game data
+/// changes the names they give.
+#[tauri::command]
+pub async fn get_issues<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, SgfError> {
+    with_open(app, |session| Ok(session.validate())).await
+}
+
 /// The bytes [`document::sniff`] reads to tell a save from a scenario.
 const SNIFFED_BYTES: u64 = 4;
 

@@ -12,6 +12,11 @@ modifier: string,
  */
 feature: string | null, category: ModifierCategory, 
 /**
+ * The planet flags the game sets with it, in the order set; written beside the modifier
+ * and taken off with it.
+ */
+flags: Array<string>, 
+/**
  * Its localised `<key>_desc`, the feature's first.
  */
 description: string | null, 

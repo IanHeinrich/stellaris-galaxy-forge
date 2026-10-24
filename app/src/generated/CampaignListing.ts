@@ -2,8 +2,8 @@
 import type { SaveMeta } from "./SaveMeta";
 
 /**
- * A campaign folder as a save list shows it before its saves are read: how many it
- * holds, when it was last written, and the header of its newest save (one archive
+ * A campaign folder as a save list shows it before its saves are read: the file names
+ * it holds, when it was last written, and the header of its newest save (one archive
  * opened per folder, not one per save).
  */
 export type CampaignListing = { 
@@ -18,7 +18,11 @@ name: string,
 /**
  * Empire name of the newest save.
  */
-empire: string | null, files: number, 
+empire: string | null, 
+/**
+ * Every save's file name, newest first, from the folder listing alone.
+ */
+file_names: Array<string>, 
 /**
  * Newest save's modification, seconds since the Unix epoch.
  */

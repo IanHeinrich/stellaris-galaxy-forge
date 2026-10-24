@@ -94,7 +94,12 @@ fn a_campaign_folder_lists_its_saves_and_groups_under_its_parent() {
         .find(|c| c.name == "testdata")
         .unwrap_or_else(|| panic!("no testdata campaign in {campaigns:#?}"));
     let newest = &saves[0];
-    assert_eq!(testdata.files as usize, on_disk);
+    let names: Vec<&str> = saves.iter().map(|s| s.file_name.as_str()).collect();
+    assert_eq!(
+        testdata.file_names, names,
+        "every save's file name, newest first"
+    );
+    assert_eq!(names.len(), on_disk);
     assert_eq!(testdata.newest, newest.modified);
     assert_eq!(
         testdata.empire.as_deref(),

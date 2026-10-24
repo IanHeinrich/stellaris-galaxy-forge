@@ -21,7 +21,11 @@ import {
   type Row,
   type Tab,
 } from "../../lib/openRows";
-import { useOpenScreenStore, type OpenScreenState } from "../../store/openScreenStore";
+import {
+  useOpenScreenStore,
+  watchWindowFocus,
+  type OpenScreenState,
+} from "../../store/openScreenStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Dialog } from "../Dialog";
 import { OpenDetails } from "./OpenDetails";
@@ -45,7 +49,7 @@ function screenLists(s: OpenScreenState) {
     files: s.files,
     fileErrors: s.fileErrors,
     expanded: s.expanded,
-    loadingDir: s.loadingDir,
+    loadingDirs: s.loadingDirs,
     missing: s.missing,
     busy: s.busy,
     rowError: s.rowError,
@@ -57,7 +61,6 @@ function screenLists(s: OpenScreenState) {
  * `footnote` goes under the buttons.
  */
 export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnote?: ReactNode }) {
-  const token = useFileSessionStore((s) => s.lastSave ?? s.path);
   const pickAndOpen = useFileSessionStore((s) => s.pickAndOpen);
   const requestOpen = useFileSessionStore((s) => s.requestOpen);
   const hide = useLayoutStore((s) => s.hideOpenDialog);
@@ -72,8 +75,9 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
   const focusWithin = useRef(false);
 
   useEffect(() => {
-    void useOpenScreenStore.getState().load(token);
-  }, [token]);
+    void useOpenScreenStore.getState().load();
+    return watchWindowFocus();
+  }, []);
 
   useEffect(() => {
     field.current?.focus();
@@ -130,6 +134,9 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
         break;
       case "save":
         open(row.file.path, shift);
+        break;
+      case "latest":
+        open(row.path, shift);
         break;
       case "scenario":
         if (!row.disabled) open(row.listing.path, false);
@@ -222,6 +229,9 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
                 rows={rows}
                 onPress={press}
                 onForget={(path) => actions.forget(path)}
+                onOpen={(path) => {
+                  if (idle) open(path, false);
+                }}
                 onClear={() => actions.clear()}
                 onShowAll={() => pickTab("recent")}
               />
@@ -234,6 +244,7 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
         row={current}
         lists={lists}
         idle={idle}
+        primary={current?.kind !== "latest"}
         onNewScenario={newScenario}
         onBrowse={browse}
         onAsScenario={(path) => open(path, true)}

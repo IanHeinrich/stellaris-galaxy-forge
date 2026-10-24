@@ -87,7 +87,7 @@ pub(crate) fn add_description(s: &Session, id: u32, spec: &SystemSpec, lanes: us
     let joins = describe_membership(&s.graph, joins.as_slice(), false);
     format!(
         "Added {} at ({}, {}) with {} and {}{joins}",
-        labelled(&spec.name, written_literal(&spec.name), id),
+        labelled(&s.graph, &spec.name, written_literal(&spec.name), id),
         coord(x),
         coord(y),
         bodies(spec, order(spec).len()),

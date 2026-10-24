@@ -1,5 +1,6 @@
 import type { ColonyTypeView } from "../../generated/ColonyTypeView";
 import type { DepositTypeView } from "../../generated/DepositTypeView";
+import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { ModifierLineView } from "../../generated/ModifierLineView";
 import type { ModifierView } from "../../generated/ModifierView";
 import type { ResourceAmountView } from "../../generated/ResourceAmountView";
@@ -44,6 +45,27 @@ export function modifierView(key: string, over: Partial<ModifierView> = {}): Mod
     icon: null,
     icon_frame: null,
     effects: [],
+    ...over,
+  };
+}
+
+/**
+ * The one `ModifierChoice` builder: modifier `modifier`, named `name`, that sets no flags. With
+ * `over.feature` it is that feature's, in the Feature category.
+ */
+export function modifierChoice(
+  modifier: string,
+  name: string,
+  over: Partial<ModifierChoice> = {},
+): ModifierChoice {
+  const feature = over.feature ?? null;
+  return {
+    modifier,
+    feature,
+    category: feature === null ? "Positive" : "Feature",
+    flags: [],
+    description: null,
+    view: modifierView(feature ?? modifier, { name, static_modifier: modifier }),
     ...over,
   };
 }

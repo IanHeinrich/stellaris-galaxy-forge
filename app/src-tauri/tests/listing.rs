@@ -46,7 +46,7 @@ fn campaigns_saves_and_scenarios_are_listed_on_a_seeded_root() {
     assert_eq!(campaigns.len(), 1, "{campaigns:#?}");
     let listed = &campaigns[0];
     assert_eq!(listed.name, "empire_1");
-    assert_eq!(listed.files, 1);
+    assert_eq!(listed.file_names, ["2206.11.16.sav"]);
     assert!(!listed.cloud);
     assert_eq!(listed.empire.as_deref(), Some("United Nations of Earth 2"));
     let meta = listed.meta.as_ref().expect("the newest save's header");

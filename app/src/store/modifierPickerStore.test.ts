@@ -9,6 +9,7 @@ import { mockedIpc } from "../test/ipc";
 import { planetPage } from "../test/builders";
 import { bindStores } from "./bindStores";
 import { editResult } from "./fixture";
+import { modifierChoice } from "./fixtures/planet";
 import { useModifierPickerStore } from "./modifierPickerStore";
 import { resetStores } from "./storeFixture";
 import { useGameDataStore } from "./gameDataStore";
@@ -17,20 +18,7 @@ import { pickerTarget } from "../test/pickerTarget";
 bindStores();
 
 const CHOICES: ModifierChoice[] = [
-  {
-    modifier: "mineral_poor",
-    feature: "pm_mineral_poor",
-    category: "Feature",
-    description: null,
-    view: {
-      key: "pm_mineral_poor",
-      name: "Mineral Poor",
-      static_modifier: "mineral_poor",
-      icon: null,
-      icon_frame: null,
-      effects: [],
-    },
-  },
+  modifierChoice("mineral_poor", "Mineral Poor", { feature: "pm_mineral_poor" }),
 ];
 
 const ROW = modifierPickRows(CHOICES, [], null, () => "")[0];

@@ -83,6 +83,7 @@ export function armSession(): void {
   });
   mockedIpc.closeDocument.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
+  mockedIpc.getIssues.mockResolvedValue(OPEN_RESULT.issues);
   mockedIpc.confirm.mockResolvedValue(true);
   mockedIpc.checkOp.mockResolvedValue(null);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });

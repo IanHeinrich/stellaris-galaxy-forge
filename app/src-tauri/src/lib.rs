@@ -39,6 +39,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::preview_export,
             commands::get_system,
             commands::get_galaxy,
+            commands::get_issues,
             commands::search,
             commands::warm_details,
             commands::get_model_uses,

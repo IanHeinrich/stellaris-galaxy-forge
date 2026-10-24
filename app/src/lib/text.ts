@@ -71,6 +71,21 @@ export function formatWhen(seconds: number): string {
   });
 }
 
+const AGO_UNITS: [seconds: number, noun: string][] = [
+  [DAY, "day"],
+  [3600, "hour"],
+  [60, "minute"],
+];
+
+/** "just now", "4 minutes ago", "3 hours ago", "2 days ago": how long before `now` it was. */
+export function savedAgo(seconds: number, now: number): string {
+  const elapsed = Math.max(0, now - seconds);
+  for (const [unit, noun] of AGO_UNITS) {
+    if (elapsed >= unit) return `${counted(Math.floor(elapsed / unit), noun)} ago`;
+  }
+  return "just now";
+}
+
 export function formatSize(bytes: number): string {
   if (bytes >= 1 << 20) return `${(bytes / (1 << 20)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;

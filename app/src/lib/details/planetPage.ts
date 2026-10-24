@@ -158,6 +158,11 @@ export function lastsFor(days: number): string {
   return days < 0 ? "permanent" : `lasts ${counted(days, "day")}`;
 }
 
+/** The planet features and timed modifiers save body `page` holds, by key. */
+export function heldModifiers(page: PlanetPage): string[] {
+  return [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)];
+}
+
 /** Every game data key the page shows, for one read per kind. */
 export function planetDataKeys(page: PlanetPage) {
   const colony = page.colony;
@@ -165,7 +170,7 @@ export function planetDataKeys(page: PlanetPage) {
     deposits: page.deposits.flatMap((d) =>
       d.swap_type === null ? [d.kind] : [d.kind, d.swap_type],
     ),
-    modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
+    modifiers: heldModifiers(page),
     colonyTypes: [colony?.final_designation, colony?.designation].filter(
       (key): key is string => typeof key === "string",
     ),

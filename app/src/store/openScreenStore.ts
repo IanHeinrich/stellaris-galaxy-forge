@@ -1,10 +1,11 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { CampaignListing } from "../generated/CampaignListing";
 import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
-import type { OpenLists, OpenTab } from "../lib/openRows";
+import { campaignsToRead, type OpenLists, type OpenTab } from "../lib/openRows";
 import { useFileSessionStore, type OpenMode } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
 import { useRecentsStore } from "./recentsStore";
@@ -31,8 +32,11 @@ export interface OpenScreenState extends OpenLists {
   setTab(tab: OpenTab): void;
   /** Reads the galaxy settings of the save at `path` once per `modified`. */
   loadDetails(path: string, modified: number): Promise<void>;
-  /** Reads both lists once; a new `token` means the save folders were written to since. */
-  load(token: unknown): Promise<void>;
+  /**
+   * Reads both lists again, since the game writes saves while the app runs, keeping the open
+   * campaign while it is still there; a call while a read is under way joins it.
+   */
+  load(): Promise<void>;
   /** Expands one campaign folder, reading its saves the first time. */
   expand(dir: string): Promise<void>;
   collapse(): void;
@@ -59,26 +63,50 @@ const INITIAL = {
   files: {} as Record<string, SaveFile[]>,
   fileErrors: {} as Record<string, string>,
   expanded: null as string | null,
-  loadingDir: null as string | null,
+  loadingDirs: [] as string[],
   missing: [] as string[],
   busy: null as string | null,
   rowError: null as { path: string; message: string } | null,
   details: {} as Record<string, SaveDetails>,
 };
 
-/** The session state the lists were read for, and the read itself, so it happens once. */
+/**
+ * The read the lists come from, its promise while it is under way, and the campaign folders
+ * asked for since it started, a failed one included.
+ */
 let readFor: unknown = Symbol("unread");
 let reading: Promise<void> | null = null;
-const readingFiles = new Set<string>();
+const listedDirs = new Set<string>();
 const readingDetails = new Map<string, Promise<void>>();
 
 /** Drops everything read so far; the next `load` reads again. */
 export function resetOpenScreen(): void {
   readFor = Symbol("unread");
   reading = null;
-  readingFiles.clear();
+  listedDirs.clear();
   readingDetails.clear();
   useOpenScreenStore.setState({ ...INITIAL });
+}
+
+/**
+ * File → Open…: the dialog over an open document, or, while the Open screen already shows as
+ * the start screen or the dialog, its lists read again.
+ */
+export function showOpenScreen(): void {
+  const layout = useLayoutStore.getState();
+  if (useFileSessionStore.getState().status === "ready" && !layout.openDialog) {
+    layout.showOpenDialog();
+    return;
+  }
+  void useOpenScreenStore.getState().load();
+}
+
+/** Reads the lists again each time the window regains focus, as after the game saved; returns the stop. */
+export function watchWindowFocus(): () => void {
+  const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+    if (focused) void useOpenScreenStore.getState().load();
+  });
+  return () => void unlisten.then((stop) => stop());
 }
 
 /** What a refused open says when the session named no failure of its own. */
@@ -89,6 +117,7 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
 
   setFilter(filter) {
     set({ filter });
+    void listSavesToFilter();
   },
 
   setTab(tab) {
@@ -110,36 +139,23 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     return read.finally(() => readingDetails.delete(key));
   },
 
-  load(token) {
-    if (token !== readFor) {
-      readFor = token;
-      reading = null;
-      readingFiles.clear();
-      set({ files: {}, fileErrors: {}, expanded: null });
-    }
-    reading ??= read(token);
+  load() {
+    if (reading) return reading;
+    const token = Symbol("read");
+    readFor = token;
+    listedDirs.clear();
+    const { files, expanded } = get();
+    const shown = expanded !== null ? files[expanded] : undefined;
+    set({ files: shown && expanded ? { [expanded]: shown } : {}, fileErrors: {}, loadingDirs: [] });
+    reading = read(token).finally(() => {
+      if (token === readFor) reading = null;
+    });
     return reading;
   },
 
-  async expand(dir) {
+  expand(dir) {
     set({ expanded: dir });
-    if (get().files[dir] !== undefined || readingFiles.has(dir)) return;
-    readingFiles.add(dir);
-    set({ loadingDir: dir });
-    const token = readFor;
-    try {
-      const files = await ipc.listCampaignSaves(dir);
-      if (token !== readFor) return;
-      const fileErrors = { ...get().fileErrors };
-      delete fileErrors[dir];
-      set({ files: { ...get().files, [dir]: byNewest(files) }, fileErrors });
-    } catch (e) {
-      if (token !== readFor) return;
-      readingFiles.delete(dir);
-      set({ fileErrors: { ...get().fileErrors, [dir]: ipc.errorMessage(e) } });
-    } finally {
-      if (token === readFor && get().loadingDir === dir) set({ loadingDir: null });
-    }
+    return listSaves(dir);
   },
 
   collapse() {
@@ -188,8 +204,8 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
 
 /**
  * Both lists read for `token`, each reporting its own failure, the recent documents whose files
- * are gone forgotten, and the newest campaign opened; a read a newer token overtook writes
- * nothing.
+ * are gone forgotten, and the open campaign read again, or the newest opened once it is gone; a
+ * read a newer token overtook writes nothing.
  */
 async function read(token: unknown): Promise<void> {
   const { getState } = useOpenScreenStore;
@@ -218,8 +234,40 @@ async function read(token: unknown): Promise<void> {
     forgetMissingRecents(token),
   ]);
   if (token !== readFor) return;
-  const newest = getState().campaigns?.[0];
-  if (newest && getState().expanded === null) await getState().expand(newest.dir);
+  const { campaigns, expanded } = getState();
+  const open = campaigns?.find((c) => c.dir === expanded) ?? campaigns?.[0];
+  if (open) await Promise.all([getState().expand(open.dir), listSavesToFilter()]);
+  else setState({ expanded: null });
+}
+
+/**
+ * Reads the saves of the campaign folder `dir` once per read of the lists, whether or not the
+ * folder could be listed; the saves an earlier read found stay until these replace them.
+ */
+async function listSaves(dir: string): Promise<void> {
+  const { getState: get, setState: set } = useOpenScreenStore;
+  if (listedDirs.has(dir)) return;
+  listedDirs.add(dir);
+  set({ loadingDirs: [...get().loadingDirs, dir] });
+  const token = readFor;
+  try {
+    const files = await ipc.listCampaignSaves(dir);
+    if (token !== readFor) return;
+    const fileErrors = { ...get().fileErrors };
+    delete fileErrors[dir];
+    set({ files: { ...get().files, [dir]: byNewest(files) }, fileErrors });
+  } catch (e) {
+    if (token !== readFor) return;
+    set({ fileErrors: { ...get().fileErrors, [dir]: ipc.errorMessage(e) } });
+  } finally {
+    if (token === readFor) set({ loadingDirs: get().loadingDirs.filter((d) => d !== dir) });
+  }
+}
+
+/** The saves of each campaign the filter keeps by what is known of them before they are read. */
+async function listSavesToFilter(): Promise<void> {
+  const dirs = campaignsToRead(useOpenScreenStore.getState());
+  await Promise.all(dirs.map(listSaves));
 }
 
 /** Drops the recent documents whose files are gone; a failed check leaves the list alone. */

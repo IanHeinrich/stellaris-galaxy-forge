@@ -38,6 +38,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   resetStores();
+  mockedIpc.getModifierChoices.mockResolvedValue([]);
+  mockedIpc.getPlanetPage.mockResolvedValue(OLBERS);
 });
 
 describe("a planet's modifiers", () => {

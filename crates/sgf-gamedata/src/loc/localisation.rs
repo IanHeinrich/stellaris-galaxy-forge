@@ -5,7 +5,9 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+use sgf_core::projections::galaxy::LocalisedNames;
 
 use crate::install::layers::Layout;
 use crate::{Diagnostic, Meter};
@@ -125,6 +127,13 @@ impl Localisation {
             .unwrap_or_else(|e| e.into_inner())
             .insert(key.to_owned(), text.clone());
         Some(text)
+    }
+
+    /// [`Self::get`] for a session to name systems by in descriptions and issues, as the
+    /// map names them.
+    pub fn session_names(self: &Arc<Self>) -> LocalisedNames {
+        let loc = Arc::clone(self);
+        LocalisedNames::new(move |key| loc.get(key))
     }
 
     /// The text of a description, when it has any: as [`Self::get`], but a

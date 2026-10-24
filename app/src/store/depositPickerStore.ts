@@ -60,7 +60,7 @@ export const useDepositPickerStore = create<DepositPickerState>((set, get) => {
       if (get().mode !== mode) set({ ...PICKER_CLOSED, mode, pending: null });
       if (get().target?.key !== target.key) set({ pending: null });
       get().openOn(target);
-      get().load(target);
+      void get().load(target);
     },
 
     close() {
