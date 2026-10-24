@@ -9,6 +9,7 @@ import {
   saveMeta,
 } from "../test/builders";
 import {
+  detailsSave,
   footerOpens,
   navigableRows,
   openSections,
@@ -73,6 +74,86 @@ function rowOf<K extends Row["kind"]>(all: Section[], key: string): Row & { kind
   return navigableRows(all).find((r) => r.key === key) as Row & { kind: K };
 }
 
+describe("latest save card", () => {
+  const NEWER = campaignListing({
+    dir: "C:/saves/void",
+    name: "void_2",
+    empire: "Void Compact",
+    newest: 300,
+    file_names: ["autosave_2231.01.01.sav", "2230.01.01.sav"],
+    meta: saveMeta({ date: "2231.01.01", version: "Cygnus v4.5.0" }),
+  });
+  const LATEST = "C:/saves/void/autosave_2231.01.01.sav";
+
+  it("tops the All tab with the newest save of every campaign, selected and opened as a save", () => {
+    const state = lists({ campaigns: [TERRAN, NEWER] });
+    const all = openSections(state, RECENTS);
+    expect(all[0]).toMatchObject({ id: "latest", count: 0 });
+    const row = selectedRow(navigableRows(all), null);
+    expect(row).toMatchObject({
+      kind: "latest",
+      path: LATEST,
+      empire: "Void Compact",
+      subtitle: "2231.01.01 · v4.5.0 · autosave_2231.01.01.sav",
+      modified: 300,
+    });
+    expect(footerOpens(row, state).open).toEqual({ path: LATEST, mode: "save" });
+    const counts = Object.fromEntries(openTabs(state, RECENTS).map((t) => [t.id, t.count]));
+    expect(counts).toEqual({ all: 8, recent: 2, saves: 4, scenarios: 2 });
+  });
+
+  it("keeps Recent's whole count for its Show all link while its rows drop the card's save", () => {
+    const seven: RecentDoc[] = Array.from({ length: 7 }, (_, i) => ({
+      ...RECENT,
+      path: i === 0 ? RECENT.path : `C:/saves/terran/${i}.sav`,
+      openedAt: 10 - i,
+    }));
+    const recent = openSections(lists(), seven).find((s) => s.id === "recent")!;
+    expect(recent.count).toBe(7);
+    expect(recent.more).toBe(1);
+    expect(recent.rows.map((r) => r.key)).not.toContain(`recent:${RECENT.path}`);
+    expect(openSections(lists({ tab: "recent" }), seven)[0].rows).toHaveLength(7);
+  });
+
+  it("joins a backslash folder, and drops a recent path that differs in case and slashes", () => {
+    const win = campaignListing({
+      dir: "C:\\Saves\\void_2",
+      newest: 300,
+      file_names: ["Latest.sav"],
+    });
+    const recents: RecentDoc[] = [{ ...RECENT, path: "c:/saves/VOID_2/latest.sav" }];
+    const state = lists({ campaigns: [TERRAN, win] });
+    const all = openSections(state, recents);
+    const row = all[0].rows[0];
+    expect(row).toMatchObject({ kind: "latest", path: "C:\\Saves\\void_2\\Latest.sav" });
+    expect(all.map((s) => s.id)).not.toContain("recent");
+
+    expect(detailsSave(row, state)).toBeNull();
+    const read = campaignSave({ path: "C:/Saves/void_2/Latest.sav", file_name: "Latest.sav" });
+    expect(detailsSave(row, { ...state, files: { [win.dir]: [read] } })).toBe(read);
+  });
+
+  it("leaves the save it shows out of Recent on the All tab only", () => {
+    expect(rowKeys(sections(), "latest")).toEqual([`latest:${RECENT.path}`]);
+    expect(rowKeys(sections(), "recent")).toEqual(["recent:C:/mods/a.txt"]);
+    expect(rowKeys(sections({ tab: "recent" }), "recent")).toEqual([
+      `recent:${RECENT.path}`,
+      "recent:C:/mods/a.txt",
+    ]);
+  });
+
+  it("is gone behind a filter, on the other tabs, and while there are no saves", () => {
+    const none = (over: Partial<OpenLists>) =>
+      openSections(lists(over), RECENTS).every((s) => s.id !== "latest");
+    expect(none({ filter: "terran" })).toBe(true);
+    expect(none({ tab: "saves" })).toBe(true);
+    expect(none({ tab: "recent" })).toBe(true);
+    expect(none({ tab: "scenarios" })).toBe(true);
+    expect(none({ campaigns: [] })).toBe(true);
+    expect(none({ campaigns: null })).toBe(true);
+  });
+});
+
 describe("filter", () => {
   it("keeps only what every section matches, across name, campaign, file and mod", () => {
     const terran = sections({ filter: "terran" });
@@ -114,7 +195,7 @@ describe("tabs", () => {
 
   it("leaves an empty Recent out of All, and shows its note under Recent", () => {
     const none = openSections(lists(), []);
-    expect(none.map((s) => s.id)).toEqual(["saves", "scenarios"]);
+    expect(none.map((s) => s.id)).toEqual(["latest", "saves", "scenarios"]);
     const recent = openSections(lists({ tab: "recent" }), []);
     expect(recent.map((s) => s.note)).toEqual(["Nothing opened yet."]);
     expect(sections({ filter: "void" }).map((s) => s.id)).toEqual(["saves", "scenarios"]);
@@ -307,7 +388,7 @@ describe("the footer's targets", () => {
       asScenario: null,
       forPaint: listed,
     });
-    expect(targets({}, `recent:${RECENT.path}`)).toEqual({
+    expect(targets({ tab: "recent" }, `recent:${RECENT.path}`)).toEqual({
       open: { path: RECENT.path, mode: "save" },
       asScenario: { path: RECENT.path, mode: "scenario" },
       forPaint: null,

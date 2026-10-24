@@ -9,7 +9,7 @@ vi.mock("../api/events");
 
 import { flush } from "../test/flush";
 import { mockedIpc } from "../test/ipc";
-import { type Row } from "../lib/openRows";
+import { footerOpens, navigableRows, selectedRow, type Row } from "../lib/openRows";
 import { detailsKey, useOpenScreenStore } from "./openScreenStore";
 import {
   RECENT,
@@ -297,6 +297,20 @@ describe("filter by what a save is known by", () => {
     }
     expect(mockedIpc.listCampaignSaves).toHaveBeenCalledTimes(3);
     expect(section("saves").rows[0]).toMatchObject({ kind: "campaign", error: "folder is gone" });
+  });
+});
+
+describe("latest save", () => {
+  it("is selected when the screen opens, and Open opens it as a save", async () => {
+    const newer = { ...VOID, newest: 300, file_names: ["autosave_2231.01.01.sav"] };
+    mockedIpc.listCampaigns.mockResolvedValue([TERRAN, newer]);
+    await screen().load();
+
+    const row = selectedRow(navigableRows(sections()), null);
+    expect(row).toMatchObject({ kind: "latest", path: `${VOID.dir}/autosave_2231.01.01.sav` });
+    const target = footerOpens(row, screen()).open!;
+    await screen().open(target.path, target.mode);
+    expect(mockedIpc.openDocument.mock.lastCall?.[0]).toBe(`${VOID.dir}/autosave_2231.01.01.sav`);
   });
 });
 

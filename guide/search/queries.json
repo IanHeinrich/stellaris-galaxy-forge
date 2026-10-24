@@ -1,5 +1,7 @@
 [
   {"q": "how do I open it again", "expect": "reference/faq#how-do-i-open-it-again"},
+  {"q": "open latest save", "expect": "start/open"},
+  {"q": "most recent save", "expect": "start/open"},
   {"q": "windows defender", "expect": "start/install-and-update"},
   {"q": "smartscreen", "expect": "start/install-and-update"},
   {"q": "linux", "expect": "start/install-and-update"},

@@ -11,14 +11,15 @@ import type { OpenMode } from "../store/fileSessionStore";
 import type { RecentDoc } from "../store/recentsStore";
 import { displayName } from "./names";
 import { scenarioForPaint } from "./paint";
-import { fileName } from "./paths";
+import { fileName, joinPath, normalise } from "./paths";
 import { counted } from "./text";
 import { versionShort } from "./version";
 
-export type SectionId = "recent" | "saves" | "scenarios";
+/** The All tab's latest save card, then one section per tab. */
+export type SectionId = "latest" | "recent" | "saves" | "scenarios";
 
 /** What the rail filters the list to: one section, or every one of them. */
-export type OpenTab = "all" | SectionId;
+export type OpenTab = "all" | Exclude<SectionId, "latest">;
 
 export const OPEN_TABS: OpenTab[] = ["all", "recent", "saves", "scenarios"];
 
@@ -77,7 +78,21 @@ export interface ScenarioRow {
   disabled: boolean;
 }
 
-export type Row = RecentRow | CampaignRow | SaveRow | ScenarioRow;
+/** The newest save of every campaign, as the All tab's card shows it. */
+export interface LatestRow {
+  kind: "latest";
+  key: string;
+  campaign: CampaignListing;
+  path: string;
+  /** The empire of the newest save, localised, else the folder's name. */
+  empire: string;
+  /** "2231.01.01 · v4.5.0 · autosave_2231.01.01.sav". */
+  subtitle: string;
+  /** When the file was written, seconds since the Unix epoch. */
+  modified: number;
+}
+
+export type Row = LatestRow | RecentRow | CampaignRow | SaveRow | ScenarioRow;
 
 export interface Section {
   id: SectionId;
@@ -327,6 +342,51 @@ function scenariosSection(state: OpenLists, words: string[]): Section {
   };
 }
 
+/** The newest save of every campaign, from the campaign listing alone; null without a save. */
+function latestRow(state: OpenLists): LatestRow | null {
+  const campaigns = (state.campaigns ?? []).filter((c) => c.file_names.length > 0);
+  if (campaigns.length === 0) return null;
+  const campaign = campaigns.reduce((a, b) => (b.newest > a.newest ? b : a));
+  const name = campaign.file_names[0];
+  const path = joinPath(campaign.dir, name);
+  const meta = campaign.meta;
+  return {
+    kind: "latest",
+    key: `latest:${path}`,
+    campaign,
+    path,
+    empire: campaignEmpire(campaign),
+    subtitle: [meta?.date, meta && versionShort(meta.version), name].filter(Boolean).join(" · "),
+    modified: campaign.newest,
+  };
+}
+
+/**
+ * The card on top of the All tab while the filter is empty, counting nothing the tabs count,
+ * and Recent's rows without the save it shows, its count still the whole list's.
+ */
+function withLatest(state: OpenLists, sections: Section[]): Section[] {
+  const row = filterWords(state.filter).length === 0 ? latestRow(state) : null;
+  if (row === null) return sections;
+  const shown = normalise(row.path);
+  const latest: Section = {
+    id: "latest",
+    label: "Latest save",
+    rows: [row],
+    count: 0,
+    note: null,
+    notices: [],
+  };
+  return [
+    latest,
+    ...sections.map((s) => {
+      if (s.id !== "recent") return s;
+      const rows = s.rows.filter((r) => r.kind !== "recent" || normalise(r.doc.path) !== shown);
+      return { ...s, rows };
+    }),
+  ];
+}
+
 /** How many recent documents the All tab lists before it links to the Recent tab. */
 export const ALL_TAB_RECENTS = 5;
 
@@ -348,7 +408,7 @@ function everySection(state: OpenLists, recents: RecentDoc[]): Section[] {
 export function openSections(state: OpenLists, recents: RecentDoc[]): Section[] {
   const all = everySection(state, recents);
   if (state.tab !== "all") return all.filter((s) => s.id === state.tab);
-  return all
+  return withLatest(state, all)
     .filter((s) => s.id !== "recent" || s.rows.length > 0)
     .map((s) =>
       s.id === "recent" && s.rows.length > ALL_TAB_RECENTS
@@ -438,6 +498,11 @@ export function detailsSave(row: Row | undefined, state: OpenLists): SaveFile | 
   switch (row?.kind) {
     case "save":
       return row.file;
+    case "latest":
+      return (
+        state.files[row.campaign.dir]?.find((f) => normalise(f.path) === normalise(row.path)) ??
+        null
+      );
     case "campaign":
       return state.files[row.campaign.dir]?.[0] ?? null;
     case "recent": {
@@ -492,6 +557,8 @@ function baseFooterOpens(
   switch (row?.kind) {
     case "save":
       return { open: as(row.file.path, "save"), asScenario: as(row.file.path, "scenario") };
+    case "latest":
+      return { open: as(row.path, "save"), asScenario: as(row.path, "scenario") };
     case "recent": {
       const save = row.doc.kind === "save";
       return {

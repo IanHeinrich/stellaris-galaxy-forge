@@ -6,7 +6,7 @@ import type { ClusterPick } from "../generated/ClusterPick";
 import type { SpecialCluster } from "../generated/SpecialCluster";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
-import type { CampaignRow, SaveRow, ScenarioRow } from "../lib/openRows";
+import type { CampaignRow, LatestRow, SaveRow, ScenarioRow } from "../lib/openRows";
 import type { BeltKindView } from "../generated/BeltKindView";
 import type { BodyLayout } from "../generated/BodyLayout";
 import type { BodyRole } from "../generated/BodyRole";
@@ -866,6 +866,21 @@ export function campaignListing(over: Partial<CampaignListing> = {}): CampaignLi
 }
 
 export const TERRAN = campaignListing();
+
+/** The All tab's latest save card for the terran campaign's newest save. */
+export function latestRow(over: Partial<LatestRow> = {}): LatestRow {
+  const path = `${DIR}/2206.11.16.sav`;
+  return {
+    kind: "latest",
+    key: `latest:${path}`,
+    campaign: CAMPAIGN,
+    path,
+    empire: "Terran Federation",
+    subtitle: "2206.11.16 · v4.4.6 · 2206.11.16.sav",
+    modified: 200,
+    ...over,
+  };
+}
 export const VOID = campaignListing({
   dir: "C:/saves/void",
   name: "void_2",

@@ -45,7 +45,7 @@ The Issues, Changes and added-system shots show those edits.
 
 | File | Page | Shows | How to take it |
 | --- | --- | --- | --- |
-| `start/open-screen.png` | `start/open.md` | The Open screen on All, with Recent, Saves and the details pane | File → Open… with a copy of the 4.5 save in the game's save folder. Select it in Recent. The list shows whatever saves the machine has. |
+| `start/open-screen.png` | `start/open.md` | The Open screen on All, with the latest save card, Recent, Saves and the details pane | Needs a retake for the latest save card. File → Open… with a copy of the 4.5 save in the game's save folder, written last so it is the newest save. The latest save card shows it, selected, and Recent leaves it out. The list shows whatever saves the machine has. |
 | `start/open-mode.png` | `start/open.md`, `scenario/paint-a-galaxy.md` | "Open 4.5-day-one.sav" with Edit as save and Edit as scenario | Double-click the 4.5 save on the Open screen. Hover Edit as scenario so its checkbox shows. |
 | `start/window.png` | `start/the-window.md` | The whole window, numbered by the page through `<Annotated>` | The 4.5 save with Soukias #576 selected, Tilt at 0°. |
 | `start/file-menu.png` | `start/the-window.md` | The File menu with Open recent | Open the File menu with the Paint a Galaxy scenario open, after opening 4.4-early, 4.5-day-one and a copy of the 4.5 save. |

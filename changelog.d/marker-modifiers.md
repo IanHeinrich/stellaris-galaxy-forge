@@ -1,3 +1,8 @@
+### Added
+
+- The Open screen's All tab starts with your latest save, already
+  selected, so Enter opens it.
+
 ### Fixed
 
 - Add modifier lists the modifiers a mod uses to mark a planet, such as
@@ -6,8 +11,8 @@
   longer be built.
 - A megastructure a construction ship was still starting when you moved
   its planet is now built over the planet, not where the planet used to be.
-- The Open dialog lists saves the game wrote while a save was open in the
+- The Open screen lists saves the game wrote while a save was open in the
   editor.
-- The Open dialog's filter finds a save by its file name.
+- The Open screen's filter finds a save by its file name.
 - The undo list and the Issues tab name systems as the game does, such as
   Kaz rather than Kazam system.

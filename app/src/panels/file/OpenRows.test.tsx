@@ -9,16 +9,51 @@ vi.mock("../useTextureUrl", () => ({ useTextureUrl: vi.fn(() => undefined) }));
 import { SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { paintModView, saveRow, scenarioListing, scenarioRow } from "../../test/builders";
+import {
+  campaignListing,
+  latestRow,
+  paintModView,
+  saveMeta,
+  saveRow,
+  scenarioListing,
+  scenarioRow,
+} from "../../test/builders";
 import { buttons, shown } from "../../test/elements";
 import type { RecentRow, Section } from "../../lib/openRows";
-import { RowLine, SectionRows } from "./OpenRows";
+import { IRONMAN_TITLE, RowLine, SectionRows } from "./OpenRows";
 
 const noop = () => undefined;
 
 beforeEach(() => {
   useOpenScreenStore.setState({ ...useOpenScreenStore.getInitialState() });
   usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
+});
+
+describe("the latest save card", () => {
+  it("says how long ago it was saved, names the empire, and has its own primary Open", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const html = renderToStaticMarkup(
+      <RowLine
+        row={latestRow({
+          empire: "Void Compact",
+          subtitle: "2231.01.01 · v4.5.0 · autosave_2231.01.01.sav",
+          modified: now - 4 * 60,
+        })}
+        onForget={noop}
+      />,
+    );
+    expect(shown(html)).toMatch(
+      /^Latest save · saved 4 minutes ago Void Compact 2231\.01\.01 · v4\.5\.0 · autosave_2231\.01\.01\.sav Open$/,
+    );
+    expect(html).toContain('class="primary"');
+  });
+
+  it("marks an Ironman save as a save row does", () => {
+    const campaign = campaignListing({ meta: saveMeta({ ironman: true }) });
+    const html = renderToStaticMarkup(<RowLine row={latestRow({ campaign })} onForget={noop} />);
+    expect(html).toContain(`title="${IRONMAN_TITLE}"`);
+    expect(shown(html)).toContain("Terran Federation ⚿");
+  });
 });
 
 describe("a row", () => {
@@ -128,6 +163,7 @@ describe("the Recent section", () => {
         rows={rows}
         onPress={noop}
         onForget={noop}
+        onOpen={noop}
         onClear={noop}
         onShowAll={noop}
       />,

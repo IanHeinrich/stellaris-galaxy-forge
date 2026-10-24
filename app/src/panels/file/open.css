@@ -161,6 +161,28 @@
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+.open-row.open-latest {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 4px;
+  padding: 10px 12px;
+  background: var(--accent-bg-soft);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+}
+
+.open-row.open-latest.active {
+  background: var(--accent-bg-strong);
+  box-shadow:
+    0 0 0 2px var(--bg-panel),
+    0 0 0 4px var(--fg);
+}
+
+.open-latest-head {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .open-row.disabled .open-title,
 .open-row.shadowed .open-title {
   color: var(--fg-soft);

@@ -9,6 +9,7 @@ export function OpenFooter({
   row,
   lists,
   idle,
+  primary,
   onNewScenario,
   onBrowse,
   onAsScenario,
@@ -17,6 +18,8 @@ export function OpenFooter({
   row: Row | undefined;
   lists: OpenLists;
   idle: boolean;
+  /** Whether Open is the screen's one primary button: not while the latest save card, with its own, is selected. */
+  primary: boolean;
   onNewScenario: () => void;
   onBrowse: () => void;
   onAsScenario: (path: string) => void;
@@ -67,7 +70,7 @@ export function OpenFooter({
         )}
         <button
           type="button"
-          className="primary"
+          className={primary ? "primary" : undefined}
           title={`Open it as it is (${OPEN_KEYS.open.label} asks first for a save)`}
           aria-disabled={footer.open === null || !idle}
           onMouseDown={(e) => e.preventDefault()}

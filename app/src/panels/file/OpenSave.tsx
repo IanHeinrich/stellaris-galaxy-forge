@@ -130,6 +130,9 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
       case "save":
         open(row.file.path, shift);
         break;
+      case "latest":
+        open(row.path, shift);
+        break;
       case "scenario":
         if (!row.disabled) open(row.listing.path, false);
         break;
@@ -221,6 +224,9 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
                 rows={rows}
                 onPress={press}
                 onForget={(path) => actions.forget(path)}
+                onOpen={(path) => {
+                  if (idle) open(path, false);
+                }}
                 onClear={() => actions.clear()}
                 onShowAll={() => pickTab("recent")}
               />
@@ -233,6 +239,7 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
         row={current}
         lists={lists}
         idle={idle}
+        primary={current?.kind !== "latest"}
         onNewScenario={newScenario}
         onBrowse={browse}
         onAsScenario={(path) => open(path, true)}

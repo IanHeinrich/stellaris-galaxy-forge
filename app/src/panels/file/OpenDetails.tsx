@@ -10,10 +10,12 @@ import { DOCUMENT_KINDS } from "../../lib/documentKinds";
 import { displayNameIn, readableKey } from "../../lib/names";
 import {
   countText,
+  detailsSave,
   rangeText,
   recentTarget,
   START_YEAR,
   timesText,
+  type LatestRow,
   type Row,
 } from "../../lib/openRows";
 import { PAINT_MOD_OFF_BREAKS, SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
@@ -426,8 +428,17 @@ function RecentDetails({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
   );
 }
 
+/** The newest save once its campaign's saves are read; its campaign, whose header is its own, before. */
+function LatestDetails({ row }: { row: LatestRow }) {
+  const file = useOpenScreenStore((s) => detailsSave(row, s));
+  if (file) return <SaveDetails file={file} />;
+  return <CampaignDetails campaign={row.campaign} empire={row.empire} />;
+}
+
 function RowDetails({ row }: { row: Row }) {
   switch (row.kind) {
+    case "latest":
+      return <LatestDetails row={row} />;
     case "save":
       return <SaveDetails file={row.file} />;
     case "campaign":
