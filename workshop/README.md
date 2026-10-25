@@ -83,7 +83,9 @@ Windows. Run these steps from the repo root.
    number, for example `16-paint-export.png`.
 3. Add an entry for it to the end of `workshop/carousel/captions.json`:
    `{"file": "16-paint-export", "caption": "Export for Paint a Galaxy", "tag": "scenario", "style": "strip"}`.
-   `file` is the file name without its extension.
+   `file` is the file name without its extension. A `\n` in an overlay
+   caption starts a new line, and `label.py` stops if a line is wider
+   than the image.
 4. Run `py workshop/carousel/label.py`. It builds only the images that
    are not in `carousel/` yet, so the uploaded ones keep their bytes.
    `--preview` writes to a temporary folder instead and prints where,

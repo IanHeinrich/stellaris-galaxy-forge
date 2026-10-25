@@ -78,19 +78,23 @@ def overlay_layer(size, text, mode):
     fs = round(min(w, h) * 0.07)
     f = ImageFont.truetype(BOLD, fs)
     m = round(fs * 0.6)
-    bb = f.getbbox(text)
+    lines = text.split('\n')
+    if any(m + f.getlength(line) > w - m for line in lines):
+        sys.exit(f'caption "{text}" is wider than the image; break it with \\n')
+    bb = f.getbbox(lines[-1])
     y = h - m - bb[3] - round(fs * 0.1)
+    lead = round(fs * 1.2)
+    top = y - lead * (len(lines) - 1)
     ts = round(fs * 0.4)
-    beside = m + f.getlength(text) + round(fs * 0.45)
+    beside = m + f.getlength(lines[-1]) + round(fs * 0.45)
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    for i, line in enumerate(lines):
+        img = shadowed(img, m, top + i * lead, line, f)
     if beside + tag_width(mode, ts) <= w - m:
-        img = shadowed(img, m, y, text, f)
         img, _ = tag(img, beside, y + bb[3] * 0.56, mode, ts)
     else:
-        # no room on the line: stack the tag above the label
-        gap = round(ts * 2.1)
-        img = shadowed(img, m, y, text, f)
-        img, _ = tag(img, m, y - gap, mode, ts)
+        # no room on the last line: stack the tag above the label
+        img, _ = tag(img, m, top - round(ts * 2.1), mode, ts)
     return img
 
 
@@ -190,6 +194,8 @@ def load_entries():
         else:
             if not entry.get('caption'):
                 problems.append(f'{name}: needs a caption')
+            elif '\n' in entry['caption'] and entry['style'] == 'strip':
+                problems.append(f'{name}: only an overlay caption can break into lines')
             if entry.get('tag') not in TAG:
                 problems.append(f'{name}: tag must be one of {", ".join(TAG)}')
         sources = [p for p in SOURCE.glob(f'{name}.*') if p.suffix in ('.png', '.gif')]
