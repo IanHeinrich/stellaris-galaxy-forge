@@ -88,6 +88,8 @@ for each of these.
 
 ### The system view
 
+![Dragging Sol's planets to new orbits, then moving a companion star and adding an asteroid belt in a trinary system](docs/media/system-view.gif)
+
 Double-click a system, or select it and press M, to open the system
 view.
 

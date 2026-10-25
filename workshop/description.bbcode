@@ -1,11 +1,11 @@
 [b]Important:[/b] subscribing does not install the editor. This page has no mod files. It's here so people can find Galaxy Forge.
 
-Galaxy Forge is a desktop editor for Stellaris 4.x galaxy maps. It runs outside the game and edits both save files and galaxy scenarios.
+Galaxy Forge is a desktop editor for Stellaris 4.x galaxy maps. It runs outside the game and edits saves and galaxy scenarios.
 
 Move systems, edit hyperlanes, and add systems, planets and megastructures in an ongoing campaign. Or turn a save into a scenario and start a new game from it with the Paint a Galaxy mod.
 
 [h2]User guide[/h2]
-[url=https://ianheinrich.github.io/stellaris-galaxy-forge/][b]Read the user guide[/b][/url] for help with installing, how to use the tool and frequently asked questions.
+[url=https://ianheinrich.github.io/stellaris-galaxy-forge/][b]Read the user guide[/b][/url] for installing, using the tool and common questions.
 
 [b]Download:[/b] [url=https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest]GitHub releases[/url]
 Builds for Windows, macOS and Linux. If SmartScreen warns about the new signing certificate, click More info, then Run anyway. The macOS build is not signed.
@@ -36,6 +36,9 @@ Double-click a system to open the system view.
 [*]Add, move and delete megastructures, ring worlds included, at any construction stage or ruined. Each looks as it does in the game.
 [*]Drag a natural wormhole to move it.
 [/list]
+
+[img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/workshop/images/system-view.gif[/img]
+
 Every planet and moon has its own page. Rename it, change its size, class or skin, add or remove deposits, blockers, modifiers, anomalies and dig sites, or delete its colony. Select several planets to change them at once. The page warns you first when the game will take something away.
 
 [h2]Making a galaxy for a new game[/h2]
@@ -79,14 +82,14 @@ Select a system to see its position, hyperlanes and their in-game lengths, bypas
 
 Press F to search systems, empires, planets, fleets and nebulae by name, systems by contents such as "gaia", or star types such as "pulsar". Pinned searches stay highlighted on every save you open. The Layers menu shows and hides map layers.
 
-In a scenario, the Scripts tab shows a best guess at the events and effects that touch a system, and opens each in your text editor at its line.
+In a scenario, the Scripts tab shows the events and effects that likely touch a system, and opens each in your editor.
 
 [img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/workshop/images/inspectors.png[/img]
 
 [h2]Keeping your save safe[/h2]
-Galaxy Forge edits save files at the byte level, so only the parts you change are rewritten. Everything else, including data from mods or newer game versions, is copied as it was.
+Galaxy Forge rewrites only the parts of a save you change. Everything else, including data from mods or newer game versions, is copied as it was.
 [list]
-[*]Each save keeps a timestamped backup of the previous file, up to eight per file. The first is the file you opened.
+[*]Each save backs up the previous file, keeping up to eight. The first is the file you opened.
 [*]If Stellaris or another program changes the open file, a save asks what to do. A scenario reloads, or asks first if you have unsaved changes.
 [*]Every edit can be undone, and the Changes tab keeps track of them.
 [*]The Issues tab checks for problems before you save, such as a hyperlane that exists at only one end.
