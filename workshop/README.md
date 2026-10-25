@@ -19,6 +19,8 @@ step with it.
 - `images/`: the images the description shows inline. Steam loads them
   from `main` on GitHub, so merge a new image before pushing a
   description that uses it. The uploader does not upload these.
+  Each is 800 px wide with a 2 px `#383a42` border, so they all fill
+  the description column and match.
 - `uploader/`: the tool.
 
 Images uploaded to Steam must be PNG, JPEG or GIF and at most 1 MB. The
