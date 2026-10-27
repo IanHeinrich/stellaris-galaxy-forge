@@ -47,7 +47,11 @@ cargo workshop <command>
   has moved, it also shows the change note, made from the changelog
   sections since the last push. It asks before uploading. `--dry-run`
   only shows, `--yes` skips the question, and `--force` uploads
-  everything.
+  everything. A new carousel goes up as two updates, the first removing
+  the live images, because Steam drops an added image that matches one
+  removed in the same update. `push` compares against the last upload it
+  recorded, not the live page, so check the page after a carousel
+  change.
 - `backfill <x.y.z>` posts one change note per released version from
   that one up to the last push, oldest first, so the newest ends up on
   top. Steam dates each note the day it is posted, so every heading

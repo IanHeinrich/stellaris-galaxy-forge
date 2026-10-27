@@ -264,7 +264,26 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
         .transpose()?;
     let mut update = update_for(&plan, &live, &files, change_note);
     update.content = staged.as_ref().map(|staged| staged.dir.clone());
+    if let Some(removal) = carousel_removal(&mut update, metadata) {
+        println!("Removing the live carousel first");
+        report(steam.submit(item, &removal)?)?;
+    }
     report(steam.submit(item, &update)?)
+}
+
+/// Moves a carousel replacement's removals into an update of their own, to submit
+/// before the rest. In one update, Steam drops an added image that matches one the
+/// same update removes. The removal keeps the live metadata, so if the second update
+/// fails, the next push still plans the carousel.
+fn carousel_removal(update: &mut Update, live_metadata: &str) -> Option<Update> {
+    if update.remove_previews.is_empty() || update.add_previews.is_empty() {
+        return None;
+    }
+    Some(Update {
+        remove_previews: std::mem::take(&mut update.remove_previews),
+        metadata: live_metadata.to_string(),
+        ..Update::default()
+    })
 }
 
 /// Posts one change note per released version from `from` up to the version
@@ -532,5 +551,32 @@ mod tests {
             carousel_names(&downloaded, &local),
             ["01-preview.png", "02-preview.gif"]
         );
+    }
+
+    #[test]
+    fn a_carousel_replacement_removes_the_live_images_first() {
+        let mut update = Update {
+            description: Some("new".into()),
+            remove_previews: vec![1, 0],
+            add_previews: vec!["01-hero.gif".into(), "02-galaxy.png".into()],
+            metadata: "new state".into(),
+            ..Update::default()
+        };
+        let removal = carousel_removal(&mut update, "live state").unwrap();
+        assert_eq!(removal.remove_previews, [1, 0]);
+        assert!(removal.add_previews.is_empty() && removal.description.is_none());
+        assert_eq!(removal.metadata, "live state");
+        assert!(update.remove_previews.is_empty());
+        assert_eq!(update.add_previews.len(), 2);
+        assert_eq!(update.metadata, "new state");
+    }
+
+    #[test]
+    fn a_carousel_with_nothing_live_goes_up_in_one_update() {
+        let mut update = Update {
+            add_previews: vec!["01-hero.gif".into()],
+            ..Update::default()
+        };
+        assert!(carousel_removal(&mut update, "live state").is_none());
     }
 }
