@@ -8,6 +8,25 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-10-29
+
+### In memory
+
+- Rest in peace, Sir Patrick Stewart (1940–2026). Picard is a big part of
+  why a lot of us wanted to explore the galaxy in the first place.
+  Engage.
+
+### Added
+
+- You can choose the folder that holds your Stellaris mods and saves, on
+  the "Before you start" card or in the Game data panel.
+  - Galaxy Forge warns you when that folder has no mods.
+
+### Fixed
+
+- Galaxy Forge finds your mods and saves in a moved Stellaris folder
+  that the game's launcher settings point to.
+
 ## [0.27.2] - 2026-10-24
 
 ### Changed
