@@ -79,6 +79,22 @@ describe("user folder", () => {
     expect(data().userDirRefusal).toBeNull();
   });
 
+  it("picking the mod folder inside the folder takes the folder", async () => {
+    await loadGameData();
+    const windows = "D:\\Games\\Stellaris";
+    mockedIpc.isUserDir.mockImplementation(async (path) => path === MOVED || path === windows);
+    await data().chooseUserDir(`${MOVED}/mod`);
+    expect(data().userDir).toBe(MOVED);
+    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith(undefined, MOVED);
+
+    await data().chooseUserDir(`${windows}\\Mod\\`);
+    expect(data().userDir).toBe(windows);
+
+    await data().chooseUserDir("E:\\Elsewhere\\mod");
+    expect(data().userDirRefusal).toBe(USER_DIR_REFUSED);
+    expect(data().userDir).toBe(windows);
+  });
+
   it("using the default forgets the chosen folder and the next load sends none", async () => {
     await loadGameData();
     await data().chooseUserDir(MOVED);

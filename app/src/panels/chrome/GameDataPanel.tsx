@@ -5,7 +5,13 @@ import type { GameDataSummary } from "../../generated/GameDataSummary";
 import type { ModView } from "../../generated/ModView";
 import type { Progress } from "../../generated/Progress";
 import { counted, phaseLabel } from "../../lib/text";
-import { lacksPlayset, listedDiagnostics, userDirShown } from "../../lib/userDir";
+import {
+  LOCATE_USER_DIR,
+  lacksPlayset,
+  listedDiagnostics,
+  USER_DIR_LABEL,
+  userDirShown,
+} from "../../lib/userDir";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { HelpLink } from "../HelpLink";
 import { FilterField } from "../parts";
@@ -130,7 +136,7 @@ export function GameDataPanel() {
   };
 
   const locateUserDir = async () => {
-    const picked = await open({ directory: true, multiple: false, title: "Locate user folder" });
+    const picked = await open({ directory: true, multiple: false, title: LOCATE_USER_DIR });
     if (typeof picked === "string") await chooseUserDir(picked);
   };
 
@@ -149,7 +155,7 @@ export function GameDataPanel() {
             </div>
             <div className="menu-note">{install ?? "none found yet"}</div>
             {status === "error" && error && <div className="menu-note warn">{error}</div>}
-            <div className="menu-section">User folder</div>
+            <div className="menu-section">{USER_DIR_LABEL}</div>
             <div className="menu-note">
               {shownDir?.path ?? (summary ? "none found" : "none found yet")}
               {shownDir?.note && <span className="muted"> · {shownDir.note}</span>}
@@ -207,7 +213,7 @@ export function GameDataPanel() {
             />
             <MenuItem label="Locate Stellaris…" dismiss={dismiss} onClick={locate} />
             {status !== "loading" && (
-              <MenuItem label="Locate user folder…" dismiss={dismiss} onClick={locateUserDir} />
+              <MenuItem label={`${LOCATE_USER_DIR}…`} dismiss={dismiss} onClick={locateUserDir} />
             )}
             {status !== "loading" && userDir !== undefined && (
               <MenuItem label="Use the default folder" dismiss={dismiss} onClick={forgetUserDir} />

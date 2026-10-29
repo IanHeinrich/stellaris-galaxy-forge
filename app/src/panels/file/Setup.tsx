@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState } from "react";
-import { lacksPlayset, userDirShown } from "../../lib/userDir";
+import { LOCATE_USER_DIR, lacksPlayset, USER_DIR_LABEL, userDirShown } from "../../lib/userDir";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { HelpLink } from "../HelpLink";
 import "./open.css";
@@ -41,7 +41,7 @@ export function Setup() {
   };
 
   const changeUserDir = async () => {
-    const picked = await open({ directory: true, multiple: false, title: "Locate user folder" });
+    const picked = await open({ directory: true, multiple: false, title: LOCATE_USER_DIR });
     if (typeof picked === "string") await chooseUserDir(picked);
   };
 
@@ -81,7 +81,7 @@ export function Setup() {
           </button>
         </div>
         <div className="setup-install">
-          <span className="muted setup-label">User folder</span>
+          <span className="muted setup-label">{USER_DIR_LABEL}</span>
           <span className="setup-path">
             {shownDir?.path ?? (
               <span className="muted">
@@ -93,7 +93,7 @@ export function Setup() {
           {noPlayset && <span className="warn">no mods found</span>}
           {!loading && (
             <button type="button" className="link" onClick={() => void changeUserDir()}>
-              {noPlayset ? "Locate user folder…" : "Change folder…"}
+              {noPlayset ? `${LOCATE_USER_DIR}…` : "Change folder…"}
             </button>
           )}
           {!loading && userDir !== undefined && (

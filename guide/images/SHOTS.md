@@ -49,7 +49,7 @@ The Issues, Changes and added-system shots show those edits.
 | `start/open-mode.png` | `start/open.md`, `scenario/paint-a-galaxy.md` | "Open 4.5-day-one.sav" with Edit as save and Edit as scenario | Double-click the 4.5 save on the Open screen. Hover Edit as scenario so its checkbox shows. |
 | `start/window.png` | `start/the-window.md` | The whole window, numbered by the page through `<Annotated>` | The 4.5 save with Soukias #576 selected, Tilt at 0°. |
 | `start/file-menu.png` | `start/the-window.md` | The File menu with Open recent | Open the File menu with the Paint a Galaxy scenario open, after opening 4.4-early, 4.5-day-one and a copy of the 4.5 save. |
-| `start/game-data-panel.png` | `start/game-data.md` | The game data menu with the install path, a chosen user folder and no mods | Shot from `npm run tauri dev` on Stellaris 4.5.2 game data. Choose a user folder with Locate user folder… that holds a `save games` folder and a `dlc_load.json` with no mods enabled, then click "Game data v4.5.2 · 0 mods" in the status bar. |
+| `start/game-data-panel.png` | `start/game-data.md` | The game data menu with the install path, a chosen mods and saves folder and no mods | Shot from `npm run tauri dev` on Stellaris 4.5.2 game data. Choose a folder with Locate mods and saves folder… that holds a `save games` folder and a `dlc_load.json` with no mods enabled, then click "Game data v4.5.2 · 0 mods" in the status bar. |
 
 ## Find your way
 

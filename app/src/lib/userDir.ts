@@ -2,6 +2,18 @@ import type { DiagnosticView } from "../generated/DiagnosticView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { UserDirSource } from "../generated/UserDirSource";
 
+/** The name the Setup card and the Game data panel give the user folder. */
+export const USER_DIR_LABEL = "Mods and saves";
+
+/** The action that picks the user folder, and the title of the folder dialog it opens. */
+export const LOCATE_USER_DIR = "Locate mods and saves folder";
+
+/** The folder above `path` when `path` is a folder named `mod`, which players often pick for their mods. */
+export function aboveModFolder(path: string): string | null {
+  const match = /^(.*?)[\\/]mod[\\/]?$/i.exec(path);
+  return match?.[1] ? match[1] : null;
+}
+
 /** What choosing a folder that holds no mods, playset or saves says. */
 export const USER_DIR_REFUSED =
   "That folder has no mods, playset or saves. Choose the Stellaris folder that holds them.";

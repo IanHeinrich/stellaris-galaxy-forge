@@ -1,7 +1,7 @@
 ---
 title: Game data and mods
 description: How Galaxy Forge reads your Stellaris install and enabled mods, and what to do when it can't find them.
-aliases: [install folder, stellaris folder, locate stellaris, game path, mods, modded, playset, star art, localisation, names, game data off, game data unavailable, reload, unload, load at start, auto-reload, plain stars, before you start, setup, user folder, mods not found, moved mod folder, documents folder, save folder]
+aliases: [install folder, stellaris folder, locate stellaris, game path, mods, modded, playset, star art, localisation, names, game data off, game data unavailable, reload, unload, load at start, auto-reload, plain stars, before you start, setup, user folder, mods not found, moved mod folder, documents folder, save folder, mods and saves folder]
 ---
 # Game data and mods <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -30,16 +30,17 @@ Once a file is open, "Locate Stellaris…" is in the Game data panel too.
 
 ## Find your mods and saves
 
-Stellaris keeps your mods, your playset and your saves in a user folder,
+Stellaris keeps your mods, your playset and your saves in one folder,
 apart from the install. It is usually
 `Documents\Paradox Interactive\Stellaris`. If you moved it, for example
 to another drive, and set the new place in the game's launcher settings,
 Galaxy Forge finds it there. The card and the Game data panel then say
 "from the game's launcher settings" after the folder.
 
-When the User folder row says "no mods found", click "Locate user
-folder…" and pick the folder that holds your `mod` folder,
-`dlc_load.json` or `save games` folder. Galaxy Forge remembers it, and
+When the Mods and saves row says "no mods found", click "Locate mods
+and saves folder…" and pick the folder that holds your `mod` folder,
+`dlc_load.json` or `save games` folder. Picking the `mod` folder itself
+works too. Galaxy Forge remembers it, and
 the Open screen lists the saves in it. "Use the default folder" goes
 back to the folder Galaxy Forge finds by itself.
 
@@ -49,11 +50,11 @@ The Game data button is at the right end of the status bar. It shows the
 game version and how many mods it loaded, such as "Game data v4.5.1 · 0
 mods". Click it to open the panel.
 
-![The Game data panel with the install folder, a chosen user folder, mods, Load at start, Reload, Unload, Locate Stellaris, Locate user folder and Use the default folder](../images/start/game-data-panel.png)
+![The Game data panel with the install folder, a chosen mods and saves folder, mods, Load at start, Reload, Unload, Locate Stellaris, Locate mods and saves folder and Use the default folder](../images/start/game-data-panel.png)
 
 - Install shows the Stellaris folder it reads.
-- User folder shows the folder your mods, playset and saves are in.
-  "Locate user folder…" picks another one.
+- Mods and saves shows the folder your mods, playset and saves are in.
+  "Locate mods and saves folder…" picks another one.
 - Diagnostics lists files it couldn't read, when there are any.
 - Mods lists the mods in the playset Stellaris last started with, in
   load order. A mod marked "missing" is in your playset but its files

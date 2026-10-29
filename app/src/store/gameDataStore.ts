@@ -29,7 +29,7 @@ import type { FlagParts } from "../generated/FlagParts";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
-import { USER_DIR_REFUSED } from "../lib/userDir";
+import { aboveModFolder, USER_DIR_REFUSED } from "../lib/userDir";
 import { setMapNameFont } from "../lib/visual/mapFont";
 import { clearTextures } from "../lib/visual/textures";
 import { NAMES_BATCH } from "./batching";
@@ -322,19 +322,19 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
 
   async chooseUserDir(path) {
     const mine = userDirPicks.next();
-    let holdsUserData: boolean;
+    let userDir: string | null;
     try {
-      holdsUserData = await ipc.isUserDir(path);
+      userDir = await userDirAt(path);
     } catch (e) {
       if (userDirPicks.is(mine)) set({ userDirRefusal: ipc.errorMessage(e) });
       return;
     }
     if (!userDirPicks.is(mine)) return;
-    if (!holdsUserData) {
+    if (userDir === null) {
       set({ userDirRefusal: USER_DIR_REFUSED });
       return;
     }
-    set({ userDir: path, userDirRefusal: null });
+    set({ userDir, userDirRefusal: null });
     await loadForUserDir();
   },
 
@@ -654,6 +654,13 @@ async function loadForUserDir(): Promise<void> {
   const { status, startup, load } = useGameDataStore.getState();
   if (status === "ready" || status === "error") await load();
   else if (status === "idle" && startup === "ready") rememberChosenUserDir();
+}
+
+/** `path` when it holds mods, a playset or saves, else the folder above it when `path` is its `mod` folder. */
+async function userDirAt(path: string): Promise<string | null> {
+  if (await ipc.isUserDir(path)) return path;
+  const above = aboveModFolder(path);
+  return above !== null && (await ipc.isUserDir(above)) ? above : null;
 }
 
 function rememberChosenUserDir(): void {

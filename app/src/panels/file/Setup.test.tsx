@@ -17,10 +17,10 @@ beforeEach(() => {
   useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
 });
 
-describe("Setup user folder row", () => {
+describe("Setup mods and saves row", () => {
   it("says the folder is found on Continue before game data loads", () => {
     const html = card();
-    expect(html).toContain("User folder");
+    expect(html).toContain("Mods and saves");
     expect(html).toContain("found automatically when you continue");
     expect(buttons(markup())).toContain("Change folder…");
     expect(html).not.toContain("Use the default folder");
@@ -38,7 +38,7 @@ describe("Setup user folder row", () => {
     expect(html).toContain("D:/Paradox/Stellaris");
     expect(html).toContain("from the game's launcher settings");
     expect(html).toContain("no mods found");
-    expect(buttons(markup())).toContain("Locate user folder…");
+    expect(buttons(markup())).toContain("Locate mods and saves folder…");
   });
 
   it("offers the default once a folder was chosen", () => {
