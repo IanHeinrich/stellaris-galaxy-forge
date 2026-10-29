@@ -11,6 +11,7 @@ export const PREF_KEYS = {
   layers: "sgf.layers.visible",
   sceneLayers: "sgf.scene.layers",
   installPath: "sgf.installPath",
+  userDir: "sgf.userDir",
   autoLoad: "sgf.gameData.autoLoad",
   inspectorSections: "sgf.inspector.sections",
   dockWidth: "sgf.dock.width",

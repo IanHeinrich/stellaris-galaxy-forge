@@ -128,6 +128,7 @@ mod scenario_paint_refusals;
 mod scenario_paint_weights;
 mod scenario_provenance;
 mod search;
+mod user_dir;
 mod validator;
 mod waylines;
 mod wormhole_pairs;

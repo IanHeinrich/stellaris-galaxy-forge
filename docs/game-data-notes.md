@@ -449,9 +449,30 @@ they call, and judges each `if` against the flags set so far.
 
 ## Where mods are registered
 
-These files all sit in the user data dir. That is
-`Documents/Paradox Interactive/Stellaris/` on Windows and macOS, and
-`~/.local/share/Paradox Interactive/Stellaris/` on Linux.
+These files all sit in the user data dir, beside `save games/`. By
+default that is `Documents/Paradox Interactive/Stellaris/` on Windows
+and macOS, and `~/.local/share/Paradox Interactive/Stellaris/` on Linux.
+
+A player can move it. The game then reads it from `"gameDataPath"` in
+`launcher-settings.json` in the game root. On Windows 4.5.2 the stock
+value is `"%USER_DOCUMENTS%/Paradox Interactive/Stellaris"`.
+`%USER_DOCUMENTS%` stands for the documents folder and
+`$LINUX_DATA_HOME` for `~/.local/share`, and a value without a token is
+a path as written.
+
+The app looks for the folder in this order:
+
+1. The folder the player chose in the app.
+2. `gameDataPath`, when it names a folder that exists.
+3. The default above.
+
+Tokens match in any letter case, and an empty `gameDataPath` counts as
+none. A `gameDataPath` with an unknown token, a relative path, or one
+that names no folder is reported (`game_data_path_ignored`) and the
+default is read instead.
+The stock value is not reported when the default folder is missing,
+because it names that folder. A load with mods reports a folder that is
+missing, or holds neither `dlc_load.json` nor `mod/`, as `no_playset`.
 
 | File | Contents | Trust |
 |---|---|---|
@@ -463,8 +484,8 @@ These files all sit in the user data dir. That is
 To find a mod's directory, try the `.mod` descriptor's `path` first,
 then the registry's `dirPath`, then
 `<steam library>/steamapps/workshop/content/281990/<steamId>`. Check
-that the directory exists before using it. The app loads the active
-playset, which is what the game loads.
+that the directory exists before using it. The app loads the mods
+`dlc_load.json` enables.
 
 Finding the install starts with Steam's `libraryfolders.vdf`, which
 lists every library. The game is app `281990`, under

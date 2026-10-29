@@ -7,6 +7,7 @@ import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import { campaignsToRead, type OpenLists, type OpenTab } from "../lib/openRows";
 import { useFileSessionStore, type OpenMode } from "./fileSessionStore";
+import { chosenFolders } from "./gameDataStore";
 import { useLayoutStore } from "./layoutStore";
 import { useRecentsStore } from "./recentsStore";
 
@@ -86,6 +87,17 @@ export function resetOpenScreen(): void {
   listedDirs.clear();
   readingDetails.clear();
   useOpenScreenStore.setState({ ...INITIAL });
+}
+
+/**
+ * Reads both lists again now, overtaking a read under way, as when the user folder changes; a
+ * screen that has read nothing yet waits for its own first read.
+ */
+export function rereadOpenScreen(): Promise<void> {
+  const { campaigns, scenarios } = useOpenScreenStore.getState();
+  if (reading === null && campaigns === null && scenarios === null) return Promise.resolve();
+  reading = null;
+  return useOpenScreenStore.getState().load();
 }
 
 /**
@@ -212,8 +224,9 @@ async function read(token: unknown): Promise<void> {
   const setState = (state: Partial<OpenScreenState>) => {
     if (token === readFor) useOpenScreenStore.setState(state);
   };
+  const folders = chosenFolders();
   await Promise.all([
-    ipc.listCampaigns().then(
+    ipc.listCampaigns(folders).then(
       (campaigns) =>
         setState({
           campaigns: [...campaigns].sort((a, b) => b.newest - a.newest),
@@ -221,7 +234,7 @@ async function read(token: unknown): Promise<void> {
         }),
       (e: unknown) => setState({ campaigns: [], campaignsError: ipc.errorMessage(e) }),
     ),
-    ipc.listScenarios().then(
+    ipc.listScenarios(folders).then(
       (listed) =>
         setState({
           scenarios: listed.scenarios,

@@ -82,6 +82,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::save_as,
             commands::close_document,
             commands::is_cloud_save,
+            commands::is_user_dir,
             commands::load_game_data,
             commands::game_data_summary,
             commands::unload_game_data,

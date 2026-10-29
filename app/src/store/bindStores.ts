@@ -21,6 +21,7 @@ import { issuesDocument, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { rereadOpenScreen } from "./openScreenStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
 import { galaxyShown, outcomeInView, usePrepareStore } from "./prepareStore";
@@ -57,6 +58,7 @@ export function bindStores(): void {
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
+  followUserDir();
   followNotes();
   followTool();
   followScene();
@@ -318,6 +320,20 @@ function followWatchlist(): void {
   });
   useGameDataStore.subscribe((state, previous) => {
     if (state.special !== previous.special) settle();
+  });
+}
+
+// The Open screen and the Paint a Galaxy mod are read from the user folder, so they are read again
+// when a folder or install is chosen or forgotten, and when game data loaded again reads another.
+function followUserDir(): void {
+  let readFrom: string | undefined;
+  useGameDataStore.subscribe((state, previous) => {
+    const chosen = state.userDir !== previous.userDir || state.installPath !== previous.installPath;
+    const loaded = state.summary?.user_dir?.path;
+    const moved = loaded !== undefined && loaded !== readFrom;
+    if (loaded !== undefined) readFrom = loaded;
+    if (chosen) void usePaintModStore.getState().refresh();
+    if (chosen || moved) void rereadOpenScreen();
   });
 }
 

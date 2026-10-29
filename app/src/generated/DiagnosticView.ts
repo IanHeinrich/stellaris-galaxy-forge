@@ -2,6 +2,7 @@
 
 export type DiagnosticView = { 
 /**
- * `"override"`, `"parse_error"`, `"unreadable"`, `"mod_missing"` or `"rebuild_failed"`.
+ * `"override"`, `"parse_error"`, `"unreadable"`, `"mod_missing"`, `"rebuild_failed"`,
+ * `"no_playset"` or `"game_data_path_ignored"`.
  */
 kind: string, message: string, };

@@ -38,15 +38,22 @@ import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import type { TerraformCandidateView } from "../generated/TerraformCandidateView";
 import type { TextureView } from "../generated/TextureView";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
+import { folderArgs, type ChosenFolders } from "./folders";
 
 /**
- * Load the game's definitions, localisation and mods from `installPath` (or the discovered install);
- * emits `sgf://progress` (`discover`, `definitions`, `localisation`, `done`). Rejects with `SgfError`
+ * Load the game's definitions, localisation and mods from `installPath` (or the discovered install),
+ * with the playset of the user folder `userDir` (or the one the command finds); emits
+ * `sgf://progress` (`discover`, `definitions`, `localisation`, `done`). Rejects with `SgfError`
  * kind `no_install` when no install is found.
  */
-export function loadGameData(installPath?: string, language?: string): Promise<GameDataSummary> {
+export function loadGameData(
+  installPath?: string,
+  userDir?: string,
+  language?: string,
+): Promise<GameDataSummary> {
   return invoke<GameDataSummary>("load_game_data", {
     installPath: installPath ?? null,
+    userDir: userDir ?? null,
     language: language ?? null,
   });
 }
@@ -65,9 +72,12 @@ export function resumeAutoReload(): Promise<void> {
   return invoke<void>("resume_auto_reload");
 }
 
-/** The Paint a Galaxy mod on this machine: where its scenarios go and whether the playset loads it; null when it is not installed. */
-export function paintMod(): Promise<PaintModView | null> {
-  return invoke<PaintModView | null>("paint_mod");
+/**
+ * The Paint a Galaxy mod in the chosen user folder, or in the one the command finds: where its
+ * scenarios go and whether the playset loads it; null when it is not installed.
+ */
+export function paintMod(folders: ChosenFolders = {}): Promise<PaintModView | null> {
+  return invoke<PaintModView | null>("paint_mod", folderArgs(folders));
 }
 
 /** Calls `open_script`: open a file with the system default, or show it in its folder. The command's doc says which files it opens. */

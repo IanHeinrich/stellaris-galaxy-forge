@@ -29,6 +29,7 @@ import type { FlagParts } from "../generated/FlagParts";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
+import { aboveModFolder, USER_DIR_REFUSED } from "../lib/userDir";
 import { setMapNameFont } from "../lib/visual/mapFont";
 import { clearTextures } from "../lib/visual/textures";
 import { NAMES_BATCH } from "./batching";
@@ -38,7 +39,7 @@ import { documentActions, NO_DOCUMENT } from "./gameDataStore.document";
 import { countryNames, forgetNames, nameActions, nameKeys } from "./gameDataStore.names";
 import { PREF_KEYS } from "./prefKeys";
 import { keyedReads, latest } from "./reads";
-import { prefField } from "./prefs";
+import { pathPref, prefField } from "./prefs";
 
 export type GameDataStatus = "idle" | "loading" | "ready" | "error";
 
@@ -107,6 +108,10 @@ export interface GameDataState {
   startupLoad: boolean;
   /** The install the user chose, remembered across launches; `null` to discover one. */
   installPath: string | null;
+  /** The user folder the user chose, remembered across launches; undefined to find one. */
+  userDir: string | undefined;
+  /** Why the last folder chosen as the user folder was refused; null when none was. */
+  userDirRefusal: string | null;
   /** The backend's generation: one per load, unload and accepted rebuild. */
   version: number;
   /** Roots the auto-reload watcher holds; `0` when it is not running. */
@@ -126,6 +131,13 @@ export interface GameDataState {
   continueSetup(autoLoad: boolean): Promise<void>;
   setAutoLoad(autoLoad: AutoLoad): void;
   setInstallPath(path: string): void;
+  /**
+   * Takes `path` as the user folder when it holds mods, a playset or saves, and refuses it
+   * otherwise; game data that is loaded or failed is loaded again with it.
+   */
+  chooseUserDir(path: string): Promise<void>;
+  /** Forgets the chosen user folder; game data that is loaded or failed is loaded again without it. */
+  forgetUserDir(): Promise<void>;
   /** Loads from `installPath`, the remembered one, or the discovered install. */
   load(installPath?: string): Promise<void>;
   /** Adopts game data the backend already holds, as after a page reload. */
@@ -259,6 +271,11 @@ function isAutoLoad(value: unknown): value is AutoLoad {
 }
 
 const AUTO_LOAD = prefField<AutoLoad>(PREF_KEYS.autoLoad, "ask", isAutoLoad);
+const INSTALL_PATH = pathPref(PREF_KEYS.installPath);
+const USER_DIR = pathPref(PREF_KEYS.userDir);
+
+/** The latest choice of user folder, so a slow check of an earlier pick lands nowhere. */
+const userDirPicks = latest();
 
 export const useGameDataStore = create<GameDataState>((set, get) => ({
   ...UNLOADED,
@@ -266,7 +283,9 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   autoLoad: "ask",
   startup: "pending",
   startupLoad: false,
-  installPath: rememberedInstallPath() ?? null,
+  installPath: INSTALL_PATH.read() ?? null,
+  userDir: USER_DIR.read(),
+  userDirRefusal: null,
 
   async start() {
     const autoLoad = AUTO_LOAD.read();
@@ -288,6 +307,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
     get().setAutoLoad(autoLoad ? "on" : "off");
     set({ startup: "ready" });
     if (autoLoad && get().status !== "ready") await get().load();
+    else rememberChosenUserDir();
   },
 
   setAutoLoad(autoLoad) {
@@ -296,21 +316,48 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   },
 
   setInstallPath(path) {
-    rememberInstallPath(path);
+    INSTALL_PATH.save(path);
     set({ installPath: path });
+  },
+
+  async chooseUserDir(path) {
+    const mine = userDirPicks.next();
+    let userDir: string | null;
+    try {
+      userDir = await userDirAt(path);
+    } catch (e) {
+      if (userDirPicks.is(mine)) set({ userDirRefusal: ipc.errorMessage(e) });
+      return;
+    }
+    if (!userDirPicks.is(mine)) return;
+    if (userDir === null) {
+      set({ userDirRefusal: USER_DIR_REFUSED });
+      return;
+    }
+    set({ userDir, userDirRefusal: null });
+    await loadForUserDir();
+  },
+
+  async forgetUserDir() {
+    userDirPicks.next();
+    USER_DIR.forget();
+    set({ userDir: undefined, userDirRefusal: null });
+    await loadForUserDir();
   },
 
   async load(installPath) {
     if (get().status === "loading") return;
     abandonTail();
-    set({ status: "loading", error: null, progress: null });
+    set({ status: "loading", error: null, progress: null, userDirRefusal: null });
     let unlisten: (() => void) | null = null;
     try {
       unlisten = await onProgress((progress) => {
         if (get().status === "loading") set({ progress });
       });
-      const summary = await ipc.loadGameData(installPath ?? rememberedInstallPath());
+      const { userDir } = get();
+      const summary = await ipc.loadGameData(installPath ?? INSTALL_PATH.read(), userDir);
       if (installPath !== undefined) get().setInstallPath(installPath);
+      if (userDir !== undefined && get().userDir === userDir) USER_DIR.save(userDir);
       set({
         status: "ready",
         summary,
@@ -599,20 +646,32 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
   await useDetailsStore.getState().loadResourceIcons();
 }
 
-function rememberedInstallPath(): string | undefined {
-  try {
-    return localStorage.getItem(PREF_KEYS.installPath) ?? undefined;
-  } catch {
-    return undefined;
-  }
+/**
+ * After the user folder changes, loads game data that is loaded or failed again; with no load to
+ * come, as when game data is off, the chosen folder is remembered as it stands.
+ */
+async function loadForUserDir(): Promise<void> {
+  const { status, startup, load } = useGameDataStore.getState();
+  if (status === "ready" || status === "error") await load();
+  else if (status === "idle" && startup === "ready") rememberChosenUserDir();
 }
 
-function rememberInstallPath(path: string): void {
-  try {
-    localStorage.setItem(PREF_KEYS.installPath, path);
-  } catch {
-    return;
-  }
+/** `path` when it holds mods, a playset or saves, else the folder above it when `path` is its `mod` folder. */
+async function userDirAt(path: string): Promise<string | null> {
+  if (await ipc.isUserDir(path)) return path;
+  const above = aboveModFolder(path);
+  return above !== null && (await ipc.isUserDir(above)) ? above : null;
+}
+
+function rememberChosenUserDir(): void {
+  const { userDir } = useGameDataStore.getState();
+  if (userDir !== undefined) USER_DIR.save(userDir);
+}
+
+/** The install and user folder the user chose, for the commands that read the user folder. */
+export function chosenFolders(): ipc.ChosenFolders {
+  const { installPath, userDir } = useGameDataStore.getState();
+  return { installPath: installPath ?? undefined, userDir };
 }
 
 /** How the install sizes a system, or how vanilla does before game data loads. */

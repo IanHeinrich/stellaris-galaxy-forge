@@ -10,9 +10,13 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::archive::{SaveMeta, read_meta_only};
+use crate::paths;
 
 /// Stellaris on Steam, which names its Steam Cloud directory.
 const STELLARIS_APP_ID: &str = "281990";
+
+/// The folder the game writes saves into, under the user folder and under Steam Cloud's.
+const SAVE_GAMES: &str = "save games";
 
 /// One `.sav` found under a Stellaris save directory.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -56,27 +60,28 @@ pub struct CampaignListing {
     pub cloud: bool,
 }
 
-/// Stellaris save directories that exist on this machine.
-pub fn find_save_dirs() -> Vec<PathBuf> {
-    paradox_user_dir()
-        .map(|dir| dir.join("save games"))
+/// The save directory under the user folder `user_dir`, when it exists.
+pub fn find_save_dirs(user_dir: Option<&Path>) -> Vec<PathBuf> {
+    user_dir
+        .map(|dir| dir.join(SAVE_GAMES))
         .filter(|p| p.is_dir())
         .into_iter()
         .collect()
 }
 
-/// This machine's save directories: the local ones, then the Steam Cloud ones.
-pub fn save_roots() -> Vec<(PathBuf, bool)> {
-    find_save_dirs()
+/// The save directories this machine has: the one under the user folder `user_dir`, then
+/// the Steam Cloud ones.
+pub fn save_roots(user_dir: Option<&Path>) -> Vec<(PathBuf, bool)> {
+    find_save_dirs(user_dir)
         .into_iter()
         .map(|d| (d, false))
         .chain(find_cloud_save_dirs().into_iter().map(|d| (d, true)))
         .collect()
 }
 
-/// Every campaign folder under this machine's save directories, newest first.
-pub fn list_campaigns() -> Vec<CampaignListing> {
-    list_campaigns_in(&save_roots())
+/// Every campaign folder under [`save_roots`], newest first.
+pub fn list_campaigns(user_dir: Option<&Path>) -> Vec<CampaignListing> {
+    list_campaigns_in(&save_roots(user_dir))
 }
 
 /// Every folder under `roots` holding at least one `.sav`, newest first: each root
@@ -197,9 +202,172 @@ fn collect_saves(dir: &Path, campaign: &str, cloud: bool, out: &mut Vec<SaveFile
     }));
 }
 
-/// The launcher's user data directory (`Documents/Paradox Interactive/Stellaris`, or
-/// `~/.local/share/Paradox Interactive/Stellaris` on Linux), whether or not it exists.
-pub fn paradox_user_dir() -> Option<PathBuf> {
+/// Where the Stellaris user folder came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum UserDirSource {
+    /// The player chose it.
+    Chosen,
+    /// `gameDataPath` in the install's `launcher-settings.json`, where it names a folder
+    /// other than the default.
+    LauncherSettings,
+    /// `Documents/Paradox Interactive/Stellaris`, or `~/.local/share/Paradox
+    /// Interactive/Stellaris` on Linux.
+    Default,
+}
+
+/// The Stellaris user folder, which holds `mod/`, `dlc_load.json`, `mods_registry.json` and
+/// `save games/`, and where it came from. The folder may not exist.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct UserDir {
+    pub path: PathBuf,
+    pub source: UserDirSource,
+}
+
+/// What [`resolve_user_dir`] found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserDirLookup {
+    /// `None` only when this machine has no folder to default to.
+    pub dir: Option<UserDir>,
+    /// The launcher's `gameDataPath` when it could not be followed and named a folder other
+    /// than the default.
+    pub ignored: Option<IgnoredGameDataPath>,
+}
+
+/// Why a `gameDataPath` was not followed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IgnoredGameDataPath {
+    /// It starts with a token other than `%USER_DOCUMENTS%` and `$LINUX_DATA_HOME`.
+    UnknownToken { value: String },
+    /// It is a relative path, which names no one folder.
+    Relative { value: String },
+    /// It names no folder on this machine.
+    Missing { value: String, path: PathBuf },
+}
+
+impl std::fmt::Display for IgnoredGameDataPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownToken { value } => {
+                write!(f, "gameDataPath \"{value}\" starts with an unknown token")
+            }
+            Self::Relative { value } => {
+                write!(f, "gameDataPath \"{value}\" is not a full path")
+            }
+            Self::Missing { value, path } => write!(
+                f,
+                "gameDataPath \"{value}\" names no folder ({})",
+                path.display()
+            ),
+        }
+    }
+}
+
+/// A folder this machine may have, such as its documents folder.
+type KnownFolder = fn() -> Option<PathBuf>;
+
+/// The tokens a `gameDataPath` may start with, and the folder each stands for.
+const GAME_DATA_PATH_TOKENS: [(&str, KnownFolder); 2] = [
+    ("%USER_DOCUMENTS%", dirs::document_dir),
+    ("$LINUX_DATA_HOME", dirs::data_dir),
+];
+
+/// The Stellaris user folder: `chosen`, else the launcher's `gameDataPath` (as written in
+/// `launcher-settings.json`) when it names a folder that exists, else the default. An empty
+/// `gameDataPath` is no `gameDataPath`.
+pub fn resolve_user_dir(chosen: Option<&Path>, game_data_path: Option<&str>) -> UserDirLookup {
+    if let Some(path) = chosen {
+        return UserDirLookup {
+            dir: Some(UserDir {
+                path: path.to_path_buf(),
+                source: UserDirSource::Chosen,
+            }),
+            ignored: None,
+        };
+    }
+    let default = paradox_user_dir();
+    let game_data_path = game_data_path.filter(|value| !value.trim().is_empty());
+    let is_default = |path: &Path| {
+        default
+            .as_deref()
+            .is_some_and(|d| paths::same_file(path, d))
+    };
+    let ignored = match game_data_path.map(|value| (value, expand_game_data_path(value))) {
+        Some((_, Ok(Some(path)))) if is_default(&path) => None,
+        Some((_, Ok(Some(path)))) if path.is_dir() => {
+            return UserDirLookup {
+                dir: Some(UserDir {
+                    path,
+                    source: UserDirSource::LauncherSettings,
+                }),
+                ignored: None,
+            };
+        }
+        Some((value, Ok(Some(path)))) => Some(IgnoredGameDataPath::Missing {
+            value: value.to_owned(),
+            path,
+        }),
+        Some((_, Err(ignored))) => Some(ignored),
+        Some((_, Ok(None))) | None => None,
+    };
+    UserDirLookup {
+        dir: default.map(|path| UserDir {
+            path,
+            source: UserDirSource::Default,
+        }),
+        ignored,
+    }
+}
+
+/// `value` with its leading token, in any letter case, replaced by the folder it stands for;
+/// `Ok(None)` when this machine has no such folder. A value with no token is a full path as
+/// written.
+fn expand_game_data_path(value: &str) -> Result<Option<PathBuf>, IgnoredGameDataPath> {
+    for (token, base) in GAME_DATA_PATH_TOKENS {
+        let Some(rest) = value
+            .get(..token.len())
+            .filter(|lead| lead.eq_ignore_ascii_case(token))
+            .map(|_| &value[token.len()..])
+        else {
+            continue;
+        };
+        if !rest.is_empty() && !rest.starts_with(['/', '\\']) {
+            break;
+        }
+        return Ok(base().map(|base| {
+            rest.split(['/', '\\'])
+                .filter(|part| !part.is_empty())
+                .fold(base, |path, part| path.join(part))
+        }));
+    }
+    if value.starts_with(['%', '$']) {
+        return Err(IgnoredGameDataPath::UnknownToken {
+            value: value.to_owned(),
+        });
+    }
+    let path = PathBuf::from(value);
+    if path.is_relative() {
+        return Err(IgnoredGameDataPath::Relative {
+            value: value.to_owned(),
+        });
+    }
+    Ok(Some(path))
+}
+
+/// Whether `dir` holds a playset or mods: `dlc_load.json` or a `mod/` folder.
+pub fn holds_playset(dir: &Path) -> bool {
+    dir.join("dlc_load.json").is_file() || dir.join("mod").is_dir()
+}
+
+/// Whether `dir` looks like a Stellaris user folder: it holds a playset, mods or saves.
+pub fn is_user_dir(dir: &Path) -> bool {
+    holds_playset(dir) || dir.join(SAVE_GAMES).is_dir()
+}
+
+/// The default user folder, whether or not it exists.
+fn paradox_user_dir() -> Option<PathBuf> {
     let base = if cfg!(target_os = "linux") {
         dirs::data_dir()
     } else {
@@ -216,7 +384,7 @@ pub fn find_cloud_save_dirs() -> Vec<PathBuf> {
 
 /// `userdata/<account>/281990/remote/save games` under each Steam install in `roots`.
 pub fn cloud_dirs_under(roots: &[PathBuf]) -> Vec<PathBuf> {
-    const TAIL: [&str; 3] = [STELLARIS_APP_ID, "remote", "save games"];
+    const TAIL: [&str; 3] = [STELLARIS_APP_ID, "remote", SAVE_GAMES];
     roots
         .iter()
         .flat_map(|root| {

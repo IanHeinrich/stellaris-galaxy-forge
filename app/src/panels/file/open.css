@@ -588,6 +588,11 @@
   margin-left: 24px;
 }
 
+.setup-label {
+  flex: none;
+  min-width: 8em;
+}
+
 .setup-path {
   font-family: var(--font-mono);
   font-size: var(--text-note);

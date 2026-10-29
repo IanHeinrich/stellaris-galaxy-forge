@@ -624,6 +624,7 @@ export function beltKind(
 export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSummary {
   return {
     install: "C:/Stellaris",
+    user_dir: { path: "C:/Users/me/Documents/Paradox Interactive/Stellaris", source: "default" },
     version: "4.4.6",
     language: "l_english",
     language_fell_back: false,

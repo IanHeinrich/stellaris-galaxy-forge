@@ -196,3 +196,41 @@ pub fn have_install() -> bool {
 pub fn kind<T: std::fmt::Debug>(r: Result<T, SgfError>) -> ErrorKind {
     r.expect_err("expected an error").kind
 }
+
+/// A minimal install and a user folder beside it, under one temporary directory: the user
+/// folder's playset enables the one mod `chosen_mod`, and its `save games/empire_1` holds a
+/// copy of [`SAMPLE`]. Returns the directory, the install and the user folder.
+pub fn user_folder_tree() -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let install = dir.path().join("install");
+    std::fs::create_dir_all(install.join("common")).expect("install tree");
+    std::fs::create_dir_all(install.join("localisation/english")).expect("install tree");
+    std::fs::write(
+        install.join("localisation/english/fx_l_english.yml"),
+        "l_english:\n",
+    )
+    .expect("localisation stub");
+    let user = dir.path().join("user");
+    std::fs::create_dir_all(user.join("mod/chosen_mod")).expect("mod tree");
+    std::fs::write(
+        user.join("mod/chosen_mod.mod"),
+        "name=\"chosen_mod\"\npath=\"mod/chosen_mod\"\n",
+    )
+    .expect("descriptor");
+    std::fs::write(
+        user.join("dlc_load.json"),
+        r#"{"disabled_dlcs":[],"enabled_mods":["mod/chosen_mod.mod"]}"#,
+    )
+    .expect("dlc_load.json");
+    let campaign = user.join("save games/empire_1");
+    std::fs::create_dir_all(&campaign).expect("campaign folder");
+    std::fs::copy(SAMPLE, campaign.join("2206.11.16.sav")).expect("copy sample");
+    (dir, install, user)
+}
+
+/// Point the launcher settings of `install` at the user folder `user` through `gameDataPath`.
+pub fn launcher_points_at(install: &std::path::Path, user: &std::path::Path) {
+    let settings = json!({ "gameDataPath": user.to_string_lossy() });
+    std::fs::write(install.join("launcher-settings.json"), settings.to_string())
+        .expect("launcher-settings.json");
+}

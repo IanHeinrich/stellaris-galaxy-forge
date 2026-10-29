@@ -68,6 +68,7 @@ use registries::star_classes::StarClass;
 use registries::{
     colors, flags, gfx, planet_lists, registry, section_templates, star_names, starbase_levels,
 };
+use sgf_core::library::IgnoredGameDataPath;
 use sgf_core::ops::{RingFlags, SystemRadii};
 
 pub use initializers::Initializers;
@@ -200,7 +201,8 @@ pub struct GameData {
 pub struct LoadOptions {
     /// The game root; discovered through Steam when `None`.
     pub install: Option<PathBuf>,
-    /// The launcher's user data dir; the platform default when `None`.
+    /// The user folder the player chose; when `None`, the one the install's launcher
+    /// settings name, else the platform default.
     pub user_dir: Option<PathBuf>,
     /// Localisation language folder name, `"english"`.
     pub language: String,
@@ -253,6 +255,15 @@ pub enum Diagnostic {
     ModMissing { id: String, name: String },
     /// A registry a rebuild could not read; the previous one is still in use.
     RebuildFailed { kind: String, reason: String },
+    /// Mods are on, and the user folder is missing or holds neither `dlc_load.json` nor
+    /// `mod/`.
+    NoPlayset { dir: PathBuf },
+    /// The install's `gameDataPath` in `file` could not be followed; the default user
+    /// folder is read instead.
+    GameDataPathIgnored {
+        file: PathBuf,
+        ignored: IgnoredGameDataPath,
+    },
 }
 
 impl Diagnostic {
@@ -263,6 +274,8 @@ impl Diagnostic {
             Self::Unreadable { .. } => "unreadable",
             Self::ModMissing { .. } => "mod_missing",
             Self::RebuildFailed { .. } => "rebuild_failed",
+            Self::NoPlayset { .. } => "no_playset",
+            Self::GameDataPathIgnored { .. } => "game_data_path_ignored",
         }
     }
 }
@@ -281,6 +294,14 @@ impl std::fmt::Display for Diagnostic {
             Self::Unreadable { file, reason } => write!(f, "{}: {reason}", file.display()),
             Self::ModMissing { id, name } => write!(f, "{name} ({id}): directory not found"),
             Self::RebuildFailed { kind, reason } => write!(f, "{kind}: {reason}"),
+            Self::NoPlayset { dir } => {
+                write!(f, "No playset or mods found in {}", dir.display())
+            }
+            Self::GameDataPathIgnored { file, ignored } => write!(
+                f,
+                "{}: {ignored}, so the default user folder is read",
+                file.display()
+            ),
         }
     }
 }
@@ -290,14 +311,24 @@ pub fn load(opts: &LoadOptions, mut meter: Meter<'_>) -> Result<GameData, LoadEr
     meter.step("discover");
     let install = discovery::find_install(opts.install.as_deref())?;
     let version = discovery::install_version(&install);
-    let user_dir = opts
-        .user_dir
-        .clone()
-        .or_else(sgf_core::library::paradox_user_dir);
-    let mut diagnostics = Vec::new();
+    let lookup = discovery::resolve_user_dir(opts.user_dir.as_deref(), Some(&install));
+    let mut diagnostics: Vec<Diagnostic> = lookup
+        .ignored
+        .into_iter()
+        .map(|ignored| Diagnostic::GameDataPathIgnored {
+            file: install.join(discovery::LAUNCHER_SETTINGS),
+            ignored,
+        })
+        .collect();
+    let user_dir = lookup.dir;
     let mods = match (&user_dir, opts.mods) {
         (Some(dir), true) => {
-            mods::enabled_mods(dir, &discovery::steam_libraries(), &mut diagnostics)
+            if !sgf_core::library::holds_playset(&dir.path) {
+                diagnostics.push(Diagnostic::NoPlayset {
+                    dir: dir.path.clone(),
+                });
+            }
+            mods::enabled_mods(&dir.path, &discovery::steam_libraries(), &mut diagnostics)
         }
         _ => Vec::new(),
     };

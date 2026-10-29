@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sgf_core::library::UserDir;
 use sgf_core::ops::SystemRadii;
 use ts_rs::TS;
 
@@ -10,7 +11,8 @@ use crate::registries::defines::GraphicsDefines;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct DiagnosticView {
-    /// `"override"`, `"parse_error"`, `"unreadable"`, `"mod_missing"` or `"rebuild_failed"`.
+    /// `"override"`, `"parse_error"`, `"unreadable"`, `"mod_missing"`, `"rebuild_failed"`,
+    /// `"no_playset"` or `"game_data_path_ignored"`.
     pub kind: String,
     pub message: String,
 }
@@ -33,6 +35,9 @@ pub struct WatchView {
 #[ts(export)]
 pub struct GameDataSummary {
     pub install: String,
+    /// The user folder the playset was read from, and where it came from; `None` when this
+    /// machine has none.
+    pub user_dir: Option<UserDir>,
     pub version: Option<String>,
     pub language: String,
     pub language_fell_back: bool,
@@ -107,6 +112,7 @@ impl From<&GameData> for GameDataSummary {
     fn from(gd: &GameData) -> Self {
         Self {
             install: gd.layout.install.display().to_string(),
+            user_dir: gd.layout.user_dir.clone(),
             version: gd.version.clone(),
             language: gd.loc.language.clone(),
             language_fell_back: gd.loc.fell_back,

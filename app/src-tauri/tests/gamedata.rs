@@ -7,6 +7,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use sgf_app_lib::state::GameDataState;
 use sgf_app_lib::watch;
+use sgf_core::library::{UserDir, UserDirSource};
 use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::install::layers::Layer;
@@ -524,4 +525,60 @@ fn issues_read_again_name_a_system_as_the_install_loaded_after_the_open_does() {
     .unwrap_or_else(|e| panic!("load game data: {}", e.message));
     let after = membership(&w);
     assert!(after.starts_with("system 789 (Gidzer'ak) "), "{after}");
+}
+
+/// A chosen user folder is where the playset comes from, and the summary says so.
+#[test]
+fn game_data_loads_the_playset_of_the_chosen_user_folder() {
+    let w = webview();
+    let (_dir, install, user) = common::user_folder_tree();
+    let summary: GameDataSummary = invoke(
+        &w,
+        "load_game_data",
+        json!({
+            "installPath": install.to_string_lossy(),
+            "userDir": user.to_string_lossy(),
+        }),
+    )
+    .unwrap_or_else(|e| panic!("load game data: {}", e.message));
+    let mods: Vec<&str> = summary.mods.iter().map(|m| m.name.as_str()).collect();
+    assert_eq!(mods, ["chosen_mod"]);
+    assert_eq!(
+        summary.user_dir,
+        Some(UserDir {
+            path: user,
+            source: UserDirSource::Chosen,
+        })
+    );
+}
+
+/// Before game data loads, Paint a Galaxy is looked for in the chosen user folder, else in
+/// the one the given install's launcher settings name.
+#[test]
+fn paint_a_galaxy_is_found_in_the_chosen_or_named_user_folder() {
+    let w = webview();
+    let (_dir, install, user) = common::user_folder_tree();
+    std::fs::create_dir_all(user.join("mod/paint")).expect("mod tree");
+    std::fs::write(
+        user.join("mod/paint.mod"),
+        "name=\"Paint a Galaxy\"\npath=\"mod/paint\"\n",
+    )
+    .expect("descriptor");
+    common::launcher_points_at(&install, &user);
+    let scenarios = user.join("mod/paint/map/setup_scenarios");
+
+    for args in [
+        json!({ "userDir": user.to_string_lossy() }),
+        json!({ "installPath": install.to_string_lossy() }),
+    ] {
+        let paint: Option<PaintModView> =
+            invoke(&w, "paint_mod", args.clone()).expect("the launcher's files");
+        let paint = paint.unwrap_or_else(|| panic!("{args}: no Paint a Galaxy"));
+        assert_eq!(
+            paint.scenarios_dir.as_deref().map(std::path::Path::new),
+            Some(scenarios.as_path()),
+            "{args}"
+        );
+        assert!(!paint.enabled, "{args}: the playset leaves it out");
+    }
 }

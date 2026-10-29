@@ -503,12 +503,12 @@ fn row(key: &str, source: Option<String>, detail: Option<String>) -> Row {
 
 fn diagnostic_source(gd: &GameData, d: &Diagnostic) -> String {
     match d {
-        Diagnostic::ParseError { file, .. } | Diagnostic::Unreadable { file, .. } => {
-            layer_name(gd, file)
-        }
+        Diagnostic::ParseError { file, .. }
+        | Diagnostic::Unreadable { file, .. }
+        | Diagnostic::GameDataPathIgnored { file, .. } => layer_name(gd, file),
         Diagnostic::ModMissing { name, .. } => name.clone(),
         Diagnostic::Override { to, .. } => layer_name(gd, to),
-        Diagnostic::RebuildFailed { .. } => "-".to_owned(),
+        Diagnostic::RebuildFailed { .. } | Diagnostic::NoPlayset { .. } => "-".to_owned(),
     }
 }
 

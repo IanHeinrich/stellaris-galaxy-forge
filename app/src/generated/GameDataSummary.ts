@@ -5,9 +5,15 @@ import type { DiagnosticView } from "./DiagnosticView";
 import type { GalaxySizeView } from "./GalaxySizeView";
 import type { ModView } from "./ModView";
 import type { SystemRadii } from "./SystemRadii";
+import type { UserDir } from "./UserDir";
 import type { WatchView } from "./WatchView";
 
-export type GameDataSummary = { install: string, version: string | null, language: string, language_fell_back: boolean, mods: Array<ModView>, initializers: number, country_types: number, star_classes: number, sprites: number, colors: number, deposits: number, planet_classes: number, starbase_levels: number, border: BorderDefines, 
+export type GameDataSummary = { install: string, 
+/**
+ * The user folder the playset was read from, and where it came from; `None` when this
+ * machine has none.
+ */
+user_dir: UserDir | null, version: string | null, language: string, language_fell_back: boolean, mods: Array<ModView>, initializers: number, country_types: number, star_classes: number, sprites: number, colors: number, deposits: number, planet_classes: number, starbase_levels: number, border: BorderDefines, 
 /**
  * How far out a system's inner and outer radii lie, from `NGameplay`.
  */

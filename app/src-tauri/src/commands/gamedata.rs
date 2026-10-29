@@ -1,7 +1,7 @@
 //! Loading the install's game data, and serving what the loaded data holds.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
@@ -30,19 +30,22 @@ use crate::state::{GameDataState, TextureState};
 use crate::watch;
 
 /// Read the install (discovered through Steam unless `install_path` is given) and the
-/// enabled mods, replacing any loaded game data. Emits `sgf://progress`.
+/// mods the playset in the user folder enables (`user_dir`, else the one the install's
+/// launcher settings name, else the default), replacing any loaded game data. Emits
+/// `sgf://progress`.
 #[tauri::command]
 pub async fn load_game_data<R: Runtime>(
     app: AppHandle<R>,
     install_path: Option<String>,
+    user_dir: Option<String>,
     language: Option<String>,
     mods: Option<bool>,
 ) -> Result<GameDataSummary, SgfError> {
     let opts = LoadOptions {
         install: install_path.map(PathBuf::from),
+        user_dir: user_dir.map(PathBuf::from),
         language: language.unwrap_or_else(|| LoadOptions::default().language),
         mods: mods.unwrap_or(LoadOptions::default().mods),
-        ..LoadOptions::default()
     };
     let task_app = app.clone();
     let gd = tauri::async_runtime::spawn_blocking(move || {
@@ -97,13 +100,26 @@ fn summary<R: Runtime>(app: &AppHandle<R>, gd: &GameData) -> GameDataSummary {
 }
 
 /// Where Paint a Galaxy is on this machine, from the launcher's files alone, so it is known
-/// before game data loads. `None` when the launcher lists no copy, or has no user directory.
+/// before game data loads. The files are read in `user_dir` when given, else in the loaded
+/// game data's user folder, else in the one the launcher settings of the install
+/// (`install_path`, else discovered) name. `None` when the launcher lists no copy, or there
+/// is no user folder.
 #[tauri::command]
-pub async fn paint_mod<R: Runtime>(app: AppHandle<R>) -> Result<Option<PaintModView>, SgfError> {
+pub async fn paint_mod<R: Runtime>(
+    app: AppHandle<R>,
+    install_path: Option<String>,
+    user_dir: Option<String>,
+) -> Result<Option<PaintModView>, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
-    tauri::async_runtime::spawn_blocking(move || PaintModView::find(gd.as_deref()))
-        .await
-        .map_err(io_error)
+    tauri::async_runtime::spawn_blocking(move || {
+        PaintModView::find(
+            gd.as_deref(),
+            user_dir.as_deref().map(Path::new),
+            install_path.as_deref().map(Path::new),
+        )
+    })
+    .await
+    .map_err(io_error)
 }
 
 /// The localised text of each key the loaded localisation knows; empty without game data.

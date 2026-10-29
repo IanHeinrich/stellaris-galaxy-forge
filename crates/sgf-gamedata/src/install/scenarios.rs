@@ -8,7 +8,6 @@
 use std::path::{Path, PathBuf};
 
 use sgf_core::format::scenario::listings::{ScenarioRoot, ScenarioSource};
-use sgf_core::library;
 
 use crate::install::discovery;
 use crate::install::mods::{self, ModInfo};
@@ -36,12 +35,11 @@ pub fn scenario_roots(
     user_dir_override: Option<PathBuf>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Vec<ScenarioRoot> {
-    let user_dir = user_dir_override
-        .or_else(|| gd.and_then(|gd| gd.layout.user_dir.clone()))
-        .or_else(library::paradox_user_dir);
     let install = install_override
         .or_else(|| gd.map(|gd| gd.layout.install.clone()))
         .or_else(|| discovery::find_install(None).ok());
+    let user_dir = discovery::user_dir(gd, user_dir_override.as_deref(), install.as_deref())
+        .map(|dir| dir.path);
     let enabled: &[ModInfo] = gd.map_or(&[], |gd| gd.mods.as_slice());
     let installed = match (gd, &user_dir) {
         (Some(_), Some(dir)) => {
