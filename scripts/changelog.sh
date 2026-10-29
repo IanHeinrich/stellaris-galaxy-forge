@@ -8,7 +8,7 @@ readonly ISO_DATE='^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
 readonly UNRELEASED='## [Unreleased]'
 readonly FRAGMENT_DIR='changelog.d'
 readonly VOICE_LINT='guide/scripts/voice-lint.mjs'
-readonly KIND_ORDER='Added Changed Deprecated Removed Fixed Security'
+readonly KIND_ORDER='In memory,Added,Changed,Deprecated,Removed,Fixed,Security'
 
 usage() {
 	cat >&2 <<'USAGE'
@@ -151,8 +151,8 @@ parse_entries() {
 }
 
 # Reads "kind<TAB>bullet" lines and writes the section's headings and
-# bullets, kinds in Keep a Changelog order first, then any others in the
-# order first seen.
+# bullets: a dedication first, then kinds in Keep a Changelog order, then
+# any others in the order first seen.
 group_entries() {
 	awk -F '\t' -v order="$KIND_ORDER" '
 		function emit(k,   j, text) {
@@ -173,7 +173,7 @@ group_entries() {
 			items[k, count[k]] = $2
 		}
 		END {
-			n = split(order, ranked, " ")
+			n = split(order, ranked, ",")
 			for (i = 1; i <= n; i++) if (ranked[i] in count) emit(ranked[i])
 			for (i = 1; i <= kindCount; i++) if (!(kinds[i] in done)) emit(kinds[i])
 		}

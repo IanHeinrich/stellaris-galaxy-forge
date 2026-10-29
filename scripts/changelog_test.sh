@@ -78,6 +78,11 @@ FRAGMENT
 
 - Something under a heading of its own.
 FRAGMENT
+	cat >"$repo/changelog.d/c-dedication.md" <<'FRAGMENT'
+### In memory
+
+- A dedication, which opens the section.
+FRAGMENT
 }
 
 expected_unreleased() {
@@ -85,6 +90,10 @@ expected_unreleased() {
 # Changelog
 
 ## [Unreleased]
+
+### In memory
+
+- A dedication, which opens the section.
 
 ### Added
 
