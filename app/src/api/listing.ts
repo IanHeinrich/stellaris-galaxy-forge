@@ -7,15 +7,21 @@ import type { CampaignListing } from "../generated/CampaignListing";
 import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListings } from "../generated/ScenarioListings";
+import { folderArgs, type ChosenFolders } from "./folders";
 
-/** The Stellaris save directories that exist on this machine. */
-export function saveDirs(): Promise<string[]> {
-  return invoke<string[]>("save_dirs");
+export type { ChosenFolders } from "./folders";
+
+/** The save directory of the chosen user folder, or of the one the command finds. */
+export function saveDirs(folders: ChosenFolders = {}): Promise<string[]> {
+  return invoke<string[]>("save_dirs", folderArgs(folders));
 }
 
-/** Every campaign folder under the Stellaris save directories, with the header of its newest save. */
-export function listCampaigns(): Promise<CampaignListing[]> {
-  return invoke<CampaignListing[]>("list_campaigns");
+/**
+ * Every campaign folder under the save directories of the chosen user folder, or of the one the
+ * command finds, with the header of its newest save.
+ */
+export function listCampaigns(folders: ChosenFolders = {}): Promise<CampaignListing[]> {
+  return invoke<CampaignListing[]>("list_campaigns", folderArgs(folders));
 }
 
 /** The saves in one campaign folder, newest first. */
@@ -23,9 +29,17 @@ export function listCampaignSaves(dir: string): Promise<SaveFile[]> {
   return invoke<SaveFile[]>("list_campaign_saves", { dir });
 }
 
-/** Every static galaxy scenario the install and its mods hold, with what went wrong finding them. */
-export function listScenarios(): Promise<ScenarioListings> {
-  return invoke<ScenarioListings>("list_scenarios");
+/**
+ * Every static galaxy scenario the install and the mods of the user folder hold, either chosen or
+ * found by the command, with what went wrong finding them.
+ */
+export function listScenarios(folders: ChosenFolders = {}): Promise<ScenarioListings> {
+  return invoke<ScenarioListings>("list_scenarios", folderArgs(folders));
+}
+
+/** Calls `is_user_dir`: whether `path` holds `mod/`, `dlc_load.json` or `save games/`. */
+export function isUserDir(path: string): Promise<boolean> {
+  return invoke<boolean>("is_user_dir", { path });
 }
 
 /** Whether the scenario file at `path` is for Paint a Galaxy, as its listing would say. */

@@ -50,7 +50,7 @@ describe("load", () => {
     expect(state.progress).toBeNull();
     expect(state.error).toBeNull();
     expect(listeners.unlisten).toHaveBeenCalledTimes(1);
-    expect(mockedIpc.loadGameData).toHaveBeenCalledWith(undefined);
+    expect(mockedIpc.loadGameData).toHaveBeenCalledWith(undefined, undefined);
 
     expect(state.starClasses.get("sc_g")?.texture_key).toBe("star_class:g");
     expect(state.mapColors.get("red")?.map).toBe("#ff0000");
@@ -100,12 +100,12 @@ describe("load", () => {
 
   it("remembers a given install path and reuses it when none is given", async () => {
     await useGameDataStore.getState().load("D:/Games/Stellaris");
-    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris");
+    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris", undefined);
     expect(listeners.storage.get("sgf.installPath")).toBe("D:/Games/Stellaris");
 
     useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
     await useGameDataStore.getState().load();
-    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris");
+    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris", undefined);
   });
 
   it("a failed load does not remember the path", async () => {

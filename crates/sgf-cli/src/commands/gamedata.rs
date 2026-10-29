@@ -76,7 +76,7 @@ pub fn report(opts: &LoadOptions, limit: Option<usize>) -> Run {
 
 /// Where Paint a Galaxy is and whether the playset loads it and the Reserved Spawns submod.
 fn print_paint_mod(gd: &GameData) {
-    let paint = PaintModView::find(Some(gd));
+    let paint = PaintModView::find(Some(gd), None, None);
     let Some(paint) = paint else {
         println!("paint mod:    not found");
         return;

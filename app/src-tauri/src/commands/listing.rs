@@ -7,24 +7,38 @@ use sgf_core::format::scenario::is_painted;
 use sgf_core::format::scenario::listings::{self, ScenarioListings};
 use sgf_core::library::{self, CampaignListing};
 use sgf_core::views::{SaveFile, SgfError};
-use sgf_gamedata::install::scenarios;
+use sgf_gamedata::install::{discovery, scenarios};
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::io_error;
 use crate::state::GameDataState;
 
+/// The save directory of the user folder `user_dir`, or of the one the loaded game data read,
+/// else of the one the launcher settings of the install (`install_path`, else discovered)
+/// name; empty when it has none.
 #[tauri::command(async)]
-pub fn save_dirs() -> Vec<String> {
-    library::find_save_dirs()
+pub fn save_dirs<R: Runtime>(
+    app: AppHandle<R>,
+    install_path: Option<String>,
+    user_dir: Option<String>,
+) -> Vec<String> {
+    let user_dir = listed_user_dir(&app, install_path, user_dir);
+    library::find_save_dirs(user_dir.as_deref())
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
         .collect()
 }
 
-/// Every campaign folder under this machine's save directories, or under `dirs` when
-/// given, newest first. One archive is opened per folder, for its newest save.
+/// Every campaign folder under `dirs` when given, else under the save directory of the user
+/// folder [`save_dirs`] finds from `install_path` and `user_dir`, and Steam Cloud's, newest
+/// first. One archive is opened per folder, for its newest save.
 #[tauri::command]
-pub async fn list_campaigns(dirs: Option<Vec<String>>) -> Result<Vec<CampaignListing>, SgfError> {
+pub async fn list_campaigns<R: Runtime>(
+    app: AppHandle<R>,
+    dirs: Option<Vec<String>>,
+    install_path: Option<String>,
+    user_dir: Option<String>,
+) -> Result<Vec<CampaignListing>, SgfError> {
     tauri::async_runtime::spawn_blocking(move || match dirs {
         Some(dirs) => {
             let roots: Vec<(PathBuf, bool)> = dirs
@@ -37,10 +51,33 @@ pub async fn list_campaigns(dirs: Option<Vec<String>>) -> Result<Vec<CampaignLis
                 .collect();
             library::list_campaigns_in(&roots)
         }
-        None => library::list_campaigns(),
+        None => library::list_campaigns(listed_user_dir(&app, install_path, user_dir).as_deref()),
     })
     .await
     .map_err(io_error)
+}
+
+/// The user folder a listing reads: `user_dir` when given, else the loaded game data's, else
+/// the one the launcher settings of the install (`install_path`, else discovered) name.
+fn listed_user_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    install_path: Option<String>,
+    user_dir: Option<String>,
+) -> Option<PathBuf> {
+    let gd = app.state::<GameDataState>().loaded();
+    discovery::user_dir(
+        gd.as_deref(),
+        user_dir.as_deref().map(Path::new),
+        install_path.as_deref().map(Path::new),
+    )
+    .map(|d| d.path)
+}
+
+/// Whether `path` looks like a Stellaris user folder: it holds `mod/`, `dlc_load.json` or
+/// `save games/`.
+#[tauri::command(async)]
+pub fn is_user_dir(path: String) -> bool {
+    library::is_user_dir(Path::new(&path))
 }
 
 /// Every `.sav` directly in the campaign folder `dir`, newest first.

@@ -288,7 +288,8 @@ fn every_installed_mods_initializers_resolve() {
         return;
     }
     let install = find_install(None).expect("SGF_INITIALIZER_CORPUS needs an install");
-    let user_dir = sgf_core::library::paradox_user_dir()
+    let user_dir = sgf_gamedata::install::discovery::user_dir(None, None, Some(&install))
+        .map(|d| d.path)
         .filter(|d| d.is_dir())
         .expect("SGF_INITIALIZER_CORPUS needs the launcher's user directory");
 

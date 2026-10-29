@@ -368,7 +368,9 @@ fn superseded(d: &Diagnostic, layout: &Layout, kinds: &BTreeSet<RegistryKind>) -
         Diagnostic::Override { to, .. } => of_file(to),
         Diagnostic::ParseError { file, .. } | Diagnostic::Unreadable { file, .. } => of_file(file),
         Diagnostic::RebuildFailed { kind, .. } => kinds.iter().any(|k| k.as_str() == kind),
-        Diagnostic::ModMissing { .. } => false,
+        Diagnostic::ModMissing { .. }
+        | Diagnostic::NoPlayset { .. }
+        | Diagnostic::GameDataPathIgnored { .. } => false,
     }
 }
 

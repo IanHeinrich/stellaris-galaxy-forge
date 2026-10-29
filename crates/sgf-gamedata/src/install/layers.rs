@@ -11,6 +11,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use sgf_core::library::UserDir;
 use sgf_core::paths::Case;
 use walkdir::WalkDir;
 
@@ -34,13 +35,14 @@ pub struct Layer {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Layout {
     pub install: PathBuf,
-    pub user_dir: Option<PathBuf>,
+    /// The user folder the playset was read from, and where it came from.
+    pub user_dir: Option<UserDir>,
     /// Vanilla first, then every `Loaded` mod in load order.
     pub layers: Vec<Layer>,
 }
 
 impl Layout {
-    pub(crate) fn new(install: PathBuf, user_dir: Option<PathBuf>, mods: &[ModInfo]) -> Self {
+    pub(crate) fn new(install: PathBuf, user_dir: Option<UserDir>, mods: &[ModInfo]) -> Self {
         let vanilla = Layer {
             name: VANILLA.to_owned(),
             root: install.clone(),
@@ -81,7 +83,7 @@ impl Layout {
             return false;
         };
         let roots = std::iter::once(&self.install)
-            .chain(self.user_dir.iter())
+            .chain(self.user_dir.iter().map(|dir| &dir.path))
             .chain(self.layers.iter().map(|l| &l.root));
         roots
             .filter_map(|root| root.canonicalize().ok())

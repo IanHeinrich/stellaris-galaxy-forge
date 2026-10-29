@@ -151,3 +151,74 @@ fn one_scenario_file_says_whether_it_is_for_paint_a_galaxy() {
     assert_eq!(painted(SCENARIO), Ok(false));
     assert_eq!(kind(painted("no/such/file.txt")), ErrorKind::Io);
 }
+
+/// The campaigns of `listed` that lie in `user`, by name.
+fn campaigns_in(listed: &[CampaignListing], user: &std::path::Path) -> Vec<String> {
+    listed
+        .iter()
+        .filter(|c| std::path::Path::new(&c.dir).starts_with(user))
+        .map(|c| c.name.clone())
+        .collect()
+}
+
+/// A listing reads the user folder it is given, else the one the loaded game data read.
+#[test]
+fn saves_are_listed_from_the_chosen_user_folder() {
+    let w = webview();
+    let (_dir, install, user) = common::user_folder_tree();
+    let user_dir = user.to_string_lossy();
+    let save_games = user.join("save games").to_string_lossy().into_owned();
+
+    let listed: Vec<CampaignListing> =
+        invoke(&w, "list_campaigns", json!({ "userDir": user_dir })).expect("list campaigns");
+    assert_eq!(campaigns_in(&listed, &user), ["empire_1"]);
+    let dirs: Vec<String> =
+        invoke(&w, "save_dirs", json!({ "userDir": user_dir })).expect("save dirs");
+    assert_eq!(dirs, [save_games.as_str()]);
+
+    invoke::<serde_json::Value>(
+        &w,
+        "load_game_data",
+        json!({ "installPath": install.to_string_lossy(), "userDir": user_dir }),
+    )
+    .unwrap_or_else(|e| panic!("load game data: {}", e.message));
+    let listed: Vec<CampaignListing> =
+        invoke(&w, "list_campaigns", json!({})).expect("list campaigns");
+    assert_eq!(campaigns_in(&listed, &user), ["empire_1"]);
+    let dirs: Vec<String> = invoke(&w, "save_dirs", json!({})).expect("save dirs");
+    assert_eq!(dirs, [save_games.as_str()]);
+}
+
+#[test]
+fn a_user_folder_is_one_with_mods_a_playset_or_saves() {
+    let w = webview();
+    let (dir, _install, user) = common::user_folder_tree();
+    let is_user_dir = |path: &std::path::Path| {
+        invoke::<bool>(&w, "is_user_dir", json!({ "path": path.to_string_lossy() }))
+            .expect("is_user_dir")
+    };
+    assert!(is_user_dir(&user));
+    assert!(!is_user_dir(dir.path()));
+    assert!(!is_user_dir(&dir.path().join("missing")));
+}
+
+/// Before game data loads, a listing reads the user folder the given install's launcher
+/// settings name.
+#[test]
+fn saves_are_listed_from_the_user_folder_the_install_names() {
+    let w = webview();
+    let (_dir, install, user) = common::user_folder_tree();
+    common::launcher_points_at(&install, &user);
+    let install_path = install.to_string_lossy();
+
+    let listed: Vec<CampaignListing> =
+        invoke(&w, "list_campaigns", json!({ "installPath": install_path }))
+            .expect("list campaigns");
+    assert_eq!(campaigns_in(&listed, &user), ["empire_1"]);
+    let dirs: Vec<String> =
+        invoke(&w, "save_dirs", json!({ "installPath": install_path })).expect("save dirs");
+    assert_eq!(
+        dirs,
+        [user.join("save games").to_string_lossy().into_owned()]
+    );
+}

@@ -37,6 +37,39 @@ export function prefField<T>(
   };
 }
 
+/** A folder the user chose, kept as the bare path under its key; `read` is undefined until one is saved. */
+export interface PathPref {
+  read(): string | undefined;
+  save(path: string): void;
+  forget(): void;
+}
+
+export function pathPref(key: PrefKey): PathPref {
+  return {
+    read() {
+      try {
+        return localStorage.getItem(key) ?? undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    save(path) {
+      try {
+        localStorage.setItem(key, path);
+      } catch {
+        return;
+      }
+    },
+    forget() {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        return;
+      }
+    },
+  };
+}
+
 export function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }

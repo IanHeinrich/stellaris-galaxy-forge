@@ -3,8 +3,10 @@ import * as ipc from "../api/ipc";
 import type { PaintModView } from "../generated/PaintModView";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
+import { chosenFolders } from "./gameDataStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, prefField } from "./prefs";
+import { latest } from "./reads";
 
 /** How often to look again while the mod is missing or disabled: a Steam download is a minute. */
 export const PAINT_MOD_POLL_MS = 5000;
@@ -54,6 +56,9 @@ function samePaintMod(a: PaintModView | null, b: PaintModView | null): boolean {
   );
 }
 
+/** The latest read of the mod, so an answer for a folder since changed lands nowhere. */
+const refreshes = latest();
+
 export const usePaintModStore = create<PaintModState>((set, get) => ({
   paintMod: null,
   known: false,
@@ -63,13 +68,15 @@ export const usePaintModStore = create<PaintModState>((set, get) => ({
   links: null,
 
   async refresh() {
+    const mine = refreshes.next();
     let fresh: PaintModView | null;
     try {
-      fresh = await ipc.paintMod();
+      fresh = await ipc.paintMod(chosenFolders());
     } catch {
       // The launcher's files can be mid-write; the last answer is better than none.
       return;
     }
+    if (!refreshes.is(mine)) return;
     const { paintMod, known } = get();
     if (known && samePaintMod(paintMod, fresh)) return;
     set({ paintMod: fresh, known: true });

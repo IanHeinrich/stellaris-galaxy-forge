@@ -5,6 +5,7 @@ import type { GameDataSummary } from "../../generated/GameDataSummary";
 import type { ModView } from "../../generated/ModView";
 import type { Progress } from "../../generated/Progress";
 import { counted, phaseLabel } from "../../lib/text";
+import { lacksPlayset, listedDiagnostics, userDirShown } from "../../lib/userDir";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { HelpLink } from "../HelpLink";
 import { FilterField } from "../parts";
@@ -104,7 +105,7 @@ function watchingNote(watching: number): string {
   return `Watching ${counted(watching, "folder")}`;
 }
 
-/** The status pill at the status bar's right end and its menu: install, reload, unload and the start preference. */
+/** The status pill at the status bar's right end and its menu: install, user folder, reload, unload and the start preference. */
 export function GameDataPanel() {
   const status = useGameDataStore((s) => s.status);
   const summary = useGameDataStore((s) => s.summary);
@@ -118,13 +119,24 @@ export function GameDataPanel() {
   const load = useGameDataStore((s) => s.load);
   const unload = useGameDataStore((s) => s.unload);
   const setAutoLoad = useGameDataStore((s) => s.setAutoLoad);
+  const userDir = useGameDataStore((s) => s.userDir);
+  const userDirRefusal = useGameDataStore((s) => s.userDirRefusal);
+  const chooseUserDir = useGameDataStore((s) => s.chooseUserDir);
+  const forgetUserDir = useGameDataStore((s) => s.forgetUserDir);
 
   const locate = async () => {
     const picked = await open({ directory: true, multiple: false, title: "Locate Stellaris" });
     if (typeof picked === "string") await load(picked);
   };
 
+  const locateUserDir = async () => {
+    const picked = await open({ directory: true, multiple: false, title: "Locate user folder" });
+    if (typeof picked === "string") await chooseUserDir(picked);
+  };
+
   const install = summary?.install ?? installPath;
+  const shownDir = userDirShown(summary, userDir);
+  const diagnostics = summary ? listedDiagnostics(summary.diagnostics) : [];
   const title = summary ? summaryTitle(summary) : (error ?? undefined);
 
   return (
@@ -137,10 +149,17 @@ export function GameDataPanel() {
             </div>
             <div className="menu-note">{install ?? "none found yet"}</div>
             {status === "error" && error && <div className="menu-note warn">{error}</div>}
+            <div className="menu-section">User folder</div>
+            <div className="menu-note">
+              {shownDir?.path ?? (summary ? "none found" : "none found yet")}
+              {shownDir?.note && <span className="muted"> · {shownDir.note}</span>}
+            </div>
+            {lacksPlayset(summary) && <div className="menu-note warn">No mods found</div>}
+            {userDirRefusal && <div className="menu-note warn">{userDirRefusal}</div>}
             <div className="menu-rule" />
-            {summary && summary.diagnostics.length > 0 && (
+            {diagnostics.length > 0 && (
               <>
-                <DiagnosticsSection diagnostics={summary.diagnostics} />
+                <DiagnosticsSection diagnostics={diagnostics} />
                 <div className="menu-rule" />
               </>
             )}
@@ -187,6 +206,12 @@ export function GameDataPanel() {
               onClick={unload}
             />
             <MenuItem label="Locate Stellaris…" dismiss={dismiss} onClick={locate} />
+            {status !== "loading" && (
+              <MenuItem label="Locate user folder…" dismiss={dismiss} onClick={locateUserDir} />
+            )}
+            {status !== "loading" && userDir !== undefined && (
+              <MenuItem label="Use the default folder" dismiss={dismiss} onClick={forgetUserDir} />
+            )}
           </>
         )}
       </Menu>

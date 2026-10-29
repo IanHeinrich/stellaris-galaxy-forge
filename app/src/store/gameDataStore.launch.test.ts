@@ -120,6 +120,6 @@ describe("launch", () => {
     expect(useGameDataStore.getState().installPath).toBe("D:/Games/Stellaris");
     expect(listeners.storage.get("sgf.installPath")).toBe("D:/Games/Stellaris");
     await useGameDataStore.getState().load();
-    expect(mockedIpc.loadGameData).toHaveBeenCalledWith("D:/Games/Stellaris");
+    expect(mockedIpc.loadGameData).toHaveBeenCalledWith("D:/Games/Stellaris", undefined);
   });
 });

@@ -33,7 +33,7 @@ import {
 import { saveGateActions } from "./fileSessionStore.saveGate";
 import { SAVE_FILTER, SCENARIO_FILTER, writeActions } from "./fileSessionStore.writes";
 import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
+import { chosenFolders, useGameDataStore } from "./gameDataStore";
 import { issuesDocument, useIssuesStore } from "./issuesStore";
 import { standingProfile, usePaintModStore } from "./paintModStore";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
@@ -324,7 +324,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
     listings: readonly ScenarioListing[] | null = null,
   ) {
     if (get().saving || !(await get().confirmDiscard())) return;
-    const [defaultPath] = await ipc.saveDirs().catch(() => []);
+    const [defaultPath] = await ipc.saveDirs(chosenFolders()).catch(() => []);
     const picked = await open({
       defaultPath,
       filters:

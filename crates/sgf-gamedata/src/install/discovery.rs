@@ -4,9 +4,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::LoadError;
+use sgf_core::library::{self, UserDir, UserDirLookup};
+
+use crate::{GameData, LoadError};
 
 const STELLARIS: [&str; 3] = ["steamapps", "common", "Stellaris"];
+
+/// The launcher's settings file in the game root.
+pub const LAUNCHER_SETTINGS: &str = "launcher-settings.json";
 
 /// The game root: `override_`, which must hold `common/` and
 /// `localisation/`, else the first Steam library holding one.
@@ -33,9 +38,47 @@ pub fn find_install(override_: Option<&Path>) -> Result<PathBuf, LoadError> {
 
 /// `"rawVersion": "v4.4.6"` from `launcher-settings.json` in the game root.
 pub fn install_version(install: &Path) -> Option<String> {
-    let text = fs::read_to_string(install.join("launcher-settings.json")).ok()?;
+    launcher_setting(install, "rawVersion")
+}
+
+/// `"gameDataPath"` from `launcher-settings.json` in the game root, as written: where the
+/// launcher keeps the user folder.
+pub fn game_data_path(install: &Path) -> Option<String> {
+    launcher_setting(install, "gameDataPath")
+}
+
+/// The string `key` of `launcher-settings.json` in the game root.
+fn launcher_setting(install: &Path, key: &str) -> Option<String> {
+    let text = fs::read_to_string(install.join(LAUNCHER_SETTINGS)).ok()?;
     let json: serde_json::Value = serde_json::from_str(&text).ok()?;
-    json.get("rawVersion")?.as_str().map(str::to_owned)
+    json.get(key)?.as_str().map(str::to_owned)
+}
+
+/// The user folder: `chosen`, else the one the launcher settings of `install` name, else
+/// the default ([`library::resolve_user_dir`]).
+pub fn resolve_user_dir(chosen: Option<&Path>, install: Option<&Path>) -> UserDirLookup {
+    let game_data_path = match chosen {
+        Some(_) => None,
+        None => install.and_then(game_data_path),
+    };
+    library::resolve_user_dir(chosen, game_data_path.as_deref())
+}
+
+/// The user folder a listing reads: `chosen`, else the loaded game data's, else the one the
+/// launcher settings of `install` (discovered through Steam when `None`) name.
+pub fn user_dir(
+    gd: Option<&GameData>,
+    chosen: Option<&Path>,
+    install: Option<&Path>,
+) -> Option<UserDir> {
+    if let (None, Some(gd)) = (chosen, gd) {
+        return gd.layout.user_dir.clone();
+    }
+    let found = match (chosen, install) {
+        (None, None) => find_install(None).ok(),
+        _ => None,
+    };
+    resolve_user_dir(chosen, install.or(found.as_deref())).dir
 }
 
 /// Every Steam library root: the Steam installs themselves plus each `path`

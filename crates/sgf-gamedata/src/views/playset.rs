@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -47,16 +49,19 @@ pub struct PaintModView {
 }
 
 impl PaintModView {
-    /// Paint a Galaxy as the launcher's files in the user directory list it: the loaded
-    /// game data's user directory, else this machine's. `None` when the launcher lists no
-    /// copy, or there is no user directory.
-    pub fn find(gd: Option<&GameData>) -> Option<Self> {
-        let user_dir = gd
-            .and_then(|gd| gd.layout.user_dir.clone())
-            .or_else(sgf_core::library::paradox_user_dir)?;
+    /// Paint a Galaxy as the launcher's files in the user folder list it, the folder
+    /// [`crate::install::discovery::user_dir`] picks from `chosen`, the loaded game data and
+    /// the launcher settings of `install`. `None` when the launcher lists no copy, or there
+    /// is no user folder.
+    pub fn find(
+        gd: Option<&GameData>,
+        chosen: Option<&Path>,
+        install: Option<&Path>,
+    ) -> Option<Self> {
+        let user_dir = crate::install::discovery::user_dir(gd, chosen, install)?;
         let mut diagnostics = Vec::new();
         mods::paint_mod_status(
-            &user_dir,
+            &user_dir.path,
             &crate::install::discovery::steam_libraries(),
             &mut diagnostics,
         )

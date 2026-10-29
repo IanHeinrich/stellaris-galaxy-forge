@@ -94,6 +94,7 @@ mod system_names;
 mod system_radii;
 mod terraform_links;
 mod textures;
+mod user_dir;
 
 #[test]
 fn every_test_file_is_declared_in_main() {
