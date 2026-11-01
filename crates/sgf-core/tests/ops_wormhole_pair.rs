@@ -6,7 +6,9 @@ use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph};
 use sgf_core::session::Session;
 
 use crate::common;
+use crate::ops_add_megastructure::{add as add_megastructure, at_point};
 use common::diff::{round_trip, snapshot_step};
+use common::edit::open_4_5_edited;
 use common::examples::save_with_added;
 use common::{current, open, open_4_5, wormhole, wormholes};
 
@@ -183,6 +185,55 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
     session
         .apply(Op::RemoveSystem { system: 791 })
         .expect("then the system goes");
+}
+
+/// The keys of the `bypasses` table as it stands.
+fn bypass_ids(session: &Session) -> Vec<u32> {
+    let text = String::from_utf8(current(session)).expect("utf-8");
+    let start = text.find("\nbypasses=\n{\n").expect("a bypasses table");
+    let table = &text[start..];
+    let table = &table[..table.find("\n}\n").expect("its end")];
+    table
+        .lines()
+        .filter_map(|line| line.strip_prefix('\t'))
+        .filter_map(|line| line.split_once('=')?.0.parse().ok())
+        .collect()
+}
+
+/// A 4.5.2 save had reused bypass slot 1 one generation on, as `16777217`, among slots up
+/// to 532. New bypasses go past the highest slot at generation 0, not past the highest id,
+/// which would be slots 2 and 3 one generation on: the game crashes on those.
+#[test]
+fn new_bypasses_take_the_slot_past_the_highest() {
+    const SLOT_MASK: u32 = (1 << 24) - 1;
+    let mut session = open_4_5_edited(|gamestate| {
+        let table = gamestate
+            .find("\nbypasses=\n{\n")
+            .expect("a bypasses table");
+        let key = "\n\t1=\n\t{\n\t\ttype=\"shroud_tunnel\"";
+        let at = table + gamestate[table..].find(key).expect("bypass 1");
+        gamestate.replace_range(at..at + "\n\t1=".len(), "\n\t16777217=");
+    });
+    let loaded = bypass_ids(&session);
+    assert!(loaded.contains(&16_777_217) && !loaded.contains(&1));
+    let slots: Vec<u32> = loaded.iter().map(|id| id & SLOT_MASK).collect();
+    assert_eq!(slots.iter().max(), Some(&22));
+
+    session
+        .apply(add_megastructure(
+            0,
+            at_point("gateway_final", "gateway", true),
+        ))
+        .expect("a gateway in Dristmak");
+    session.apply(add(1, 140)).expect("the pair");
+    let added: Vec<u32> = bypass_ids(&session)
+        .into_iter()
+        .filter(|id| !loaded.contains(id))
+        .collect();
+    assert_eq!(added, [23, 24, 25]);
+    assert!(added.iter().all(|id| !slots.contains(&(id & SLOT_MASK))));
+    assert_eq!(wormholes(&session, 1)[0].bypass, 24);
+    assert_eq!(wormholes(&session, 140)[0].bypass, 25);
 }
 
 /// The 4.4 sample's highest pair joins 788 and 789 at rows 11 and 12, bypasses 25 and 26.

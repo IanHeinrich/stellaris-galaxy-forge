@@ -631,10 +631,15 @@ for planets or deposits.
   `natural_wormholes` list: without it the galaxy map shows the icon, but
   the system has no wormhole to explore. A bypass without `active` loads
   as `active=no`.
-- The editor adds a wormhole pair at the highest id plus one in each
-  table, so the 4.5 sample's first pair takes rows 15 and 16 and
-  bypasses 23 and 24. Neither sample has a gap or a `none` entry in
-  either table. A pair the game spawns without a random position stands
+- The editor adds a wormhole pair at the slot past the highest in each
+  table, at generation 0, so the 4.5 sample's first pair takes rows 15
+  and 16 and bypasses 23 and 24. Neither sample has a gap or a `none`
+  entry in either table. A gateway's bypass takes its id the same way.
+- The game reuses bypass slots one generation on. A 4.5.2 save from
+  2403 lists bypasses `0, 16777217, 2, …, 532`: slot 1 at generation 1,
+  still in slot order. A new bypass at slot 2 or 3 one generation on,
+  beside the live 2 and 3, crashes the game while the save loads.
+- A pair the game spawns without a random position stands
   about 1 past each system's `inner_radius`, the first end at 180° and
   the second at 90°. The editor puts a new pair there too, at exactly
   `inner_radius + 1`. Every other wormhole in the samples stands between

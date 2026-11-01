@@ -2,7 +2,7 @@
 //! with only what the game does not fill in on load, and taken out whole.
 //!
 //! An add writes one `natural_wormholes` entry and one `bypasses` entry per end, each at
-//! one past the highest id its table has held this session, and lists each end in its system's
+//! the slot past the highest its table has held this session, and lists each end in its system's
 //! `natural_wormholes`. The game fills in the bypasses' connections and lock fields, the
 //! systems' `bypasses` lists and each country's `usable_bypasses`. A removal erases all four
 //! entries and takes their ids out of both systems' lists: a tombstone or any id left
