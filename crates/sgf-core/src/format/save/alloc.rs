@@ -96,9 +96,10 @@ pub(crate) fn next_system(doc: &Document, graph: &GalaxyGraph) -> Result<u32, Op
     next.ok_or(OpError::SystemIdsNotDense { last, count })
 }
 
-/// The id a new row of `table` takes: one past the highest it has held since the save was
-/// opened. A removed row's id may still be named by a fleet's order or path, so it is never
-/// taken again, and the game loads the gap this leaves.
+/// The id a new row of `table` takes: the slot past the highest it has held since the save
+/// was opened, at generation 0. The slot, not the raw id, because a reused low slot has the
+/// highest raw id. A removed row's id may still be named by a fleet's order or path, so it
+/// is never taken again, and the game loads the gap this leaves.
 pub(crate) fn next_id(doc: &Document, table: Table) -> Result<u32, ProjectionError> {
     let loaded = table
         .loaded(doc)?
@@ -106,7 +107,8 @@ pub(crate) fn next_id(doc: &Document, table: Table) -> Result<u32, ProjectionErr
         .flat_map(|(index, key)| index.entities(key))
         .filter_map(|entity| u32::try_from(entity.id).ok());
     let added = doc.added().entries(table).map(|(id, _)| id);
-    Ok(loaded.chain(added).max().map_or(0, |highest| highest + 1))
+    let highest = loaded.chain(added).map(|id| id & SLOT_MASK).max();
+    Ok(highest.map_or(0, |slot| slot + 1))
 }
 
 /// The slot a new entity takes.

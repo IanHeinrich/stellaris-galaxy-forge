@@ -8,6 +8,13 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.4] - 2026-11-01
+
+### Fixed
+
+- Adding a gateway or a wormhole pair no longer makes some later-game
+  saves crash while they load.
+
 ## [0.27.3] - 2026-10-29
 
 ### In memory
