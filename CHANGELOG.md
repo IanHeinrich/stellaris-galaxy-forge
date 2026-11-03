@@ -16,6 +16,12 @@ a release is made.
   megastructures in the system view are the size they are in the game next
   to their orbits. Before, they looked about six times too large.
 
+### Fixed
+
+- Systems from a mod that writes its star lists the older way, such as
+  Hypothetical Stars, get the right star in the scenario view and when
+  added. Before, they showed a G star.
+
 ## [0.27.4] - 2026-11-01
 
 ### Fixed

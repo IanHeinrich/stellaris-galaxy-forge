@@ -61,6 +61,14 @@ a system of it may have, not one entry per star. A system's stars fit such
 a class when each is one of them, and a class that lists no star fits
 any. Vanilla 4.5 has neither kind.
 
+An initializer's `class` can name a list of star classes instead of one.
+`common/star_classes` writes a list either as `rl_x = { stars = { sc_a sc_b } }`
+or as `random_list = { name = "rl_x" stars = { sc_a sc_b } }`, and the game
+reads both. Hypothetical Stars uses the second form for its three lists, and
+Gigastructures for one. For a name written both ways the editor takes the
+`random_list`; which one the game keeps is untested.
+`common/planet_classes` writes its planet lists only the second way.
+
 ## Syntax the save never uses
 
 `gamestate` has no comments, variables or operators. Definition files

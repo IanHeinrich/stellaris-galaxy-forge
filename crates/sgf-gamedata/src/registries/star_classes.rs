@@ -1,12 +1,13 @@
 //! `common/star_classes`: how a `galactic_object.star_class` is drawn, and the weighted
 //! lists (`randomizers`) an initializer draws one from.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::GameData;
 use crate::install::layers::VANILLA;
 use crate::install::script::{self, Def, Range};
-use crate::registries::registry::{FromDef, Registry};
+use crate::registries::registry::{self, FromDef, Registry};
 
 pub type StarClasses = Registry<StarClass>;
 pub type StarLists = Registry<StarList>;
@@ -78,6 +79,18 @@ impl StarClass {
             .iter()
             .find(|(key, _)| key == planet_class)
             .map_or(1.0, |(_, odds)| *odds)
+    }
+}
+
+impl StarLists {
+    /// The lists written under their own key in `defs`, and `named`, the `random_list` ones. A
+    /// `random_list` wins over a keyed list of the same name, wherever each is written.
+    pub(crate) fn read(defs: &BTreeMap<String, Def>, named: BTreeMap<String, Vec<String>>) -> Self {
+        let mut lists: Self = registry::from_defs(defs);
+        for (key, stars) in named {
+            lists.insert(key.clone(), StarList { key, stars });
+        }
+        lists
     }
 }
 
@@ -194,8 +207,8 @@ impl FromDef for StarClass {
     }
 }
 
-/// `rl_… = { stars = { sc_… } }`: the star classes an initializer's `class` draws from,
-/// each weighted by its own `spawn_odds`.
+/// `rl_… = { stars = { sc_… } }` or `random_list = { name = rl_… stars = { sc_… } }`: the
+/// star classes an initializer's `class` draws from, each weighted by its own `spawn_odds`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StarList {
     pub key: String,
@@ -206,7 +219,8 @@ impl FromDef for StarList {
     const DIR: &'static str = "common/star_classes";
 
     fn skip(def: &Def) -> bool {
-        def.node.find("stars", &def.src).is_none()
+        def.node.key_str(&def.src) == Some(script::RANDOM_LIST)
+            || def.node.find("stars", &def.src).is_none()
     }
 
     fn read(key: String, def: &Def) -> Self {

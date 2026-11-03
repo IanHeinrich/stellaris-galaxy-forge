@@ -4,6 +4,7 @@
 use crate::common;
 
 use sgf_core::format::save::details::DetailsResolver;
+use sgf_core::views::details::{ClassPool, SpawnClass};
 use sgf_gamedata::views::{MapColor, ShipSizeView, TerraformCandidateView};
 
 #[test]
@@ -192,6 +193,87 @@ fn a_planet_list_is_no_planet_class_and_two_files_writing_lists_override_nothing
     let classes: Vec<&str> = gd.planet_classes.iter().map(|c| c.key.as_str()).collect();
     assert_eq!(classes, ["pc_ice", "pc_rock"]);
     assert_eq!(gd.planet_lists.len(), 2);
+    assert!(gd.diagnostics.is_empty(), "{:?}", gd.diagnostics);
+}
+
+#[test]
+fn star_lists_are_read_in_both_forms_and_an_initializer_draws_from_them() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/star_classes/00_stars.txt",
+            "sc_a = {
+	class = a_star
+	planet = { key = pc_a_star }
+}
+             sc_b = {
+	class = b_star
+	planet = { key = pc_b_star }
+}
+             random_list = {
+	name = \"rl_one\"
+	stars = { \"sc_b\" \"sc_a\" }
+}
+             rl_x = {
+	stars = { sc_a }
+}
+",
+        ),
+        (
+            "common/star_classes/01_more.txt",
+            "random_list = {
+	name = \"rl_two\"
+	stars = { \"sc_a\" \"sc_b\" \"sc_a\" }
+}
+",
+        ),
+        (
+            "common/planet_classes/00_planets.txt",
+            "pc_a_star = {
+	star = yes
+}
+pc_b_star = {
+	star = yes
+}
+",
+        ),
+        (
+            "common/solar_system_initializers/00_fx.txt",
+            "fx_listed = {
+	class = \"rl_two\"
+             	planet = { class = star orbit_distance = 0 }
+}
+",
+        ),
+    ]);
+    let lists: Vec<(&str, Vec<&str>)> = gd
+        .star_lists
+        .iter()
+        .map(|l| (l.key.as_str(), l.stars.iter().map(String::as_str).collect()))
+        .collect();
+    assert_eq!(
+        lists,
+        [
+            ("rl_one", vec!["sc_b", "sc_a"]),
+            ("rl_two", vec!["sc_a", "sc_b", "sc_a"]),
+            ("rl_x", vec!["sc_a"]),
+        ],
+        "both forms, each list by its own name, none under `random_list`"
+    );
+    let classes: Vec<&str> = gd.star_classes.iter().map(|c| c.key.as_str()).collect();
+    assert_eq!(classes, ["sc_a", "sc_b"], "a list is no star class");
+    let details = gd
+        .initializer_details(1, "fx_listed", None)
+        .expect("fx_listed's details");
+    let spawn = details.planets[0].spawn.as_ref().expect("a spawn");
+    assert_eq!(
+        spawn.class,
+        SpawnClass::Rolled {
+            pool: ClassPool::StarList {
+                list: "rl_two".to_owned()
+            }
+        },
+        "the star is drawn from the list, not stood in by the fallback"
+    );
     assert!(gd.diagnostics.is_empty(), "{:?}", gd.diagnostics);
 }
 

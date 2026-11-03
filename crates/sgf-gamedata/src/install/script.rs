@@ -482,6 +482,10 @@ pub fn parse_dir(
     ParsedDir::load(layout, rel_dir, diagnostics).into_defs(globals, diagnostics)
 }
 
+/// The key under which `common/planet_classes` and `common/star_classes` write each named
+/// list, repeated at the top level of every file.
+pub(crate) const RANDOM_LIST: &str = "random_list";
+
 /// Every winning file of one directory in load order, each read and parsed once, so every
 /// registry the directory feeds reads the same parse and a broken file is reported once.
 pub(crate) struct ParsedDir {
@@ -560,6 +564,21 @@ impl ParsedDir {
     /// Each file's root block with its bytes, in load order.
     pub(crate) fn roots(&self) -> impl Iterator<Item = (&Node, &[u8])> {
         self.files.iter().map(|(_, root, src)| (root, &src[..]))
+    }
+
+    /// The `random_list = { name = … <items> = { … } }` blocks of every file, each list's
+    /// entries by its name in file order; a later list of the same name wins.
+    pub(crate) fn random_lists(&self, items: &str) -> BTreeMap<String, Vec<String>> {
+        let mut lists = BTreeMap::new();
+        for (root, src) in self.roots() {
+            for block in root.find_all(RANDOM_LIST, src) {
+                let Some(name) = block.find("name", src).and_then(|n| n.scalar_str(src)) else {
+                    continue;
+                };
+                lists.insert(name.to_owned(), list_items(block, items, src));
+            }
+        }
+        lists
     }
 
     /// The top-level keyed blocks, as [`parse_dir`] collects them.
