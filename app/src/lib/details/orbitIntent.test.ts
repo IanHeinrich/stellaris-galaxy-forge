@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { orbitClasses, orbitSystem } from "../../test/builders";
-import { VANILLA_MOON_SCALE } from "./discs";
+import { VANILLA_BODY_SCALES } from "./discs";
 import { bodyOrbit, defaultBeltKind, fieldIntent, inspectedBody, nudged } from "./orbitIntent";
 import { systemLayout } from "./orbits";
 
@@ -11,7 +11,7 @@ const MOON = 3;
 const LONE = 5;
 
 const planetClasses = orbitClasses();
-const layout = systemLayout(orbitSystem(), null, planetClasses, VANILLA_MOON_SCALE);
+const layout = systemLayout(orbitSystem(), null, planetClasses, VANILLA_BODY_SCALES);
 
 describe("nudged", () => {
   const at = { parent: null, radius: 45.3, angle: 45.3 };

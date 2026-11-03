@@ -2,6 +2,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRadii } from "../../generated/SystemRadii";
 import type { SystemRoll } from "../../generated/SystemRoll";
+import type { BodyScales } from "./discs";
 import type { GeometryAdapter, GeometryFrame, SceneEditing } from "./orbitIntent";
 import { systemLayout, type SystemLayout } from "./orbits";
 
@@ -19,7 +20,7 @@ export interface GeometryInputs {
   details: SystemDetails | null;
   roll: SystemRoll | null;
   planetClasses: ReadonlyMap<string, PlanetClassView>;
-  moonScale: number;
+  scales: BodyScales;
   radii: SystemRadii;
   /** The adapter that edits it. */
   adapter: GeometryAdapter;
@@ -33,8 +34,8 @@ const edited = new WeakMap<SystemLayout, Map<GeometryAdapter, Map<SystemRadii, S
 
 /** The layout `inputs` give, what of it their adapter lets be edited, and the frame it edits in. */
 export function geometryOf(inputs: GeometryInputs): SystemGeometry {
-  const { details, roll, planetClasses, moonScale, radii, adapter } = inputs;
-  const layout = systemLayout(details, roll, planetClasses, moonScale);
+  const { details, roll, planetClasses, scales, radii, adapter } = inputs;
+  const layout = systemLayout(details, roll, planetClasses, scales);
   const frame = { layout, details, planetClasses, radii };
   let byAdapter = edited.get(layout);
   if (!byAdapter) edited.set(layout, (byAdapter = new Map()));

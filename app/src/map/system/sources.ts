@@ -12,7 +12,7 @@ import type { SystemRadii } from "../../generated/SystemRadii";
 import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { documentCapabilities } from "../../lib/capabilities";
-import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
+import { VANILLA_BODY_SCALES, type BodyScales } from "../../lib/details/discs";
 import type { BypassKinds } from "../../lib/details/icons";
 import type { GeometryAdapter } from "../../lib/details/orbitIntent";
 import { geometryAdapterFor, NO_GEOMETRY } from "../../lib/details/geometryAdapters";
@@ -22,7 +22,7 @@ import type { SceneLayerId } from "../../lib/visual/layerIds";
 import { shownRoll, useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { moonScaleOf, systemRadiiOf, useGameDataStore } from "../../store/gameDataStore";
+import { bodyScalesOf, systemRadiiOf, useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { subscribeOwnership } from "../../store/ownership";
 import { mapDetails, mapInputs, mapOwnership } from "../../store/preparedMap";
@@ -69,8 +69,8 @@ export interface SystemSources extends SceneSubject {
   readonly systems: Systems;
   readonly names: ReadonlyMap<string, string>;
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
-  /** The install's `NGraphics.MOON_SCALE`; `VANILLA_MOON_SCALE` before game data gives one. */
-  readonly moonScale: number;
+  /** How large the install draws bodies; `VANILLA_BODY_SCALES` before game data gives them. */
+  readonly scales: BodyScales;
   /** How the install sizes a system; `VANILLA_SYSTEM_RADII` before game data gives them. */
   readonly radii: SystemRadii;
   readonly starClasses: ReadonlyMap<string, StarClassView>;
@@ -117,7 +117,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   neighbours: [],
   names: new Map<string, string>(),
   planetClasses: new Map<string, PlanetClassView>(),
-  moonScale: VANILLA_MOON_SCALE,
+  scales: VANILLA_BODY_SCALES,
   radii: VANILLA_SYSTEM_RADII,
   starClasses: new Map<string, StarClassView>(),
   beltKinds: new Map<string, BeltKindView>(),
@@ -156,7 +156,7 @@ export const sameSources = sameFields<SystemSources>({
   neighbours: true,
   names: true,
   planetClasses: true,
-  moonScale: true,
+  scales: true,
   radii: true,
   starClasses: true,
   beltKinds: true,
@@ -298,7 +298,7 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     systems: shown.systems,
     names,
     planetClasses: data.planetClasses,
-    moonScale: moonScaleOf(data),
+    scales: bodyScalesOf(data),
     radii: systemRadiiOf(data),
     starClasses: data.starClasses,
     beltKinds: beltKindsBy(data.summary?.belt_kinds ?? NO_BELT_KINDS),

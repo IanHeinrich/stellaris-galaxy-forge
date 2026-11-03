@@ -351,7 +351,12 @@ fn solid(texel: [u8; 4]) -> Vec<u8> {
 }
 
 pub(crate) fn boxes() -> (TempDir, GameData) {
-    common::hand_written_bytes(&[
+    boxes_with(&[])
+}
+
+/// [`boxes`] with `extra` files written into the install as well.
+pub(crate) fn boxes_with(extra: &[(&str, &str)]) -> (TempDir, GameData) {
+    let mut files = vec![
         ("gfx/models/test/box.asset", ENTITIES.as_bytes().to_vec()),
         ("gfx/models/test/box.gfx", MESHES.as_bytes().to_vec()),
         ("gfx/models/test/box.mesh", box_mesh()),
@@ -383,7 +388,13 @@ pub(crate) fn boxes() -> (TempDir, GameData) {
             "common/graphical_culture/00_cultures.txt",
             CULTURES.as_bytes().to_vec(),
         ),
-    ])
+    ];
+    files.extend(
+        extra
+            .iter()
+            .map(|&(rel, text)| (rel, text.as_bytes().to_vec())),
+    );
+    common::hand_written_bytes(&files)
 }
 
 pub(crate) fn close(actual: f64, expected: f64, share: f64) -> bool {

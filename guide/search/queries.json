@@ -120,6 +120,7 @@
   {"q": "colony", "expect": "system/colonies"},
   {"q": "delete planet", "expect": "system/colonies#delete-a-planet-or-moon"},
   {"q": "system view", "expect": "system/system-view"},
+  {"q": "real space system scale", "expect": "system/system-view"},
   {"q": "make a scenario", "expect": "scenario/make-a-scenario"},
   {"q": "save or scenario", "expect": "scenario/what-is-a-scenario"},
   {"q": "scenario quick start", "expect": "scenario/what-is-a-scenario"},

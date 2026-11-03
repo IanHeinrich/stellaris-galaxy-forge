@@ -315,6 +315,14 @@ describe("how large a save's megastructure or starbase is drawn", () => {
     expect(onlyStructure(ctx).scale).toBeCloseTo(luna.disc / PLANET_SCALED_DISC);
   });
 
+  it("grows a model with its planet by the same share whatever the install's body scale", () => {
+    const furnace = [megastructureSummary({ kind: FURNACE.key, planet: MARS.id })];
+    const wide = structuredSave(furnace, [], { scales: { moon_scale: 0.7, body_scale: 1 / 6 } });
+    const mars = (ctx: SystemContext) => ctx.bodyById.get(MARS.id)!.placement.disc;
+    expect(mars(wide)).toBeCloseTo(mars(structuredSave(furnace)) / 6);
+    expect(onlyStructure(wide).scale).toBeCloseTo(onlyStructure(structuredSave(furnace)).scale);
+  });
+
   it("grows an orbital ring starbase with its planet, and a Dyson Swarm on its star not at all", () => {
     const ring = starbaseSummary({ level: ORBITAL_RING.key, at: [90, 0], planet: EARTH.id });
     const ctx = structuredSave([], [ring]);

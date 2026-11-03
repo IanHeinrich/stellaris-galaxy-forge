@@ -4,7 +4,7 @@ import { polar } from "../../lib/details/orbits";
 import { placementAt } from "../../lib/planetMove";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useGameDataStore } from "../../store/gameDataStore";
+import { bodyScalesOf, useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { usePlanetMoveStore, type PlanetCut } from "../../store/planetMoveStore";
 import { useSceneStore } from "../../store/sceneStore";
@@ -42,6 +42,8 @@ function pasteGhost(id: number, cut: PlanetCut | null): PasteGhost | null {
     .getState()
     .details.get(cut.from)
     ?.planets.find((p) => p.id === cut.planets[0]);
-  const view = planet ? useGameDataStore.getState().planetClasses.get(planet.class) : undefined;
-  return { x, y, radius: at.radius, disc: discRadius(planet?.size ?? null, { view }) };
+  const data = useGameDataStore.getState();
+  const view = planet ? data.planetClasses.get(planet.class) : undefined;
+  const disc = discRadius(planet?.size ?? null, { view, scales: bodyScalesOf(data) });
+  return { x, y, radius: at.radius, disc };
 }

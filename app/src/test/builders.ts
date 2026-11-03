@@ -646,6 +646,7 @@ export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSu
       ownerless_influence_max_distance_factor: 1.88,
       moon_scale: 0.7,
       name_min_width: 100,
+      body_scale: 1,
     },
     system_radii: { min_inner: 150, inner_offset: 30, outer_offset: 100 },
     belt_kinds: [],

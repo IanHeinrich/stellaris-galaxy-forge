@@ -373,7 +373,13 @@ impl GameData {
         meter.step("country_types");
         let country_types = registry::load(&layout, &vars, &mut diagnostics);
         meter.step("star_classes");
-        let star_defs = script::parse_dir(&layout, StarClass::DIR, &vars, &mut diagnostics);
+        let star_dir = ParsedDir::load(&layout, StarClass::DIR, &mut diagnostics);
+        let named_star_lists = star_dir.random_lists("stars");
+        let mut overrides = Vec::new();
+        let star_defs = star_dir.into_defs(&vars, &mut overrides);
+        diagnostics.extend(overrides.into_iter().filter(
+            |d| !matches!(d, Diagnostic::Override { key, .. } if key == script::RANDOM_LIST),
+        ));
         let star_classes = StarClasses::marked(
             &registry::from_defs(&star_defs),
             |class| {
@@ -383,7 +389,7 @@ impl GameData {
             },
             &layout.files_in(StarClass::DIR),
         );
-        let star_lists = registry::from_defs(&star_defs);
+        let star_lists = StarLists::read(&star_defs, named_star_lists);
         meter.step("random_names");
         let random_names = ParsedDir::load(&layout, star_names::DIR, &mut diagnostics);
         let star_names = star_names::names(&random_names, star_names::STARS);
@@ -421,7 +427,7 @@ impl GameData {
         let planet_classes: PlanetClasses =
             registry::from_defs(&planet_dir.into_defs(&vars, &mut overrides));
         diagnostics.extend(overrides.into_iter().filter(
-            |d| !matches!(d, Diagnostic::Override { key, .. } if key == planet_lists::KEY),
+            |d| !matches!(d, Diagnostic::Override { key, .. } if key == script::RANDOM_LIST),
         ));
         meter.step("terraform_links");
         let terraform_links = TerraformLinks::load(&layout, &mut diagnostics);

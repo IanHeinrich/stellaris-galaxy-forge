@@ -1,6 +1,7 @@
 //! `common/defines`: the `NGraphics` constants the map uses to draw territory
-//! borders, their names and moons, and the `NGameplay` ones that set how many deposits a new body rolls
-//! and how far out a system's inner and outer radii lie.
+//! borders, their names and moons, `NCamera`'s spread of a system's space, and the `NGameplay`
+//! ones that set how many deposits a new body rolls and how far out a system's inner and outer
+//! radii lie.
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
@@ -8,6 +9,9 @@ use sgf_core::ops::SystemRadii;
 use ts_rs::TS;
 
 use crate::install::script::ParsedDir;
+
+/// Vanilla's `NCamera.SYSTEM_SPACE_SCALE_MULT`: game world units per save unit.
+pub(crate) const VANILLA_SPACE_SCALE_MULT: f64 = 10.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, rename = "BorderDefines")]
@@ -31,6 +35,10 @@ pub struct GraphicsDefines {
     /// `NGraphics.MAPNAME_BORDER_MIN_SIZE`: the narrowest an empire's name is written on the
     /// map, in world units, however small its territory.
     pub name_min_width: f64,
+    /// How large bodies and models are drawn against their orbits, next to vanilla: vanilla's
+    /// `NCamera.SYSTEM_SPACE_SCALE_MULT` over the install's. The game spreads save
+    /// coordinates by that define but draws each model at its own size.
+    pub body_scale: f64,
 }
 
 impl Default for GraphicsDefines {
@@ -44,6 +52,7 @@ impl Default for GraphicsDefines {
             ownerless_influence_max_distance_factor: 1.88,
             moon_scale: 0.7,
             name_min_width: 100.0,
+            body_scale: 1.0,
         }
     }
 }
@@ -52,7 +61,15 @@ impl GraphicsDefines {
     /// Every file under `common/defines` in order, a later value replacing an earlier one.
     pub(crate) fn load(files: &ParsedDir) -> Self {
         let mut out = Self::default();
+        let mut space_scale = VANILLA_SPACE_SCALE_MULT;
         for (root, src) in files.roots() {
+            for camera in root.find_all("NCamera", src) {
+                if let Some(mult) =
+                    field(camera, "SYSTEM_SPACE_SCALE_MULT", src).filter(|m| *m > 0.0)
+                {
+                    space_scale = mult;
+                }
+            }
             for graphics in root.find_all("NGraphics", src) {
                 for (target, key) in [
                     (&mut out.system_radius, "BORDER_SYSTEM_RADIUS"),
@@ -86,6 +103,7 @@ impl GraphicsDefines {
                 }
             }
         }
+        out.body_scale = VANILLA_SPACE_SCALE_MULT / space_scale;
         out
     }
 }

@@ -206,7 +206,7 @@ pub struct TerraformCandidateView {
 }
 
 /// Save units of disc radius per `planet_size` point for each unit of `entity_scale` times the
-/// model's `scale`, fitted to planets and stars measured in game.
+/// model's `scale`, fitted to planets and stars measured in game at vanilla's space scale.
 const DISC_PER_ENTITY_SCALE: f64 = 0.0163;
 
 fn body_model(class: &PlanetClassDef) -> Option<String> {
@@ -271,7 +271,7 @@ impl GameData {
             return None;
         }
         let asset_scale = planet_disc::asset_scale(self.models(), class.entity.as_deref()?)?;
-        Some(DISC_PER_ENTITY_SCALE * class.entity_scale? * asset_scale)
+        Some(DISC_PER_ENTITY_SCALE * class.entity_scale? * asset_scale * self.border.body_scale)
     }
 
     /// What changing a save planet's class needs to know of `class`; `None` when the install

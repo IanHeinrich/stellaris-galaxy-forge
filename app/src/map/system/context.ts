@@ -397,7 +397,7 @@ function systemStar(src: Pick<SystemSources, "node">): string {
  * The stars the galaxy lists for a system, drawn about the centre until its own record lands:
  * with none listed, every star of its star class.
  */
-function galaxyStars(src: Pick<SystemSources, "node"> & ArtSources): SceneBody[] {
+function galaxyStars(src: Pick<SystemSources, "node" | "scales"> & ArtSources): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (src.node?.bodies ?? []).filter((b) => isStar(b.class));
   const system = systemStar(src);
@@ -408,7 +408,7 @@ function galaxyStars(src: Pick<SystemSources, "node"> & ArtSources): SceneBody[]
       : (keys.length > 0 ? keys : [STAR_BODY_CLASS]).map((c) => ({ class: c, size: null }));
   const singles = singleStarClasses(src.starClasses);
   const discs = stars.map((s) =>
-    discRadius(s.size, { star: true, view: src.planetClasses.get(s.class) }),
+    discRadius(s.size, { star: true, view: src.planetClasses.get(s.class), scales: src.scales }),
   );
   const spread = CLUSTER_SPREAD * Math.max(...discs);
   const places = clusterOffsets(stars.length);
@@ -513,6 +513,7 @@ const BODY_KEYS = [
   "ownership",
   "countries",
   "resourceIcons",
+  "scales",
 ] as const;
 
 /** The bodies `layout` places; while `structuresShown` that layer draws their megastructures. */
@@ -619,8 +620,8 @@ const lastBelts = memoOn(["beltKinds"], (src, belts: readonly BeltBand[]) =>
   belts.map((belt) => sceneBelt(belt, src.beltKinds)),
 );
 const lastExits = memoOn(EXIT_KEYS, sceneExits);
-const lastRolled = memoOn(["roll", "planetClasses"], (src) =>
-  src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses) : NOTHING,
+const lastRolled = memoOn(["roll", "planetClasses", "scales"], (src) =>
+  src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses, src.scales) : NOTHING,
 );
 const lastHandles = lastOf<readonly SceneHandle[]>();
 const lastStructures = memoOn(
@@ -704,7 +705,7 @@ export function systemContext(
 ): SystemContext {
   const { layout: base, editing } = geometryOf({ ...src, adapter: src.geometry });
   const layout = preview
-    ? systemLayout(src.details, src.roll, src.planetClasses, src.moonScale, preview.override)
+    ? systemLayout(src.details, src.roll, src.planetClasses, src.scales, preview.override)
     : base;
   const shown = src.sceneLayers;
   const bodies = lastBodies(src, layout, shown.megastructures);

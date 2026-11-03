@@ -80,6 +80,7 @@ mod scripts_fallen;
 mod scripts_lgate;
 mod scripts_owners;
 mod scripts_rows;
+mod space_scale;
 mod special;
 mod special_clusters;
 mod special_extras;
