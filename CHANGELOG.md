@@ -8,6 +8,14 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.5] - 2026-11-03
+
+### Added
+
+- Experimental support for Real Space - System Scale. Planets, stars and
+  megastructures in the system view are the size they are in the game next
+  to their orbits. Before, they looked about six times too large.
+
 ## [0.27.4] - 2026-11-01
 
 ### Fixed
