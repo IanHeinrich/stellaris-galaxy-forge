@@ -17,7 +17,7 @@ import {
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
 import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
-import { discRadius, VANILLA_MOON_SCALE } from "./discs";
+import { discRadius, VANILLA_BODY_SCALES } from "./discs";
 import {
   FIT_MARGIN,
   exitBearing,
@@ -32,7 +32,7 @@ import {
 const NO_CLASSES: ReadonlyMap<string, PlanetClassView> = new Map();
 
 const laid = (details: SystemDetails | null, roll: SystemRoll | null = null) =>
-  systemLayout(details, roll, NO_CLASSES, VANILLA_MOON_SCALE);
+  systemLayout(details, roll, NO_CLASSES, VANILLA_BODY_SCALES);
 
 function body(layout: SystemLayout, id: number): BodyPlacement {
   const found = layout.bodies.find((b) => b.id === id);
@@ -66,7 +66,7 @@ function sol(planetClasses: ReadonlyMap<string, PlanetClassView> = NO_CLASSES): 
     }),
     null,
     planetClasses,
-    VANILLA_MOON_SCALE,
+    VANILLA_BODY_SCALES,
   );
 }
 
@@ -286,8 +286,18 @@ describe("disc sizes", () => {
     const gasGiant = planetClassView("pc_gas_giant", false, null, { disc_scale: 0.27384 });
     const redGiant = planetClassView("pc_m_giant_star", true, null, { disc_scale: 0.652 });
     expect(discRadius(25, { view: gasGiant })).toBeCloseTo(6.85, 2);
-    expect(discRadius(10, { moon: true, view: gasGiant, moonScale: 0.7 })).toBeCloseTo(1.92, 2);
+    expect(discRadius(10, { moon: true, view: gasGiant })).toBeCloseTo(1.92, 2);
     expect(discRadius(21, { star: true, view: redGiant })).toBeCloseTo(13.69, 2);
+  });
+
+  it("draws a body with no disc scale smaller by the install's body scale, and takes a disc scale as sent", () => {
+    const wide = { moon_scale: 0.7, body_scale: 1 / 6 };
+    for (const kind of [{}, { moon: true }, { star: true }]) {
+      expect(discRadius(20, { ...kind, scales: wide })).toBeCloseTo(discRadius(20, kind) / 6);
+    }
+    expect(discRadius(0, { scales: wide })).toBeCloseTo(discRadius(0) / 6);
+    const gasGiant = planetClassView("pc_gas_giant", false, null, { disc_scale: 0.04564 });
+    expect(discRadius(25, { view: gasGiant, scales: wide })).toBeCloseTo(1.141, 3);
   });
 
   it("draws Sol's Sun, Earth and Luna at the sizes their classes' disc scales give", () => {
@@ -342,7 +352,7 @@ describe("an override", () => {
   const classes = orbitClasses();
   const system = orbitSystem();
   const drawn = (override?: LayoutOverride) =>
-    systemLayout(system, null, classes, VANILLA_MOON_SCALE, override);
+    systemLayout(system, null, classes, VANILLA_BODY_SCALES, override);
   const moved = (id: number, parent: number | null, radius: number, angle: number) => ({
     bodies: new Map([[id, { parent, radius, angle }]]),
   });
@@ -389,7 +399,7 @@ describe("an override", () => {
       walk,
       roll,
       NO_CLASSES,
-      VANILLA_MOON_SCALE,
+      VANILLA_BODY_SCALES,
       moved(2, null, 70, 180),
     );
     const planet = body(layout, 2);
@@ -446,11 +456,11 @@ describe("placeholderPlanets", () => {
       rolls_planets: true,
       placeholders: [{ class: "pc_barren", size: 10, orbit: 60, angle: 90 }],
     });
-    const [planet] = placeholderPlanets(roll, NO_CLASSES);
+    const [planet] = placeholderPlanets(roll, NO_CLASSES, VANILLA_BODY_SCALES);
     expect([Math.round(planet.x), Math.round(planet.y)]).toEqual([0, 60]);
     expect(planet.ring).toEqual({ cx: 0, cy: 0, radius: 60 });
     expect(planet.disc).toBe(discRadius(10));
-    expect(placeholderPlanets(null, NO_CLASSES)).toEqual([]);
+    expect(placeholderPlanets(null, NO_CLASSES, VANILLA_BODY_SCALES)).toEqual([]);
   });
 });
 

@@ -4,7 +4,7 @@ import type { CountryNode } from "../../generated/CountryNode";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { countryNode, orbitClasses, orbitSystem } from "../../test/builders";
-import { VANILLA_MOON_SCALE } from "./discs";
+import { VANILLA_BODY_SCALES } from "./discs";
 import type { GeometryFrame, GeometryIntent, Span } from "./orbitIntent";
 import { systemLayout } from "./orbits";
 import { SAVE_GEOMETRY } from "./saveGeometry";
@@ -37,7 +37,7 @@ export const ASTEROID = 6;
 
 export function frameOf(details: SystemDetails = orbitSystem()): GeometryFrame {
   const planetClasses = orbitClasses();
-  const layout = systemLayout(details, null, planetClasses, VANILLA_MOON_SCALE);
+  const layout = systemLayout(details, null, planetClasses, VANILLA_BODY_SCALES);
   return { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
 }
 

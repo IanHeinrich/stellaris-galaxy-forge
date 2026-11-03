@@ -61,6 +61,17 @@ pub struct ModelPlacement {
     pub anchor_y: f64,
 }
 
+impl ModelPlacement {
+    /// The placement of the sprite drawn `by` times as large; the anchor stays.
+    pub(crate) fn scaled(self, by: f64) -> Self {
+        Self {
+            width: self.width * by,
+            height: self.height * by,
+            ..self
+        }
+    }
+}
+
 /// A model's extent in save units: save x, save y and height above its origin.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModelBounds {
@@ -654,7 +665,12 @@ impl GameData {
     /// The extent of the model a `model:` texture key names, in save units; it reads the
     /// model's `.mesh` files but bakes nothing.
     pub fn model_bounds(&self, key: &str) -> Result<ModelBounds, TextureError> {
-        self.model_job(key)?.bounds()
+        let ModelBounds { min, max } = self.model_job(key)?.bounds()?;
+        let scale = |p: [f64; 3]| p.map(|c| c * self.border.body_scale);
+        Ok(ModelBounds {
+            min: scale(min),
+            max: scale(max),
+        })
     }
 
     /// The shaders the drawn meshes of the model a `model:` texture key names are drawn with

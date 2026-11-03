@@ -1,6 +1,8 @@
 //! Vectors, the transforms an assembly places its parts with, and the turn from a model's own
 //! axes to the save's.
 
+use crate::registries::defines::VANILLA_SPACE_SCALE_MULT;
+
 pub(super) type Vec3 = [f32; 3];
 
 pub(super) fn dot(a: Vec3, b: Vec3) -> f32 {
@@ -20,8 +22,10 @@ pub(super) fn normalize(v: Vec3) -> Vec3 {
     v.map(|c| c / len)
 }
 
-/// Game world units per save unit (`SYSTEM_SPACE_SCALE_MULT`).
-pub(super) const WORLD_PER_SAVE: f32 = 10.0;
+/// Game world units per save unit at vanilla's `SYSTEM_SPACE_SCALE_MULT`. A sprite is baked and
+/// cached at it, and [`GameData::texture`](crate::GameData::texture) scales its placement to
+/// the install's.
+pub(super) const WORLD_PER_SAVE: f32 = VANILLA_SPACE_SCALE_MULT as f32;
 
 /// A model's axes in save space: the game draws the Science Nexus, long along model X, up and
 /// down the screen, and the editor puts screen-up at −save y, so model X is −save y, model Z

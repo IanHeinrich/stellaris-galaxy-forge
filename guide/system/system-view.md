@@ -19,7 +19,8 @@ To open a system:
 - Select the system and use View → Open system view.
 
 Each body sits on its orbit around the star, or around its planet for a
-moon. Hyperlanes show as arrows at the edge, pointing to the
+moon, at the size it has in the game next to its orbit. That holds with
+a mod that spreads systems out, such as Real Space - System Scale. Hyperlanes show as arrows at the edge, pointing to the
 neighbouring systems. Click an arrow to see the lane's length.
 Double-click it to open that neighbour's view. Scroll to zoom and drag
 with the middle mouse button to pan, as on the galaxy map. A large save

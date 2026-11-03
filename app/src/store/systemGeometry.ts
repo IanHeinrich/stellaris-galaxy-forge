@@ -11,7 +11,7 @@ import { shownRoll, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { systemLabelOf } from "./galaxyStore";
-import { moonScaleOf, systemRadiiOf, useGameDataStore } from "./gameDataStore";
+import { bodyScalesOf, systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { sceneSystem } from "./sceneStore";
@@ -27,7 +27,7 @@ export function systemGeometry(system: number | null): SystemGeometry {
     details: system === null ? null : (details.details.get(system) ?? null),
     roll: shownRoll(details.rolls, system),
     planetClasses: data.planetClasses,
-    moonScale: moonScaleOf(data),
+    scales: bodyScalesOf(data),
     radii: systemRadiiOf(data),
     adapter: geometryAdapterFor(session.kind, documentCapabilities(session), system),
   });
@@ -40,12 +40,12 @@ export function useSystemGeometry(system: number | null): SystemGeometry {
   );
   const roll = useDetailsStore((s) => shownRoll(s.rolls, system));
   const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const moonScale = useGameDataStore(moonScaleOf);
+  const scales = useGameDataStore(bodyScalesOf);
   const radii = useGameDataStore(systemRadiiOf);
   const kind = useFileSessionStore((s) => s.kind);
   const capabilities = useFileSessionStore(documentCapabilities);
   const adapter = geometryAdapterFor(kind, capabilities, system);
-  return geometryOf({ details, roll, planetClasses, moonScale, radii, adapter });
+  return geometryOf({ details, roll, planetClasses, scales, radii, adapter });
 }
 
 /** How long an edit waits for its system's fresh details before the next one builds anyway. */

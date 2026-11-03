@@ -21,7 +21,7 @@ import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
 import { documentCapabilities } from "../lib/capabilities";
-import { VANILLA_MOON_SCALE } from "../lib/details/discs";
+import { VANILLA_BODY_SCALES } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { NO_PRECURSORS, type PrecursorRegions } from "../lib/precursors";
 import {
@@ -52,8 +52,8 @@ export const VANILLA_BORDER: BorderDefines = {
   ownerless_system_radius: 30,
   ownerless_hyperlane_thickness: 20,
   ownerless_influence_max_distance_factor: 1.88,
-  moon_scale: VANILLA_MOON_SCALE,
   name_min_width: 100,
+  ...VANILLA_BODY_SCALES,
 };
 
 /**

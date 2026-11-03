@@ -28,7 +28,7 @@ import type { DepositView } from "../generated/DepositView";
 import type { FlagParts } from "../generated/FlagParts";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
-import { VANILLA_MOON_SCALE } from "../lib/details/discs";
+import { VANILLA_BODY_SCALES, type BodyScales } from "../lib/details/discs";
 import { aboveModFolder, USER_DIR_REFUSED } from "../lib/userDir";
 import { setMapNameFont } from "../lib/visual/mapFont";
 import { clearTextures } from "../lib/visual/textures";
@@ -679,7 +679,7 @@ export function systemRadiiOf(s: { summary: GameDataSummary | null }): SystemRad
   return s.summary?.system_radii ?? VANILLA_SYSTEM_RADII;
 }
 
-/** The install's moon scale, or the vanilla one before game data loads. */
-export function moonScaleOf(s: { summary: GameDataSummary | null }): number {
-  return s.summary?.border.moon_scale ?? VANILLA_MOON_SCALE;
+/** The install's body scales, or the vanilla ones before game data loads. */
+export function bodyScalesOf(s: { summary: GameDataSummary | null }): BodyScales {
+  return s.summary?.border ?? VANILLA_BODY_SCALES;
 }

@@ -58,9 +58,12 @@ pub(crate) struct Lookups<'a> {
 }
 
 impl GameData {
-    /// `key` decoded through this install's sprites, flag colours and planet classes.
+    /// `key` decoded through this install's sprites, flag colours and planet classes, a model
+    /// sprite placed at this install's size.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
-        self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
+        let mut view = self.with_lookups(|lookups| textures.load(&self.layout, lookups, key));
+        view.model = view.model.map(|m| m.scaled(self.border.body_scale));
+        view
     }
 
     /// Each of `keys` as [`Self::texture`] makes it, in order, the keys shared among the cores.

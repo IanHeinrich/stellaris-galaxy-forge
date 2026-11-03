@@ -17,7 +17,7 @@ import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
-import { discRadius } from "./discs";
+import { discRadius, type BodyScales } from "./discs";
 import { isStar } from "./starBody";
 
 /** Width of an asteroid belt's band, centred on the belt's radius. */
@@ -242,7 +242,7 @@ function layOut(
   details: SystemDetails | null,
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
-  moonScale: number,
+  scales: BodyScales,
   override?: LayoutOverride,
 ): SystemLayout {
   const planets = details?.planets ?? [];
@@ -306,7 +306,7 @@ function layOut(
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(size, { moon: planet.moon && !aboutStar, star, view, moonScale }),
+      disc: discRadius(size, { moon: planet.moon && !aboutStar, star, view, scales }),
       star,
       moon: moved ? moved.parent !== null && !aboutStar : planet.moon && !aboutStar,
       parent: parent ? parent.placement.id : null,
@@ -372,14 +372,14 @@ function layOut(
     belts,
     innerRadius,
     fitRadius: Math.max(outermost, innerRadius) + FIT_MARGIN,
-    largestDisc: largestDisc || discRadius(null),
+    largestDisc: largestDisc || discRadius(null, { scales }),
   };
 }
 
 interface Laid {
   roll: SystemRoll | null;
   planetClasses: ReadonlyMap<string, PlanetClassView>;
-  moonScale: number;
+  scales: BodyScales;
   layout: SystemLayout;
 }
 
@@ -389,14 +389,14 @@ const laid = new WeakMap<object, Laid>();
 /**
  * Every body's point, circle and angles, the belts, and the radius the camera fits: a save's bodies
  * where it puts them, a scenario's where `roll` lands them, and whatever `override` puts elsewhere.
- * The same details, roll, classes and moon scale give the same layout, so the scene and every
+ * The same details, roll, classes and body scales give the same layout, so the scene and every
  * readout of it read one; a layout under an override is never kept.
  */
 export function systemLayout(
   details: SystemDetails | null,
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
-  moonScale: number,
+  scales: BodyScales,
   override?: LayoutOverride,
 ): SystemLayout {
   const overridden =
@@ -404,10 +404,10 @@ export function systemLayout(
     override?.belts !== undefined ||
     override?.innerRadius !== undefined;
   if (overridden) {
-    const shown = layOut(details, roll, planetClasses, moonScale, override);
+    const shown = layOut(details, roll, planetClasses, scales, override);
     if (override.belts !== undefined) return shown;
     // The same belts object as the plain layout's, so the belts drawn from it are left alone.
-    return { ...shown, belts: systemLayout(details, roll, planetClasses, moonScale).belts };
+    return { ...shown, belts: systemLayout(details, roll, planetClasses, scales).belts };
   }
   const key = details ?? NO_DETAILS;
   const known = laid.get(key);
@@ -415,12 +415,13 @@ export function systemLayout(
     known &&
     known.roll === roll &&
     known.planetClasses === planetClasses &&
-    known.moonScale === moonScale
+    known.scales.moon_scale === scales.moon_scale &&
+    known.scales.body_scale === scales.body_scale
   ) {
     return known.layout;
   }
-  const layout = layOut(details, roll, planetClasses, moonScale);
-  laid.set(key, { roll, planetClasses, moonScale, layout });
+  const layout = layOut(details, roll, planetClasses, scales);
+  laid.set(key, { roll, planetClasses, scales, layout });
   return layout;
 }
 
@@ -428,10 +429,11 @@ export function systemLayout(
 export function placeholderPlanets(
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
+  scales: BodyScales,
 ): RolledPlanet[] {
   return (roll?.placeholders ?? []).map(({ class: planetClass, size, orbit, angle }) => ({
     ...polar(0, 0, orbit, angle),
-    disc: discRadius(size, { view: planetClasses.get(planetClass) }),
+    disc: discRadius(size, { view: planetClasses.get(planetClass), scales }),
     ring: { cx: 0, cy: 0, radius: orbit },
   }));
 }

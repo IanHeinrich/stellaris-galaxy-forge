@@ -98,6 +98,7 @@ export const STRUCTURE_KEYS = [
   "countries",
   "resourceIcons",
   "templateName",
+  "scales",
 ] as const;
 
 /** What the scene places its structures from. */
@@ -180,6 +181,7 @@ interface Standing {
 function placeStructure(
   look: Exclude<StructureLook, { kind: "none" }>,
   { body, at, offset, sizeBody }: Standing,
+  bodyScale: number,
 ): Pick<SceneStructure, "x" | "y" | "scale"> | null {
   const point = body ? [body.placement.x, body.placement.y] : at;
   if (point == null) return null;
@@ -187,7 +189,7 @@ function placeStructure(
   return {
     x: point[0] + offset[0],
     y: point[1] + offset[1],
-    scale: sizeBody ? scale * planetScale(sizeBody.placement.disc) : scale,
+    scale: sizeBody ? scale * planetScale(sizeBody.placement.disc, bodyScale) : scale,
   };
 }
 
@@ -240,7 +242,7 @@ function megastructure(
   }
   // Held off its body, it keeps its home planet's size.
   const sizeBody = type?.scales_with_planet === true ? (body ?? homeBody) : undefined;
-  const placed = placeStructure(look, { body, at, offset, sizeBody });
+  const placed = placeStructure(look, { body, at, offset, sizeBody }, src.scales.body_scale);
   if (placed === null) return null;
   // Held, it keeps the facing it had and turns once when dropped: a new facing is a new model to bake.
   const held =
@@ -313,7 +315,11 @@ function starbase(
   const grows = level?.scales_with_planet === true;
   // An orbital ring stands on the planet it rings; any other station keeps its own point.
   const body = grows && station.planet !== null ? bodyById.get(station.planet) : undefined;
-  const placed = placeStructure(look, { body, at: station.at, offset: [0, 0], sizeBody: body });
+  const placed = placeStructure(
+    look,
+    { body, at: station.at, offset: [0, 0], sizeBody: body },
+    src.scales.body_scale,
+  );
   if (placed === null) return null;
   const owner = station.owner === null ? undefined : src.countries.get(station.owner);
   const label = starbaseLabel(station.level);

@@ -12,8 +12,8 @@ export const NO_CULTURE = "none";
 const EMPTY_SECTION_ENTITY = "empty_section_entity";
 
 /**
- * The disc radius at which a model that grows with its planet is drawn at its placement's size:
- * an Arc Furnace on a moon measured against the game's.
+ * The disc radius at which a model that grows with its planet is drawn at its placement's size, at
+ * vanilla's body scale: an Arc Furnace on a moon measured against the game's.
  */
 export const PLANET_SCALED_DISC = 0.4488;
 
@@ -150,9 +150,12 @@ export function starbaseLook(level: StarbaseLevelView | undefined): StructureLoo
   return { kind: "model", entity, scale: 1 };
 }
 
-/** How much larger than its placement a model that grows with a planet of drawn radius `disc` is. */
-export function planetScale(disc: number): number {
-  return disc / PLANET_SCALED_DISC;
+/**
+ * How much larger than its placement a model that grows with a planet of drawn radius `disc` is,
+ * the disc and the placement both drawn at `bodyScale`.
+ */
+export function planetScale(disc: number, bodyScale: number): number {
+  return disc / (PLANET_SCALED_DISC * bodyScale);
 }
 
 /** A model sprite's size in save units, `scale` times its placement's. */

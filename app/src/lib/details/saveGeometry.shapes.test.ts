@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import { ORBIT_SYSTEM_AT, orbitClasses, orbitSystem, saveBody } from "../../test/builders";
-import { VANILLA_MOON_SCALE } from "./discs";
+import { VANILLA_BODY_SCALES } from "./discs";
 import { ASTEROID, frameOf, LONE, MOON, move, op, PLANET, reparent, STAR, SYSTEM } from "./fixture";
 import { GEOMETRY_REASONS, type GeometryFrame, type GeometryIntent } from "./orbitIntent";
 import { systemLayout } from "./orbits";
@@ -143,7 +143,7 @@ describe("a ring world segment", () => {
   const planetClasses = new Map(orbitClasses());
   const seam = planetClasses.get("pc_arid")!;
   planetClasses.set("pc_ringworld_seam", { ...seam, key: "pc_ringworld_seam", ringworld: true });
-  const layout = systemLayout(details, null, planetClasses, VANILLA_MOON_SCALE);
+  const layout = systemLayout(details, null, planetClasses, VANILLA_BODY_SCALES);
   const frame: GeometryFrame = { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
 
   it("stays where it is, takes no moons and keeps its parent", () => {
@@ -159,7 +159,7 @@ describe("a ring world segment", () => {
 
   it("stays where it is when the install does not list its class", () => {
     const unlisted = new Map(orbitClasses());
-    const bare = systemLayout(details, null, unlisted, VANILLA_MOON_SCALE);
+    const bare = systemLayout(details, null, unlisted, VANILLA_BODY_SCALES);
     const known: GeometryFrame = { ...frame, layout: bare, planetClasses: unlisted };
     expect(SAVE_GEOMETRY.editing(known).bodies.get(SEGMENT)?.move).toBe(false);
     expect(op(move(SEGMENT, 190, 90), known)).toEqual({ refused: GEOMETRY_REASONS.ringworld });

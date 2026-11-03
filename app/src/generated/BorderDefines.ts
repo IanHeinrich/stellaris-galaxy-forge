@@ -29,4 +29,10 @@ moon_scale: number,
  * `NGraphics.MAPNAME_BORDER_MIN_SIZE`: the narrowest an empire's name is written on the
  * map, in world units, however small its territory.
  */
-name_min_width: number, };
+name_min_width: number, 
+/**
+ * How large bodies and models are drawn against their orbits, next to vanilla: vanilla's
+ * `NCamera.SYSTEM_SPACE_SCALE_MULT` over the install's. The game spreads save
+ * coordinates by that define but draws each model at its own size.
+ */
+body_scale: number, };
