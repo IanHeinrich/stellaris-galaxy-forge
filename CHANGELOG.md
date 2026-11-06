@@ -12,9 +12,9 @@ a release is made.
 
 ### Fixed
 
-- Add system works on saves that failed with "the save's last system is
-  4294967295". A save with a real gap in its system ids still can't take a
-  new system.
+- Add system works on saves that used to fail with an error about the
+  save's last system. You still can't add a new system to a save with a
+  real gap in its system ids.
 
 ## [0.27.5] - 2026-11-03
 
