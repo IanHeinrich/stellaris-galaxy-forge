@@ -176,7 +176,8 @@ pub enum Op {
     /// A save removes only a system [`Op::AddSystemFromSpec`] added since the file was opened,
     /// with its bodies, their deposits, its lanes on both ends and its nebula member lines.
     /// A reused slot gets its tombstone back, the name returns to the pool of unused star
-    /// or black hole names the add took it from, and `last_created_system` goes down. The
+    /// or black hole names the add took it from, and `last_created_system` goes down, or back
+    /// to what the file held once no added system is left. The
     /// systems added after it take the id below their own, so that ids stay dense. A system
     /// with a wormhole pair, whether removed or renumbered, is refused. The
     /// inverse adds the system again, read back as a spec, at the end of the list, which
@@ -442,7 +443,8 @@ pub enum Op {
     },
     /// A new save system with its bodies, their deposits and its lanes, written as the
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
-    /// must be the number of systems the save holds; planets and deposits take the lowest
+    /// must be the number of systems the save holds, and takes that number when the counter
+    /// holds the null id; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
     /// names, or failing that of black hole names, when one holds it. A system standing
     /// in a nebula's radius joins that nebula, as a system moved there does. A point farther

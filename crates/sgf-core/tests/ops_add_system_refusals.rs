@@ -33,6 +33,46 @@ pub(crate) fn with_asteroid_pool(pool: &str) -> Session {
     })
 }
 
+/// The 4.4 sample with its system counter holding the null id, and `edit` applied after.
+fn null_counter(edit: impl FnOnce(&mut String)) -> Session {
+    open_edited(|text| {
+        *text = text.replace(
+            "\nlast_created_system=790\n",
+            "\nlast_created_system=4294967295\n",
+        );
+        edit(text);
+    })
+}
+
+#[test]
+fn a_null_system_counter_takes_the_id_past_the_last_system() {
+    round_trip(null_counter(|_| {}), add(dorellion()));
+
+    let mut session = null_counter(|_| {});
+    session.apply(add(dorellion())).expect("the add");
+    assert!(session.graph().systems.contains_key(&791));
+    assert!(text(&session).contains("\nlast_created_system=791\n"));
+    let reopened = common::reopened(&mut session);
+    assert_eq!(reopened.graph().systems.len(), 792);
+    assert!(text(&reopened).contains("\nlast_created_system=791\n"));
+}
+
+#[test]
+fn a_null_system_counter_does_not_hide_a_gap() {
+    let gap = null_counter(|text| {
+        let table = text.find("\ngalactic_object=\n").expect("the systems");
+        let at = table + text[table..].find("\n\t790=\n").expect("the last system");
+        text.replace_range(at..at + "\n\t790=\n".len(), "\n\t795=\n");
+    });
+    assert!(matches!(
+        refused(gap, dorellion()),
+        OpError::SystemIdsNotDense {
+            last: 790,
+            count: 791
+        }
+    ));
+}
+
 #[test]
 fn what_the_op_refuses() {
     let gap = open_edited(|text| {

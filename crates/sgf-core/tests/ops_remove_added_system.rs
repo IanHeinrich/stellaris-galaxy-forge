@@ -150,6 +150,27 @@ fn removing_the_middle_of_three_renumbers_the_third() {
 }
 
 #[test]
+fn removing_the_last_added_system_gives_a_null_counter_back() {
+    let sample = SAMPLE_4_4;
+    let first = sample.id;
+    let mut session = common::open_edited(|text| {
+        *text = text.replace(
+            &format!("\nlast_created_system={}\n", first - 1),
+            "\nlast_created_system=4294967295\n",
+        );
+    });
+    let opened = text(&session);
+    session.apply(add((sample.spike)())).expect("the first add");
+    session.apply(add(second(sample))).expect("the second add");
+
+    session.apply(remove(first)).expect("the first removal");
+    assert!(text(&session).contains(&format!("\nlast_created_system={first}\n")));
+
+    session.apply(remove(first)).expect("the last removal");
+    assert_eq!(text(&session), opened);
+}
+
+#[test]
 fn the_diff_a_removal_writes() {
     let (mut session, _) = three(SAMPLE_4_5);
     let report = step_report(&mut session, remove(SAMPLE_4_5.id + 1));
