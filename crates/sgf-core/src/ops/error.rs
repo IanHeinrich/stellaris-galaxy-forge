@@ -153,7 +153,7 @@ pub enum OpError {
     #[error("the save has no `{0}`")]
     MissingKey(&'static str),
     #[error(
-        "the save's last system is {last} but it holds {count} systems: a new system needs ids 0 to {last} held, without a gap"
+        "this save holds {count} systems, and their ids don't run from 0 to {last} without a gap, so a new system has no id to take"
     )]
     SystemIdsNotDense { last: u32, count: usize },
     #[error("system {id} is {distance:.2} away; a new system needs 10 between them")]

@@ -6,7 +6,8 @@
 //! slot below the end of its table becomes a tombstone, the lanes on
 //! the other ends, the nebula member lines, the count of a capped layout, the name taken
 //! from the pool of unused star or black hole names and the asteroids' names taken from the pool of
-//! asteroid names. `last_created_system` goes down by one per system removed. Every system
+//! asteroid names. `last_created_system` goes down by one per system removed, and back to
+//! what the file held once no added system is left. Every system
 //! added after the first one removed takes the id below its own for each removed before
 //! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the origin
 //! of the fleets it lists in `fleet_presence` and of their ships, the lanes
@@ -70,14 +71,18 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     rewrite_lanes(plan, s, &removed, &renumber)?;
     rewrite_members(plan, s, &removed, &renumber)?;
     rewrite_clouds(plan, s, &removed, &renumber)?;
-    let last =
+    let none_left = s.doc.added().entries(EntityKind::System).count() == removed.len();
+    let last = if none_left {
+        counter.loaded(&s.doc)
+    } else {
         counter
             .last
             .checked_sub(as_u32(removed.len()))
             .ok_or(OpError::SystemIdsNotDense {
                 last: counter.last,
                 count: s.graph.systems.len(),
-            })?;
+            })?
+    };
     counter.set(plan, &s.doc, last)?;
     uncount(plan, s, &removed)?;
     return_names(plan, s, &removed)?;

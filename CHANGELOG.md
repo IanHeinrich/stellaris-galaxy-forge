@@ -8,6 +8,14 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.6] - 2026-11-06
+
+### Fixed
+
+- Add system works on saves that used to fail with an error about the
+  save's last system. You still can't add a new system to a save with a
+  real gap in its system ids.
+
 ## [0.27.5] - 2026-11-03
 
 ### Added

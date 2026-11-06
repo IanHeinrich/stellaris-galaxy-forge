@@ -22,7 +22,6 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use crate::Span;
 use crate::cst;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
@@ -32,6 +31,7 @@ use crate::ops::{OpError, Plan, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::scan::{self, Entity, Value};
+use crate::{Span, as_u32};
 
 const GENERATION_SHIFT: u32 = 24;
 const SLOT_MASK: u32 = (1 << GENERATION_SHIFT) - 1;
@@ -86,10 +86,14 @@ pub(crate) fn counter(doc: &Document, key: &'static str) -> Result<Counter, OpEr
 }
 
 /// The id a new system takes, refused unless the systems the save holds are exactly the
-/// ids below it.
+/// ids below it. A save can hold the null id in the counter: the systems alone say the id
+/// then.
 pub(crate) fn next_system(doc: &Document, graph: &GalaxyGraph) -> Result<u32, OpError> {
-    let last = system_counter(doc)?.last;
     let count = graph.systems.len();
+    let last = match system_counter(doc)?.last {
+        crate::NULL_ID => as_u32(count).saturating_sub(1),
+        last => last,
+    };
     let next = last.checked_add(1).filter(|&next| {
         usize::try_from(next).is_ok_and(|n| n == count) && graph.systems.keys().all(|&id| id < next)
     });

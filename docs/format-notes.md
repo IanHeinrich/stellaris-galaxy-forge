@@ -250,6 +250,13 @@ for planets or deposits.
   raises the generation by one.
 - System ids have no generation and no gaps. A gap crashes the game on
   load, so a new system takes `last_created_system`+1.
+- A player reported a save with 1667 systems and
+  `last_created_system=4294967295`, the null id. What wrote it is unknown:
+  none of 981 saves from 3.4 to 4.5.2 here has it. The game takes the id
+  from the table: on a save with 601 systems and the null id, a system
+  spawned by script took 601, and the re-save holds
+  `last_created_system=601`. A new system takes the number of systems when
+  their ids hold no gap.
 - When the game removes a deposit, its entry becomes `<id>=none` in
   place, even when it is the table's last entry. The id also leaves the
   planet's `deposits={ }`, and the key goes when its last id does. No
