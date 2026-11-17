@@ -371,6 +371,7 @@ fn install_planet_classes_say_who_may_take_them_and_their_models() {
         "pc_gray_goo",
         "pc_infested",
         "pc_ai",
+        "pc_shrouded",
     ] {
         assert_eq!(rule(class).0, ClassChange::Uncolonised, "{class}");
     }
@@ -385,7 +386,6 @@ fn install_planet_classes_say_who_may_take_them_and_their_models() {
         "pc_shattered_ring_habitable",
         "pc_cosmogenesis_world",
         "pc_ark",
-        "pc_shrouded",
         "pc_astral_scar",
     ] {
         assert_eq!(rule(class).0, ClassChange::Never, "{class}");

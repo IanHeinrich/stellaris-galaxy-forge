@@ -8,6 +8,13 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.7] - 2026-11-17
+
+### Fixed
+
+- A planet's Class list now offers the Shrouded World. The Add planet and
+  Add moon menus list it too, along with the Shattered and Broken Worlds.
+
 ## [0.27.6] - 2026-11-06
 
 ### Fixed

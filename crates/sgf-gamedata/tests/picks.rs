@@ -35,3 +35,27 @@ fn no_two_body_classes_in_the_menu_share_a_name() {
         );
     }
 }
+
+/// The Shrouded, Shattered and Broken Worlds spawn at no distance from a star, and the menu
+/// still offers them beside the classes a random draw gives, such as the astral scar.
+#[test]
+fn the_body_class_menu_offers_every_class_a_planet_can_change_to() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for moon in [false, true] {
+        let picks = gd.body_class_picks(moon);
+        let offered = |key: &str| picks.iter().any(|c| c.key == key);
+        for key in ["pc_shrouded", "pc_shattered", "pc_broken", "pc_barren"] {
+            assert!(offered(key), "{key}, moon {moon}");
+        }
+        for kept_out in ["pc_g_star", "pc_habitat", "pc_asteroid", "pc_egg_cracked"] {
+            assert!(!offered(kept_out), "{kept_out}, moon {moon}");
+        }
+    }
+    assert!(
+        gd.body_class_picks(false)
+            .iter()
+            .any(|c| c.key == "pc_astral_scar")
+    );
+}

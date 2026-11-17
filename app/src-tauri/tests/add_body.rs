@@ -80,6 +80,29 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
     assert_eq!(undone.history.undo.len(), 1);
 }
 
+/// A Shrouded World spawns at no distance from a star, and Meissa (408) still takes one
+/// from the menu.
+#[test]
+fn a_shrouded_world_is_offered_and_added() {
+    let Some((w, _)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let planets: Vec<BodyClassPick> =
+        invoke(&w, "get_body_classes", json!({ "moon": false })).expect("planet classes");
+    assert!(planets.iter().any(|c| c.key == "pc_shrouded"));
+    let planet: Added = invoke(
+        &w,
+        "add_body",
+        json!({
+            "system": 408, "parent": null, "class": "pc_shrouded", "size": null,
+            "radius": 170.0, "angle": 200.0, "seed": 7
+        }),
+    )
+    .expect("a shrouded world");
+    assert_eq!(planet.planets.len(), 1);
+    assert_eq!(planet.edit.history.undo.len(), 1);
+}
+
 /// Classes the install names alike are told apart: each row of the class menu has a name of
 /// its own.
 #[test]
