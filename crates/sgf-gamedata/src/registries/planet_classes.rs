@@ -82,14 +82,11 @@ pub struct Atmosphere {
     pub width: f64,
 }
 
-/// The class no flag sets apart that the game still keeps to its own story: the Shroud's world.
-const SET_APART: [&str; 1] = ["pc_shrouded"];
-
 impl PlanetClassDef {
     /// Which planets may be given this class, or have it taken: none for a star, a habitat,
-    /// a ring world, anything else built, the astral scar, the Shroud's world, a look-only
-    /// class and one whose model draws nothing; any for a class colonised with the standard
-    /// district set; else only a planet with no colony.
+    /// a ring world, anything else built, the astral scar, a look-only class and one whose
+    /// model draws nothing; any for a class colonised with the standard district set; else
+    /// only a planet with no colony.
     pub fn change(&self) -> ClassChange {
         let fixed = self.star
             || self.habitat
@@ -97,8 +94,7 @@ impl PlanetClassDef {
             || self.artificial
             || self.astral_scar
             || self.look_only
-            || self.hidden_model
-            || SET_APART.contains(&self.key.as_str());
+            || self.hidden_model;
         if fixed {
             ClassChange::Never
         } else if self.colonizable && self.district_set.as_deref() == Some("standard") {
@@ -107,21 +103,25 @@ impl PlanetClassDef {
             ClassChange::Uncolonised
         }
     }
+
+    /// Whether a random body can be drawn as this class: not a star, an asteroid, an
+    /// artificial planet, a look-only class or one whose model draws nothing, and with a
+    /// distance from the star it spawns at.
+    pub fn can_be_drawn(&self) -> bool {
+        !self.star
+            && !self.asteroid
+            && !self.artificial
+            && !self.look_only
+            && !self.hidden_model
+            && self.distance_from_sun.is_some()
+    }
 }
 
 impl PlanetClasses {
-    /// The classes a random body can be drawn as: no star, asteroid, artificial planet,
-    /// look-only class or class whose model draws nothing, with a distance from the star it
-    /// spawns at, and colonisable or not when `colonizable` says.
+    /// The classes a random body can be drawn as, colonisable or not when `colonizable` says.
     pub fn drawable(&self, colonizable: Option<bool>) -> impl Iterator<Item = &PlanetClassDef> {
         self.iter().filter(move |c| {
-            !c.star
-                && !c.asteroid
-                && !c.artificial
-                && !c.look_only
-                && !c.hidden_model
-                && c.distance_from_sun.is_some()
-                && colonizable.is_none_or(|wanted| c.colonizable == wanted)
+            c.can_be_drawn() && colonizable.is_none_or(|wanted| c.colonizable == wanted)
         })
     }
 

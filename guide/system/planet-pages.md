@@ -51,7 +51,9 @@ Class field. Deposits, modifiers and any colony stay as they are. The
 planet takes the new class's look, and the Model field can set
 another. A colonised planet can only change to another habitable class with
 ordinary districts, such as continental, ocean or tomb world. Stars,
-habitats, ring worlds, arks and other special worlds keep their class.
+habitats, ring worlds, arks and other built worlds keep their class, and
+so does an astral scar. Any other planet with no colony can become a
+Shrouded World or a Shattered World.
 
 ## Add or remove a ring
 

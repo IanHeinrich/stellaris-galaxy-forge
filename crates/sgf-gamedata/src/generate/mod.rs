@@ -4,8 +4,8 @@
 //! abundance and install give the same spec.
 
 use sgf_core::ops::{
-    BeltSpec, BodyKind, BodySpec, PrimaryName, SpecAnomaly, SpecBody, SpecDigSite, SpecEventTarget,
-    SpecStar, SpecTarget, SystemAdd, SystemExtras, SystemSpec,
+    BeltSpec, BodyKind, BodySpec, ClassChange, PrimaryName, SpecAnomaly, SpecBody, SpecDigSite,
+    SpecEventTarget, SpecStar, SpecTarget, SystemAdd, SystemExtras, SystemSpec,
 };
 
 use crate::GameData;
@@ -948,12 +948,15 @@ fn draw_ring(rings: &mut Rng, block: Option<&InitPlanet>, class: &PlanetClassDef
     }
 }
 
-/// The classes a body added to a save may be, as a moon or as a planet: every class a random
-/// draw can give one, by key.
+/// The classes a body added to a save may be, as a moon or as a planet, by key: every class a
+/// random draw can give one, and every class but an asteroid a planet's class could be changed
+/// to, each with a size for one.
 pub fn body_classes(gd: &GameData, moon: bool) -> Vec<&PlanetClassDef> {
+    let offered =
+        |c: &PlanetClassDef| c.can_be_drawn() || (!c.asteroid && c.change() != ClassChange::Never);
     gd.planet_classes
-        .drawable(None)
-        .filter(|c| can_be(c, moon))
+        .iter()
+        .filter(|c| offered(c) && can_be(c, moon))
         .collect()
 }
 

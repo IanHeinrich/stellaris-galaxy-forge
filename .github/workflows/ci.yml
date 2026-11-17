@@ -124,7 +124,10 @@ jobs:
       - uses: mozilla-actions/sccache-action@v0.0.11
       - name: Compile through sccache
         shell: bash
-        run: printf "[build]\nrustc-wrapper = 'sccache'\n" >> "${CARGO_HOME:-$HOME/.cargo}/config.toml"
+        run: |
+          home="${CARGO_HOME:-$HOME/.cargo}"
+          mkdir -p "$home"
+          printf "[build]\nrustc-wrapper = 'sccache'\n" >> "$home/config.toml"
 
       - name: Version file agrees with the manifests
         if: matrix.shard == 0
