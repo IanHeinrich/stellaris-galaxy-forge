@@ -176,6 +176,14 @@ export function getModifierChoices(): Promise<ModifierChoice[]> {
 }
 
 /**
+ * Every modifier a scenario system's page offers to add, with each of `present`, the modifiers its
+ * file already holds; empty without game data.
+ */
+export function getSystemModifierChoices(present: readonly string[]): Promise<ModifierChoice[]> {
+  return invoke<ModifierChoice[]>("get_system_modifier_choices", { present });
+}
+
+/**
  * Every anomaly category a planet's page offers to add, each usual when it could turn up on a
  * body of `planetClass` and `size`, a moon when `moon`; empty without game data.
  */

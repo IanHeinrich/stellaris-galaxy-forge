@@ -241,6 +241,18 @@ pub fn get_modifier_choices(game_data: State<'_, GameDataState>) -> Vec<Modifier
         .map_or_else(Vec::new, |gd| gd.modifier_choices())
 }
 
+/// Every modifier a scenario system's page offers to add, with each of `present`, the
+/// modifiers its file already holds, that the install defines; empty without game data.
+#[tauri::command(async)]
+pub fn get_system_modifier_choices(
+    game_data: State<'_, GameDataState>,
+    present: Vec<String>,
+) -> Vec<ModifierChoice> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.system_modifier_choices(&present))
+}
+
 /// Every anomaly category a planet's page offers to add, each usual when its spawn chance is
 /// above zero for a body of `class`, `size` and `moon`; empty without game data.
 #[tauri::command(async)]

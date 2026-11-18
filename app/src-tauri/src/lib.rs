@@ -132,6 +132,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_planet_classes,
             commands::get_terraform_candidates,
             commands::get_modifier_choices,
+            commands::get_system_modifier_choices,
             commands::get_anomaly_choices,
             commands::get_dig_site_choices,
             commands::get_planet_models,

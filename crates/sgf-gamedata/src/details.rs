@@ -14,15 +14,15 @@ use sgf_core::emit;
 use sgf_core::format::save::details::DetailsResolver;
 use sgf_core::format::scenario::placed::{self, PLANET_BASE, SITE_BASE};
 use sgf_core::ops::{BodyKind, BodySpec};
-use sgf_core::placements::{Statement, point_at};
+use sgf_core::placements::{Amount, Statement, point_at};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
     AmbientObject, AmbientPlace, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole,
     BodySpawn, Bounds, ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement,
-    DepositStep, FleetPresence, ListMember, NeighborSystem, OrbitFit, PlanetSummary, RawStatement,
-    ResourceAmount, RowOrigin, SpawnClass, SpawnStar, StatedAnomalies, StatedFeatures,
-    SystemDetails, SystemSpawn, UnknownClass,
+    DepositStep, EffectModifier, FleetPresence, ListMember, NeighborSystem, OrbitFit,
+    PlanetSummary, RawStatement, ResourceAmount, RowOrigin, SpawnClass, SpawnStar, StatedAnomalies,
+    StatedFeatures, SystemDetails, SystemSpawn, UnknownClass,
 };
 use sgf_core::views::{ErrorKind, SgfError};
 
@@ -104,9 +104,10 @@ impl GameData {
         self.scenario_system_details(id, key, owners, &[])
     }
 
-    /// [`Self::initializer_details`], with the ruins and ambient objects the scenario's own
-    /// `effect` block places, `effect` as [`Session::scenario_system_placements`] reads it,
-    /// listed after the initializer's. Each carries its id and whether the editor edits it.
+    /// [`Self::initializer_details`], with the ruins, ambient objects and modifiers the
+    /// scenario's own `effect` block places, `effect` as
+    /// [`Session::scenario_system_placements`] reads it, listed after the initializer's. Each
+    /// carries whether the editor edits it, and a ruin or an ambient object its id.
     ///
     /// [`Session::scenario_system_placements`]: sgf_core::session::Session::scenario_system_placements
     pub fn scenario_system_details(
@@ -154,6 +155,7 @@ impl GameData {
         spawn
             .ambient_objects
             .extend(effect.iter().filter_map(effect_ambient_object));
+        spawn.modifiers = effect.iter().filter_map(effect_modifier).collect();
         let resources = system_resources(planets.iter().filter(|p| certain(p)));
         Some(SystemDetails {
             id,
@@ -199,6 +201,7 @@ impl GameData {
             outer_radius_offset: stated.outer_radius_offset,
             sites: init.sites.clone(),
             ambient_objects: own_objects.chain(ambient_objects).collect(),
+            modifiers: Vec::new(),
             usage: init.usage.clone(),
             usage_odds: stated.usage_odds.clone(),
             spawn_chance: stated.spawn_chance,
@@ -977,6 +980,19 @@ fn effect_ambient_object(statement: &placed::Placed) -> Option<AmbientObject> {
         kind: object.kind.clone(),
         place,
         origin: origin(statement, id),
+    })
+}
+
+/// The modifier `statement` adds in the scenario's own `effect` block; `None` for any other
+/// statement.
+fn effect_modifier(statement: &placed::Placed) -> Option<EffectModifier> {
+    let Statement::SystemModifier(modifier) = &statement.statement else {
+        return None;
+    };
+    Some(EffectModifier {
+        modifier: modifier.modifier.clone(),
+        days: modifier.days.as_ref().and_then(Amount::number),
+        editable: statement.adopted,
     })
 }
 

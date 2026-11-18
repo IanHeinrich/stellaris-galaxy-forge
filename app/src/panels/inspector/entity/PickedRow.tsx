@@ -16,6 +16,7 @@ export function PickedRow({
   art,
   name,
   mono = false,
+  mark,
   lines,
   spread,
   remove,
@@ -24,6 +25,8 @@ export function PickedRow({
   name: string;
   /** The name is a key the game data does not describe. */
   mono?: boolean;
+  /** Drawn after the name: where a row the page can't edit comes from. */
+  mark?: ReactNode;
   lines: readonly PickedLine[];
   spread?: Spread;
   remove: RemoveAction | null;
@@ -32,7 +35,10 @@ export function PickedRow({
     <div className="pl-mod">
       <span className="pl-mod-icon">{art}</span>
       <span>
-        <span className={mono ? "l1 mono" : "l1"}>{name}</span>
+        <span className={mono ? "l1 mono" : "l1"}>
+          {name}
+          {mark}
+        </span>
         {lines.map((line, i) => (
           <span key={i} className={line.className}>
             {line.text}

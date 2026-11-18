@@ -15,12 +15,14 @@ import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { bindStores } from "../../../store/bindStores";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { useModifierPickerStore } from "../../../store/modifierPickerStore";
+import { useSystemModifierPickerStore } from "../../../store/systemModifierPickerStore";
+import { systemModifierTarget } from "../../../lib/details/systemModifiers";
 import { modifierChoice, modifierView } from "../../../store/fixtures/planet";
 import { resetStores } from "../../../store/storeFixture";
 import { ANOMALY_PICKER } from "./AnomalyPicker";
 import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
-import { MODIFIER_PICKER } from "./ModifierPicker";
+import { MODIFIER_PICKER, SYSTEM_MODIFIER_PICKER } from "./ModifierPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import { pickerTarget } from "./bodyPageFixture";
 
@@ -66,6 +68,31 @@ describe("a planet picker", () => {
     expect(html).toContain('aria-label="Search modifiers"');
     expect(html).toContain("Mineral Poor");
     expect(html).toContain("Permanent");
+  });
+
+  it("lists a system's modifiers once open, the one it holds spent in the system's words, under the chips the rows fall in", () => {
+    const system = systemModifierTarget(9, "Kel", [
+      { modifier: "vluur_storm", days: -1, editable: true },
+    ]);
+    useSystemModifierPickerStore.setState({
+      target: system,
+      choices: {
+        body: "",
+        list: [
+          modifierChoice("vluur_storm", "Vluur Storm"),
+          modifierChoice("queen_scorn_storm", "Veil of Scorn", { category: "Negative" }),
+        ],
+      },
+    });
+    const html = renderToStaticMarkup(
+      <PlanetPicker kind={SYSTEM_MODIFIER_PICKER} target={system} />,
+    );
+    expect(html).toContain('aria-label="Search modifiers"');
+    expect(html).toMatch(/aria-label="Add Vluur Storm" disabled="" title="Kel already has it"/);
+    expect(html).toMatch(/aria-label="Add Veil of Scorn" title="Add Veil of Scorn"/);
+    const chips = [...html.matchAll(/class="dp-chip" aria-pressed="(?:true|false)">([^<]*)</g)];
+    expect(chips.map((m) => m[1])).toEqual(["All", "Positive", "Negative"]);
+    expect(html, "an add lasts for good").not.toContain("Permanent");
   });
 
   it("lists the anomaly categories once open on the body", () => {

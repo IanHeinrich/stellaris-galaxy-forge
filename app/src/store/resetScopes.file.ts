@@ -14,13 +14,15 @@ import { usePlanetMoveStore } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
 import { useSpecialPickerStore } from "./specialPickerStore";
 import { useStarBuilderStore } from "./starBuilderStore";
+import { useSystemModifierPickerStore } from "./systemModifierPickerStore";
 
-/** The planet page's pickers: what each read and where each is open. */
+/** The planet and system pages' pickers: what each read and where each is open. */
 export const PICKERS: readonly (() => void)[] = [
   () => useAnomalyPickerStore.getState().reset(),
   () => useDepositPickerStore.getState().reset(),
   () => useDigSitePickerStore.getState().reset(),
   () => useModifierPickerStore.getState().reset(),
+  () => useSystemModifierPickerStore.getState().reset(),
 ];
 
 /**

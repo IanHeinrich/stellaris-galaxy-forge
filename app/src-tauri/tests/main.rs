@@ -29,6 +29,7 @@ mod prepare;
 mod remove_planet;
 mod scenario;
 mod session;
+mod system_modifier;
 mod update;
 
 #[test]

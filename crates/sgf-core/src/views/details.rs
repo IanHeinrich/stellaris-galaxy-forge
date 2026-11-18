@@ -87,6 +87,8 @@ pub struct SystemSpawn {
     pub sites: Vec<String>,
     /// Each `create_ambient_object` the system's and its bodies' `init_effect`s run.
     pub ambient_objects: Vec<AmbientObject>,
+    /// Each `add_modifier` the scenario's own `effect` block runs on the system, in file order.
+    pub modifiers: Vec<EffectModifier>,
     /// How a random galaxy places the initializer: kept as written, whatever a placed
     /// system makes of them.
     pub usage: Option<String>,
@@ -169,6 +171,19 @@ pub struct AmbientObject {
     pub kind: String,
     pub place: AmbientPlace,
     pub origin: RowOrigin,
+}
+
+/// An `add_modifier` the scenario's own `effect` block runs on its system.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct EffectModifier {
+    /// Its `modifier`.
+    pub modifier: String,
+    /// Its `days` where written as a number, `-1` for good.
+    pub days: Option<f64>,
+    /// The editor takes it out where it stands; false for a shape it leaves as written, such
+    /// as one lasting some days.
+    pub editable: bool,
 }
 
 /// Where an ambient object stands.

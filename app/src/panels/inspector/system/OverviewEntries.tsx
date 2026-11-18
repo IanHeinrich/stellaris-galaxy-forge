@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { ambientObjectsOf } from "../../../lib/details/ambientObjects";
+import { systemModifiersOf } from "../../../lib/details/systemModifiers";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
@@ -22,6 +23,7 @@ import { SCRIPTS_TAB_TITLE } from "./sections/scenario/ScriptsTab";
 import { AmbientObjectSection } from "./sections/scenario/AmbientObjects";
 import { SpawnPointSection } from "./sections/scenario/SpawnPointSection";
 import { StarListSection } from "./sections/scenario/StarList";
+import { SystemModifierSection } from "./sections/scenario/SystemModifiers";
 import { SiteSection } from "./sections/Sites";
 import { StationSection } from "./sections/Station";
 import { WormholePairSection } from "./sections/WormholePair";
@@ -160,6 +162,12 @@ export function AmbientObjects({ detail, details }: OverviewProps) {
   const objects = ambientObjectsOf(details);
   if (!details || (objects.length === 0 && !addable)) return null;
   return <AmbientObjectSection system={detail.system.id} objects={objects} />;
+}
+
+/** The modifiers the scenario's own effect block adds to the system. */
+export function SystemModifiers({ detail, details }: OverviewProps) {
+  if (!details) return null;
+  return <SystemModifierSection system={detail.system.id} modifiers={systemModifiersOf(details)} />;
 }
 
 export function MilitaryFleets({ detail, details }: OverviewProps) {

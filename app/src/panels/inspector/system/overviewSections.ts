@@ -26,6 +26,7 @@ import {
   SpawnPoint,
   StarList,
   Station,
+  SystemModifiers,
   UtilityFleets,
   WormholePair,
 } from "./OverviewEntries";
@@ -66,6 +67,7 @@ export type OverviewKey =
   | "flagsIfAny"
   | "starList"
   | "ambientObjects"
+  | "systemModifiers"
   | "scripts";
 
 /** Every section a system's Overview can show. */
@@ -92,6 +94,7 @@ export const OVERVIEW_SECTIONS: Record<OverviewKey, OverviewSection> = {
   flagsIfAny: { component: FlagsIfAny },
   starList: { component: StarList },
   ambientObjects: { component: AmbientObjects },
+  systemModifiers: { component: SystemModifiers, requires: "system_modifiers" },
   scripts: { component: Scripts, requires: "scripts" },
 };
 
@@ -129,6 +132,7 @@ const ROLLED_ORDER: readonly OverviewKey[] = [
   "bypasses",
   "sites",
   "ambientObjects",
+  "systemModifiers",
   "flagsIfAny",
   "spawningInitializer",
   "closedLanes",
