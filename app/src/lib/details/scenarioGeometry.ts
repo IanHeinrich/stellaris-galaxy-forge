@@ -8,6 +8,7 @@ import {
   ambientObjectsOf,
   aboutMainStar,
   mainStarPoint,
+  placedAmbientObject,
 } from "./ambientObjects";
 import { MEGASTRUCTURE_FIXED, megastructureMove } from "./megastructureMoves";
 import {
@@ -47,9 +48,7 @@ function ambientObjectOp(
   intent: Extract<GeometryIntent, { kind: "moveAmbientObject" }>,
   frame: GeometryFrame,
 ): GeometryOp {
-  const object = ambientObjectsOf(frame.details).find(
-    (o) => o.origin.from === "effect" && o.origin.id === intent.ambientObject,
-  );
+  const object = placedAmbientObject(frame.details, intent.ambientObject);
   if (!object) return { refused: GEOMETRY_REASONS.ambientObjectElsewhere };
   const id = editableId(object.origin);
   const star = mainStarPoint(frame.layout, frame.details);

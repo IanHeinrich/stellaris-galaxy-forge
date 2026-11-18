@@ -14,4 +14,4 @@ unsure: Array<string>,
  * Each effect that applies but that the editor does not write, such as a modifier the
  * construction removes.
  */
-unwritten: Array<string>, edit: EditResult, planets: Array<number>, megastructures: Array<number>, };
+unwritten: Array<string>, edit: EditResult, planets: Array<number>, megastructures: Array<number>, ambient_objects: Array<number>, };

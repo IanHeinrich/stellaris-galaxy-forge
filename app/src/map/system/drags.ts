@@ -64,6 +64,44 @@ export class WormholeDrag implements Drag {
 /** What a wormhole's drag reads of the scene as it starts. */
 export type WormholeFrame = Pick<SystemContext, "id" | "wormholes">;
 
+/**
+ * An ambient object the system's own block places, dragged freely about the centre in whole units
+ * and degrees, or Shift's steps. Nothing takes it and it takes nothing.
+ */
+export class AmbientObjectDrag implements Drag {
+  private constructor(
+    private readonly system: number,
+    private readonly id: number,
+    /** Where it stands, about the centre. */
+    private readonly at: Pt,
+    /** From the pointer to its point, as it was grabbed. */
+    private readonly grab: Pt,
+  ) {}
+
+  /** The drag of ambient object `id`, pressed at `from`, or null when it may not move. */
+  static start(frame: StructuresFrame, id: number, from: Pt): AmbientObjectDrag | null {
+    const shown = frame.structures.find((s) => s.kind === "ambient_object" && s.id === id);
+    if (frame.id === null || shown?.move?.place !== "free") return null;
+    const at = { x: shown.x, y: shown.y };
+    return new AmbientObjectDrag(frame.id, id, at, { x: at.x - from.x, y: at.y - from.y });
+  }
+
+  move(pointer: DragPointer): DragStep {
+    const held = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
+    const { point, readout, changed } = freeStep(held, this.at, pointer.shift);
+    return {
+      intent: { kind: "moveAmbientObject", system: this.system, ambientObject: this.id, ...point },
+      marks: NO_MARKS,
+      readout,
+      hint: DRAG_HINTS.ambientObject,
+      changed,
+    };
+  }
+}
+
+/** What an ambient object's drag reads of the scene as it starts. */
+export type StructuresFrame = Pick<SystemContext, "id" | "structures">;
+
 /** A belt's or the inner radius's handle dragged out or in about the centre, in whole units. */
 export class HandleDrag implements Drag {
   private constructor(

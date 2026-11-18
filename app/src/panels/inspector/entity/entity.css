@@ -584,6 +584,20 @@
   margin: 10px 0;
 }
 
+/* An ambient object's model, above its fields. */
+.ins-ambient-picture {
+  display: flex;
+  justify-content: center;
+  height: 160px;
+  margin: 4px 0 8px;
+}
+
+.ins-ambient-picture img {
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .pl-remove {
   display: flex;
   flex-direction: column;

@@ -31,6 +31,7 @@ type AddSystemActions = Pick<
   | "addSpecialSystemAt"
   | "addSpecialClusterAt"
   | "addBodyAt"
+  | "addAmbientObject"
   | "addMegastructure"
   | "addHabitat"
   | "addRingWorld"
@@ -168,6 +169,14 @@ export function addSystemActions(
         useSceneStore.getState().showBody(system, added.planets[0]);
         return true;
       });
+    },
+
+    async addAmbientObject(system, kind, at) {
+      const added = await runAnswered(runEdit, () => {
+        const { x, y } = at();
+        return ipc.addAmbientObject(system, kind, x, y);
+      });
+      return added?.ambient_objects[0] ?? null;
     },
 
     addMegastructure(system, kind, at, keepPlanet, moons) {

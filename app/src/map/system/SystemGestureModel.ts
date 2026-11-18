@@ -107,6 +107,7 @@ function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | nul
       return HandleDrag.start(frame, target.ref, from);
     case "megastructure":
     case "starbase":
+    case "ambient_object":
       return STRUCTURE_KINDS[target.kind].drag(frame, target.id, from);
     case "exit":
       return null;

@@ -1,3 +1,4 @@
+import type { AmbientObjectView } from "../generated/AmbientObjectView";
 import type { RowOrigin } from "../generated/RowOrigin";
 import type { StructureSpawn } from "../generated/StructureSpawn";
 import type { Arrangement } from "../generated/Arrangement";
@@ -330,6 +331,37 @@ export function orbitSystem(over: Partial<SystemDetails> = {}): SystemDetails {
     inner_radius: 200,
     ...over,
   });
+}
+
+/**
+ * `orbitSystem` with planet 2, at 60 and 30°, as its main star, off the centre as a binary's may
+ * stand; its star 1 stays a star.
+ */
+export function offCentreMainStar(over: Partial<SystemDetails> = {}): SystemDetails {
+  const system = orbitSystem(over);
+  const planets = system.planets.map((p) => ({
+    ...p,
+    role: p.id === 2 ? ("primary" as const) : p.role === "primary" ? ("star" as const) : p.role,
+  }));
+  return { ...system, planets };
+}
+
+/** An ambient object view of `key`, named from it, drawn by a model, and placed by no initializer. */
+export function ambientObjectView(
+  key: string,
+  over: Partial<AmbientObjectView> = {},
+): AmbientObjectView {
+  return {
+    key,
+    name: key,
+    entity: `${key}_entity`,
+    selectable: true,
+    show_name: true,
+    description: null,
+    portrait: `model:none:${key}_entity`,
+    placed_by: [],
+    ...over,
+  };
 }
 
 /** The planet classes of `orbitSystem`'s bodies: a star, four worlds and an asteroid. */

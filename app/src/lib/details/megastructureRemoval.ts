@@ -9,7 +9,7 @@ import type { MegastructureDismantle } from "../../generated/MegastructureDisman
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
-import { originOf } from "./placedRows";
+import type { RowOrigin } from "../../generated/RowOrigin";
 import { colonyParts } from "./planetRemoval";
 
 export const DELETE_MEGASTRUCTURE = "Delete megastructure";
@@ -35,20 +35,23 @@ function deleteOpening(name: string, system: string | null, document: string): s
   return `Delete ${name}${where}? It is removed from the ${document}.`;
 }
 
-/** The confirm for taking the ruin named `name` out of the system named `system`, or of no system read so far. */
-export function removeRuinQuestion(name: string, system: string | null): string {
+/**
+ * The confirm for taking what the scenario's own block places, named `name`, out of the system
+ * named `system`, or of no system read so far: a ruin or an ambient object.
+ */
+export function removePlacedQuestion(name: string, system: string | null): string {
   return deleteOpening(name, system, "scenario");
 }
 
 /**
- * The ruins of a scenario system whose rows are `rows` that taking out ruin `id` takes or renumbers:
- * it and every later one, since a ruin's id is its place in the system's block.
+ * The rows of a scenario system, from `origins`, that taking out row `id` takes or renumbers: it
+ * and every later one of its kind, since a ruin's or an ambient object's id is its place in the
+ * system's block.
  */
-export function ruinsFrom(rows: readonly MegastructureSummary[], id: number): number[] {
-  const later = rows.flatMap((row) => {
-    const origin = originOf(row);
-    return origin?.from === "effect" && origin.id > id ? [origin.id] : [];
-  });
+export function placedFrom(origins: readonly (RowOrigin | undefined)[], id: number): number[] {
+  const later = origins.flatMap((origin) =>
+    origin?.from === "effect" && origin.id > id ? [origin.id] : [],
+  );
   return [id, ...later];
 }
 

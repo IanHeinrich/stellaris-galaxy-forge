@@ -12,6 +12,7 @@ export * from "./addBody";
 export * from "./addHabitat";
 export * from "./addMegastructure";
 export * from "./addRingWorld";
+export * from "./ambientObject";
 export * from "./megastructure";
 export * from "./megastructureFits";
 export * from "./addSystem";

@@ -195,6 +195,8 @@ export const DRAG_HINTS = {
   /** A megastructure tied to a body that stands at a point of its own. */
   floating:
     "drag to move · Ctrl holds the distance or the angle · Shift snaps to 15° · drop it on a highlighted planet or star to move it there · Esc cancels",
+  /** An ambient object, which stands at a point of its own. */
+  ambientObject: "drag to move · Shift snaps to 15° · Esc cancels",
   /** Under the name of a megastructure at a point of its own. */
   movableMegastructure: "drag to move",
   /** Under the name of a megastructure tied to a body. */
@@ -256,6 +258,27 @@ export function megastructureFieldIntent(
   const { radius, angle } = typedPlace({ x: 0, y: 0 }, { x, y }, field, typed);
   const to = polar(0, 0, radius, angle);
   return { kind: "moveMegastructure", system, megastructure: row.id, at: { place: "free", ...to } };
+}
+
+/**
+ * The move typing `typed` into the Distance or Angle field of ambient object `ambientObject`,
+ * standing at `at` about the system's centre and measured from its main star at `star`, asks for.
+ */
+export function ambientObjectFieldIntent(
+  system: number,
+  ambientObject: number,
+  at: { x: number; y: number },
+  star: { x: number; y: number },
+  field: PositionField,
+  typed: number,
+): GeometryIntent {
+  const { radius, angle } = typedPlace(star, at, field, typed);
+  return {
+    kind: "moveAmbientObject",
+    system,
+    ambientObject,
+    ...polar(star.x, star.y, radius, angle),
+  };
 }
 
 /** What the status bar says while a megastructure is held over `body`, which takes it. */

@@ -7,6 +7,7 @@ mod add_habitat;
 mod add_megastructure;
 mod add_ring_world;
 mod add_system;
+mod ambient_object;
 mod built_system;
 mod capabilities;
 mod constants;

@@ -283,6 +283,7 @@ impl Format for Scenario {
             structures: true,
             add_megastructures: MegastructureAdds::Ruins,
             place_structures: true,
+            ambient_objects: true,
             rename_systems: true,
             header: true,
             scripted_owners: true,

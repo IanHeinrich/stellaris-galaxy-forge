@@ -34,12 +34,10 @@ beforeEach(() => {
   resetStores();
 });
 
-/** The open document, with `on` switched on beside what it supports. */
-function switchOn(...on: CapabilityFlag[]): void {
+/** The open document, with `flag` switched to `value` beside what it supports. */
+function switchTo(flag: CapabilityFlag, value: boolean): void {
   const now = documentCapabilities(useFileSessionStore.getState());
-  useFileSessionStore.setState({
-    capabilities: { ...now, ...Object.fromEntries(on.map((key) => [key, true])) },
-  });
+  useFileSessionStore.setState({ capabilities: { ...now, [flag]: value } });
 }
 
 /** A ruin's spawn from the block's row `id`, or from the initializer for null. */
@@ -71,24 +69,24 @@ describe("the Megastructures and Ambient objects sections", () => {
     expect(html).toContain(NO_MEGASTRUCTURES);
   });
 
-  it("show a scenario's Megastructures with none, and leave Ambient objects out until it can add one", async () => {
+  it("show a scenario's Megastructures and Ambient objects with none, and leave Ambient objects out where it can't add one", async () => {
     await open("scenario");
     await land(details({ spawn: systemSpawn() }));
     let html = overview();
     expect(sections(html)).toContain("Megastructures · 0");
-    expect(html).toContain(NO_MEGASTRUCTURES);
-    expect(sections(html)).not.toContain("Ambient objects · 0");
-
-    switchOn("ambient_objects");
-    html = overview();
-    expect(sections(html)).toContain("Megastructures · 0");
     expect(sections(html)).toContain("Ambient objects · 0");
     expect(html).toContain(NO_MEGASTRUCTURES);
     expect(html).toContain(NO_AMBIENT_OBJECTS);
+
+    switchTo("ambient_objects", false);
+    html = overview();
+    expect(sections(html)).toContain("Megastructures · 0");
+    expect(sections(html)).not.toContain("Ambient objects · 0");
   });
 
   it("show a scenario's ambient objects without the empty line while it can't add one", async () => {
     await open("scenario");
+    switchTo("ambient_objects", false);
     await land(details({ spawn: systemSpawn({ ambient_objects: [object({})] }) }));
     const html = overview();
     expect(sections(html)).toContain("Ambient objects · 1");
@@ -98,6 +96,7 @@ describe("the Megastructures and Ambient objects sections", () => {
 
   it("mark each row the page can't edit with where it comes from", async () => {
     await open("scenario");
+    switchTo("ambient_objects", false);
     useGameDataStore.setState({
       names: new Map([
         ["fx_sphere", "Fx Sphere"],
@@ -134,9 +133,12 @@ describe("the Megastructures and Ambient objects sections", () => {
     expect(rowOf(html, "Large Debris Object")).toContain(initializer);
     expect(rowOf(html, "Abandoned Ship Object"), "the scenario can't move it yet").toContain(file);
 
-    switchOn("ambient_objects");
+    switchTo("ambient_objects", true);
     html = overview();
     expect(rowOf(html, "Abandoned Ship Object")).not.toContain(file);
+    expect(html, "its row opens its page").toMatch(
+      /role="button"[^>]*>(?:(?!ins-prow).)*Abandoned Ship Object/,
+    );
   });
 
   it("mark no row of a save, which has one source", async () => {

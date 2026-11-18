@@ -255,7 +255,7 @@ export function layoutPreview(intent: GeometryIntent, frame: GeometryFrame): Lay
       return { megastructures: new Map([[intent.megastructure, at]]) };
     }
     case "moveAmbientObject":
-      return {};
+      return { ambientObjects: new Map([[intent.ambientObject, { x: intent.x, y: intent.y }]]) };
   }
 }
 

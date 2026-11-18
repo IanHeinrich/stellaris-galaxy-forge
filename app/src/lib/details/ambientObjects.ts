@@ -4,6 +4,7 @@
  * pages measure from the system's centre.
  */
 import type { AmbientObject } from "../../generated/AmbientObject";
+import type { Op } from "../../generated/Op";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemLayout } from "./orbits";
 
@@ -38,4 +39,17 @@ export function aboutMainStar(at: Point, star: Point, back = false): Point {
 /** Where `object` stands about the centre, with the main star at `star`; null for one at no point. */
 export function ambientObjectPoint(object: AmbientObject, star: Point): Point | null {
   return object.place.place === "point" ? aboutMainStar(object.place, star, true) : null;
+}
+
+/** The op that takes ambient object `id` out of its scenario system's block. */
+export function removeAmbientObjectOp(id: number): Op {
+  return { type: "RemoveAmbientObject", ambient_object: id };
+}
+
+/** The ambient object of `details` that its own block places under `id`; undefined for none. */
+export function placedAmbientObject(
+  details: SystemDetails | null | undefined,
+  id: number,
+): AmbientObject | undefined {
+  return ambientObjectsOf(details).find((o) => o.origin.from === "effect" && o.origin.id === id);
 }

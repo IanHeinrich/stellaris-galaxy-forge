@@ -10,6 +10,7 @@ import { backToGalaxy } from "../../../store/commands";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { applyGeometry, useSystemGeometry } from "../../../store/systemGeometry";
+import { AddAmbientObjectItem } from "./AddAmbientObjectItem";
 import { AddBodyItems } from "./AddBodyItems";
 import { AddMegastructureItem } from "./AddMegastructureItem";
 import { MenuFrame, type Frame } from "./MenuFrame";
@@ -18,7 +19,7 @@ import { PasteItem } from "./PlanetMoveItems";
 
 /**
  * The menu on the empty space of the system view: the cut or copied planets pasted where it was
- * pressed, a new planet, belt or megastructure there, and the way out.
+ * pressed, a new planet, belt, megastructure or ambient object there, and the way out.
  */
 export function SceneSpaceMenu({
   target,
@@ -63,9 +64,16 @@ export function SceneSpaceMenu({
           label={ADD_MEGASTRUCTURE_HERE_LABEL}
         />
       )}
+      {capabilities.ambient_objects && (
+        <AddAmbientObjectItem system={target.system} x={target.x} y={target.y} />
+      )}
       <MenuItem
         run={backToGalaxy}
-        className={belt || planet || offers.addMegastructure ? "context-menu-separated" : undefined}
+        className={
+          belt || planet || offers.addMegastructure || capabilities.ambient_objects
+            ? "context-menu-separated"
+            : undefined
+        }
       >
         Back to galaxy
       </MenuItem>

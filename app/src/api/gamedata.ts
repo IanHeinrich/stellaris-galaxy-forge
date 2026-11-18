@@ -22,6 +22,7 @@ import type { InitializerDefinition } from "../generated/InitializerDefinition";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
+import type { AmbientObjectView } from "../generated/AmbientObjectView";
 import type { MegastructureView } from "../generated/MegastructureView";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
@@ -272,6 +273,14 @@ export function getStarbaseLevels(): Promise<StarbaseLevelView[]> {
 /** Every megastructure type of the loaded game data, with its models; empty without it. */
 export function getMegastructureTypes(): Promise<MegastructureView[]> {
   return invoke<MegastructureView[]>("get_megastructure_types");
+}
+
+/**
+ * Every ambient object of the loaded game data, with its portrait and the initializers that place
+ * it; empty without it.
+ */
+export function getAmbientObjectTypes(): Promise<AmbientObjectView[]> {
+  return invoke<AmbientObjectView[]>("get_ambient_object_types");
 }
 
 /** Every ship size of the loaded game data with its map icon key; empty without it. */

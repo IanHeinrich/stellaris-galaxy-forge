@@ -96,7 +96,8 @@ function tipFor(
       return { title: lane.name, lines: [{ label: "Lane length", value: String(lane.length) }] };
     }
     case "megastructure":
-    case "starbase": {
+    case "starbase":
+    case "ambient_object": {
       const shown = ctx.structures.find((s) => s.kind === target.kind && s.id === target.id);
       if (!shown) return null;
       const lines = shown.level === null ? [] : [{ label: "Level", value: shown.level }];
@@ -135,8 +136,9 @@ function movable(ctx: SystemContext, target: SceneTarget | null): boolean {
       return ctx.wormholes.some((hole) => hole.id === target.id && hole.movable);
     case "handle":
       return true;
-    case "megastructure": {
-      const shown = ctx.structures.find((s) => s.kind === "megastructure" && s.id === target.id);
+    case "megastructure":
+    case "ambient_object": {
+      const shown = ctx.structures.find((s) => s.kind === target.kind && s.id === target.id);
       return shown?.move != null && shown.move.place !== "fixed";
     }
     case "exit":

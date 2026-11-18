@@ -55,6 +55,8 @@ export type EntityRef =
   | { kind: "wormhole"; system: number; id: number }
   /** A body, by the id its system's details give it: a save's planet id, or a scenario's own. */
   | { kind: "body"; system: number; id: number }
+  /** An ambient object a scenario system's own block places, by the id the ops address it by. */
+  | { kind: "ambient_object"; system: number; id: number }
   /** A list or block inside an entity: a Data row drills into it rather than nesting. */
   | { kind: "nodelist"; parent: EntityAddr; path: string[]; of: EntityKind | null };
 
@@ -76,6 +78,7 @@ export interface GonePages {
   planets?: readonly number[];
   megastructures?: readonly number[];
   colonies?: readonly number[];
+  ambientObjects?: readonly number[];
 }
 
 /** The ref of kind `K`. */
@@ -180,6 +183,7 @@ const REF_KINDS: { [K in EntityRef["kind"]]: RefKind<RefOf<K>> } = {
     (ref) => (planetPages() ? { kind: "planet", id: ref.id } : null),
     "body",
   ),
+  ambient_object: inSystem((ref) => `ambient_object:${ref.id}`, nothing, "overview"),
   nodelist: {
     key: (ref) => `nodelist:${ref.parent.kind}:${ref.parent.id}/${ref.path.join("/")}`,
     addr: (ref) => ref.parent,
@@ -433,6 +437,11 @@ export function megastructureEntry(id: number, label: string): Entry {
   return { ref: { kind: "megastructure", id }, label };
 }
 
+/** The page ambient object `id` of `system` opens. */
+export function ambientObjectEntry(system: number, id: number, label: string): Entry {
+  return { ref: { kind: "ambient_object", system, id }, label };
+}
+
 /** The page starbase `id` of `system` opens. */
 export function starbaseEntry(system: number, id: number, label: string): Entry {
   return { ref: { kind: "starbase", system, id }, label };
@@ -469,6 +478,7 @@ function isGone(ref: EntityRef, gone: GonePages, rolled: boolean): boolean {
   }
   if (ref.kind === "megastructure") return gone.megastructures?.includes(ref.id) === true;
   if (ref.kind === "colony") return gone.colonies?.includes(ref.id) === true;
+  if (ref.kind === "ambient_object") return gone.ambientObjects?.includes(ref.id) === true;
   return false;
 }
 

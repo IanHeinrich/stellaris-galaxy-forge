@@ -266,6 +266,12 @@ export interface EditorState {
     planetClass?: string | null,
   ): Promise<boolean>;
   /**
+   * Adds an ambient object of type `kind` to scenario system `system` in one edit, at the point
+   * `at` answers about the system's main star, asked inside the edit queue. Answers the new
+   * object's id, or null when the core refused the add.
+   */
+  addAmbientObject(system: number, kind: string, at: () => Pt): Promise<number | null>;
+  /**
    * Adds a finished megastructure of type `kind` to system `system` of the open save in one
    * edit, at `at`, owned by the system's owner. The planet changes class or size as the type's
    * build changes it, unless `keepPlanet`, and the moons of the body it stands on go as its build

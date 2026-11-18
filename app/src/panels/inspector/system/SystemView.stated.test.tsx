@@ -102,6 +102,7 @@ describe("a rolled scenario system", () => {
       "Star class · 3 · rolled",
       "Planets · 2 to 10",
       "Megastructures · 0",
+      "Ambient objects · 0",
       "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",

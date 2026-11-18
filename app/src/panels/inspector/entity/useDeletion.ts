@@ -1,6 +1,8 @@
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { MegastructureView } from "../../../generated/MegastructureView";
 import type { Op } from "../../../generated/Op";
+import { DELETE_AMBIENT_OBJECT } from "../../../lib/ambientObjectAdd";
+import { removeAmbientObjectOp } from "../../../lib/details/ambientObjects";
 import {
   deleteMegastructureOp,
   DELETE_MEGASTRUCTURE,
@@ -22,19 +24,21 @@ import {
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { deleteMegastructure, removeRuin } from "../../../store/megastructureRemoval";
+import { removeAmbientObject } from "../../../store/placedRemoval";
 import { planetEditAdapterFor } from "../../../store/planetEditAdapter";
 import { deleteRingWorld } from "../../../store/ringWorldRemoval";
 import { useOpCheck } from "../../useOpCheck";
 
 /**
  * What a page or a menu deletes, named `name`: a body of `system` with its class, the colony on a body, a megastructure whose `row` is its type key and whose system is null where no system
- * read so far lists it, or a ruin a scenario system's own block places.
+ * read so far lists it, or a ruin or an ambient object a scenario system's own block places.
  */
 export type DeletionTarget =
   | { kind: "planet"; system: number; id: number; name: string; body: DeletedBody; class: string }
   | { kind: "colony"; system: number; id: number; name: string }
   | { kind: "megastructure"; system: number | null; id: number; name: string; row: string }
-  | { kind: "ruin"; system: number | null; id: number; name: string };
+  | { kind: "ruin"; system: number | null; id: number; name: string }
+  | { kind: "ambientObject"; system: number | null; id: number; name: string };
 
 type Kind = DeletionTarget["kind"];
 
@@ -93,6 +97,11 @@ const DELETIONS: {
     label: DELETE_MEGASTRUCTURE,
     op: removeRuinOp(t.id),
     run: () => removeRuin(t.id, t.name, t.system),
+  }),
+  ambientObject: (t) => ({
+    label: DELETE_AMBIENT_OBJECT,
+    op: removeAmbientObjectOp(t.id),
+    run: () => removeAmbientObject(t.id, t.name, t.system),
   }),
 };
 

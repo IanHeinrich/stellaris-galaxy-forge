@@ -67,6 +67,7 @@ beforeEach(async () => {
     edit: editResult({ details_stale: [SYSTEM] }),
     planets: [],
     megastructures: [16],
+    ambient_objects: [],
     unsure: [],
     unwritten: [],
   });
@@ -213,6 +214,7 @@ describe("adding a megastructure from the system view", () => {
       edit: editResult({ details_stale: [SYSTEM] }),
       planets: [],
       megastructures: [16],
+      ambient_objects: [],
       unsure: ["focus.535: change_variable with a value that is not a number", "a.1: event b.2"],
       unwritten: ["removes modifier old_mod from planet 3"],
     });
@@ -260,6 +262,7 @@ describe("adding a habitat from the system view", () => {
       edit: editResult({ details_stale: [SYSTEM] }),
       planets: [16777273],
       megastructures: [],
+      ambient_objects: [],
     });
   });
 
@@ -293,6 +296,7 @@ describe("adding on a body that has a megastructure", () => {
       edit: editResult({ details_stale: [SYSTEM] }),
       planets: [16777273],
       megastructures: [],
+      ambient_objects: [],
     });
     inSystem(
       systemDetails({
@@ -324,6 +328,7 @@ describe("adding a whole ring world from the system view", () => {
       edit: editResult({ details_stale: [SYSTEM] }),
       planets: [16777300, 16777301],
       megastructures: [40],
+      ambient_objects: [],
     });
     mockedIpc.getRingWorldClearing.mockResolvedValue(clearing);
   });
@@ -422,6 +427,7 @@ describe("adding a ruin to a scenario system", () => {
       edit: editResult({ details_stale: [SYSTEM] }),
       planets: [],
       megastructures: [RUIN],
+      ambient_objects: [],
       unsure: [],
       unwritten: [],
     });
