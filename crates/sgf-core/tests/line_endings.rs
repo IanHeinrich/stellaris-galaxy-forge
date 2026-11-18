@@ -2,6 +2,7 @@
 //! the way the line beside it ends, and every op undoes byte for byte.
 
 use sgf_core::format::scenario::fe_zone::{FeDirection, FeKind};
+use sgf_core::format::scenario::placed::ruin_id;
 use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -9,7 +10,7 @@ use sgf_core::session::Session;
 use crate::common;
 use common::current;
 use common::examples::{self, one_of_each};
-use common::fixture::{EXPORTED, from_scenario_text};
+use common::fixture::{EXPORTED, THREE_EACH, from_scenario_text};
 use common::paint::zone;
 
 fn to_crlf(bytes: &[u8]) -> Vec<u8> {
@@ -272,9 +273,10 @@ fn an_exported_scenario_with_windows_line_endings_keeps_them() {
 #[test]
 fn every_scenario_op_keeps_windows_line_endings() {
     let original = current(&examples::scenario());
+    // An inverse-only op writes back text the document held, line endings included.
     for example in one_of_each() {
         let name = example.name();
-        if let Some(op) = example.scenario {
+        if let Some(op) = example.scenario.filter(|op| !op.reach().inverse_only) {
             crlf_matches_lf(name, &original, vec![op]);
         }
     }
@@ -434,5 +436,28 @@ fn a_line_inserted_beside_an_lf_line_in_a_crlf_file_ends_in_lf() {
     assert!(
         text.ends_with("\tadd_hyperlane = { from = \"0\" to = \"1\" }\r\n}"),
         "{text:?}"
+    );
+}
+
+/// An ambient object's two lines go into a block written on lines of its own, and a ruin's
+/// line comes out of it, each with the line ending beside it.
+#[test]
+fn placements_on_lines_of_their_own_keep_windows_line_endings() {
+    crlf_matches_lf(
+        "placements",
+        THREE_EACH.as_bytes(),
+        vec![
+            Op::AddAmbientObject {
+                system: 1,
+                kind: "derelict_ship_object".to_owned(),
+                x: 0.0,
+                y: 40.0,
+            },
+            Op::RemoveMegastructure {
+                megastructure: ruin_id(1, 0).expect("an id"),
+                construction: None,
+                left_out: 0,
+            },
+        ],
     );
 }

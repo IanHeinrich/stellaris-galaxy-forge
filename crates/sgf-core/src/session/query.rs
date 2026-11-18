@@ -1,7 +1,7 @@
 use super::Session;
 use crate::format::scenario::effect;
+use crate::format::scenario::placed::Placed;
 use crate::ops::{self, Op, OpError, Plan};
-use crate::placements::Statement;
 use crate::search;
 use crate::views::{SearchKind, SearchResult};
 
@@ -17,9 +17,9 @@ impl Session {
         effect::system_effects(&self.doc)
     }
 
-    /// The placement statements of a scenario system's `effect` block, the one the game runs,
-    /// with the system statement's current bytes their spans index.
-    pub fn scenario_system_placements(&self, id: u32) -> Option<(&[u8], Vec<Statement>)> {
+    /// What a scenario system's `effect` block, the one the game runs, places, with the
+    /// system statement's current bytes the spans index.
+    pub fn scenario_system_placements(&self, id: u32) -> Option<(&[u8], Vec<Placed>)> {
         effect::system_placements(&self.doc, id)
     }
 

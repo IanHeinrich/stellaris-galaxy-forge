@@ -121,6 +121,14 @@ impl Example {
         }
     }
 
+    /// The example with `op` as its scenario twin.
+    fn and_scenario(self, op: Op) -> Self {
+        Self {
+            scenario: Some(op),
+            ..self
+        }
+    }
+
     /// The example's op for either kind, the same variant whichever it is.
     pub fn op(&self) -> &Op {
         self.save
@@ -585,14 +593,34 @@ pub fn meissa_v() -> Op {
     }
 }
 
-/// The painted fixture with a `prevent_hyperlane` added, which every scenario example
-/// applies to: it holds every statement some scenario op writes.
+/// The system of the scenario examples whose `effect` block places a ruin, an ambient object
+/// and a modifier, each as the editor writes it.
+pub const PLACING_SYSTEM: u32 = 11;
+
+/// The painted fixture with a `prevent_hyperlane` added and [`PLACING_SYSTEM`]'s `effect`
+/// block, which every scenario example applies to: it holds every statement some scenario op
+/// writes.
 pub fn scenario() -> Session {
     let lane = "\tadd_hyperlane = { from = \"4\" to = \"13\" }\n";
-    PAINTED.open_edited(&[(
-        lane,
-        &format!("{lane}\tprevent_hyperlane = {{ from = \"10\" to = \"12\" }}\n"),
-    )])
+    let placing = "system = { id = \"11\" position = { x = -150 y = -30 } }";
+    PAINTED.open_edited(&[
+        (
+            lane,
+            &format!("{lane}\tprevent_hyperlane = {{ from = \"10\" to = \"12\" }}\n"),
+        ),
+        (
+            placing,
+            concat!(
+                "system = { id = \"11\" position = { x = -150 y = -30 } effect = { ",
+                "spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 60 ",
+                "orbit_angle = 90 random_pos = no } ",
+                "create_ambient_object = { type = \"derelict_ship_object\" location = this } ",
+                "last_created_ambient_object = { set_location = { target = prev distance = 30 ",
+                "angle = 0 } } ",
+                "add_modifier = { modifier = \"pulsar_radiation\" days = -1 } } }",
+            ),
+        ),
+    ])
 }
 
 /// Every variant once, in declaration order. Fails when a variant has no example.

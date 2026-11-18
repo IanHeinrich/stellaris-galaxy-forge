@@ -4,9 +4,10 @@
 use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::format::scenario::index::ScenarioIndex;
+use crate::format::scenario::placed::{Placed, placed};
 use crate::keys::scenario as keys;
 use crate::overlay::Anchor;
-use crate::placements::{self, Statement};
+use crate::placements;
 
 /// System `id`'s `effect` block and the line it starts on; `None` for a save, or a system
 /// with no such block.
@@ -30,14 +31,14 @@ pub(crate) fn system_effects(doc: &Document) -> Vec<(u32, String, u32)> {
         .collect()
 }
 
-/// The placement statements of system `id`'s `effect` block, the one the game runs, with the
-/// system statement's current bytes their spans index; `None` for a save, or a system with
-/// no such block.
-pub(crate) fn system_placements(doc: &Document, id: u32) -> Option<(&[u8], Vec<Statement>)> {
+/// What system `id`'s `effect` block, the one the game runs, places, with the system
+/// statement's current bytes the spans index; `None` for a save, or a system with no such
+/// block.
+pub(crate) fn system_placements(doc: &Document, id: u32) -> Option<(&[u8], Vec<Placed>)> {
     let bytes = doc.current(doc.scenario()?.system(id)?).ok()?;
     let root = cst::parse_script(bytes, 0).ok()?;
     let effect = block(root.children().first()?, bytes)?;
-    Some((bytes, placements::read(effect, bytes)))
+    Some((bytes, placed(id, placements::read(effect, bytes), bytes)))
 }
 
 fn effect_at(doc: &Document, scenario: &ScenarioIndex, anchor: Anchor) -> Option<(String, u32)> {

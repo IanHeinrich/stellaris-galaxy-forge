@@ -4,6 +4,8 @@
 //! leave it where it is.
 
 use crate::cst::{self, Node};
+use crate::emit::coord;
+use crate::lexer::{self, Mode, TokenKind};
 use crate::projections::geometry::{angle_about, normalised, point};
 use crate::span::Span;
 
@@ -12,6 +14,10 @@ pub const CREATE_AMBIENT_OBJECT: &str = "create_ambient_object";
 pub const ADD_MODIFIER: &str = "add_modifier";
 const LAST_CREATED_AMBIENT_OBJECT: &str = "last_created_ambient_object";
 const SET_LOCATION: &str = "set_location";
+/// The target a ruin on the system's main star is spawned at.
+pub const STAR: &str = "star";
+/// The days a modifier the editor writes lasts: for ever.
+const FOR_EVER: f64 = -1.0;
 
 /// The turn from a written angle to the editor's: a spawn's `orbit_angle` or a
 /// `set_location` `angle` of 0 stands at 180 degrees as the editor measures `atan2(y, x)` in
@@ -314,4 +320,133 @@ fn amount(node: &Node, key: &str, src: &[u8]) -> Option<Amount> {
 
 fn scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {
     node.find(key, src)?.scalar_str(src)
+}
+
+/// The editor's own `spawn_megastructure` for a ruin of type `kind` on the system's main star.
+pub fn ruin_on_star_text(kind: &str) -> String {
+    format!("{SPAWN_MEGASTRUCTURE} = {{ type = \"{kind}\" planet = {STAR} }}")
+}
+
+/// The editor's own `spawn_megastructure` for a ruin of type `kind` standing `distance` from
+/// the system's centre at the game's `angle`.
+pub fn ruin_at_text(kind: &str, distance: f64, angle: f64) -> String {
+    format!(
+        "{SPAWN_MEGASTRUCTURE} = {{ type = \"{kind}\" orbit_distance = {} orbit_angle = {} random_pos = no }}",
+        coord(distance),
+        angle_text(angle)
+    )
+}
+
+/// The editor's own two statements for an ambient object of type `kind` standing `distance`
+/// from the system's main star at the game's `angle`.
+pub fn ambient_object_texts(kind: &str, distance: f64, angle: f64) -> [String; 2] {
+    [
+        format!("{CREATE_AMBIENT_OBJECT} = {{ type = \"{kind}\" location = this }}"),
+        format!(
+            "{LAST_CREATED_AMBIENT_OBJECT} = {{ {SET_LOCATION} = {{ target = prev distance = {} angle = {} }} }}",
+            coord(distance),
+            angle_text(angle)
+        ),
+    ]
+}
+
+/// An angle as the editor writes it: in [0, 360) once rounded.
+fn angle_text(angle: f64) -> String {
+    match coord(normalised(angle)) {
+        full if full == "360" => "0".to_owned(),
+        text => text,
+    }
+}
+
+/// The editor's own `add_modifier` for modifier `modifier`, kept for ever.
+pub fn modifier_text(modifier: &str) -> String {
+    format!("{ADD_MODIFIER} = {{ modifier = \"{modifier}\" days = -1 }}")
+}
+
+/// Whether the editor edits `statement`, read from `src`, where it stands: it is in a shape
+/// the editor writes, and writing it again from what was read changes nothing but quotes and
+/// how a number is spelled. Any other statement, such as a spawn with an `owner`, stays as
+/// written.
+pub fn adopted(statement: &Statement, src: &[u8]) -> bool {
+    let same = |span: Span, text: &str| {
+        let bytes = span.slice(src);
+        only_tokens(bytes) && same_tokens(bytes, text.as_bytes())
+    };
+    match statement {
+        Statement::SpawnMegastructure(spawn) => match &spawn.place {
+            SpawnPlace::OnBody {
+                target,
+                orbit: None,
+            } if target == STAR => same(spawn.span, &ruin_on_star_text(&spawn.kind)),
+            SpawnPlace::Free(Orbit {
+                distance: Amount::Number(distance),
+                angle: Amount::Number(angle),
+            }) => same(spawn.span, &ruin_at_text(&spawn.kind, *distance, *angle)),
+            _ => false,
+        },
+        Statement::AmbientObject(AmbientObject {
+            kind,
+            at: Some(at),
+            span,
+        }) => {
+            let [create, point] = ambient_object_texts(kind, at.distance, at.angle);
+            same(*span, &create) && same(at.span, &point)
+        }
+        Statement::SystemModifier(modifier) => {
+            modifier.days == Some(Amount::Number(FOR_EVER))
+                && same(modifier.span, &modifier_text(&modifier.modifier))
+        }
+        Statement::AmbientObject(_) | Statement::Foreign(_) => false,
+    }
+}
+
+/// Whether `bytes` hold nothing the lexer skips but whitespace: no comment, which a rewrite
+/// would take with it.
+fn only_tokens(bytes: &[u8]) -> bool {
+    let mut at = 0;
+    let blank = |gap: &[u8]| gap.iter().all(u8::is_ascii_whitespace);
+    for token in lexer::tokens_with(bytes, 0, Mode::Script) {
+        if !blank(&bytes[at..token.span.start]) {
+            return false;
+        }
+        at = token.span.end;
+    }
+    blank(&bytes[at..])
+}
+
+/// Whether `a` and `b` read as the same tokens, a quoted scalar the same as it bare and two
+/// numbers the same when their values are.
+fn same_tokens(a: &[u8], b: &[u8]) -> bool {
+    let read = |bytes| {
+        lexer::tokens_with(bytes, 0, Mode::Script).map(move |token| {
+            match token.kind {
+                TokenKind::Scalar { quoted } => {
+                    let text = token.span.slice(bytes);
+                    let text = match quoted {
+                        true => &text[1..text.len() - 1],
+                        false => text,
+                    };
+                    Some(text)
+                }
+                _ => None,
+            }
+            .ok_or(token.kind)
+        })
+    };
+    let number = |text: &[u8]| std::str::from_utf8(text).ok()?.parse::<f64>().ok();
+    let mut a = read(a);
+    let mut b = read(b);
+    loop {
+        match (a.next(), b.next()) {
+            (None, None) => return true,
+            (Some(Ok(x)), Some(Ok(y))) => {
+                let same = x == y || matches!((number(x), number(y)), (Some(m), Some(n)) if m == n);
+                if !same {
+                    return false;
+                }
+            }
+            (Some(Err(x)), Some(Err(y))) if x == y => {}
+            _ => return false,
+        }
+    }
 }

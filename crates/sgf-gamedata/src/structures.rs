@@ -2,6 +2,7 @@
 //! save's rows have: the body each is tied to, where it stands and who owns it.
 
 use sgf_core::emit;
+use sgf_core::format::scenario::placed::{MEGASTRUCTURE_BASE, STARBASE_BASE};
 use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
 use sgf_core::placements::{self, SPAWN_MEGASTRUCTURE, point_at};
 use sgf_core::projections::geometry::point;
@@ -11,7 +12,7 @@ use sgf_core::views::details::{
 };
 
 use crate::GameData;
-use crate::details::{MEGASTRUCTURE_BASE, STARBASE_BASE, bounds, index};
+use crate::details::{bounds, index};
 use crate::initializers::{self, Body, BodyClass, InitStarbase, Initializer};
 use crate::install::script::Def;
 use crate::layouts::{StarSource, star_source};

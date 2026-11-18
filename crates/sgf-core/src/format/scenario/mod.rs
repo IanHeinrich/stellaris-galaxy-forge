@@ -13,6 +13,7 @@ pub mod index;
 pub mod listings;
 pub mod marauder;
 pub mod paint;
+pub mod placed;
 pub mod profile;
 pub(crate) mod provenance;
 pub(crate) mod spawn;
@@ -256,10 +257,10 @@ impl Format for Scenario {
     }
 
     /// A scenario system has no bodies of its own, and an op that only writes a save's
-    /// bodies writes a statement's own text here.
+    /// bodies, or its megastructures, writes a statement's own text here.
     fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32> {
         match reach {
-            DetailsReach::SaveBodies => Vec::new(),
+            DetailsReach::SaveBodies | DetailsReach::SaveRebuild => Vec::new(),
             _ => format::stale_systems(subjects, false),
         }
     }

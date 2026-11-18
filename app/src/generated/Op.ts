@@ -57,4 +57,4 @@ construction?: MegastructureConstruction,
  * How many effects of the add's construction it left out; filled only by the
  * inverse of [`Op::AddMegastructure`], whose description the re-add repeats.
  */
-left_out?: number, } | { "type": "MoveMegastructure", megastructure: number, at: MegastructurePlace, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };
+left_out?: number, } | { "type": "MoveMegastructure", megastructure: number, at: MegastructurePlace, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "AddAmbientObject", system: number, kind: string, x: number, y: number, } | { "type": "MoveAmbientObject", ambient_object: number, x: number, y: number, } | { "type": "RemoveAmbientObject", ambient_object: number, } | { "type": "AddSystemModifier", system: number, modifier: string, } | { "type": "RemoveSystemModifier", system: number, modifier: string, } | { "type": "Batch", description: string, ops: Array<Op>, };

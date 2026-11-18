@@ -132,6 +132,20 @@ dig_sites: boolean,
  */
 add_megastructures: boolean, 
 /**
+ * A ruin can be placed in a system's `effect` block, on its star or at a point, and one
+ * the editor writes moved and taken out.
+ */
+place_structures: boolean, 
+/**
+ * An ambient object can be placed in a system's `effect` block, and one the editor
+ * writes moved and taken out.
+ */
+ambient_objects: boolean, 
+/**
+ * A system's modifier can be added to its `effect` block and taken out.
+ */
+system_modifiers: boolean, 
+/**
  * Any system can be renamed from its header.
  */
 rename_systems: boolean, 

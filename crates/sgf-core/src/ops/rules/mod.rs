@@ -23,9 +23,10 @@ use crate::cst::{self, Node};
 use crate::emit::coord;
 use crate::keys;
 use crate::ops::OpError;
-use crate::plural;
 use crate::projections::galaxy::{Galaxy, display_name};
+use crate::projections::geometry::written_angle;
 use crate::projections::name::{NameTemplate, looks_like_key};
+use crate::{number, plural};
 
 /// How far out, as a share of its system's `inner_radius`, the editor puts a megastructure it
 /// adds outside the gravity well: where the game puts a relay it builds.
@@ -144,6 +145,13 @@ fn quotable(text: &str) -> bool {
 /// What a description calls system `system`: its name as the map shows it and its id
 /// ("Ferragon #489"), or "system #489" when it has no name, the galaxy lacks it, or a name
 /// the install does not localise still reads as a key once [`display_name`] has shortened it.
+/// A point about a system's centre as a description names it: `100 at 180°`.
+pub(crate) fn polar(at: (f64, f64)) -> String {
+    let radius = at.0.hypot(at.1);
+    let angle = written_angle((0.0, 0.0), at, radius);
+    format!("{} at {}°", number(radius), number(angle))
+}
+
 pub(crate) fn named(galaxy: &Galaxy, system: u32) -> String {
     match galaxy.systems.get(&system) {
         Some(node) => labelled(galaxy, &node.name.key, node.name.literal, system),

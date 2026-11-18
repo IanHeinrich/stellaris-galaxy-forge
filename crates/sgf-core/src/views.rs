@@ -164,6 +164,14 @@ pub struct Capabilities {
     pub dig_sites: bool,
     /// A megastructure can be added to a system, and one added taken out again.
     pub add_megastructures: bool,
+    /// A ruin can be placed in a system's `effect` block, on its star or at a point, and one
+    /// the editor writes moved and taken out.
+    pub place_structures: bool,
+    /// An ambient object can be placed in a system's `effect` block, and one the editor
+    /// writes moved and taken out.
+    pub ambient_objects: bool,
+    /// A system's modifier can be added to its `effect` block and taken out.
+    pub system_modifiers: bool,
     /// Any system can be renamed from its header.
     pub rename_systems: bool,
     /// The document has a header of its own: the galaxy's name, sizes and core radius.

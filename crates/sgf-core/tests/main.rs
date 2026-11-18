@@ -103,6 +103,7 @@ mod ops_scenario_history;
 mod ops_scenario_incremental;
 mod ops_scenario_initializers;
 mod ops_scenario_lanes;
+mod ops_scenario_placements;
 mod ops_scenario_positions;
 mod ops_scenario_scale;
 mod ops_scenario_systems;

@@ -27,6 +27,27 @@ pub static EXPORTED: Fixture = fixture!("4.4-early.scenario.txt");
 /// The sample save's whole galaxy, exported under the Paint a Galaxy profile.
 pub static EXPORTED_PAINT: Fixture = fixture!("4.4-early.paint.txt");
 
+/// Sef's block holds three ruins and three ambient objects, each as the editor writes it.
+pub const THREE_EACH: &str = "static_galaxy_scenario = {
+	system = {
+		id = \"1\"
+		name = \"Sef\"
+		position = { x = 0 y = 0 }
+		effect = {
+			spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 10 orbit_angle = 0 random_pos = no }
+			spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 20 orbit_angle = 0 random_pos = no }
+			spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 30 orbit_angle = 0 random_pos = no }
+			create_ambient_object = { type = \"derelict_ship_object\" location = this }
+			last_created_ambient_object = { set_location = { target = prev distance = 10 angle = 0 } }
+			create_ambient_object = { type = \"derelict_ship_object\" location = this }
+			last_created_ambient_object = { set_location = { target = prev distance = 20 angle = 0 } }
+			create_ambient_object = { type = \"derelict_ship_object\" location = this }
+			last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 0 } }
+		}
+	}
+}
+";
+
 pub struct Fixture {
     pub path: &'static str,
     document: LazyLock<Document>,

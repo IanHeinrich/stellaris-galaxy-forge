@@ -16,8 +16,11 @@
 //! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by, [`fe_link`]
 //! for the ones it lays a fallen empire's hyperlanes by and [`wormhole`] for the ones
 //! it joins a wormhole pair by; [`flags`] rewrites a feature's flags for those three, and
-//! the statements [`home`] makes a system an empire's home by.
+//! the statements [`home`] makes a system an empire's home by. [`placements`] writes the
+//! ruins, ambient objects and modifiers an `effect` block places, and [`effect_block`]
+//! splices that block for it and [`flags`].
 
+mod effect_block;
 mod fe_link;
 mod fe_zone;
 mod flags;
@@ -25,6 +28,8 @@ mod header;
 mod home;
 mod lanes;
 mod nebula;
+mod placements;
+mod restore;
 mod spawn;
 mod swap_system;
 mod system;
@@ -109,6 +114,44 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),
         Op::SetFeLinkFlags { entries } => fe_link::set_flags(plan, s, entries),
         Op::SetHomeSystem { system, home } => home::set_home_system(plan, s, *system, *home),
+        Op::AddMegastructure { system, spec } => {
+            placements::add_megastructure(plan, s, *system, spec)
+        }
+        Op::MoveMegastructure { megastructure, at } => {
+            placements::move_megastructure(plan, s, *megastructure, *at)
+        }
+        Op::RemoveMegastructure {
+            megastructure,
+            construction,
+            left_out,
+        } => placements::remove_megastructure(
+            plan,
+            s,
+            *megastructure,
+            construction.as_ref(),
+            *left_out,
+        ),
+        Op::AddAmbientObject { system, kind, x, y } => {
+            placements::add_ambient_object(plan, s, *system, kind, (*x, *y))
+        }
+        Op::MoveAmbientObject {
+            ambient_object,
+            x,
+            y,
+        } => placements::move_ambient_object(plan, s, *ambient_object, (*x, *y)),
+        Op::RemoveAmbientObject { ambient_object } => {
+            placements::remove_ambient_object(plan, s, *ambient_object)
+        }
+        Op::AddSystemModifier { system, modifier } => {
+            placements::add_modifier(plan, s, *system, modifier)
+        }
+        Op::RemoveSystemModifier { system, modifier } => {
+            placements::remove_modifier(plan, s, *system, modifier)
+        }
+        Op::RestoreEntities {
+            description,
+            entities,
+        } => restore::restore(plan, s, description, entities),
         Op::Batch { .. } => Err(OpError::NestedBatch),
         _ => Err(OpError::Unsupported {
             op: op.name(),
