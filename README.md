@@ -16,8 +16,7 @@ use the tool and frequently asked questions.
 
 - Download: [the latest release](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest)
 - On the Steam Workshop: [Galaxy Forge](https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137).
-  Subscribing does not install the editor. The item contains no mod
-  files. It exists so Galaxy Forge can be found through the Workshop.
+  Subscribing does not install the editor. It's just so people can find the tool.
 
 ![The whole galaxy with empire territories drawn](docs/media/galaxy.png)
 
@@ -28,7 +27,7 @@ use the tool and frequently asked questions.
 Open a `.sav` file, make your changes, save it, and load it in Stellaris
 to continue the same campaign.
 
-- **Move systems.** Drag a star system to a new location. Its hyperlanes
+- **Move systems.** Drag a star system to a new location. The hyperlanes
   move with it and their lengths are updated.
 - **Rotate and swap systems.** Turn a selection of systems around a
   point with the rotate handle on the map, or type an angle in the
