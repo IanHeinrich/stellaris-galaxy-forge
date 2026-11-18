@@ -160,6 +160,11 @@ a save. Scenarios also let you:
 
 The steps are in [Make a scenario](https://ianheinrich.github.io/stellaris-galaxy-forge/scenario/make-a-scenario).
 
+If you write a mod's scenario by hand, Galaxy Forge keeps your comments,
+key order and formatting, and changes only the lines you edit.
+[For mod authors](https://ianheinrich.github.io/stellaris-galaxy-forge/scenario/for-mod-authors)
+covers working beside your text editor and git, and the limits.
+
 ## Shapes, brushes and symmetry
 
 ![Painting clusters of systems and drawing lanes with six-way symmetry](docs/media/paint-symmetry.gif)

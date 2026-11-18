@@ -73,7 +73,8 @@ const sidebar: DefaultTheme.SidebarItem[] = [
         link: '/scenario/fallen-empires-marauders-lgates'
       },
       { text: 'Prepare for a new game', link: '/scenario/prepare' },
-      { text: 'Export and play', link: '/scenario/play' }
+      { text: 'Export and play', link: '/scenario/play' },
+      { text: 'For mod authors', link: '/scenario/for-mod-authors' }
     ]
   },
   {
