@@ -125,6 +125,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Download', link: '/start/install-and-update' },
+      { text: 'Roadmap', link: '/reference/roadmap' },
       { text: 'Report a problem', link: `${repo}/issues` },
       { text: 'Workshop', link: 'https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137' },
       { component: 'GuideVersion', props: { text: `Guide for ${version}` } }

@@ -18,6 +18,9 @@ hero:
     - theme: alt
       text: Download
       link: /start/install-and-update
+    - theme: alt
+      text: For mod authors
+      link: /scenario/for-mod-authors
 
 features:
   - title: Edit my save
@@ -29,12 +32,15 @@ features:
   - title: Play the galaxy I made
     details: Save your map into the Paint a Galaxy mod, then start a new game on it.
     link: /scenario/play
-  - title: Something went wrong
-    details: Fix common problems and report a bug.
-    link: /reference/troubleshooting
   - title: Rework my mod's map
     details: Edit a hand-written scenario on the map. Comments, key order and formatting stay as you wrote them.
     link: /scenario/for-mod-authors
+  - title: What's coming next
+    details: See the planned features, from initializer editing to galaxies that don't need Paint a Galaxy.
+    link: /reference/roadmap
+  - title: Something went wrong
+    details: Fix common problems and report a bug.
+    link: /reference/troubleshooting
 ---
 
 New here? Start with [Install and update](./start/install-and-update.md) and [Your first edit](./start/first-edit.md).
