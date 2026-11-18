@@ -120,6 +120,20 @@ export function landedModel(key: string | null, scale: number): LandedModel | nu
   };
 }
 
+/**
+ * A structure's landed model as drawn at camera scale `camScale`: at its own size, grown where that
+ * is under its `minPx` screen pixels across, so a small model stays visible beside its plate.
+ */
+export function shownModel(
+  s: { readonly modelKey: string | null; readonly scale: number; readonly minPx: number },
+  camScale: number,
+): LandedModel | null {
+  const landed = landedModel(s.modelKey, s.scale);
+  if (landed === null || s.minPx <= 0 || camScale <= 0) return landed;
+  const across = 2 * landed.radius * camScale;
+  return across >= s.minPx ? landed : landedModel(s.modelKey, (s.scale * s.minPx) / across);
+}
+
 /** No turn of the axes: for a sprite in a holder the scene's axis flip already applies to. */
 export const UPRIGHT = { x: 1, y: 1 } as const;
 /** The save's axis signs: for a sprite outside the flip. */

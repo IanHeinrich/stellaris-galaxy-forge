@@ -73,6 +73,7 @@ fn list_commands() -> Vec<(&'static str, Value)> {
         ("get_terraform_candidates", json!({})),
         ("get_starbase_levels", json!({})),
         ("get_megastructure_types", json!({})),
+        ("get_ambient_object_types", json!({})),
         ("get_ship_sizes", json!({})),
         ("get_country_types", json!({})),
         ("get_resource_icons", json!({})),
@@ -241,6 +242,13 @@ fn game_texts_keep_the_games_markup() {
         .expect("think_tank_3");
     assert!(think_tank["country_effects"].is_array(), "{think_tank}");
     assert!(think_tank["offer"].is_object(), "{think_tank}");
+
+    let objects: Vec<Value> =
+        invoke(&w, "get_ambient_object_types", json!({})).expect("ambient object types");
+    assert!(
+        objects.iter().any(|o| o["portrait"].is_string()),
+        "some objects have a portrait"
+    );
 }
 
 #[test]

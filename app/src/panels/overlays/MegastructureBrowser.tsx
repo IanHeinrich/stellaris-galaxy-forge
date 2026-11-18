@@ -18,12 +18,12 @@ import {
   megastructureThumbKeys,
   type MegastructurePreview,
 } from "../../lib/megastructurePreview";
-import { columnsOf, groupedGridStep, listStep } from "../gridKeys";
-import { headerRows } from "../iconPickerRows";
+import { columnsOf, groupedGridStep } from "../gridKeys";
 import { ENTER } from "../keys";
 import { GameText } from "../GameText";
-import { FilterField, Icon } from "../parts";
+import { Icon } from "../parts";
 import "../panels.css";
+import { PortraitList } from "./PortraitList";
 
 /**
  * The megastructure list: a filter over every megastructure and stage name, and the
@@ -46,84 +46,32 @@ export function MegastructureList({
   onSelect: (entry: MegastructureEntry) => void;
   onConfirm: () => void;
 }) {
-  const id = useId();
-  const optionId = (i: number) => `${id}-entry-${i}`;
-  const active = current === null ? -1 : entries.findIndex((e) => e.key === current.key);
-
-  useEffect(() => {
-    const option = active >= 0 ? document.getElementById(optionId(active)) : null;
-    option?.scrollIntoView({ block: "nearest" });
-  });
-
-  const onKey = (e: KeyboardEvent) => {
-    if (entries.length === 0) return;
-    if (e.key === ENTER) {
-      if (active >= 0) onConfirm();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      const to = listStep(e.key, active, entries.length);
-      if (to === null) return;
-      onSelect(entries[to]);
-    } else return;
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
   return (
-    <div className="megastructure-add-list-column">
-      <FilterField label="Filter megastructures" value={query} onChange={onQuery} />
-      <ul
-        className="megastructure-add-list"
-        role="listbox"
-        aria-label="Megastructures"
-        aria-activedescendant={active >= 0 ? optionId(active) : undefined}
-        tabIndex={0}
-        onKeyDown={onKey}
-      >
-        {entries.length === 0 && (
-          <li className="muted" role="presentation">
-            No megastructure matches.
-          </li>
-        )}
-        {headerRows(entries, entryHeading).flatMap(({ item: entry, header }, i) => {
-          const heading = header ? (
-            <li
-              key={`section-${entry.key}`}
-              className="megastructure-add-section"
-              role="presentation"
-            >
-              {entryHeading(entry)}
-            </li>
-          ) : null;
-          const option = (
-            <li
-              key={entry.key}
-              id={optionId(i)}
-              className="listbox-option"
-              role="option"
-              aria-selected={entry.key === current?.key}
-              onClick={() => onSelect(entry)}
-              onDoubleClick={onConfirm}
-            >
-              {entry.portrait === null ? (
-                <span className="megastructure-add-portrait" />
-              ) : (
-                <Icon className="megastructure-add-portrait" keys={[entry.portrait]} lazy />
-              )}
-              <span className="megastructure-add-entry">
-                <span className="megastructure-add-name">{entry.label}</span>
-                {entry.category !== null && (
-                  <span className="megastructure-add-category muted" title={entry.category}>
-                    {entry.category}
-                  </span>
-                )}
-                <span className="megastructure-add-summary muted">{entry.summary}</span>
-              </span>
-            </li>
-          );
-          return heading === null ? [option] : [heading, option];
-        })}
-      </ul>
-    </div>
+    <PortraitList
+      entries={entries}
+      current={current}
+      keyOf={(entry) => entry.key}
+      heading={entryHeading}
+      portrait={(entry) => entry.portrait}
+      name={(entry) => entry.label}
+      details={(entry) => (
+        <>
+          {entry.category !== null && (
+            <span className="megastructure-add-category muted" title={entry.category}>
+              {entry.category}
+            </span>
+          )}
+          <span className="megastructure-add-summary muted">{entry.summary}</span>
+        </>
+      )}
+      filterLabel="Filter megastructures"
+      listLabel="Megastructures"
+      noMatch="No megastructure matches."
+      query={query}
+      onQuery={onQuery}
+      onSelect={onSelect}
+      onConfirm={onConfirm}
+    />
   );
 }
 

@@ -12,12 +12,11 @@ import {
   madeByMegastructure,
   megastructureRow,
   removeRuinOp,
-  removeRuinQuestion,
-  ruinsFrom,
   type MegastructureLoss,
 } from "../lib/details/megastructureRemoval";
+import { originOf } from "../lib/details/placedRows";
 import { confirmDeletion } from "./confirmDeletion";
-import { useDetailsStore } from "./detailsStore";
+import { removePlaced } from "./placedRemoval";
 import { useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -78,17 +77,12 @@ export function deleteMegastructure(
  * since those ruins move down one id.
  */
 export function removeRuin(id: number, name: string, system: number | null): Promise<boolean> {
-  return confirmDeletion({
-    title: name,
-    read: () => {
-      const read = system === null ? undefined : useDetailsStore.getState().details.get(system);
-      return Promise.resolve(ruinsFrom(read?.megastructures ?? [], id));
-    },
-    question() {
-      const where = system === null ? null : useGalaxyStore.getState().systemName(system);
-      return removeRuinQuestion(name, where);
-    },
-    apply: () => useEditorStore.getState().applyOp(removeRuinOp(id)),
+  return removePlaced({
+    id,
+    name,
+    system,
+    origins: (details) => (details?.megastructures ?? []).map(originOf),
+    op: removeRuinOp(id),
     gone: (ruins) => ({ megastructures: ruins, colonies: [] }),
   });
 }

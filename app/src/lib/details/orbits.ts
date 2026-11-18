@@ -136,6 +136,8 @@ export interface LayoutOverride {
   wormholes?: ReadonlyMap<number, Point>;
   /** Where each megastructure moved stands: a point, or a body it is drawn on. */
   megastructures?: ReadonlyMap<number, MegastructurePlace>;
+  /** Where each ambient object moved stands, about the system's centre. */
+  ambientObjects?: ReadonlyMap<number, Point>;
 }
 
 export interface Bearing {

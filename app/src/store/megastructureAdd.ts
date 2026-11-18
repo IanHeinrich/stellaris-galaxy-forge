@@ -22,6 +22,7 @@ import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { megastructureEntry, useInspectorStore } from "./inspectorStore";
+import { useMapChromeStore } from "./mapChromeStore";
 import { latest } from "./reads";
 import { useSceneStore } from "./sceneStore";
 
@@ -93,7 +94,7 @@ interface MegastructureAddState {
   loadClearing(): Promise<void>;
   /**
    * Closes the dialog and adds a finished megastructure of type `kind` at its spot in one edit;
-   * it goes to the system's owner. `stage` is the stage the player picked, which the dialog opens
+   * it goes to the system's owner, and the Megastructures and starbases layer turns on. `stage` is the stage the player picked, which the dialog opens
    * on next; it differs from `kind` when the game swaps the stage for another type at the spot.
    * The row stands where the spot's fits place `kind`, and nothing is added before they are
    * read. The new row's page opens, and the status bar says how many effects of its
@@ -254,6 +255,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const added = await editor.addMegastructure(system, kind, at, keepPlanet, moons);
     if (added === null) return false;
     set({ last: stage });
+    useMapChromeStore.getState().showSceneLayer("megastructures");
     const name = megastructureName(kind, data.names);
     useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructures[0], name));
     const notice = leftOutNotice(name, added.unsure.length, added.unwritten.length);

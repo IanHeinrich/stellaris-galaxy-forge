@@ -153,6 +153,8 @@ export interface MapChromeState {
   sceneHint: string | null;
   toggleLayer(id: GalaxyLayerId): void;
   toggleSceneLayer(id: SceneLayerId): void;
+  /** Turns scene layer `id` on, where it is off, so what was just added to it shows. */
+  showSceneLayer(id: SceneLayerId): void;
   /** Shows or hides one point-of-interest kind. */
   toggleKind(kind: SpecialKind): void;
   /** Shows every point-of-interest kind, or hides them all when they are all shown. */
@@ -310,6 +312,10 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     const sceneLayers = { ...get().sceneLayers, [id]: !get().sceneLayers[id] };
     set({ sceneLayers });
     writePref(PREF_KEYS.sceneLayers, sceneLayers);
+  },
+
+  showSceneLayer(id) {
+    if (!get().sceneLayers[id]) get().toggleSceneLayer(id);
   },
 
   toggleKind(kind) {

@@ -3,14 +3,17 @@ import type { AmbientPlace } from "../../../../../generated/AmbientPlace";
 import { documentCapabilities } from "../../../../../lib/capabilities";
 import {
   AT_A_RANDOM_SPOT,
+  editableId,
   NO_AMBIENT_OBJECTS,
   originMark,
 } from "../../../../../lib/details/placedRows";
 import { keyWords } from "../../../../../lib/text";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
-import { OriginMark } from "../../../../parts";
+import { useGameDataStore } from "../../../../../store/gameDataStore";
+import { ambientObjectEntry, useInspectorStore } from "../../../../../store/inspectorStore";
+import { Icon, OriginMark } from "../../../../parts";
 import { useNamed } from "../../../../useNamed";
-import { DrillLink, Empty, Section } from "../../../parts";
+import { DrillLink, DrillRow, Empty, Section } from "../../../parts";
 import { openBody } from "../../../entity/openBody";
 import { useSystemBodyNamer } from "../../../../useBodyName";
 
@@ -57,22 +60,36 @@ export function AmbientObjectSection({
     objects.map((o) => o.kind),
     keyWords,
   );
+  const views = useGameDataStore((s) => s.ambientObjects);
+  const open = useInspectorStore((s) => s.open);
   return (
     <Section id="system.ambientObjects" title="Ambient objects" count={objects.length}>
       {objects.length === 0 && <Empty>{NO_AMBIENT_OBJECTS}</Empty>}
       {objects.map((object, i) => {
         const mark = originMark(object.origin, editable);
+        const id = editableId(object.origin);
+        const name = named(object.kind);
+        const portrait = views?.get(object.kind)?.portrait ?? null;
         return (
-          <div key={`${object.kind}-${i}`} className="ins-prow static">
-            <span className="pi ghost" aria-hidden="true" />
+          <DrillRow
+            key={`${object.kind}-${i}`}
+            requires="ambient_objects"
+            inert={id === null}
+            onOpen={() => id !== null && open(ambientObjectEntry(system, id, name))}
+          >
+            {portrait === null ? (
+              <span className="pi ghost" aria-hidden="true" />
+            ) : (
+              <Icon className="pi" keys={[portrait]} />
+            )}
             <span>
               <span className="l1">
-                {named(object.kind)}
+                {name}
                 {mark !== null && <OriginMark mark={mark} />}
               </span>
               <Where system={system} place={object.place} />
             </span>
-          </div>
+          </DrillRow>
         );
       })}
     </Section>

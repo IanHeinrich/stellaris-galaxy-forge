@@ -332,6 +332,27 @@
   }
 }
 
+/* Ambient objects have no stages, so their list sits beside the preview at any width. */
+.dialog.megastructure-add-dialog.ambient-object-add-dialog {
+  width: min(780px, 100%);
+}
+
+.megastructure-add-browse.ambient-object-add-browse {
+  grid-template-rows: none;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.ambient-object-add-browse > .megastructure-add-preview {
+  grid-column: auto;
+}
+
+/* An object with no model to show, such as a cloud or a particle effect. */
+.ambient-object-placeholder {
+  background: var(--bg-panel);
+  border: 1px dashed var(--border);
+  border-radius: 3px;
+}
+
 /* Holds the browse area's room while the shell reads what fits, so the dialog doesn't jump. */
 .megastructure-add-loading {
   display: flex;

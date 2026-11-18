@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
+use sgf_gamedata::ambient_object_views::AmbientObjectView;
 use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::choices::AskedBody;
 use sgf_gamedata::deposit_choices::DepositChoice;
@@ -398,6 +399,15 @@ pub fn get_megastructure_types(game_data: State<'_, GameDataState>) -> Vec<Megas
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.megastructure_views())
+}
+
+/// Every ambient object, with its name, its model's portrait and the initializers that place
+/// it. The first call reads each model to find its portrait.
+#[tauri::command(async)]
+pub fn get_ambient_object_types(game_data: State<'_, GameDataState>) -> Vec<AmbientObjectView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.ambient_object_views())
 }
 
 #[tauri::command(async)]

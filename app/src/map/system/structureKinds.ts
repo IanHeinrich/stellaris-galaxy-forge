@@ -1,16 +1,17 @@
 import type { CapabilityFlag } from "../../lib/capabilities";
-import { megastructurePageNeeds, originOf } from "../../lib/details/placedRows";
+import { placedAmbientObject } from "../../lib/details/ambientObjects";
+import { editableId, megastructurePageNeeds, originOf } from "../../lib/details/placedRows";
 import { capabilityFor } from "../../lib/entities";
 import type { Pt } from "../../lib/geometry/pt";
-import type { Entry } from "../../store/inspectorStore";
+import { ambientObjectEntry, type Entry } from "../../store/inspectorStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { Drag } from "./drag";
 import type { SystemContext } from "./context";
-import { MegastructureDrag } from "./drags";
+import { AmbientObjectDrag, MegastructureDrag } from "./drags";
 import type { SceneTarget } from "./picking";
 import type { StructureKind } from "./structures";
 
-/** What the scene does with a megastructure or a starbase. */
+/** What the scene does with a megastructure, a starbase or an ambient object. */
 interface StructureKindRow {
   /** The Inspector page a click opens, named `label`. */
   entry(system: number, id: number, label: string): Entry;
@@ -43,6 +44,16 @@ export const STRUCTURE_KINDS: Readonly<Record<StructureKind, StructureKindRow>> 
     pageNeeds: () => capabilityFor("starbase"),
     menu: () => null,
     drag: () => null,
+    tips: false,
+  },
+  ambient_object: {
+    entry: (system, id, label) => ambientObjectEntry(system, id, label),
+    pageNeeds: (ctx, id) => {
+      const object = placedAmbientObject(ctx.details, id);
+      return object !== undefined && editableId(object.origin) !== null ? "ambient_objects" : null;
+    },
+    menu: () => null,
+    drag: (frame, id, from) => AmbientObjectDrag.start(frame, id, from),
     tips: false,
   },
 };

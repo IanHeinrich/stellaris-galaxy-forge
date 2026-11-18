@@ -2,7 +2,7 @@
 import type { EditResult } from "./EditResult";
 
 /**
- * What adding planets or megastructure rows answers with: the edit, and the planets and rows
+ * What adding planets, megastructure rows or ambient objects answers with: the edit, and what
  * it created, in the order it wrote them, a planet before its moons.
  */
-export type Added = { edit: EditResult, planets: Array<number>, megastructures: Array<number>, };
+export type Added = { edit: EditResult, planets: Array<number>, megastructures: Array<number>, ambient_objects: Array<number>, };

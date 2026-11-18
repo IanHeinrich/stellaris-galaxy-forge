@@ -633,8 +633,9 @@ const lastStructures = memoOn(
     base: SystemLayout,
     editing: SceneEditing,
     moved: LayoutOverride["megastructures"],
+    movedObjects: LayoutOverride["ambientObjects"],
   ): readonly SceneStructure[] =>
-    shown ? sceneStructures({ src, bodyById, base, editing, moved }) : NOTHING,
+    shown ? sceneStructures({ src, bodyById, base, editing, moved, movedObjects }) : NOTHING,
 );
 
 /** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
@@ -732,6 +733,7 @@ export function systemContext(
       base,
       editing,
       preview?.override.megastructures,
+      preview?.override.ambientObjects,
     ),
     viewRadius: Math.max(
       layout.fitRadius,

@@ -14,6 +14,7 @@ import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { AmbientObject } from "../generated/AmbientObject";
 import {
   megastructureSummary,
+  offCentreMainStar,
   orbitSystem,
   rowOrigin,
   saveBody,
@@ -173,11 +174,8 @@ describe("a scenario's own structures, with placing them switched on", () => {
     useFileSessionStore.setState({
       capabilities: { ...documentCapabilities(session), place_structures: true },
     });
-    const sol = orbitSystem({ id: SOL });
-    const planets = sol.planets.map((p) => ({
-      ...p,
-      role: p.id === 2 ? ("primary" as const) : p.role === "primary" ? ("star" as const) : p.role,
-    }));
+    const sol = offCentreMainStar({ id: SOL });
+    const planets = sol.planets;
     const megastructures = [
       megastructureSummary({
         id: RUIN,

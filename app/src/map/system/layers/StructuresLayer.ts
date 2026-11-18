@@ -3,7 +3,7 @@ import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { dressModelSprite, landedModel, SAVE_AXES } from "../geometry";
+import { dressModelSprite, landedModel, SAVE_AXES, shownModel } from "../geometry";
 import type { SceneStructure } from "../structures";
 import { drawHalo } from "./halo";
 import type { SystemLayer } from "./SystemLayer";
@@ -14,6 +14,11 @@ export const STRUCTURE_ICON_PX = 22;
 /** A stand-in for a structure the game places at random shows faint, as placeholder planets do. */
 const STAND_IN_ALPHA = 0.35;
 
+/** The plain mark of a structure with no model and no icon, such as a cloud: a ring and a dot. */
+const MARK_COLOUR = 0xc7cfdc;
+const MARK_WIDTH_PX = 1.5;
+const MARK_DOT_PX = 2;
+
 interface Drawn {
   structure: SceneStructure;
   readonly holder: Container;
@@ -21,6 +26,8 @@ interface Drawn {
   readonly icon: Sprite;
   /** The dashed halo round a structure the game may not place; null for any other. */
   readonly halo: Graphics | null;
+  /** The plain mark of a structure with no icon, shown where its model doesn't; null for any other. */
+  readonly mark: Graphics | null;
 }
 
 /** The first of `keys` that landed, or null while one before it is still loading or none did. */
@@ -104,8 +111,13 @@ export class StructuresLayer implements SystemLayer {
         halo.label = "halo";
         holder.addChild(halo);
       }
+      const mark = structure.iconKeys.length === 0 ? new Graphics() : null;
+      if (mark) {
+        mark.label = "mark";
+        holder.addChild(mark);
+      }
       this.container.addChild(holder);
-      return { structure, holder, model, icon, halo };
+      return { structure, holder, model, icon, halo, mark };
     });
     for (const child of previous) child.destroy({ children: true });
     requestTextures(
@@ -131,13 +143,15 @@ export class StructuresLayer implements SystemLayer {
   onViewport(cam: Camera): void {
     if (cam.scale === this.scale) return;
     this.scale = cam.scale;
-    this.sizeIcons();
+    // A model with a least size on screen grows or shrinks back as the camera zooms.
+    if (this.drawn.some((d) => d.structure.minPx > 0)) this.dress();
+    else this.sizeIcons();
   }
 
   private dress(): void {
-    for (const { structure, model, icon } of this.drawn) {
+    for (const { structure, model, icon, mark } of this.drawn) {
       const key = structure.modelKey;
-      const landed = landedModel(key, structure.scale);
+      const landed = shownModel(structure, this.scale);
       // The last bake stays up while a new one for a turned or changed model is made.
       const baking = key !== null && getTexture(key) === undefined && model.visible;
       if (!baking) model.visible = landed !== null;
@@ -145,6 +159,7 @@ export class StructuresLayer implements SystemLayer {
       const glyph = showsIcon(structure) ? firstLanded(structure.iconKeys) : null;
       icon.visible = glyph !== null;
       if (glyph) icon.texture = glyph;
+      if (mark) mark.visible = !model.visible && showsIcon(structure);
     }
     this.sizeIcons();
   }
@@ -156,9 +171,10 @@ export class StructuresLayer implements SystemLayer {
   private sizeIcons(): void {
     if (this.scale <= 0) return;
     const side = STRUCTURE_ICON_PX / this.scale;
-    for (const { structure, model, icon, halo } of this.drawn) {
+    for (const { structure, model, icon, halo, mark } of this.drawn) {
       const k = side / Math.max(icon.texture.width, icon.texture.height, 1);
       icon.scale.set(SAVE_X_SIGN * k, SAVE_Y_SIGN * k);
+      if (mark) drawMark(mark, side / 2, this.scale);
       if (halo) {
         const { x, y, radius } = haloCircle(structure, model.visible, side);
         drawHalo(halo, radius, this.scale, x, y);
@@ -170,6 +186,13 @@ export class StructuresLayer implements SystemLayer {
     this.unsubTextures();
     this.container.destroy({ children: true });
   }
+}
+
+/** Draws a plain mark `radius` world units across its ring, at camera scale `scale`. */
+function drawMark(mark: Graphics, radius: number, scale: number): void {
+  mark.clear();
+  mark.circle(0, 0, radius * 0.6).stroke({ color: MARK_COLOUR, width: MARK_WIDTH_PX / scale });
+  mark.circle(0, 0, MARK_DOT_PX / scale).fill({ color: MARK_COLOUR });
 }
 
 /**

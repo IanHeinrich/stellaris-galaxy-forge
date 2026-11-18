@@ -3,6 +3,7 @@ import type { CapabilityFlag } from "../../../lib/capabilities";
 import type { EntityKind } from "../../../generated/EntityKind";
 import { capabilityFor } from "../../../lib/entities";
 import type { EntityRef, Entry } from "../../../store/inspectorStore";
+import { AmbientObjectView } from "./AmbientObjectView";
 import { CountryView } from "./CountryView";
 import { EntityView } from "./EntityView";
 import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
@@ -49,5 +50,10 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   deposit: entity("deposit", "Deposit"),
   wormhole: entity("wormhole", "Wormhole", WormholeView),
   body: { label: "Body", component: PlanetView },
+  ambient_object: {
+    label: "Ambient object",
+    component: AmbientObjectView,
+    requires: "ambient_objects",
+  },
   nodelist: { label: "List", component: EntityView },
 };

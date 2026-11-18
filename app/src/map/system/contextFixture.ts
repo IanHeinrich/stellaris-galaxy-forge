@@ -1,6 +1,8 @@
 /** The save and scenario systems a context test builds its scene from, without PixiJS. */
 import { expect } from "vitest";
+import type { AmbientObject } from "../../generated/AmbientObject";
 import type { BodyLayout } from "../../generated/BodyLayout";
+import { systemSpawn } from "../../test/spawn";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -12,9 +14,12 @@ import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { geometryAdapterFor } from "../../lib/details/geometryAdapters";
 import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import {
+  ambientObjectView,
   bodyLayout,
   byId,
   megastructureTypeView,
+  offCentreMainStar,
+  orbitClasses,
   placedNode,
   planetClassView,
   planetSummary,
@@ -195,4 +200,35 @@ export function structuredSave(
 ): SystemContext {
   const ctx = save([SUN, EARTH, LUNA, MARS], { geometry: SAVE_GEOMETRY, ...over });
   return withStructures(ctx, rows, { types: SAVE_TYPES, levels: SAVE_LEVELS, stations });
+}
+
+/** An ambient object type drawn by its model, and one with none to draw. */
+export const DERELICT = ambientObjectView("derelict_ship_object", { name: "Derelict Ship" });
+export const STORM = ambientObjectView("storm_object", { name: "Ion Storm", portrait: null });
+
+/**
+ * Scenario system `id` whose main star, planet 2, stands off the centre, its own block placing
+ * `objects`, each of `DERELICT`'s or `STORM`'s type.
+ */
+export function ambientScene(
+  objects: readonly AmbientObject[],
+  over: Partial<SystemSources> = {},
+  id = SYSTEM,
+): SystemContext {
+  const system = offCentreMainStar({ id });
+  return systemContext({
+    ...sources,
+    ...scenarioNode("sc_g"),
+    id,
+    details: {
+      ...system,
+      with_game_data: true,
+      spawn: systemSpawn({ ambient_objects: [...objects] }),
+    },
+    planetClasses: orbitClasses(),
+    rolledLayout: SCENARIO_CAPABILITIES.rolled_layout,
+    geometry: geometryAdapterFor(SCENARIO_CAPABILITIES, id),
+    ambientObjectTypes: new Map([DERELICT, STORM].map((t) => [t.key, t])),
+    ...over,
+  });
 }

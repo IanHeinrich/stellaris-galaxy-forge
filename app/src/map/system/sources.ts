@@ -1,3 +1,4 @@
+import type { AmbientObjectView } from "../../generated/AmbientObjectView";
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { DocumentKind } from "../../generated/DocumentKind";
@@ -12,6 +13,7 @@ import type { SystemRadii } from "../../generated/SystemRadii";
 import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { documentCapabilities } from "../../lib/capabilities";
+import { ambientObjectsOf } from "../../lib/details/ambientObjects";
 import { VANILLA_BODY_SCALES, type BodyScales } from "../../lib/details/discs";
 import type { BypassKinds } from "../../lib/details/icons";
 import type { GeometryAdapter } from "../../lib/details/orbitIntent";
@@ -82,6 +84,8 @@ export interface SystemSources extends SceneSubject {
   readonly megastructureTypes: ReadonlyMap<string, MegastructureView>;
   /** Each starbase level the game data defines, for the model its station draws. */
   readonly starbaseLevels: ReadonlyMap<string, StarbaseLevelView>;
+  /** Each ambient object the game data defines, once read, for the model a placed one draws. */
+  readonly ambientObjectTypes: ReadonlyMap<string, AmbientObjectView>;
   /**
    * The system's bodies are rolled from its initializer, so a system listing none draws its star
    * class's stars.
@@ -109,6 +113,13 @@ export interface SystemSources extends SceneSubject {
   readonly lockedBodies: ReadonlySet<number>;
 }
 
+const NO_AMBIENT_OBJECT_TYPES: ReadonlyMap<string, AmbientObjectView> = new Map();
+
+/** Whether `details` list an ambient object of the system's own block, whose model is drawn. */
+function placesAmbientObjects(details: SystemDetails | null): boolean {
+  return ambientObjectsOf(details).some((o) => o.origin.from === "effect");
+}
+
 export const NO_SOURCES: SystemSources = Object.freeze({
   id: null,
   systems: new Map<number, SystemNode>(),
@@ -124,6 +135,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   bypassKinds: new Map(),
   megastructureTypes: new Map<string, MegastructureView>(),
   starbaseLevels: new Map<string, StarbaseLevelView>(),
+  ambientObjectTypes: NO_AMBIENT_OBJECT_TYPES,
   rolledLayout: false,
   gameDataReady: false,
   givenNames: new Map<number, GivenName>(),
@@ -163,6 +175,7 @@ export const sameSources = sameFields<SystemSources>({
   bypassKinds: true,
   megastructureTypes: true,
   starbaseLevels: true,
+  ambientObjectTypes: true,
   rolledLayout: true,
   gameDataReady: true,
   resourceIcons: true,
@@ -261,6 +274,7 @@ export const SOURCE_FOLLOWS: readonly SourceFollow[] = [
       (s) => s.bypasses,
       (s) => s.megastructureTypes,
       (s) => s.starbaseLevels,
+      (s) => s.ambientObjects,
     ],
     refresh,
   ),
@@ -291,6 +305,7 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     return text;
   };
   const read = subject.read(id);
+  if (ready && placesAmbientObjects(read.details)) void data.loadAmbientObjects();
   return Object.freeze({
     id,
     ...read,
@@ -305,6 +320,7 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     bypassKinds: data.bypasses,
     megastructureTypes: data.megastructureTypes,
     starbaseLevels: data.starbaseLevels,
+    ambientObjectTypes: data.ambientObjects ?? NO_AMBIENT_OBJECT_TYPES,
     rolledLayout: capabilities.rolled_layout,
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,

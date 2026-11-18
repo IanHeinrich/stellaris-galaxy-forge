@@ -17,7 +17,7 @@ use sgf_gamedata::scripts::{ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::special::SpecialSystem;
 use ts_rs::TS;
 
-/// What adding planets or megastructure rows answers with: the edit, and the planets and rows
+/// What adding planets, megastructure rows or ambient objects answers with: the edit, and what
 /// it created, in the order it wrote them, a planet before its moons.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -25,6 +25,7 @@ pub struct Added {
     pub edit: EditResult,
     pub planets: Vec<u32>,
     pub megastructures: Vec<u32>,
+    pub ambient_objects: Vec<u32>,
 }
 
 impl Added {
@@ -33,12 +34,14 @@ impl Added {
         let Created {
             planets,
             megastructures,
+            ambient_objects,
             ..
         } = std::mem::take(&mut result.created);
         Self {
             edit: session.edit_result(result),
             planets,
             megastructures,
+            ambient_objects,
         }
     }
 }

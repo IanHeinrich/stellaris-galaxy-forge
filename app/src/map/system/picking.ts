@@ -5,7 +5,7 @@ import { PICK_RADIUS_PX } from "../picking/zones";
 import { sameHandle, type HandleRef } from "./drag";
 import type { Exit, SceneBody, SceneHandle, SceneWormhole, SystemContext } from "./context";
 import type { SceneStructure, StructureKind } from "./structures";
-import { drawnDisc, drawnWormhole, exitCentre, landedModel } from "./geometry";
+import { drawnDisc, drawnWormhole, exitCentre, shownModel } from "./geometry";
 
 const centre: Pt = { x: 0, y: 0 };
 
@@ -96,8 +96,8 @@ export function pickExit(exits: readonly Exit[], cam: Camera, at: Pt): number | 
  * Whether the world point `at` falls in the ellipse inscribed in `s`'s landed model sprite, so
  * the empty corners round a round model leave what is under them pickable.
  */
-function onModel(s: SceneStructure, at: Pt): boolean {
-  const model = landedModel(s.modelKey, s.scale);
+function onModel(s: SceneStructure, at: Pt, cam: Camera): boolean {
+  const model = shownModel(s, cam.scale);
   if (model === null) return false;
   const { width, height, centre } = model;
   const right = (at.x - s.x) * SAVE_X_SIGN;
@@ -113,12 +113,16 @@ function pickable(s: SceneStructure): boolean {
 }
 
 /** The megastructure or starbase whose landed model sprite covers the world point `at`; the nearest point wins. */
-function structureOnModel(structures: readonly SceneStructure[], at: Pt): SceneStructure | null {
+function structureOnModel(
+  structures: readonly SceneStructure[],
+  cam: Camera,
+  at: Pt,
+): SceneStructure | null {
   let best: SceneStructure | null = null;
   let bestDistance = Infinity;
   for (const s of structures.filter(pickable)) {
     const distance = Math.hypot(s.x - at.x, s.y - at.y);
-    if (onModel(s, at) && distance < bestDistance) {
+    if (onModel(s, at, cam) && distance < bestDistance) {
       best = s;
       bestDistance = distance;
     }
@@ -147,7 +151,7 @@ export function pickStructure(
   let bestPx = Infinity;
   for (const s of structures.filter(pickable)) {
     const px = Math.hypot(s.x - at.x, s.y - at.y) * cam.scale;
-    if ((px <= PICK_RADIUS_PX || onModel(s, at)) && px < bestPx) {
+    if ((px <= PICK_RADIUS_PX || onModel(s, at, cam)) && px < bestPx) {
       best = s;
       bestPx = px;
     }
@@ -218,7 +222,7 @@ export function pickTarget(
     const exit = pickExit(ctx.exits, cam, at);
     return exit === null ? null : { kind: "exit", id: exit };
   };
-  const covering = structureOnModel(ctx.structures, at);
+  const covering = structureOnModel(ctx.structures, cam, at);
   if (covering !== null) {
     const under = onDisc(ctx.bodies, covering.on, cam, at) ? covering.on : null;
     const own: SceneTarget =

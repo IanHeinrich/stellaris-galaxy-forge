@@ -1,6 +1,7 @@
 import * as ipc from "../api/ipc";
 import { followModelPrewarm } from "./modelPrewarm";
 import { detailNameKeys } from "../lib/details/labels";
+import { placedObjectRows, placedRuinRows, renumberedPlaced } from "../lib/details/placedRows";
 import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual/layerGroups";
 import { documentCapabilities } from "../lib/capabilities";
 import { useDetailsStore } from "./detailsStore";
@@ -55,6 +56,7 @@ export function bindStores(): void {
   followMissedIssues();
   followDetails();
   followLocks();
+  followPlacedRows();
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
@@ -528,6 +530,25 @@ function followLocks(): void {
       for (const { id: body } of before.planets) {
         if (!kept.has(body)) scene.unlockBody(body);
       }
+    }
+  });
+}
+
+// A scenario's ruins and ambient objects are addressed by their place in their system's block, so an
+// edit that adds or takes one out, undo and redo included, can leave an open page on another row.
+function followPlacedRows(): void {
+  useDetailsStore.subscribe((state, previous) => {
+    if (state.details === previous.details) return;
+    const megastructures: number[] = [];
+    const ambientObjects: number[] = [];
+    for (const [id, before] of previous.details) {
+      const after = state.details.get(id);
+      if (after === undefined || after === before) continue;
+      megastructures.push(...renumberedPlaced(placedRuinRows(before), placedRuinRows(after)));
+      ambientObjects.push(...renumberedPlaced(placedObjectRows(before), placedObjectRows(after)));
+    }
+    if (megastructures.length > 0 || ambientObjects.length > 0) {
+      useInspectorStore.getState().dropPages({ megastructures, ambientObjects });
     }
   });
 }

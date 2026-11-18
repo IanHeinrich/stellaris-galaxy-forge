@@ -1,4 +1,10 @@
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
+import { ambientObjectName } from "../../lib/ambientObjectAdd";
+import {
+  ambientObjectPoint,
+  ambientObjectsOf,
+  mainStarPoint,
+} from "../../lib/details/ambientObjects";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { StarbaseSummary } from "../../generated/StarbaseSummary";
@@ -30,8 +36,11 @@ import {
 import type { SceneBody } from "./context";
 import type { SystemSources } from "./sources";
 
-/** What a structure the scene draws is: a megastructure row or a starbase, by its own id. */
-export type StructureKind = "megastructure" | "starbase";
+/**
+ * What a structure the scene draws is: a megastructure row, a starbase, or an ambient object a
+ * scenario system's own block places, by its own id.
+ */
+export type StructureKind = "megastructure" | "starbase" | "ambient_object";
 
 /** What a scenario leaves to chance about a megastructure or a starbase; a save leaves nothing. */
 export interface StructureChance {
@@ -86,7 +95,15 @@ export interface SceneStructure extends StructureArt, StructurePlate {
   readonly level: string | null;
   /** How a drag moves it, where the source may be edited; null for a starbase or a source that may not. */
   readonly move: MegastructureMove | null;
+  /** The fewest screen pixels across its model is drawn; 0 for one drawn at its own size alone. */
+  readonly minPx: number;
 }
+
+/**
+ * The fewest screen pixels across an ambient object's model is drawn: a derelict ship's model is a
+ * ship's size, a speck beside its plate at the zoom a system opens at, where a megastructure's fills it.
+ */
+export const AMBIENT_OBJECT_MIN_PX = 36;
 
 /** The fields of the system's sources its structures are drawn from. */
 export const STRUCTURE_KEYS = [
@@ -94,6 +111,7 @@ export const STRUCTURE_KEYS = [
   "roll",
   "megastructureTypes",
   "starbaseLevels",
+  "ambientObjectTypes",
   "names",
   "countries",
   "resourceIcons",
@@ -110,6 +128,8 @@ export interface StructureScene {
   readonly editing: SceneEditing;
   /** Where a drag or an edit it sent holds a megastructure, by its id. */
   readonly moved: LayoutOverride["megastructures"];
+  /** Where a drag or an edit it sent holds an ambient object, by its id. */
+  readonly movedObjects?: LayoutOverride["ambientObjects"];
 }
 
 const NOTHING: never[] = [];
@@ -287,6 +307,7 @@ function megastructure(
     plate,
     level: null,
     move: editing.megastructures ? megastructureMove(row, type, home) : null,
+    minPx: 0,
   };
 }
 
@@ -353,10 +374,63 @@ function starbase(
     plate,
     level: label,
     move: null,
+    minPx: 0,
   };
 }
 
-/** Each megastructure and starbase of the system. */
+/**
+ * Each ambient object the system's own block places at a point, drawn by its model where it has
+ * one and as a plain mark where not. What the initializer places, at random or at a body, is left
+ * undrawn: the game picks its spot.
+ */
+function ambientObjects({ src, base, editing, movedObjects }: StructureScene): SceneStructure[] {
+  const objects = ambientObjectsOf(src.details);
+  if (objects.length === 0) return NOTHING;
+  const star = mainStarPoint(base, src.details);
+  return objects.flatMap((object) => {
+    if (object.origin.from !== "effect") return [];
+    const id = object.origin.id;
+    const at = movedObjects?.get(id) ?? ambientObjectPoint(object, star);
+    if (at === null) return [];
+    const view = src.ambientObjectTypes.get(object.kind);
+    const art = stable(
+      keptArt,
+      object,
+      { modelKey: view?.portrait ?? null, iconKeys: NOTHING, chance: NO_STRUCTURE_CHANCE },
+      sameArt,
+    );
+    const plate = stable(
+      keptPlate,
+      object,
+      {
+        name: ambientObjectName(object.kind, src.ambientObjectTypes),
+        on: null,
+        resources: NOTHING,
+      },
+      samePlate,
+    );
+    return [
+      {
+        kind: "ambient_object",
+        id,
+        x: at.x,
+        y: at.y,
+        scale: 1,
+        ...art,
+        ...plate,
+        art,
+        plate,
+        level: null,
+        move: editing.ambientObjects.has(id) ? FREE : null,
+        minPx: AMBIENT_OBJECT_MIN_PX,
+      },
+    ];
+  });
+}
+
+const FREE: MegastructureMove = Object.freeze({ place: "free" });
+
+/** Each megastructure, starbase and placed ambient object of the system. */
 export function sceneStructures(scene: StructureScene): SceneStructure[] {
   const { details } = scene.src;
   if (details === null) return NOTHING;
@@ -364,6 +438,7 @@ export function sceneStructures(scene: StructureScene): SceneStructure[] {
   return [
     ...details.megastructures.map((row) => megastructure(scene, row, scene.moved?.get(row.id))),
     ...stations.map((station) => starbase(scene, station)),
+    ...ambientObjects(scene),
   ].filter((s): s is SceneStructure => s !== null);
 }
 

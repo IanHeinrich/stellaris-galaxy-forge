@@ -199,7 +199,7 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   dig_sites: false,
   add_megastructures: "ruins",
   place_structures: true,
-  ambient_objects: false,
+  ambient_objects: true,
   system_modifiers: false,
   rename_systems: true,
   header: true,

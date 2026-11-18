@@ -11,6 +11,7 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { KindCount } from "../generated/KindCount";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
+import type { AmbientObjectView } from "../generated/AmbientObjectView";
 import type { MegastructureView } from "../generated/MegastructureView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
@@ -102,6 +103,11 @@ export interface GameDataState {
   /** Every model a planet's page offers, read on first use; `null` until then. */
   planetModels: PlanetModelChoice[] | null;
   planetModelsPending: boolean;
+  /** Every ambient object by key, with its portrait, read on first use; `null` until then. */
+  ambientObjects: Map<string, AmbientObjectView> | null;
+  ambientObjectsPending: boolean;
+  /** Why the last read of the ambient objects failed; null before one fails and while one is out. */
+  ambientObjectsError: string | null;
   autoLoad: AutoLoad;
   startup: Startup;
   /** The load `start` kicked off, the one the start screen covers. */
@@ -151,6 +157,8 @@ export interface GameDataState {
   loadGalaxyShapes(): Promise<void>;
   /** Reads the planet models once per loaded game data; a no-op without it. */
   loadPlanetModels(): Promise<void>;
+  /** Reads the ambient objects once per loaded game data; a no-op without it. */
+  loadAmbientObjects(): Promise<void>;
   /** Re-classifies the open save's systems; a no-op without an open save, or once `alive` says no. */
   refreshSpecial(alive?: () => boolean): Promise<void>;
   /** Re-reads the scenario's scripted ownership and bypasses; a no-op without a document. */
@@ -199,6 +207,9 @@ const UNLOADED = {
   galaxyShapesPending: false,
   planetModels: null as PlanetModelChoice[] | null,
   planetModelsPending: false,
+  ambientObjects: null as Map<string, AmbientObjectView> | null,
+  ambientObjectsPending: false,
+  ambientObjectsError: null as string | null,
   scenarioOwners: null as ScenarioOwners | null,
   scenarioOwnersPending: false,
   scenarioBypasses: null as ScenarioBypasses | null,
@@ -218,6 +229,9 @@ const FRESH_DATA = {
   galaxyShapesPending: false,
   planetModels: null,
   planetModelsPending: false,
+  ambientObjects: null,
+  ambientObjectsPending: false,
+  ambientObjectsError: null,
 };
 
 /** The registry a scenario saved into `map/setup_scenarios` rebuilds, which only the galaxy reads. */
@@ -442,6 +456,15 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
     return readOnce("planetModels", ipc.getPlanetModels, (planetModels) => ({ planetModels }));
   },
 
+  loadAmbientObjects() {
+    return readOnce(
+      "ambientObjects",
+      ipc.getAmbientObjectTypes,
+      (views) => ({ ambientObjects: new Map(views.map((v) => [v.key, v])) }),
+      (ambientObjectsError) => ({ ambientObjectsError }),
+    );
+  },
+
   ...documentActions(set, get),
   ...nameActions(set, get),
 
@@ -471,24 +494,27 @@ export function useGameTexts(
 }
 
 /** The lists the game data reads on first use. */
-type FirstUse = "initializers" | "galaxyShapes" | "planetModels";
+type FirstUse = "initializers" | "galaxyShapes" | "planetModels" | "ambientObjects";
 
 /** Marks each list's first read as out or back. */
 const PENDING: Record<FirstUse, (pending: boolean) => Partial<GameDataState>> = {
   initializers: (initializersPending) => ({ initializersPending }),
   galaxyShapes: (galaxyShapesPending) => ({ galaxyShapesPending }),
   planetModels: (planetModelsPending) => ({ planetModelsPending }),
+  ambientObjects: (ambientObjectsPending) => ({ ambientObjectsPending }),
 };
 
 /**
- * Reads `list` once for the game data loaded now, and lands it with `land`. A reply that comes
- * back after the game data was reloaded, rebuilt or unloaded is dropped: whatever moved it on has
- * already put the list back to unread.
+ * Reads `list` once for the game data loaded now, and lands it with `land`; a failure lands its
+ * message with `failed` too, where given, which takes null when the list is asked again. A reply that comes back after
+ * the game data was reloaded, rebuilt or unloaded is dropped: whatever moved it on has already put
+ * the list back to unread.
  */
 async function readOnce<T>(
   list: FirstUse,
   read: () => Promise<T>,
   land: (value: T) => Partial<GameDataState>,
+  failed?: (message: string | null) => Partial<GameDataState>,
 ): Promise<void> {
   const store = useGameDataStore;
   const asked = store.getState();
@@ -497,12 +523,13 @@ async function readOnce<T>(
     const now = store.getState();
     return now.version === asked.version && now.status === "ready";
   };
-  store.setState(PENDING[list](true));
+  store.setState({ ...PENDING[list](true), ...failed?.(null) });
   try {
     const value = await read();
     if (current()) store.setState({ ...PENDING[list](false), ...land(value) });
   } catch (e) {
-    if (current()) store.setState({ ...PENDING[list](false), error: ipc.errorMessage(e) });
+    const error = ipc.errorMessage(e);
+    if (current()) store.setState({ ...PENDING[list](false), error, ...failed?.(error) });
   }
 }
 
