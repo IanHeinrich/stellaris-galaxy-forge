@@ -138,24 +138,32 @@ with 1 if one is an error. `apply`, `prepare`, `nebula`,
 
 ## Limits
 
-- Galaxy Forge doesn't edit initializers. It reads them and opens them
-  in your text editor at their line.
-- Nothing jumps to the line of a system you pick on the map.
-- `coordinate_transform` isn't applied. Systems show at the positions
-  the file writes, with an issue, and a move writes file coordinates.
-- A position written with an `@variable` shows at 0, and no issue says
-  so.
-- A position written as a `min`/`max` range shows at its middle, with an
-  issue. Moving the system sets a single value.
-- `remove_hyperlane` isn't read.
-- Duplicate system ids and unknown initializer names raise no issue.
-  CWTools or the game's error log finds them.
-- A new scenario, and a file that Galaxy Forge or Paint a Galaxy made,
-  starts with a `# created by` comment line. There is no setting to
-  leave it out.
-- Galaxy Forge doesn't stop you saving into a Steam Workshop folder.
-  Steam replaces those files each time the mod updates, so work on your
-  own copy.
+Galaxy Forge doesn't edit initializers yet. You still write them in your
+text editor, and Galaxy Forge can open each one at the right line.
+
+A few things in a scenario file aren't fully understood yet:
+
+- If the file uses `coordinate_transform`, the map shows each system
+  where the file puts it, before the transform. Moving a system writes
+  a plain position.
+- If a position uses an `@variable`, Galaxy Forge reads it as 0.
+- If a position is a `min`/`max` range, the system shows halfway between
+  the two. Moving it replaces the range with a single position.
+- `remove_hyperlane` lines are ignored.
+
+The [Issues tab](../safety/issues.md) warns you about broken lanes and
+similar mistakes. It doesn't check for two systems with the same id, or
+for initializer names that don't exist. CWTools or the game's error log
+catches those.
+
+A few other things to know:
+
+- You can't jump from a system on the map to its line in the file.
+- New scenarios, and files made by Galaxy Forge or Paint a Galaxy,
+  start with a `# created by` comment. There's no way to turn it off.
+- Galaxy Forge lets you save into a Steam Workshop folder, but Steam
+  overwrites those files whenever the mod updates. Work on your own copy
+  instead.
 
 ## What's planned
 
