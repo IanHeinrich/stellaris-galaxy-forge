@@ -353,4 +353,28 @@ describe("the systems the core reports stale", () => {
       ]);
     },
   );
+
+  it("keeps the class picked on a rolled planet, and its page, after an ambient object goes in its system", async () => {
+    pickToxic();
+    const page = { ref: { kind: "body", system: 1, id: 10 }, label: "Planet" } as const;
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 1 }, label: "Alpha" });
+    useInspectorStore.getState().open(page);
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1], keeps_bodies: true }));
+
+    await editor().applyOp({
+      type: "AddAmbientObject",
+      system: 1,
+      kind: "derelict_ship_object",
+      x: 0,
+      y: 30,
+    });
+
+    expect(useInspectorStore.getState().classPicks).toEqual({
+      [classPickKey(1, 10)]: "pc_toxic",
+      [classPickKey(2, 20)]: "pc_toxic",
+    });
+    expect(useClassRollsStore.getState().answers.has(classRollsKey(1, 10, "pc_toxic"))).toBe(true);
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1].ref).toEqual(page.ref);
+  });
 });

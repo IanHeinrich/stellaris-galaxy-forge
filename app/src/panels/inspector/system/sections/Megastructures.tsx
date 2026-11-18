@@ -6,6 +6,7 @@ import {
   megastructurePageNeeds,
   NO_MEGASTRUCTURES,
   originMark,
+  originOf,
 } from "../../../../lib/details/placedRows";
 import { documentCapabilities, supports } from "../../../../lib/capabilities";
 import { templateName } from "../../../../lib/names";
@@ -35,7 +36,8 @@ function MegastructureRowView({
       ? undefined
       : s.details.get(system)?.planets.find((p) => p.id === megastructure.planet),
   );
-  const needs = megastructurePageNeeds(megastructure.origin);
+  const origin = originOf(megastructure);
+  const needs = megastructurePageNeeds(origin);
   const opens = useFileSessionStore(
     (s) => needs !== null && supports(documentCapabilities(s), needs),
   );
@@ -43,7 +45,7 @@ function MegastructureRowView({
   const name = names.get(megastructure.kind) ?? parsed.name;
   const gateway = isGatewayMegastructure(megastructure.kind);
   const state = gateway ? (gatewayActive(bypasses, system) ? "active" : "inactive") : parsed.state;
-  const mark = originMark(megastructure.origin, opens);
+  const mark = originMark(origin, opens);
   return (
     <DrillRow
       requires={needs ?? undefined}

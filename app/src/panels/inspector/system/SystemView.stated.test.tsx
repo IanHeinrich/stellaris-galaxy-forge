@@ -240,8 +240,7 @@ describe("a fixed scenario system", () => {
       {
         kind: "large_debris",
         place: { place: "body", body: 100 },
-        id: null,
-        origin: "initializer",
+        origin: { from: "initializer" },
       },
     ],
     max_instances: 1,

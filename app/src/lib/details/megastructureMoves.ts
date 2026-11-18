@@ -1,12 +1,14 @@
 /**
- * How a save's megastructure moves in the system view: to a point of its own, onto another body
- * of its system, or not at all, and why a body will not take it. The core refuses the rest.
+ * How a megastructure moves in the system view: a save's to a point of its own, onto another body
+ * of its system, or not at all; a scenario's own ruin at a point to another point, and every other
+ * scenario row not at all. Also why a body will not take a row. The core refuses the rest.
  */
 import { MEGASTRUCTURE_BYPASS_KINDS } from "../../generated/constants";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
+import { originOf } from "./placedRows";
 import { isRingRow } from "./ringWorldRemoval";
 
 /** The bypass kinds a moved row may stand for, as the core moves them. */
@@ -76,9 +78,10 @@ export function megastructureMove(
   type: MegastructureView | undefined,
   home: HomeBody = { star: false },
 ): MegastructureMove {
-  if (row.origin === "initializer") return fixed("initializer");
-  if (row.origin === "read_only") return fixed("file");
-  if (row.origin === "editable" && row.planet !== null) return fixed("onStar");
+  const origin = originOf(row);
+  if (origin?.from === "initializer") return fixed("initializer");
+  if (origin?.from === "effect" && !origin.editable) return fixed("file");
+  if (origin?.from === "effect" && row.planet !== null) return fixed("onStar");
   const known = type === undefined ? undefined : new Map([[row.kind, type]]);
   if (isRingRow(row.kind, known)) return fixed("ringWorld");
   const bypass = type?.bypass_type ?? null;

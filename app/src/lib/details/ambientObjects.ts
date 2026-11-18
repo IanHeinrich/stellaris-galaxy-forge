@@ -16,7 +16,10 @@ export function ambientObjectsOf(
   return details?.spawn?.ambient_objects ?? [];
 }
 
-/** Where the system's main star, its details' first body, is drawn; the centre without one. */
+/**
+ * Where the system's main star, the body its details give the primary role, is drawn; the centre
+ * without one.
+ */
 export function mainStarPoint(layout: SystemLayout, details: SystemDetails | null): Point {
   const id = details?.planets.find((p) => p.role === "primary")?.id;
   const star = layout.bodies.find((b) => b.id === id);

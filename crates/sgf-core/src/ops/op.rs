@@ -1188,7 +1188,7 @@ impl Op {
     /// details it stales, whether it reclassifies, whether it needs a 4.x save and whether it
     /// takes a second step.
     pub fn reach(&self) -> OpReach {
-        use DetailsReach::{Bodies, InPlace, Rebuild, SaveBodies};
+        use DetailsReach::{Bodies, InPlace, Placements, Rebuild, SaveBodies};
         match self {
             Self::MoveSystem { .. }
             | Self::AddLane { .. }
@@ -1272,7 +1272,7 @@ impl Op {
             // A megastructure written back stands in its system's details, though no body
             // of the system is rewritten, and so does what a scenario's effect block places.
             Self::RestoreEntities { .. } => OpReach::of(BOTH)
-                .details(Rebuild)
+                .details(Placements)
                 .whole_entries()
                 .inverse_only(),
             Self::AddWormholePair { .. }
@@ -1302,12 +1302,14 @@ impl Op {
             // A scenario's details list what its effect block places.
             Self::AddMegastructure { .. }
             | Self::RemoveMegastructure { .. }
-            | Self::MoveMegastructure { .. } => OpReach::of(BOTH).details(Rebuild).whole_entries(),
+            | Self::MoveMegastructure { .. } => {
+                OpReach::of(BOTH).details(Placements).whole_entries()
+            }
             Self::AddAmbientObject { .. }
             | Self::MoveAmbientObject { .. }
             | Self::RemoveAmbientObject { .. }
             | Self::AddSystemModifier { .. }
-            | Self::RemoveSystemModifier { .. } => OpReach::of(SCENARIO).details(Rebuild),
+            | Self::RemoveSystemModifier { .. } => OpReach::of(SCENARIO).details(Placements),
             Self::SetWormholePair { .. } | Self::SetWormholeEnds { .. } => {
                 OpReach::of(SCENARIO).reclassifies()
             }
@@ -1477,6 +1479,10 @@ pub enum DetailsReach {
     SaveBodies,
     /// Every system it rewrote, with the projection built again.
     Rebuild,
+    /// [`Self::Rebuild`] in a save. In a scenario, every system it rewrote, whose bodies stand
+    /// as they were: the op writes only what the system's `effect` block places, so what the
+    /// app holds of the bodies the initializer rolls stays.
+    Placements,
 }
 
 impl DetailsReach {

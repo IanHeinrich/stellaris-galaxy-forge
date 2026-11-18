@@ -1,3 +1,4 @@
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRadii } from "../../generated/SystemRadii";
@@ -22,6 +23,8 @@ export interface GeometryInputs {
   planetClasses: ReadonlyMap<string, PlanetClassView>;
   scales: BodyScales;
   radii: SystemRadii;
+  /** What the install says of each megastructure type, by key. */
+  megastructureTypes: ReadonlyMap<string, MegastructureView>;
   /** The adapter that edits it. */
   adapter: GeometryAdapter;
 }
@@ -34,9 +37,9 @@ const edited = new WeakMap<SystemLayout, Map<GeometryAdapter, Map<SystemRadii, S
 
 /** The layout `inputs` give, what of it their adapter lets be edited, and the frame it edits in. */
 export function geometryOf(inputs: GeometryInputs): SystemGeometry {
-  const { details, roll, planetClasses, scales, radii, adapter } = inputs;
+  const { details, roll, planetClasses, scales, radii, megastructureTypes, adapter } = inputs;
   const layout = systemLayout(details, roll, planetClasses, scales);
-  const frame = { layout, details, planetClasses, radii };
+  const frame = { layout, details, planetClasses, radii, megastructureTypes };
   let byAdapter = edited.get(layout);
   if (!byAdapter) edited.set(layout, (byAdapter = new Map()));
   let byRadii = byAdapter.get(adapter);

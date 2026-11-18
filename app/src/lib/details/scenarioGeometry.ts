@@ -19,14 +19,16 @@ import {
   type SceneEditing,
 } from "./orbitIntent";
 import { near } from "./orbits";
+import { editableId } from "./placedRows";
 import { layoutPreview, megastructureOp, NOTHING_EDITABLE } from "./saveGeometry";
 
 /** The ruins and ambient objects of the scenario's own block that may be dragged. */
 function structureEditing(frame: GeometryFrame): SceneEditing {
   if (frame.details === null) return NOTHING_EDITABLE;
-  const movable = ambientObjectsOf(frame.details).flatMap((o) =>
-    o.id !== null && o.origin === "editable" && o.place.place === "point" ? [o.id] : [],
-  );
+  const movable = ambientObjectsOf(frame.details).flatMap((o) => {
+    const id = editableId(o.origin);
+    return id !== null && o.place.place === "point" ? [id] : [];
+  });
   return { ...NOTHING_EDITABLE, megastructures: true, ambientObjects: new Set(movable) };
 }
 
@@ -36,7 +38,7 @@ function ruinOp(
 ): GeometryOp {
   const row = frame.details?.megastructures.find((m) => m.id === intent.megastructure);
   if (!row) return { refused: GEOMETRY_REASONS.megastructureElsewhere };
-  const move = megastructureMove(row, undefined);
+  const move = megastructureMove(row, frame.megastructureTypes.get(row.kind));
   if (move.place === "fixed") return { refused: move.why };
   return megastructureOp(intent, frame);
 }
@@ -45,18 +47,20 @@ function ambientObjectOp(
   intent: Extract<GeometryIntent, { kind: "moveAmbientObject" }>,
   frame: GeometryFrame,
 ): GeometryOp {
-  const object = ambientObjectsOf(frame.details).find((o) => o.id === intent.ambientObject);
-  if (!object || object.id === null) return { refused: GEOMETRY_REASONS.ambientObjectElsewhere };
-  if (object.origin === "initializer") return { refused: MEGASTRUCTURE_FIXED.initializer };
+  const object = ambientObjectsOf(frame.details).find(
+    (o) => o.origin.from === "effect" && o.origin.id === intent.ambientObject,
+  );
+  if (!object) return { refused: GEOMETRY_REASONS.ambientObjectElsewhere };
+  const id = editableId(object.origin);
   const star = mainStarPoint(frame.layout, frame.details);
   const at = ambientObjectPoint(object, star);
-  if (object.origin !== "editable" || at === null) return { refused: MEGASTRUCTURE_FIXED.file };
+  if (id === null || at === null) return { refused: MEGASTRUCTURE_FIXED.file };
   if (!(Number.isFinite(intent.x) && Number.isFinite(intent.y))) {
     return { refused: GEOMETRY_REASONS.notANumber };
   }
   if (near(at.x, intent.x) && near(at.y, intent.y)) return null;
   const { x, y } = aboutMainStar(intent, star);
-  return { op: { type: "MoveAmbientObject", ambient_object: object.id, x, y } };
+  return { op: { type: "MoveAmbientObject", ambient_object: id, x, y } };
 }
 
 function structureOp(intent: GeometryIntent, frame: GeometryFrame): GeometryOp {

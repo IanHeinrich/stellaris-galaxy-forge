@@ -11,7 +11,14 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { polar } from "../lib/details/orbits";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
-import { megastructureSummary, orbitSystem, saveBody } from "../test/builders";
+import type { AmbientObject } from "../generated/AmbientObject";
+import {
+  megastructureSummary,
+  orbitSystem,
+  rowOrigin,
+  saveBody,
+  structureSpawn,
+} from "../test/builders";
 import { systemSpawn } from "../test/spawn";
 import { MEGASTRUCTURE_FIXED } from "../lib/details/megastructureMoves";
 import { SCENARIO_CAPABILITIES } from "../lib/capabilities";
@@ -180,36 +187,40 @@ describe("a scenario's own structures, with placing them switched on", () => {
       role: p.id === 2 ? ("primary" as const) : p.role === "primary" ? ("star" as const) : p.role,
     }));
     const megastructures = [
-      megastructureSummary({ id: RUIN, kind: "gateway_ruined", at: [-100, 0], origin: "editable" }),
+      megastructureSummary({
+        id: RUIN,
+        kind: "gateway_ruined",
+        at: [-100, 0],
+        spawn: structureSpawn(rowOrigin(RUIN)),
+      }),
       megastructureSummary({
         id: ON_STAR,
         kind: "mega_shipyard_ruined",
         planet: STAR,
         at: [0, 0],
-        origin: "editable",
+        spawn: structureSpawn(rowOrigin(ON_STAR)),
       }),
       megastructureSummary({
         id: FROM_FILE,
         kind: "gateway_ruined",
         at: [0, 90],
-        origin: "read_only",
+        spawn: structureSpawn(rowOrigin(FROM_FILE, false)),
       }),
       megastructureSummary({
         id: INITIALIZER_ROW,
         kind: "gateway_ruined",
         at: [0, -90],
-        origin: "initializer",
+        spawn: structureSpawn(rowOrigin(null)),
       }),
     ];
-    const ambient_objects = [
+    const ambient_objects: AmbientObject[] = [
       {
         kind: "derelict_ship_object",
         place: { place: "point", x: 0, y: 30 },
-        id: OBJECT,
-        origin: "editable",
+        origin: rowOrigin(OBJECT),
       },
-      { kind: "debris_object", place: { place: "random" }, id: FIXED_OBJECT, origin: "read_only" },
-    ] as const;
+      { kind: "debris_object", place: { place: "random" }, origin: rowOrigin(FIXED_OBJECT, false) },
+    ];
     useDetailsStore.setState({
       details: new Map([
         [
@@ -218,7 +229,7 @@ describe("a scenario's own structures, with placing them switched on", () => {
             ...sol,
             planets,
             megastructures,
-            spawn: systemSpawn({ ambient_objects: [...ambient_objects] }),
+            spawn: systemSpawn({ ambient_objects }),
           },
         ],
       ]),

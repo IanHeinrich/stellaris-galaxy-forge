@@ -15,6 +15,8 @@ import { bindStores } from "../../../store/bindStores";
 import { editResult } from "../../../store/fixture";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { drawnBy, drawnField } from "../../../test/drawn";
+import { useGameDataStore } from "../../../store/gameDataStore";
+import { rowOrigin, structureSpawn } from "../../../test/builders";
 import { mockedIpc } from "../../../test/ipc";
 import { TextField } from "../../EditField";
 import { details, land, open, resetStores, SYSTEM } from "../inspectorFixture";
@@ -131,16 +133,18 @@ describe("a megastructure at a point of its own", () => {
             id: GATE,
             kind: "gateway_ruined",
             at: [-100, 0],
-            origin: "editable",
+            spawn: structureSpawn(rowOrigin(GATE)),
           }),
         ],
       }),
     );
+    useGameDataStore.setState({ names: new Map([["gateway_ruined", "Ruined Gateway"]]) });
     const entry = megastructureEntry(GATE, "Disabled Gateway");
     useInspectorStore.setState({ stack: [entry], tab: "overview" });
     const html = renderToStaticMarkup(<MegastructureView entry={entry} />);
     expect(html).toContain("Megastructure in");
-    expect(html).toContain("gateway_ruined");
+    expect(html).toContain("Ruined Gateway");
+    expect(html).not.toContain("gateway_ruined");
     expect(html).toMatch(/aria-label="Distance"[^>]*value="100"/);
     expect(html).not.toContain("Delete megastructure");
     expect(mockedIpc.getEntity).not.toHaveBeenCalled();

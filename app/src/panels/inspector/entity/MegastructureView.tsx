@@ -1,10 +1,12 @@
 import { documentCapabilities } from "../../../lib/capabilities";
 import { MEGASTRUCTURE_ICON_KEY } from "../../../lib/details/icons";
+import { megastructureName } from "../../../lib/details/labels";
 import { systemOfMegastructure } from "../../../lib/details/megastructureRemoval";
 import { openSystem } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { Icon } from "../../parts";
 import { Empty, LinkRow, Properties, PropertyRow } from "../parts";
@@ -44,6 +46,7 @@ function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
     system === null ? undefined : s.details.get(system)?.megastructures.find((m) => m.id === id),
   );
   const systemName = useGalaxyStore((s) => s.systemName);
+  const names = useGameDataStore((s) => s.names);
   const head = (
     <div className="ins-head">
       <Icon className="gi" keys={[MEGASTRUCTURE_ICON_KEY]} glyph="◈" />
@@ -65,7 +68,7 @@ function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
       <MegastructurePosition id={id} />
       <div className="edit-block-title ins-about">About</div>
       <Properties>
-        <PropertyRow label="Type">{row.kind}</PropertyRow>
+        <PropertyRow label="Type">{megastructureName(row.kind, names)}</PropertyRow>
         <LinkRow label="System" title="Open the system's page" onOpen={() => openSystem(system)}>
           {systemName(system)}
         </LinkRow>

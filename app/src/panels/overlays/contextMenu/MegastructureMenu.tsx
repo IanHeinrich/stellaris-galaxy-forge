@@ -2,7 +2,7 @@ import type { MegastructureSummary } from "../../../generated/MegastructureSumma
 import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { megastructureName } from "../../../lib/details/labels";
 import { snapBody, snapLabel } from "../../../lib/details/megastructureMoves";
-import { capabilityFor } from "../../../lib/entities";
+import { megastructurePageNeeds, originOf } from "../../../lib/details/placedRows";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -34,8 +34,9 @@ export function MegastructureMenu({
   );
   const names = useGameDataStore((s) => s.names);
   const removable = useFileSessionStore((s) => documentCapabilities(s).remove_megastructures);
-  const paged = useFileSessionStore((s) =>
-    supports(documentCapabilities(s), capabilityFor("megastructure")),
+  const needs = megastructurePageNeeds(row === undefined ? undefined : originOf(row));
+  const paged = useFileSessionStore(
+    (s) => needs !== null && supports(documentCapabilities(s), needs),
   );
   const name = row === undefined ? undefined : megastructureName(row.kind, names);
   const inspect = () => {

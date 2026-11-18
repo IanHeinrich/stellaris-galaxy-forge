@@ -38,7 +38,13 @@ export const ASTEROID = 6;
 export function frameOf(details: SystemDetails = orbitSystem()): GeometryFrame {
   const planetClasses = orbitClasses();
   const layout = systemLayout(details, null, planetClasses, VANILLA_BODY_SCALES);
-  return { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
+  return {
+    layout,
+    details,
+    planetClasses,
+    radii: VANILLA_SYSTEM_RADII,
+    megastructureTypes: new Map(),
+  };
 }
 
 export const op = (intent: GeometryIntent, frame = frameOf()) => SAVE_GEOMETRY.op(intent, frame);

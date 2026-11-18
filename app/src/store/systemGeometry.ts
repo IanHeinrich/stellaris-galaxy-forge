@@ -29,6 +29,7 @@ export function systemGeometry(system: number | null): SystemGeometry {
     planetClasses: data.planetClasses,
     scales: bodyScalesOf(data),
     radii: systemRadiiOf(data),
+    megastructureTypes: data.megastructureTypes,
     adapter: geometryAdapterFor(documentCapabilities(session), system),
   });
 }
@@ -42,9 +43,10 @@ export function useSystemGeometry(system: number | null): SystemGeometry {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const scales = useGameDataStore(bodyScalesOf);
   const radii = useGameDataStore(systemRadiiOf);
+  const megastructureTypes = useGameDataStore((s) => s.megastructureTypes);
   const capabilities = useFileSessionStore(documentCapabilities);
   const adapter = geometryAdapterFor(capabilities, system);
-  return geometryOf({ details, roll, planetClasses, scales, radii, adapter });
+  return geometryOf({ details, roll, planetClasses, scales, radii, megastructureTypes, adapter });
 }
 
 /** How long an edit waits for its system's fresh details before the next one builds anyway. */

@@ -564,6 +564,11 @@ pub struct EditResult {
     pub dirty: bool,
     /// Systems whose planets, stations or fleets changed, so their details are stale.
     pub details_stale: Vec<u32>,
+    /// The bodies of [`Self::details_stale`] stand as they were, so their pages and what
+    /// they roll stay.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(optional, as = "Option<bool>")]
+    pub keeps_bodies: bool,
     /// The entities the op rewrote, for the inspector's changed-row badges.
     pub touched_entities: Vec<EntityAddr>,
     /// Whether the classification of the systems the op touched, and the territory the

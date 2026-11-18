@@ -37,9 +37,12 @@ import {
   orbitClasses,
   orbitSystem,
   planetPage,
+  rowOrigin,
   saveBody,
   solWithBelt,
+  structureSpawn,
 } from "../../test/builders";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { ContextMenu } from "./ContextMenu";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
@@ -255,6 +258,25 @@ describe("a megastructure in the system view", () => {
     expect(useInspectorStore.getState().stack.map((e) => e.ref.kind)).not.toContain(
       "megastructure",
     );
+  });
+
+  it("inspects a scenario's own ruin where the scenario places structures, and no other row", () => {
+    const ruin = (editable: boolean) =>
+      megastructureSummary({
+        id: 6,
+        kind: "gateway_ruined",
+        spawn: structureSpawn(rowOrigin(6, editable)),
+      });
+    useFileSessionStore.setState({
+      capabilities: { ...SCENARIO_CAPABILITIES, place_structures: true },
+    });
+    inSystem(systemDetails({ id: 0, megastructures: [ruin(false)] }));
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+    expect(menu()).not.toContain(">Inspect<");
+
+    inSystem(systemDetails({ id: 0, megastructures: [ruin(true)] }));
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+    expect(menu()).toContain(">Inspect<");
   });
 
   it("greys Delete out with the core's reason", async () => {

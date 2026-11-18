@@ -10,9 +10,4 @@ export type AmbientObject = {
 /**
  * Its `type`.
  */
-kind: string, place: AmbientPlace, 
-/**
- * The id the ops address it by: set for one of the scenario's `effect` block, `None` for
- * an initializer's.
- */
-id: number | null, origin: RowOrigin, };
+kind: string, place: AmbientPlace, origin: RowOrigin, };

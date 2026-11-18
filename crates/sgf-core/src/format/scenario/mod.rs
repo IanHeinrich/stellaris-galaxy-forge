@@ -265,6 +265,12 @@ impl Format for Scenario {
         }
     }
 
+    /// An op that writes only what an `effect` block places leaves the initializer's bodies
+    /// alone.
+    fn keeps_bodies(&self, reach: DetailsReach) -> bool {
+        reach == DetailsReach::Placements
+    }
+
     fn capabilities(&self, _doc: &Document) -> Capabilities {
         Capabilities {
             empires: true,

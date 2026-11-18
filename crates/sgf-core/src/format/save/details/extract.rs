@@ -442,7 +442,6 @@ pub(super) fn megastructures(
                 None => false,
             },
             spawn: None,
-            origin: None,
         });
     }
     Ok(())

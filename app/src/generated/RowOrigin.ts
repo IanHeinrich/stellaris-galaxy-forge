@@ -3,4 +3,4 @@
 /**
  * Where a row of a scenario system's Megastructures or Ambient objects comes from.
  */
-export type RowOrigin = "initializer" | "editable" | "read_only";
+export type RowOrigin = { "from": "initializer" } | { "from": "effect", id: number, editable: boolean, };

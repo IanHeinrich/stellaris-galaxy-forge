@@ -183,8 +183,23 @@ fn an_inverse_only_op_is_refused_from_outside() {
     assert!(!refused.is_empty(), "some row is only an inverse");
 }
 
+/// The ops that write only what a scenario system's `effect` block places: in a scenario, the
+/// systems they stale keep their bodies, so the app keeps its body pages and picks.
+const EFFECT_BLOCK_OPS: [&str; 9] = [
+    "AddMegastructure",
+    "MoveMegastructure",
+    "RemoveMegastructure",
+    "RestoreEntities",
+    "AddAmbientObject",
+    "MoveAmbientObject",
+    "RemoveAmbientObject",
+    "AddSystemModifier",
+    "RemoveSystemModifier",
+];
+
 /// An op that rereads a save's details in place keeps them built, and they equal a fresh
-/// build after its apply. Undo and redo stale the systems the apply did, and read back the
+/// build after its apply. An op that writes only a scenario system's `effect` block keeps
+/// that system's bodies. Undo and redo stale the systems the apply did, and read back the
 /// details from before and after it.
 #[test]
 fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come_from() {
@@ -212,7 +227,8 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
         })
         .chain([(examples::scenario(), renamed_in_a_batch)]);
     for (session, op) in cases {
-        let name = format!("{} on a {:?}", op.name(), session.kind());
+        let op_name = op.name();
+        let name = format!("{op_name} on a {:?}", session.kind());
         let in_place =
             session.kind() == DocumentKind::Save && op.reach().details == DetailsReach::InPlace;
         let mut session = common::warm(session);
@@ -243,6 +259,10 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
             changed.into_iter().collect::<Vec<_>>(),
             "{name}: details stale"
         );
+        let keeps = session.kind() == DocumentKind::Scenario
+            && EFFECT_BLOCK_OPS.contains(&op_name)
+            && !result.details_stale.is_empty();
+        assert_eq!(result.keeps_bodies, keeps, "{name}: keeps bodies");
         let reclassified = every_id(&before, session.graph())
             .into_iter()
             .any(|id| classification(&before, id) != classification(session.graph(), id));
@@ -254,6 +274,10 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
         );
         assert_eq!(
             edit.reclassifies, result.reclassifies,
+            "{name}: reaches the app"
+        );
+        assert_eq!(
+            edit.keeps_bodies, result.keeps_bodies,
             "{name}: reaches the app"
         );
         if in_place {

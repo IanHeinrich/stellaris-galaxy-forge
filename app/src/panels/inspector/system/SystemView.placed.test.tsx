@@ -18,7 +18,7 @@ import {
 import { bindStores } from "../../../store/bindStores";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { megastructureSummary } from "../../../test/builders";
+import { megastructureSummary, rowOrigin, structureSpawn } from "../../../test/builders";
 import { systemSpawn } from "../../../test/spawn";
 import { details, land, open, overview, resetStores, sections } from "../inspectorFixture";
 
@@ -42,12 +42,14 @@ function switchOn(...on: (keyof Capabilities)[]): void {
   });
 }
 
+/** A ruin's spawn from the block's row `id`, or from the initializer for null. */
+const spawnFrom = (id: number | null, editable = true) => structureSpawn(rowOrigin(id, editable));
+
 function object(over: Partial<AmbientObject>): AmbientObject {
   return {
     kind: "derelict_ship_object",
     place: { place: "random" },
-    id: null,
-    origin: "initializer",
+    origin: rowOrigin(null),
     ...over,
   };
 }
@@ -105,18 +107,17 @@ describe("the Megastructures and Ambient objects sections", () => {
     await land(
       details({
         megastructures: [
-          megastructureSummary({ id: 50, kind: "fx_sphere", origin: "initializer" }),
-          megastructureSummary({ id: 51, kind: "fx_gate", origin: "read_only" }),
-          megastructureSummary({ id: 52, kind: "fx_yard", origin: "editable" }),
+          megastructureSummary({ id: 50, kind: "fx_sphere", spawn: spawnFrom(null) }),
+          megastructureSummary({ id: 51, kind: "fx_gate", spawn: spawnFrom(51, false) }),
+          megastructureSummary({ id: 52, kind: "fx_yard", spawn: spawnFrom(52) }),
         ],
         spawn: systemSpawn({
           ambient_objects: [
             object({ kind: "large_debris_object" }),
             object({
               kind: "abandoned_ship_object",
-              id: 60,
               place: { place: "point", x: 0, y: 30 },
-              origin: "editable",
+              origin: rowOrigin(60),
             }),
           ],
         }),

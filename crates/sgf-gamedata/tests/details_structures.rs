@@ -553,14 +553,8 @@ const EFFECT: &str = "static_galaxy_scenario = {
 }
 ";
 
-/// A ruin row as the effect test reads it: its id, type, body, point and origin.
-type Ruin<'a> = (
-    u32,
-    &'a str,
-    Option<u32>,
-    Option<(f64, f64)>,
-    Option<RowOrigin>,
-);
+/// A ruin row as the effect test reads it: its type, body, point and origin.
+type Ruin<'a> = (&'a str, Option<u32>, Option<(f64, f64)>, RowOrigin);
 
 #[test]
 fn a_scenario_systems_effect_block_lists_its_ruins_and_ambient_objects_after_the_initializers() {
@@ -581,41 +575,42 @@ fn a_scenario_systems_effect_block_lists_its_ruins_and_ambient_objects_after_the
     assert!(
         details.megastructures[..initializer]
             .iter()
-            .all(|m| m.origin == Some(RowOrigin::Initializer)),
+            .all(|m| spawn(m).origin == RowOrigin::Initializer),
         "the initializer's rows come first, marked as its"
     );
     let ruins: Vec<Ruin> = details.megastructures[initializer..]
         .iter()
-        .map(|m| (m.id, m.kind.as_str(), m.planet, m.at, m.origin))
+        .map(|m| (m.kind.as_str(), m.planet, m.at, spawn(m).origin))
         .collect();
     let star = details.planets[0].id;
     assert_eq!(star, STAR_BODY);
-    let ruin = |n| ruin_id(7, n).expect("an id");
+    let ruin = |n, editable| RowOrigin::Effect {
+        id: ruin_id(7, n).expect("an id"),
+        editable,
+    };
     assert_eq!(
         ruins,
         [
+            ("gateway_ruined", None, Some((-100.0, 0.0)), ruin(0, true)),
             (
-                ruin(0),
-                "gateway_ruined",
-                None,
-                Some((-100.0, 0.0)),
-                Some(RowOrigin::Editable)
-            ),
-            (
-                ruin(1),
                 "dyson_sphere_ruined",
                 Some(star),
                 Some((0.0, 0.0)),
-                Some(RowOrigin::ReadOnly)
+                ruin(1, false)
             ),
             (
-                ruin(2),
                 "mega_shipyard_ruined",
                 Some(star),
                 Some((0.0, 0.0)),
-                Some(RowOrigin::Editable)
+                ruin(2, true)
             ),
         ]
+    );
+    assert!(
+        details.megastructures[initializer..]
+            .iter()
+            .all(|m| matches!(spawn(m).origin, RowOrigin::Effect { id, .. } if id == m.id)),
+        "a ruin's origin names its row"
     );
     assert!(
         details.megastructures[initializer..]
@@ -635,25 +630,23 @@ fn a_scenario_systems_effect_block_lists_its_ruins_and_ambient_objects_after_the
         .expect("the system's spawn")
         .ambient_objects;
     assert_eq!(objects[..own.len()], own[..]);
-    let placed: Vec<(Option<u32>, &str, AmbientPlace, RowOrigin)> = objects[own.len()..]
+    let placed: Vec<(&str, AmbientPlace, RowOrigin)> = objects[own.len()..]
         .iter()
-        .map(|o| (o.id, o.kind.as_str(), o.place, o.origin))
+        .map(|o| (o.kind.as_str(), o.place, o.origin))
         .collect();
+    let object = |n, editable| RowOrigin::Effect {
+        id: ambient_object_id(7, n).expect("an id"),
+        editable,
+    };
     assert_eq!(
         placed,
         [
             (
-                ambient_object_id(7, 0),
                 "derelict_ship_object",
                 AmbientPlace::Point { x: 0.0, y: -30.0 },
-                RowOrigin::Editable
+                object(0, true)
             ),
-            (
-                ambient_object_id(7, 1),
-                "debris_object",
-                AmbientPlace::Random,
-                RowOrigin::ReadOnly
-            ),
+            ("debris_object", AmbientPlace::Random, object(1, false)),
         ]
     );
 }

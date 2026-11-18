@@ -296,8 +296,8 @@ impl Context<'_> {
                 always: always && spawn.always && body_always,
                 place: placed.place,
                 owner_written,
+                origin: RowOrigin::Initializer,
             }),
-            origin: Some(RowOrigin::Initializer),
         };
         (row, placed.anchor)
     }
@@ -324,8 +324,8 @@ impl Context<'_> {
                 always: true,
                 place: at.place,
                 owner_written: None,
+                origin: origin(placed, id),
             }),
-            origin: Some(origin(placed)),
         };
         Some((row, at.anchor))
     }
@@ -494,6 +494,7 @@ impl Context<'_> {
                 always: always && s.always,
                 place,
                 owner_written,
+                origin: RowOrigin::Initializer,
             }),
         }
     }

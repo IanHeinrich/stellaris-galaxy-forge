@@ -168,9 +168,6 @@ pub struct AmbientObject {
     /// Its `type`.
     pub kind: String,
     pub place: AmbientPlace,
-    /// The id the ops address it by: set for one of the scenario's `effect` block, `None` for
-    /// an initializer's.
-    pub id: Option<u32>,
     pub origin: RowOrigin,
 }
 
@@ -191,14 +188,14 @@ pub enum AmbientPlace {
 /// Where a row of a scenario system's Megastructures or Ambient objects comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", tag = "from")]
 pub enum RowOrigin {
     /// The system's initializer places it.
     Initializer,
-    /// The scenario's `effect` block, in a shape the editor edits where it stands.
-    Editable,
-    /// The scenario's `effect` block, in a shape the editor leaves as written.
-    ReadOnly,
+    /// The scenario's own `effect` block places it. `id` is what the ops address it by, a
+    /// ruin's row id; `editable` says the editor edits it where it stands, and is false for a
+    /// shape it leaves as written.
+    Effect { id: u32, editable: bool },
 }
 
 /// An initializer's `usage_odds`.
@@ -380,6 +377,7 @@ pub struct StructureSpawn {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub owner_written: Option<String>,
+    pub origin: RowOrigin,
 }
 
 /// How the game decides where a scenario's megastructure or starbase stands.
@@ -885,10 +883,6 @@ pub struct MegastructureSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub spawn: Option<StructureSpawn>,
-    /// Where a scenario's row comes from. `None` in a save.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub origin: Option<RowOrigin>,
 }
 
 /// One `natural_wormholes` entry standing in the system: a wormhole, or a shroud tunnel.

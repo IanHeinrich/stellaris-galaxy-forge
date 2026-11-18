@@ -183,7 +183,6 @@ impl GameData {
         let own_objects = stated.ambient_objects.iter().map(|kind| AmbientObject {
             kind: kind.clone(),
             place: AmbientPlace::Random,
-            id: None,
             origin: RowOrigin::Initializer,
         });
         SystemSpawn {
@@ -655,7 +654,6 @@ impl GameData {
                         .map(|kind| AmbientObject {
                             kind: kind.clone(),
                             place: AmbientPlace::Body { body: id },
-                            id: None,
                             origin: RowOrigin::Initializer,
                         }),
                 );
@@ -950,12 +948,12 @@ fn modelled(script: &mut Vec<RawStatement>, call: &EffectCall) {
 /// How far inside the radius they must fit the outermost placeholder planet stays.
 const PLACEHOLDER_MARGIN: f64 = 20.0;
 
-/// The seed of roll `roll` of system `id`.
-/// Where a row of the scenario's own `effect` block comes from.
-pub(crate) fn origin(statement: &placed::Placed) -> RowOrigin {
-    match statement.adopted {
-        true => RowOrigin::Editable,
-        false => RowOrigin::ReadOnly,
+/// Where the row of `statement`, of the scenario's own `effect` block, comes from: `id`, and
+/// whether the editor edits it.
+pub(crate) fn origin(statement: &placed::Placed, id: u32) -> RowOrigin {
+    RowOrigin::Effect {
+        id,
+        editable: statement.adopted,
     }
 }
 
@@ -978,11 +976,11 @@ fn effect_ambient_object(statement: &placed::Placed) -> Option<AmbientObject> {
     Some(AmbientObject {
         kind: object.kind.clone(),
         place,
-        id: Some(id),
-        origin: origin(statement),
+        origin: origin(statement, id),
     })
 }
 
+/// The seed of roll `roll` of system `id`.
 fn roll_seed(id: u32, roll: u32) -> u64 {
     (u64::from(id) << 32) | u64::from(roll)
 }

@@ -157,6 +157,9 @@ fn result(
         details_stale.dedup();
     }
     OpResult {
+        keeps_bodies: !details_stale.is_empty()
+            && renumbered.is_empty()
+            && format.keeps_bodies(applied.op.reach().details),
         details_stale,
         reclassifies: applied.op.reach().reclassifies,
         entry: HistoryEntry {

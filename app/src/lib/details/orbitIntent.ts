@@ -9,6 +9,7 @@
 import type { Bounds } from "../../generated/Bounds";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
@@ -127,6 +128,8 @@ export interface GeometryFrame {
   planetClasses: ReadonlyMap<string, PlanetClassView>;
   /** How the install sizes a system; `VANILLA_SYSTEM_RADII` before game data gives them. */
   radii: SystemRadii;
+  /** What the install says of each megastructure type, by key; empty before game data. */
+  megastructureTypes: ReadonlyMap<string, MegastructureView>;
   /** What an edit's description calls the system, as `systemLabel` says; set when the edit is sent. */
   systemLabel?: string;
 }

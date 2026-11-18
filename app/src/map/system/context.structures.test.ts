@@ -58,7 +58,11 @@ const OVER: Partial<SystemSources> = {
 };
 
 /** What the initializer says of a structure placed by `place`, certain unless `always` is false. */
-const spawn = (place: SpawnPlace, always = true): StructureSpawn => ({ always, place });
+const spawn = (place: SpawnPlace, always = true): StructureSpawn => ({
+  always,
+  place,
+  origin: { from: "initializer" },
+});
 
 const PLANETS = [scenarioSun, body(2, "pc_barren", { orbit: fixed(80) })];
 const ROLL = rollOf(PLANETS, { 2: 120 })!;

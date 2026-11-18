@@ -20,7 +20,6 @@ fn initializer_object(kind: &str, place: AmbientPlace) -> AmbientObject {
     AmbientObject {
         kind: kind.to_owned(),
         place,
-        id: None,
         origin: RowOrigin::Initializer,
     }
 }
