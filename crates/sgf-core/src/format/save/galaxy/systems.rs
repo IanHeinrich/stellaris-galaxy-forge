@@ -76,6 +76,7 @@ pub(super) fn extract(
         home_system: false,
         prevented: Vec::new(),
         position_range: false,
+        effect_blocks: 0,
         flags,
         owner,
         added: false,

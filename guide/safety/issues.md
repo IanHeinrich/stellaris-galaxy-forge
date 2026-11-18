@@ -161,6 +161,13 @@ The game limits how many systems may use this initializer. Systems past
 the limit may not get what the initializer puts there, or the game may
 place it only once. Give the extra systems another initializer.
 
+### System with more than one effect block
+
+The system's script has more than one effect block. The game runs only
+the last and skips the others, so nothing in them happens. Galaxy Forge
+shows and edits the last one. Open the file in your text editor and
+move what you need from the earlier blocks into the last one.
+
 ## Fallen empires
 
 ### System in a fallen empire's space

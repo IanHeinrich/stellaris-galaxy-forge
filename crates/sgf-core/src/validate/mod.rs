@@ -51,6 +51,9 @@ pub enum IssueCode {
     /// A scenario system writes an axis as a range the generator picks in; the map plots
     /// the midpoint and a move fixes the axis to a point.
     PositionRange,
+    /// A scenario system holds two or more `effect` blocks, and the game runs only the
+    /// last.
+    DuplicateSystemEffect,
     /// Bypasses the save had (wormhole pairs, gateways, L-Gates) that a scenario cannot
     /// state, so the export left them out.
     ExportDropped,
@@ -118,6 +121,7 @@ impl IssueCode {
             | Self::NebulaMembership
             | Self::CoordinateTransform
             | Self::PositionRange
+            | Self::DuplicateSystemEffect
             | Self::ExportDropped
             | Self::HomeInitializer
             | Self::FeZoneBlocked
@@ -163,6 +167,7 @@ impl IssueCode {
             Self::NebulaMembership => "nebula_membership",
             Self::CoordinateTransform => "coordinate_transform",
             Self::PositionRange => "position_range",
+            Self::DuplicateSystemEffect => "duplicate_system_effect",
             Self::ExportDropped => "export_dropped",
             Self::HomeInitializer => "home_initializer",
             Self::FeZoneBlocked => "fe_zone_blocked",
@@ -440,7 +445,8 @@ fn listed(names: &[String]) -> String {
 }
 
 /// What a scenario's own rules find in its galaxy: its seats, fallen empire zones and
-/// links, the L-Cluster, marauders and rolled systems near a seat. Unsorted.
+/// links, the L-Cluster, marauders, rolled systems near a seat and systems with more than
+/// one `effect` block. Unsorted.
 pub(crate) fn scenario_rules(g: &GalaxyGraph) -> Vec<Issue> {
     let mut issues = Vec::new();
     paint::seats(g, &mut issues);
@@ -449,6 +455,7 @@ pub(crate) fn scenario_rules(g: &GalaxyGraph) -> Vec<Issue> {
     scenario::l_cluster(g, &mut issues);
     scenario::marauders(g, &mut issues);
     scenario::rolled_near_seats(g, &mut issues);
+    scenario::duplicate_effects(g, &mut issues);
     issues
 }
 

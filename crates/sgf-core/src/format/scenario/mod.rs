@@ -430,8 +430,8 @@ fn galaxy_radius(systems: &HashMap<u32, SystemNode>) -> f64 {
 fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
     let (x, y) = position(node, src);
     let initializer = read::text(node, keys::INITIALIZER, src);
-    let star_flags: Vec<&str> = node
-        .find(keys::EFFECT, src)
+    let effect_block = effect::block(node, src);
+    let star_flags: Vec<&str> = effect_block
         .map(|effect| fe_zone::star_flags(effect, src).collect())
         .unwrap_or_default();
     SystemNode {
@@ -457,11 +457,10 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         fe_zone: fe_zone::parse(star_flags.iter().copied()),
         wormhole_pair: paint::wormhole_pair(star_flags.iter().copied()),
         fe_link: fe_link::parse(star_flags.iter().copied()),
-        home_system: node
-            .find(keys::EFFECT, src)
-            .is_some_and(|effect| is_home_system(effect, src)),
+        home_system: effect_block.is_some_and(|effect| is_home_system(effect, src)),
         prevented: Vec::new(),
         position_range: position_range(node, src),
+        effect_blocks: effect::blocks(node, src),
         flags: Vec::new(),
         owner: None,
         added: false,

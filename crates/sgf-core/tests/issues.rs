@@ -14,7 +14,8 @@
 //! `issues.paint.txt` is `4.5-day-one.sav` exported with the Paint a Galaxy profile, with
 //! seventeen `system = { ... }` statements replaced to move zones, seats and marauder clans
 //! into the states each check looks for and to leave Dwithim (113), beside a seat, with no
-//! initializer, and a `coordinate_transform` added to the header.
+//! initializer, an earlier `effect` block given to Abovast (53), and a
+//! `coordinate_transform` added to the header.
 
 use std::collections::BTreeSet;
 use std::sync::{LazyLock, Mutex, MutexGuard};
@@ -87,6 +88,7 @@ fn the_scenario_fixture_raises_every_paint_a_galaxy_fault() {
             (Warning, SystemIsolated),
             (Warning, CoordinateTransform),
             (Warning, PositionRange),
+            (Warning, DuplicateSystemEffect),
             (Warning, FeZoneBlocked),
             (Warning, FeZoneOverlap),
             (Warning, FeZoneOffMap),

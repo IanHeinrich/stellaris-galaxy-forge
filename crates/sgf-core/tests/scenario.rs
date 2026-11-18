@@ -305,6 +305,69 @@ fn every_effect_block_in_the_scenario_is_listed_in_one_pass() {
     assert!(common::open().scenario_system_effects().is_empty());
 }
 
+/// Kel holds two `effect` blocks, of which the game runs only the last; Ora holds one.
+const TWO_EFFECTS: &str = "static_galaxy_scenario = {
+	name = \"two effects\"
+	system = { id = \"1\" name = \"Kel\" position = { x = 1 y = 2 } effect = { set_star_flag = painted_galaxy_wormhole_3 } effect = { set_star_flag = painted_galaxy_wormhole_4 } }
+	system = { id = \"2\" name = \"Ora\" position = { x = 30 y = 40 } effect = { set_star_flag = painted_galaxy_wormhole_4 } }
+}
+";
+
+#[test]
+fn of_two_effect_blocks_the_last_is_read_edited_and_warned_about() {
+    let mut session = from_scenario_text(TWO_EFFECTS);
+    let (effect, line) = session.scenario_system_effect(1).expect("an effect");
+    assert_eq!(
+        effect,
+        "effect = { set_star_flag = painted_galaxy_wormhole_4 }"
+    );
+    assert_eq!(line, 3);
+    assert_eq!(session.graph().systems[&1].wormhole_pair, Some(4));
+
+    let duplicates = |session: &Session| {
+        session
+            .validate()
+            .into_iter()
+            .filter(|i| i.code == IssueCode::DuplicateSystemEffect)
+            .map(|i| (i.message, i.systems))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        duplicates(&session),
+        [(
+            "Kel has 2 effect blocks. The game runs only the last, so move what you need into it."
+                .to_owned(),
+            vec![1]
+        )]
+    );
+
+    session
+        .apply(Op::SetWormholePair {
+            a: 1,
+            b: 2,
+            pair: Some(5),
+        })
+        .expect("pair the two again");
+    assert_eq!(
+        common::text(&session),
+        "static_galaxy_scenario = {
+	name = \"two effects\"
+	system = { id = \"1\" name = \"Kel\" position = { x = 1 y = 2 } effect = { set_star_flag = painted_galaxy_wormhole_3 } effect = { set_star_flag = painted_galaxy_wormhole_5 set_star_flag = empire_cluster } }
+	system = { id = \"2\" name = \"Ora\" position = { x = 30 y = 40 } effect = { set_star_flag = painted_galaxy_wormhole_5 set_star_flag = empire_cluster } }
+}
+"
+    );
+    assert_eq!(session.graph().systems[&1].wormhole_pair, Some(5));
+    assert_eq!(duplicates(&session).len(), 1);
+
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(common::text(&session), TWO_EFFECTS);
+    assert!(
+        duplicates(&common::open()).is_empty(),
+        "a save never raises it"
+    );
+}
+
 #[test]
 fn a_new_system_is_never_given_the_null_id() {
     let text = format!(

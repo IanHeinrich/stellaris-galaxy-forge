@@ -73,6 +73,12 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Nothing needs doing. Moving the system pins it to one point.",
     detail: false,
   },
+  duplicate_system_effect: {
+    title: "System with more than one effect block",
+    why: "The system's script has more than one effect block. The game runs only the last and skips the others, so nothing in them happens.",
+    fix: "Open the file in your text editor and move what you need from the earlier blocks into the last one.",
+    detail: false,
+  },
   export_dropped: {
     title: "Wormholes and gates left behind",
     why: "The export couldn't write some of the save's wormholes, gateways or L-Gates into the scenario. A map for Paint a Galaxy keeps wormhole pairs unless one end was left out.",

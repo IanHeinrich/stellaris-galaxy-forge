@@ -131,6 +131,11 @@ pub struct SystemNode {
     /// generator picks in; `x` and `y` are then the midpoint the map plots, and a move
     /// fixes the axis to a point. Always false for a save.
     pub position_range: bool,
+    /// How many `effect` blocks the scenario statement holds; the game runs only the last.
+    /// Always 0 for a save.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub effect_blocks: u32,
     /// Flag names, in file order (e.g. `guardian`, `hostile_system`).
     pub flags: Vec<String>,
     /// Owning country id: the owner of the system's `sector`, or else the owner of its first

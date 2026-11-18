@@ -90,7 +90,7 @@ static_galaxy_scenario = {
 	system = { id = "50" name = "Sassara" position = { x = 3.95 y = -191.83 } initializer = neighbor_t2 }
 	system = { id = "51" name = "Gatria" position = { x = -46.54 y = -118.63 } initializer = basic_init_05 }
 	system = { id = "52" name = "Porrima" position = { x = 131.68 y = 149.44 } initializer = basic_init_04 }
-	system = { id = "53" name = "Abovast" position = { x = -85.88 y = -124.16 } initializer = basic_init_01 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
+	system = { id = "53" name = "Abovast" position = { x = -85.88 y = -124.16 } initializer = basic_init_01 effect = { log = "duplicate" } effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
 	system = { id = "54" name = "Iversene" position = { x = -96.77 y = 120.26 } initializer = binary_init_02 }
 	system = { id = "55" name = "Phonok" position = { x = 243.9 y = 253.84 } initializer = guardians_curator_init_03 }
 	system = { id = "56" name = "Pleeturi" position = { x = -122.6 y = 70.96 } initializer = guardians_init_dragon }
