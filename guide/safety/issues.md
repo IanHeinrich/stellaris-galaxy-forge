@@ -47,7 +47,7 @@ ones again.
 
 ### Hyperlane from a system to itself
 
-The system is joined to itself. The map draws nothing for it. Open the
+The system is joined to itself. The lane isn't visible on the map. Open the
 system and cut the lane to itself from its Hyperlanes list.
 
 ### The same hyperlane written twice
@@ -83,14 +83,15 @@ in towards the galaxy edge.
 ### Positions shifted before the game reads them
 
 This scenario shifts every position before the game places its systems.
-The map draws the positions as the file writes them, so the galaxy in
+The map shows the positions as the file writes them, so the galaxy in
 game will be somewhere else. No action is needed. Start a game on this
 map to see where the systems end up.
 
 ### Position written as a range
 
 The position here is written as a range, and the generator picks a point
-inside it every time it builds the galaxy. The map draws the middle.
+inside it every time it builds the galaxy. The map shows the system at
+the middle.
 No action is needed. Moving the system pins it to one point.
 
 ### Nebula list does not match the map
@@ -102,7 +103,7 @@ radius until the two agree. The list itself cannot be edited here.
 ### System in the L-Cluster's space
 
 When it generates the galaxy the game keeps a patch of space for the
-L-Cluster, and this system is in it. The map draws that patch as a
+L-Cluster, and this system is in it. The map shows that patch as a
 circle. Move the system clear of the circle if you want the L-Cluster
 left to itself.
 
@@ -275,6 +276,6 @@ if you would rather the raids were spread.
 
 ### Two bodies in the same place
 
-Two planets or moons share an orbit and an angle, so the game draws one
+Two planets or moons share an orbit and an angle, so in the game one sits
 on top of the other. Open the system view and drag one along its orbit,
 or type a new angle on its planet page.
