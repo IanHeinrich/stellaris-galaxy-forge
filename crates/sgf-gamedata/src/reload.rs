@@ -30,8 +30,8 @@ use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::static_modifiers::StaticModifierDef;
 use crate::registries::{
-    colors, flags, galaxy_shapes, gfx, precursors, registry, section_templates, star_names,
-    starbase_levels, terraform_links,
+    ambient_objects, colors, flags, galaxy_shapes, gfx, precursors, registry, section_templates,
+    star_names, starbase_levels, terraform_links,
 };
 use crate::scripts::{ScriptIndex, index};
 use crate::textures::{self, MODELS_DIR, WORLDGFX};
@@ -100,6 +100,7 @@ const DIRS: &[(&str, RegistryKind)] = &[
     (StaticModifierDef::DIR, RegistryKind::Definitions),
     (PlanetModifierDef::DIR, RegistryKind::Definitions),
     (AnomalyCategoryDef::DIR, RegistryKind::Definitions),
+    (ambient_objects::DIR, RegistryKind::Definitions),
     (ColonyTypeDef::DIR, RegistryKind::Definitions),
     (DigSiteTypeDef::DIR, RegistryKind::Definitions),
     (AsteroidBeltDef::DIR, RegistryKind::Definitions),
@@ -234,6 +235,7 @@ impl GameData {
                 &mut Meter::silent(),
             ));
             out.worlds = Arc::default();
+            out.ambient_portraits = Arc::default();
             out.flat_art = Arc::default();
             out.shattered = Arc::default();
             replaced.insert(RegistryKind::Graphics);
@@ -249,6 +251,11 @@ impl GameData {
         }
         if replaced.contains(&RegistryKind::Scripts) || replaced.contains(&RegistryKind::Graphics) {
             out.derive(&mut Meter::silent());
+        }
+        if replaced.contains(&RegistryKind::Scripts)
+            || replaced.contains(&RegistryKind::Initializers)
+        {
+            out.system_modifiers = Arc::default();
         }
         if kinds.contains(&RegistryKind::CountryTypes) {
             let built = registry::load(&self.layout, &self.variables, &mut fresh);

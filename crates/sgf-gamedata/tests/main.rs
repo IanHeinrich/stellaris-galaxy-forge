@@ -2,6 +2,7 @@
 
 mod common;
 
+mod ambient_objects;
 mod anomaly_choices;
 mod belt_kinds;
 mod converted_layouts;
@@ -91,6 +92,7 @@ mod special_megastructures;
 mod special_menu;
 mod star_discs;
 mod star_placeholders;
+mod system_modifier_choices;
 mod system_names;
 mod system_radii;
 mod terraform_links;

@@ -18,7 +18,9 @@ use crate::document::Document;
 use crate::emit::system::{AmbientEntry, ambient_entry, ambient_list};
 use crate::emit::{coord, inline, quoted};
 use crate::format::save::alloc::{self, Slot, SlotTable};
-use crate::format::save::galaxy::systems::{TURBULENT_NEBULA, timed_modifiers as modifiers_of};
+use crate::format::save::galaxy::systems::{
+    NEBULA_CLOAKING as CLOAKING, TURBULENT_NEBULA, timed_modifiers as modifiers_of,
+};
 use crate::format::save::write::game_tables::{
     CLASS_A, FIRST_CONTACT, HOME_SYSTEM, OCEAN_PARADISE, TURBULENT_KINDS, beside, calm_kinds,
     calm_of, is_cloud_kind, turbulent_of,
@@ -34,7 +36,6 @@ use crate::projections::galaxy::GalaxyGraph;
 use crate::projections::read;
 use crate::span::Span;
 
-const CLOAKING: &str = "nebula_cloaking";
 /// A star body's position in its system and its size.
 pub(crate) type Star = ((f64, f64), f64);
 

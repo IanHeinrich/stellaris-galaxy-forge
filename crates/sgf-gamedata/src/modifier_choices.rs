@@ -39,6 +39,17 @@ pub enum ModifierCategory {
     Other,
 }
 
+impl ModifierCategory {
+    /// Where the frame the game draws round `def`'s icon files it.
+    pub(crate) fn framed(def: &StaticModifierDef) -> Self {
+        match def.icon_frame {
+            Some(GREEN_FRAME) => Self::Positive,
+            Some(RED_FRAME) => Self::Negative,
+            _ => Self::Other,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct ModifierChoice {
@@ -97,11 +108,9 @@ impl GameData {
         rest.sort_by(|a, b| a.key.cmp(&b.key));
         for def in rest {
             let terraform = terraforming.contains(def.key.as_str());
-            let category = match (terraform, def.icon_frame) {
-                (true, _) => ModifierCategory::Terraforming,
-                (false, Some(GREEN_FRAME)) => ModifierCategory::Positive,
-                (false, Some(RED_FRAME)) => ModifierCategory::Negative,
-                _ => ModifierCategory::Other,
+            let category = match terraform {
+                true => ModifierCategory::Terraforming,
+                false => ModifierCategory::framed(def),
             };
             let flags = match terraform {
                 true => Vec::new(),
@@ -112,7 +121,7 @@ impl GameData {
         choices
     }
 
-    fn choice(
+    pub(crate) fn choice(
         &self,
         modifier: &str,
         feature: Option<&str>,

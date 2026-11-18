@@ -38,7 +38,7 @@ mod star_disc;
 pub use key::TextureKey;
 pub(crate) use lookups::Lookups;
 pub use lookups::StarBody;
-pub(crate) use model::{Assets, MODELS_DIR};
+pub(crate) use model::{Assets, MODELS_DIR, NO_CULTURE};
 pub use model::{ModelBounds, ModelPlacement};
 pub use star_disc::StarAtmosphere;
 pub(crate) use star_disc::{WORLDGFX, Worlds};

@@ -14,6 +14,7 @@ pub mod site;
 pub mod system_spec;
 pub(crate) mod write;
 
+pub use galaxy::systems::NEBULA_MODIFIERS;
 pub use write::megastructure_links::BYPASS_KINDS;
 
 use std::collections::BTreeSet;

@@ -12,6 +12,10 @@ use crate::{as_u32, keys};
 
 /// The modifier a turbulent nebula member carries.
 pub(crate) const TURBULENT_NEBULA: &str = "turbulent_nebula";
+/// The permanent modifier every nebula member carries.
+pub(crate) const NEBULA_CLOAKING: &str = "nebula_cloaking";
+/// The modifiers a system's nebula footprint writes, which no other edit writes.
+pub const NEBULA_MODIFIERS: [&str; 2] = [NEBULA_CLOAKING, TURBULENT_NEBULA];
 
 /// The one extraction path for a system, used by `build` and `refresh_system`.
 pub(super) fn extract(
