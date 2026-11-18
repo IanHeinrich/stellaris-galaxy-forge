@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed ambient object derelict_ship_object from Sef #1
+touched: [1]
+inverse: RestoreEntities "Undid: Removed ambient object derelict_ship_object from Sef #1"
+  System 1 (913 bytes)
+
+--- scenario
++++ scenario
+@@ -10,8 +10,6 @@
+ 			create_ambient_object = { type = "derelict_ship_object" location = this }
+ 			last_created_ambient_object = { set_location = { target = prev distance = 10 angle = 0 } }
+ 			create_ambient_object = { type = "derelict_ship_object" location = this }
+-			last_created_ambient_object = { set_location = { target = prev distance = 20 angle = 0 } }
+-			create_ambient_object = { type = "derelict_ship_object" location = this }
+ 			last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 0 } }
+ 		}
+ 	}

@@ -1235,6 +1235,41 @@ for planets or deposits.
 - `#` comments appear anywhere, and a comment line can contain tabs,
   braces and quotes. The files use LF and tabs and are ASCII with no
   BOM. Trailing spaces occur.
+- A system's `effect = { … }` runs when the game makes the galaxy. Of
+  two or more, the game logs "Duplicate effect" and runs only the last,
+  so the editor reads and writes the last one. These come from spikes on
+  4.5.4.
+- The editor places ruins, ambient objects and modifiers with four
+  statements, each written at the end of the last block (the system
+  gains one when it has none):
+
+  ```
+  spawn_megastructure = { type = "gateway_ruined" orbit_distance = 100 orbit_angle = 0 random_pos = no }
+  spawn_megastructure = { type = "gateway_ruined" planet = star }
+  create_ambient_object = { type = "derelict_ship_object" location = this }
+  last_created_ambient_object = { set_location = { target = prev distance = 120 angle = 90 } }
+  add_modifier = { modifier = "pulsar_radiation" days = -1 }
+  ```
+
+  The first is a ruin at a point of its own, the second one on the
+  system's main star, the next two an ambient object and its point, and
+  the last a modifier for ever. A `spawn_megastructure` with no
+  `planet` and `random_pos` other than `no` lands where the game picks,
+  and `coords_from` ignores an orbit. A `create_ambient_object` with no
+  `set_location` after it lands where the game picks. The editor edits
+  a statement in place only when it reads back in one of these shapes,
+  quotes and number spelling aside. Anything else, such as a spawn with
+  an `owner`, stays as written (4.5.4).
+- A written angle is the editor's angle plus 180 degrees, where the
+  editor measures `atan2(y, x)` in the save frame. A ruin placed 100 out
+  at editor angle 180 is written `angle = 0`, and is saved at
+  (-100.45, 0). Distances come out 0.45% long on the axes (120 is saved
+  as 120.54), which is the game's own (4.5.4).
+- A ruin at a point is measured from the system's centre. An ambient
+  object is measured from the system's main star, which stands off the
+  centre in a binary (4.5.4).
+- Two ruins spawned on the same star are both drawn on it, stacked one
+  over the other, so the editor allows one per star (4.5.4).
 
 ## Relations
 

@@ -1,0 +1,19 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure gateway_ruined in Vel #3
+touched: [3]
+inverse: RemoveMegastructure { megastructure: 1476395200, construction: None, left_out: 0 }
+… and 5 other issues
+
+--- scenario
++++ scenario
+@@ -8,6 +8,7 @@
+ 		position = { x = 50 y = 60 }
+ 		effect = {
+ 			set_star_flag = kept
++			spawn_megastructure = { type = "gateway_ruined" planet = star }
+ 		}
+ 	}
+ 	system = { id = "4" name = "Tal" position = { x = -30 y = 40 } effect = { add_modifier = { modifier = "nebula_storm" days = -1 } } }

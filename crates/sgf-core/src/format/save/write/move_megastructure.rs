@@ -21,12 +21,10 @@ use crate::format::save::write::planet_entry::{body_is_star, named_entity, named
 use crate::format::save::write::restore::Saved;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
-use crate::number;
-use crate::ops::rules::{FURNACE_ENTITY, FURNACE_FLAG, named};
+use crate::ops::rules::{FURNACE_ENTITY, FURNACE_FLAG, named, polar};
 use crate::ops::{
     MegastructureEdit, MegastructurePlace, OpError, ParseAt, Plan, Planned, SavedTable, Subject,
 };
-use crate::projections::geometry::written_angle;
 use crate::projections::read;
 use crate::session::Session;
 
@@ -100,7 +98,7 @@ pub(crate) fn plan_move(
         }
     };
     Ok(Planned {
-        inverse: saved.inverse(format!("Undid: {description}")),
+        inverse: saved.undoing(&description),
         description,
     })
 }
@@ -145,12 +143,6 @@ fn to_point(
 }
 
 /// "459.55 at 89.48°": a point's distance and angle about the star.
-fn polar(at: (f64, f64)) -> String {
-    let radius = at.0.hypot(at.1);
-    let angle = written_angle((0.0, 0.0), at, radius);
-    format!("{} at {}°", number(radius), number(angle))
-}
-
 /// Tie row `tied` to `body` in place of `from`, standing at `point` or at the body's point,
 /// keeping each entity rewritten in `saved`, and say what moved.
 fn to_body(

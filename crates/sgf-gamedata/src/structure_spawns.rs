@@ -4,6 +4,7 @@
 //! ([`GameData::initializer_details`](crate::GameData::initializer_details)).
 
 use sgf_core::cst::Node;
+use sgf_core::placements::{self, Amount, Orbit, SPAWN_MEGASTRUCTURE, SpawnPlace};
 use sgf_core::views::details::SourceLine;
 
 use crate::initializers::{InitStarbase, Origin};
@@ -12,7 +13,6 @@ use crate::scripts::scope::{
     SAVES_TARGET, describes_system, is_call, is_guard, keeps_scope, keeps_system_scope, runs_always,
 };
 
-pub(crate) const SPAWN_MEGASTRUCTURE: &str = "spawn_megastructure";
 pub(crate) const CREATE_STARBASE: &str = "create_starbase";
 
 /// The turn a spawn whose `orbit_angle` the reader cannot take may be drawn at: anywhere.
@@ -169,16 +169,18 @@ fn megastructure(
     body_scope: Option<&str>,
 ) -> Option<InitMegastructure> {
     let src = &def.src;
-    let kind = scalar(node, "type", src)?;
+    let spawn = placements::spawn_megastructure(node, src)?;
     let written = |key| scalar(node, key, src).map(str::to_owned);
-    let place = if let Some(target) = written("planet") {
-        WrittenPlace::Planet(target)
-    } else if let Some(target) = written("coords_from") {
-        WrittenPlace::CoordsFrom(target)
-    } else if scalar(node, "random_pos", src) == Some("yes") {
-        WrittenPlace::Random
-    } else {
-        orbit(node, def)
+    let place = match spawn.place {
+        SpawnPlace::OnBody { target, .. } => WrittenPlace::Planet(target),
+        SpawnPlace::CoordsFrom { target, .. } => WrittenPlace::CoordsFrom(target),
+        SpawnPlace::Random { stated: true, .. } => WrittenPlace::Random,
+        SpawnPlace::Random {
+            orbit: Some(orbit_written),
+            ..
+        }
+        | SpawnPlace::Free(orbit_written) => orbit(node, def, &orbit_written),
+        SpawnPlace::Random { orbit: None, .. } | SpawnPlace::Centre => WrittenPlace::Centre,
     };
     let place = match (body_scope, place) {
         (None, place) => place,
@@ -191,7 +193,7 @@ fn megastructure(
         (Some(scope), _) => WrittenPlace::Unknown(scope.to_owned()),
     };
     Some(InitMegastructure {
-        kind: kind.to_owned(),
+        kind: spawn.kind,
         place,
         owner: written("owner"),
         culture: written("graphical_culture")
@@ -206,23 +208,19 @@ fn names_a_body(target: &str) -> bool {
     target == "star" || target.starts_with("event_target:")
 }
 
-/// Where a spawn written with no target stands: the centre, or about it.
-fn orbit(node: &Node, def: &Def) -> WrittenPlace {
+/// Where a spawn written with no target stands: at `written` about the centre, a value that is
+/// no plain number read through the definition's variables and ranges.
+fn orbit(node: &Node, def: &Def, written: &Orbit) -> WrittenPlace {
     let src = &def.src;
-    let distance = node.find("orbit_distance", src);
-    let angle = node.find("orbit_angle", src);
-    if distance.is_none() && angle.is_none() {
-        return WrittenPlace::Centre;
-    }
-    let distance = match distance {
-        None => Range::fixed(0.0),
-        Some(written) => match def.initializer_range_in(node, "orbit_distance") {
+    let distance = match written.distance {
+        Amount::Number(n) => Range::fixed(n),
+        Amount::Written(_) => match def.initializer_range_in(node, "orbit_distance") {
             Some(range) => range,
             None => {
                 let children = node.children();
                 let at = children
                     .iter()
-                    .position(|child| child.span() == written.span())
+                    .position(|child| child.key_str(src) == Some("orbit_distance"))
                     .unwrap_or_default();
                 return WrittenPlace::Unknown(
                     String::from_utf8_lossy(script::statement_span(children, at, src).slice(src))
@@ -233,10 +231,12 @@ fn orbit(node: &Node, def: &Def) -> WrittenPlace {
     };
     WrittenPlace::Orbit {
         distance,
-        angle: angle.map_or(Range::fixed(0.0), |_| {
-            def.initializer_range_in(node, "orbit_angle")
-                .unwrap_or(ANY_ANGLE)
-        }),
+        angle: match written.angle {
+            Amount::Number(n) => Range::fixed(n),
+            Amount::Written(_) => def
+                .initializer_range_in(node, "orbit_angle")
+                .unwrap_or(ANY_ANGLE),
+        },
     }
 }
 

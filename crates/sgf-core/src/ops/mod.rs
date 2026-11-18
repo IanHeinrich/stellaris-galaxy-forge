@@ -41,20 +41,24 @@ pub use op::{DetailsReach, Kinds, Op, OpReach};
 pub use payload::*;
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 
-/// The systems, planets and megastructure rows an op added, in the order it wrote them. A
-/// writer that adds more than its inverse names lists them through [`Plan::created`]; for
-/// any other op they are read from the inverse that takes them out again. A planet comes
-/// before its moons.
+/// The systems, planets, megastructure rows and ambient objects an op added, in the order it
+/// wrote them. A writer that adds more than its inverse names lists them through
+/// [`Plan::created`]; for any other op they are read from the inverse that takes them out
+/// again. A planet comes before its moons.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Created {
     pub systems: Vec<u32>,
     pub planets: Vec<u32>,
     pub megastructures: Vec<u32>,
+    pub ambient_objects: Vec<u32>,
 }
 
 impl Created {
     pub fn is_empty(&self) -> bool {
-        self.systems.is_empty() && self.planets.is_empty() && self.megastructures.is_empty()
+        self.systems.is_empty()
+            && self.planets.is_empty()
+            && self.megastructures.is_empty()
+            && self.ambient_objects.is_empty()
     }
 
     /// What the op whose inverse is `inverse` added, as that inverse names it.
@@ -73,6 +77,9 @@ impl Created {
             Op::RemoveMegastructure { megastructure, .. } => {
                 self.megastructures.push(*megastructure);
             }
+            Op::RemoveAmbientObject { ambient_object } => {
+                self.ambient_objects.push(*ambient_object);
+            }
             Op::RemoveRingWorld { written, .. } => {
                 self.planets.extend(&written.planets);
                 self.megastructures.extend(&written.rows);
@@ -86,6 +93,7 @@ impl Created {
         self.systems.extend(next.systems);
         self.planets.extend(next.planets);
         self.megastructures.extend(next.megastructures);
+        self.ambient_objects.extend(next.ambient_objects);
         self
     }
 }
@@ -132,6 +140,15 @@ impl MetaEdit {
             }),
             (first, second) => first.or(second),
         }
+    }
+}
+
+/// The [`Op::RestoreEntities`] that undoes the edit described as `description` by writing
+/// `entities` back as they stood.
+pub(crate) fn restored_inverse(description: &str, entities: Vec<SavedEntity>) -> Op {
+    Op::RestoreEntities {
+        description: format!("Undid: {description}"),
+        entities,
     }
 }
 

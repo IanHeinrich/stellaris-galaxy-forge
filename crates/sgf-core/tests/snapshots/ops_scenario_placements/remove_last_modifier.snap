@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed modifier nebula_storm from Tal #4
+touched: [4]
+inverse: RestoreEntities "Undid: Removed modifier nebula_storm from Tal #4"
+  System 4 (132 bytes)
+… and 5 other issues
+
+--- scenario
++++ scenario
+@@ -10,6 +10,6 @@
+ 			set_star_flag = kept
+ 		}
+ 	}
+-	system = { id = "4" name = "Tal" position = { x = -30 y = 40 } effect = { add_modifier = { modifier = "nebula_storm" days = -1 } } }
++	system = { id = "4" name = "Tal" position = { x = -30 y = 40 } }
+ 	system = { id = "5" name = "Ren" position = { x = -50 y = -60 } effect = { set_star_flag = shadowed } effect = { add_modifier = { modifier = "nebula_storm" days = -1 } } }
+ }

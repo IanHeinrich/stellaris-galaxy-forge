@@ -11,6 +11,7 @@ mod save;
 use std::convert::Infallible;
 
 use sgf_core::format::save::details::DetailsResolver;
+use sgf_core::format::scenario::placed::{PLANET_BASE, SITE_BASE};
 use sgf_core::ops::{BodyKind, BodySpec};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
@@ -38,14 +39,6 @@ use crate::spawn_rolls::Rolls;
 use crate::stated::StatedDeposit;
 use crate::structure_spawns::EffectCall;
 use crate::views::{PlaceholderBody, RolledBody, RolledStructure, SystemRoll};
-
-/// Bodies an initializer gives no id: each collection counts from a base far above any id
-/// a save or a scenario writes, so a synthetic id never collides with a real one.
-const PLANET_BASE: u32 = 0x4000_0000;
-pub(crate) const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
-/// A scenario starbase's synthetic id: one per system, never a real entity.
-pub(crate) const STARBASE_BASE: u32 = 0x7000_0000;
-const SITE_BASE: u32 = 0x6000_0000;
 
 /// The planets and moons one initializer spawns, with the dig sites they carry and the
 /// ambient objects their effects create.

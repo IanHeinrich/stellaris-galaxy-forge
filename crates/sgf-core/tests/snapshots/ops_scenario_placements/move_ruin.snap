@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved megastructure gateway_ruined in Kel #1 from 100 at 180° to 120 at 90°
+touched: [1]
+inverse: RestoreEntities "Undid: Moved megastructure gateway_ruined in Kel #1 from 100 at 180° to 120 at 90°"
+  System 1 (505 bytes)
+… and 5 other issues
+
+--- scenario
++++ scenario
+@@ -1,6 +1,6 @@
+ static_galaxy_scenario = {
+ 	name = "placing"
+-	system = { id = "1" name = "Kel" position = { x = 0 y = 0 } effect = { set_star_flag = kept spawn_megastructure = { type = "gateway_ruined" orbit_distance = 100 orbit_angle = 0 random_pos = no } create_ambient_object = { type = "derelict_ship_object" location = this } last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 90 } } spawn_megastructure = { type = "dyson_sphere_ruined" planet = star owner = root } add_modifier = { modifier = "pulsar_radiation" days = -1 } } }
++	system = { id = "1" name = "Kel" position = { x = 0 y = 0 } effect = { set_star_flag = kept spawn_megastructure = { type = "gateway_ruined" orbit_distance = 120 orbit_angle = 270 random_pos = no } create_ambient_object = { type = "derelict_ship_object" location = this } last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 90 } } spawn_megastructure = { type = "dyson_sphere_ruined" planet = star owner = root } add_modifier = { modifier = "pulsar_radiation" days = -1 } } }
+ 	system = { id = "2" name = "Ora" position = { x = 30 y = 40 } }
+ 	system = {
+ 		id = "3"

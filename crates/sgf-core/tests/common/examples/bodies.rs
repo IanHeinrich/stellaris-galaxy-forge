@@ -1,4 +1,5 @@
 //! The examples of the ops on stars, bodies, empires, belts and wormholes, and the batch.
+use sgf_core::format::scenario::placed::{STAR_BODY, ambient_object_id, ruin_id};
 use sgf_core::ops::{
     ClassChange, EmpireFlag, EventTargetOf, MapColorPair, MegastructurePlace, NebulaFootprint,
     NewBypass, NewMegastructure, NewName, NewPlanet, Op, Parent, PlanetClassRule, SavedEntity,
@@ -7,9 +8,19 @@ use sgf_core::ops::{
 use sgf_core::projections::galaxy::LGateOutcome;
 
 use super::{
-    ADDED_BODY, ADDED_EVENT_TARGET, ADDED_MEGASTRUCTURE, Example, chors_ring, chors_ring_removal,
-    meissa_v, sol_habitat, sol_shipyard,
+    ADDED_BODY, ADDED_EVENT_TARGET, ADDED_MEGASTRUCTURE, Example, PLACING_SYSTEM, chors_ring,
+    chors_ring_removal, meissa_v, sol_habitat, sol_shipyard,
 };
+
+/// The ruin [`PLACING_SYSTEM`]'s `effect` block places.
+fn placing_ruin() -> u32 {
+    ruin_id(PLACING_SYSTEM, 0).expect("an id")
+}
+
+/// The ambient object [`PLACING_SYSTEM`]'s `effect` block places.
+fn placing_ambient_object() -> u32 {
+    ambient_object_id(PLACING_SYSTEM, 0).expect("an id")
+}
 
 /// The ring planet [`sol_shipyard`] spawns round its planet.
 fn shipyard_ring() -> NewPlanet {
@@ -209,6 +220,22 @@ pub(super) fn examples() -> Vec<Example> {
 			}"
                 .to_owned(),
             }],
+        })
+        .and_scenario(Op::RestoreEntities {
+            description: "Took the modifier off system 11".to_owned(),
+            entities: vec![SavedEntity {
+                table: SavedTable::System,
+                id: PLACING_SYSTEM,
+                text: concat!(
+                    "system = { id = \"11\" position = { x = -150 y = -30 } effect = { ",
+                    "spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 60 ",
+                    "orbit_angle = 90 random_pos = no } ",
+                    "create_ambient_object = { type = \"derelict_ship_object\" location = this } ",
+                    "last_created_ambient_object = { set_location = { target = prev distance = 30 ",
+                    "angle = 0 } } } }",
+                )
+                .to_owned(),
+            }],
         }),
         Example::save_4_5(meissa_v()),
         Example::added_body(Op::RemoveBody { body: ADDED_BODY }),
@@ -243,21 +270,60 @@ pub(super) fn examples() -> Vec<Example> {
                 }),
                 ..NewMegastructure::default()
             },
+        })
+        .and_scenario(Op::AddMegastructure {
+            system: 10,
+            spec: NewMegastructure {
+                kind: "dyson_sphere_ruined".to_owned(),
+                at: MegastructurePlace::Body { body: STAR_BODY }.into(),
+                ..NewMegastructure::default()
+            },
         }),
         Example::added_megastructure(Op::RemoveMegastructure {
             megastructure: ADDED_MEGASTRUCTURE,
+            construction: None,
+            left_out: 0,
+        })
+        .and_scenario(Op::RemoveMegastructure {
+            megastructure: placing_ruin(),
             construction: None,
             left_out: 0,
         }),
         Example::save_4_5(Op::MoveMegastructure {
             megastructure: 4,
             at: MegastructurePlace::Body { body: 933 },
+        })
+        .and_scenario(Op::MoveMegastructure {
+            megastructure: placing_ruin(),
+            at: MegastructurePlace::Free { x: 40.0, y: 0.0 },
         }),
         Example::save(Op::SetSystemHeights {
             heights: vec![SystemHeight {
                 system: 0,
                 height: Some(10.0),
             }],
+        }),
+        Example::scenario(Op::AddAmbientObject {
+            system: 10,
+            kind: "derelict_ship_object".to_owned(),
+            x: 0.0,
+            y: 25.0,
+        }),
+        Example::scenario(Op::MoveAmbientObject {
+            ambient_object: placing_ambient_object(),
+            x: 0.0,
+            y: -30.0,
+        }),
+        Example::scenario(Op::RemoveAmbientObject {
+            ambient_object: placing_ambient_object(),
+        }),
+        Example::scenario(Op::AddSystemModifier {
+            system: 10,
+            modifier: "pulsar_radiation".to_owned(),
+        }),
+        Example::scenario(Op::RemoveSystemModifier {
+            system: PLACING_SYSTEM,
+            modifier: "pulsar_radiation".to_owned(),
         }),
         Example::each(
             Op::Batch {

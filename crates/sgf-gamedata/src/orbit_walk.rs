@@ -4,15 +4,12 @@
 //! The roller and the example roll draw each range; the scenario details keep it as the
 //! bounds a draw could give.
 
+use sgf_core::placements::ORBIT_START;
 use sgf_core::views::details::Bounds;
 
 use crate::initializers::InitPlanet;
 use crate::install::script::Range;
 use crate::rng::Rng;
-
-/// The angle the game's saves start each walk from: the star's and planets' about the
-/// centre, and each planet's moons' about it.
-const WALK_START: f64 = 180.0;
 
 /// How far past the running orbit the game places a body with no `orbit_distance` it can read.
 const NO_DISTANCE: Range = Range {
@@ -84,7 +81,8 @@ pub(crate) trait Walk<'p> {
     ) -> Result<(), Self::Error>;
 }
 
-/// Walks `blocks` in file order from [`WALK_START`]. A block with no distance steps by
+/// Walks `blocks` in file order from [`ORBIT_START`], as the star and planets turn about the
+/// centre and each planet's moons about it. A block with no distance steps by
 /// [`NO_DISTANCE`], one with no angle by [`Walk::no_angle`]. A spacer steps the running
 /// orbit out and places nothing. A ranged `change_orbit` is drawn as a distance is (assumed:
 /// no game file says how).
@@ -93,7 +91,7 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
     walker: &mut W,
 ) -> Result<(), W::Error> {
     let mut orbit = W::Number::fixed(0.0);
-    let mut angle = W::Number::fixed(WALK_START);
+    let mut angle = W::Number::fixed(ORBIT_START);
     for block in blocks {
         let change = block.change_orbit;
         orbit = orbit.plus(match change.min == change.max {

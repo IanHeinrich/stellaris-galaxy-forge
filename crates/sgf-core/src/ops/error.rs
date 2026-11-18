@@ -198,6 +198,8 @@ pub enum OpError {
     DigSitePresent { body: u32, site: u32 },
     #[error("dig site {0} does not exist")]
     UnknownDigSite(u32),
+    #[error("ambient object {0} does not exist")]
+    UnknownAmbientObject(u32),
     #[error("dig site {0} is not on a planet")]
     DigSiteNotOnPlanet(u32),
     #[error("the save holds no event target {0:?}")]
@@ -324,6 +326,7 @@ impl OpError {
             | Self::UnknownCountry { .. }
             | Self::UnknownDeposit { .. }
             | Self::UnknownDigSite { .. }
+            | Self::UnknownAmbientObject { .. }
             | Self::UnknownEventTarget { .. }
             | Self::UnknownWormhole { .. }
             | Self::UnknownBelt { .. }

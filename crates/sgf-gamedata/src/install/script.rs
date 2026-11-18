@@ -8,8 +8,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+pub(crate) use sgf_core::cst::written;
 use sgf_core::cst::{self, Node, Value};
-use sgf_core::span::Span;
+pub use sgf_core::cst::{continuation, statement_span};
 
 use crate::install::layers::Layout;
 use crate::{Diagnostic, Meter};
@@ -213,49 +214,6 @@ pub(crate) fn written_key<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<C
         .iter()
         .position(|child| child.key_str(src) == Some(key))?;
     written(children, at, src)
-}
-
-/// `children[at]`'s scalar value. Inline maths written with spaces, `@[ 4 * x ]`, parses as
-/// `@[` and then one list item per word up to `]`, so those items are joined back onto it.
-pub(crate) fn written<'a>(children: &[Node], at: usize, src: &'a [u8]) -> Option<Cow<'a, str>> {
-    let first = children.get(at)?.scalar_str(src)?;
-    let words = continuation(children, at, src);
-    if words == 0 {
-        return Some(Cow::Borrowed(first));
-    }
-    let mut text = first.to_owned();
-    for item in &children[at + 1..=at + words] {
-        text.push(' ');
-        text.push_str(item.scalar_str(src).unwrap_or_default());
-    }
-    Some(Cow::Owned(text))
-}
-
-/// How many keyless statements after `children[at]` are the rest of its inline maths written
-/// with spaces, up to the word that ends in `]`; none when it is not one or never closes.
-pub fn continuation(children: &[Node], at: usize, src: &[u8]) -> usize {
-    let Some(first) = children.get(at).and_then(|child| child.scalar_str(src)) else {
-        return 0;
-    };
-    if !first.starts_with("@[") || first.ends_with(']') {
-        return 0;
-    }
-    for (n, item) in children[at + 1..].iter().enumerate() {
-        let Some(word) = item.key.map_or_else(|| item.scalar_str(src), |_| None) else {
-            return 0;
-        };
-        if word.ends_with(']') {
-            return n + 1;
-        }
-    }
-    0
-}
-
-/// `children[at]` as written: the statement itself, and the rest of its inline maths when it
-/// is written with spaces.
-pub fn statement_span(children: &[Node], at: usize, src: &[u8]) -> Span {
-    let last = at + continuation(children, at, src);
-    Span::new(children[at].span().start, children[last].span().end)
 }
 
 /// Stellaris inline maths: numbers, variable names with or without `@`, `+ - * /`,

@@ -13,6 +13,7 @@ use sgf_core::ops::{
     NewMegastructure, NewMegastructurePlace, NewRingWorld, Op, OpError, RingQuadrant, SpecBody,
     SpecMegastructure, SpecMegastructurePlace,
 };
+use sgf_core::placements::editor_angle;
 use sgf_core::session::{SaveQueries, Session};
 use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
 use sgf_core::views::{ErrorKind, SgfError};
@@ -894,7 +895,7 @@ fn ruined_ring(
             WrittenPlace::Orbit { distance, angle }
                 if row.key == def.key && distance.min == distance.max && angle.min == angle.max =>
             {
-                Some((distance.min, (angle.min + 180.0).rem_euclid(360.0)))
+                Some((distance.min, editor_angle(angle.min)))
             }
             _ => None,
         })

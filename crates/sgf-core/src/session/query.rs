@@ -1,5 +1,6 @@
 use super::Session;
 use crate::format::scenario::effect;
+use crate::format::scenario::placed::Placed;
 use crate::ops::{self, Op, OpError, Plan};
 use crate::search;
 use crate::views::{SearchKind, SearchResult};
@@ -14,6 +15,12 @@ impl Session {
     /// the block's text and the line it starts on. A save document has none.
     pub fn scenario_system_effects(&self) -> Vec<(u32, String, u32)> {
         effect::system_effects(&self.doc)
+    }
+
+    /// What a scenario system's `effect` block, the one the game runs, places, with the
+    /// system statement's current bytes the spans index.
+    pub fn scenario_system_placements(&self, id: u32) -> Option<(&[u8], Vec<Placed>)> {
+        effect::system_placements(&self.doc, id)
     }
 
     /// Systems, countries, planets, fleets, nebulae and star types matching `query` by id,

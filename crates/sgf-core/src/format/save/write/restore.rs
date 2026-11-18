@@ -14,7 +14,9 @@ use crate::format::save::{
     entity_at, entity_in, planet_statement, planet_system, system_statement,
 };
 use crate::keys;
-use crate::ops::{Edit, Op, OpError, Plan, Planned, SavedEntity, SavedTable, Subject};
+use crate::ops::{
+    Edit, Op, OpError, Plan, Planned, SavedEntity, SavedTable, Subject, restored_inverse,
+};
 use crate::overlay::Anchor;
 use crate::scan::{self, Index, Value};
 use crate::session::Session;
@@ -51,7 +53,7 @@ pub(crate) fn plan_restore(
     }
     Ok(Planned {
         description: description.to_owned(),
-        inverse: saved.inverse(format!("Undid: {description}")),
+        inverse: saved.undoing(description),
     })
 }
 
@@ -108,14 +110,22 @@ impl Saved {
         Ok(())
     }
 
+    /// The inverse that undoes the edit described as `description`.
+    pub(crate) fn undoing(self, description: &str) -> Op {
+        restored_inverse(description, self.entities())
+    }
+
+    fn entities(self) -> Vec<SavedEntity> {
+        self.0
+            .into_iter()
+            .map(|((table, id), text)| SavedEntity { table, id, text })
+            .collect()
+    }
+
     pub(crate) fn inverse(self, description: String) -> Op {
         Op::RestoreEntities {
             description,
-            entities: self
-                .0
-                .into_iter()
-                .map(|((table, id), text)| SavedEntity { table, id, text })
-                .collect(),
+            entities: self.entities(),
         }
     }
 }

@@ -390,6 +390,11 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   MoveMegastructure: null,
   DeleteMegastructure: null,
   DeleteRingWorld: null,
+  AddAmbientObject: null,
+  MoveAmbientObject: null,
+  RemoveAmbientObject: null,
+  AddSystemModifier: null,
+  RemoveSystemModifier: null,
   Batch: widenBatch,
 };
 

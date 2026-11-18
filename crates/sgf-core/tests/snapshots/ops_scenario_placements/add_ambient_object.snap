@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added ambient object derelict_ship_object in Vel #3
+touched: [3]
+inverse: RemoveAmbientObject { ambient_object: 2013266112 }
+… and 5 other issues
+
+--- scenario
++++ scenario
+@@ -8,6 +8,8 @@
+ 		position = { x = 50 y = 60 }
+ 		effect = {
+ 			set_star_flag = kept
++			create_ambient_object = { type = "derelict_ship_object" location = this }
++			last_created_ambient_object = { set_location = { target = prev distance = 25 angle = 270 } }
+ 		}
+ 	}
+ 	system = { id = "4" name = "Tal" position = { x = -30 y = 40 } effect = { add_modifier = { modifier = "nebula_storm" days = -1 } } }

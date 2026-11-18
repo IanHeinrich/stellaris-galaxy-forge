@@ -810,7 +810,11 @@ pub enum Op {
     /// [`Op::MoveMegastructure`] and [`Op::DeleteRingWorld`] invert to. Each text must be one
     /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
     /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
-    /// bytes. The inverse carries the texts displaced. Save documents only.
+    /// bytes. The inverse carries the texts displaced. In a scenario, each entity is a whole
+    /// `system` statement, [`SavedTable::System`] by its id: what a scenario's
+    /// [`Op::MoveMegastructure`], [`Op::RemoveMegastructure`], [`Op::MoveAmbientObject`],
+    /// [`Op::RemoveAmbientObject`] and [`Op::RemoveSystemModifier`] invert to, so that a
+    /// statement taken out comes back where it stood and every id read from its place with it.
     #[ts(skip)]
     RestoreEntities {
         description: String,
@@ -1019,7 +1023,15 @@ pub enum Op {
     /// modifier that cannot be written are refused too. The inverse is
     /// [`Op::RemoveMegastructure`] with the construction and `left_out`, after
     /// [`Op::RemoveBody`] for the planet in a batch with the old inner radius when it grew.
-    /// Save documents only.
+    ///
+    /// A scenario writes a ruin as a `spawn_megastructure` at the end of the system's last
+    /// `effect` block, which the system gains when it has none: on the main star,
+    /// [`MegastructurePlace::Body`] naming [`STAR_BODY`](crate::format::scenario::placed::STAR_BODY),
+    /// as `planet = star`, or at a free point about the centre as its distance and the game's
+    /// angle with `random_pos = no`. Its id is read from where it stands, as
+    /// [`crate::format::scenario::placed`] says. An owner, a bypass, a construction, a
+    /// planet, a name, body flags, any other body, a place beside a body, a second ruin on
+    /// the star and a system holding as many ruins as take an id are refused.
     AddMegastructure {
         system: u32,
         spec: NewMegastructure,
@@ -1039,8 +1051,14 @@ pub enum Op {
     /// file held neither.
     /// A row the file held is refused. The inverse is the [`Op::AddMegastructure`] that adds
     /// it back as it stood: its type, name, place, owner and bypass, the body flags it left,
-    /// what was taken back as its construction, and `left_out`. Stellaris 4.x save documents
-    /// only.
+    /// what was taken back as its construction, and `left_out`. Stellaris 4.x save documents.
+    ///
+    /// A scenario's ruin the editor writes is taken out of its `effect` block, with the block
+    /// when nothing else stands in it and the system has no other, whether the file held it
+    /// or an add wrote it: a scenario keeps no record of which, as
+    /// [`Op::RemoveBodyModifier`] takes a planet's modifier. A ruin in another shape, such as
+    /// one with an owner, and a construction or `left_out` are refused. The inverse is the
+    /// [`Op::RestoreEntities`] that writes the system's statement back as it stood.
     RemoveMegastructure {
         megastructure: u32,
         /// What the add's construction wrote; filled only by the inverse of
@@ -1078,7 +1096,12 @@ pub enum Op {
     /// star, a body outside the system, a body another row names, a point that is not
     /// finite and the place it stands at already are refused. The inverse is the
     /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
-    /// documents only.
+    /// documents.
+    ///
+    /// A scenario's ruin the editor writes at a free point goes to another free point: only
+    /// its distance and angle are rewritten. One on the star stays there. A ruin in another
+    /// shape, a body or a place beside one, and the point it stands at already are refused.
+    /// The inverse is the [`Op::RestoreEntities`] that writes the system's statement back.
     MoveMegastructure {
         megastructure: u32,
         at: MegastructurePlace,
@@ -1093,6 +1116,59 @@ pub enum Op {
     /// Save documents only.
     SetSystemHeights {
         heights: Vec<SystemHeight>,
+    },
+    /// An ambient object of type `kind` in a scenario system, at `x`, `y` about the system's
+    /// main star in the save frame. The game measures the point from that star, which stands
+    /// off the centre in a binary, and the core does not read the initializer that places it,
+    /// so the caller gives the point about it. Written at the end of the system's last
+    /// `effect` block, which the system gains when it has none, as
+    /// `create_ambient_object = { type = "<kind>" location = this }` and the
+    /// `last_created_ambient_object` that sets its distance and the game's angle. A type that
+    /// is not an identifier, a point that is not finite and a system holding as many ambient
+    /// objects as take an id are refused. The inverse is [`Op::RemoveAmbientObject`].
+    /// Scenario documents only.
+    AddAmbientObject {
+        system: u32,
+        kind: String,
+        x: f64,
+        y: f64,
+    },
+    /// An ambient object the editor writes, moved to `x`, `y` about its system's main star:
+    /// only its distance and angle are rewritten. An unknown one, one in a shape the editor
+    /// does not write and the point it stands at already are refused. The inverse is the
+    /// [`Op::RestoreEntities`] that writes the system's statement back.
+    /// Scenario documents only.
+    MoveAmbientObject {
+        ambient_object: u32,
+        x: f64,
+        y: f64,
+    },
+    /// An ambient object the editor writes taken out, both its statements, with its `effect`
+    /// block when nothing else stands in it and the system has no other. A scenario keeps no
+    /// record of whether the file held it or an add wrote it, so either goes, as
+    /// [`Op::RemoveBodyModifier`] takes a planet's modifier. An unknown one and one in a shape
+    /// the editor does not write are refused. The inverse is the [`Op::RestoreEntities`]
+    /// that writes the system's statement back as it stood. Scenario documents only.
+    RemoveAmbientObject {
+        ambient_object: u32,
+    },
+    /// A scenario system's modifier, `add_modifier = { modifier = "<modifier>" days = -1 }`
+    /// at the end of its last `effect` block, which the system gains when it has none. A
+    /// modifier that is not an identifier and one the block adds already are refused. The
+    /// inverse is [`Op::RemoveSystemModifier`]. Scenario documents only.
+    AddSystemModifier {
+        system: u32,
+        modifier: String,
+    },
+    /// A scenario system's modifier as [`Op::AddSystemModifier`] writes it, taken out of its
+    /// last `effect` block, with the block as [`Op::RemoveAmbientObject`] takes it, whether
+    /// the file held it or an add wrote it. A modifier the block does not add and one written
+    /// in another shape, such as one lasting some days, are refused. The inverse is the
+    /// [`Op::RestoreEntities`] that writes the system's statement back. Scenario documents
+    /// only.
+    RemoveSystemModifier {
+        system: u32,
+        modifier: String,
     },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
@@ -1112,7 +1188,7 @@ impl Op {
     /// details it stales, whether it reclassifies, whether it needs a 4.x save and whether it
     /// takes a second step.
     pub fn reach(&self) -> OpReach {
-        use DetailsReach::{Bodies, InPlace, Rebuild, SaveBodies};
+        use DetailsReach::{Bodies, InPlace, Rebuild, SaveBodies, SaveRebuild};
         match self {
             Self::MoveSystem { .. }
             | Self::AddLane { .. }
@@ -1195,16 +1271,13 @@ impl Op {
                 .inverse_only(),
             // A megastructure written back stands in its system's details, though no body
             // of the system is rewritten.
-            Self::RestoreEntities { .. } => OpReach::of(SAVE)
-                .details(Rebuild)
+            Self::RestoreEntities { .. } => OpReach::of(BOTH)
+                .details(SaveRebuild)
                 .whole_entries()
                 .inverse_only(),
             Self::AddWormholePair { .. }
             | Self::RemoveWormholePair { .. }
             | Self::MoveBodyToSystem { .. }
-            | Self::AddMegastructure { .. }
-            | Self::RemoveMegastructure { .. }
-            | Self::MoveMegastructure { .. }
             | Self::DeleteMegastructure { .. }
             | Self::DeleteRingWorld { .. }
             | Self::AddRingWorld { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
@@ -1226,6 +1299,18 @@ impl Op {
             | Self::SetHomeSystem { .. }
             | Self::PreventLane { .. }
             | Self::AllowLane { .. } => OpReach::of(SCENARIO),
+            // A scenario places a ruin with the statements its effect block runs, which its
+            // details, read from the initializer, leave out.
+            Self::AddMegastructure { .. }
+            | Self::RemoveMegastructure { .. }
+            | Self::MoveMegastructure { .. } => {
+                OpReach::of(BOTH).details(SaveRebuild).whole_entries()
+            }
+            Self::AddAmbientObject { .. }
+            | Self::MoveAmbientObject { .. }
+            | Self::RemoveAmbientObject { .. }
+            | Self::AddSystemModifier { .. }
+            | Self::RemoveSystemModifier { .. } => OpReach::of(SCENARIO),
             Self::SetWormholePair { .. } | Self::SetWormholeEnds { .. } => {
                 OpReach::of(SCENARIO).reclassifies()
             }
@@ -1395,6 +1480,9 @@ pub enum DetailsReach {
     SaveBodies,
     /// Every system it rewrote, with the projection built again.
     Rebuild,
+    /// [`Self::Rebuild`] in a save and nothing in a scenario, where the op writes only what
+    /// a system's `effect` block places.
+    SaveRebuild,
 }
 
 impl DetailsReach {
@@ -1407,6 +1495,9 @@ impl DetailsReach {
             (Self::Untouched, reach) | (reach, Self::Untouched) => reach,
             (a, b) if a == b => a,
             (Self::Bodies, Self::SaveBodies) | (Self::SaveBodies, Self::Bodies) => Self::Bodies,
+            (Self::SaveBodies, Self::SaveRebuild) | (Self::SaveRebuild, Self::SaveBodies) => {
+                Self::SaveRebuild
+            }
             _ => Self::Rebuild,
         }
     }

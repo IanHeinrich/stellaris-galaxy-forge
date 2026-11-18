@@ -14,6 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::cst::Node;
+use sgf_core::placements::editor_angle;
 
 use super::{EVENT_KEYS, HOOKS};
 use crate::GameData;
@@ -203,10 +204,9 @@ impl Orbit {
         }
     }
 
-    /// The angle as the save has it, `atan2(y, x)` of the point in degrees from 0 up to 360:
-    /// game angle 0 is save angle 180.
+    /// The angle as the save has it, `atan2(y, x)` of the point in degrees from 0 up to 360.
     pub fn save_angle(&self) -> f64 {
-        (self.angle + 180.0).rem_euclid(360.0)
+        editor_angle(self.angle)
     }
 }
 
