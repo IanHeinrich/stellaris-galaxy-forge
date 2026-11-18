@@ -256,6 +256,8 @@ impl GameData {
             || replaced.contains(&RegistryKind::Initializers)
         {
             out.system_modifiers = Arc::default();
+            out.ruins = Arc::default();
+            out.ambient_placed = Arc::default();
         }
         if kinds.contains(&RegistryKind::CountryTypes) {
             let built = registry::load(&self.layout, &self.variables, &mut fresh);

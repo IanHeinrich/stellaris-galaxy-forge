@@ -341,8 +341,14 @@ describe("bypassIcons", () => {
 
   it("takes the frame from the game's own bypass definitions when they are loaded", () => {
     const kinds: BypassKinds = new Map([
-      ["gateway", { key: "gateway", icon_frame: 7, always_active: false }],
-      ["relay_bypass", { key: "relay_bypass", icon_frame: null, always_active: false }],
+      [
+        "gateway",
+        { key: "gateway", icon_frame: 7, always_active: false, scripted_connection: false },
+      ],
+      [
+        "relay_bypass",
+        { key: "relay_bypass", icon_frame: null, always_active: false, scripted_connection: false },
+      ],
     ]);
     expect(bypassIconKey("gateway", kinds)).toBe("sprite:GFX_ship_class_small#7");
     expect(bypassIconKey("modded_rift", kinds)).toBe("sprite:GFX_ship_class_small#25");
@@ -356,7 +362,10 @@ describe("bypassIcons", () => {
 
   it("gives a kind the game defines with no icon none, rather than the vanilla frame", () => {
     const kinds: BypassKinds = new Map([
-      ["relay_bypass", { key: "relay_bypass", icon_frame: null, always_active: false }],
+      [
+        "relay_bypass",
+        { key: "relay_bypass", icon_frame: null, always_active: false, scripted_connection: false },
+      ],
     ]);
     expect(bypassIconKey("relay_bypass", kinds)).toBeNull();
     const icons = bypassIcons(bypasses, 2, kinds);

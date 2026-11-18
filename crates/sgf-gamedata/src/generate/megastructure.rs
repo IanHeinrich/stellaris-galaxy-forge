@@ -858,11 +858,8 @@ pub(crate) fn layout_structures<'g, 'i>(
                 let token = target
                     .strip_prefix("event_target:")
                     .ok_or(LayoutRefusal::Megastructure)?;
-                bodies
-                    .iter()
-                    .rev()
-                    .find(|b| b.block.saves_target.iter().any(|t| t == token))
-                    .filter(|b| b.always)
+                initializers::saved_body(&bodies, target, None)
+                    .filter(|&i| bodies[i].always)
                     .ok_or(LayoutRefusal::Megastructure)?;
                 SpawnedAt::Saved(token)
             }

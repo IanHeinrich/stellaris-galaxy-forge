@@ -26,6 +26,8 @@ pub struct AmbientObjectView {
     /// model, or one with nothing to draw, such as a cloud or a particle effect, and no other
     /// picture.
     pub portrait: Option<String>,
+    /// The initializers that create it in their systems, by key.
+    pub placed_by: Vec<String>,
 }
 
 impl GameData {
@@ -33,6 +35,7 @@ impl GameData {
     /// its portrait.
     pub fn ambient_object_views(&self) -> Vec<AmbientObjectView> {
         let portraits = self.ambient_portraits();
+        let placed = self.ambient_objects_placed();
         self.ambient_objects
             .iter()
             .map(|def| AmbientObjectView {
@@ -49,6 +52,7 @@ impl GameData {
                     .entity
                     .as_deref()
                     .and_then(|entity| portraits.get(entity).cloned()),
+                placed_by: placed.get(&def.key).cloned().unwrap_or_default(),
             })
             .collect()
     }

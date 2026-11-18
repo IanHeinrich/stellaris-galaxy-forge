@@ -77,6 +77,9 @@ pub struct InitPlanet {
     /// Every `spawn_megastructure` in this block's effects, its moons aside, in file order:
     /// each instance of the block spawns them.
     pub megastructures: Vec<InitMegastructure>,
+    /// The `key = yes` statements of this block's effects, its moons aside, in file order:
+    /// each a scripted effect called with no parameters, when the install defines one.
+    pub calls: Vec<EffectCall>,
     /// The event targets this block's effects save on the body.
     pub saves_target: Vec<String>,
     /// `false` for `deposit_blockers = none`: the body rolls no blockers.
@@ -244,6 +247,15 @@ pub struct Body<'p> {
     /// The game spawns it whatever it draws: it is within the fewest instances its block
     /// spawns, and so is every body it was expanded under.
     pub always: bool,
+}
+
+/// The body among `bodies` that `target`, an `event_target:X`, names: body `from`, whose block
+/// the statement is written in, when its block saves `X`, else the last body whose block does.
+pub(crate) fn saved_body(bodies: &[Body<'_>], target: &str, from: Option<usize>) -> Option<usize> {
+    let token = target.strip_prefix("event_target:")?;
+    let saves = |i: &usize| bodies[*i].block.saves_target.iter().any(|t| t == token);
+    from.filter(saves)
+        .or_else(|| (0..bodies.len()).rev().find(saves))
 }
 
 /// Every body `planets` can expand to, in the order a system's planet list
@@ -639,6 +651,7 @@ fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPla
         .chain(anomaly.map(|category| BodyEffect::Anomaly(category.to_owned())))
         .chain(read)
         .collect();
+    let written = structure_spawns::read(node, def, origin);
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: BodyClass::of(scalar(node, "class", src).unwrap_or(RANDOM)),
@@ -665,7 +678,8 @@ fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPla
         pre_ftl: has_effect(node, src, body_effects::pre_ftl),
         sites: sites(node, src),
         deposits: deposits(node, src),
-        megastructures: structure_spawns::read(node, def, origin).megastructures,
+        megastructures: written.megastructures,
+        calls: written.calls,
         saves_target: structure_spawns::saved_targets(node, src),
         blockers: scalar(node, "deposit_blockers", src) != Some("none"),
         effects,

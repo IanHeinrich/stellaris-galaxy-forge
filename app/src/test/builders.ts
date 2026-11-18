@@ -399,13 +399,13 @@ export function megastructureSummary(
 
 /**
  * The one `MegastructureView` builder: a type that draws `entity` where its row stands, added
- * on any body.
+ * on any body. Unless `over` says, it floats free as the game draws its model and offset.
  */
 export function megastructureTypeView(
   key: string,
   over: Partial<MegastructureView> = {},
 ): MegastructureView {
-  return {
+  const view: Omit<MegastructureView, "floats_free" | "floats_free_on_star"> = {
     key,
     entity: `${key}_entity`,
     construction_entity: null,
@@ -449,6 +449,13 @@ export function megastructureTypeView(
     variant_of: null,
     ring_world: false,
     ...over,
+  };
+  const [dx, dy] = view.entity_offset;
+  return {
+    ...view,
+    floats_free: over.floats_free ?? !view.scales_with_planet,
+    floats_free_on_star:
+      over.floats_free_on_star ?? (!view.scales_with_planet && (dx !== 0 || dy !== 0)),
   };
 }
 

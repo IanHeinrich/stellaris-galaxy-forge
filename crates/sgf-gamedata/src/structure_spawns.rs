@@ -32,10 +32,12 @@ pub enum WrittenPlace {
     /// `orbit_distance` and `orbit_angle` about the centre, a missing one 0, and an angle the
     /// reader cannot take anywhere from 0 to 360.
     Orbit { distance: Range, angle: Range },
-    /// Where it stands is not known, as written: an `orbit_distance` the reader cannot take
-    /// (an unknown `@variable`, a parameter), or the body scope it is spawned from
-    /// (`every_system_planet`) when it names no body by an event target or `star`.
-    Unknown(String),
+    /// At a body the walk cannot name: spawned from a scope of the system's bodies
+    /// (`every_system_planet`), as written, naming no body by an event target or `star`.
+    BodyScope(String),
+    /// At a point whose `orbit_distance` the reader cannot take (an unknown `@variable`, a
+    /// parameter): the statement, as written.
+    UnreadOrbit(String),
     /// `planet = …`, as written: `star`, `event_target:X`, `prev`, `this`.
     Planet(String),
     /// `coords_from = …`, as written.
@@ -190,7 +192,7 @@ fn megastructure(
         (Some(_), WrittenPlace::CoordsFrom(target)) if names_a_body(&target) => {
             WrittenPlace::CoordsFrom(target)
         }
-        (Some(scope), _) => WrittenPlace::Unknown(scope.to_owned()),
+        (Some(scope), _) => WrittenPlace::BodyScope(scope.to_owned()),
     };
     Some(InitMegastructure {
         kind: spawn.kind,
@@ -222,7 +224,7 @@ fn orbit(node: &Node, def: &Def, written: &Orbit) -> WrittenPlace {
                     .iter()
                     .position(|child| child.key_str(src) == Some("orbit_distance"))
                     .unwrap_or_default();
-                return WrittenPlace::Unknown(
+                return WrittenPlace::UnreadOrbit(
                     String::from_utf8_lossy(script::statement_span(children, at, src).slice(src))
                         .into_owned(),
                 );

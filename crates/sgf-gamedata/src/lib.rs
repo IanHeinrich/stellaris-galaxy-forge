@@ -20,6 +20,7 @@ pub(crate) mod dismantle;
 pub(crate) mod feature_roll;
 pub mod fonts;
 pub mod generate;
+pub mod initializer_placements;
 pub mod initializers;
 pub mod install;
 pub mod layouts;
@@ -42,6 +43,7 @@ pub mod report;
 pub(crate) mod resolver;
 pub mod rng;
 pub(crate) mod rolls;
+pub mod scenario_megastructure_fits;
 pub mod scripts;
 pub(crate) mod spawn_rolls;
 pub mod special;
@@ -197,6 +199,12 @@ pub struct GameData {
     /// Every modifier key the scripts add with a system as the scope, worked out the first
     /// time a system's modifiers are asked for.
     system_modifiers: Arc<OnceLock<BTreeSet<String>>>,
+    /// The megastructures the initializers spawn with no owner, worked out the first time they
+    /// are asked for.
+    ruins: Arc<OnceLock<Vec<initializer_placements::InitializerRuin>>>,
+    /// The ambient objects the initializers create, by type, worked out the first time they
+    /// are asked for.
+    ambient_placed: Arc<OnceLock<BTreeMap<String, Vec<String>>>>,
     /// The portrait of each ambient object's model by its entity, for the entities that have
     /// one, worked out the first time the ambient objects are asked for.
     ambient_portraits: Arc<OnceLock<HashMap<String, String>>>,
@@ -537,6 +545,8 @@ impl GameData {
             ring_flags: Arc::default(),
             worlds: Arc::default(),
             system_modifiers: Arc::default(),
+            ruins: Arc::default(),
+            ambient_placed: Arc::default(),
             ambient_portraits: Arc::default(),
             read_classes: planet_classes,
             megastructure_defs: Arc::new(megastructure_defs),

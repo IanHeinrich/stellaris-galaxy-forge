@@ -446,6 +446,6 @@ fn a_statement_with_spaced_inline_maths_is_kept_as_written() {
     assert_eq!(init.megastructures.len(), 1);
     assert_eq!(
         init.megastructures[0].place,
-        WrittenPlace::Unknown("orbit_distance = @[ 5 * unknown_name ]".to_owned())
+        WrittenPlace::UnreadOrbit("orbit_distance = @[ 5 * unknown_name ]".to_owned())
     );
 }

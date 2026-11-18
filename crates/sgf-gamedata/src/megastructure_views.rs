@@ -85,6 +85,22 @@ pub struct MegastructureView {
     /// Production"; `None` when the tooltip's first line is anything else.
     #[serde(default)]
     pub category: Option<String>,
+    /// A row of it tied to a planet stands at its own point: [`MegastructureDef::floats_free`].
+    #[serde(default)]
+    pub floats_free: bool,
+    /// A row of it tied to a star stands at its own point.
+    #[serde(default)]
+    pub floats_free_on_star: bool,
+}
+
+impl MegastructureDef {
+    /// Whether a row of this type tied to a body, a star when `on_star`, stands at its own
+    /// point: not for a type the game draws on its body wherever its point is, one that grows
+    /// with its planet or stands on its star with no offset, as an Orbital Ring or a Dyson
+    /// Sphere does.
+    pub fn floats_free(&self, on_star: bool) -> bool {
+        !self.scales_with_planet && !(on_star && self.entity_offset == (0.0, 0.0))
+    }
 }
 
 /// Every stage a quadrant of a ring world can be asked for, in the order [`RingStage`] lists them.
@@ -146,6 +162,8 @@ impl GameData {
                         .as_deref()
                         .and_then(|sprite| self.portrait(sprite)),
                     category: self.category(&def.key),
+                    floats_free: def.floats_free(false),
+                    floats_free_on_star: def.floats_free(true),
                     def: def.clone(),
                 }
             })

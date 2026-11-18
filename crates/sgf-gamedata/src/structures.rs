@@ -72,11 +72,75 @@ struct Context<'a> {
     random: u32,
 }
 
-/// A scripted effect a system calls with no parameters, and what it writes.
-struct Called<'i, 'g> {
-    call: &'i EffectCall,
-    def: &'g Def,
-    written: Written,
+/// A scripted effect a system or one of its bodies calls with no parameters, and what it
+/// writes.
+pub(crate) struct Called<'i, 'g> {
+    pub call: &'i EffectCall,
+    /// The body whose block makes the call; `None` for the system's own effects.
+    pub from: Option<usize>,
+    pub def: &'g Def,
+    pub written: Written,
+}
+
+/// Every call of `init`'s system and of each of `bodies` to a scripted effect the install
+/// defines whose text names no `$parameter$`, which the editor reads as written: the system's
+/// first, then each body's in turn.
+pub(crate) fn calls<'i, 'g>(
+    gd: &'g GameData,
+    init: &'i Initializer,
+    bodies: &[Body<'i>],
+) -> Vec<Called<'i, 'g>> {
+    let system = init.calls.iter().map(|call| (call, None));
+    let of_bodies = bodies
+        .iter()
+        .enumerate()
+        .flat_map(|(i, body)| body.block.calls.iter().map(move |call| (call, Some(i))));
+    system
+        .chain(of_bodies)
+        .filter_map(|(call, from)| {
+            let def = gd.scripts.effect(&call.key)?;
+            let parameterless = !def.node.span().slice(&def.src).contains(&b'$');
+            parameterless.then(|| Called {
+                call,
+                from,
+                def,
+                written: structure_spawns::read_effect(def),
+            })
+        })
+        .collect()
+}
+
+/// Every `spawn_megastructure` `init` places, with the body whose block or call writes it and
+/// whether it runs whatever happens: the system's own, its calls', each body's own and each
+/// body's calls', in that order.
+pub(crate) fn spawns<'a>(
+    init: &'a Initializer,
+    bodies: &[Body<'a>],
+    called: &'a [Called<'a, '_>],
+) -> Vec<(&'a InitMegastructure, Option<usize>, bool)> {
+    let of_calls = |system: bool| {
+        called
+            .iter()
+            .filter(move |c| c.from.is_none() == system)
+            .flat_map(|c| {
+                let always = c.call.always && c.from.is_none_or(|i| bodies[i].always);
+                c.written
+                    .megastructures
+                    .iter()
+                    .map(move |s| (s, c.from, always))
+            })
+    };
+    let own = init.megastructures.iter().map(|spawn| (spawn, None, true));
+    let of_bodies = bodies.iter().enumerate().flat_map(|(i, body)| {
+        body.block
+            .megastructures
+            .iter()
+            .map(move |s| (s, Some(i), body.always))
+    });
+    own.chain(of_calls(true))
+        .chain(of_bodies)
+        .chain(of_calls(false))
+        .collect()
 }
 
 impl GameData {
@@ -109,53 +173,20 @@ impl GameData {
             megastructures: &self.megastructures,
             random: 0,
         };
-        let called: Vec<Called> = init
-            .calls
-            .iter()
-            .filter_map(|call| {
-                let def = self.scripts.effect(&call.key)?;
-                let parameterless = !def.node.span().slice(&def.src).contains(&b'$');
-                parameterless.then(|| Called {
-                    call,
-                    def,
-                    written: structure_spawns::read_effect(def),
-                })
-            })
-            .collect();
-
-        let mut spawns: Vec<(&InitMegastructure, Option<usize>, bool)> = init
-            .megastructures
-            .iter()
-            .map(|spawn| (spawn, None, true))
-            .collect();
-        for c in &called {
-            spawns.extend(
-                c.written
-                    .megastructures
-                    .iter()
-                    .map(|s| (s, None, c.call.always)),
-            );
-        }
         let bodies = cx.bodies.clone();
-        for (i, body) in bodies.iter().enumerate() {
-            spawns.extend(
-                body.block
-                    .megastructures
-                    .iter()
-                    .map(|s| (s, Some(i), body.always)),
-            );
-        }
+        let called = calls(self, init, &bodies);
         let mut out = Structures::default();
-        for (n, (spawn, from, always)) in spawns.into_iter().enumerate() {
+        for (n, (spawn, from, always)) in spawns(init, &bodies, &called).into_iter().enumerate() {
             let (row, anchor) = cx.megastructure(n, spawn, from, always);
             out.anchored.extend(anchor.map(|i| (row.id, i)));
             out.megastructures.push(row);
         }
 
+        let system_calls = || called.iter().filter(|c| c.from.is_none());
         let from_call = init
             .starbase
             .is_none()
-            .then(|| called.iter().find(|c| c.written.starbase.is_some()))
+            .then(|| system_calls().find(|c| c.written.starbase.is_some()))
             .flatten();
         let starbase = match from_call {
             Some(c) => c.written.starbase.as_ref().map(|s| (s, c.call.always)),
@@ -166,8 +197,7 @@ impl GameData {
             let level = self.starbase_level(&s.size);
             cx.starbase(s, level, always, star_size)
         });
-        out.modelled_calls = called
-            .iter()
+        out.modelled_calls = system_calls()
             .filter(|c| whole(c, from_call.is_some_and(|f| std::ptr::eq(f, *c))))
             .map(|c| c.call.clone())
             .collect();
@@ -289,7 +319,9 @@ impl Context<'_> {
                     angle: bounds(*angle),
                 },
             ),
-            WrittenPlace::Unknown(written) => unknown(written),
+            WrittenPlace::BodyScope(written) | WrittenPlace::UnreadOrbit(written) => {
+                unknown(written)
+            }
             WrittenPlace::Planet(target) => match self.body(target, from) {
                 Some(i) => {
                     let body = self.planets[i].id;
@@ -327,18 +359,7 @@ impl Context<'_> {
         match target {
             "star" => self.star(),
             "prev" => from,
-            _ => {
-                let token = target.strip_prefix("event_target:")?;
-                let saves = |i: &usize| {
-                    self.bodies[*i]
-                        .block
-                        .saves_target
-                        .iter()
-                        .any(|t| t == token)
-                };
-                from.filter(saves)
-                    .or_else(|| (0..self.bodies.len()).rev().find(saves))
-            }
+            _ => initializers::saved_body(&self.bodies, target, from),
         }
     }
 

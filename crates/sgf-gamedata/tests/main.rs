@@ -31,6 +31,7 @@ mod generate_pinned;
 mod generate_star_class;
 mod initializer_corpus;
 mod initializer_definition;
+mod initializer_placements;
 mod initializers;
 mod inline_maths;
 mod inline_script_reload;

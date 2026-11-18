@@ -18,6 +18,9 @@ pub struct BypassDef {
     pub icon_frame: Option<u32>,
     /// `always_active = yes`: a bypass of this kind is open from the moment it is made.
     pub always_active: bool,
+    /// `connection_type = scripted_connection`: where a bypass of this kind leads is the
+    /// script's to decide, as an L-Gate's is.
+    pub scripted_connection: bool,
 }
 
 impl FromDef for BypassDef {
@@ -32,6 +35,7 @@ impl FromDef for BypassDef {
                 .filter(|&n| n >= 0)
                 .and_then(|n| u32::try_from(n).ok()),
             always_active: def.flag("always_active"),
+            scripted_connection: def.scalar("connection_type") == Some("scripted_connection"),
         }
     }
 }
