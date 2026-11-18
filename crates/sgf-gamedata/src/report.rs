@@ -18,8 +18,6 @@ use crate::{Diagnostic, GameData};
 /// The seed a shattered class is baked with where no planet gives one, as the app's class
 /// picker bakes it.
 const SHATTERED_SEED: u32 = 1;
-/// The culture a model key names for a row no empire owns, as the app draws one.
-const NO_CULTURE: &str = "none";
 
 /// One thing the report lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -290,13 +288,8 @@ fn models(gd: &GameData) -> (Vec<Row>, Vec<Row>) {
         .into_iter()
         .collect();
     let read = on_every_core(&entities, |entity| {
-        let key = TextureKey::Model {
-            culture: NO_CULTURE.to_owned(),
-            entity: (*entity).to_owned(),
-            yaw: 0,
-            tilt: None,
-            px: None,
-        };
+        let key =
+            TextureKey::bare_model(entity).ok_or_else(|| format!("`{entity}` is no model name"))?;
         gd.untabled_shaders(&key.to_string())
             .map_err(|e| e.to_string())
     });

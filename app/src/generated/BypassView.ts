@@ -8,4 +8,9 @@ icon_frame: number | null,
 /**
  * `always_active = yes`: a bypass of this kind is open from the moment it is made.
  */
-always_active: boolean, };
+always_active: boolean, 
+/**
+ * `connection_type = scripted_connection`: where a bypass of this kind leads is the
+ * script's to decide, as an L-Gate's is.
+ */
+scripted_connection: boolean, };

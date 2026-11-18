@@ -20,7 +20,7 @@ use crate::{Diagnostic, Meter};
 /// The culture the game falls back to for a model with none of the culture asked for.
 pub(super) const FALLBACK_CULTURE: &str = "mammalian_01";
 /// The culture a model key names for what no empire owns: the game draws its bare entity.
-pub(super) const NO_CULTURE: &str = "none";
+pub(crate) const NO_CULTURE: &str = "none";
 /// How many `attach` and `clone` steps are followed from the entity asked for.
 const DEPTH: usize = 6;
 /// The locator every assembly attaches its parts at, the model's origin when no file

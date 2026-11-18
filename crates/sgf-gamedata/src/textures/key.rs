@@ -3,7 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use super::TextureError;
+use super::{NO_CULTURE, TextureError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextureKey {
@@ -79,6 +79,18 @@ impl TextureKey {
     /// Deposit art by its icon name; `None` for a name the key grammar refuses.
     pub fn deposit(icon: &str) -> Option<Self> {
         relative_path(icon, 2).map(|icon| Self::Deposit { icon })
+    }
+
+    /// `entity`'s model as no empire owns it, unturned, at the map's tilt and with no size cap
+    /// (`model:none:<entity>`); `None` for a name the key grammar refuses.
+    pub fn bare_model(entity: &str) -> Option<Self> {
+        component(entity).map(|entity| Self::Model {
+            culture: NO_CULTURE.to_owned(),
+            entity,
+            yaw: 0,
+            tilt: None,
+            px: None,
+        })
     }
 
     /// An icon by its `.dds` path under `gfx/interface/icons/`.

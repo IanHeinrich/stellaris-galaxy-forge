@@ -514,7 +514,7 @@ fn neighbor(node: &Node, def: &Def) -> Option<StatedNeighbor> {
 
 /// The `type` of each `create_ambient_object` below `node`: through the blocks that keep
 /// the scope they are written in when `same_scope`, else through every block but a body's.
-fn ambient_objects(node: &Node, src: &[u8], same_scope: bool) -> Vec<String> {
+pub(crate) fn ambient_objects(node: &Node, src: &[u8], same_scope: bool) -> Vec<String> {
     let mut out = Vec::new();
     collect_ambient(node, src, same_scope, &mut out);
     out

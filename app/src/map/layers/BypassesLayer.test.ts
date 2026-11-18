@@ -212,7 +212,10 @@ describe("the bypasses layer", () => {
 
   it("wears a modded bypass kind's own icon frame instead of the built-in table's", () => {
     const kinds: BypassKinds = new Map([
-      ["gateway", { key: "gateway", icon_frame: 91, always_active: false }],
+      [
+        "gateway",
+        { key: "gateway", icon_frame: 91, always_active: false, scripted_connection: false },
+      ],
     ]);
     drawn([{ type: "gateway", system: 0, active: true }], 1, kinds);
     expect(vi.mocked(requestTextures).mock.calls.flat(2)).toContain(

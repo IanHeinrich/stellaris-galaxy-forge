@@ -6,6 +6,7 @@
 //! Without an install [`load`] fails with [`LoadError::NoInstall`] and the
 //! caller degrades to raw keys.
 
+pub mod ambient_object_views;
 pub mod anomaly_choices;
 pub mod body_effects;
 pub mod choices;
@@ -19,6 +20,7 @@ pub(crate) mod dismantle;
 pub(crate) mod feature_roll;
 pub mod fonts;
 pub mod generate;
+pub mod initializer_placements;
 pub mod initializers;
 pub mod install;
 pub mod layouts;
@@ -41,6 +43,7 @@ pub mod report;
 pub(crate) mod resolver;
 pub mod rng;
 pub(crate) mod rolls;
+pub mod scenario_megastructure_fits;
 pub mod scripts;
 pub(crate) mod spawn_rolls;
 pub mod special;
@@ -48,6 +51,7 @@ pub mod stated;
 pub mod structure_spawns;
 pub(crate) mod structures;
 pub mod summary;
+pub mod system_modifier_choices;
 pub mod textures;
 pub mod views;
 pub(crate) mod weight;
@@ -66,7 +70,8 @@ use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
 use registries::{
-    colors, flags, gfx, planet_lists, registry, section_templates, star_names, starbase_levels,
+    ambient_objects, colors, flags, gfx, planet_lists, registry, section_templates, star_names,
+    starbase_levels,
 };
 use sgf_core::library::IgnoredGameDataPath;
 use sgf_core::ops::{RingFlags, SystemRadii};
@@ -75,6 +80,7 @@ pub use initializers::Initializers;
 pub use install::layers::Layout;
 pub use loc::localisation::Localisation;
 pub use meter::{Meter, Reading};
+pub use registries::ambient_objects::AmbientObjects;
 pub use registries::anomalies::AnomalyCategories;
 pub use registries::asteroid_belts::AsteroidBelts;
 pub use registries::bypasses::Bypasses;
@@ -140,6 +146,8 @@ pub struct GameData {
     pub planet_modifiers: Arc<PlanetModifiers>,
     /// `common/anomalies`: the categories a planet's `anomaly` names.
     pub anomaly_categories: Arc<AnomalyCategories>,
+    /// `common/ambient_objects`: what a `create_ambient_object` can place in a system.
+    pub ambient_objects: Arc<AmbientObjects>,
     pub colony_types: Arc<ColonyTypes>,
     /// `common/archaeological_site_types`: the dig sites a planet can hold.
     pub dig_site_types: Arc<DigSiteTypes>,
@@ -188,6 +196,18 @@ pub struct GameData {
     /// What the `gfx/worldgfx` files say each star lighting class draws with, read the first
     /// time a star disc asks.
     worlds: Arc<OnceLock<textures::Worlds>>,
+    /// Every modifier key the scripts add with a system as the scope, worked out the first
+    /// time a system's modifiers are asked for.
+    system_modifiers: Arc<OnceLock<BTreeSet<String>>>,
+    /// The megastructures the initializers spawn with no owner, worked out the first time they
+    /// are asked for.
+    ruins: Arc<OnceLock<Vec<initializer_placements::InitializerRuin>>>,
+    /// The ambient objects the initializers create, by type, worked out the first time they
+    /// are asked for.
+    ambient_placed: Arc<OnceLock<BTreeMap<String, Vec<String>>>>,
+    /// The portrait of each ambient object's model by its entity, for the entities that have
+    /// one, worked out the first time the ambient objects are asked for.
+    ambient_portraits: Arc<OnceLock<HashMap<String, String>>>,
     /// `common/planet_classes` as read, before [`GameData::derive`] marks them.
     read_classes: Arc<PlanetClasses>,
     /// `common/megastructures` as parsed, which [`GameData::derive`] reads the types from.
@@ -412,6 +432,8 @@ impl GameData {
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
         meter.step("anomaly_categories");
         let anomaly_categories = registry::load(&layout, &vars, &mut diagnostics);
+        meter.step("ambient_objects");
+        let ambient_objects = ambient_objects::load(&layout, &mut diagnostics);
         meter.step("colony_types");
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
         meter.step("dig_site_types");
@@ -493,6 +515,7 @@ impl GameData {
             static_modifiers: Arc::new(static_modifiers),
             planet_modifiers: Arc::new(planet_modifiers),
             anomaly_categories: Arc::new(anomaly_categories),
+            ambient_objects: Arc::new(ambient_objects),
             colony_types: Arc::new(colony_types),
             dig_site_types: Arc::new(dig_site_types),
             asteroid_belts: Arc::new(asteroid_belts),
@@ -521,6 +544,10 @@ impl GameData {
             shattered: Arc::default(),
             ring_flags: Arc::default(),
             worlds: Arc::default(),
+            system_modifiers: Arc::default(),
+            ruins: Arc::default(),
+            ambient_placed: Arc::default(),
+            ambient_portraits: Arc::default(),
             read_classes: planet_classes,
             megastructure_defs: Arc::new(megastructure_defs),
             vanilla_megastructures: Arc::new(vanilla_megastructures),

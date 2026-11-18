@@ -33,7 +33,7 @@ mod mesh;
 mod raster;
 mod space;
 
-pub(crate) use assets::{Assets, MODELS_DIR};
+pub(crate) use assets::{Assets, MODELS_DIR, NO_CULTURE};
 
 /// Shaders whose meshes are not drawn: collision volumes, glows added over the model, effects
 /// drawn by scrolling their texture, such as the Hyper Relay's portal, and planet atmospheres.
@@ -684,6 +684,13 @@ impl GameData {
             .map(|look| look.shader.clone())
             .filter(|shader| !shader.is_empty() && !tabled(shader))
             .collect())
+    }
+
+    /// The `model:` key of `entity` drawn bare, as no empire owns it, when its meshes read and
+    /// hold something to draw; `None` otherwise. It reads the `.mesh` files but bakes nothing.
+    pub(crate) fn bare_model_key(&self, entity: &str) -> Option<String> {
+        let key = super::TextureKey::bare_model(entity)?.to_string();
+        self.model_bounds(&key).is_ok().then_some(key)
     }
 
     fn model_job(&self, key: &str) -> Result<ModelJob, TextureError> {
