@@ -35,10 +35,14 @@ export function PickedRow({
     <div className="pl-mod">
       <span className="pl-mod-icon">{art}</span>
       <span>
-        <span className={mono ? "l1 mono" : "l1"}>
-          {name}
-          {mark}
-        </span>
+        {mark === undefined ? (
+          <span className={mono ? "l1 mono" : "l1"}>{name}</span>
+        ) : (
+          <span className="l1">
+            {mono ? <span className="mono">{name}</span> : name}
+            {mark}
+          </span>
+        )}
         {lines.map((line, i) => (
           <span key={i} className={line.className}>
             {line.text}

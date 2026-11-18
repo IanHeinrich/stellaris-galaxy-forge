@@ -50,6 +50,28 @@ describe("a scenario system's modifiers", () => {
     expect(mockedIpc.getSystemModifierChoices).toHaveBeenCalledTimes(1);
   });
 
+  it("keep offering a modifier the file held once it is taken out, through another system's list and a game data reload", async () => {
+    picker().open(TARGET);
+    await picker().load(TARGET);
+    picker().open(systemModifierTarget(SYS + 1, "Pel", []));
+    await picker().load(systemModifierTarget(SYS + 1, "Pel", []));
+    picker().reset();
+
+    const emptied = systemModifierTarget(SYS, "Kel", []);
+    picker().open(emptied);
+    await picker().load(emptied);
+    expect(mockedIpc.getSystemModifierChoices).toHaveBeenLastCalledWith(["vluur_storm"]);
+
+    await openFixtureScenario();
+    mockedIpc.getSystemModifierChoices.mockResolvedValue(CHOICES);
+    picker().open(emptied);
+    await picker().load(emptied);
+    expect(
+      mockedIpc.getSystemModifierChoices,
+      "another file holds what it holds",
+    ).toHaveBeenLastCalledWith([]);
+  });
+
   it("add one for good with AddSystemModifier, stay open with the search, and say what was added", async () => {
     picker().open(TARGET);
     picker().setQuery("scorn");

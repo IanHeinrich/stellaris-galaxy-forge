@@ -28,12 +28,29 @@ export interface SystemModifierPickerState extends PickerState<
   add(row: ModifierPickRow): Promise<void>;
 }
 
+/**
+ * Each system's modifiers its page has shown since the file was read, so a modifier no script adds
+ * stays offered after it is taken out, through other systems' lists and game data reloads.
+ */
+const shown = new Map<number, Set<string>>();
+
+/** `target`'s modifiers, with every other one its page has shown since the file was read. */
+function shownOn(target: SystemModifierTarget): string[] {
+  const seen = shown.get(target.system) ?? new Set<string>();
+  for (const modifier of target.modifiers) seen.add(modifier);
+  shown.set(target.system, seen);
+  return [...seen];
+}
+
+/** Forgets the modifiers the pages have shown, once the file is read again. */
+export function forgetShownSystemModifiers(): void {
+  shown.clear();
+}
+
 export const useSystemModifierPickerStore = create<SystemModifierPickerState>((set, get) => ({
   ...pickerSlice<ModifierChip, ModifierChoice, SystemModifierTarget>(set, get, {
-    // The list holds what the system's file held when it was first read, so a modifier only the
-    // file added stays offered after it is taken out.
     keyOf: (target) => target.key,
-    read: (target) => ipc.getSystemModifierChoices(target.modifiers),
+    read: (target) => ipc.getSystemModifierChoices(shownOn(target)),
     name: "system modifier choices",
   }),
 

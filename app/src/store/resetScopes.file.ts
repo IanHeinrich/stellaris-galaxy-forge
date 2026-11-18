@@ -14,7 +14,10 @@ import { usePlanetMoveStore } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
 import { useSpecialPickerStore } from "./specialPickerStore";
 import { useStarBuilderStore } from "./starBuilderStore";
-import { useSystemModifierPickerStore } from "./systemModifierPickerStore";
+import {
+  forgetShownSystemModifiers,
+  useSystemModifierPickerStore,
+} from "./systemModifierPickerStore";
 
 /** The planet and system pages' pickers: what each read and where each is open. */
 export const PICKERS: readonly (() => void)[] = [
@@ -43,5 +46,6 @@ export const FILE_SCOPED: readonly (() => void)[] = [
   () => useClassRollsStore.getState().clear(),
   forgetReclassify,
   forgetPlanetOpens,
+  forgetShownSystemModifiers,
   ...PICKERS,
 ];
