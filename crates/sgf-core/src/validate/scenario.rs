@@ -1,5 +1,6 @@
 //! The checks on what the game itself reads from a scenario: its marauder clans, the
-//! space it builds the L-Cluster in and the systems it rolls beside a seat.
+//! space it builds the L-Cluster in, the systems it rolls beside a seat and the `effect`
+//! blocks it ignores.
 
 use std::collections::BTreeSet;
 
@@ -141,4 +142,19 @@ pub(super) fn rolled_near_seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         ),
         rolled.iter().map(|system| system.id).collect(),
     ));
+}
+
+/// Every system with more than one `effect` block, of which the game runs only the last.
+pub(super) fn duplicate_effects(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    for system in g.systems.values().filter(|s| s.effect_blocks > 1) {
+        issues.push(Issue::new(
+            IssueCode::DuplicateSystemEffect,
+            format!(
+                "{} has {} effect blocks. The game runs only the last, so move what you need into it.",
+                label(g, system),
+                system.effect_blocks
+            ),
+            vec![system.id],
+        ));
+    }
 }

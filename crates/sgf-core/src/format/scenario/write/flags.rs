@@ -5,6 +5,7 @@
 
 use crate::Span;
 use crate::cst::Node;
+use crate::format::scenario::effect;
 use crate::format::scenario::fe_zone::SET_STAR_FLAG;
 use crate::keys::scenario as keys;
 use crate::ops::{Edit, OpError};
@@ -106,7 +107,7 @@ fn block(
     edit: &Edit,
     of_interest: impl Fn(Statement<'_>) -> bool,
 ) -> Result<Option<Block>, OpError> {
-    let Some(node) = edit.entity()?.find(keys::EFFECT, &edit.buf) else {
+    let Some(node) = effect::block(edit.entity()?, &edit.buf) else {
         return Ok(None);
     };
     if node.scalar_span().is_some() {
