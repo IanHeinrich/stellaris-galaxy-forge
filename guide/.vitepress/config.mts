@@ -58,7 +58,8 @@ const sidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Asteroid belts and the inner radius', link: '/system/belts' },
       { text: 'Colonies and deleting planets', link: '/system/colonies' },
       { text: 'Megastructures', link: '/system/megastructures' },
-      { text: 'Ambient objects', link: '/system/ambient-objects' }
+      { text: 'Ambient objects', link: '/system/ambient-objects' },
+      { text: 'System modifiers', link: '/system/system-modifiers' }
     ]
   },
   {

@@ -1,15 +1,15 @@
 import { errorMessage } from "../api/ipc";
-import type { PickerTarget } from "../lib/details/picker";
+import type { PickerTarget, PickTarget } from "../lib/details/picker";
 import { useGameDataStore } from "./gameDataStore";
 
 /**
- * What every picker on a planet's page keeps. It lives in a store rather than the component
- * because an add makes the page read its body again, which draws the page anew: the picker stays
- * open, with its search, its chip and the line saying what was added.
+ * What every picker on a planet's or a system's page keeps. It lives in a store rather than the
+ * component because an add makes the page read its target again, which draws the page anew: the
+ * picker stays open, with its search, its chip and the line saying what was added.
  */
-export interface PickerState<C extends string, T> {
-  /** The body whose picker is open; `null` when none is. */
-  target: PickerTarget | null;
+export interface PickerState<C extends string, T, G extends PickTarget = PickerTarget> {
+  /** The target whose picker is open; `null` when none is. */
+  target: G | null;
   query: string;
   chip: C;
   /** What the last add added, until the next. */
@@ -23,25 +23,25 @@ export interface PickerState<C extends string, T> {
   reading: string | null;
   setQuery(query: string): void;
   setChip(chip: C): void;
-  /** Opens on `target`, keeping the search and chip when its body is the one already open. */
-  openOn(target: PickerTarget): void;
+  /** Opens on `target`, keeping the search and chip when it is the one already open. */
+  openOn(target: G): void;
   /**
    * Reads the list for `key` at game data `version` with `read`, unless it is held or asked, and
    * resolves to it; rejects when that read failed, though the picker then shows an empty list.
    */
   choicesFor(key: string, version: number, read: () => Promise<T[]>): Promise<T[]>;
-  /** Reads what the picker offers `target`'s body, without opening, and resolves to it as `choicesFor` does. */
-  load(target: PickerTarget): Promise<T[]>;
+  /** Reads what the picker offers `target`, without opening, and resolves to it as `choicesFor` does. */
+  load(target: G): Promise<T[]>;
   close(): void;
   /** Closed, with nothing read. */
   reset(): void;
 }
 
 /** Where a picker's list comes from. */
-export interface ChoicesSource<T> {
-  /** What the list depends on in a body, besides the game data. */
-  keyOf(target: PickerTarget): string;
-  read(target: PickerTarget): Promise<T[]>;
+export interface ChoicesSource<T, G extends PickTarget = PickerTarget> {
+  /** What the list depends on in a target, besides the game data. */
+  keyOf(target: G): string;
+  read(target: G): Promise<T[]>;
   /** Names the list in the warning when it cannot be read. */
   name: string;
 }
@@ -50,10 +50,10 @@ export interface ChoicesSource<T> {
 export const PICKER_CLOSED = { target: null, query: "", chip: "All", added: null } as const;
 
 /** The closed state and the actions every picker's store shares; each store adds its `add`. */
-export function pickerSlice<C extends string, T>(
-  set: (partial: Partial<PickerState<C, T>>) => void,
-  get: () => PickerState<C, T>,
-  source: ChoicesSource<T>,
+export function pickerSlice<C extends string, T, G extends PickTarget = PickerTarget>(
+  set: (partial: Partial<PickerState<C, T, G>>) => void,
+  get: () => PickerState<C, T, G>,
+  source: ChoicesSource<T, G>,
 ) {
   const closed = { ...PICKER_CLOSED, chip: "All" as C };
   /** The read of the list last asked for, whose `body` the state's `reading` or `choices` names. */
@@ -65,7 +65,7 @@ export function pickerSlice<C extends string, T>(
     setQuery: (query: string) => set({ query }),
     setChip: (chip: C) => set({ chip }),
 
-    openOn(target: PickerTarget) {
+    openOn(target: G) {
       const was = get().target;
       if (was?.key !== target.key) set({ ...closed, target });
       else if (was !== target) set({ target });
@@ -89,7 +89,7 @@ export function pickerSlice<C extends string, T>(
       return list;
     },
 
-    load(target: PickerTarget) {
+    load(target: G) {
       const { version } = useGameDataStore.getState();
       return get().choicesFor(source.keyOf(target), version, () => source.read(target));
     },
@@ -104,7 +104,7 @@ export function pickerSlice<C extends string, T>(
   };
 }
 
-/** Whether the picker is still open on `target`'s body, so a late add may still act on it. */
-export function stillOn(state: { target: PickerTarget | null }, target: PickerTarget): boolean {
+/** Whether the picker is still open on `target`, so a late add may still act on it. */
+export function stillOn(state: { target: PickTarget | null }, target: PickTarget): boolean {
   return state.target?.key === target.key;
 }

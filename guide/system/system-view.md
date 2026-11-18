@@ -199,7 +199,9 @@ Ambient objects says where it comes from: From the initializer, or From
 the file for one written in the scenario. A ruin or an ambient object the
 scenario writes in the way Galaxy Forge edits has no mark and opens its
 page, as [Ruins in a scenario](megastructures.md#ruins-in-a-scenario) and
-[Ambient objects](ambient-objects.md) say.
+[Ambient objects](ambient-objects.md) say. The Modifiers section marks a
+modifier it can't remove in the same way, as
+[System modifiers](system-modifiers.md) says.
 
 - A megastructure placed at a planet sits on that planet. Click Roll
   again and it moves with the planet.

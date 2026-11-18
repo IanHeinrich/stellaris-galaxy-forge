@@ -2,6 +2,7 @@
 import type { AmbientObject } from "./AmbientObject";
 import type { Bounds } from "./Bounds";
 import type { CountRange } from "./CountRange";
+import type { EffectModifier } from "./EffectModifier";
 import type { InlineScriptUse } from "./InlineScriptUse";
 import type { NeighborSystem } from "./NeighborSystem";
 import type { RawStatement } from "./RawStatement";
@@ -70,6 +71,10 @@ sites: Array<string>,
  * Each `create_ambient_object` the system's and its bodies' `init_effect`s run.
  */
 ambient_objects: Array<AmbientObject>, 
+/**
+ * Each `add_modifier` the scenario's own `effect` block runs on the system, in file order.
+ */
+modifiers: Array<EffectModifier>, 
 /**
  * How a random galaxy places the initializer: kept as written, whatever a placed
  * system makes of them.

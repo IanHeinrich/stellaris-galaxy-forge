@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ModifierRow } from "../../../lib/details/planetPage";
 import {
   bodyNoun,
@@ -30,10 +31,13 @@ export function ModifierRowView({
   row,
   onRemove,
   spread,
+  mark,
 }: {
   row: ModifierRow;
   onRemove: (() => void) | null;
   spread?: Spread;
+  /** Drawn after the name: where a row the page can't edit comes from. */
+  mark?: ReactNode;
 }) {
   const view = row.view;
   const card = modifierCard(row);
@@ -63,6 +67,7 @@ export function ModifierRowView({
         art={<ModifierArt icon={view?.icon} frame={view?.icon_frame} />}
         name={name}
         mono={view === undefined}
+        mark={mark}
         lines={line === undefined ? [] : [{ className: "l2", text: line }]}
         spread={spread}
         remove={

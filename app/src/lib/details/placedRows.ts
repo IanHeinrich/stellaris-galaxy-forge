@@ -1,6 +1,6 @@
 /**
- * The rows of a system's Megastructures and Ambient objects: the mark each carries for where it
- * comes from, the page a megastructure row opens, and what each section says with no rows.
+ * The rows of a system's Megastructures, Ambient objects and Modifiers: the mark each carries for
+ * where it comes from, the page a megastructure row opens, and what each section says with no rows.
  */
 import type { CapabilityFlag } from "../capabilities";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
@@ -32,7 +32,15 @@ export function editableId(origin: RowOrigin | undefined): number | null {
 export function originMark(origin: RowOrigin | undefined, editable: boolean): OriginMark | null {
   if (origin === undefined) return null;
   if (origin.from === "initializer") return "initializer";
-  return origin.editable && editable ? null : "file";
+  return effectMark(origin.editable, editable);
+}
+
+/**
+ * The mark of a row of the scenario's own block, which the editor edits as it stands when
+ * `adopted` and the open document edits when `editable`: none where both do.
+ */
+export function effectMark(adopted: boolean, editable: boolean): OriginMark | null {
+  return adopted && editable ? null : "file";
 }
 
 /**
@@ -50,6 +58,9 @@ export const NO_MEGASTRUCTURES = "None. Right-click in the system view to add on
 
 /** What the Ambient objects section says where the document can add one and the system has none. */
 export const NO_AMBIENT_OBJECTS = "None. Right-click empty space in the system view to add one.";
+
+/** What the Modifiers section of a scenario system with none says. */
+export const NO_SYSTEM_MODIFIERS = "None.";
 
 /** Where an ambient object stands when the game picks the spot. */
 export const AT_A_RANDOM_SPOT = "at a random spot";

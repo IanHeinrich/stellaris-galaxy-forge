@@ -53,6 +53,7 @@ fn list_commands() -> Vec<(&'static str, Value)> {
             json!({ "keys": ["d_massive_glacier"] }),
         ),
         ("get_modifier_choices", json!({})),
+        ("get_system_modifier_choices", json!({ "present": [] })),
         (
             "get_anomaly_choices",
             json!({ "class": "pc_asteroid", "size": 5, "moon": false }),

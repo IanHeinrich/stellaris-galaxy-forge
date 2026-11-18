@@ -1,5 +1,10 @@
 import { useEffect, type ReactNode } from "react";
-import type { ChipItem, PickerSection, PickerTarget } from "../../../lib/details/picker";
+import type {
+  ChipItem,
+  PickerSection,
+  PickerTarget,
+  PickTarget,
+} from "../../../lib/details/picker";
 import { PickerMenu, PickerOpener, type PickerHook, type PickerItem } from "./PickerMenu";
 
 /** What a picker says: the menu's words, for a screen reader and the screen, and the opener's. */
@@ -15,29 +20,36 @@ export interface PickerWords {
 }
 
 /**
- * One kind of picker on a planet's page: its store, its words, and how it lists its choices and
- * adds one. `X` is what the page hands the add, such as the warnings to confirm first.
+ * One kind of picker on a page: its store, its words, and how it lists its choices and adds one.
+ * `X` is what the page hands the add, such as the warnings to confirm first, and `G` what it adds
+ * to, a planet's body unless the kind says otherwise.
  */
-export interface PickerKind<R, C extends string, T, X = undefined> {
-  store: PickerHook<C, T>;
+export interface PickerKind<
+  R,
+  C extends string,
+  T,
+  X = undefined,
+  G extends PickTarget = PickerTarget,
+> {
+  store: PickerHook<C, T, G>;
   words: PickerWords;
   /** The chips, or a function of the rows where they follow them. */
   chips: readonly ChipItem<C>[] | ((rows: readonly R[]) => readonly ChipItem<C>[]);
   /** Left and Right step between a row's buttons, and typing goes to the search. */
   variants?: boolean;
   /** Starts each row's element id. */
-  idPrefix(target: PickerTarget): string;
-  /** Whether the kind's picker is open on `target`'s body. */
-  useIsOpen(target: PickerTarget): boolean;
-  open(target: PickerTarget): void;
+  idPrefix(target: G): string;
+  /** Whether the kind's picker is open on `target`. */
+  useIsOpen(target: G): boolean;
+  open(target: G): void;
   /** The rows for the choices read, `null` until they are. */
-  useRows(choices: { list: T[] } | null, target: PickerTarget): R[] | null;
+  useRows(choices: { list: T[] } | null, target: G): R[] | null;
   /** The rows `chip` and `query` leave, under their headings. */
   sections(rows: readonly R[], chip: C, query: string): PickerSection<R>[];
   item(row: R): PickerItem;
   onAdd(row: R, button: number, extra?: X): void;
   /** Drawn under the chips. */
-  useControls?(target: PickerTarget): ReactNode;
+  useControls?(target: G): ReactNode;
   /** Drawn in place of the line saying what was added. */
   useNotice?(): ReactNode;
 }
@@ -45,13 +57,13 @@ export interface PickerKind<R, C extends string, T, X = undefined> {
 const NO_CONTROLS = (): ReactNode => null;
 const NO_NOTICE = (): ReactNode => undefined;
 
-function PickerOpen<R, C extends string, T, X>({
+function PickerOpen<R, C extends string, T, X, G extends PickTarget>({
   kind,
   target,
   extra,
 }: {
-  kind: PickerKind<R, C, T, X>;
-  target: PickerTarget;
+  kind: PickerKind<R, C, T, X, G>;
+  target: G;
   extra?: X;
 }) {
   const query = kind.store((s) => s.query);
@@ -78,16 +90,14 @@ function PickerOpen<R, C extends string, T, X>({
   );
 }
 
-/** A picker's button, and its menu below it while open on `target`'s body. */
-export function PlanetPicker<R, C extends string, T, X = undefined>({
-  kind,
-  target,
-  extra,
-}: {
-  kind: PickerKind<R, C, T, X>;
-  target: PickerTarget;
-  extra?: X;
-}) {
+/** A picker's button, and its menu below it while open on `target`. */
+export function PlanetPicker<
+  R,
+  C extends string,
+  T,
+  X = undefined,
+  G extends PickTarget = PickerTarget,
+>({ kind, target, extra }: { kind: PickerKind<R, C, T, X, G>; target: G; extra?: X }) {
   const open = kind.useIsOpen(target);
   if (open) return <PickerOpen kind={kind} target={target} extra={extra} />;
   const { opener } = kind.words;

@@ -28,6 +28,14 @@ export const MODIFIER_CHIPS: readonly ChipItem<ModifierChip>[] = [
   { chip: "Other", label: "Other" },
 ];
 
+/** The chips for a system's modifiers: All, then each category some row is filed under. */
+export function systemModifierChips(
+  rows: readonly ModifierPickRow[],
+): readonly ChipItem<ModifierChip>[] {
+  const filed = new Set<ModifierChip>(rows.map((row) => row.choice.category));
+  return MODIFIER_CHIPS.filter((each) => each.chip === "All" || filed.has(each.chip));
+}
+
 /** One modifier the picker offers. */
 export interface ModifierPickRow {
   choice: ModifierChoice;
@@ -104,11 +112,11 @@ export function modifierPickRows(
  * The rows `chip` and `query` leave, as the list shows them: under All, the usual ones first, then
  * everything else, as one list without a heading when none is usual.
  */
-export function modifierSections(
-  rows: readonly ModifierPickRow[],
+export function modifierSections<R extends ModifierPickRow>(
+  rows: readonly R[],
   chip: ModifierChip,
   query: string,
-): PickerSection<ModifierPickRow>[] {
+): PickerSection<R>[] {
   return pickerSections(rows, chip, query, (row, each) => row.choice.category === each, "");
 }
 

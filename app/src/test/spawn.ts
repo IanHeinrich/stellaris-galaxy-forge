@@ -44,6 +44,7 @@ export function systemSpawn(over: Partial<SystemSpawn> = {}): SystemSpawn {
     outer_radius_offset: null,
     sites: [],
     ambient_objects: [],
+    modifiers: [],
     usage: null,
     usage_odds: null,
     spawn_chance: null,

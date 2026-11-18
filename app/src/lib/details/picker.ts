@@ -244,10 +244,14 @@ export interface HeldAnomaly {
   foundBy: readonly number[] | null;
 }
 
-/** The body a picker adds to: what its choices are read for, and how it is edited. */
-export interface PickerTarget<R extends RowRefs = RowRefs> {
-  /** Tells one body from another across documents and systems, as `<kind>:<system>:<id>`. */
+/** What a picker adds to: a body, several bodies, or a system. */
+export interface PickTarget {
+  /** Tells one target from another across documents and systems, as `<kind>:<system>:<id>`. */
   key: string;
+}
+
+/** The body a picker adds to: what its choices are read for, and how it is edited. */
+export interface PickerTarget<R extends RowRefs = RowRefs> extends PickTarget {
   planetClass: string | null;
   size: number | null;
   moon: boolean;

@@ -439,15 +439,15 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
 }
 
 /// A save adds finished megastructure rows, habitats and ring worlds, and a scenario only ruins
-/// and ambient objects, which it can also move.
+/// and ambient objects, which it can also move, and a system's modifiers.
 #[test]
-fn a_save_adds_megastructure_rows_and_a_scenario_ruins_and_ambient_objects() {
+fn a_save_adds_megastructure_rows_and_a_scenario_ruins_ambient_objects_and_system_modifiers() {
     let save = Capabilities::of(common::open().doc());
     assert_eq!(save.add_megastructures, MegastructureAdds::Rows);
-    assert!(!save.place_structures && !save.ambient_objects);
+    assert!(!save.place_structures && !save.ambient_objects && !save.system_modifiers);
     let scenario = Capabilities::of(common::examples::scenario().doc());
     assert_eq!(scenario.add_megastructures, MegastructureAdds::Ruins);
-    assert!(scenario.place_structures && scenario.ambient_objects);
+    assert!(scenario.place_structures && scenario.ambient_objects && scenario.system_modifiers);
 }
 
 /// Prepare is offered on a scenario, and the multi-edit of several bodies on a save.

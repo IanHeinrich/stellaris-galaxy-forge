@@ -12,6 +12,8 @@ import {
   type ChipItem,
   type ChipMenu,
   type PickerSection,
+  type PickerTarget,
+  type PickTarget,
 } from "../../../lib/details/picker";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
@@ -34,8 +36,8 @@ export const PICKER_MIN_HEIGHT = 320;
 const PAGE_ROOM_MARGIN = 24;
 
 /** A picker's store, as the menu reads it. */
-export type PickerHook<C extends string, T = unknown> = <U>(
-  selector: (state: PickerState<C, T>) => U,
+export type PickerHook<C extends string, T = unknown, G extends PickTarget = PickerTarget> = <U>(
+  selector: (state: PickerState<C, T, G>) => U,
 ) => U;
 
 /** One of a row's add buttons. */
@@ -194,7 +196,7 @@ function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
  * It stays open after an add; Escape, Done or a press outside closes it. The arrows move between
  * rows, and Enter in the search adds the button they stand on.
  */
-export function PickerMenu<R, C extends string, T, X>({
+export function PickerMenu<R, C extends string, T, X, G extends PickTarget>({
   kind,
   extra,
   chips,
@@ -203,7 +205,7 @@ export function PickerMenu<R, C extends string, T, X>({
   controls,
   notice,
 }: {
-  kind: PickerKind<R, C, T, X>;
+  kind: PickerKind<R, C, T, X, G>;
   /** What the page hands the kind's add. */
   extra?: X;
   /** The chips above the rows, resolved from the rows where the kind's follow them. */

@@ -8,8 +8,8 @@ use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::format::scenario::placed::{STAR_BODY, ambient_object_id, ruin_id};
 use sgf_core::session::Session;
 use sgf_core::views::details::{
-    AmbientPlace, ClassPool, MegastructureSummary, PlanetSummary, RowOrigin, SpawnClass,
-    SpawnPlace, StarbaseSummary, StructureSpawn, SystemDetails,
+    AmbientPlace, ClassPool, EffectModifier, MegastructureSummary, PlanetSummary, RowOrigin,
+    SpawnClass, SpawnPlace, StarbaseSummary, StructureSpawn, SystemDetails,
 };
 use sgf_gamedata::GameData;
 use sgf_gamedata::initializers::{self, Initializer};
@@ -546,10 +546,10 @@ fn a_scenario_systems_megastructures_stand_where_the_saves_do() {
 
 /// A system of the structures fixture whose own `effect` block places a ruin at a point, an
 /// ambient object at a point, a ruin with an owner, a bare ambient object and a ruin on the
-/// star, after a flag the block also sets.
+/// star, after a flag the block also sets, then adds a modifier for 30 days and one for good.
 const EFFECT: &str = "static_galaxy_scenario = {
 	name = \"effect\"
-	system = { id = \"7\" name = \"Kel\" position = { x = 0 y = 0 } initializer = structures_init effect = { set_star_flag = kept spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 100 orbit_angle = 0 random_pos = no } create_ambient_object = { type = \"derelict_ship_object\" location = this } last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 90 } } spawn_megastructure = { type = \"dyson_sphere_ruined\" planet = star owner = root } create_ambient_object = { type = \"debris_object\" location = this } spawn_megastructure = { type = \"mega_shipyard_ruined\" planet = star } } }
+	system = { id = \"7\" name = \"Kel\" position = { x = 0 y = 0 } initializer = structures_init effect = { set_star_flag = kept spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 100 orbit_angle = 0 random_pos = no } create_ambient_object = { type = \"derelict_ship_object\" location = this } last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 90 } } spawn_megastructure = { type = \"dyson_sphere_ruined\" planet = star owner = root } create_ambient_object = { type = \"debris_object\" location = this } spawn_megastructure = { type = \"mega_shipyard_ruined\" planet = star } add_modifier = { modifier = vluur_storm days = 30 } add_modifier = { modifier = \"queen_scorn_storm\" days = -1 } } }
 }
 ";
 
@@ -557,7 +557,7 @@ const EFFECT: &str = "static_galaxy_scenario = {
 type Ruin<'a> = (&'a str, Option<u32>, Option<(f64, f64)>, RowOrigin);
 
 #[test]
-fn a_scenario_systems_effect_block_lists_its_ruins_and_ambient_objects_after_the_initializers() {
+fn a_scenario_systems_effect_block_lists_its_ruins_ambient_objects_and_modifiers() {
     let gd = common::cached_fixture();
     let doc = Document::from_scenario_bytes(EFFECT.as_bytes().to_vec()).expect("index");
     let session = Session::from_document(None, doc).expect("project");
@@ -648,5 +648,27 @@ fn a_scenario_systems_effect_block_lists_its_ruins_and_ambient_objects_after_the
             ),
             ("debris_object", AmbientPlace::Random, object(1, false)),
         ]
+    );
+
+    let modifiers = &details
+        .spawn
+        .as_ref()
+        .expect("the system's spawn")
+        .modifiers;
+    assert_eq!(
+        modifiers[..],
+        [
+            EffectModifier {
+                modifier: "vluur_storm".to_owned(),
+                days: Some(30.0),
+                editable: false,
+            },
+            EffectModifier {
+                modifier: "queen_scorn_storm".to_owned(),
+                days: Some(-1.0),
+                editable: true,
+            },
+        ],
+        "only the editor's own shape is taken out where it stands"
     );
 }
