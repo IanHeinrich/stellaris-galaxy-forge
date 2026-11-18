@@ -3,6 +3,7 @@
 
 use sgf_core::emit;
 use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
+use sgf_core::placements::{self, SPAWN_MEGASTRUCTURE, point_at};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
@@ -17,12 +18,8 @@ use crate::layouts::{StarSource, star_source};
 use crate::registries::megastructures::{MegastructureTypes, RELAY_BYPASS};
 use crate::scripts::ScenarioOwners;
 use crate::structure_spawns::{
-    self, CREATE_STARBASE, EffectCall, InitMegastructure, SPAWN_MEGASTRUCTURE, Written,
-    WrittenPlace,
+    self, CREATE_STARBASE, EffectCall, InitMegastructure, Written, WrittenPlace,
 };
-
-/// The angle a written `orbit_angle` turns on from, as a body's first angle does.
-const ORBIT_START: f64 = 180.0;
 
 /// The angle the first structure placed at random is drawn at, across the star from the main
 /// starbase; each one after it turns on by [`RANDOM_STEP`].
@@ -227,10 +224,7 @@ fn whole(c: &Called, starbase: bool) -> bool {
             .children()
             .iter()
             .all(|child| match child.key_str(src) {
-                Some(SPAWN_MEGASTRUCTURE) => child
-                    .find("type", src)
-                    .and_then(|t| t.scalar_str(src))
-                    .is_some(),
+                Some(SPAWN_MEGASTRUCTURE) => placements::spawn_megastructure(child, src).is_some(),
                 Some(CREATE_STARBASE) => starbase,
                 _ => false,
             })
@@ -284,10 +278,10 @@ impl Context<'_> {
         match &spawn.place {
             WrittenPlace::Centre => free(Some((0.0, 0.0)), SpawnPlace::Centre),
             WrittenPlace::Orbit { distance, angle } => free(
-                Some(rounded(point(
+                Some(rounded(point_at(
                     (0.0, 0.0),
                     distance.midpoint(),
-                    angle.midpoint() + ORBIT_START,
+                    angle.midpoint(),
                 ))),
                 SpawnPlace::Orbit {
                     distance: bounds(*distance),

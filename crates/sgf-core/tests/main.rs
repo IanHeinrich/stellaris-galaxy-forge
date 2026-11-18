@@ -118,6 +118,7 @@ mod ops_wormhole_pair;
 mod orbit_rules;
 mod overlay;
 mod overlay_model;
+mod placements;
 mod planet_page;
 mod prepare_zones;
 mod save_queries;

@@ -7,6 +7,7 @@
 //! wrapper's text, and counted there.
 
 use sgf_core::cst::Node;
+use sgf_core::placements::{self, ADD_MODIFIER, CREATE_AMBIENT_OBJECT, SPAWN_MEGASTRUCTURE};
 use sgf_core::span::Span;
 use sgf_core::views::details::{
     AddedModifier, InlineScriptUse, RawStatement, SourceLine, UsageOdds, VariableUse,
@@ -15,7 +16,6 @@ use sgf_core::views::details::{
 use crate::initializers::{Origin, source_line};
 use crate::install::script::{self, Def, Range};
 use crate::scripts::scope::{is_guard, keeps_scope, keeps_system_scope};
-use crate::structure_spawns::SPAWN_MEGASTRUCTURE;
 
 /// The keys of a `planet` or `moon` block the reader models.
 const BODY_KEYS: [&str; 19] = [
@@ -93,8 +93,6 @@ const SYSTEM_EFFECTS: [&str; 5] = [
     "create_starbase",
     "create_archaeological_site",
 ];
-
-const CREATE_AMBIENT_OBJECT: &str = "create_ambient_object";
 
 /// A deposit statement of a body's `init_effect`, as written.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,12 +309,12 @@ fn body_effect(block: &Node, at: usize, key: &str, def: &Def, out: &mut StatedBo
                 out.deposits.push(StatedDeposit::ClearBlockers);
             }
         }
-        "add_modifier" => {
-            let Some(modifier) = owned(field("modifier")) else {
+        ADD_MODIFIER => {
+            let Some(added) = placements::modifier(child, src) else {
                 return false;
             };
             out.added_modifiers.push(AddedModifier {
-                modifier,
+                modifier: added.modifier,
                 days: def.number_in(child, "days"),
             });
         }
@@ -359,10 +357,10 @@ fn body_effect(block: &Node, at: usize, key: &str, def: &Def, out: &mut StatedBo
             out.anomalies.push(category);
         }
         CREATE_AMBIENT_OBJECT => {
-            let Some(kind) = owned(field("type")) else {
+            let Some(object) = placements::ambient_object(child, src) else {
                 return false;
             };
-            out.ambient_objects.push(kind);
+            out.ambient_objects.push(object.kind);
         }
         "create_archaeological_site" => return scalar.is_some(),
         SPAWN_MEGASTRUCTURE => return typed(child, src),
@@ -374,9 +372,7 @@ fn body_effect(block: &Node, at: usize, key: &str, def: &Def, out: &mut StatedBo
 
 /// A `spawn_megastructure` that names its `type`.
 fn typed(node: &Node, src: &[u8]) -> bool {
-    node.find("type", src)
-        .and_then(|n| n.scalar_str(src))
-        .is_some()
+    placements::spawn_megastructure(node, src).is_some()
 }
 
 /// A `solar_system = { … }` block of nothing but typed `spawn_megastructure`s and `starbase`,
@@ -449,12 +445,6 @@ fn system_effects(
             continue;
         };
         let scalar = child.scalar_str(src);
-        let has = |field: &str| {
-            child
-                .find(field, src)
-                .and_then(|n| n.scalar_str(src))
-                .is_some()
-        };
         let modelled = match key {
             "set_star_flag" => {
                 if let Some(flag) = scalar {
@@ -462,7 +452,8 @@ fn system_effects(
                 }
                 scalar.is_some()
             }
-            CREATE_AMBIENT_OBJECT | "spawn_megastructure" => has("type"),
+            CREATE_AMBIENT_OBJECT => placements::ambient_object(child, src).is_some(),
+            SPAWN_MEGASTRUCTURE => typed(child, src),
             "create_archaeological_site" => scalar.is_some(),
             "create_starbase" => starbase == Some(child.span()),
             "solar_system" => only_spawns(child, src, starbase),
@@ -534,12 +525,7 @@ fn collect_ambient(node: &Node, src: &[u8], same_scope: bool, out: &mut Vec<Stri
         match child.key_str(src) {
             Some("planet" | "moon") => {}
             Some(CREATE_AMBIENT_OBJECT) => {
-                out.extend(
-                    child
-                        .find("type", src)
-                        .and_then(|t| t.scalar_str(src))
-                        .map(str::to_owned),
-                );
+                out.extend(placements::ambient_object(child, src).map(|object| object.kind));
             }
             Some(key) if !same_scope || keeps_scope(key) => {
                 collect_ambient(child, src, same_scope, out);

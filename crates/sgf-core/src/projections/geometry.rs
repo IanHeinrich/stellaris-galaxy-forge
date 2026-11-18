@@ -105,9 +105,10 @@ pub fn angle_about((cx, cy): (f64, f64), (x, y): (f64, f64)) -> f64 {
     normalised((y - cy).atan2(x - cx).to_degrees())
 }
 
-/// `angle` in [0, 360).
+/// `angle` in [0, 360). `rem_euclid` rounds a tiny negative angle up to 360 itself.
 pub fn normalised(angle: f64) -> f64 {
-    angle.rem_euclid(360.0) + 0.0
+    let turned = angle.rem_euclid(360.0) + 0.0;
+    if turned >= 360.0 { 0.0 } else { turned }
 }
 
 /// The radius a body at `at` is drawn at about `centre`: its stored `orbit` when that is

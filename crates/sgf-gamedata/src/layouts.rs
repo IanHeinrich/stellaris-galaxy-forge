@@ -8,6 +8,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::archive;
+use sgf_core::placements::SPAWN_MEGASTRUCTURE;
 use sgf_core::session::Session;
 use sgf_core::views::Capabilities;
 use ts_rs::TS;
@@ -23,7 +24,6 @@ use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::registries::star_classes::{StarClass, StarList};
 use crate::rolls::list_members;
-use crate::structure_spawns::SPAWN_MEGASTRUCTURE;
 
 /// The `usage` of the initializers a galaxy fills its ordinary systems with.
 pub const USAGE: &str = "misc_system_init";

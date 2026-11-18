@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use sgf_core::ops::Op;
+use sgf_core::placements::Statement;
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{DocumentKind, GalaxyView};
@@ -365,6 +366,65 @@ fn of_two_effect_blocks_the_last_is_read_edited_and_warned_about() {
     assert!(
         duplicates(&common::open()).is_empty(),
         "a save never raises it"
+    );
+}
+
+/// Kel's last effect block places a ruined gateway, an ambient object at its own point and a
+/// modifier among statements the reader keeps as written; the first block is not read.
+const PLACEMENTS: &str = "static_galaxy_scenario = {
+	name = \"placements\"
+	system = { id = \"1\" name = \"Kel\" position = { x = 1 y = 2 } effect = { add_modifier = { modifier = ignored } } effect = {
+		set_star_flag = painted_galaxy_wormhole_3
+		spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 100 orbit_angle = 0 random_pos = no }
+		create_ambient_object = { type = \"derelict_ship_object\" location = this }
+		last_created_ambient_object = { set_location = { target = prev distance = 120 angle = 90 } }
+		add_modifier = { modifier = \"pulsar_radiation\" days = -1 }
+	} }
+	system = { id = \"2\" name = \"Ora\" position = { x = 30 y = 40 } }
+}
+";
+
+#[test]
+fn the_last_effect_block_reads_into_placement_statements() {
+    let session = from_scenario_text(PLACEMENTS);
+    let (src, statements) = session.scenario_system_placements(1).expect("an effect");
+    let text = |span: sgf_core::Span| std::str::from_utf8(span.slice(src)).expect("utf-8");
+    let read: Vec<String> = statements
+        .iter()
+        .map(|statement| match statement {
+            Statement::SpawnMegastructure(spawn) => format!("{} {:?}", spawn.kind, spawn.place),
+            Statement::AmbientObject(object) => format!(
+                "{} {:?}",
+                object.kind,
+                object.at.as_ref().map(|at| (at.distance, at.angle))
+            ),
+            Statement::SystemModifier(modifier) => {
+                format!("{} {:?}", modifier.modifier, modifier.days)
+            }
+            Statement::Foreign(span) => format!("foreign {}", text(*span)),
+        })
+        .collect();
+    assert_eq!(
+        read,
+        [
+            "foreign set_star_flag = painted_galaxy_wormhole_3",
+            "gateway_ruined Free(Orbit { distance: Number(100.0), angle: Number(0.0) })",
+            "derelict_ship_object Some((120.0, 90.0))",
+            "pulsar_radiation Some(Number(-1.0))",
+        ]
+    );
+    assert_eq!(
+        text(statements[2].span()),
+        "create_ambient_object = { type = \"derelict_ship_object\" location = this }
+		last_created_ambient_object = { set_location = { target = prev distance = 120 angle = 90 } }"
+    );
+    assert!(
+        session.scenario_system_placements(2).is_none(),
+        "no effect block"
+    );
+    assert!(
+        common::open().scenario_system_placements(1).is_none(),
+        "a save has none"
     );
 }
 
