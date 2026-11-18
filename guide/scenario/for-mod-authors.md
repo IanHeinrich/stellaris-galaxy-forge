@@ -24,11 +24,15 @@ of the file is copied as it was.
 
 After a save, `git diff` shows only the lines your edits touched.
 
+![A diff after moving two systems in Galaxy Forge: only their two position lines changed, and the comments around them are as written](../images/scenario/mod-author-diff.png)
+
 ## Edit a plain scenario without Paint a Galaxy
 
 If you open a scenario that isn't written for Paint a Galaxy, Galaxy Forge
 asks whether to edit it for the
 [Paint a Galaxy mod](paint-a-galaxy.md). For your own mod, answer no:
+
+![The Open dialog for a plain scenario with For the Paint a Galaxy mod unticked, and the warning that shows under it](../images/scenario/plain-scenario-unticked.png)
 
 1. On the Open screen, click "Browse…" and pick the scenario in your
    mod's folder or git checkout.
@@ -61,6 +65,9 @@ has the details.
 - After you save in your text editor, a scenario with no unsaved edits
   in Galaxy Forge reloads by itself.
 - With unsaved edits, a bar offers "Reload" and "Keep my changes".
+
+  ![The bar that says the scenario changed on disk, with Reload and Keep my changes](../images/scenario/changed-on-disk-bar.png)
+
 - Save asks before it writes over a file that changed on disk.
   "Overwrite" backs up the other version first.
 - Rows on the Scripts tab and spawn rows open the scenario in your
@@ -75,6 +82,8 @@ checkout they land in `map/setup_scenarios`. Add `*.bak-*` to your
 `.gitignore`. Galaxy Forge's own Open list skips them.
 
 ## Rework a big map
+
+![A pending circle of 23 gold systems joined by lanes in the empty core of a scenario](../images/edit/shape-pending.png)
 
 - [Delete systems](../edit/add-systems.md#delete-systems): select
   them and press <kbd>Delete</kbd>.
@@ -147,6 +156,11 @@ with 1 if one is an error. `apply`, `prepare`, `nebula`,
 - Galaxy Forge doesn't stop you saving into a Steam Workshop folder.
   Steam replaces those files each time the mod updates, so work on your
   own copy.
+
+## What's planned
+
+The [Roadmap](../reference/roadmap.md) has the next scenario work, such
+as initializer editing and galaxies that don't need Paint a Galaxy.
 
 ## Report a problem
 

@@ -95,7 +95,8 @@ const sidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Glossary', link: '/reference/glossary' },
       { text: 'Keyboard shortcuts', link: '/reference/keys' },
       { text: 'Supported game versions', link: '/reference/versions' },
-      { text: 'Command line', link: '/reference/command-line' }
+      { text: 'Command line', link: '/reference/command-line' },
+      { text: 'Roadmap', link: '/reference/roadmap' }
     ]
   }
 ].map((group) => ({ ...group, collapsed: false }))

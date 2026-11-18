@@ -342,5 +342,8 @@
   {"q": "keep my comments", "expect": "scenario/for-mod-authors#your-comments-and-formatting-stay"},
   {"q": "plain scenario without paint a galaxy", "expect": "scenario/for-mod-authors#edit-a-plain-scenario-without-paint-a-galaxy"},
   {"q": "git", "expect": "scenario/for-mod-authors"},
-  {"q": "coordinate_transform", "expect": "scenario/for-mod-authors#limits"}
+  {"q": "coordinate_transform", "expect": "scenario/for-mod-authors#limits"},
+  {"q": "roadmap", "expect": "reference/roadmap"},
+  {"q": "what is planned for scenarios", "expect": "reference/roadmap#next-for-scenarios"},
+  {"q": "when is version 1.0", "expect": "reference/roadmap#version-1-0"}
 ]
