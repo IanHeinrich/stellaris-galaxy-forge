@@ -8,8 +8,10 @@ import {
   ownerLine,
   whereText,
 } from "../../lib/megastructureCopy";
+import { megastructureAddForm } from "../../lib/megastructureAddForm";
 import {
   entryDefault,
+  entryStages,
   hostHasMegastructure,
   matchingEntries,
   megastructureEntries,
@@ -30,9 +32,11 @@ import {
   ownerCulture,
   type MegastructurePreview,
 } from "../../lib/megastructurePreview";
+import { documentCapabilities } from "../../lib/capabilities";
 import { templateName } from "../../lib/names";
 import { useSystemNames } from "../../store/browserRows";
 import { useDetailsStore } from "../../store/detailsStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore, useGameTexts } from "../../store/gameDataStore";
 import {
@@ -94,6 +98,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const fitsError = useMegastructureAddStore((s) => s.fitsError);
   const loadFits = useMegastructureAddStore((s) => s.loadFits);
   const { system, spot } = prompt;
+  const form = useFileSessionStore((s) => megastructureAddForm(documentCapabilities(s)));
   const generation = useOpCheckStore((s) => s.generations.get(system) ?? 0);
   const dataVersion = useGameDataStore((s) => s.version);
   const types = useGameDataStore((s) => s.megastructureTypes);
@@ -153,7 +158,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
     ownerCountry === undefined ? null : templateName(ownerCountry),
     orbitHosted,
   );
-  const kind = { ring, habitat: type?.habitat === true, orbital: type?.habitat_orbital === true };
+  const kind = {
+    ring,
+    habitat: type?.habitat === true,
+    orbital: type?.habitat_orbital === true,
+    oneStage: found !== null && entryStages(found.entry).length === 1,
+  };
+  const footer = footerLine(kind, owner !== null, orbitHosted, planetNote);
 
   useEffect(() => {
     void loadFits(generation);
@@ -199,12 +210,14 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
           <span>Where</span>
           <output>{where}</output>
         </div>
-        <div className="field">
-          <span>Owner</span>
-          <output>
-            {owning.name} <span className="muted">{owning.note}</span>
-          </output>
-        </div>
+        {form.owner && (
+          <div className="field">
+            <span>Owner</span>
+            <output>
+              {owning.name} <span className="muted">{owning.note}</span>
+            </output>
+          </div>
+        )}
         {fits === null && fitsError === null ? (
           <div className="megastructure-add-loading" role="status" aria-busy="true">
             <span className="spinner" aria-hidden="true" />
@@ -278,7 +291,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
         {clears && clearing !== null ? (
           <div className="megastructure-add-refusal">{clearingWarning(clearing, nameOf)}</div>
         ) : (
-          <div className="muted">{footerLine(kind, owner !== null, orbitHosted, planetNote)}</div>
+          footer !== "" && <div className="muted">{footer}</div>
         )}
       </DialogFrame>
     </Dialog>

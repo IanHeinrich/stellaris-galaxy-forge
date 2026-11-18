@@ -16,6 +16,12 @@ export const ADD_MEGASTRUCTURE_HERE_LABEL = "Add megastructure here…";
 export const ADD_MEGASTRUCTURE_LABEL = "Add megastructure…";
 export const MEGASTRUCTURES_NEED_GAME_DATA = needsGameData("add a megastructure");
 export const NO_MEGASTRUCTURE_FITS = "No megastructure can go here.";
+
+/** Why a scenario places nothing on a body the game rolls, a star when `star`. */
+export function rolledBodyRefusal(star: boolean): string {
+  const body = star ? "star" : "planet";
+  return `The game rolls this ${body} when it makes the galaxy, so the scenario can't place anything on it.`;
+}
 /** What the dialog says while it asks the save what goes at the spot. */
 export const READING_FITS = "Checking what can go here…";
 
@@ -132,12 +138,15 @@ export interface AddedKind {
   habitat: boolean;
   /** A habitat whose type adds a major orbital at its host. */
   orbital: boolean;
+  /** A megastructure of one stage, such as a ruin, which has no stage to say it is added at. */
+  oneStage: boolean;
 }
 
 /**
  * The dialog's closing line: what Add writes, in a system an empire owns when `owned`, with
  * `orbitHosted` when a habitat's major orbital comes with it, and `planetNote`, what happens to the
- * planet the megastructure changes, after anything but a ring world.
+ * planet the megastructure changes, after anything but a ring world. A megastructure of one stage
+ * has only the planet's note, or nothing.
  */
 export function footerLine(
   kind: AddedKind,
@@ -149,9 +158,11 @@ export function footerLine(
     ? RING_WRITTEN
     : kind.habitat
       ? writtenAsHabitat(owned)
-      : WRITTEN_FINISHED;
+      : kind.oneStage
+        ? ""
+        : WRITTEN_FINISHED;
   const orbital = kind.habitat && kind.orbital ? ` ${habitatOrbitalNote(owned, !orbitHosted)}` : "";
-  return `${written}${orbital}${kind.ring ? "" : planetNote}`;
+  return `${written}${orbital}${kind.ring ? "" : planetNote}`.trim();
 }
 
 /** What the dialog says of a type it has no model for. */

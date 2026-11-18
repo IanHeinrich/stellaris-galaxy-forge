@@ -5,6 +5,7 @@ import { ASTEROID, frameOf, LONE, MOON, move, PLANET, reparent, STAR, SYSTEM } f
 import type { GeometryIntent } from "./orbitIntent";
 import { geometryAdapterFor, NO_GEOMETRY } from "./geometryAdapters";
 import { SAVE_GEOMETRY } from "./saveGeometry";
+import { SCENARIO_GEOMETRY } from "./scenarioGeometry";
 
 describe("what a save lets the system view edit", () => {
   const editing = SAVE_GEOMETRY.editing(frameOf());
@@ -110,13 +111,13 @@ describe("what a save lets the system view edit", () => {
 });
 
 describe("the adapter a document gets", () => {
-  it("is the save's for a save system, and edits nothing on a scenario or with no system", () => {
+  it("is the save's for a save system, the scenario's structures' on a scenario, and edits nothing with no system", () => {
     expect(geometryAdapterFor(SAVE_CAPABILITIES, SYSTEM)).toBe(SAVE_GEOMETRY);
-    expect(geometryAdapterFor(SCENARIO_CAPABILITIES, SYSTEM)).toBe(NO_GEOMETRY);
+    expect(geometryAdapterFor(SCENARIO_CAPABILITIES, SYSTEM)).toBe(SCENARIO_GEOMETRY);
     expect(geometryAdapterFor(SAVE_CAPABILITIES, null)).toBe(NO_GEOMETRY);
   });
 
-  it("on a scenario, lets nothing move, previews nothing and makes no op", () => {
+  it("on a scenario, moves no body, previews no body's move and makes no op for one", () => {
     const adapter = geometryAdapterFor(SCENARIO_CAPABILITIES, SYSTEM);
     const editing = adapter.editing(frameOf());
     expect(editing.bodies.size).toBe(0);

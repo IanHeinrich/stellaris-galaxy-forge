@@ -27,6 +27,7 @@ use crate::rolls::{ClassDraw, RingRoll, can_be, fixed_name, list_members, ring_r
 
 mod cluster;
 mod megastructure;
+mod ruin;
 mod save;
 
 pub use cluster::{ClusterMember, ClusterRoll, RolledCluster, cluster_op, roll_cluster};

@@ -10,7 +10,9 @@ import { openFixtureSave } from "./editorFixture";
 import { editResult, entityNode, entityView, scalar } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
-import { deleteMegastructure } from "./megastructureRemoval";
+import { deleteMegastructure, removeRuin } from "./megastructureRemoval";
+import { confirm } from "@tauri-apps/plugin-dialog";
+import { openFixtureScenario } from "./editorFixture";
 
 const NEXUS = 359;
 const WORLD = 517;
@@ -141,5 +143,38 @@ describe("deleting a megastructure", () => {
     armRow("think_tank_3", null);
     await deleteMegastructure(NEXUS, "Science Nexus", 0);
     expect(asked()).toBe("Delete Science Nexus in Sol? It is removed from the save.");
+  });
+});
+
+describe("removeRuin", () => {
+  const RUIN = 0x5800_0080;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    await openFixtureScenario();
+    useInspectorStore.setState({
+      stack: [{ ref: { kind: "megastructure", id: RUIN }, label: "Ruined Dyson Sphere" }],
+    });
+  });
+
+  it("asks, then takes the ruin out with RemoveMegastructure and closes its page", async () => {
+    vi.mocked(confirm).mockResolvedValue(true);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    expect(await removeRuin(RUIN, "Ruined Dyson Sphere", null)).toBe(true);
+    expect(confirm).toHaveBeenCalledWith(
+      "Delete Ruined Dyson Sphere? It is removed from the scenario.",
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "RemoveMegastructure",
+      megastructure: RUIN,
+    });
+    expect(labels()).not.toContain("Ruined Dyson Sphere");
+  });
+
+  it("leaves the ruin when the player says no", async () => {
+    vi.mocked(confirm).mockResolvedValue(false);
+    expect(await removeRuin(RUIN, "Ruined Dyson Sphere", null)).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

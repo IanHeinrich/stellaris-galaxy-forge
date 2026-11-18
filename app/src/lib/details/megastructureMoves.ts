@@ -114,7 +114,8 @@ export function snapLabel(planet: string): string {
 
 /**
  * The body a floating row of `type` goes back to the point of, among `bodies`: its own, when it
- * stands away from it; null for any other row.
+ * stands away from it and moves at all; null for any other row, such as one the initializer
+ * places.
  */
 export function snapBody(
   row: MegastructureSummary,
@@ -122,8 +123,9 @@ export function snapBody(
   bodies: readonly { id: number; x: number; y: number; star: boolean }[],
 ): number | null {
   const home = bodies.find((b) => b.id === row.planet);
-  if (!home || row.at === null || row.made_body === true) return null;
-  if (!floatsFree(type, home.star)) return null;
+  if (!home || row.at === null) return null;
+  const move = megastructureMove(row, type, home);
+  if (move.place !== "body" || !move.floats) return null;
   return samePoint(row.at, [home.x, home.y]) ? null : home.id;
 }
 

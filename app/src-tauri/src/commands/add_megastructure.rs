@@ -1,5 +1,5 @@
 //! Adding a megastructure of any type the install and its mods define to a system of the
-//! open save, placed as its type says.
+//! open save, placed as its type says, or a ruin to a system of the open scenario.
 
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::views::SgfError;
@@ -11,7 +11,7 @@ use crate::views::{Added, AddedMegastructure};
 
 pub(super) const NO_MEGASTRUCTURES: &str = "this document takes no added megastructure";
 
-/// Add a finished megastructure of type `kind` to system `system` of the open save at
+/// Add a finished megastructure of type `kind` to system `system` of the open document at
 /// `place`, as `sgf_gamedata::generate::megastructure_op` builds it, changing its planet as
 /// its build does unless `keep_planet`, and deleting the planet's moons first when its build
 /// removes them and `moons` asks. Answers what it created and the effects of its construction

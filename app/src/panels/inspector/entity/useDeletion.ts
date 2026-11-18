@@ -4,6 +4,7 @@ import type { Op } from "../../../generated/Op";
 import {
   deleteMegastructureOp,
   DELETE_MEGASTRUCTURE,
+  removeRuinOp,
 } from "../../../lib/details/megastructureRemoval";
 import {
   deleteLabel,
@@ -20,19 +21,20 @@ import {
 } from "../../../lib/details/ringWorldRemoval";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { deleteMegastructure } from "../../../store/megastructureRemoval";
+import { deleteMegastructure, removeRuin } from "../../../store/megastructureRemoval";
 import { planetEditAdapterFor } from "../../../store/planetEditAdapter";
 import { deleteRingWorld } from "../../../store/ringWorldRemoval";
 import { useOpCheck } from "../../useOpCheck";
 
 /**
- * What a page or a menu deletes, named `name`: a body of `system` with its class, the colony on a body, or a megastructure whose `row` is its type key and whose system is null where no system
- * read so far lists it.
+ * What a page or a menu deletes, named `name`: a body of `system` with its class, the colony on a body, a megastructure whose `row` is its type key and whose system is null where no system
+ * read so far lists it, or a ruin a scenario system's own block places.
  */
 export type DeletionTarget =
   | { kind: "planet"; system: number; id: number; name: string; body: DeletedBody; class: string }
   | { kind: "colony"; system: number; id: number; name: string }
-  | { kind: "megastructure"; system: number | null; id: number; name: string; row: string };
+  | { kind: "megastructure"; system: number | null; id: number; name: string; row: string }
+  | { kind: "ruin"; system: number | null; id: number; name: string };
 
 type Kind = DeletionTarget["kind"];
 
@@ -87,6 +89,11 @@ const DELETIONS: {
           op: deleteMegastructureOp(t.id),
           run: () => deleteMegastructure(t.id, t.name, t.system),
         },
+  ruin: (t) => ({
+    label: DELETE_MEGASTRUCTURE,
+    op: removeRuinOp(t.id),
+    run: () => removeRuin(t.id, t.name, t.system),
+  }),
 };
 
 function deletionOf<K extends Kind>(

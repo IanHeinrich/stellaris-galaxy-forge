@@ -1,6 +1,6 @@
 /**
  * The op that deletes a save's megastructure, the row facts its confirm reads, and the sentence
- * the confirm asks.
+ * the confirm asks; and the op and sentence that take a scenario's ruin out.
  */
 import { NULL_ID } from "../../generated/constants";
 import type { EntityNode } from "../../generated/EntityNode";
@@ -18,6 +18,17 @@ export const MADE_BY_MEGASTRUCTURE = "megastructure";
 
 export function deleteMegastructureOp(megastructure: number): Op {
   return { type: "DeleteMegastructure", megastructure };
+}
+
+/** The op that takes ruin `megastructure` out of its scenario system's block. */
+export function removeRuinOp(megastructure: number): Op {
+  return { type: "RemoveMegastructure", megastructure };
+}
+
+/** The confirm for taking the ruin named `name` out of the system named `system`, or of no system read so far. */
+export function removeRuinQuestion(name: string, system: string | null): string {
+  const where = system === null ? "" : ` in ${system}`;
+  return `Delete ${name}${where}? It is removed from the scenario.`;
 }
 
 /** The system of `details` that lists megastructure `id`, or null where none read so far does. */

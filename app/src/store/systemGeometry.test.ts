@@ -156,14 +156,6 @@ describe("a megastructure's move", () => {
     expect(await applyGeometry(moved(40, { place: "free", x: 10, y: 220 }))).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
-
-  it("moves nothing on a scenario", async () => {
-    await openFixtureScenario();
-    withStructures();
-    expect(systemGeometry(SOL).editing.megastructures).toBe(false);
-    expect(await applyGeometry(moved(40, { place: "free", x: 10, y: 220 }))).toBe(false);
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
-  });
 });
 
 describe("a scenario's own structures, with placing them switched on", () => {
@@ -308,7 +300,9 @@ describe("a scenario's own structures, with placing them switched on", () => {
 
   it("moves nothing while the scenario doesn't place structures", async () => {
     await withPlacements();
-    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    useFileSessionStore.setState({
+      capabilities: { ...SCENARIO_CAPABILITIES, place_structures: false },
+    });
     expect(systemGeometry(SOL).editing.megastructures).toBe(false);
     const intent = {
       kind: "moveMegastructure",

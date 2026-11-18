@@ -10,12 +10,11 @@ import { useEntityStore, viewKey } from "../../../store/entityStore";
 import { entityView, fact, megastructureSummary } from "../../../store/fixture";
 import { megastructureEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { InspectorTab } from "../../../store/inspectorStore";
-import { documentCapabilities } from "../../../lib/capabilities";
 import { bindStores } from "../../../store/bindStores";
 import { editResult } from "../../../store/fixture";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import type { RowOrigin } from "../../../generated/RowOrigin";
 import { rowOrigin, structureSpawn } from "../../../test/builders";
 import { mockedIpc } from "../../../test/ipc";
 import { TextField } from "../../EditField";
@@ -121,11 +120,10 @@ describe("a megastructure at a point of its own", () => {
     expect(renderToStaticMarkup(<MegastructureView entry={entry} />)).not.toContain("Distance");
   });
 
-  it("serves a scenario's own ruin from its system's details, with its position", async () => {
+  /** A scenario whose system holds the ruined gateway at `origin`, and its page's markup. */
+  async function scenarioRuin(origin: RowOrigin): Promise<string> {
     resetStores();
     await open("scenario");
-    const now = documentCapabilities(useFileSessionStore.getState());
-    useFileSessionStore.setState({ capabilities: { ...now, place_structures: true } });
     await land(
       details({
         megastructures: [
@@ -133,7 +131,7 @@ describe("a megastructure at a point of its own", () => {
             id: GATE,
             kind: "gateway_ruined",
             at: [-100, 0],
-            spawn: structureSpawn(rowOrigin(GATE)),
+            spawn: structureSpawn(origin),
           }),
         ],
       }),
@@ -141,12 +139,26 @@ describe("a megastructure at a point of its own", () => {
     useGameDataStore.setState({ names: new Map([["gateway_ruined", "Ruined Gateway"]]) });
     const entry = megastructureEntry(GATE, "Disabled Gateway");
     useInspectorStore.setState({ stack: [entry], tab: "overview" });
-    const html = renderToStaticMarkup(<MegastructureView entry={entry} />);
+    return renderToStaticMarkup(<MegastructureView entry={entry} />);
+  }
+
+  it("serves a scenario's own ruin from its system's details, with its position and Delete", async () => {
+    const html = await scenarioRuin(rowOrigin(GATE));
     expect(html).toContain("Megastructure in");
     expect(html).toContain("Ruined Gateway");
     expect(html).not.toContain("gateway_ruined");
     expect(html).toMatch(/aria-label="Distance"[^>]*value="100"/);
-    expect(html).not.toContain("Delete megastructure");
+    expect(html.indexOf("Type")).toBeLessThan(html.indexOf("Delete megastructure"));
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({
+      type: "RemoveMegastructure",
+      megastructure: GATE,
+    });
     expect(mockedIpc.getEntity).not.toHaveBeenCalled();
+  });
+
+  it("offers no Delete for a ruin the file writes in a way the editor doesn't edit", async () => {
+    const html = await scenarioRuin(rowOrigin(GATE, false));
+    expect(html).toContain("Ruined Gateway");
+    expect(html).not.toContain("Delete megastructure");
   });
 });

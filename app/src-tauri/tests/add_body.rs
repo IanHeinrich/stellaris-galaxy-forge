@@ -121,8 +121,9 @@ fn no_two_classes_in_the_menu_share_a_name() {
     }
 }
 
-/// A scenario and a 3.4 save have none of the capabilities that add bodies and megastructures,
-/// so each add command refuses them through the capability it asks, with no game data loaded.
+/// A 3.4 save has none of the capabilities that add bodies and megastructures, and a scenario
+/// none that adds bodies, so each add command refuses them through the capability it asks, with
+/// no game data loaded.
 #[test]
 fn a_document_without_the_capability_is_refused_every_add() {
     let refusals = [
@@ -159,9 +160,9 @@ fn a_document_without_the_capability_is_refused_every_add() {
             "this document takes no added megastructure",
         ),
     ];
-    for document in [SCENARIO, SAMPLE_34] {
+    for (document, asked) in [(SCENARIO, &refusals[..1]), (SAMPLE_34, &refusals[..])] {
         let w = opened(document);
-        for (command, args, message) in &refusals {
+        for (command, args, message) in asked {
             let refused =
                 invoke::<serde_json::Value>(&w, command, args.clone()).expect_err(command);
             assert_eq!(

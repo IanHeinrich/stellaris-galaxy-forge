@@ -24,6 +24,9 @@ export const SAVE_SHAPE_CAP = 200;
 /** The id a save writes where an entity names none. */
 export const NULL_ID = 4294967295;
 
+/** The id a scenario system's main star goes by, the only body a scenario places a ruin on. */
+export const SCENARIO_STAR_BODY = 1073741824;
+
 /** What the planet class of a ring world segment starts with. */
 export const RING_WORLD_SEGMENT_PREFIXES = ["pc_ringworld", "pc_shattered_ring"] as const;
 
@@ -194,8 +197,8 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   modifiers: false,
   anomalies: false,
   dig_sites: false,
-  add_megastructures: false,
-  place_structures: false,
+  add_megastructures: true,
+  place_structures: true,
   ambient_objects: false,
   system_modifiers: false,
   rename_systems: true,

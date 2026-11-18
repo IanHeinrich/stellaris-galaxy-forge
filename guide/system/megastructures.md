@@ -1,13 +1,15 @@
 ---
 title: Megastructures
-description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, or add or delete a whole ring world.
-aliases: [megastructure, add megastructure, move megastructure, drag megastructure, megastructure distance, megastructure angle, megastructure position, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex, equatorial shipyard, processing ring, megastructure moons]
+description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, add or delete a whole ring world, or add a ruin to a scenario system.
+aliases: [megastructure, add megastructure, move megastructure, drag megastructure, megastructure distance, megastructure angle, megastructure position, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex, equatorial shipyard, processing ring, megastructure moons, scenario ruin, add ruin to scenario, delete ruin]
 ---
-# Megastructures <Badge type="tip" text="Save" />
+# Megastructures <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 In a Stellaris 4.x save, you can add a megastructure already built, move
 it within its system or delete it. You can also add habitats and
-whole ring worlds. Adding needs the game data loaded.
+whole ring worlds. In a scenario, you can add, move and delete ruins, as
+[Ruins in a scenario](#ruins-in-a-scenario) says. Adding needs the game
+data loaded.
 
 In the [system view](system-view.md), each megastructure looks as it does
 in the game. A system with no megastructures still shows the
@@ -228,3 +230,48 @@ deleted.
 - Other planets in the system stay, such as the Interloper beside a
   shattered ring.
 - One undo puts the whole ring back.
+
+## Ruins in a scenario <Badge type="info" text="Scenario" />
+
+In a scenario, you can add a ruined megastructure to a system, move it
+and delete it. The game places it in the system when a new game starts.
+The list holds the ruins the game's initializers place with no owner,
+such as a ruined Gateway, and the ones your enabled mods place.
+
+1. Open the system in the system view.
+2. Right-click where the ruin goes:
+   - For a ruin round a star, right-click the system's star and select
+     Add megastructure.
+   - For a ruin at its own point, such as a ruined Gateway, right-click
+     empty space and select Add megastructure here.
+3. Pick a ruin from the list.
+4. Click the Add button.
+
+The ruin's page opens in the Inspector. A ruin has no owner, so the
+dialog has no Owner row. Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it
+out again.
+
+### Where a ruin goes
+
+| Ruin | Where |
+| --- | --- |
+| Ruins round a star | The system's star, one ruin per star |
+| Ruins at their own point | Empty space |
+
+- In empty space, a ruin round a star is greyed out. Right-click the
+  star to add it.
+- A planet or moon can't take a ruin, because the game rolls it when it
+  makes the galaxy. Its menu greys out Add megastructure and says so.
+- In a system with more than one star, only the main star takes a ruin.
+- A star that already has a ruin from the scenario greys out the list.
+
+### Move or delete a ruin
+
+- Drag a ruin at its own point in the system view, or type a Distance
+  and Angle in the Position block on its page. A ruin on the star stays
+  there.
+- To remove a ruin, click Delete megastructure at the bottom of its
+  page. Galaxy Forge asks first, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> puts
+  it back.
+- Rows marked From the initializer or From the file can't be moved or
+  deleted.
