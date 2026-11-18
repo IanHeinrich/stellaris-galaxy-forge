@@ -114,7 +114,9 @@ const MARK_SOURCE: Record<Mark, Source> = { initializer: "initializers", file: "
 
 /** Where a row the page can't edit comes from, in the hue of that source. */
 export function OriginMark({ mark }: { mark: Mark }) {
-  return <span className={CHIP_CLASS[MARK_SOURCE[mark]]}>{ORIGIN_MARK_TEXT[mark]}</span>;
+  return (
+    <span className={`${CHIP_CLASS[MARK_SOURCE[mark]]} origin`}>{ORIGIN_MARK_TEXT[mark]}</span>
+  );
 }
 
 /** Above this many rows a list carries a filter of its own. */
