@@ -160,6 +160,11 @@ a save. Scenarios also let you:
 
 The steps are in [Make a scenario](https://ianheinrich.github.io/stellaris-galaxy-forge/scenario/make-a-scenario).
 
+If you write a mod's scenario by hand, Galaxy Forge keeps your comments,
+key order and formatting, and changes only the lines you edit.
+[For mod authors](https://ianheinrich.github.io/stellaris-galaxy-forge/scenario/for-mod-authors)
+covers working beside your text editor and git, and the limits.
+
 ## Shapes, brushes and symmetry
 
 ![Painting clusters of systems and drawing lanes with six-way symmetry](docs/media/paint-symmetry.gif)
@@ -320,6 +325,8 @@ restore the original.
 Galaxy Forge is still in beta. It edits the galaxy map, the systems and
 planets in it, their megastructures, and empires' names, flags and
 colours. Fleets, pops, leaders and techs can't be changed.
+The [Roadmap](https://ianheinrich.github.io/stellaris-galaxy-forge/reference/roadmap)
+lists what's planned next.
 
 Galaxy Forge works with Stellaris 4.x saves. I test with all DLC and no
 mods. I've tested the galaxy map edits in-game on 4.4.6 and 4.5.2, and the

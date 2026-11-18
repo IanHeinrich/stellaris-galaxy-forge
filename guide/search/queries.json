@@ -336,5 +336,14 @@
   {"q": "swap two systems", "expect": "edit/select-and-move#swap-two-systems"},
   {"q": "switch places of two stars", "expect": "edit/select-and-move#swap-two-systems"},
   {"q": "swap my home system with another system", "expect": "edit/select-and-move#swap-two-systems"},
-  {"q": "two systems trade places", "expect": "edit/select-and-move#swap-two-systems"}
+  {"q": "two systems trade places", "expect": "edit/select-and-move#swap-two-systems"},
+  {"q": "mod author", "expect": "scenario/for-mod-authors"},
+  {"q": "total conversion", "expect": "scenario/for-mod-authors"},
+  {"q": "keep my comments", "expect": "scenario/for-mod-authors#your-comments-and-formatting-stay"},
+  {"q": "plain scenario without paint a galaxy", "expect": "scenario/for-mod-authors#edit-a-plain-scenario-without-paint-a-galaxy"},
+  {"q": "git", "expect": "scenario/for-mod-authors"},
+  {"q": "coordinate_transform", "expect": "scenario/for-mod-authors#limits"},
+  {"q": "roadmap", "expect": "reference/roadmap"},
+  {"q": "what is planned for scenarios", "expect": "reference/roadmap#next-for-scenarios"},
+  {"q": "when is version 1.0", "expect": "reference/roadmap#version-1-0"}
 ]

@@ -32,6 +32,9 @@ features:
   - title: Something went wrong
     details: Fix common problems and report a bug.
     link: /reference/troubleshooting
+  - title: Rework my mod's map
+    details: Edit a hand-written scenario on the map. Comments, key order and formatting stay as you wrote them.
+    link: /scenario/for-mod-authors
 ---
 
 New here? Start with [Install and update](./start/install-and-update.md) and [Your first edit](./start/first-edit.md).
