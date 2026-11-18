@@ -65,6 +65,8 @@ pub struct OpResult {
     pub touched: Vec<u32>,
     /// The systems whose details the op left stale, ascending.
     pub details_stale: Vec<u32>,
+    /// Their bodies stand as they were: see [`crate::ops::DetailsReach::Placements`].
+    pub keeps_bodies: bool,
     /// See [`crate::ops::OpReach::reclassifies`].
     pub reclassifies: bool,
     /// The whole wayline list when the op changed it, `None` when it stands as before.

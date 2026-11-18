@@ -160,14 +160,42 @@ pub struct ListMember {
     pub weight: Option<f64>,
 }
 
-/// A `create_ambient_object`.
+/// A `create_ambient_object`: one an initializer creates, or one the scenario's own `effect`
+/// block does.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AmbientObject {
     /// Its `type`.
     pub kind: String,
-    /// The body whose `init_effect` creates it; `None` for the system's own.
-    pub body: Option<u32>,
+    pub place: AmbientPlace,
+    pub origin: RowOrigin,
+}
+
+/// Where an ambient object stands.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "place")]
+pub enum AmbientPlace {
+    /// At the body whose `init_effect` creates it.
+    Body { body: u32 },
+    /// At `x`, `y` about the system's main star in the save frame, as the editor's own
+    /// `set_location` writes it.
+    Point { x: f64, y: f64 },
+    /// At a spot the game picks.
+    Random,
+}
+
+/// Where a row of a scenario system's Megastructures or Ambient objects comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "from")]
+pub enum RowOrigin {
+    /// The system's initializer places it.
+    Initializer,
+    /// The scenario's own `effect` block places it. `id` is what the ops address it by, a
+    /// ruin's row id; `editable` says the editor edits it where it stands, and is false for a
+    /// shape it leaves as written.
+    Effect { id: u32, editable: bool },
 }
 
 /// An initializer's `usage_odds`.
@@ -349,6 +377,7 @@ pub struct StructureSpawn {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub owner_written: Option<String>,
+    pub origin: RowOrigin,
 }
 
 /// How the game decides where a scenario's megastructure or starbase stands.

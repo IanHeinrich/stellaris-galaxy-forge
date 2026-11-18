@@ -8,6 +8,7 @@ vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { StarbaseSummary } from "../../../generated/StarbaseSummary";
+import { NO_MEGASTRUCTURES } from "../../../lib/details/placedRows";
 import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -55,9 +56,11 @@ describe("a save system's overview", () => {
       "Hyperlanes · 4",
       "Bypasses · 0",
       "Planets · 1",
+      "Megastructures · 0",
       "Flags · 0",
       "Initializer",
     ]);
+    expect(html).toContain(NO_MEGASTRUCTURES);
     expect(html).toContain('role="group" aria-label="Position"');
     expect(html).toContain("System total");
     expect(html).toContain('role="button"');

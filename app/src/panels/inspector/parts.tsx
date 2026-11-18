@@ -190,12 +190,13 @@ export function Placeholder({ children }: { children: ReactNode }) {
 
 /**
  * A row that drills into what it names: the whole row is the target, by click or Enter. A row
- * whose entity the open document cannot answer for is plain text instead.
+ * whose entity the open document cannot answer for, or that is `inert`, is plain text instead.
  */
 export function DrillRow({
   className = "ins-prow",
   title,
   requires,
+  inert = false,
   onOpen,
   onPointerEnter,
   onPointerLeave,
@@ -205,6 +206,8 @@ export function DrillRow({
   className?: string;
   title?: string;
   requires?: keyof Capabilities;
+  /** It opens nothing: its entity has no page that shows more. */
+  inert?: boolean;
   onOpen: () => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
@@ -212,7 +215,7 @@ export function DrillRow({
   children: ReactNode;
 }) {
   const capabilities = useFileSessionStore(documentCapabilities);
-  if (!supports(capabilities, requires)) {
+  if (inert || !supports(capabilities, requires)) {
     return (
       <div
         className={`${className} static`}

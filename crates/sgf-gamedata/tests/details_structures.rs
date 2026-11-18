@@ -5,10 +5,11 @@ use crate::common;
 
 use sgf_core::document::Document;
 use sgf_core::format::save::details::HeuristicResolver;
+use sgf_core::format::scenario::placed::{STAR_BODY, ambient_object_id, ruin_id};
 use sgf_core::session::Session;
 use sgf_core::views::details::{
-    ClassPool, MegastructureSummary, PlanetSummary, SpawnClass, SpawnPlace, StarbaseSummary,
-    StructureSpawn, SystemDetails,
+    AmbientPlace, ClassPool, MegastructureSummary, PlanetSummary, RowOrigin, SpawnClass,
+    SpawnPlace, StarbaseSummary, StructureSpawn, SystemDetails,
 };
 use sgf_gamedata::GameData;
 use sgf_gamedata::initializers::{self, Initializer};
@@ -541,4 +542,111 @@ fn a_scenario_systems_megastructures_stand_where_the_saves_do() {
             None => {}
         }
     }
+}
+
+/// A system of the structures fixture whose own `effect` block places a ruin at a point, an
+/// ambient object at a point, a ruin with an owner, a bare ambient object and a ruin on the
+/// star, after a flag the block also sets.
+const EFFECT: &str = "static_galaxy_scenario = {
+	name = \"effect\"
+	system = { id = \"7\" name = \"Kel\" position = { x = 0 y = 0 } initializer = structures_init effect = { set_star_flag = kept spawn_megastructure = { type = \"gateway_ruined\" orbit_distance = 100 orbit_angle = 0 random_pos = no } create_ambient_object = { type = \"derelict_ship_object\" location = this } last_created_ambient_object = { set_location = { target = prev distance = 30 angle = 90 } } spawn_megastructure = { type = \"dyson_sphere_ruined\" planet = star owner = root } create_ambient_object = { type = \"debris_object\" location = this } spawn_megastructure = { type = \"mega_shipyard_ruined\" planet = star } } }
+}
+";
+
+/// A ruin row as the effect test reads it: its type, body, point and origin.
+type Ruin<'a> = (&'a str, Option<u32>, Option<(f64, f64)>, RowOrigin);
+
+#[test]
+fn a_scenario_systems_effect_block_lists_its_ruins_and_ambient_objects_after_the_initializers() {
+    let gd = common::cached_fixture();
+    let doc = Document::from_scenario_bytes(EFFECT.as_bytes().to_vec()).expect("index");
+    let session = Session::from_document(None, doc).expect("project");
+    let (_, effect) = session
+        .scenario_system_placements(7)
+        .expect("an effect block");
+    let plain = gd
+        .initializer_details(7, "structures_init", None)
+        .expect("the structures fixture");
+    let details = gd
+        .scenario_system_details(7, "structures_init", None, &effect)
+        .expect("the structures fixture");
+
+    let initializer = plain.megastructures.len();
+    assert!(
+        details.megastructures[..initializer]
+            .iter()
+            .all(|m| spawn(m).origin == RowOrigin::Initializer),
+        "the initializer's rows come first, marked as its"
+    );
+    let ruins: Vec<Ruin> = details.megastructures[initializer..]
+        .iter()
+        .map(|m| (m.kind.as_str(), m.planet, m.at, spawn(m).origin))
+        .collect();
+    let star = details.planets[0].id;
+    assert_eq!(star, STAR_BODY);
+    let ruin = |n, editable| RowOrigin::Effect {
+        id: ruin_id(7, n).expect("an id"),
+        editable,
+    };
+    assert_eq!(
+        ruins,
+        [
+            ("gateway_ruined", None, Some((-100.0, 0.0)), ruin(0, true)),
+            (
+                "dyson_sphere_ruined",
+                Some(star),
+                Some((0.0, 0.0)),
+                ruin(1, false)
+            ),
+            (
+                "mega_shipyard_ruined",
+                Some(star),
+                Some((0.0, 0.0)),
+                ruin(2, true)
+            ),
+        ]
+    );
+    assert!(
+        details.megastructures[initializer..]
+            .iter()
+            .all(|m| matches!(spawn(m).origin, RowOrigin::Effect { id, .. } if id == m.id)),
+        "a ruin's origin names its row"
+    );
+    assert!(
+        details.megastructures[initializer..]
+            .iter()
+            .all(|m| m.owner.is_none()),
+        "a ruin has no owner"
+    );
+
+    let objects = &details
+        .spawn
+        .as_ref()
+        .expect("the system's spawn")
+        .ambient_objects;
+    let own = &plain
+        .spawn
+        .as_ref()
+        .expect("the system's spawn")
+        .ambient_objects;
+    assert_eq!(objects[..own.len()], own[..]);
+    let placed: Vec<(&str, AmbientPlace, RowOrigin)> = objects[own.len()..]
+        .iter()
+        .map(|o| (o.kind.as_str(), o.place, o.origin))
+        .collect();
+    let object = |n, editable| RowOrigin::Effect {
+        id: ambient_object_id(7, n).expect("an id"),
+        editable,
+    };
+    assert_eq!(
+        placed,
+        [
+            (
+                "derelict_ship_object",
+                AmbientPlace::Point { x: 0.0, y: -30.0 },
+                object(0, true)
+            ),
+            ("debris_object", AmbientPlace::Random, object(1, false)),
+        ]
+    );
 }

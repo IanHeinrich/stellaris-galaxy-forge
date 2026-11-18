@@ -94,6 +94,12 @@ pub(crate) trait Format: Sync {
     /// it rewrote, ascending.
     fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32>;
 
+    /// Whether the systems an op of reach `reach` stales keep their bodies as they were, so
+    /// what the app holds of each body stays.
+    fn keeps_bodies(&self, _reach: DetailsReach) -> bool {
+        false
+    }
+
     /// Whether the queries only a save answers read this document; the refusal names
     /// `query`, what the caller asked for, and why not.
     fn save_queries(&self, doc: &Document, query: &'static str) -> Result<(), OpError> {

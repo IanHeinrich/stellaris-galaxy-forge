@@ -409,6 +409,10 @@
   border: 1px solid var(--border);
 }
 
+.chip.origin {
+  white-space: nowrap;
+}
+
 .chip.kind {
   background: #2a2410;
   border-color: var(--accent-dim);

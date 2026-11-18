@@ -15,6 +15,11 @@ export type EditResult = { entry: HistoryEntry, delta: GalaxyDelta, issues: Arra
  */
 details_stale: Array<number>, 
 /**
+ * The bodies of [`Self::details_stale`] stand as they were, so their pages and what
+ * they roll stay.
+ */
+keeps_bodies?: boolean, 
+/**
  * The entities the op rewrote, for the inspector's changed-row badges.
  */
 touched_entities: Array<EntityAddr>, 

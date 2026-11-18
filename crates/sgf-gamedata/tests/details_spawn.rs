@@ -4,9 +4,9 @@
 use crate::common;
 
 use sgf_core::views::details::{
-    AmbientObject, AnomalyPrevention, ClassPool, CountRange, DepositReplacement, DepositStep,
-    ListMember, PlanetSummary, SpawnClass, SpawnRing, SpawnStar, SystemDetails, UnknownClass,
-    UsageOdds,
+    AmbientObject, AmbientPlace, AnomalyPrevention, ClassPool, CountRange, DepositReplacement,
+    DepositStep, ListMember, PlanetSummary, RowOrigin, SpawnClass, SpawnRing, SpawnStar,
+    SystemDetails, UnknownClass, UsageOdds,
 };
 
 use sgf_gamedata::layouts::{self, Eligibility, Unsupported};
@@ -14,6 +14,15 @@ use sgf_gamedata::scripts::chain;
 use sgf_gamedata::views::InitializerView;
 
 use common::fixed;
+
+/// An ambient object an initializer creates at `place`.
+fn initializer_object(kind: &str, place: AmbientPlace) -> AmbientObject {
+    AmbientObject {
+        kind: kind.to_owned(),
+        place,
+        origin: RowOrigin::Initializer,
+    }
+}
 
 const STARS: &str = "sc_sun = {
 	class = sun_star
@@ -395,18 +404,9 @@ fn a_scenario_systems_spawn_says_what_its_initializer_states() {
     assert_eq!(
         spawn.ambient_objects,
         [
-            AmbientObject {
-                kind: "fx_system_object".to_owned(),
-                body: None,
-            },
-            AmbientObject {
-                kind: "fx_object".to_owned(),
-                body: Some(rocks[0]),
-            },
-            AmbientObject {
-                kind: "fx_object".to_owned(),
-                body: Some(rocks[1]),
-            },
+            initializer_object("fx_system_object", AmbientPlace::Random),
+            initializer_object("fx_object", AmbientPlace::Body { body: rocks[0] }),
+            initializer_object("fx_object", AmbientPlace::Body { body: rocks[1] }),
         ]
     );
     assert_eq!(spawn.namelist.as_deref(), Some("fx_names"));

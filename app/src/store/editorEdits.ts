@@ -81,6 +81,9 @@ export function editPipeline(
     useOpCheckStore.getState().staled(result.details_stale);
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
+    }
+    // An edit of what a scenario system's effect block places leaves its rolled bodies as they were.
+    if (result.details_stale.length > 0 && result.keeps_bodies !== true) {
       useInspectorStore.getState().dropPages({ bodies: restaled(result.details_stale, pairs) });
       useClassRollsStore.getState().forget(result.details_stale);
       useInspectorStore.getState().dropClassPicks(result.details_stale);

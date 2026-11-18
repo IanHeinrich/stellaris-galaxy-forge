@@ -88,7 +88,7 @@ export function scenario(
     ...sources,
     ...subject,
     rolledLayout: SCENARIO_CAPABILITIES.rolled_layout,
-    geometry: geometryAdapterFor("scenario", SCENARIO_CAPABILITIES, SYSTEM),
+    geometry: geometryAdapterFor(SCENARIO_CAPABILITIES, SYSTEM),
     ...over,
   });
 }

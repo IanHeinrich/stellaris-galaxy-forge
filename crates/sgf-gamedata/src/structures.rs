@@ -2,17 +2,18 @@
 //! save's rows have: the body each is tied to, where it stands and who owns it.
 
 use sgf_core::emit;
-use sgf_core::format::scenario::placed::{MEGASTRUCTURE_BASE, STARBASE_BASE};
+use sgf_core::format::scenario::placed::{MEGASTRUCTURE_BASE, Placed, STARBASE_BASE};
 use sgf_core::ops::rules::RELAY_RADIUS_FACTOR;
-use sgf_core::placements::{self, SPAWN_MEGASTRUCTURE, point_at};
+use sgf_core::placements::{self, SPAWN_MEGASTRUCTURE, Statement, point_at};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
-    Bounds, MegastructureSummary, PlanetSummary, SpawnPlace, StarbaseSummary, StructureSpawn,
+    Bounds, MegastructureSummary, PlanetSummary, RowOrigin, SpawnPlace, StarbaseSummary,
+    StructureSpawn,
 };
 
 use crate::GameData;
-use crate::details::{bounds, index};
+use crate::details::{bounds, index, origin};
 use crate::initializers::{self, Body, BodyClass, InitStarbase, Initializer};
 use crate::install::script::Def;
 use crate::layouts::{StarSource, star_source};
@@ -146,8 +147,9 @@ pub(crate) fn spawns<'a>(
 impl GameData {
     /// The megastructures and starbase `init` places in system `id`, whose bodies are
     /// `planets`, standing at `points`, and whose inner radius the game draws from
-    /// `inner_radius`. `owners` names the territory each written owner is, and the one the
-    /// system joins.
+    /// `inner_radius`, then the ruins the scenario's own `effect` block, `effect`, spawns.
+    /// `owners` names the territory each written owner is, and the one the system joins.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn structures(
         &self,
         id: u32,
@@ -156,6 +158,7 @@ impl GameData {
         points: &[(f64, f64)],
         inner_radius: Option<Bounds>,
         owners: Option<&ScenarioOwners>,
+        effect: &[Placed],
     ) -> Structures {
         let inner =
             inner_radius.unwrap_or_else(|| Bounds::fixed(self.system_radii.inner_about(0.0)));
@@ -180,6 +183,12 @@ impl GameData {
             let (row, anchor) = cx.megastructure(n, spawn, from, always);
             out.anchored.extend(anchor.map(|i| (row.id, i)));
             out.megastructures.push(row);
+        }
+        for placed in effect {
+            if let Some((row, anchor)) = cx.ruin(placed) {
+                out.anchored.extend(anchor.map(|i| (row.id, i)));
+                out.megastructures.push(row);
+            }
         }
 
         let system_calls = || called.iter().filter(|c| c.from.is_none());
@@ -271,7 +280,7 @@ impl Context<'_> {
         from: Option<usize>,
         always: bool,
     ) -> (MegastructureSummary, Option<usize>) {
-        let placed = self.place(spawn, from);
+        let placed = self.place(&spawn.place, &spawn.kind, from);
         let (owner, owner_written) = self.owner(spawn.owner.as_deref());
         let body_always = placed.anchor.is_none_or(|i| self.bodies[i].always);
         let row = MegastructureSummary {
@@ -287,13 +296,43 @@ impl Context<'_> {
                 always: always && spawn.always && body_always,
                 place: placed.place,
                 owner_written,
+                origin: RowOrigin::Initializer,
             }),
         };
         (row, placed.anchor)
     }
 
-    /// Where `spawn` stands; `from` is the body whose block it is written in.
-    fn place(&mut self, spawn: &InitMegastructure, from: Option<usize>) -> Placement {
+    /// The row of the ruin `placed` spawns in the scenario's own `effect` block, with no owner,
+    /// and the body it stands at; `None` for any other statement and a ruin with no id.
+    fn ruin(&mut self, placed: &Placed) -> Option<(MegastructureSummary, Option<usize>)> {
+        let (Statement::SpawnMegastructure(spawn), Some(id)) = (&placed.statement, placed.id)
+        else {
+            return None;
+        };
+        let place = structure_spawns::effect_place(spawn.place.clone());
+        let at = self.place(&place, &spawn.kind, None);
+        let row = MegastructureSummary {
+            id,
+            kind: spawn.kind.clone(),
+            owner: None,
+            planet: at.planet,
+            at: at.at,
+            culture: None,
+            made_body: false,
+            spawn: Some(StructureSpawn {
+                at: None,
+                always: true,
+                place: at.place,
+                owner_written: None,
+                origin: origin(placed, id),
+            }),
+        };
+        Some((row, at.anchor))
+    }
+
+    /// Where a megastructure of type `kind` placed at `written` stands; `from` is the body
+    /// whose block it is written in.
+    fn place(&mut self, written: &WrittenPlace, kind: &str, from: Option<usize>) -> Placement {
         let free = |at, place| Placement {
             anchor: None,
             planet: None,
@@ -306,7 +345,7 @@ impl Context<'_> {
             };
             free(None, place)
         };
-        match &spawn.place {
+        match written {
             WrittenPlace::Centre => free(Some((0.0, 0.0)), SpawnPlace::Centre),
             WrittenPlace::Orbit { distance, angle } => free(
                 Some(rounded(point_at(
@@ -346,7 +385,7 @@ impl Context<'_> {
                 None => unknown(target),
             },
             WrittenPlace::Random => {
-                let (at, distance) = self.random_spot(&spawn.kind);
+                let (at, distance) = self.random_spot(kind);
                 free(Some(at), SpawnPlace::Random { distance })
             }
         }
@@ -455,6 +494,7 @@ impl Context<'_> {
                 always: always && s.always,
                 place,
                 owner_written,
+                origin: RowOrigin::Initializer,
             }),
         }
     }

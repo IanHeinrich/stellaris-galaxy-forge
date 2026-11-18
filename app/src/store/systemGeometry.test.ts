@@ -11,8 +11,18 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { polar } from "../lib/details/orbits";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
-import { megastructureSummary, saveBody } from "../test/builders";
-import { editResult, orbitClasses, orbitSystem } from "./fixture";
+import type { AmbientObject } from "../generated/AmbientObject";
+import {
+  megastructureSummary,
+  orbitSystem,
+  rowOrigin,
+  saveBody,
+  structureSpawn,
+} from "../test/builders";
+import { systemSpawn } from "../test/spawn";
+import { MEGASTRUCTURE_FIXED } from "../lib/details/megastructureMoves";
+import { SCENARIO_CAPABILITIES } from "../lib/capabilities";
+import { editResult, orbitClasses } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -152,6 +162,161 @@ describe("a megastructure's move", () => {
     withStructures();
     expect(systemGeometry(SOL).editing.megastructures).toBe(false);
     expect(await applyGeometry(moved(40, { place: "free", x: 10, y: 220 }))).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("a scenario's own structures, with placing them switched on", () => {
+  const RUIN = 50;
+  const ON_STAR = 51;
+  const FROM_FILE = 52;
+  const INITIALIZER_ROW = 53;
+  const OBJECT = 60;
+  const FIXED_OBJECT = 61;
+
+  /** A scenario that places structures, Sol's main star its planet 2, off the centre. */
+  async function withPlacements(): Promise<void> {
+    await openFixtureScenario();
+    const session = useFileSessionStore.getState();
+    useFileSessionStore.setState({
+      capabilities: { ...documentCapabilities(session), place_structures: true },
+    });
+    const sol = orbitSystem({ id: SOL });
+    const planets = sol.planets.map((p) => ({
+      ...p,
+      role: p.id === 2 ? ("primary" as const) : p.role === "primary" ? ("star" as const) : p.role,
+    }));
+    const megastructures = [
+      megastructureSummary({
+        id: RUIN,
+        kind: "gateway_ruined",
+        at: [-100, 0],
+        spawn: structureSpawn(rowOrigin(RUIN)),
+      }),
+      megastructureSummary({
+        id: ON_STAR,
+        kind: "mega_shipyard_ruined",
+        planet: STAR,
+        at: [0, 0],
+        spawn: structureSpawn(rowOrigin(ON_STAR)),
+      }),
+      megastructureSummary({
+        id: FROM_FILE,
+        kind: "gateway_ruined",
+        at: [0, 90],
+        spawn: structureSpawn(rowOrigin(FROM_FILE, false)),
+      }),
+      megastructureSummary({
+        id: INITIALIZER_ROW,
+        kind: "gateway_ruined",
+        at: [0, -90],
+        spawn: structureSpawn(rowOrigin(null)),
+      }),
+    ];
+    const ambient_objects: AmbientObject[] = [
+      {
+        kind: "derelict_ship_object",
+        place: { place: "point", x: 0, y: 30 },
+        origin: rowOrigin(OBJECT),
+      },
+      { kind: "debris_object", place: { place: "random" }, origin: rowOrigin(FIXED_OBJECT, false) },
+    ];
+    useDetailsStore.setState({
+      details: new Map([
+        [
+          SOL,
+          {
+            ...sol,
+            planets,
+            megastructures,
+            spawn: systemSpawn({ ambient_objects }),
+          },
+        ],
+      ]),
+    });
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+  }
+
+  it("moves the scenario's own ruin at a point and its ambient object", async () => {
+    await withPlacements();
+    const geometry = systemGeometry(SOL);
+    expect(geometry.editing.megastructures).toBe(true);
+    expect([...geometry.editing.ambientObjects]).toEqual([OBJECT]);
+    expect(geometry.editing.bodies.size).toBe(0);
+
+    expect(
+      await applyGeometry({
+        kind: "moveMegastructure",
+        system: SOL,
+        megastructure: RUIN,
+        at: { place: "free", x: 0, y: 120 },
+      }),
+    ).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "MoveMegastructure",
+      megastructure: RUIN,
+      at: { place: "free", x: 0, y: 120 },
+    });
+
+    const star = geometry.layout.bodies.find((b) => b.id === 2);
+    expect(star, "the main star is drawn").toBeDefined();
+    const { x: sx, y: sy } = star ?? { x: 0, y: 0 };
+    expect(Math.hypot(sx, sy)).toBeGreaterThan(0);
+    expect(
+      await applyGeometry({
+        kind: "moveAmbientObject",
+        system: SOL,
+        ambientObject: OBJECT,
+        x: sx + 40,
+        y: sy,
+      }),
+    ).toBe(true);
+    const sent = mockedIpc.applyOp.mock.lastCall?.[0];
+    expect(sent).toMatchObject({ type: "MoveAmbientObject", ambient_object: OBJECT });
+    expect(sent && "x" in sent ? [sent.x, sent.y] : null).toEqual([
+      expect.closeTo(40),
+      expect.closeTo(0),
+    ]);
+  });
+
+  it("refuses what the initializer or the file places as written, and a ruin on the star", async () => {
+    await withPlacements();
+    const said: string[] = [];
+    const say = (reason: string) => said.push(reason);
+    const free = { place: "free", x: 10, y: 10 } as const;
+    for (const megastructure of [ON_STAR, FROM_FILE, INITIALIZER_ROW]) {
+      const intent = { kind: "moveMegastructure", system: SOL, megastructure, at: free } as const;
+      expect(await applyGeometry(intent, say)).toBe(false);
+    }
+    const object = {
+      kind: "moveAmbientObject",
+      system: SOL,
+      ambientObject: FIXED_OBJECT,
+      x: 1,
+      y: 1,
+    } as const;
+    expect(await applyGeometry(object, say)).toBe(false);
+    expect(said).toEqual([
+      MEGASTRUCTURE_FIXED.onStar,
+      MEGASTRUCTURE_FIXED.file,
+      MEGASTRUCTURE_FIXED.initializer,
+      MEGASTRUCTURE_FIXED.file,
+    ]);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("moves nothing while the scenario doesn't place structures", async () => {
+    await withPlacements();
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    expect(systemGeometry(SOL).editing.megastructures).toBe(false);
+    const intent = {
+      kind: "moveMegastructure",
+      system: SOL,
+      megastructure: RUIN,
+      at: { place: "free", x: 0, y: 120 },
+    } as const;
+    expect(await applyGeometry(intent)).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

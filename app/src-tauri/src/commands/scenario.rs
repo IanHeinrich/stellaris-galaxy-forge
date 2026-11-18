@@ -2,6 +2,7 @@
 
 use std::sync::{Arc, MutexGuard};
 
+use sgf_core::format::scenario::placed::Placed;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::views::details::{ClassRolls, SystemDetails};
 use sgf_core::views::{Capabilities, ErrorKind, SgfError};
@@ -88,9 +89,10 @@ pub async fn get_system_scripts<R: Runtime>(
 /// install's definitions when game data is loaded, else by guessing from the keys.
 ///
 /// A scenario holds no details sections: a system's planets, resources, megastructures,
-/// dig sites and starbase are what its initializer defines. A system gets a record when the
-/// install defines its initializer, with empty lists if the initializer places nothing. A
-/// system whose initializer is `random`, empty or not defined gets none.
+/// dig sites and starbase are what its initializer defines, with the ruins and ambient
+/// objects its own `effect` block places. A system gets a record when the install defines
+/// its initializer, with empty lists if the initializer places nothing. A system whose
+/// initializer is `random`, empty or not defined gets none.
 #[tauri::command]
 pub async fn get_system_details<R: Runtime>(
     app: AppHandle<R>,
@@ -116,14 +118,24 @@ fn details_for(
             return Ok(Vec::new());
         };
         let owners = scenario_owners(session, &gd, Some((gd_state, generation)));
-        let initializers: Vec<(u32, String)> = ids
+        let initializers: Vec<(u32, String, Vec<Placed>)> = ids
             .iter()
-            .filter_map(|&id| Some((id, session.system(id)?.initializer.clone())))
+            .filter_map(|&id| {
+                let key = session.system(id)?.initializer.clone();
+                let effect = session.scenario_system_placements(id);
+                Some((
+                    id,
+                    key,
+                    effect.map(|(_, placed)| placed).unwrap_or_default(),
+                ))
+            })
             .collect();
         drop(guard);
         return Ok(initializers
             .iter()
-            .filter_map(|(id, key)| gd.initializer_details(*id, key, Some(&owners)))
+            .filter_map(|(id, key, effect)| {
+                gd.scenario_system_details(*id, key, Some(&owners), effect)
+            })
             .collect());
     }
     if !capabilities.details {

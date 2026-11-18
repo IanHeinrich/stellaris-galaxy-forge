@@ -1,4 +1,5 @@
 import type { Capabilities } from "../../generated/Capabilities";
+import { megastructurePageNeeds, originOf } from "../../lib/details/placedRows";
 import { capabilityFor } from "../../lib/entities";
 import type { Pt } from "../../lib/geometry/pt";
 import type { Entry } from "../../store/inspectorStore";
@@ -13,8 +14,11 @@ import type { StructureKind } from "./structures";
 interface StructureKindRow {
   /** The Inspector page a click opens, named `label`. */
   entry(system: number, id: number, label: string): Entry;
-  /** What the open document must support for that page. */
-  capability: keyof Capabilities | undefined;
+  /**
+   * What the open document must support for the page of structure `id`, as the scene `ctx` shows
+   * it; null where the structure has no page.
+   */
+  pageNeeds(ctx: SystemContext, id: number): keyof Capabilities | undefined | null;
   /** The menu a right-click opens; null for the system space's. */
   menu(system: number, id: number): ContextTarget | null;
   /** The drag a press starts, from the scene `frame`; null where it may not move. */
@@ -26,14 +30,17 @@ interface StructureKindRow {
 export const STRUCTURE_KINDS: Readonly<Record<StructureKind, StructureKindRow>> = {
   megastructure: {
     entry: (_system, id, label) => ({ ref: { kind: "megastructure", id }, label }),
-    capability: capabilityFor("megastructure"),
+    pageNeeds: (ctx, id) => {
+      const row = ctx.details?.megastructures.find((m) => m.id === id);
+      return megastructurePageNeeds(row === undefined ? undefined : originOf(row));
+    },
     menu: (system, id) => ({ kind: "megastructure", system, id }),
     drag: (frame, id, from) => MegastructureDrag.start(frame, id, from),
     tips: true,
   },
   starbase: {
     entry: (system, id, label) => ({ ref: { kind: "starbase", system, id }, label }),
-    capability: capabilityFor("starbase"),
+    pageNeeds: () => capabilityFor("starbase"),
     menu: () => null,
     drag: () => null,
     tips: false,

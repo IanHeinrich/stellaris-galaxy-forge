@@ -191,7 +191,13 @@ To add a megastructure, right-click a body or empty space. See
 
 A scenario system shows the megastructures and the starbase its
 [initializer](../scenario/initializers.md) places, where the game puts
-them when a new game starts. You need the game data loaded.
+them when a new game starts. It also shows the ruins and ambient objects
+the system's own effect block places. You need the game data loaded.
+
+In the Inspector, each row of a scenario system's Megastructures and
+Ambient objects says where it comes from: From the initializer, or From
+the file for one written in the scenario. Galaxy Forge doesn't edit
+these rows yet.
 
 - A megastructure placed at a planet sits on that planet. Click Roll
   again and it moves with the planet.

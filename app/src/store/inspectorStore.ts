@@ -294,7 +294,10 @@ export function bodyEntry(system: number, id: number, label: string): Entry {
 export interface SystemTabs {
   /** The scripts that reach the system: a scenario with the game data loaded has them. */
   scripts: boolean;
-  /** The field table: a save's system is one, a scenario's is the handful of statements above. */
+  /**
+   * The field table: a save's system is one, a scenario's is the handful of statements above. An
+   * entity of a document without one, such as a scenario's ruin, shows its Overview alone.
+   */
   data: boolean;
 }
 
@@ -325,7 +328,7 @@ export function tabsFor(
     case "body":
       return entityAddr(ref) === null ? ["overview", "source"] : entityTabs(hasContents);
     case "entity":
-      return entityTabs(hasContents);
+      return system.data ? entityTabs(hasContents) : ["overview"];
   }
 }
 

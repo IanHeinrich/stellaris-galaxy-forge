@@ -26,10 +26,11 @@ import { SystemGestureModel, type SystemInput, type SystemIntent } from "./Syste
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
 
-/** Whether the open document has a page for a structure of `kind`; a scenario's have none. */
-function hasPage(kind: StructureKind): boolean {
-  const capabilities = documentCapabilities(useFileSessionStore.getState());
-  return supports(capabilities, STRUCTURE_KINDS[kind].capability);
+/** Whether the open document has a page for structure `id` of `kind`, as `ctx` shows it. */
+function hasPage(ctx: SystemContext, kind: StructureKind, id: number): boolean {
+  const needs = STRUCTURE_KINDS[kind].pageNeeds(ctx, id);
+  if (needs === null) return false;
+  return supports(documentCapabilities(useFileSessionStore.getState()), needs);
 }
 
 /** What the scene's pointer controller reads from the scene and asks of it. */
@@ -353,10 +354,11 @@ export class SystemInteraction {
 
   /** A click on a megastructure or starbase selects it alone and opens its page, where it has one. */
   private openStructure(system: number, kind: StructureKind, id: number): void {
-    const shown = this.scene.context().structures.find((s) => s.kind === kind && s.id === id);
+    const ctx = this.scene.context();
+    const shown = ctx.structures.find((s) => s.kind === kind && s.id === id);
     if (!shown) return;
     useSceneStore.getState().clearBodies();
-    if (!hasPage(kind)) return;
+    if (!hasPage(ctx, kind, id)) return;
     useInspectorStore.getState().openFromMap(STRUCTURE_KINDS[kind].entry(system, id, shown.name));
   }
 

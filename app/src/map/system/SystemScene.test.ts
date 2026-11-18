@@ -22,9 +22,12 @@ import {
   megastructureSummary,
   name,
   placedNode,
+  rowOrigin,
   saveBody,
+  structureSpawn,
   systemDetails,
 } from "../../test/builders";
+import type { RowOrigin } from "../../generated/RowOrigin";
 import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
 import { bodySpawn } from "../../test/spawn";
 import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./drawFixture";
@@ -263,9 +266,13 @@ describe("a megastructure clicked in the system scene", () => {
     useSceneStore.getState().clearBodies();
   });
 
-  /** Clicks the megastructure standing clear of the bodies at (−90, 0), with Earth selected. */
-  function clickStructure(): void {
-    const ruin = megastructureSummary({ id: 6, kind: "think_tank_ruined", at: [-90, 0] });
+  /**
+   * Clicks the megastructure standing clear of the bodies at (−90, 0), with Earth selected; a
+   * scenario's row from `origin` when one is given.
+   */
+  function clickStructure(origin?: RowOrigin): void {
+    const spawn = origin === undefined ? {} : { spawn: structureSpawn(origin) };
+    const ruin = megastructureSummary({ id: 6, kind: "think_tank_ruined", at: [-90, 0], ...spawn });
     const details = systemDetails({
       id: SYSTEM,
       inner_radius: 400,
@@ -295,6 +302,17 @@ describe("a megastructure clicked in the system scene", () => {
     clickStructure();
     expect(topRef()).toEqual({ kind: "megastructure", id: 6 });
     expect(useSceneStore.getState().bodySelection).toBeNull();
+  });
+
+  it("opens a scenario's own ruin where the scenario places structures, and no other row", () => {
+    const capabilities = { ...SCENARIO_CAPABILITIES, place_structures: true };
+    useFileSessionStore.setState({ capabilities });
+    clickStructure(rowOrigin(6, false));
+    expect(useInspectorStore.getState().stack.map((entry) => entry.ref.kind)).not.toContain(
+      "megastructure",
+    );
+    clickStructure(rowOrigin(6));
+    expect(topRef()).toEqual({ kind: "megastructure", id: 6 });
   });
 
   it("opens no page in a scenario, which has none, and still leaves the bodies unselected", () => {

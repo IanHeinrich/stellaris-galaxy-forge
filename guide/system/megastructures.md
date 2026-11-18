@@ -1,7 +1,7 @@
 ---
 title: Megastructures
 description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, or add or delete a whole ring world.
-aliases: [megastructure, add megastructure, move megastructure, drag megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex, equatorial shipyard, processing ring, megastructure moons]
+aliases: [megastructure, add megastructure, move megastructure, drag megastructure, megastructure distance, megastructure angle, megastructure position, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex, equatorial shipyard, processing ring, megastructure moons]
 ---
 # Megastructures <Badge type="tip" text="Save" />
 
@@ -10,7 +10,8 @@ it within its system or delete it. You can also add habitats and
 whole ring worlds. Adding needs the game data loaded.
 
 In the [system view](system-view.md), each megastructure looks as it does
-in the game.
+in the game. A system with no megastructures still shows the
+Megastructures section in the Inspector, with a line on how to add one.
 
 ![A system with a Dyson Sphere, as it looks in the game](../images/system/megastructures.png)
 
@@ -188,6 +189,11 @@ it moves, or why it stays where it is.
 
 While you drag, the planets, moons and stars it can go to are ringed. A
 red ring means that one can't take it, and the status bar says why.
+
+A megastructure that moves anywhere in the system, such as a Hyper Relay,
+also has a Position block at the top of its page in the Inspector. Type
+a Distance from the system's centre or an Angle in degrees to move it
+there. <kbd>Ctrl</kbd>+<kbd>Z</kbd> moves it back.
 
 ![A Science Nexus dragged over the star Xraneax, which is ringed in red, with the reason beside it](../images/system/megastructure-drag.png)
 

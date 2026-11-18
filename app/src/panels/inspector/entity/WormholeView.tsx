@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import type { Bounds } from "../../../generated/Bounds";
 import type { WormholeSummary } from "../../../generated/WormholeSummary";
 import { bypassIconKey } from "../../../lib/details/icons";
 import { bypassName, wormholePlateName } from "../../../lib/details/labels";
@@ -7,6 +6,7 @@ import {
   GEOMETRY_REASONS,
   wormholeFieldIntent,
   wormholePlace,
+  type PositionField,
 } from "../../../lib/details/orbitIntent";
 import { rounded } from "../../../lib/details/orbits";
 import { openSystem } from "../../../store/commands";
@@ -15,12 +15,12 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
-import { EditBlock, EditKey } from "../../EditField";
+import { EditKey } from "../../EditField";
 import { Icon } from "../../parts";
 import { Empty, LinkRow, Properties, PropertyRow } from "../parts";
-import { RadiusAngleFields } from "../RadiusAngleFields";
 import { useGeometryEdit } from "../useGeometryEdit";
 import { EntityView } from "./EntityView";
+import { PositionBlock } from "./PositionBlock";
 import "./entity.css";
 
 function Head({ hole, name }: { hole: WormholeSummary; name: string }) {
@@ -36,26 +36,17 @@ function Head({ hole, name }: { hole: WormholeSummary; name: string }) {
 }
 
 /** Where a natural wormhole stands about the star, as fields; each commit is one move. */
-function PositionBlock({ system, hole }: { system: number; hole: WormholeSummary }) {
+function WormholePosition({ system, hole }: { system: number; hole: WormholeSummary }) {
   const { send, note } = useGeometryEdit(system);
-  const { radius, angle } = wormholePlace(hole);
-  const commit = (field: "radius" | "angle", { min: typed }: Bounds) =>
+  const commit = (field: PositionField, typed: number) =>
     send(({ frame }) => {
       const now = frame.details?.wormholes.find((w) => w.id === hole.id);
       return now ? wormholeFieldIntent(system, now, field, typed) : null;
     });
   return (
-    <EditBlock title="Position">
-      <RadiusAngleFields
-        radius={radius}
-        angle={angle}
-        radiusLabel="Distance"
-        radiusTitle="How far it stands from the star"
-        angleTitle="Where it stands about the star, in degrees"
-        onCommit={commit}
-      />
+    <PositionBlock centre={{ x: 0, y: 0 }} at={hole} about="the star" onCommit={commit}>
       {note()}
-    </EditBlock>
+    </PositionBlock>
   );
 }
 
@@ -86,7 +77,7 @@ function WormholeOverview({ system, id, label }: { system: number; id: number; l
   return (
     <>
       <Head hole={hole} name={wormholePlateName(systemName(system), hole.kind)} />
-      {movable && <PositionBlock system={system} hole={hole} />}
+      {movable && <WormholePosition system={system} hole={hole} />}
       <div className="edit-block-title ins-about">About</div>
       <Properties>
         <PropertyRow label="Type">{bypassName(hole.kind)}</PropertyRow>

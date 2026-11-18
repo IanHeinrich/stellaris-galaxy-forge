@@ -2,7 +2,10 @@
 //! say about a scenario's systems.
 
 use serde_json::json;
-use sgf_core::views::details::{ClassPool, ClassRolls, SpawnClass, SpawnPool, SystemDetails};
+use sgf_core::format::scenario::placed::{ambient_object_id, ruin_id};
+use sgf_core::views::details::{
+    AmbientPlace, ClassPool, ClassRolls, RowOrigin, SpawnClass, SpawnPool, SystemDetails,
+};
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::special::{SpecialKind, SpecialSystems};
@@ -140,6 +143,61 @@ fn a_scenario_systems_details_come_from_its_initializer() {
     assert!(
         without.is_empty(),
         "without the install there is nothing to resolve an initializer against"
+    );
+}
+
+/// What a scenario system's own `effect` block places stands in its details beside what its
+/// initializer places, and an op that writes the block stales them.
+#[test]
+fn a_scenario_systems_effect_placements_reach_its_details() {
+    let Some((w, _)) = with_game_data(SCENARIO) else {
+        return;
+    };
+    let apply = |op: serde_json::Value| {
+        invoke::<EditResult>(&w, "apply_op", json!({ "op": op })).expect("apply");
+    };
+    apply(json!({
+        "type": "SetInitializer",
+        "system": 9,
+        "initializer": "basic_init_02",
+        "spawn_weight": null,
+    }));
+    apply(json!({
+        "type": "AddMegastructure",
+        "system": 9,
+        "spec": { "kind": "gateway_ruined", "at": { "place": "free", "x": -100.0, "y": 0.0 } },
+    }));
+    apply(json!({
+        "type": "AddAmbientObject",
+        "system": 9,
+        "kind": "derelict_ship_object",
+        "x": 0.0,
+        "y": 30.0,
+    }));
+
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [9] })).expect("details");
+    let ruin = details[0].megastructures.last().expect("the ruin");
+    let id = ruin_id(9, 0).expect("an id");
+    assert_eq!(
+        (ruin.id, ruin.kind.as_str(), ruin.at),
+        (id, "gateway_ruined", Some((-100.0, 0.0)))
+    );
+    assert_eq!(
+        ruin.spawn.as_ref().map(|s| s.origin),
+        Some(RowOrigin::Effect { id, editable: true })
+    );
+    let spawn = details[0].spawn.as_ref().expect("the system's spawn");
+    let object = spawn.ambient_objects.last().expect("the ambient object");
+    assert_eq!(
+        (object.place, object.origin),
+        (
+            AmbientPlace::Point { x: 0.0, y: 30.0 },
+            RowOrigin::Effect {
+                id: ambient_object_id(9, 0).expect("an id"),
+                editable: true
+            }
+        )
     );
 }
 

@@ -10,17 +10,19 @@ mod save;
 
 use std::convert::Infallible;
 
+use sgf_core::emit;
 use sgf_core::format::save::details::DetailsResolver;
-use sgf_core::format::scenario::placed::{PLANET_BASE, SITE_BASE};
+use sgf_core::format::scenario::placed::{self, PLANET_BASE, SITE_BASE};
 use sgf_core::ops::{BodyKind, BodySpec};
+use sgf_core::placements::{Statement, point_at};
 use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::details::{
-    AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
-    ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep,
-    FleetPresence, ListMember, NeighborSystem, OrbitFit, PlanetSummary, RawStatement,
-    ResourceAmount, SpawnClass, SpawnStar, StatedAnomalies, StatedFeatures, SystemDetails,
-    SystemSpawn, UnknownClass,
+    AmbientObject, AmbientPlace, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole,
+    BodySpawn, Bounds, ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement,
+    DepositStep, FleetPresence, ListMember, NeighborSystem, OrbitFit, PlanetSummary, RawStatement,
+    ResourceAmount, RowOrigin, SpawnClass, SpawnStar, StatedAnomalies, StatedFeatures,
+    SystemDetails, SystemSpawn, UnknownClass,
 };
 use sgf_core::views::{ErrorKind, SgfError};
 
@@ -99,6 +101,21 @@ impl GameData {
         key: &str,
         owners: Option<&ScenarioOwners>,
     ) -> Option<SystemDetails> {
+        self.scenario_system_details(id, key, owners, &[])
+    }
+
+    /// [`Self::initializer_details`], with the ruins and ambient objects the scenario's own
+    /// `effect` block places, `effect` as [`Session::scenario_system_placements`] reads it,
+    /// listed after the initializer's. Each carries its id and whether the editor edits it.
+    ///
+    /// [`Session::scenario_system_placements`]: sgf_core::session::Session::scenario_system_placements
+    pub fn scenario_system_details(
+        &self,
+        id: u32,
+        key: &str,
+        owners: Option<&ScenarioOwners>,
+        effect: &[placed::Placed],
+    ) -> Option<SystemDetails> {
         let init = self.initializers.get(key)?;
         let Bodies {
             mut planets,
@@ -119,7 +136,7 @@ impl GameData {
         }
         let inner_radius = Rolls::new(self, init).inner_radius(init);
         let (_, points) = example(&init.planets, roll_seed(id, 0));
-        let structures = self.structures(id, init, &planets, &points, inner_radius, owners);
+        let structures = self.structures(id, init, &planets, &points, inner_radius, owners, effect);
         let mut spawn = SystemSpawn {
             inner_radius,
             belt_radii: Some(
@@ -134,6 +151,9 @@ impl GameData {
         for call in &structures.modelled_calls {
             modelled(&mut spawn.script, call);
         }
+        spawn
+            .ambient_objects
+            .extend(effect.iter().filter_map(effect_ambient_object));
         let resources = system_resources(planets.iter().filter(|p| certain(p)));
         Some(SystemDetails {
             id,
@@ -162,7 +182,8 @@ impl GameData {
         flags.extend(stated.flags.iter().cloned());
         let own_objects = stated.ambient_objects.iter().map(|kind| AmbientObject {
             kind: kind.clone(),
-            body: None,
+            place: AmbientPlace::Random,
+            origin: RowOrigin::Initializer,
         });
         SystemSpawn {
             star: self.spawn_star(init),
@@ -512,7 +533,7 @@ impl GameData {
         let (bodies, points) = example(&init.planets, seed);
         let (_, unrolled) = self.unrolled(init);
         let structures = self
-            .structures(id, init, &unrolled.planets, &points, None, None)
+            .structures(id, init, &unrolled.planets, &points, None, None, &[])
             .anchored
             .into_iter()
             .map(|(id, body)| RolledStructure {
@@ -632,7 +653,8 @@ impl GameData {
                         .iter()
                         .map(|kind| AmbientObject {
                             kind: kind.clone(),
-                            body: Some(id),
+                            place: AmbientPlace::Body { body: id },
+                            origin: RowOrigin::Initializer,
                         }),
                 );
             let mut summary = self.summary(body, class, id, layout, role, system);
@@ -925,6 +947,38 @@ fn modelled(script: &mut Vec<RawStatement>, call: &EffectCall) {
 
 /// How far inside the radius they must fit the outermost placeholder planet stays.
 const PLACEHOLDER_MARGIN: f64 = 20.0;
+
+/// Where the row of `statement`, of the scenario's own `effect` block, comes from: `id`, and
+/// whether the editor edits it.
+pub(crate) fn origin(statement: &placed::Placed, id: u32) -> RowOrigin {
+    RowOrigin::Effect {
+        id,
+        editable: statement.adopted,
+    }
+}
+
+/// The ambient object `placed` creates in the scenario's own `effect` block; `None` for any
+/// other statement and an object with no id.
+fn effect_ambient_object(statement: &placed::Placed) -> Option<AmbientObject> {
+    let (Statement::AmbientObject(object), Some(id)) = (&statement.statement, statement.id) else {
+        return None;
+    };
+    let place = match &object.at {
+        Some(at) => {
+            let (x, y) = point_at((0.0, 0.0), at.distance, at.angle);
+            AmbientPlace::Point {
+                x: emit::rounded(x) + 0.0,
+                y: emit::rounded(y) + 0.0,
+            }
+        }
+        None => AmbientPlace::Random,
+    };
+    Some(AmbientObject {
+        kind: object.kind.clone(),
+        place,
+        origin: origin(statement, id),
+    })
+}
 
 /// The seed of roll `roll` of system `id`.
 fn roll_seed(id: u32, roll: u32) -> u64 {

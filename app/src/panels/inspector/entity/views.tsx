@@ -41,7 +41,8 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   fleet: entity("fleet", "Fleet"),
   ship: entity("ship", "Ship"),
   starbase: entity("starbase", "Starbase"),
-  megastructure: entity("megastructure", "Megastructure", MegastructureView),
+  // A scenario's own ruins open it too, so the page says what the document can show.
+  megastructure: { label: "Megastructure", component: MegastructureView },
   country: entity("country", "Country", CountryView),
   pop_group: entity("pop_group", "Pop group"),
   sector: entity("sector", "Sector"),

@@ -144,7 +144,13 @@ describe("a ring world segment", () => {
   const seam = planetClasses.get("pc_arid")!;
   planetClasses.set("pc_ringworld_seam", { ...seam, key: "pc_ringworld_seam", ringworld: true });
   const layout = systemLayout(details, null, planetClasses, VANILLA_BODY_SCALES);
-  const frame: GeometryFrame = { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
+  const frame: GeometryFrame = {
+    layout,
+    details,
+    planetClasses,
+    radii: VANILLA_SYSTEM_RADII,
+    megastructureTypes: new Map(),
+  };
 
   it("stays where it is, takes no moons and keeps its parent", () => {
     expect(SAVE_GEOMETRY.editing(frame).bodies.get(SEGMENT)).toEqual({

@@ -45,6 +45,7 @@ impl Session {
             dirty: self.is_dirty(),
             touched_entities,
             details_stale: result.details_stale,
+            keeps_bodies: result.keeps_bodies,
             reclassifies: result.reclassifies,
             title: self.title(),
         }

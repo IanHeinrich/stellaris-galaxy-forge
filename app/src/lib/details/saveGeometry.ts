@@ -1,6 +1,6 @@
 /**
  * A save's geometry adapter: what may be edited in a system's layout, what an edit draws, and the
- * save's geometry op for an intent. This is the only file that names the geometry ops;
+ * save's geometry op for an intent. This is the only file that names a save's geometry ops;
  * `geometryAdapters.ts` chooses the adapter for the open document.
  */
 import type { Bounds } from "../../generated/Bounds";
@@ -61,6 +61,7 @@ export const NOTHING_EDITABLE: SceneEditing = {
   innerFloor: VANILLA_SYSTEM_RADII.min_inner,
   wormholes: new Set(),
   megastructures: false,
+  ambientObjects: new Set(),
 };
 
 /** Whether the install's classes make `planetClass` an asteroid. */
@@ -164,6 +165,7 @@ export function layoutEditing(frame: GeometryFrame): SceneEditing {
     innerFloor: innerFloorOf(frame),
     wormholes: new Set(details.wormholes.filter(isNaturalWormhole).map((w) => w.id)),
     megastructures: true,
+    ambientObjects: new Set(),
   };
 }
 
@@ -252,6 +254,8 @@ export function layoutPreview(intent: GeometryIntent, frame: GeometryFrame): Lay
       const at: MegastructurePlace = shown ? { place: "free", ...shown } : intent.at;
       return { megastructures: new Map([[intent.megastructure, at]]) };
     }
+    case "moveAmbientObject":
+      return {};
   }
 }
 
@@ -351,7 +355,7 @@ function wormholeOp(
   return { op: { type: "MoveWormhole", wormhole: id, radius, angle: wrapDegrees(angle) } };
 }
 
-function megastructureOp(
+export function megastructureOp(
   intent: Extract<GeometryIntent, { kind: "moveMegastructure" }>,
   frame: GeometryFrame,
 ): GeometryOp {
@@ -447,6 +451,8 @@ function saveOp(asked: GeometryIntent, frame: GeometryFrame): GeometryOp {
       return wormholeOp(intent, frame);
     case "moveMegastructure":
       return megastructureOp(intent, frame);
+    case "moveAmbientObject":
+      return { refused: GEOMETRY_REASONS.ambientObjectElsewhere };
   }
 }
 

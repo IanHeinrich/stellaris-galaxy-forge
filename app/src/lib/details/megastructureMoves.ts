@@ -1,12 +1,14 @@
 /**
- * How a save's megastructure moves in the system view: to a point of its own, onto another body
- * of its system, or not at all, and why a body will not take it. The core refuses the rest.
+ * How a megastructure moves in the system view: a save's to a point of its own, onto another body
+ * of its system, or not at all; a scenario's own ruin at a point to another point, and every other
+ * scenario row not at all. Also why a body will not take a row. The core refuses the rest.
  */
 import { MEGASTRUCTURE_BYPASS_KINDS } from "../../generated/constants";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
+import { originOf } from "./placedRows";
 import { isRingRow } from "./ringWorldRemoval";
 
 /** The bypass kinds a moved row may stand for, as the core moves them. */
@@ -43,6 +45,9 @@ export const MEGASTRUCTURE_FIXED = {
   whole: "It's part of a larger structure, so it stays where it is",
   centre: "It isn't attached to a planet or star, so it stays at the system's centre",
   made: "Building it created its planet, so it stays with that planet",
+  initializer: "The initializer places it, so it stays where it is",
+  file: "Galaxy Forge doesn't edit the way the file writes it, so it stays where it is",
+  onStar: "It stands on the star, so it stays there",
 } as const;
 
 /** Why a body will not take a dragged row. */
@@ -59,14 +64,12 @@ export interface HomeBody {
 }
 
 /**
- * Whether a row of `type` tied to a body stands at its own point: false for a type the game
- * draws on its body wherever its point is, one that grows with its planet or stands on its star
- * with no offset, as an Orbital Ring or a Dyson Sphere does. Without the type, false.
+ * Whether a row of `type` tied to a body, a star when `onStar`, stands at its own point, as the
+ * type's view says. Without the type, false.
  */
 export function floatsFree(type: MegastructureView | undefined, onStar: boolean): boolean {
-  if (type === undefined || type.scales_with_planet) return false;
-  const [dx, dy] = type.entity_offset;
-  return !(onStar && dx === 0 && dy === 0);
+  if (type === undefined) return false;
+  return onStar ? type.floats_free_on_star : type.floats_free;
 }
 
 /** How row `row` of `type` moves. */
@@ -75,6 +78,10 @@ export function megastructureMove(
   type: MegastructureView | undefined,
   home: HomeBody = { star: false },
 ): MegastructureMove {
+  const origin = originOf(row);
+  if (origin?.from === "initializer") return fixed("initializer");
+  if (origin?.from === "effect" && !origin.editable) return fixed("file");
+  if (origin?.from === "effect" && row.planet !== null) return fixed("onStar");
   const known = type === undefined ? undefined : new Map([[row.kind, type]]);
   if (isRingRow(row.kind, known)) return fixed("ringWorld");
   const bypass = type?.bypass_type ?? null;

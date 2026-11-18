@@ -173,17 +173,7 @@ fn megastructure(
     let src = &def.src;
     let spawn = placements::spawn_megastructure(node, src)?;
     let written = |key| scalar(node, key, src).map(str::to_owned);
-    let place = match spawn.place {
-        SpawnPlace::OnBody { target, .. } => WrittenPlace::Planet(target),
-        SpawnPlace::CoordsFrom { target, .. } => WrittenPlace::CoordsFrom(target),
-        SpawnPlace::Random { stated: true, .. } => WrittenPlace::Random,
-        SpawnPlace::Random {
-            orbit: Some(orbit_written),
-            ..
-        }
-        | SpawnPlace::Free(orbit_written) => orbit(node, def, &orbit_written),
-        SpawnPlace::Random { orbit: None, .. } | SpawnPlace::Centre => WrittenPlace::Centre,
-    };
+    let place = written_place(spawn.place, |written| orbit(node, def, written));
     let place = match (body_scope, place) {
         (None, place) => place,
         (Some(_), WrittenPlace::Planet(target)) if names_a_body(&target) => {
@@ -203,6 +193,46 @@ fn megastructure(
         always,
         line: origin.at(node.span().start),
     })
+}
+
+/// Where `place` says a spawn stands, `orbit` reading a point written with no target.
+fn written_place(place: SpawnPlace, orbit: impl FnOnce(&Orbit) -> WrittenPlace) -> WrittenPlace {
+    match place {
+        SpawnPlace::OnBody { target, .. } => WrittenPlace::Planet(target),
+        SpawnPlace::CoordsFrom { target, .. } => WrittenPlace::CoordsFrom(target),
+        SpawnPlace::Random { stated: true, .. } => WrittenPlace::Random,
+        SpawnPlace::Random {
+            orbit: Some(written),
+            ..
+        }
+        | SpawnPlace::Free(written) => orbit(&written),
+        SpawnPlace::Random { orbit: None, .. } | SpawnPlace::Centre => WrittenPlace::Centre,
+    }
+}
+
+/// Where a `spawn_megastructure` of a scenario system's own `effect` block stands, as
+/// written. A scenario defines no variables, so a value that is no plain number is unread.
+pub(crate) fn effect_place(place: SpawnPlace) -> WrittenPlace {
+    written_place(place, |written| {
+        let read = |amount: &Amount| amount.number().map(Range::fixed);
+        match (read(&written.distance), read(&written.angle)) {
+            (Some(distance), Some(angle)) => WrittenPlace::Orbit { distance, angle },
+            _ => WrittenPlace::UnreadOrbit(unread(written)),
+        }
+    })
+}
+
+/// An orbit as written, for the row that cannot place it.
+fn unread(orbit: &Orbit) -> String {
+    let text = |amount: &Amount| match amount {
+        Amount::Number(n) => n.to_string(),
+        Amount::Written(text) => text.clone(),
+    };
+    format!(
+        "orbit_distance = {} orbit_angle = {}",
+        text(&orbit.distance),
+        text(&orbit.angle)
+    )
 }
 
 /// A target that names the same body whichever scope it is written in.

@@ -1,3 +1,5 @@
+import type { RowOrigin } from "../generated/RowOrigin";
+import type { StructureSpawn } from "../generated/StructureSpawn";
 import type { Arrangement } from "../generated/Arrangement";
 import type { StarType } from "../generated/StarType";
 import type { CampaignListing } from "../generated/CampaignListing";
@@ -395,6 +397,22 @@ export function megastructureSummary(
   over: Partial<MegastructureSummary> & { kind: string },
 ): MegastructureSummary {
   return { id: 1, owner: null, planet: null, at: [0, 0], culture: null, ...over };
+}
+
+/**
+ * Where a scenario row comes from: its initializer for a null `id`, else its system's own block
+ * under `id`, edited where it stands unless `editable` is false.
+ */
+export function rowOrigin(id: number | null, editable = true): RowOrigin {
+  return id === null ? { from: "initializer" } : { from: "effect", id, editable };
+}
+
+/** What a scenario says of a megastructure row from `origin`: it stands at the centre, surely. */
+export function structureSpawn(
+  origin: RowOrigin,
+  over: Partial<StructureSpawn> = {},
+): StructureSpawn {
+  return { always: true, place: { kind: "centre" }, origin, ...over };
 }
 
 /**
