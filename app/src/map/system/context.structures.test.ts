@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../../api/ipc");
 vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
+import type { AmbientObject } from "../../generated/AmbientObject";
 import type { SpawnPlace } from "../../generated/SpawnPlace";
+import { mainStarPoint } from "../../lib/details/ambientObjects";
 import type { StructureSpawn } from "../../generated/StructureSpawn";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
@@ -13,14 +15,18 @@ import {
   megastructureSummary,
   megastructureTypeView,
   planetClassView,
+  rowOrigin,
   starbaseLevelView,
   starbaseSummary,
 } from "../../test/builders";
 import { Camera } from "../Camera";
 import { systemContext, type SystemContext } from "./context";
 import {
+  ambientScene,
   ART,
   body,
+  DERELICT,
+  STORM,
   FURNACE,
   FURNACE_SITE,
   MARAUDER,
@@ -38,7 +44,9 @@ import {
   withStructures,
 } from "./contextFixture";
 import { EARTH, fixed, LUNA, MARS, rollOf, SUN, SYSTEM } from "./fixture";
+import { NO_MARKS } from "./drag";
 import { pickTarget } from "./picking";
+import { AMBIENT_OBJECT_MIN_PX } from "./structures";
 import type { SystemSources } from "./sources";
 
 const ASSEMBLY = megastructureTypeView("interstellar_assembly_ruined");
@@ -390,5 +398,66 @@ describe("which model a save's megastructure or starbase is drawn from", () => {
   it("draws nothing for an orbital ring row, whose ring is drawn as its starbase", () => {
     const row = megastructureSummary({ kind: RING_ROW.key, planet: EARTH.id });
     expect(structuredSave([row]).structures).toEqual([]);
+  });
+});
+
+describe("a scenario's ambient objects in its system view", () => {
+  const OWN = 0x6000_0000;
+  const at = (x: number, y: number) => ({ place: "point", x, y }) as const;
+  const derelict = (over: Partial<AmbientObject> = {}): AmbientObject => ({
+    kind: DERELICT.key,
+    place: at(50, 0),
+    origin: rowOrigin(OWN),
+    ...over,
+  });
+  const objects = (ctx: SystemContext) => ctx.structures.filter((s) => s.kind === "ambient_object");
+
+  it("draws its own object by its model at its point about the off-centre main star, movable", () => {
+    const ctx = ambientScene([derelict()]);
+    const star = mainStarPoint(ctx.layout, ctx.details);
+    expect(Math.hypot(star.x, star.y), "the main star stands off the centre").toBeGreaterThan(0);
+    expect(objects(ctx)).toEqual([
+      expect.objectContaining({
+        id: OWN,
+        x: expect.closeTo(star.x + 50),
+        y: expect.closeTo(star.y),
+        modelKey: DERELICT.portrait,
+        name: "Derelict Ship",
+        on: null,
+        move: { place: "free" },
+        minPx: AMBIENT_OBJECT_MIN_PX,
+      }),
+    ]);
+  });
+
+  it("draws an object with no model as a plain mark, and none of the initializer's or one at a random spot or a body", () => {
+    const ctx = ambientScene([
+      derelict({ kind: STORM.key, origin: rowOrigin(OWN + 1) }),
+      derelict({ origin: rowOrigin(null) }),
+      derelict({ place: { place: "random" }, origin: rowOrigin(OWN + 2) }),
+      derelict({ place: { place: "body", body: 5 }, origin: rowOrigin(OWN + 3) }),
+    ]);
+    expect(objects(ctx).map((s) => [s.id, s.modelKey, s.iconKeys])).toEqual([[OWN + 1, null, []]]);
+  });
+
+  it("moves an object to where a drag's preview holds it, about the centre", () => {
+    const base = ambientScene([derelict()]);
+    const intent = {
+      kind: "moveAmbientObject",
+      system: SYSTEM,
+      ambientObject: OWN,
+      x: 10,
+      y: -40,
+    } as const;
+    const ctx = systemContext(base, {
+      override: base.geometry.preview(intent, base),
+      marks: NO_MARKS,
+    });
+    expect(objects(ctx)[0]).toMatchObject({ x: 10, y: -40 });
+  });
+
+  it("leaves the objects out while the Megastructures and starbases switch is off", () => {
+    const sceneLayers = { ...sources.sceneLayers, megastructures: false };
+    expect(objects(ambientScene([derelict()], { sceneLayers }))).toEqual([]);
   });
 });

@@ -9,6 +9,7 @@ import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { ambientObjectEntry, useInspectorStore } from "./inspectorStore";
+import { useMapChromeStore } from "./mapChromeStore";
 import { systemGeometry } from "./systemGeometry";
 
 /** Where the browser adds: a point of system `system`'s view, about its centre. */
@@ -22,15 +23,13 @@ interface AmbientObjectAddState {
   prompt: AmbientObjectAddPrompt | null;
   /** The type added last, which the browser opens on next. */
   last: string | null;
-  /**
-   * Opens the browser at point (`x`, `y`) of system `system`, and reads the ambient objects if
-   * they are not yet read; without game data, says why not instead.
-   */
+  /** Opens the browser at point (`x`, `y`) of system `system`; without game data, says why not instead. */
   open(system: number, x: number, y: number): boolean;
   cancel(): void;
   /**
    * Closes the browser and adds an ambient object of type `kind` at its point, measured from the
-   * system's main star as the game places it, in one edit. The new object's page opens.
+   * system's main star as the game places it, in one edit. The new object's page opens, and the
+   * Megastructures and starbases layer, which shows it, turns on.
    */
   add(kind: string): Promise<boolean>;
 }
@@ -46,7 +45,6 @@ export const useAmbientObjectAddStore = create<AmbientObjectAddState>((set, get)
       return false;
     }
     set({ prompt: { system, x, y } });
-    void data.loadAmbientObjects();
     return true;
   },
 
@@ -65,6 +63,7 @@ export const useAmbientObjectAddStore = create<AmbientObjectAddState>((set, get)
     });
     if (id === null) return false;
     set({ last: kind });
+    useMapChromeStore.getState().showSceneLayer("megastructures");
     const name = ambientObjectName(kind, useGameDataStore.getState().ambientObjects);
     useInspectorStore.getState().openFromMap(ambientObjectEntry(system, id, name));
     return true;

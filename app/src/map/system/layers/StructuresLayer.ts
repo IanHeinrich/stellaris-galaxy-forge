@@ -3,7 +3,7 @@ import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { dressModelSprite, landedModel, SAVE_AXES } from "../geometry";
+import { dressModelSprite, landedModel, SAVE_AXES, shownModel } from "../geometry";
 import type { SceneStructure } from "../structures";
 import { drawHalo } from "./halo";
 import type { SystemLayer } from "./SystemLayer";
@@ -143,13 +143,15 @@ export class StructuresLayer implements SystemLayer {
   onViewport(cam: Camera): void {
     if (cam.scale === this.scale) return;
     this.scale = cam.scale;
-    this.sizeIcons();
+    // A model with a least size on screen grows or shrinks back as the camera zooms.
+    if (this.drawn.some((d) => d.structure.minPx > 0)) this.dress();
+    else this.sizeIcons();
   }
 
   private dress(): void {
     for (const { structure, model, icon, mark } of this.drawn) {
       const key = structure.modelKey;
-      const landed = landedModel(key, structure.scale);
+      const landed = shownModel(structure, this.scale);
       // The last bake stays up while a new one for a turned or changed model is made.
       const baking = key !== null && getTexture(key) === undefined && model.visible;
       if (!baking) model.visible = landed !== null;

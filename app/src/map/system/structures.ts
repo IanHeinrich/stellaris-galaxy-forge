@@ -95,7 +95,15 @@ export interface SceneStructure extends StructureArt, StructurePlate {
   readonly level: string | null;
   /** How a drag moves it, where the source may be edited; null for a starbase or a source that may not. */
   readonly move: MegastructureMove | null;
+  /** The fewest screen pixels across its model is drawn; 0 for one drawn at its own size alone. */
+  readonly minPx: number;
 }
+
+/**
+ * The fewest screen pixels across an ambient object's model is drawn: a derelict ship's model is a
+ * ship's size, a speck beside its plate at the zoom a system opens at, where a megastructure's fills it.
+ */
+export const AMBIENT_OBJECT_MIN_PX = 36;
 
 /** The fields of the system's sources its structures are drawn from. */
 export const STRUCTURE_KEYS = [
@@ -299,6 +307,7 @@ function megastructure(
     plate,
     level: null,
     move: editing.megastructures ? megastructureMove(row, type, home) : null,
+    minPx: 0,
   };
 }
 
@@ -365,6 +374,7 @@ function starbase(
     plate,
     level: label,
     move: null,
+    minPx: 0,
   };
 }
 
@@ -412,6 +422,7 @@ function ambientObjects({ src, base, editing, movedObjects }: StructureScene): S
         plate,
         level: null,
         move: editing.ambientObjects.has(id) ? FREE : null,
+        minPx: AMBIENT_OBJECT_MIN_PX,
       },
     ];
   });

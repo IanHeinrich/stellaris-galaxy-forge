@@ -106,6 +106,8 @@ export interface GameDataState {
   /** Every ambient object by key, with its portrait, read on first use; `null` until then. */
   ambientObjects: Map<string, AmbientObjectView> | null;
   ambientObjectsPending: boolean;
+  /** Why the last read of the ambient objects failed; null before one fails and while one is out. */
+  ambientObjectsError: string | null;
   autoLoad: AutoLoad;
   startup: Startup;
   /** The load `start` kicked off, the one the start screen covers. */
@@ -207,6 +209,7 @@ const UNLOADED = {
   planetModelsPending: false,
   ambientObjects: null as Map<string, AmbientObjectView> | null,
   ambientObjectsPending: false,
+  ambientObjectsError: null as string | null,
   scenarioOwners: null as ScenarioOwners | null,
   scenarioOwnersPending: false,
   scenarioBypasses: null as ScenarioBypasses | null,
@@ -228,6 +231,7 @@ const FRESH_DATA = {
   planetModelsPending: false,
   ambientObjects: null,
   ambientObjectsPending: false,
+  ambientObjectsError: null,
 };
 
 /** The registry a scenario saved into `map/setup_scenarios` rebuilds, which only the galaxy reads. */
@@ -453,9 +457,12 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   },
 
   loadAmbientObjects() {
-    return readOnce("ambientObjects", ipc.getAmbientObjectTypes, (views) => ({
-      ambientObjects: new Map(views.map((v) => [v.key, v])),
-    }));
+    return readOnce(
+      "ambientObjects",
+      ipc.getAmbientObjectTypes,
+      (views) => ({ ambientObjects: new Map(views.map((v) => [v.key, v])) }),
+      (ambientObjectsError) => ({ ambientObjectsError }),
+    );
   },
 
   ...documentActions(set, get),
@@ -498,14 +505,16 @@ const PENDING: Record<FirstUse, (pending: boolean) => Partial<GameDataState>> = 
 };
 
 /**
- * Reads `list` once for the game data loaded now, and lands it with `land`. A reply that comes
- * back after the game data was reloaded, rebuilt or unloaded is dropped: whatever moved it on has
- * already put the list back to unread.
+ * Reads `list` once for the game data loaded now, and lands it with `land`; a failure lands its
+ * message with `failed` too, where given, which takes null when the list is asked again. A reply that comes back after
+ * the game data was reloaded, rebuilt or unloaded is dropped: whatever moved it on has already put
+ * the list back to unread.
  */
 async function readOnce<T>(
   list: FirstUse,
   read: () => Promise<T>,
   land: (value: T) => Partial<GameDataState>,
+  failed?: (message: string | null) => Partial<GameDataState>,
 ): Promise<void> {
   const store = useGameDataStore;
   const asked = store.getState();
@@ -514,12 +523,13 @@ async function readOnce<T>(
     const now = store.getState();
     return now.version === asked.version && now.status === "ready";
   };
-  store.setState(PENDING[list](true));
+  store.setState({ ...PENDING[list](true), ...failed?.(null) });
   try {
     const value = await read();
     if (current()) store.setState({ ...PENDING[list](false), ...land(value) });
   } catch (e) {
-    if (current()) store.setState({ ...PENDING[list](false), error: ipc.errorMessage(e) });
+    const error = ipc.errorMessage(e);
+    if (current()) store.setState({ ...PENDING[list](false), error, ...failed?.(error) });
   }
 }
 

@@ -1,3 +1,4 @@
+import { mainStarPoint } from "../../lib/details/ambientObjects";
 import { beltLabel } from "../../lib/details/labels";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import { targetRefusal, type MegastructureMove } from "../../lib/details/megastructureMoves";
@@ -65,8 +66,9 @@ export class WormholeDrag implements Drag {
 export type WormholeFrame = Pick<SystemContext, "id" | "wormholes">;
 
 /**
- * An ambient object the system's own block places, dragged freely about the centre in whole units
- * and degrees, or Shift's steps. Nothing takes it and it takes nothing.
+ * An ambient object the system's own block places, dragged freely about the system's main star, as
+ * the game places it, in whole units and degrees, or Shift's steps. Nothing takes it and it takes
+ * nothing.
  */
 export class AmbientObjectDrag implements Drag {
   private constructor(
@@ -74,6 +76,8 @@ export class AmbientObjectDrag implements Drag {
     private readonly id: number,
     /** Where it stands, about the centre. */
     private readonly at: Pt,
+    /** Where the main star stands, about the centre. */
+    private readonly star: Pt,
     /** From the pointer to its point, as it was grabbed. */
     private readonly grab: Pt,
   ) {}
@@ -83,12 +87,13 @@ export class AmbientObjectDrag implements Drag {
     const shown = frame.structures.find((s) => s.kind === "ambient_object" && s.id === id);
     if (frame.id === null || shown?.move?.place !== "free") return null;
     const at = { x: shown.x, y: shown.y };
-    return new AmbientObjectDrag(frame.id, id, at, { x: at.x - from.x, y: at.y - from.y });
+    const star = mainStarPoint(frame.layout, frame.details);
+    return new AmbientObjectDrag(frame.id, id, at, star, { x: at.x - from.x, y: at.y - from.y });
   }
 
   move(pointer: DragPointer): DragStep {
     const held = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
-    const { point, readout, changed } = freeStep(held, this.at, pointer.shift);
+    const { point, readout, changed } = freeStep(held, this.at, pointer.shift, this.star);
     return {
       intent: { kind: "moveAmbientObject", system: this.system, ambientObject: this.id, ...point },
       marks: NO_MARKS,
@@ -100,7 +105,7 @@ export class AmbientObjectDrag implements Drag {
 }
 
 /** What an ambient object's drag reads of the scene as it starts. */
-export type StructuresFrame = Pick<SystemContext, "id" | "structures">;
+export type StructuresFrame = Pick<SystemContext, "id" | "structures" | "layout" | "details">;
 
 /** A belt's or the inner radius's handle dragged out or in about the centre, in whole units. */
 export class HandleDrag implements Drag {

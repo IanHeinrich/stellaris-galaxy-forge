@@ -37,8 +37,8 @@ export type DeletionTarget =
   | { kind: "planet"; system: number; id: number; name: string; body: DeletedBody; class: string }
   | { kind: "colony"; system: number; id: number; name: string }
   | { kind: "megastructure"; system: number | null; id: number; name: string; row: string }
-  | { kind: "ruin"; system: number | null; id: number; name: string }
-  | { kind: "ambientObject"; system: number | null; id: number; name: string };
+  | { kind: "ruin"; system: number; id: number; name: string }
+  | { kind: "ambientObject"; system: number; id: number; name: string };
 
 type Kind = DeletionTarget["kind"];
 

@@ -5,7 +5,7 @@ import type { Textures } from "../../layers/details/cell";
 import { NO_TEXTURES } from "../../layers/details/cell";
 import type { Tip } from "../../layers/details/Hover";
 import type { ResourceReach } from "../../layers/details/resources";
-import { landedModel } from "../geometry";
+import { shownModel } from "../geometry";
 import { plateUnder, type SceneTarget } from "../picking";
 import type { SceneStructure } from "../structures";
 import { LabelRow } from "./labelRow";
@@ -80,7 +80,7 @@ export function platedAlike(a: readonly SceneStructure[], b: readonly SceneStruc
  * model has not landed: its plate goes under that.
  */
 export function structureReach(s: SceneStructure, cam: Camera): number {
-  const model = landedModel(s.modelKey, s.scale);
+  const model = shownModel(s, cam.scale);
   return model ? model.below * cam.scale : STRUCTURE_ICON_PX / 2;
 }
 

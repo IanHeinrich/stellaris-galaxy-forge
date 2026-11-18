@@ -69,3 +69,15 @@ export function ambientObjectName(
 ): string {
   return views?.get(kind)?.name ?? keyWords(kind);
 }
+
+/** What the browser and the page say when the ambient objects couldn't be read. */
+export function ambientObjectsUnread(why: string): string {
+  return `Couldn't read the ambient objects: ${why}`;
+}
+
+/** The keys of `entries` whose name another of them shares, which show their key to tell them apart. */
+export function sharedNameKeys(entries: readonly AmbientObjectView[]): ReadonlySet<string> {
+  const counts = new Map<string, number>();
+  for (const v of entries) counts.set(v.name, (counts.get(v.name) ?? 0) + 1);
+  return new Set(entries.filter((v) => (counts.get(v.name) ?? 0) > 1).map((v) => v.key));
+}

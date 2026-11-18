@@ -10,16 +10,26 @@ vi.mock("../useTextureUrl", () => ({
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import {
+  AMBIENT_OBJECTS_NEED_GAME_DATA,
+  ambientObjectsUnread,
   OTHER_OBJECTS,
   PLACED_IN_SYSTEMS,
   READING_AMBIENT_OBJECTS,
 } from "../../lib/ambientObjectAdd";
+import { mainStarPoint } from "../../lib/details/ambientObjects";
 import { bindStores } from "../../store/bindStores";
+import { systemGeometry } from "../../store/systemGeometry";
+import { escaped } from "../../test/elements";
 import { useAmbientObjectAddStore } from "../../store/ambientObjectAdd";
 import { SCENARIO_RESULT } from "../../store/fixture";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { armSession, resetStores } from "../../store/storeFixture";
-import { ambientObjectView, systemDetails } from "../../test/builders";
+import {
+  ambientObjectView,
+  offCentreMainStar,
+  orbitClasses,
+  systemDetails,
+} from "../../test/builders";
 import { inSystem, openWith } from "../../test/session";
 import { AddAmbientObjectDialog } from "./AddAmbientObjectDialog";
 
@@ -37,8 +47,43 @@ beforeEach(async () => {
 });
 
 describe("the Add ambient object browser", () => {
-  it("waits for the ambient objects while they are read", () => {
+  it("waits for the ambient objects while they are read, and says why there are none", () => {
     expect(dialog()).toContain(READING_AMBIENT_OBJECTS);
+
+    useGameDataStore.setState({ ambientObjectsError: "the install went away" });
+    expect(dialog()).toContain(escaped(ambientObjectsUnread("the install went away")));
+    expect(dialog()).not.toContain(READING_AMBIENT_OBJECTS);
+
+    useGameDataStore.setState({ status: "idle" });
+    expect(dialog()).toContain(AMBIENT_OBJECTS_NEED_GAME_DATA);
+  });
+
+  it("reads the spot about an off-centre main star, as the page that opens does", () => {
+    inSystem(offCentreMainStar({ id: 0 }));
+    useGameDataStore.setState({ planetClasses: orbitClasses(), ambientObjects: new Map() });
+    const { frame } = systemGeometry(0);
+    const star = mainStarPoint(frame.layout, frame.details);
+    useAmbientObjectAddStore.setState({ prompt: { system: 0, x: star.x, y: star.y + 112 } });
+    expect(dialog()).toContain("At orbit 112 · 90°");
+  });
+
+  it("tells two objects of one name apart by their keys, in the list and the preview", () => {
+    useGameDataStore.setState({
+      ambientObjects: new Map(
+        [
+          ambientObjectView("drop_pod_1", { name: "Abandoned Drop Pod" }),
+          ambientObjectView("drop_pod_2", { name: "Abandoned Drop Pod" }),
+          ambientObjectView("derelict_ship_object", { name: "Derelict Ship" }),
+        ].map((v) => [v.key, v]),
+      ),
+    });
+    const html = dialog();
+    const list = html.slice(0, html.indexOf('aria-label="Selected ambient object"'));
+    expect(list).toContain("<code>drop_pod_1</code>");
+    expect(list).toContain("<code>drop_pod_2</code>");
+    expect(list).not.toContain("<code>derelict_ship_object</code>");
+    const preview = html.slice(html.indexOf('aria-label="Selected ambient object"'));
+    expect(preview).toContain("<code>drop_pod_1</code>");
   });
 
   it("reads the spot, lists the placed objects first, and previews the first with what places it", () => {

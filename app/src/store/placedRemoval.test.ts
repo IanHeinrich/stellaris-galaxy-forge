@@ -5,14 +5,17 @@ vi.mock("../api/events");
 
 import { confirm } from "@tauri-apps/plugin-dialog";
 import type { AmbientObject } from "../generated/AmbientObject";
-import { rowOrigin, systemDetails } from "../test/builders";
+import { megastructureSummary, rowOrigin, structureSpawn, systemDetails } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 import { systemSpawn } from "../test/spawn";
+import { bindStores } from "./bindStores";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureScenario } from "./editorFixture";
 import { editResult } from "./fixture";
 import { useInspectorStore } from "./inspectorStore";
 import { removeAmbientObject } from "./placedRemoval";
+
+bindStores();
 
 const SYS = 2;
 const OBJECT = 0x6000_0081;
@@ -77,5 +80,74 @@ describe("deleting an ambient object", () => {
     vi.mocked(confirm).mockResolvedValue(false);
     expect(await removeAmbientObject(OBJECT, "Derelict Ship", SYS)).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("the pages of a scenario's placed rows after an edit", () => {
+  const RUIN = 0x5800_0081;
+  const object = (kind: string, id: number): AmbientObject => ({
+    kind,
+    place: { place: "point", x: id - OBJECT, y: 30 },
+    origin: rowOrigin(id),
+  });
+  const ruin = (kind: string, id: number) =>
+    megastructureSummary({ id, kind, at: [id - RUIN, 0], spawn: structureSpawn(rowOrigin(id)) });
+
+  /** The system's details as an edit leaves them: its ambient objects and ruins, in block order. */
+  function landed(objects: string[], ruins: string[]): void {
+    const details = systemDetails({
+      id: SYS,
+      megastructures: ruins.map((kind, i) => ruin(kind, RUIN + i)),
+      spawn: systemSpawn({ ambient_objects: objects.map((kind, i) => object(kind, OBJECT + i)) }),
+    });
+    useDetailsStore.setState({ details: new Map([[SYS, details]]) });
+  }
+
+  function onPages(): void {
+    useInspectorStore.setState({
+      stack: [
+        { ref: { kind: "system", id: SYS }, label: "Kel" },
+        { ref: { kind: "ambient_object", system: SYS, id: OBJECT + 1 }, label: "Object" },
+        { ref: { kind: "megastructure", id: RUIN + 1 }, label: "Ruin" },
+      ],
+    });
+  }
+
+  it("closes the page whose id an undone deletion gave to another row, for objects and ruins alike", () => {
+    landed(["a", "c"], ["dyson", "gateway"]);
+    useInspectorStore.setState({
+      stack: [
+        { ref: { kind: "system", id: SYS }, label: "Kel" },
+        { ref: { kind: "megastructure", id: RUIN + 1 }, label: "Ruin" },
+      ],
+    });
+    landed(["a", "c"], ["dyson", "assembly", "gateway"]);
+    expect(labels()).toEqual(["Kel"]);
+
+    useInspectorStore.setState({
+      stack: [
+        { ref: { kind: "system", id: SYS }, label: "Kel" },
+        { ref: { kind: "ambient_object", system: SYS, id: OBJECT + 1 }, label: "Object" },
+      ],
+    });
+    landed(["a", "b", "c"], ["dyson", "assembly", "gateway"]);
+    expect(labels()).toEqual(["Kel"]);
+  });
+
+  it("keeps the pages when an add appends a row, or a move leaves the count as it was", () => {
+    landed(["a", "c"], ["dyson", "gateway"]);
+    onPages();
+    landed(["a", "c", "d"], ["dyson", "gateway", "assembly"]);
+    expect(labels()).toEqual(["Kel", "Object", "Ruin"]);
+
+    const moved = useDetailsStore.getState().details.get(SYS)!;
+    const objects = moved.spawn!.ambient_objects.map((o) => ({
+      ...o,
+      place: { place: "point", x: 99, y: 99 } as const,
+    }));
+    useDetailsStore.setState({
+      details: new Map([[SYS, { ...moved, spawn: { ...moved.spawn!, ambient_objects: objects } }]]),
+    });
+    expect(labels()).toEqual(["Kel", "Object", "Ruin"]);
   });
 });

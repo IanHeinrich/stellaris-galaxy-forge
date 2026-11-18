@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { ABOUT_MAIN_STAR, ambientObjectName, inGameLines } from "../../../lib/ambientObjectAdd";
 import { documentCapabilities } from "../../../lib/capabilities";
 import {
@@ -11,10 +10,10 @@ import { editableId } from "../../../lib/details/placedRows";
 import { openSystem } from "../../../store/commands";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
 import type { Entry } from "../../../store/inspectorStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { Icon } from "../../parts";
+import { useAmbientObjectViews } from "../../useAmbientObjectViews";
 import { Empty, LinkRow, Properties, PropertyRow } from "../parts";
 import { useGeometryEdit } from "../useGeometryEdit";
 import { RemovalAction } from "./PlanetRemoval";
@@ -55,13 +54,9 @@ export function AmbientObjectView({ entry }: { entry: Entry }) {
   const system = ref.kind === "ambient_object" ? ref.system : null;
   const id = ref.kind === "ambient_object" ? ref.id : null;
   const { frame } = useSystemGeometry(system);
-  const views = useGameDataStore((s) => s.ambientObjects);
-  const loadViews = useGameDataStore((s) => s.loadAmbientObjects);
+  const { views, problem } = useAmbientObjectViews();
   const systemName = useGalaxyStore((s) => s.systemName);
   const removable = useFileSessionStore((s) => documentCapabilities(s).ambient_objects);
-  useEffect(() => {
-    void loadViews();
-  }, [loadViews]);
   const object = id === null ? undefined : placedAmbientObject(frame.details, id);
   const view = object === undefined ? undefined : views?.get(object.kind);
   const name = object === undefined ? entry.label : ambientObjectName(object.kind, views);
@@ -83,6 +78,7 @@ export function AmbientObjectView({ entry }: { entry: Entry }) {
       {head}
       <div className="ins-sub muted">Ambient object in {systemName(system)}</div>
       {view?.portrait != null && <Icon className="ins-ambient-picture" keys={[view.portrait]} />}
+      {problem !== null && <div className="muted">{problem}</div>}
       <AmbientObjectPosition system={system} id={id} />
       <div className="edit-block-title ins-about">About</div>
       <Properties>

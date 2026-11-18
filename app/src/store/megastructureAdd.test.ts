@@ -16,6 +16,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { editResult } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
+import { useMapChromeStore } from "./mapChromeStore";
 import { useMegastructureAddStore } from "./megastructureAdd";
 import { useSceneStore } from "./sceneStore";
 
@@ -475,9 +476,13 @@ describe("adding a ruin to a scenario system", () => {
     ]);
   });
 
-  it("opens the new ruin's page from the id the add created", async () => {
+  it("opens the new ruin's page from the id the add created, with the layer that shows it on", async () => {
+    useMapChromeStore.setState({
+      sceneLayers: { ...useMapChromeStore.getState().sceneLayers, megastructures: false },
+    });
     await opened({ kind: "body", body: SCENARIO_STAR_BODY, star: true });
     await adds().add("dyson_sphere_ruined");
+    expect(useMapChromeStore.getState().sceneLayers.megastructures).toBe(true);
     const top = useInspectorStore.getState().stack.at(-1);
     expect(top?.ref).toEqual({ kind: "megastructure", id: RUIN });
     expect(top?.label).toBe("Ruined Dyson Sphere");

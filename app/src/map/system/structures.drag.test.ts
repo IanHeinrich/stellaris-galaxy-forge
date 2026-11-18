@@ -4,11 +4,12 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import { polar } from "../../lib/details/orbits";
-import { megastructureSummary, megastructureTypeView } from "../../test/builders";
+import { mainStarPoint } from "../../lib/details/ambientObjects";
+import { megastructureSummary, megastructureTypeView, rowOrigin } from "../../test/builders";
 import { sceneRecorder as recorder } from "../../test/mapIntent";
 import { systemContext, type SystemContext } from "./context";
-import { withStructures } from "./contextFixture";
-import { BESIDE, LONE, lastStep, on, orbitFrame, pointOf } from "./dragFixture";
+import { ambientScene, DERELICT, withStructures } from "./contextFixture";
+import { BESIDE, LONE, lastStep, on, orbitFrame, ORBITS, pointOf } from "./dragFixture";
 import { stubTextMeasurement } from "./drawFixture";
 import { LabelsLayer } from "./layers/LabelsLayer";
 import { StructuresLayer } from "./layers/StructuresLayer";
@@ -113,5 +114,59 @@ describe("dragging a megastructure in the system view", () => {
     expect(r.base.on).toBe(LONE);
     expect(r.held.every((h) => h.on === null)).toBe(true);
     expect(r.labelsRebuilt).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("dragging an ambient object in the system view", () => {
+  const OWN = 0x6000_0000;
+
+  /** The step a drag of the object from its point to `to` sends, with Shift held when `shift`. */
+  function dragObject(to: (star: { x: number; y: number }) => [number, number], shift = false) {
+    const base = ambientScene(
+      [{ kind: DERELICT.key, place: { place: "point", x: 50, y: 0 }, origin: rowOrigin(OWN) }],
+      {},
+      ORBITS,
+    );
+    const star = mainStarPoint(base.layout, base.details);
+    const model = new SystemGestureModel();
+    const intent = recorder(base);
+    const from = { x: star.x + 50, y: star.y };
+    model.handle(
+      on("down", from, { target: { kind: "ambient_object", id: OWN }, draggable: true }),
+      intent,
+    );
+    model.handle(on("move", to(star), { shift }), intent);
+    return { base, star, step: lastStep(intent) };
+  }
+
+  it("moves it about the main star in whole units, and sends the point about that star", () => {
+    const { base, star, step } = dragObject((s) => [s.x + 80.4, s.y]);
+    expect(Math.hypot(star.x, star.y)).toBeGreaterThan(0);
+    expect(step?.intent).toEqual({
+      kind: "moveAmbientObject",
+      system: ORBITS,
+      ambientObject: OWN,
+      x: expect.closeTo(star.x + 80),
+      y: expect.closeTo(star.y),
+    });
+    expect(step?.readout.text).toBe("r 50 → 80 · 0°");
+    const made = step && base.geometry.op(step.intent, { ...base, systemLabel: "Kel" });
+    expect(made).toEqual({
+      op: {
+        type: "MoveAmbientObject",
+        ambient_object: OWN,
+        x: expect.closeTo(80),
+        y: expect.closeTo(0),
+      },
+    });
+  });
+
+  it("snaps the angle about the main star to 15° with Shift", () => {
+    const { star, step } = dragObject((s) => {
+      const p = polar(s.x, s.y, 100, 8);
+      return [p.x, p.y];
+    }, true);
+    const to = polar(star.x, star.y, 100, 15);
+    expect(step?.intent).toMatchObject({ x: expect.closeTo(to.x), y: expect.closeTo(to.y) });
   });
 });

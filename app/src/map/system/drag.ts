@@ -238,18 +238,19 @@ export interface FreeStep extends Polar {
 }
 
 /**
- * Where a thing held at `held` lands about the centre, freely: at a whole radius of at least 1 and
- * an angle in whole degrees or Shift's steps, read against where it stood at `was`.
+ * Where a thing held at `held` lands about `centre`, the system's centre unless given, freely: at a
+ * whole radius of at least 1 and an angle in whole degrees or Shift's steps, read against where it
+ * stood at `was`. Its point is about the system's centre.
  */
-export function freeStep(held: Pt, was: Pt, shift: boolean): FreeStep {
-  const radius = Math.max(1, Math.round(Math.hypot(held.x, held.y)));
-  const angle = snapAngle(polarAbout(held, ORIGIN).angle, shift);
-  const from = polarAbout(was, ORIGIN);
+export function freeStep(held: Pt, was: Pt, shift: boolean, centre: Pt = ORIGIN): FreeStep {
+  const radius = Math.max(1, Math.round(Math.hypot(held.x - centre.x, held.y - centre.y)));
+  const angle = snapAngle(polarAbout(held, centre).angle, shift);
+  const from = polarAbout(was, centre);
   const same = near(radius, from.radius) && near(wrapDegrees(angle - from.angle + 180), 180);
   return {
     radius,
     angle,
-    point: polar(0, 0, radius, angle),
+    point: polar(centre.x, centre.y, radius, angle),
     readout: { text: `r ${change(from.radius, radius)} · ${degrees(angle)}` },
     changed: !same,
   };

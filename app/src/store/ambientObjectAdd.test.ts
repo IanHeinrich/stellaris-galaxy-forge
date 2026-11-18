@@ -13,6 +13,7 @@ import { openFixtureScenario, sessionError } from "./editorFixture";
 import { editResult, orbitClasses } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
+import { useMapChromeStore } from "./mapChromeStore";
 import { systemGeometry } from "./systemGeometry";
 
 const SYSTEM = 0;
@@ -24,10 +25,15 @@ beforeEach(async () => {
   await openFixtureScenario();
   inSystem(offCentreMainStar({ id: SYSTEM }));
   useAmbientObjectAddStore.setState({ prompt: null, last: null });
-  useGameDataStore.setState({ status: "ready", planetClasses: orbitClasses() });
-  mockedIpc.getAmbientObjectTypes.mockResolvedValue([
-    ambientObjectView("derelict_ship_object", { name: "Derelict Ship" }),
-  ]);
+  const derelict = ambientObjectView("derelict_ship_object", { name: "Derelict Ship" });
+  useGameDataStore.setState({
+    status: "ready",
+    planetClasses: orbitClasses(),
+    ambientObjects: new Map([[derelict.key, derelict]]),
+  });
+  useMapChromeStore.setState({
+    sceneLayers: { ...useMapChromeStore.getState().sceneLayers, megastructures: false },
+  });
   mockedIpc.addAmbientObject.mockResolvedValue({
     edit: editResult({ details_stale: [SYSTEM] }),
     planets: [],
@@ -44,24 +50,12 @@ describe("adding an ambient object", () => {
     expect(sessionError()).toBe(AMBIENT_OBJECTS_NEED_GAME_DATA);
   });
 
-  it("reads the ambient objects once, when the browser first opens", async () => {
-    expect(adds().open(SYSTEM, 10, 10)).toBe(true);
-    adds().cancel();
-    adds().open(SYSTEM, 20, 20);
-    await vi.waitUntil(() => useGameDataStore.getState().ambientObjects !== null);
-    expect(adds().prompt).toEqual({ system: SYSTEM, x: 20, y: 20 });
-    expect(mockedIpc.getAmbientObjectTypes).toHaveBeenCalledTimes(1);
-    expect(useGameDataStore.getState().ambientObjects?.get("derelict_ship_object")?.name).toBe(
-      "Derelict Ship",
-    );
-  });
-
   it("sends the point pressed measured from an off-centre main star, and opens the new object's page", async () => {
     const { frame } = systemGeometry(SYSTEM);
     const star = mainStarPoint(frame.layout, frame.details);
     expect(Math.hypot(star.x, star.y), "the main star stands off the centre").toBeGreaterThan(0);
     adds().open(SYSTEM, 120, 40);
-    await vi.waitUntil(() => useGameDataStore.getState().ambientObjects !== null);
+    expect(adds().prompt).toEqual({ system: SYSTEM, x: 120, y: 40 });
     expect(await adds().add("derelict_ship_object")).toBe(true);
 
     const [system, kind, x, y] = mockedIpc.addAmbientObject.mock.calls[0];
@@ -73,6 +67,7 @@ describe("adding an ambient object", () => {
       ref: { kind: "ambient_object", system: SYSTEM, id: CREATED },
       label: "Derelict Ship",
     });
+    expect(useMapChromeStore.getState().sceneLayers.megastructures, "it shows").toBe(true);
   });
 
   it("opens no page when the core refuses the add", async () => {
@@ -80,5 +75,6 @@ describe("adding an ambient object", () => {
     adds().open(SYSTEM, 120, 40);
     expect(await adds().add("derelict_ship_object")).toBe(false);
     expect(useInspectorStore.getState().stack.at(-1)?.ref.kind).not.toBe("ambient_object");
+    expect(useMapChromeStore.getState().sceneLayers.megastructures).toBe(false);
   });
 });

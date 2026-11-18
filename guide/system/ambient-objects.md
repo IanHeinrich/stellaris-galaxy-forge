@@ -28,6 +28,9 @@ under Other objects. The preview beside the list says whether the game
 shows the object's name, whether you can select it in the game, and
 which initializers place it.
 
+Two objects with the same name show their keys under the name, so you
+can tell them apart.
+
 Some objects, such as clouds and storms, have no model to show. They
 have a plain square in the list and a plain ring in the system view.
 
@@ -43,7 +46,8 @@ have a plain square in the list and a plain ring in the system view.
   places, because the game picks their spot.
 - Ambient objects show with the megastructures. Press <kbd>7</kbd> in a
   system view to hide them, or turn off Megastructures and starbases in
-  the Layers menu.
+  the Layers menu. Adding an ambient object or a megastructure turns the
+  layer back on.
 
 ## Objects in a binary or trinary system
 
