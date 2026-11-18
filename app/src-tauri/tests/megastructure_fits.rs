@@ -1,10 +1,12 @@
-//! What the Add megastructure dialog offers at spots of the real 4.5 sample save, read through
+//! What the Add megastructure dialog offers at spots of the real 4.5 sample save and of a
+//! scenario, read through
 //! the shell from the add's own refusals and worded with no key. The tables are what the
 //! dialog decided in TypeScript before it asked the shell, on the base game, after a relay is
 //! added in system 0 and a ring world in system 2.
 use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
+use sgf_core::format::scenario::placed::{STAR_BODY, ruin_id};
 use sgf_core::ops::MegastructurePlace;
 use sgf_core::views::ErrorKind;
 use sgf_gamedata::generate::{HostMoonsFit, MegastructureFit};
@@ -12,7 +14,7 @@ use tauri::WebviewWindow;
 use tauri::test::MockRuntime;
 
 use crate::common;
-use common::{SAMPLE_45, invoke, open, webview, with_game_data};
+use common::{SAMPLE_45, SCENARIO, invoke, open, webview, with_game_data};
 
 const ON_ANY_BODY: [&str; 32] = [
     "arkship_civilian_dummy",
@@ -446,4 +448,113 @@ fn the_fits_need_game_data_and_a_body_of_the_system() {
     )
     .expect_err("planet 0 is in system 169");
     assert_eq!(elsewhere.kind, ErrorKind::Op, "{}", elsewhere.message);
+}
+
+/// What a scenario's dialog offers in system 2 of the grammar sample, and refuses where.
+fn scenario_fits(w: &WebviewWindow<MockRuntime>, spot: Value) -> Vec<MegastructureFit> {
+    invoke(
+        w,
+        "get_megastructure_fits",
+        json!({ "system": 2, "spot": spot }),
+    )
+    .unwrap_or_else(|e| panic!("{}", e.message))
+}
+
+fn fit<'f>(fits: &'f [MegastructureFit], kind: &str) -> &'f MegastructureFit {
+    fits.iter()
+        .find(|fit| fit.kind == kind)
+        .unwrap_or_else(|| panic!("{kind} is not offered"))
+}
+
+/// In a scenario the star takes a ruined Dyson sphere, empty space a ruined gateway at the
+/// point pressed, and a rolled planet nothing. A star ruin is offered in empty space only to
+/// say it goes on the star. Once the star holds a ruin, each one there is refused as a save's
+/// body with a megastructure is, and the add answers the ruin it created.
+#[test]
+fn a_scenario_offers_its_ruins_on_the_star_and_at_a_point() {
+    let Some((w, _)) = with_game_data(SCENARIO) else {
+        return;
+    };
+    let star = json!({ "kind": "body", "body": STAR_BODY });
+    let space = json!({ "kind": "space", "x": 120.0, "y": 40.0 });
+    let on_star = scenario_fits(&w, star.clone());
+    let dyson = fit(&on_star, "dyson_sphere_ruined");
+    assert_eq!(dyson.place, MegastructurePlace::Body { body: STAR_BODY });
+    assert_eq!(dyson.refusal, None);
+    assert!(on_star.iter().all(|fit| fit.variant == fit.kind));
+
+    let in_space = scenario_fits(&w, space);
+    let gateway = fit(&in_space, "gateway_ruined");
+    assert_eq!(
+        gateway.place,
+        MegastructurePlace::Free { x: 120.0, y: 40.0 }
+    );
+    assert_eq!(gateway.refusal, None);
+    let shell = fit(&in_space, "dyson_sphere_ruined");
+    assert!(
+        shell
+            .refusal
+            .as_deref()
+            .is_some_and(|r| r.contains("goes on the star")),
+        "{:?}",
+        shell.refusal
+    );
+
+    let planet = json!({ "kind": "body", "body": STAR_BODY + 1 });
+    assert_eq!(scenario_fits(&w, planet), []);
+
+    let added: Value = invoke(
+        &w,
+        "add_megastructure",
+        json!({
+            "system": 2, "kind": "dyson_sphere_ruined",
+            "place": { "place": "body", "body": STAR_BODY }, "keepPlanet": false,
+            "moons": "remove"
+        }),
+    )
+    .expect("the ruin");
+    assert_eq!(
+        added["megastructures"],
+        json!([ruin_id(2, 0).expect("an id")])
+    );
+    let taken = scenario_fits(&w, star);
+    assert!(
+        taken
+            .iter()
+            .all(|fit| fit.refusal.as_deref() == Some("It already has a megastructure.")),
+        "{taken:?}"
+    );
+}
+
+/// A scenario's add takes a ruin only where its fits place it.
+#[test]
+fn a_scenario_refuses_a_ruin_away_from_where_it_goes() {
+    let Some((w, _)) = with_game_data(SCENARIO) else {
+        return;
+    };
+    let add = |kind: &str, place: Value| {
+        invoke::<Value>(
+            &w,
+            "add_megastructure",
+            json!({
+                "system": 2, "kind": kind, "place": place, "keepPlanet": false,
+                "moons": "keep"
+            }),
+        )
+    };
+    let free = json!({ "place": "free", "x": 50.0, "y": 0.0 });
+    let refused = add("dyson_sphere_ruined", free).expect_err("away from the star");
+    assert!(
+        refused.message.contains("goes on the star"),
+        "{}",
+        refused.message
+    );
+    let planet = json!({ "place": "body", "body": STAR_BODY + 1 });
+    let refused = add("gateway_ruined", planet).expect_err("on a planet");
+    assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
+    add(
+        "hyper_relay",
+        json!({ "place": "free", "x": 50.0, "y": 0.0 }),
+    )
+    .expect_err("not a ruin");
 }

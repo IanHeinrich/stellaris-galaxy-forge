@@ -1,5 +1,5 @@
 //! `sgf add-megastructure`, through the join the app calls.
-use crate::common::{SAMPLE_4_5, ok, sgf, stdout, without_install};
+use crate::common::{SAMPLE_4_5, SCENARIO, ok, sgf, stdout, without_install};
 
 #[test]
 fn add_megastructure_adds_a_row_on_a_body_and_writes_it() {
@@ -62,4 +62,34 @@ fn add_megastructure_without_a_place_is_a_usage_error() {
     assert_eq!(out.status.code(), Some(2));
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("--body"), "{err}");
+}
+
+#[test]
+fn add_megastructure_writes_a_ruin_into_a_scenario_system() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("ruin.txt");
+    let out_str = out_path.to_str().unwrap();
+    let gateway = sgf(&[
+        "add-megastructure",
+        SCENARIO,
+        "1",
+        "gateway_ruined",
+        "--at",
+        "100,0",
+        "--no-mods",
+        "-o",
+        out_str,
+    ]);
+    if without_install(&gateway) {
+        return;
+    }
+    ok(&gateway);
+    let text = stdout(&gateway);
+    assert!(text.contains("gateway_ruined"), "{text}");
+    let written = std::fs::read_to_string(&out_path).unwrap();
+    assert!(
+        written.contains("spawn_megastructure = { type = \"gateway_ruined\""),
+        "{written}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }

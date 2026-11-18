@@ -28,7 +28,7 @@ import { useSceneStore } from "../../store/sceneStore";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { buttons, menuItem } from "../../test/elements";
+import { buttons, escaped, menuItem } from "../../test/elements";
 import { drawnBy, lastDrawn } from "../../test/drawn";
 import {
   megastructureSummary,
@@ -58,7 +58,10 @@ import {
   ADD_MEGASTRUCTURE_HERE_LABEL,
   ADD_MEGASTRUCTURE_LABEL,
   MEGASTRUCTURES_NEED_GAME_DATA,
+  MAIN_STAR_ONLY,
+  ROLLED_BODY_REFUSAL,
 } from "../../lib/megastructureCopy";
+import { SCENARIO_STAR_BODY } from "../../generated/constants";
 import { placementAt } from "../../lib/planetMove";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import { until } from "../../test/wait";
@@ -611,14 +614,6 @@ describe("a scenario's system view menus", () => {
         [body(2), "Add moon"],
       ],
     },
-    {
-      name: "megastructure add",
-      setup: inOrbitSystem,
-      offers: [
-        [space, "Add megastructure"],
-        [body(2), "Add megastructure"],
-      ],
-    },
   ];
 
   const menuOn = (target: ContextTarget) => {
@@ -644,4 +639,57 @@ describe("a scenario's system view menus", () => {
       }
     },
   );
+
+  it("offers Add megastructure on the main star and in empty space, and refuses any other body with its reason", async () => {
+    await openWith(SCENARIO_RESULT);
+    const stated = (id: number, planetClass: string, drawn = false) =>
+      planetSummary({
+        id,
+        name: name(`Body ${id}`),
+        name_key: `Body ${id}`,
+        class: planetClass,
+        drawn,
+      });
+    const [STAR, PLANET, ROLLED, SECOND] = [0, 1, 2, 3].map((n) => SCENARIO_STAR_BODY + n);
+    inSystem(
+      systemDetails({
+        id: 0,
+        planets: [
+          stated(STAR, "star"),
+          stated(PLANET, "pc_arid"),
+          stated(ROLLED, "random", true),
+          stated(SECOND, "star"),
+        ],
+      }),
+    );
+    useGameDataStore.setState({ status: "ready" });
+    const prompt = () => useMegastructureAddStore.getState().prompt;
+
+    const star = menuOn(body(SCENARIO_STAR_BODY));
+    expect(star).not.toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
+    menuItem(
+      <BodyMenu target={body(SCENARIO_STAR_BODY)} frame={{}} />,
+      ADD_MEGASTRUCTURE_LABEL,
+    ).props.onClick();
+    expect(prompt()).toEqual({
+      system: 0,
+      spot: { kind: "body", body: SCENARIO_STAR_BODY, star: true, class: "star" },
+    });
+
+    menuItem(
+      <SceneSpaceMenu target={space} frame={{}} />,
+      ADD_MEGASTRUCTURE_HERE_LABEL,
+    ).props.onClick();
+    expect(prompt()).toEqual({ system: 0, spot: { kind: "space", x: 90, y: -120 } });
+
+    for (const [id, reason] of [
+      [PLANET, MAIN_STAR_ONLY],
+      [ROLLED, ROLLED_BODY_REFUSAL],
+      [SECOND, MAIN_STAR_ONLY],
+    ] as const) {
+      const html = menuOn(body(id));
+      expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
+      expect(html).toContain(escaped(reason));
+    }
+  });
 });

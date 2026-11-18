@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { Capabilities } from "../../generated/Capabilities";
+import type { CapabilityFlag } from "../../lib/capabilities";
 import { supports } from "../../lib/capabilities";
 import type { DockTab } from "../../store/layoutStore";
 import { Empires } from "../browser/Empires";
@@ -15,7 +16,7 @@ export interface DockTabEntry {
   /** What the tab strip shows; `label` stays as the tooltip. */
   readonly short: string;
   readonly component: ComponentType;
-  readonly requires?: keyof Capabilities;
+  readonly requires?: CapabilityFlag;
 }
 
 /** Every dock tab, in the order the strip lists them. */

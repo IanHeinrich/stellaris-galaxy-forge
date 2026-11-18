@@ -10,7 +10,8 @@ import type { MegastructureSpot } from "../lib/megastructurePicks";
 import { mockedIpc } from "../test/ipc";
 import { inSystem } from "../test/session";
 import { megastructureSummary, megastructureTypeView, systemDetails } from "../test/builders";
-import { openFixtureSave, sessionError } from "./editorFixture";
+import { openFixtureSave, openFixtureScenario, sessionError } from "./editorFixture";
+import { SCENARIO_STAR_BODY } from "../generated/constants";
 import { useFileSessionStore } from "./fileSessionStore";
 import { editResult } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
@@ -396,5 +397,83 @@ describe("adding a whole ring world from the system view", () => {
 
     expect(await adds().addRing("ring_world_2_intermediate")).toBe(false);
     expect(adds().last).toBeNull();
+  });
+});
+
+describe("adding a ruin to a scenario system", () => {
+  const RUIN = 0x5800_0000;
+  const STAR = { place: "body", body: SCENARIO_STAR_BODY } as const;
+
+  beforeEach(async () => {
+    await openFixtureScenario();
+    inSystem(systemDetails({ id: SYSTEM }));
+    const types = [
+      megastructureTypeView("gateway_ruined", {
+        placement: { place: "free", outside_gravity_well: true },
+      }),
+      megastructureTypeView("dyson_sphere_ruined"),
+    ];
+    useGameDataStore.setState({
+      status: "ready",
+      megastructureTypes: new Map(types.map((t) => [t.key, t])),
+      names: new Map([["dyson_sphere_ruined", "Ruined Dyson Sphere"]]),
+    });
+    mockedIpc.addMegastructure.mockResolvedValue({
+      edit: editResult({ details_stale: [SYSTEM] }),
+      planets: [],
+      megastructures: [RUIN],
+      unsure: [],
+      unwritten: [],
+    });
+    mockedIpc.getMegastructureFits.mockImplementation(async (_system, spot) =>
+      spot.kind === "space"
+        ? [
+            {
+              kind: "gateway_ruined",
+              variant: "gateway_ruined",
+              place: { place: "free", x: spot.x, y: spot.y },
+              refusal: null,
+              host_moons: { kind: "kept" },
+            },
+            {
+              kind: "dyson_sphere_ruined",
+              variant: "dyson_sphere_ruined",
+              place: STAR,
+              refusal: "Ruined Dyson Sphere goes on the star. Right-click the star to add it.",
+              host_moons: { kind: "kept" },
+            },
+          ]
+        : [
+            {
+              kind: "dyson_sphere_ruined",
+              variant: "dyson_sphere_ruined",
+              place: STAR,
+              refusal: null,
+              host_moons: { kind: "kept" },
+            },
+          ],
+    );
+  });
+
+  it("sends a ruin at the point pressed and one on the main star, each where the shell placed it", async () => {
+    await opened({ kind: "space", x: 120, y: 40 });
+    expect(await adds().add("gateway_ruined")).toBe(true);
+    await opened({ kind: "body", body: SCENARIO_STAR_BODY, star: true });
+    expect(await adds().add("dyson_sphere_ruined")).toBe(true);
+
+    expect(
+      mockedIpc.addMegastructure.mock.calls.map(([system, kind, at]) => [system, kind, at]),
+    ).toEqual([
+      [SYSTEM, "gateway_ruined", { place: "free", x: 120, y: 40 }],
+      [SYSTEM, "dyson_sphere_ruined", STAR],
+    ]);
+  });
+
+  it("opens the new ruin's page from the id the add created", async () => {
+    await opened({ kind: "body", body: SCENARIO_STAR_BODY, star: true });
+    await adds().add("dyson_sphere_ruined");
+    const top = useInspectorStore.getState().stack.at(-1);
+    expect(top?.ref).toEqual({ kind: "megastructure", id: RUIN });
+    expect(top?.label).toBe("Ruined Dyson Sphere");
   });
 });

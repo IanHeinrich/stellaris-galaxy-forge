@@ -1,6 +1,7 @@
 import { documentCapabilities } from "../../../lib/capabilities";
 import { MEGASTRUCTURE_ICON_KEY } from "../../../lib/details/icons";
 import { megastructureName } from "../../../lib/details/labels";
+import { editableId, originOf } from "../../../lib/details/placedRows";
 import { systemOfMegastructure } from "../../../lib/details/megastructureRemoval";
 import { openSystem } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -39,7 +40,10 @@ function SaveMegastructure({ entry, id }: { entry: Entry; id: number }) {
   );
 }
 
-/** A ruin a scenario system's own block places: its position where it has one, then what it is. */
+/**
+ * A ruin a scenario system's own block places: its position where it has one, then what it is,
+ * and its deletion where the editor edits it as it stands.
+ */
 function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
   const system = useDetailsStore((s) => systemOfMegastructure(s.details, id));
   const row = useDetailsStore((s) =>
@@ -47,6 +51,9 @@ function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
   );
   const systemName = useGalaxyStore((s) => s.systemName);
   const names = useGameDataStore((s) => s.names);
+  const removable = useFileSessionStore(
+    (s) => documentCapabilities(s).add_megastructures === "ruins",
+  );
   const head = (
     <div className="ins-head">
       <Icon className="gi" keys={[MEGASTRUCTURE_ICON_KEY]} glyph="◈" />
@@ -73,6 +80,9 @@ function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
           {systemName(system)}
         </LinkRow>
       </Properties>
+      {removable && editableId(originOf(row)) !== null && (
+        <RemovalAction target={{ kind: "ruin", system, id, name: label }} />
+      )}
     </>
   );
 }

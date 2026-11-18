@@ -197,7 +197,9 @@ the system's own effect block places. You need the game data loaded.
 In the Inspector, each row of a scenario system's Megastructures and
 Ambient objects says where it comes from: From the initializer, or From
 the file for one written in the scenario. Galaxy Forge doesn't edit
-these rows yet.
+ambient objects yet. A ruin the scenario writes in the way Galaxy Forge
+edits has no mark and opens its page, as
+[Ruins in a scenario](megastructures.md#ruins-in-a-scenario) says.
 
 - A megastructure placed at a planet sits on that planet. Click Roll
   again and it moves with the planet.

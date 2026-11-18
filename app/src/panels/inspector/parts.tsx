@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
-import type { Capabilities } from "../../generated/Capabilities";
+import type { CapabilityFlag } from "../../lib/capabilities";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -205,7 +205,7 @@ export function DrillRow({
 }: {
   className?: string;
   title?: string;
-  requires?: keyof Capabilities;
+  requires?: CapabilityFlag;
   /** It opens nothing: its entity has no page that shows more. */
   inert?: boolean;
   onOpen: () => void;
@@ -266,7 +266,7 @@ export function DrillLink({
   onHover,
   children,
 }: {
-  requires?: keyof Capabilities;
+  requires?: CapabilityFlag;
   title?: string;
   onOpen: () => void;
   /** Told when the pointer comes onto the link and when it leaves. */
@@ -298,7 +298,7 @@ export function LinkRow({
   children,
 }: {
   label: string;
-  requires?: keyof Capabilities;
+  requires?: CapabilityFlag;
   title?: string;
   onOpen: () => void;
   children: ReactNode;

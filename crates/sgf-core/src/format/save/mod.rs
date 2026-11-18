@@ -42,7 +42,7 @@ use crate::projections::read;
 use crate::scan::{self, Value};
 use crate::session::Session;
 use crate::validate::Issue;
-use crate::views::{Capabilities, DocumentKind, SaveMeta};
+use crate::views::{Capabilities, DocumentKind, MegastructureAdds, SaveMeta};
 
 pub(crate) struct Save;
 
@@ -445,7 +445,11 @@ impl Format for Save {
             modifiers: whole_entries,
             anomalies: whole_entries,
             dig_sites: whole_entries,
-            add_megastructures: whole_entries,
+            add_megastructures: if whole_entries {
+                MegastructureAdds::Rows
+            } else {
+                MegastructureAdds::None
+            },
             edit_bodies: true,
             export: true,
             ..Capabilities::default()

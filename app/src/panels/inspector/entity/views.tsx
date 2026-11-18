@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { Capabilities } from "../../../generated/Capabilities";
+import type { CapabilityFlag } from "../../../lib/capabilities";
 import type { EntityKind } from "../../../generated/EntityKind";
 import { capabilityFor } from "../../../lib/entities";
 import type { EntityRef, Entry } from "../../../store/inspectorStore";
@@ -17,7 +17,7 @@ import { SelectionView } from "../selection/SelectionView";
 export interface InspectorView {
   readonly label: string;
   readonly component: ComponentType<{ entry: Entry }>;
-  readonly requires?: keyof Capabilities;
+  readonly requires?: CapabilityFlag;
 }
 
 /** An entity of `kind` drawn by `component`, reachable where the document has what the kind needs. */

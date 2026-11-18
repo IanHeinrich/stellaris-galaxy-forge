@@ -1,6 +1,6 @@
 /**
  * Deleting a save's megastructure: it reads what goes with the row, asks the user, applies one
- * op, and closes the inspector's pages on what went.
+ * op, and closes the inspector's pages on what went. A scenario's ruin goes alone, once asked.
  */
 import * as ipc from "../api/ipc";
 import type { MegastructureDismantle } from "../generated/MegastructureDismantle";
@@ -11,9 +11,13 @@ import {
   EMPTY_DISMANTLE,
   madeByMegastructure,
   megastructureRow,
+  removeRuinOp,
+  removeRuinQuestion,
+  ruinsFrom,
   type MegastructureLoss,
 } from "../lib/details/megastructureRemoval";
 import { confirmDeletion } from "./confirmDeletion";
+import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -65,5 +69,26 @@ export function deleteMegastructure(
       megastructures: [id],
       colonies: loss.colony?.page.colony ? [loss.colony.page.colony.id] : [],
     }),
+  });
+}
+
+/**
+ * Takes ruin `id`, named `name`, out of its scenario system `system` (null where no system read
+ * lists it), once the user confirms. The pages of it and of every later ruin of the system close,
+ * since those ruins move down one id.
+ */
+export function removeRuin(id: number, name: string, system: number | null): Promise<boolean> {
+  return confirmDeletion({
+    title: name,
+    read: () => {
+      const read = system === null ? undefined : useDetailsStore.getState().details.get(system);
+      return Promise.resolve(ruinsFrom(read?.megastructures ?? [], id));
+    },
+    question() {
+      const where = system === null ? null : useGalaxyStore.getState().systemName(system);
+      return removeRuinQuestion(name, where);
+    },
+    apply: () => useEditorStore.getState().applyOp(removeRuinOp(id)),
+    gone: (ruins) => ({ megastructures: ruins, colonies: [] }),
   });
 }

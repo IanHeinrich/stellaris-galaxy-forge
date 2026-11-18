@@ -132,6 +132,7 @@ describe("a scenario system's overview", () => {
     expect(sections(html)).toEqual([
       "Spawn point",
       "Resources · 2",
+      "Megastructures · 0",
       "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",

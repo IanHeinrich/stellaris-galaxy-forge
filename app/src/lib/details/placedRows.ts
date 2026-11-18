@@ -2,7 +2,7 @@
  * The rows of a system's Megastructures and Ambient objects: the mark each carries for where it
  * comes from, the page a megastructure row opens, and what each section says with no rows.
  */
-import type { Capabilities } from "../../generated/Capabilities";
+import type { CapabilityFlag } from "../capabilities";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { RowOrigin } from "../../generated/RowOrigin";
 
@@ -39,7 +39,7 @@ export function originMark(origin: RowOrigin | undefined, editable: boolean): Or
  * a save's needs its details, a scenario's own row the placing of structures; null for a row
  * whose page would show nothing to edit.
  */
-export function megastructurePageNeeds(origin: RowOrigin | undefined): keyof Capabilities | null {
+export function megastructurePageNeeds(origin: RowOrigin | undefined): CapabilityFlag | null {
   if (origin === undefined) return "details";
   return editableId(origin) !== null ? "place_structures" : null;
 }

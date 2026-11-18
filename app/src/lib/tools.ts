@@ -1,4 +1,4 @@
-import type { Capabilities } from "../generated/Capabilities";
+import type { CapabilityFlag } from "./capabilities";
 import type { GuidePlace } from "./guideLinks";
 import type { BrushTool } from "./brush/brushTools";
 
@@ -25,7 +25,7 @@ export interface ToolEntry {
   /** The tool's "?"; null for a tool with no options row. */
   help: ToolHelp | null;
   /** What the open document must support for the tool to be offered; null for every kind. */
-  requires: keyof Capabilities | null;
+  requires: CapabilityFlag | null;
 }
 
 const ENTRIES: Record<Tool, Omit<ToolEntry, "id">> = {
@@ -71,6 +71,6 @@ export const TOOL_ENTRY: Record<Tool, ToolEntry> = Object.fromEntries(
 ) as Record<Tool, ToolEntry>;
 
 /** What the open document must support for `tool`; undefined when it works on every kind. */
-export function toolRequires(tool: Tool): keyof Capabilities | undefined {
+export function toolRequires(tool: Tool): CapabilityFlag | undefined {
   return ENTRIES[tool].requires ?? undefined;
 }

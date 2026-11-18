@@ -16,10 +16,15 @@ export function documentCapabilities(session: CapabilitySource): Capabilities {
   return session.capabilities ?? NO_DOCUMENT;
 }
 
+/** The capabilities that are on or off, which a part of the app can require. */
+export type CapabilityFlag = {
+  [K in keyof Capabilities]: Capabilities[K] extends boolean ? K : never;
+}[keyof Capabilities];
+
 /** Whether a part of the app that needs `requires` is worth showing for `capabilities`. */
 export function supports(
   capabilities: Capabilities,
-  requires: keyof Capabilities | undefined,
+  requires: CapabilityFlag | undefined,
 ): boolean {
   return requires === undefined || capabilities[requires];
 }

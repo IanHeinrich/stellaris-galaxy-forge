@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { megastructureSummary, megastructureTypeView } from "../../test/builders";
+import {
+  megastructureSummary,
+  megastructureTypeView,
+  rowOrigin,
+  structureSpawn,
+} from "../../test/builders";
 import {
   MEGASTRUCTURE_FIXED,
   MEGASTRUCTURE_REFUSALS,
@@ -101,6 +106,23 @@ describe("how a megastructure moves", () => {
     const bodies = [{ id: 5, x: 100, y: 0, star: false }];
     expect(snapBody({ ...world, at: [-40, 30] }, nexus, bodies)).toBeNull();
     expect(snapBody({ ...world, at: [-40, 30], made_body: false }, nexus, bodies)).toBe(5);
+  });
+
+  it("offers no snap for a scenario ruin on the star, even standing away from it", () => {
+    const floating = megastructureTypeView("dyson_sphere_ruined", {
+      floats_free: true,
+      floats_free_on_star: true,
+    });
+    const onStar = megastructureSummary({
+      id: 6,
+      kind: "dyson_sphere_ruined",
+      planet: 1,
+      at: [30, 40],
+      spawn: structureSpawn(rowOrigin(6)),
+    });
+    const bodies = [{ id: 1, x: 0, y: 0, star: true }];
+    expect(snapBody(onStar, floating, bodies)).toBeNull();
+    expect(snapBody({ ...onStar, spawn: undefined }, floating, bodies)).toBe(1);
   });
 
   it("moves a tied row by its own shape without game data", () => {

@@ -1,5 +1,6 @@
 import type { Renderer } from "pixi.js";
 import type { Capabilities } from "../../generated/Capabilities";
+import type { CapabilityFlag } from "../../lib/capabilities";
 import { supports } from "../../lib/capabilities";
 import { WorkerTerritoryClient } from "../../lib/geometry/territoryClient";
 import type { DrawnPositions } from "../drawnPositions";
@@ -29,7 +30,7 @@ export interface LayerEntry {
   /** A menu-only toggle leaves this out: it steers what another layer draws, not a layer of its own. */
   create?(renderer: Renderer, drawn: DrawnPositions): MapLayer;
   /** A layer without one draws for every document. */
-  readonly requires?: keyof Capabilities;
+  readonly requires?: CapabilityFlag;
   /** False for a layer no menu switches: it shows whatever its store hands it. */
   readonly switched?: false;
   /** The menus leave the layer out until the install has been read. */

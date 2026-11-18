@@ -7,7 +7,7 @@ vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { AmbientObject } from "../../../generated/AmbientObject";
-import type { Capabilities } from "../../../generated/Capabilities";
+import type { CapabilityFlag } from "../../../lib/capabilities";
 import { documentCapabilities } from "../../../lib/capabilities";
 import {
   AT_A_RANDOM_SPOT,
@@ -35,7 +35,7 @@ beforeEach(() => {
 });
 
 /** The open document, with `on` switched on beside what it supports. */
-function switchOn(...on: (keyof Capabilities)[]): void {
+function switchOn(...on: CapabilityFlag[]): void {
   const now = documentCapabilities(useFileSessionStore.getState());
   useFileSessionStore.setState({
     capabilities: { ...now, ...Object.fromEntries(on.map((key) => [key, true])) },
@@ -71,14 +71,15 @@ describe("the Megastructures and Ambient objects sections", () => {
     expect(html).toContain(NO_MEGASTRUCTURES);
   });
 
-  it("leave a scenario's sections out with nothing in them until it can add to them", async () => {
+  it("show a scenario's Megastructures with none, and leave Ambient objects out until it can add one", async () => {
     await open("scenario");
     await land(details({ spawn: systemSpawn() }));
     let html = overview();
-    expect(sections(html)).not.toContain("Megastructures · 0");
+    expect(sections(html)).toContain("Megastructures · 0");
+    expect(html).toContain(NO_MEGASTRUCTURES);
     expect(sections(html)).not.toContain("Ambient objects · 0");
 
-    switchOn("add_megastructures", "ambient_objects");
+    switchOn("ambient_objects");
     html = overview();
     expect(sections(html)).toContain("Megastructures · 0");
     expect(sections(html)).toContain("Ambient objects · 0");
@@ -127,16 +128,14 @@ describe("the Megastructures and Ambient objects sections", () => {
     const { initializer, file } = ORIGIN_MARK_TEXT;
     expect(rowOf(html, "Fx Sphere")).toContain(initializer);
     expect(rowOf(html, "Fx Gate")).toContain(file);
-    expect(rowOf(html, "Fx Yard"), "the scenario can't move it yet").toContain(file);
-    expect(rowOf(html, "Large Debris Object")).toContain(initializer);
-    expect(rowOf(html, "Abandoned Ship Object")).toContain(file);
-
-    switchOn("place_structures", "ambient_objects");
-    html = overview();
-    expect(rowOf(html, "Fx Gate")).toContain(file);
     const own = rowOf(html, "Fx Yard");
     expect(own).not.toContain(initializer);
     expect(own).not.toContain(file);
+    expect(rowOf(html, "Large Debris Object")).toContain(initializer);
+    expect(rowOf(html, "Abandoned Ship Object"), "the scenario can't move it yet").toContain(file);
+
+    switchOn("ambient_objects");
+    html = overview();
     expect(rowOf(html, "Abandoned Ship Object")).not.toContain(file);
   });
 

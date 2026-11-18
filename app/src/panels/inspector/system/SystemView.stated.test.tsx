@@ -101,6 +101,7 @@ describe("a rolled scenario system", () => {
       "Spawn point",
       "Star class · 3 · rolled",
       "Planets · 2 to 10",
+      "Megastructures · 0",
       "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",
@@ -268,6 +269,7 @@ describe("a fixed scenario system", () => {
     expect(sections(html)).toEqual([
       "Spawn point",
       "Planets · 3",
+      "Megastructures · 0",
       "Ambient objects · 1",
       "Flags · 2",
       "Initializer",

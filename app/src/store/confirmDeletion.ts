@@ -20,8 +20,11 @@ export class Unreadable extends Error {
  */
 export async function confirmDeletion<Loss>(deletion: {
   title: string;
-  /** The session error's opening when `read` fails without saying which part, such as "Couldn't read Terra, so nothing was deleted". */
-  unreadable: string;
+  /**
+   * The session error's opening when `read` fails without saying which part, such as "Couldn't
+   * read Terra, so nothing was deleted"; that sentence about `title` when left out.
+   */
+  unreadable?: string;
   read: () => Promise<Loss>;
   question: (loss: Loss) => string | null;
   apply: () => Promise<boolean>;
@@ -33,7 +36,10 @@ export async function confirmDeletion<Loss>(deletion: {
   try {
     loss = await deletion.read();
   } catch (e) {
-    const stem = e instanceof Unreadable ? e.stem : deletion.unreadable;
+    const stem =
+      e instanceof Unreadable
+        ? e.stem
+        : (deletion.unreadable ?? `Couldn't read ${deletion.title}, so nothing was deleted`);
     const why = ipc.errorMessage(e instanceof Unreadable ? e.reason : e);
     useFileSessionStore.getState().setError(`${stem}: ${why}`);
     return false;

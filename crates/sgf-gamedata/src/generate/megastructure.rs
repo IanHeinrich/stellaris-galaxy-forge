@@ -16,7 +16,7 @@ use sgf_core::ops::{
 use sgf_core::placements::editor_angle;
 use sgf_core::session::{SaveQueries, Session};
 use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
-use sgf_core::views::{ErrorKind, SgfError};
+use sgf_core::views::{Capabilities, ErrorKind, MegastructureAdds, SgfError};
 use ts_rs::TS;
 
 use crate::GameData;
@@ -30,6 +30,8 @@ use crate::registries::megastructure_swaps::made_at;
 use crate::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 use crate::structure_spawns::WrittenPlace;
 
+use super::ruin;
+
 /// An add's op, with what the type's construction does that the op leaves out.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Planned {
@@ -42,7 +44,7 @@ pub struct Planned {
 }
 
 impl Planned {
-    fn whole(op: Op) -> Self {
+    pub(super) fn whole(op: Op) -> Self {
         Self {
             op,
             unsure: Vec::new(),
@@ -106,6 +108,8 @@ pub enum HostMoons {
 /// the planet's moons deletes them first when `moons` is [`HostMoons::Remove`]. A type the
 /// install does not define, one the editor does not add, one whose placement `place` does not
 /// match and one whose spawned planet the editor cannot write are refused with the reason.
+/// In a document that places ruins, a scenario, it is the ruin [`ruin::ruin_op`] writes, and
+/// `keep_planet` and `moons` are not read.
 pub fn megastructure_op(
     gd: &GameData,
     session: &Session,
@@ -115,6 +119,9 @@ pub fn megastructure_op(
     keep_planet: bool,
     moons: HostMoons,
 ) -> Result<Planned, Refusal> {
+    if places_ruins(session) {
+        return ruin::ruin_op(gd, system, kind, place);
+    }
     megastructure_op_at(gd, session, system, None, kind, place, keep_planet, moons)
 }
 
@@ -184,6 +191,12 @@ fn megastructure_op_at(
         unsure: built.unsure,
         unwritten,
     })
+}
+
+/// Whether the open document's add writes a ruin into a system's `effect` block, as a
+/// scenario's does, rather than a save's row.
+fn places_ruins(session: &Session) -> bool {
+    Capabilities::of(session.doc()).add_megastructures == MegastructureAdds::Ruins
 }
 
 /// The moons of planet `body`, in the order it lists them.
@@ -330,12 +343,18 @@ pub enum HostMoonsFit {
 /// is worded for the player from the reason it names: a second bypass of its kind, a body that
 /// has a megastructure, a habitat round a body that orbits a planet, a ring world in a system of
 /// other than one star or over another ring. A body that is not in the system is refused.
+///
+/// In a document that places ruins, a scenario, the types are the ruins its add offers, as
+/// [`ruin::ruin_fits`] answers.
 pub fn megastructure_fits(
     gd: &GameData,
     session: &Session,
     system: u32,
     spot: AddSpot,
 ) -> Result<Vec<MegastructureFit>, Refusal> {
+    if places_ruins(session) {
+        return ruin::ruin_fits(gd, session, system, spot);
+    }
     let site = session
         .save("adding a megastructure")?
         .construction_site(system)?;
@@ -520,7 +539,7 @@ fn is_ring_world(def: &MegastructureDef) -> bool {
 /// `refused`, the core's refusal of an add of `def` in a system whose rows are `rows`, in the
 /// player's words: a bypass already there named by the type of the row that stands for it, as the
 /// game names it. A reason the core names no part for keeps the core's text.
-fn worded(
+pub(super) fn worded(
     gd: &GameData,
     def: &MegastructureDef,
     refused: &OpError,
@@ -572,7 +591,7 @@ fn site_or_read<'s>(
     })
 }
 
-fn defined<'g>(gd: &'g GameData, kind: &str) -> Result<&'g MegastructureDef, Refusal> {
+pub(super) fn defined<'g>(gd: &'g GameData, kind: &str) -> Result<&'g MegastructureDef, Refusal> {
     gd.megastructures
         .get(kind)
         .ok_or_else(|| Refusal::NoType(kind.to_owned()))
@@ -790,7 +809,7 @@ const CHANGES_BODY: &str =
     "Galaxy Forge can't add this yet, because it can't tell how building it changes the planet.";
 const WHOLE_STRUCTURE: &str =
     "Galaxy Forge can't add this yet, because building it also creates other planets or sections.";
-const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
+pub(super) const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
 const ROUND_SATELLITE: &str =
     "Galaxy Forge can't add this round anything that orbits a planet, such as a moon.";
 const RING_WORLD_NO_STAR: &str = "Can't place a ring world in a system with no star.";

@@ -18,7 +18,11 @@ import {
   WRITTEN_FINISHED,
   fitsUnread,
 } from "../../lib/megastructureCopy";
+import { SCENARIO_STAR_BODY } from "../../generated/constants";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { bindStores } from "../../store/bindStores";
+import { useFileSessionStore } from "../../store/fileSessionStore";
+import { megastructureFits, megastructureTypeView } from "../../test/builders";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMegastructureAddStore } from "../../store/megastructureAdd";
 import { AddMegastructureDialog } from "./AddMegastructureDialog";
@@ -43,6 +47,42 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain("<h2>Dyson Sphere</h2>");
     expect(html).toContain("Stage 2 of 2: Finished");
     expect(html).toContain("+1000 Energy");
+    expect(html).toContain(WRITTEN_FINISHED);
+  });
+
+  it("leaves out the Owner row and the stage line for a scenario's ruin, and lists only what the shell offers", () => {
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    const data = useGameDataStore.getState();
+    const types = new Map(data.megastructureTypes);
+    types.set("dyson_sphere_ruined", megastructureTypeView("dyson_sphere_ruined"));
+    const names = new Map(data.names).set("dyson_sphere_ruined", "Ruined Dyson Sphere");
+    useGameDataStore.setState({ megastructureTypes: types, names });
+    openAt({ kind: "body", body: SCENARIO_STAR_BODY, star: true });
+    const onStar = { place: { place: "body", body: SCENARIO_STAR_BODY } } as const;
+    useMegastructureAddStore.setState({
+      fits: megastructureFits(["dyson_sphere_ruined"], { dyson_sphere_ruined: onStar }),
+    });
+    const html = renderToStaticMarkup(<AddMegastructureDialog />);
+
+    expect(html).toContain("<span>Where</span>");
+    expect(html).not.toContain("<span>Owner</span>");
+    expect(html).not.toContain(WRITTEN_FINISHED);
+    expect(html).toContain("<h2>Ruined Dyson Sphere</h2>");
+    expect(html).not.toContain("Loom");
+    expect(html).toContain(">Add Ruined Dyson Sphere</button>");
+  });
+
+  it("keeps the Owner row and the stage line for a save's megastructure of one stage", () => {
+    const data = useGameDataStore.getState();
+    const types = new Map(data.megastructureTypes);
+    types.set("dyson_sphere_ruined", megastructureTypeView("dyson_sphere_ruined"));
+    const names = new Map(data.names).set("dyson_sphere_ruined", "Ruined Dyson Sphere");
+    useGameDataStore.setState({ megastructureTypes: types, names });
+    useMegastructureAddStore.setState({ fits: megastructureFits(["dyson_sphere_ruined"]) });
+    const html = renderToStaticMarkup(<AddMegastructureDialog />);
+
+    expect(html).toContain("<span>Owner</span>");
+    expect(html).toContain(">Add Ruined Dyson Sphere</button>");
     expect(html).toContain(WRITTEN_FINISHED);
   });
 

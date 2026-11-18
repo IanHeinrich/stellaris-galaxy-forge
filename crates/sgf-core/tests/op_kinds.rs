@@ -13,7 +13,7 @@ use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::projections::geometry;
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode};
-use sgf_core::views::{Capabilities, DocumentKind};
+use sgf_core::views::{Capabilities, DocumentKind, MegastructureAdds};
 
 use crate::common;
 use common::examples::{self, one_of_each};
@@ -432,10 +432,22 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             modifiers: false,
             anomalies: false,
             dig_sites: false,
-            add_megastructures: false,
+            add_megastructures: MegastructureAdds::None,
             ..four
         }
     );
+}
+
+/// A save adds finished megastructure rows, habitats and ring worlds, and a scenario only ruins,
+/// which it can also move.
+#[test]
+fn a_save_adds_megastructure_rows_and_a_scenario_ruins() {
+    let save = Capabilities::of(common::open().doc());
+    assert_eq!(save.add_megastructures, MegastructureAdds::Rows);
+    assert!(!save.place_structures);
+    let scenario = Capabilities::of(common::examples::scenario().doc());
+    assert_eq!(scenario.add_megastructures, MegastructureAdds::Ruins);
+    assert!(scenario.place_structures);
 }
 
 /// Prepare is offered on a scenario, and the multi-edit of several bodies on a save.

@@ -47,7 +47,7 @@ use crate::projections::name::{NameTemplate, looks_like_key};
 use crate::projections::read;
 use crate::session::Session;
 use crate::validate::{self, Issue, IssueCode};
-use crate::views::{Capabilities, DocumentKind, SaveMeta};
+use crate::views::{Capabilities, DocumentKind, MegastructureAdds, SaveMeta};
 
 /// The game's ordinary systems the plain profile gives a seat, with the odds the game rolls
 /// each at. `basic_init_04` is left out because its last body can be an ice asteroid.
@@ -281,6 +281,8 @@ impl Format for Scenario {
             symmetry: true,
             rolled_layout: true,
             structures: true,
+            add_megastructures: MegastructureAdds::Ruins,
+            place_structures: true,
             rename_systems: true,
             header: true,
             scripted_owners: true,

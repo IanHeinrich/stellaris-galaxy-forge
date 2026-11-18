@@ -5,12 +5,24 @@ vi.mock("../api/events");
 
 import type { EntityAddr } from "../generated/EntityAddr";
 import { mockedIpc } from "../test/ipc";
-import { colonyPage, megastructureTypeView, name, planetPage } from "../test/builders";
+import {
+  colonyPage,
+  megastructureSummary,
+  megastructureTypeView,
+  name,
+  planetPage,
+  rowOrigin,
+  structureSpawn,
+  systemDetails,
+} from "../test/builders";
+import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave } from "./editorFixture";
 import { editResult, entityNode, entityView, scalar } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
-import { deleteMegastructure } from "./megastructureRemoval";
+import { deleteMegastructure, removeRuin } from "./megastructureRemoval";
+import { confirm } from "@tauri-apps/plugin-dialog";
+import { openFixtureScenario } from "./editorFixture";
 
 const NEXUS = 359;
 const WORLD = 517;
@@ -141,5 +153,75 @@ describe("deleting a megastructure", () => {
     armRow("think_tank_3", null);
     await deleteMegastructure(NEXUS, "Science Nexus", 0);
     expect(asked()).toBe("Delete Science Nexus in Sol? It is removed from the save.");
+  });
+});
+
+describe("removeRuin", () => {
+  const RUIN = 0x5800_0080;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    await openFixtureScenario();
+    useInspectorStore.setState({
+      stack: [{ ref: { kind: "megastructure", id: RUIN }, label: "Ruined Dyson Sphere" }],
+    });
+  });
+
+  it("asks, then takes the ruin out with RemoveMegastructure and closes its page", async () => {
+    vi.mocked(confirm).mockResolvedValue(true);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    expect(await removeRuin(RUIN, "Ruined Dyson Sphere", null)).toBe(true);
+    expect(confirm).toHaveBeenCalledWith(
+      "Delete Ruined Dyson Sphere? It is removed from the scenario.",
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "RemoveMegastructure",
+      megastructure: RUIN,
+    });
+    expect(labels()).not.toContain("Ruined Dyson Sphere");
+  });
+
+  it("closes the page of every later ruin of the system, whose ids move down, and keeps an earlier one's", async () => {
+    const SYS = 2;
+    const ruinRow = (id: number) =>
+      megastructureSummary({ id, kind: "gateway_ruined", spawn: structureSpawn(rowOrigin(id)) });
+    const rows = [
+      megastructureSummary({
+        id: 70,
+        kind: "dyson_sphere_ruined",
+        spawn: structureSpawn(rowOrigin(null)),
+      }),
+      ...[RUIN - 1, RUIN, RUIN + 1].map(ruinRow),
+    ];
+    useDetailsStore.setState({
+      details: new Map([[SYS, systemDetails({ id: SYS, megastructures: rows })]]),
+    });
+    vi.mocked(confirm).mockResolvedValue(true);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    const pages = (...ids: number[]) =>
+      useInspectorStore.setState({
+        stack: [
+          { ref: { kind: "system", id: SYS }, label: "Kel" },
+          ...ids.map((id) => ({
+            ref: { kind: "megastructure", id } as const,
+            label: `Ruin ${id}`,
+          })),
+        ],
+      });
+
+    pages(RUIN + 1);
+    expect(await removeRuin(RUIN, "Ruined Gateway", SYS)).toBe(true);
+    expect(labels()).toEqual(["Kel"]);
+
+    pages(RUIN - 1);
+    expect(await removeRuin(RUIN, "Ruined Gateway", SYS)).toBe(true);
+    expect(labels()).toEqual(["Kel", `Ruin ${RUIN - 1}`]);
+  });
+
+  it("leaves the ruin when the player says no", async () => {
+    vi.mocked(confirm).mockResolvedValue(false);
+    expect(await removeRuin(RUIN, "Ruined Dyson Sphere", null)).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 /**
  * The op that deletes a save's megastructure, the row facts its confirm reads, and the sentence
- * the confirm asks.
+ * the confirm asks; and the op and sentence that take a scenario's ruin out.
  */
 import { NULL_ID } from "../../generated/constants";
 import type { EntityNode } from "../../generated/EntityNode";
@@ -9,6 +9,7 @@ import type { MegastructureDismantle } from "../../generated/MegastructureDisman
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
+import { originOf } from "./placedRows";
 import { colonyParts } from "./planetRemoval";
 
 export const DELETE_MEGASTRUCTURE = "Delete megastructure";
@@ -18,6 +19,37 @@ export const MADE_BY_MEGASTRUCTURE = "megastructure";
 
 export function deleteMegastructureOp(megastructure: number): Op {
   return { type: "DeleteMegastructure", megastructure };
+}
+
+/** The op that takes ruin `megastructure` out of its scenario system's block. */
+export function removeRuinOp(megastructure: number): Op {
+  return { type: "RemoveMegastructure", megastructure };
+}
+
+/**
+ * The confirm's opening for deleting the megastructure named `name` from the `document` ("save"
+ * or "scenario"), in the system named `system`, or in no system read so far.
+ */
+function deleteOpening(name: string, system: string | null, document: string): string {
+  const where = system === null ? "" : ` in ${system}`;
+  return `Delete ${name}${where}? It is removed from the ${document}.`;
+}
+
+/** The confirm for taking the ruin named `name` out of the system named `system`, or of no system read so far. */
+export function removeRuinQuestion(name: string, system: string | null): string {
+  return deleteOpening(name, system, "scenario");
+}
+
+/**
+ * The ruins of a scenario system whose rows are `rows` that taking out ruin `id` takes or renumbers:
+ * it and every later one, since a ruin's id is its place in the system's block.
+ */
+export function ruinsFrom(rows: readonly MegastructureSummary[], id: number): number[] {
+  const later = rows.flatMap((row) => {
+    const origin = originOf(row);
+    return origin?.from === "effect" && origin.id > id ? [origin.id] : [];
+  });
+  return [id, ...later];
 }
 
 /** The system of `details` that lists megastructure `id`, or null where none read so far does. */
@@ -95,7 +127,6 @@ export function deleteMegastructureQuestion(
   system: string | null,
   { colony, dismantle, added }: MegastructureLoss,
 ): string {
-  const where = system === null ? "" : ` in ${system}`;
   const settled =
     colony === null
       ? ""
@@ -104,5 +135,5 @@ export function deleteMegastructureQuestion(
     dismantle === null && !added
       ? " Game data isn't loaded, so the modifiers from building it stay."
       : "";
-  return `Delete ${name}${where}? It is removed from the save.${settled}${kept}`;
+  return `${deleteOpening(name, system, "save")}${settled}${kept}`;
 }

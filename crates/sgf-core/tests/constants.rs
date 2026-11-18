@@ -13,6 +13,7 @@ use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
 use sgf_core::format::scenario::paint::RESERVED_SEAT_NAMES;
+use sgf_core::format::scenario::placed::STAR_BODY;
 use sgf_core::guides::L_CLUSTER;
 use sgf_core::ops::rules::{FURNACE_ENTITY, GALAXY_REACH, RELAY_RADIUS_FACTOR};
 use sgf_core::ops::{
@@ -89,6 +90,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "The id a save writes where an entity names none.",
         "NULL_ID",
         NULL_ID.to_string(),
+    );
+    constant(
+        "The id a scenario system's main star goes by, the only body a scenario places a ruin on.",
+        "SCENARIO_STAR_BODY",
+        STAR_BODY.to_string(),
     );
     let prefixes: Vec<String> = SEGMENT_CLASS_PREFIXES
         .iter()

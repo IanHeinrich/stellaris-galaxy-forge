@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { Capabilities } from "../../../generated/Capabilities";
+import type { CapabilityFlag } from "../../../lib/capabilities";
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { supports } from "../../../lib/capabilities";
@@ -39,7 +40,7 @@ export interface OverviewProps {
 /** One section of a system's Overview, and what the document must support to show it. */
 export interface OverviewSection {
   readonly component: ComponentType<OverviewProps>;
-  readonly requires?: keyof Capabilities;
+  readonly requires?: CapabilityFlag;
 }
 
 export type OverviewKey =
