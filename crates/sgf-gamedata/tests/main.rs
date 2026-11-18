@@ -75,6 +75,7 @@ mod reload;
 mod roll_body;
 mod sample_install_facts;
 mod save_bodies;
+mod scenario_ruins;
 mod scripts_bypasses;
 mod scripts_claim_rows;
 mod scripts_claims;

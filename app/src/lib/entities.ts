@@ -1,4 +1,4 @@
-import type { Capabilities } from "../generated/Capabilities";
+import type { CapabilityFlag } from "./capabilities";
 import { NULL_ID } from "../generated/constants";
 import type { EntityKind } from "../generated/EntityKind";
 import type { ScalarForm } from "../generated/ScalarForm";
@@ -59,7 +59,7 @@ export function iconKeys(icon: string): string[] {
 }
 
 /** What the open document must support for a kind to be worth drilling into. */
-export function capabilityFor(kind: EntityKind): keyof Capabilities | undefined {
+export function capabilityFor(kind: EntityKind): CapabilityFlag | undefined {
   if (kind === "system") return undefined;
   return kind === "country" || kind === "sector" ? "empires" : "details";
 }

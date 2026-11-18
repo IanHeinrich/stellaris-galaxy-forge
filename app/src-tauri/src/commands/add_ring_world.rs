@@ -1,7 +1,7 @@
 //! Adding a ring world round the star of a system of the open save, whole, with each quadrant
 //! at the stage the player picks, and what clearing the system for it would take.
 
-use sgf_core::views::{RingWorldClearing, SgfError};
+use sgf_core::views::{MegastructureAdds, RingWorldClearing, SgfError};
 use sgf_gamedata::construction::ring_world::RingStage;
 use sgf_gamedata::generate;
 use tauri::{AppHandle, Runtime};
@@ -25,7 +25,11 @@ pub async fn add_ring_world<R: Runtime>(
 ) -> Result<Added, SgfError> {
     let gd = game_data(&app, "add a ring world");
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), |c| c.add_megastructures, NO_RING_WORLDS)?;
+        let session = require(
+            guard.as_mut(),
+            |c| c.add_megastructures == MegastructureAdds::Rows,
+            NO_RING_WORLDS,
+        )?;
         let gd = gd?;
         let planned = generate::ring_world_op(&gd, session, system, &kind, &stages, clear)?;
         let result = session.apply(planned.op)?;
@@ -42,7 +46,11 @@ pub async fn get_ring_world_clearing<R: Runtime>(
     system: u32,
 ) -> Result<RingWorldClearing, SgfError> {
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), |c| c.add_megastructures, NO_RING_WORLDS)?;
+        let session = require(
+            guard.as_ref(),
+            |c| c.add_megastructures == MegastructureAdds::Rows,
+            NO_RING_WORLDS,
+        )?;
         Ok(session
             .save("clearing a system for a ring world")?
             .ring_world_clearing(system)?)

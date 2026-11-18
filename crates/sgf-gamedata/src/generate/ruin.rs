@@ -7,7 +7,8 @@ use sgf_core::ops::{MegastructurePlace, NewMegastructure, Op, OpError};
 use sgf_core::session::Session;
 
 use super::megastructure::{
-    AddSpot, HostMoonsFit, MegastructureFit, Planned, Refusal, defined, worded,
+    AddSpot, BODY_HAS_MEGASTRUCTURE, HostMoonsFit, MegastructureFit, Planned, Refusal, defined,
+    worded,
 };
 use crate::GameData;
 use crate::scenario_megastructure_fits::{ScenarioFit, ScenarioSpot, scenario_megastructure_fits};
@@ -16,17 +17,22 @@ use crate::scenario_megastructure_fits::{ScenarioFit, ScenarioSpot, scenario_meg
 /// key order: one at its own point stands at the point pressed, and any other on the main
 /// star. A type that goes only on the star is refused in empty space, so the player adds it
 /// from the star. The rest are refused as the add's own op is: a second ruin on the star,
-/// worded as the save words a body that holds a megastructure. A system the scenario does not
-/// hold is refused.
+/// worded as the save words a body that holds a megastructure. A ruin the system's initializer
+/// places on the main star holds it too, though the op cannot see it. A system the scenario
+/// does not hold is refused.
 pub(super) fn ruin_fits(
     gd: &GameData,
     session: &Session,
     system: u32,
     spot: AddSpot,
 ) -> Result<Vec<MegastructureFit>, Refusal> {
-    if !session.graph().systems.contains_key(&system) {
-        return Err(OpError::UnknownSystem(system).into());
-    }
+    let initializer = &session
+        .system(system)
+        .ok_or(OpError::UnknownSystem(system))?
+        .initializer;
+    let star_held = gd
+        .initializer_details(system, initializer, None)
+        .is_some_and(|d| d.megastructures.iter().any(|m| m.planet == Some(STAR_BODY)));
     let mut fits = Vec::new();
     for fit in scenario_megastructure_fits(gd, scenario_spot(spot)) {
         let place = match (fit.fit, spot) {
@@ -36,6 +42,7 @@ pub(super) fn ruin_fits(
         };
         let refusal = match (fit.fit, spot) {
             (ScenarioFit::StarOnly, AddSpot::Space { .. }) => Some(on_the_star(gd, &fit.kind)),
+            (ScenarioFit::StarOnly, _) if star_held => Some(BODY_HAS_MEGASTRUCTURE.to_owned()),
             _ => {
                 let def = defined(gd, &fit.kind)?;
                 session

@@ -5,7 +5,17 @@ vi.mock("../api/events");
 
 import type { EntityAddr } from "../generated/EntityAddr";
 import { mockedIpc } from "../test/ipc";
-import { colonyPage, megastructureTypeView, name, planetPage } from "../test/builders";
+import {
+  colonyPage,
+  megastructureSummary,
+  megastructureTypeView,
+  name,
+  planetPage,
+  rowOrigin,
+  structureSpawn,
+  systemDetails,
+} from "../test/builders";
+import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave } from "./editorFixture";
 import { editResult, entityNode, entityView, scalar } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
@@ -170,6 +180,43 @@ describe("removeRuin", () => {
       megastructure: RUIN,
     });
     expect(labels()).not.toContain("Ruined Dyson Sphere");
+  });
+
+  it("closes the page of every later ruin of the system, whose ids move down, and keeps an earlier one's", async () => {
+    const SYS = 2;
+    const ruinRow = (id: number) =>
+      megastructureSummary({ id, kind: "gateway_ruined", spawn: structureSpawn(rowOrigin(id)) });
+    const rows = [
+      megastructureSummary({
+        id: 70,
+        kind: "dyson_sphere_ruined",
+        spawn: structureSpawn(rowOrigin(null)),
+      }),
+      ...[RUIN - 1, RUIN, RUIN + 1].map(ruinRow),
+    ];
+    useDetailsStore.setState({
+      details: new Map([[SYS, systemDetails({ id: SYS, megastructures: rows })]]),
+    });
+    vi.mocked(confirm).mockResolvedValue(true);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    const pages = (...ids: number[]) =>
+      useInspectorStore.setState({
+        stack: [
+          { ref: { kind: "system", id: SYS }, label: "Kel" },
+          ...ids.map((id) => ({
+            ref: { kind: "megastructure", id } as const,
+            label: `Ruin ${id}`,
+          })),
+        ],
+      });
+
+    pages(RUIN + 1);
+    expect(await removeRuin(RUIN, "Ruined Gateway", SYS)).toBe(true);
+    expect(labels()).toEqual(["Kel"]);
+
+    pages(RUIN - 1);
+    expect(await removeRuin(RUIN, "Ruined Gateway", SYS)).toBe(true);
+    expect(labels()).toEqual(["Kel", `Ruin ${RUIN - 1}`]);
   });
 
   it("leaves the ruin when the player says no", async () => {

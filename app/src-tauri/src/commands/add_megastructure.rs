@@ -2,7 +2,7 @@
 //! open save, placed as its type says, or a ruin to a system of the open scenario.
 
 use sgf_core::ops::MegastructurePlace;
-use sgf_core::views::SgfError;
+use sgf_core::views::{MegastructureAdds, SgfError};
 use sgf_gamedata::generate::{self, HostMoons};
 use tauri::{AppHandle, Runtime};
 
@@ -27,7 +27,11 @@ pub async fn add_megastructure<R: Runtime>(
 ) -> Result<AddedMegastructure, SgfError> {
     let gd = game_data(&app, "add a megastructure");
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), |c| c.add_megastructures, NO_MEGASTRUCTURES)?;
+        let session = require(
+            guard.as_mut(),
+            |c| c.add_megastructures != MegastructureAdds::None,
+            NO_MEGASTRUCTURES,
+        )?;
         let gd = gd?;
         let planned =
             generate::megastructure_op(&gd, session, system, &kind, place, keep_planet, moons)?;

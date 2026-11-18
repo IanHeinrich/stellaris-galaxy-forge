@@ -162,7 +162,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
     ring,
     habitat: type?.habitat === true,
     orbital: type?.habitat_orbital === true,
-    oneStage: found !== null && entryStages(found.entry).length === 1,
+    oneStage: !form.oneStageFooter && found !== null && entryStages(found.entry).length === 1,
   };
   const footer = footerLine(kind, owner !== null, orbitHosted, planetNote);
 

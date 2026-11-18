@@ -4,7 +4,7 @@ import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";
-import { megastructureAddForm } from "../../../lib/megastructureAddForm";
+import { megastructureAddForm, rolledBody } from "../../../lib/megastructureAddForm";
 import { ADD_MEGASTRUCTURE_LABEL } from "../../../lib/megastructureCopy";
 import { isStar } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";
@@ -104,7 +104,11 @@ export function BodyMenu({
           system={target.system}
           spot={{ kind: "body", body: target.id, star, class: planet.class }}
           label={ADD_MEGASTRUCTURE_LABEL}
-          refusal={megastructureAddForm(capabilities).bodyRefusal(target.id, star)}
+          refusal={megastructureAddForm(capabilities).bodyRefusal({
+            id: target.id,
+            star,
+            rolled: rolledBody(planet),
+          })}
         />
       )}
       {offers.deleteBody && name !== undefined && planet !== undefined && (

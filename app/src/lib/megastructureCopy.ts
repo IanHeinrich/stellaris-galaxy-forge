@@ -17,11 +17,11 @@ export const ADD_MEGASTRUCTURE_LABEL = "Add megastructure…";
 export const MEGASTRUCTURES_NEED_GAME_DATA = needsGameData("add a megastructure");
 export const NO_MEGASTRUCTURE_FITS = "No megastructure can go here.";
 
-/** Why a scenario places nothing on a body the game rolls, a star when `star`. */
-export function rolledBodyRefusal(star: boolean): string {
-  const body = star ? "star" : "planet";
-  return `The game rolls this ${body} when it makes the galaxy, so the scenario can't place anything on it.`;
-}
+/** Why a scenario places nothing on a planet or moon the game rolls. */
+export const ROLLED_BODY_REFUSAL =
+  "The game rolls this planet when it makes the galaxy, so the scenario can't place anything on it.";
+/** Why a scenario places nothing on any other body. */
+export const MAIN_STAR_ONLY = "Only the system's main star takes a ruin in a scenario.";
 /** What the dialog says while it asks the save what goes at the spot. */
 export const READING_FITS = "Checking what can go here…";
 

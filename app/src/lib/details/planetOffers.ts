@@ -56,7 +56,7 @@ export function planetPageOffers(
     move: capabilities.planet_moves,
     addPlanet: capabilities.add_bodies,
     addMoon: capabilities.add_bodies && facts.moonHost,
-    addMegastructure: capabilities.add_megastructures,
+    addMegastructure: capabilities.add_megastructures !== "none",
     deleteBody: capabilities.remove_bodies,
     pageRemoval: capabilities.remove_bodies && planet,
   };

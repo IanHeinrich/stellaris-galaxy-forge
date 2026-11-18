@@ -162,10 +162,10 @@ pub struct Capabilities {
     pub anomalies: bool,
     /// A planet's dig site can be added and removed.
     pub dig_sites: bool,
-    /// A megastructure can be added to a system, and one added taken out again.
-    pub add_megastructures: bool,
-    /// A ruin can be placed in a system's `effect` block, on its star or at a point, and one
-    /// the editor writes moved and taken out.
+    /// What adding a megastructure to a system writes, if anything.
+    pub add_megastructures: MegastructureAdds,
+    /// The ruins and ambient objects a system's `effect` block places, in the shapes the
+    /// editor writes, can be moved.
     pub place_structures: bool,
     /// An ambient object can be placed in a system's `effect` block, and one the editor
     /// writes moved and taken out.
@@ -194,6 +194,22 @@ pub struct Capabilities {
     pub text_file: bool,
     /// The document can be exported as a scenario script.
     pub export: bool,
+}
+
+/// What the system view's Add megastructure writes in a kind of document.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum MegastructureAdds {
+    /// Nothing: the document takes no added megastructure.
+    #[default]
+    None,
+    /// A finished `megastructures` row of any type, a habitat or a whole ring world, which
+    /// can be taken out again, as a save writes them.
+    Rows,
+    /// A ruin with no owner in a system's `effect` block, on its main star or at a point,
+    /// which can be taken out again, as a scenario writes one.
+    Ruins,
 }
 
 impl Capabilities {

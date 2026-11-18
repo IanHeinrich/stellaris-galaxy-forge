@@ -25,11 +25,14 @@ fn ts_set(name: &str) -> Value {
             .split_once(':')
             .unwrap_or_else(|| panic!("{name}: `{field}` is not `key: value`"));
         let value = match value.trim() {
-            "true" => true,
-            "false" => false,
-            other => panic!("{name}.{key}: `{other}` is not a boolean"),
+            "true" => Value::Bool(true),
+            "false" => Value::Bool(false),
+            other => match other.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
+                Some(text) => Value::String(text.to_owned()),
+                None => panic!("{name}.{key}: `{other}` is not a boolean or a string"),
+            },
         };
-        set.insert(key.trim().to_owned(), Value::Bool(value));
+        set.insert(key.trim().to_owned(), value);
     }
     Value::Object(set)
 }

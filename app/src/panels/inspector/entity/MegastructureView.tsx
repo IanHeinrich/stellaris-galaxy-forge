@@ -51,6 +51,9 @@ function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
   );
   const systemName = useGalaxyStore((s) => s.systemName);
   const names = useGameDataStore((s) => s.names);
+  const removable = useFileSessionStore(
+    (s) => documentCapabilities(s).add_megastructures === "ruins",
+  );
   const head = (
     <div className="ins-head">
       <Icon className="gi" keys={[MEGASTRUCTURE_ICON_KEY]} glyph="◈" />
@@ -77,7 +80,7 @@ function ScenarioMegastructure({ id, label }: { id: number; label: string }) {
           {systemName(system)}
         </LinkRow>
       </Properties>
-      {editableId(originOf(row)) !== null && (
+      {removable && editableId(originOf(row)) !== null && (
         <RemovalAction target={{ kind: "ruin", system, id, name: label }} />
       )}
     </>

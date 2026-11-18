@@ -16,7 +16,7 @@ use sgf_core::ops::{
 use sgf_core::placements::editor_angle;
 use sgf_core::session::{SaveQueries, Session};
 use sgf_core::views::details::{ConstructionSite, MegastructureSummary, SiteBody};
-use sgf_core::views::{Capabilities, ErrorKind, SgfError};
+use sgf_core::views::{Capabilities, ErrorKind, MegastructureAdds, SgfError};
 use ts_rs::TS;
 
 use crate::GameData;
@@ -196,7 +196,7 @@ fn megastructure_op_at(
 /// Whether the open document's add writes a ruin into a system's `effect` block, as a
 /// scenario's does, rather than a save's row.
 fn places_ruins(session: &Session) -> bool {
-    Capabilities::of(session.doc()).place_structures
+    Capabilities::of(session.doc()).add_megastructures == MegastructureAdds::Ruins
 }
 
 /// The moons of planet `body`, in the order it lists them.
@@ -809,7 +809,7 @@ const CHANGES_BODY: &str =
     "Galaxy Forge can't add this yet, because it can't tell how building it changes the planet.";
 const WHOLE_STRUCTURE: &str =
     "Galaxy Forge can't add this yet, because building it also creates other planets or sections.";
-const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
+pub(super) const BODY_HAS_MEGASTRUCTURE: &str = "It already has a megastructure.";
 const ROUND_SATELLITE: &str =
     "Galaxy Forge can't add this round anything that orbits a planet, such as a moon.";
 const RING_WORLD_NO_STAR: &str = "Can't place a ring world in a system with no star.";

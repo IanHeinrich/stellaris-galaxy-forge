@@ -1,4 +1,4 @@
-import type { Capabilities } from "../../generated/Capabilities";
+import type { CapabilityFlag } from "../../lib/capabilities";
 import { megastructurePageNeeds, originOf } from "../../lib/details/placedRows";
 import { capabilityFor } from "../../lib/entities";
 import type { Pt } from "../../lib/geometry/pt";
@@ -18,7 +18,7 @@ interface StructureKindRow {
    * What the open document must support for the page of structure `id`, as the scene `ctx` shows
    * it; null where the structure has no page.
    */
-  pageNeeds(ctx: SystemContext, id: number): keyof Capabilities | undefined | null;
+  pageNeeds(ctx: SystemContext, id: number): CapabilityFlag | undefined | null;
   /** The menu a right-click opens; null for the system space's. */
   menu(system: number, id: number): ContextTarget | null;
   /** The drag a press starts, from the scene `frame`; null where it may not move. */

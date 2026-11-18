@@ -13,9 +13,11 @@ import {
   megastructureRow,
   removeRuinOp,
   removeRuinQuestion,
+  ruinsFrom,
   type MegastructureLoss,
 } from "../lib/details/megastructureRemoval";
 import { confirmDeletion } from "./confirmDeletion";
+import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -72,18 +74,21 @@ export function deleteMegastructure(
 
 /**
  * Takes ruin `id`, named `name`, out of its scenario system `system` (null where no system read
- * lists it), once the user confirms.
+ * lists it), once the user confirms. The pages of it and of every later ruin of the system close,
+ * since those ruins move down one id.
  */
 export function removeRuin(id: number, name: string, system: number | null): Promise<boolean> {
   return confirmDeletion({
     title: name,
-    unreadable: `Couldn't read ${name}, so nothing was deleted`,
-    read: () => Promise.resolve(null),
+    read: () => {
+      const read = system === null ? undefined : useDetailsStore.getState().details.get(system);
+      return Promise.resolve(ruinsFrom(read?.megastructures ?? [], id));
+    },
     question() {
       const where = system === null ? null : useGalaxyStore.getState().systemName(system);
       return removeRuinQuestion(name, where);
     },
     apply: () => useEditorStore.getState().applyOp(removeRuinOp(id)),
-    gone: () => ({ megastructures: [id], colonies: [] }),
+    gone: (ruins) => ({ megastructures: ruins, colonies: [] }),
   });
 }

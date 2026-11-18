@@ -58,7 +58,8 @@ import {
   ADD_MEGASTRUCTURE_HERE_LABEL,
   ADD_MEGASTRUCTURE_LABEL,
   MEGASTRUCTURES_NEED_GAME_DATA,
-  rolledBodyRefusal,
+  MAIN_STAR_ONLY,
+  ROLLED_BODY_REFUSAL,
 } from "../../lib/megastructureCopy";
 import { SCENARIO_STAR_BODY } from "../../generated/constants";
 import { placementAt } from "../../lib/planetMove";
@@ -639,14 +640,26 @@ describe("a scenario's system view menus", () => {
     },
   );
 
-  it("offers Add megastructure on the main star and in empty space, and refuses a rolled planet with the reason", async () => {
+  it("offers Add megastructure on the main star and in empty space, and refuses any other body with its reason", async () => {
     await openWith(SCENARIO_RESULT);
-    const stated = (id: number, planetClass: string) =>
-      planetSummary({ id, name: name(`Body ${id}`), name_key: `Body ${id}`, class: planetClass });
+    const stated = (id: number, planetClass: string, drawn = false) =>
+      planetSummary({
+        id,
+        name: name(`Body ${id}`),
+        name_key: `Body ${id}`,
+        class: planetClass,
+        drawn,
+      });
+    const [STAR, PLANET, ROLLED, SECOND] = [0, 1, 2, 3].map((n) => SCENARIO_STAR_BODY + n);
     inSystem(
       systemDetails({
         id: 0,
-        planets: [stated(SCENARIO_STAR_BODY, "star"), stated(SCENARIO_STAR_BODY + 1, "pc_arid")],
+        planets: [
+          stated(STAR, "star"),
+          stated(PLANET, "pc_arid"),
+          stated(ROLLED, "random", true),
+          stated(SECOND, "star"),
+        ],
       }),
     );
     useGameDataStore.setState({ status: "ready" });
@@ -669,8 +682,14 @@ describe("a scenario's system view menus", () => {
     ).props.onClick();
     expect(prompt()).toEqual({ system: 0, spot: { kind: "space", x: 90, y: -120 } });
 
-    const planet = menuOn(body(SCENARIO_STAR_BODY + 1));
-    expect(planet).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
-    expect(planet).toContain(escaped(rolledBodyRefusal(false)));
+    for (const [id, reason] of [
+      [PLANET, MAIN_STAR_ONLY],
+      [ROLLED, ROLLED_BODY_REFUSAL],
+      [SECOND, MAIN_STAR_ONLY],
+    ] as const) {
+      const html = menuOn(body(id));
+      expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
+      expect(html).toContain(escaped(reason));
+    }
   });
 });

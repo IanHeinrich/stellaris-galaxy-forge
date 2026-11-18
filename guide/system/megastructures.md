@@ -260,9 +260,8 @@ out again.
 
 - In empty space, a ruin round a star is greyed out. Right-click the
   star to add it.
-- A planet or moon can't take a ruin, because the game rolls it when it
-  makes the galaxy. Its menu greys out Add megastructure and says so.
-- In a system with more than one star, only the main star takes a ruin.
+- Only the system's main star takes a ruin. On a planet, a moon or
+  another star, the menu greys out Add megastructure and says why.
 - A star that already has a ruin from the scenario greys out the list.
 
 ### Move or delete a ruin

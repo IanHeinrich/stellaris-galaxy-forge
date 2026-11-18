@@ -7,7 +7,7 @@ vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { AmbientObject } from "../../../generated/AmbientObject";
-import type { Capabilities } from "../../../generated/Capabilities";
+import type { CapabilityFlag } from "../../../lib/capabilities";
 import { documentCapabilities } from "../../../lib/capabilities";
 import {
   AT_A_RANDOM_SPOT,
@@ -35,7 +35,7 @@ beforeEach(() => {
 });
 
 /** The open document, with `on` switched on beside what it supports. */
-function switchOn(...on: (keyof Capabilities)[]): void {
+function switchOn(...on: CapabilityFlag[]): void {
   const now = documentCapabilities(useFileSessionStore.getState());
   useFileSessionStore.setState({
     capabilities: { ...now, ...Object.fromEntries(on.map((key) => [key, true])) },

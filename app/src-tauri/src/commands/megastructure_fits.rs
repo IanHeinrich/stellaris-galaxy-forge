@@ -1,6 +1,6 @@
 //! What the Add megastructure dialog offers at a spot of a system of the open document.
 
-use sgf_core::views::SgfError;
+use sgf_core::views::{MegastructureAdds, SgfError};
 use sgf_gamedata::generate::{self, AddSpot, MegastructureFit};
 use tauri::{AppHandle, Runtime};
 
@@ -19,7 +19,11 @@ pub async fn get_megastructure_fits<R: Runtime>(
 ) -> Result<Vec<MegastructureFit>, SgfError> {
     let gd = game_data(&app, "add a megastructure");
     with_open(app, move |session| {
-        let session = require(Some(session), |c| c.add_megastructures, NO_MEGASTRUCTURES)?;
+        let session = require(
+            Some(session),
+            |c| c.add_megastructures != MegastructureAdds::None,
+            NO_MEGASTRUCTURES,
+        )?;
         let gd = gd?;
         Ok(generate::megastructure_fits(&gd, session, system, spot)?)
     })

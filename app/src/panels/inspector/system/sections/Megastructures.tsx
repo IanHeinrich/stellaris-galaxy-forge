@@ -83,7 +83,7 @@ export function MegastructureSection({
   system: number;
 }) {
   const [all, setAll] = useState(false);
-  const addable = useFileSessionStore((s) => documentCapabilities(s).add_megastructures);
+  const addable = useFileSessionStore((s) => documentCapabilities(s).add_megastructures !== "none");
   if (megastructures.length === 0 && !addable) return null;
   const shown = all ? megastructures : megastructures.slice(0, LIST_LIMIT);
   return (

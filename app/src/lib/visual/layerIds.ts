@@ -1,4 +1,5 @@
 import type { Capabilities } from "../../generated/Capabilities";
+import type { CapabilityFlag } from "../capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { DOCUMENT_KINDS } from "../documentKinds";
@@ -55,7 +56,7 @@ const SCENE_LAYERS = [
   id: LayerId;
   on: boolean;
   sceneOnly?: true;
-  needs?: keyof Capabilities;
+  needs?: CapabilityFlag;
 }[];
 
 type SceneLayer = (typeof SCENE_LAYERS)[number];

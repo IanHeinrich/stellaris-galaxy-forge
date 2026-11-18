@@ -4,6 +4,7 @@ import { isSgfError } from "../api/errors";
 import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import type { Capabilities } from "../generated/Capabilities";
+import type { CapabilityFlag } from "../lib/capabilities";
 import type { DocumentChanged } from "../generated/DocumentChanged";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { ErrorKind } from "../generated/ErrorKind";
@@ -392,12 +393,12 @@ export function reportFailure(promise: Promise<unknown>): void {
 }
 
 /** Whether the open document supports `cap`, as `documentCapabilities` reads it. */
-export function canEdit(cap: keyof Capabilities): boolean {
+export function canEdit(cap: CapabilityFlag): boolean {
   return supports(documentCapabilities(useFileSessionStore.getState()), cap);
 }
 
 /** The same fact, for a component. */
-export function useCanEdit(cap: keyof Capabilities): boolean {
+export function useCanEdit(cap: CapabilityFlag): boolean {
   return useFileSessionStore((s) => supports(documentCapabilities(s), cap));
 }
 

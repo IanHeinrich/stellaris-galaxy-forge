@@ -72,6 +72,20 @@ describe("the Add megastructure dialog", () => {
     expect(html).toContain(">Add Ruined Dyson Sphere</button>");
   });
 
+  it("keeps the Owner row and the stage line for a save's megastructure of one stage", () => {
+    const data = useGameDataStore.getState();
+    const types = new Map(data.megastructureTypes);
+    types.set("dyson_sphere_ruined", megastructureTypeView("dyson_sphere_ruined"));
+    const names = new Map(data.names).set("dyson_sphere_ruined", "Ruined Dyson Sphere");
+    useGameDataStore.setState({ megastructureTypes: types, names });
+    useMegastructureAddStore.setState({ fits: megastructureFits(["dyson_sphere_ruined"]) });
+    const html = renderToStaticMarkup(<AddMegastructureDialog />);
+
+    expect(html).toContain("<span>Owner</span>");
+    expect(html).toContain(">Add Ruined Dyson Sphere</button>");
+    expect(html).toContain(WRITTEN_FINISHED);
+  });
+
   it("shows a tile's place in its row above its short name, and a list option's summary under its name", () => {
     let html = dialog();
     expect(html).toContain('<span class="megastructure-add-summary muted">6 stages</span>');
