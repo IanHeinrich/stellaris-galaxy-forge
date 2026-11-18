@@ -315,7 +315,7 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),
     countryName: galaxy.countryName,
-    geometry: geometryAdapterFor(session.kind, capabilities, id),
+    geometry: geometryAdapterFor(capabilities, id),
     lockedBodies,
   });
 }

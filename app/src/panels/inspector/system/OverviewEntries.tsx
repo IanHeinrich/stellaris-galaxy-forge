@@ -1,4 +1,7 @@
 import { useEffect } from "react";
+import { documentCapabilities } from "../../../lib/capabilities";
+import { ambientObjectsOf } from "../../../lib/details/ambientObjects";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useScriptsStore } from "../../../store/scriptsStore";
@@ -151,9 +154,11 @@ export function StarList({ details }: OverviewProps) {
   return star?.state === "rolled" ? <StarListSection star={star} /> : null;
 }
 
+/** The system's ambient objects; with none, the section shows only where the document can add one. */
 export function AmbientObjects({ detail, details }: OverviewProps) {
-  const objects = details?.spawn?.ambient_objects ?? [];
-  if (objects.length === 0) return null;
+  const addable = useFileSessionStore((s) => documentCapabilities(s).ambient_objects);
+  const objects = ambientObjectsOf(details);
+  if (!details || (objects.length === 0 && !addable)) return null;
   return <AmbientObjectSection system={detail.system.id} objects={objects} />;
 }
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ContentsRow } from "../../../generated/ContentsRow";
 import type { EntityAddr } from "../../../generated/EntityAddr";
 import type { EntityView as EntityViewData } from "../../../generated/EntityView";
@@ -128,7 +129,17 @@ function Contents({ view }: { view: EntityViewData }) {
   );
 }
 
-function EntityBody({ addr, label, system }: { addr: EntityAddr; label: string; system?: number }) {
+function EntityBody({
+  addr,
+  label,
+  system,
+  fields,
+}: {
+  addr: EntityAddr;
+  label: string;
+  system?: number;
+  fields?: ReactNode;
+}) {
   const tab = useInspectorStore((s) => s.tab);
   const { value: view, error } = useEntityView(addr, ROOT);
   if (tab === "data") {
@@ -150,6 +161,7 @@ function EntityBody({ addr, label, system }: { addr: EntityAddr; label: string; 
   return (
     <>
       <Head label={label} addr={addr} view={view} />
+      {fields}
       {error !== undefined ? (
         <Empty>
           This {kindWords(addr.kind)} could not be read: {error}
@@ -167,9 +179,10 @@ function EntityBody({ addr, label, system }: { addr: EntityAddr; label: string; 
 
 /**
  * One entity, whatever its kind: the curated Overview, what it contains, every field the save
- * wrote and its own text. A list inside it opens as a level of its own, so nothing nests.
+ * wrote and its own text. A list inside it opens as a level of its own, so nothing nests. A
+ * page's editable `fields` go above its Overview.
  */
-export function EntityView({ entry }: { entry: Entry }) {
+export function EntityView({ entry, fields }: { entry: Entry; fields?: ReactNode }) {
   const ref = entry.ref;
   const addr = entityAddr(ref);
   if (addr === null) return <Empty>Nothing to show for {entry.label}.</Empty>;
@@ -187,5 +200,5 @@ export function EntityView({ entry }: { entry: Entry }) {
     );
   }
   const system = ref.kind === "body" ? ref.system : undefined;
-  return <EntityBody addr={addr} label={entry.label} system={system} />;
+  return <EntityBody addr={addr} label={entry.label} system={system} fields={fields} />;
 }

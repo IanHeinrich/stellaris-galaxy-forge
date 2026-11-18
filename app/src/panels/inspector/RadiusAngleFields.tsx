@@ -14,6 +14,7 @@ export function RadiusAngleFields({
   radiusTitle,
   angleTitle,
   ranges = false,
+  disabledReason,
   onCommit,
 }: {
   radius: number;
@@ -23,6 +24,8 @@ export function RadiusAngleFields({
   angleTitle: string;
   /** Whether the source takes a range; a source that never does leaves it out. */
   ranges?: boolean;
+  /** Set when neither field takes an edit: both show disabled, and say why on hover. */
+  disabledReason?: string;
   onCommit: (field: "radius" | "angle", next: Bounds) => void;
 }) {
   return (
@@ -34,6 +37,7 @@ export function RadiusAngleFields({
           value={{ min: radius, max: radius }}
           editAs={rounded}
           ranges={ranges}
+          disabledReason={disabledReason}
           onCommit={(next) => onCommit("radius", next)}
         />
       </EditRow>
@@ -44,6 +48,7 @@ export function RadiusAngleFields({
           value={{ min: angle, max: angle }}
           editAs={rounded}
           ranges={ranges}
+          disabledReason={disabledReason}
           display={(n) => String(Math.round(n) % 360)}
           onCommit={(next) => onCommit("angle", next)}
         />

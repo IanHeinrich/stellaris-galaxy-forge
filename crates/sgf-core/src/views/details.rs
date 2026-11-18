@@ -160,14 +160,45 @@ pub struct ListMember {
     pub weight: Option<f64>,
 }
 
-/// A `create_ambient_object`.
+/// A `create_ambient_object`: one an initializer creates, or one the scenario's own `effect`
+/// block does.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AmbientObject {
     /// Its `type`.
     pub kind: String,
-    /// The body whose `init_effect` creates it; `None` for the system's own.
-    pub body: Option<u32>,
+    pub place: AmbientPlace,
+    /// The id the ops address it by: set for one of the scenario's `effect` block, `None` for
+    /// an initializer's.
+    pub id: Option<u32>,
+    pub origin: RowOrigin,
+}
+
+/// Where an ambient object stands.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "place")]
+pub enum AmbientPlace {
+    /// At the body whose `init_effect` creates it.
+    Body { body: u32 },
+    /// At `x`, `y` about the system's main star in the save frame, as the editor's own
+    /// `set_location` writes it.
+    Point { x: f64, y: f64 },
+    /// At a spot the game picks.
+    Random,
+}
+
+/// Where a row of a scenario system's Megastructures or Ambient objects comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum RowOrigin {
+    /// The system's initializer places it.
+    Initializer,
+    /// The scenario's `effect` block, in a shape the editor edits where it stands.
+    Editable,
+    /// The scenario's `effect` block, in a shape the editor leaves as written.
+    ReadOnly,
 }
 
 /// An initializer's `usage_odds`.
@@ -854,6 +885,10 @@ pub struct MegastructureSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub spawn: Option<StructureSpawn>,
+    /// Where a scenario's row comes from. `None` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub origin: Option<RowOrigin>,
 }
 
 /// One `natural_wormholes` entry standing in the system: a wormhole, or a shroud tunnel.

@@ -43,6 +43,9 @@ export const MEGASTRUCTURE_FIXED = {
   whole: "It's part of a larger structure, so it stays where it is",
   centre: "It isn't attached to a planet or star, so it stays at the system's centre",
   made: "Building it created its planet, so it stays with that planet",
+  initializer: "The initializer places it, so it stays where it is",
+  file: "Galaxy Forge doesn't edit the way the file writes it, so it stays where it is",
+  onStar: "It stands on the star, so it stays there",
 } as const;
 
 /** Why a body will not take a dragged row. */
@@ -59,14 +62,12 @@ export interface HomeBody {
 }
 
 /**
- * Whether a row of `type` tied to a body stands at its own point: false for a type the game
- * draws on its body wherever its point is, one that grows with its planet or stands on its star
- * with no offset, as an Orbital Ring or a Dyson Sphere does. Without the type, false.
+ * Whether a row of `type` tied to a body, a star when `onStar`, stands at its own point, as the
+ * type's view says. Without the type, false.
  */
 export function floatsFree(type: MegastructureView | undefined, onStar: boolean): boolean {
-  if (type === undefined || type.scales_with_planet) return false;
-  const [dx, dy] = type.entity_offset;
-  return !(onStar && dx === 0 && dy === 0);
+  if (type === undefined) return false;
+  return onStar ? type.floats_free_on_star : type.floats_free;
 }
 
 /** How row `row` of `type` moves. */
@@ -75,6 +76,9 @@ export function megastructureMove(
   type: MegastructureView | undefined,
   home: HomeBody = { star: false },
 ): MegastructureMove {
+  if (row.origin === "initializer") return fixed("initializer");
+  if (row.origin === "read_only") return fixed("file");
+  if (row.origin === "editable" && row.planet !== null) return fixed("onStar");
   const known = type === undefined ? undefined : new Map([[row.kind, type]]);
   if (isRingRow(row.kind, known)) return fixed("ringWorld");
   const bypass = type?.bypass_type ?? null;

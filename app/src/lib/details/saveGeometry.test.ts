@@ -111,13 +111,13 @@ describe("what a save lets the system view edit", () => {
 
 describe("the adapter a document gets", () => {
   it("is the save's for a save system, and edits nothing on a scenario or with no system", () => {
-    expect(geometryAdapterFor("save", SAVE_CAPABILITIES, SYSTEM)).toBe(SAVE_GEOMETRY);
-    expect(geometryAdapterFor("scenario", SCENARIO_CAPABILITIES, SYSTEM)).toBe(NO_GEOMETRY);
-    expect(geometryAdapterFor("save", SAVE_CAPABILITIES, null)).toBe(NO_GEOMETRY);
+    expect(geometryAdapterFor(SAVE_CAPABILITIES, SYSTEM)).toBe(SAVE_GEOMETRY);
+    expect(geometryAdapterFor(SCENARIO_CAPABILITIES, SYSTEM)).toBe(NO_GEOMETRY);
+    expect(geometryAdapterFor(SAVE_CAPABILITIES, null)).toBe(NO_GEOMETRY);
   });
 
   it("on a scenario, lets nothing move, previews nothing and makes no op", () => {
-    const adapter = geometryAdapterFor("scenario", SCENARIO_CAPABILITIES, SYSTEM);
+    const adapter = geometryAdapterFor(SCENARIO_CAPABILITIES, SYSTEM);
     const editing = adapter.editing(frameOf());
     expect(editing.bodies.size).toBe(0);
     expect(editing).toMatchObject({ belts: false, innerRadius: false });

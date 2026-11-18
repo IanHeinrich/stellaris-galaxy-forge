@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { ORIGIN_MARK_TEXT, type OriginMark as Mark } from "../lib/details/placedRows";
 import { splitsBySource, type Source } from "../lib/visual/layerGroups";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useTextureUrl } from "./useTextureUrl";
@@ -106,6 +107,14 @@ export function SourceChip({ source, title }: { source: Source; title?: string }
       {source}
     </span>
   );
+}
+
+/** The source hue each origin mark wears. */
+const MARK_SOURCE: Record<Mark, Source> = { initializer: "initializers", file: "scenario" };
+
+/** Where a row the page can't edit comes from, in the hue of that source. */
+export function OriginMark({ mark }: { mark: Mark }) {
+  return <span className={CHIP_CLASS[MARK_SOURCE[mark]]}>{ORIGIN_MARK_TEXT[mark]}</span>;
 }
 
 /** Above this many rows a list carries a filter of its own. */

@@ -116,7 +116,6 @@ describe("the store fields the scene reads", () => {
       starClasses: () => useGameDataStore.setState({ starClasses: new Map() }),
       summary: () => useGameDataStore.setState({ summary: gameDataSummary() }),
       bypasses: () => useGameDataStore.setState({ bypasses: new Map() }),
-      kind: () => useFileSessionStore.setState({ kind: "scenario" }),
       capabilities: () => useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES }),
       sceneLayers: () => useMapChromeStore.setState({ sceneLayers: { ...NO_SOURCES.sceneLayers } }),
       lockedBodies: () => useSceneStore.setState({ lockedBodies: new Set([3]) }),

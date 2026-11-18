@@ -257,10 +257,10 @@ impl Format for Scenario {
     }
 
     /// A scenario system has no bodies of its own, and an op that only writes a save's
-    /// bodies, or its megastructures, writes a statement's own text here.
+    /// bodies writes a statement's own text here.
     fn stale_details(&self, reach: DetailsReach, subjects: &[Subject]) -> Vec<u32> {
         match reach {
-            DetailsReach::SaveBodies | DetailsReach::SaveRebuild => Vec::new(),
+            DetailsReach::SaveBodies => Vec::new(),
             _ => format::stale_systems(subjects, false),
         }
     }

@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use sgf_core::format::save::details::{DetailsProjection, RawSystemDetails};
 use sgf_core::ops::{DetailsReach, Op, OpError};
+use sgf_core::placements::Statement;
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::projections::geometry;
 use sgf_core::session::Session;
@@ -54,6 +55,25 @@ fn details_changed(before: &GalaxyGraph, after: &GalaxyGraph) -> Vec<u32> {
     every_id(before, after)
         .into_iter()
         .filter(|&id| source(before, id) != source(after, id))
+        .collect()
+}
+
+/// Each scenario system's ruins, ambient objects and modifiers its `effect` block places, as
+/// written, which its details list; empty for a save.
+fn placements(session: &Session) -> BTreeMap<u32, Vec<String>> {
+    session
+        .graph()
+        .systems
+        .keys()
+        .filter_map(|&id| {
+            let (src, placed) = session.scenario_system_placements(id)?;
+            let written: Vec<String> = placed
+                .iter()
+                .filter(|p| !matches!(p.statement, Statement::Foreign(_)))
+                .map(|p| String::from_utf8_lossy(p.statement.span().slice(src)).into_owned())
+                .collect();
+            (!written.is_empty()).then_some((id, written))
+        })
         .collect()
 }
 
@@ -198,6 +218,7 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
         let mut session = common::warm(session);
         let before = session.graph().clone();
         let before_raw = raw_details(&session);
+        let before_placed = placements(&session);
         let result = session
             .apply_inverse(op)
             .unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -210,6 +231,13 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
             .into_iter()
             .collect();
         changed.extend(raw_details_changed(&before_raw, &applied_raw));
+        let applied_placed = placements(&session);
+        changed.extend(
+            before_placed
+                .keys()
+                .chain(applied_placed.keys())
+                .filter(|id| before_placed.get(id) != applied_placed.get(id)),
+        );
         assert_eq!(
             result.details_stale,
             changed.into_iter().collect::<Vec<_>>(),

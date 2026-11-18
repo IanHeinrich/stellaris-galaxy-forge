@@ -236,7 +236,14 @@ describe("a fixed scenario system", () => {
     moons: { min: 1, max: 1 },
     asteroids: { min: 2, max: 2 },
     flags: ["yuhtaan", "precursor_system"],
-    ambient_objects: [{ kind: "large_debris", body: 100 }],
+    ambient_objects: [
+      {
+        kind: "large_debris",
+        place: { place: "body", body: 100 },
+        id: null,
+        origin: "initializer",
+      },
+    ],
     max_instances: 1,
     primitive_system: true,
   });

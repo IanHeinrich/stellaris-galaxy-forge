@@ -29,7 +29,7 @@ export function systemGeometry(system: number | null): SystemGeometry {
     planetClasses: data.planetClasses,
     scales: bodyScalesOf(data),
     radii: systemRadiiOf(data),
-    adapter: geometryAdapterFor(session.kind, documentCapabilities(session), system),
+    adapter: geometryAdapterFor(documentCapabilities(session), system),
   });
 }
 
@@ -42,9 +42,8 @@ export function useSystemGeometry(system: number | null): SystemGeometry {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const scales = useGameDataStore(bodyScalesOf);
   const radii = useGameDataStore(systemRadiiOf);
-  const kind = useFileSessionStore((s) => s.kind);
   const capabilities = useFileSessionStore(documentCapabilities);
-  const adapter = geometryAdapterFor(kind, capabilities, system);
+  const adapter = geometryAdapterFor(capabilities, system);
   return geometryOf({ details, roll, planetClasses, scales, radii, adapter });
 }
 

@@ -1188,7 +1188,7 @@ impl Op {
     /// details it stales, whether it reclassifies, whether it needs a 4.x save and whether it
     /// takes a second step.
     pub fn reach(&self) -> OpReach {
-        use DetailsReach::{Bodies, InPlace, Rebuild, SaveBodies, SaveRebuild};
+        use DetailsReach::{Bodies, InPlace, Rebuild, SaveBodies};
         match self {
             Self::MoveSystem { .. }
             | Self::AddLane { .. }
@@ -1270,9 +1270,9 @@ impl Op {
                 .whole_entries()
                 .inverse_only(),
             // A megastructure written back stands in its system's details, though no body
-            // of the system is rewritten.
+            // of the system is rewritten, and so does what a scenario's effect block places.
             Self::RestoreEntities { .. } => OpReach::of(BOTH)
-                .details(SaveRebuild)
+                .details(Rebuild)
                 .whole_entries()
                 .inverse_only(),
             Self::AddWormholePair { .. }
@@ -1299,18 +1299,15 @@ impl Op {
             | Self::SetHomeSystem { .. }
             | Self::PreventLane { .. }
             | Self::AllowLane { .. } => OpReach::of(SCENARIO),
-            // A scenario places a ruin with the statements its effect block runs, which its
-            // details, read from the initializer, leave out.
+            // A scenario's details list what its effect block places.
             Self::AddMegastructure { .. }
             | Self::RemoveMegastructure { .. }
-            | Self::MoveMegastructure { .. } => {
-                OpReach::of(BOTH).details(SaveRebuild).whole_entries()
-            }
+            | Self::MoveMegastructure { .. } => OpReach::of(BOTH).details(Rebuild).whole_entries(),
             Self::AddAmbientObject { .. }
             | Self::MoveAmbientObject { .. }
             | Self::RemoveAmbientObject { .. }
             | Self::AddSystemModifier { .. }
-            | Self::RemoveSystemModifier { .. } => OpReach::of(SCENARIO),
+            | Self::RemoveSystemModifier { .. } => OpReach::of(SCENARIO).details(Rebuild),
             Self::SetWormholePair { .. } | Self::SetWormholeEnds { .. } => {
                 OpReach::of(SCENARIO).reclassifies()
             }
@@ -1480,9 +1477,6 @@ pub enum DetailsReach {
     SaveBodies,
     /// Every system it rewrote, with the projection built again.
     Rebuild,
-    /// [`Self::Rebuild`] in a save and nothing in a scenario, where the op writes only what
-    /// a system's `effect` block places.
-    SaveRebuild,
 }
 
 impl DetailsReach {
@@ -1495,9 +1489,6 @@ impl DetailsReach {
             (Self::Untouched, reach) | (reach, Self::Untouched) => reach,
             (a, b) if a == b => a,
             (Self::Bodies, Self::SaveBodies) | (Self::SaveBodies, Self::Bodies) => Self::Bodies,
-            (Self::SaveBodies, Self::SaveRebuild) | (Self::SaveRebuild, Self::SaveBodies) => {
-                Self::SaveRebuild
-            }
             _ => Self::Rebuild,
         }
     }

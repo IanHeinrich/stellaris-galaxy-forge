@@ -202,7 +202,6 @@ export const SECTION_SOURCES: Readonly<Record<string, Source>> = {
   "system.planets": "initializers",
   "system.resources": "initializers",
   "system.station": "initializers",
-  "system.megastructures": "initializers",
   "system.sites": "initializers",
   "system.scripts": "scripts",
 };

@@ -8,6 +8,7 @@
  */
 import type { Bounds } from "../../generated/Bounds";
 import type { MegastructurePlace } from "../../generated/MegastructurePlace";
+import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
@@ -15,6 +16,7 @@ import type { SystemRadii } from "../../generated/SystemRadii";
 import type { WormholeSummary } from "../../generated/WormholeSummary";
 import type { EntityRef } from "../../store/inspectorStore";
 import {
+  polar,
   polarAbout,
   rounded,
   SAME,
@@ -57,7 +59,9 @@ export type GeometryIntent =
       at: MegastructurePlace;
       /** Where the scene draws it while a drag holds it away from where it lands; the op ignores it. */
       shown?: { x: number; y: number };
-    };
+    }
+  /** An ambient object to `x`, `y` about the system's centre, as the scene draws it. */
+  | { kind: "moveAmbientObject"; system: number; ambientObject: number; x: number; y: number };
 
 /** Why a body may not move, host or be given another parent; `GEOMETRY_REASONS` has the words. */
 export type BodyRefusal =
@@ -112,6 +116,8 @@ export interface SceneEditing {
   wormholes: ReadonlySet<number>;
   /** Megastructures may be dragged, each as its type and row allow. */
   megastructures: boolean;
+  /** The ambient objects that may be dragged, by id. */
+  ambientObjects: ReadonlySet<number>;
 }
 
 /** What an adapter reads of a system. */
@@ -158,6 +164,7 @@ export const GEOMETRY_REASONS = {
   wormholeElsewhere: "That wormhole is not in this system",
   wormholeAtCentre: "A wormhole can't stand at the system's centre",
   megastructureElsewhere: "That megastructure is not in this system",
+  ambientObjectElsewhere: "That ambient object is not in this system",
 } as const;
 
 /** The inner radius may not go below `least`. */
@@ -203,17 +210,49 @@ export function wormholePlace(wormhole: WormholeSummary): { radius: number; angl
   return polarAbout(wormhole, { x: 0, y: 0 });
 }
 
+/** A field of a Position block: the distance from its centre, or the angle about it. */
+export type PositionField = "radius" | "angle";
+
+/**
+ * Where a thing at `at` stands about `centre` once `typed` goes into its Distance or Angle
+ * field, the other kept exact.
+ */
+export function typedPlace(
+  centre: { x: number; y: number },
+  at: { x: number; y: number },
+  field: PositionField,
+  typed: number,
+): { radius: number; angle: number } {
+  const place = polarAbout(at, centre);
+  return field === "angle" ? { ...place, angle: wrapDegrees(typed) } : { ...place, radius: typed };
+}
+
 /** The move typing `typed` into a wormhole's Distance or Angle field asks for. */
 export function wormholeFieldIntent(
   system: number,
   wormhole: WormholeSummary,
-  field: "radius" | "angle",
+  field: PositionField,
   typed: number,
 ): GeometryIntent {
-  const place = wormholePlace(wormhole);
-  const to =
-    field === "angle" ? { ...place, angle: wrapDegrees(typed) } : { ...place, radius: typed };
+  const to = typedPlace({ x: 0, y: 0 }, wormhole, field, typed);
   return { kind: "moveWormhole", system, wormhole: wormhole.id, ...to };
+}
+
+/**
+ * The move typing `typed` into the Distance or Angle field of `row`, a megastructure at a point
+ * of its own about the system's centre, asks for; null for a row with no point.
+ */
+export function megastructureFieldIntent(
+  system: number,
+  row: MegastructureSummary,
+  field: PositionField,
+  typed: number,
+): GeometryIntent | null {
+  if (row.at === null) return null;
+  const [x, y] = row.at;
+  const { radius, angle } = typedPlace({ x: 0, y: 0 }, { x, y }, field, typed);
+  const to = polar(0, 0, radius, angle);
+  return { kind: "moveMegastructure", system, megastructure: row.id, at: { place: "free", ...to } };
 }
 
 /** What the status bar says while a megastructure is held over `body`, which takes it. */
