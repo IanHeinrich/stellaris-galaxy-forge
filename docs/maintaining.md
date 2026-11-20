@@ -155,7 +155,9 @@ branch `release-<x.y.z>` cut from that tag and open the fix and the
 version bump as a PR into it. Merging that PR releases as a merge to
 `main` does. Then merge the same fix and changelog section into `main`
 only once the new tag exists, or `main` would release that version
-itself.
+itself. GitHub Pages takes deployments from `main` alone, so the guide
+step of that release fails. Run the `Guide` workflow from `main` with no
+tag to publish the new release's guide.
 
 The user guide is then built from the new tag and published to GitHub
 Pages, so the site describes the version players can download. To publish
