@@ -397,6 +397,11 @@ export interface EditorState {
   linkWormholePair(a: number, b: number): Promise<boolean>;
   /** Takes the pair `a` and `b` share away from both; nothing when they share none. */
   unlinkWormholePair(a: number, b: number): Promise<boolean>;
+  /**
+   * Writes the save's wormhole pair between `a` and `b` again at fresh ids, as one edit, for a pair
+   * an editor before 0.27.4 numbered beside a bypass the game wrote.
+   */
+  renumberWormholePair(a: number, b: number): Promise<boolean>;
   /** Adds `system` to the systems the mod lays hyperlanes from into the zone `anchor` anchors. */
   linkToFeZone(anchor: number, system: number): Promise<boolean>;
   /**
@@ -661,6 +666,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
       }
       if (sharedWormholePair(systems(), a, b) === null) return false;
       return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
+    },
+
+    async renumberWormholePair(a, b) {
+      if (!canEdit("wormhole_pairs")) return false;
+      return get().applyOp(() => ipc.renumberWormholeOp(a, b));
     },
 
     resetSession() {

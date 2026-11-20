@@ -2,11 +2,12 @@
 //! through the mock runtime on the real sample saves.
 use serde_json::json;
 use sgf_core::entity::PlanetPage;
+use sgf_core::ops::Op;
 use sgf_core::views::details::SystemDetails;
 use sgf_core::views::{ErrorKind, SearchHit, SearchKind, SearchResult};
 
 use crate::common;
-use common::{SAMPLE, SCENARIO, invoke, kind, open, opened, webview};
+use common::{SAMPLE, SAMPLE_45, SCENARIO, invoke, kind, open, opened, webview};
 
 /// Any entity of the save reads one level at a time; an op names the entities it touched.
 #[test]
@@ -177,4 +178,25 @@ fn a_search_reads_the_loaded_game_data() {
     // Every binary class is named "Binary Stars", so they are one type.
     let binaries = star_types(&w, "binary stars");
     assert_eq!(binaries.len(), 1, "{binaries:?}");
+}
+
+/// The 4.5 sample's pairs were all written by the game, so none is renumbered; a scenario
+/// has no wormhole pairs to renumber.
+#[test]
+fn a_wormhole_pair_the_game_numbered_is_not_renumbered() {
+    let w = opened(SAMPLE_45);
+    let refused = invoke::<Op>(&w, "renumber_wormhole_op", json!({ "a": 489, "b": 152 }))
+        .expect_err("ids of its own");
+    assert_eq!(
+        refused.message,
+        "the wormhole between Ferragon #489 and Aulderaan #152 already has ids the game does not share"
+    );
+    let w = opened(SCENARIO);
+    let refused = invoke::<Op>(&w, "renumber_wormhole_op", json!({ "a": 0, "b": 1 }))
+        .expect_err("a scenario");
+    assert!(
+        refused.message.contains("renumbering a wormhole"),
+        "{}",
+        refused.message
+    );
 }

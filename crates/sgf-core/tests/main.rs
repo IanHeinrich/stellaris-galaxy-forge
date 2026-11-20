@@ -116,6 +116,7 @@ mod ops_star_class;
 mod ops_swap;
 mod ops_system_height;
 mod ops_wormhole_pair;
+mod ops_wormhole_pair_renumber;
 mod orbit_rules;
 mod overlay;
 mod overlay_model;

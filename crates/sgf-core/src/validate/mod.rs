@@ -1,6 +1,7 @@
 //! Validation rules over the galaxy projection. Cheap enough to run after every op.
 
 pub(crate) mod bodies;
+pub(crate) mod bypasses;
 mod paint;
 mod scenario;
 
@@ -109,12 +110,18 @@ pub enum IssueCode {
     /// Two bodies about one parent stand at the same radius and angle, so the game draws
     /// one over the other. Read from the system details, which a plain open does not build.
     BodiesOverlap,
+    /// Two live `bypasses` rows share a slot, which an editor before 0.27.4 wrote when it
+    /// added a wormhole pair or a megastructure's bypass, and the game crashes loading it.
+    BypassSlotShared,
 }
 
 impl IssueCode {
     pub const fn severity(self) -> Severity {
         match self {
-            Self::LaneAsymmetric | Self::LaneEndpointMissing | Self::LaneSelf => Severity::Error,
+            Self::LaneAsymmetric
+            | Self::LaneEndpointMissing
+            | Self::LaneSelf
+            | Self::BypassSlotShared => Severity::Error,
             Self::SystemIsolated
             | Self::OutOfBounds
             | Self::Disconnected
@@ -188,6 +195,7 @@ impl IssueCode {
             Self::MarauderNearSeat => "marauder_near_seat",
             Self::RolledNearSeat => "rolled_near_seat",
             Self::BodiesOverlap => "bodies_overlap",
+            Self::BypassSlotShared => "bypass_slot_shared",
         }
     }
 }

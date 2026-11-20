@@ -12,7 +12,9 @@ use crate::emit::system::{WormholeEnd, natural_wormhole_entry, wormhole_bypass_e
 use crate::format::save::added::Table;
 use crate::format::save::added::row;
 use crate::format::save::alloc::{TableEnd, next_id};
-use crate::format::save::galaxy::bypasses::{NATURAL, NaturalWormhole, natural_wormholes};
+use crate::format::save::galaxy::bypasses::{
+    NATURAL, NaturalWormhole, natural_wormholes, shared_slots,
+};
 use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place;
 use crate::format::save::write::wormhole::WORMHOLE;
@@ -116,30 +118,9 @@ pub(crate) fn plan_remove(
     a: u32,
     b: u32,
 ) -> Result<Planned, OpError> {
-    for system in [a, b] {
-        if !s.graph.systems.contains_key(&system) {
-            return Err(OpError::UnknownSystem(system));
-        }
-    }
     let standing = natural_wormholes(&s.doc, &s.graph.systems)?;
-    let end_in = |system: u32, partner: u32| {
-        standing
-            .iter()
-            .find(|w| w.system == system && w.kind == WORMHOLE && w.partner == Some(partner))
-    };
-    let (first, (a, b)) = match (end_in(a, b), end_in(b, a)) {
-        (Some(end), _) => (end, (a, b)),
-        (None, Some(end)) => (end, (b, a)),
-        (None, None) => return Err(OpError::NotAWormholePair(a, b)),
-    };
-    let second = standing
-        .iter()
-        .find(|w| w.system == b && Some(w.bypass) == first.linked_to)
-        .ok_or(OpError::WormholeEndMissing {
-            system: a,
-            partner: b,
-        })?;
-
+    let (first, second) = ends(s, &standing, a, b)?;
+    let (a, b) = (first.system, second.system);
     for end in [first, second] {
         take_out(plan, s, end)?;
     }
@@ -157,6 +138,81 @@ pub(crate) fn plan_remove(
                 b: second.at,
             }),
         },
+    })
+}
+
+/// The two ends of the wormhole pair between systems `a` and `b`, the end in `a` first
+/// when it names `b`, else the end in `b`.
+fn ends<'w>(
+    s: &Session,
+    standing: &'w [NaturalWormhole],
+    a: u32,
+    b: u32,
+) -> Result<(&'w NaturalWormhole, &'w NaturalWormhole), OpError> {
+    for system in [a, b] {
+        if !s.graph.systems.contains_key(&system) {
+            return Err(OpError::UnknownSystem(system));
+        }
+    }
+    let end_in = |system: u32, partner: u32| {
+        standing
+            .iter()
+            .find(|w| w.system == system && w.kind == WORMHOLE && w.partner == Some(partner))
+    };
+    let (first, (a, b)) = match (end_in(a, b), end_in(b, a)) {
+        (Some(end), _) => (end, (a, b)),
+        (None, Some(end)) => (end, (b, a)),
+        (None, None) => return Err(OpError::NotAWormholePair(a, b)),
+    };
+    let second = standing
+        .iter()
+        .find(|w| w.system == b && Some(w.bypass) == first.linked_to)
+        .ok_or(OpError::WormholeEndMissing {
+            system: a,
+            partner: b,
+        })?;
+    Ok((first, second))
+}
+
+/// The [`Op::Batch`] that writes the wormhole pair between systems `a` and `b` again at
+/// fresh ids: [`Op::RemoveWormholePair`], then [`Op::AddWormholePair`] at the two points
+/// it stood at, the end with the lower bypass first. Refused unless one of its bypasses
+/// shares a slot with a row the game wrote, which an editor before 0.27.4 numbered so.
+pub(crate) fn renumber_op(s: &Session, a: u32, b: u32) -> Result<Op, OpError> {
+    let standing = natural_wormholes(&s.doc, &s.graph.systems)?;
+    let (mut first, mut second) = ends(s, &standing, a, b)?;
+    if second.bypass < first.bypass {
+        (first, second) = (second, first);
+    }
+    let (a, b) = (first.system, second.system);
+    let pair = format!(
+        "the wormhole between {} and {}",
+        named(&s.graph, a),
+        named(&s.graph, b)
+    );
+    let shared = shared_slots(&s.doc, &s.graph.systems)?;
+    if !shared
+        .iter()
+        .any(|row| row.id == first.bypass || row.id == second.bypass)
+    {
+        return Err(OpError::unchanged(
+            pair,
+            "already has ids the game does not share",
+        ));
+    }
+    Ok(Op::Batch {
+        description: format!("Renumbered {pair}"),
+        ops: vec![
+            Op::RemoveWormholePair { a, b },
+            Op::AddWormholePair {
+                a,
+                b,
+                at: Some(PairPoints {
+                    a: first.at,
+                    b: second.at,
+                }),
+            },
+        ],
     })
 }
 

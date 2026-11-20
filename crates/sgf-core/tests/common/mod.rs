@@ -186,8 +186,12 @@ pub fn open_edited_sample(path: &str, edit: impl FnOnce(&mut String, &mut String
     let mut gamestate = String::from_utf8(sample.original().to_vec()).expect("utf-8");
     let mut meta = String::from_utf8(sample.meta().to_vec()).expect("utf-8");
     edit(&mut gamestate, &mut meta);
-    let doc = Document::from_bytes(gamestate.into_bytes(), meta.into_bytes())
-        .expect("index the edited save");
+    from_text(gamestate, meta.into_bytes())
+}
+
+/// A save holding `gamestate` and `meta`, as a session with no path.
+pub fn from_text(gamestate: String, meta: Vec<u8>) -> Session {
+    let doc = Document::from_bytes(gamestate.into_bytes(), meta).expect("index the edited save");
     Session::from_document(None, doc).expect("project the edited save")
 }
 

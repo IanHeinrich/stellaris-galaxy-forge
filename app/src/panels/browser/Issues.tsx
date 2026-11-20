@@ -4,7 +4,7 @@ import type { AppIssue, AppIssueCode } from "../../lib/issues";
 import { titleCase } from "../../lib/text";
 import { issueCopy, issueGroups, issueTitle } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import {
@@ -75,8 +75,10 @@ function IssueFix({ issue }: { issue: AppIssue }) {
   const resetFeLinks = useEditorStore((s) => s.resetFeLinks);
   const dropDanglingFeLinks = useEditorStore((s) => s.dropDanglingFeLinks);
   const joinIslands = useEditorStore((s) => s.joinIslands);
+  const renumberWormholePair = useEditorStore((s) => s.renumberWormholePair);
+  const renumbers = useCanEdit("wormhole_pairs");
   const { code } = issue;
-  const [first] = issue.systems;
+  const [first, second] = issue.systems;
   const fix =
     code === "header_empire_count"
       ? { label: "Update counts", run: updateEmpireCounts }
@@ -92,7 +94,12 @@ function IssueFix({ issue }: { issue: AppIssue }) {
                 ? { label: "Unlink", run: () => dropDanglingFeLinks(first) }
                 : code === "disconnected"
                   ? { label: "Join islands", run: joinIslands }
-                  : null;
+                  : code === "bypass_slot_shared" &&
+                      renumbers &&
+                      first !== undefined &&
+                      second !== undefined
+                    ? { label: "Renumber", run: () => renumberWormholePair(first, second) }
+                    : null;
   if (fix === null) return null;
   return (
     <button type="button" className="browser-fix" onClick={() => void fix.run()}>

@@ -99,6 +99,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::planet_move_op,
             commands::copy_bodies,
             commands::paste_bodies_op,
+            commands::renumber_wormhole_op,
             commands::get_scenario_owners,
             commands::get_scenario_bypasses,
             commands::open_script,

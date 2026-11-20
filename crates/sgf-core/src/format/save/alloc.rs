@@ -34,7 +34,7 @@ use crate::scan::{self, Entity, Value};
 use crate::{Span, as_u32};
 
 const GENERATION_SHIFT: u32 = 24;
-const SLOT_MASK: u32 = (1 << GENERATION_SHIFT) - 1;
+pub(crate) const SLOT_MASK: u32 = (1 << GENERATION_SHIFT) - 1;
 const LAST_GENERATION: u32 = u32::MAX >> GENERATION_SHIFT;
 const TOMBSTONE: &[u8] = b"none";
 
