@@ -134,6 +134,9 @@ for planets or deposits.
   and time passes without error. Cutting a lane under a fleet in
   transit is safe. The fleet finishes its jump, and later routes avoid
   the lane.
+- Fleets' stored routes across cut lanes are safe on a late save too. A
+  4.5.2 save from 2473 with 11 lanes cut, under 15 fleets whose
+  `movement_manager.path` crossed them, loads and runs.
 - A lane-less system at one end of a wormhole pair counts as connected.
   The wormhole names both ends and works from the start, so the system
   raises no `system_isolated` warning and sits in the same component as
@@ -658,6 +661,12 @@ for planets or deposits.
   both systems' lists gone. The game doesn't clean up anything less. A
   bypass row left behind, or a system list naming a missing bypass,
   shows a broken wormhole icon on the galaxy map.
+- A removed pair may still be named in fleets' `last_ftl_jump`
+  (`bypass_from`, `bypass_to`). The game loads it and runs on: in a
+  4.5.2 save from 2473, 4 fleets named the removed pair's bypasses.
+- The game has no cap on wormhole pairs beyond the setup slider. The
+  same save with 28 pairs added, and one region reachable only through
+  wormholes, loads and runs.
 - System `flags` mark the special kinds of system: `guardian`,
   `enclave`, `marauder_system`, `lgate`, `empire_home_system`,
   `galactic_landmark_system` and `hostile_system`. Every system names
