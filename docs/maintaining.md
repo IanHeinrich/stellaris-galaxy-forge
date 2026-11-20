@@ -150,6 +150,13 @@ tag always has its assets. Merging anything else runs the checks and
 releases nothing. To rebuild a release for an existing tag, run the
 `Release` workflow from the Actions tab and enter the tag.
 
+To release a patch without what `main` holds since the last tag, push a
+branch `release-<x.y.z>` cut from that tag and open the fix and the
+version bump as a PR into it. Merging that PR releases as a merge to
+`main` does. Then merge the same fix and changelog section into `main`
+only once the new tag exists, or `main` would release that version
+itself.
+
 The user guide is then built from the new tag and published to GitHub
 Pages, so the site describes the version players can download. To publish
 the guide without a release, run the `Guide` workflow from the Actions
