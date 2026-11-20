@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    # A release-x.y.z branch cut from an older tag releases a patch without what main holds since.
+    branches: [main, "release-*"]
     # A documentation-only push needs no build and cannot be a release.
     # This list copies the one in scripts/docs-only.sh; ci.yml copies it too.
     paths-ignore:
