@@ -1,7 +1,7 @@
 use super::Session;
 use crate::format::save::write::{
     add_megastructure, add_ring_world, add_system, add_systems, copy_bodies, megastructure_links,
-    move_planet,
+    move_planet, wormhole_pair,
 };
 use crate::format::save::{alloc, event_targets, site};
 use crate::ops::{LaneEnd, NewBody, NewRingWorld, Op, OpError, SystemAdd};
@@ -164,5 +164,13 @@ impl SaveQueries<'_> {
         at: Option<OrbitPlacement>,
     ) -> Result<Op, OpError> {
         copy_bodies::paste_op(self.session, system, copies, at)
+    }
+
+    /// The op that writes the wormhole pair between systems `a` and `b` again at fresh ids,
+    /// for a pair an editor before 0.27.4 numbered beside a bypass the game wrote: see
+    /// [`crate::validate::IssueCode::BypassSlotShared`]. Refused for a pair whose ids the
+    /// game does not share.
+    pub fn renumber_wormhole_op(&self, a: u32, b: u32) -> Result<Op, OpError> {
+        wormhole_pair::renumber_op(self.session, a, b)
     }
 }

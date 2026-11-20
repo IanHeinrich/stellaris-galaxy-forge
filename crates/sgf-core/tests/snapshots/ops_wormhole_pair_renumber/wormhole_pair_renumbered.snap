@@ -1,0 +1,90 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renumbered the wormhole between Xu Nur #1 and Tharbarite system #140
+inverse: Batch { description: "Renumbered the wormhole between Xu Nur #1 and Tharbarite system #140", ops: [RemoveWormholePair { a: 1, b: 140 }, AddWormholePair { a: 1, b: 140, at: Some(PairPoints { a: (-187.71, 0.0), b: (0.0, 191.0) }) }] }
+
+--- gamestate
++++ gamestate
+@@ -28968,7 +28968,7 @@
+ 		}
+ 		natural_wormholes=
+ 		{
+-			15 
++			17 
+ 		}
+ 		arm=2
+ 		flags=
+@@ -38945,7 +38945,7 @@
+ 		}
+ 		natural_wormholes=
+ 		{
+-			16 
++			18 
+ 		}
+ 		asteroid_belts=
+ 		{
+@@ -1401334,26 +1401334,26 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	16777218=
++	23=
+ 	{
+ 		type="wormhole"
+ 		active=yes
+-		linked_to=16777219
++		linked_to=24
+ 		owner=
+ 		{
+ 			type=7
+-			id=15
++			id=17
+ 		}
+ 	}
+-	16777219=
++	24=
+ 	{
+ 		type="wormhole"
+ 		active=yes
+-		linked_to=16777218
++		linked_to=23
+ 		owner=
+ 		{
+ 			type=7
+-			id=16
++			id=18
+ 		}
+ 	}
+ }
+@@ -1401524,7 +1401524,7 @@
+ 		bypass=22
+ 		graphics_entity_name=""
+ 	}
+-	15=
++	17=
+ 	{
+ 		coordinate=
+ 		{
+@@ -1401532,9 +1401532,9 @@
+ 			y=0
+ 			origin=1
+ 		}
+-		bypass=16777218
++		bypass=23
+ 	}
+-	16=
++	18=
+ 	{
+ 		coordinate=
+ 		{
+@@ -1401542,7 +1401542,7 @@
+ 			y=191
+ 			origin=140
+ 		}
+-		bypass=16777219
++		bypass=24
+ 	}
+ }
+ sectors=

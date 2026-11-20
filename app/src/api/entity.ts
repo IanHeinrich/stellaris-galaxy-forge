@@ -101,6 +101,14 @@ export function pasteBodiesOp(
   return invoke<Op>("paste_bodies_op", { system, copies, at });
 }
 
+/**
+ * The op that writes the save's wormhole pair between systems `a` and `b` again at fresh ids, for
+ * `applyOp`. See `renumber_wormhole_op` for what it refuses.
+ */
+export function renumberWormholeOp(a: number, b: number): Promise<Op> {
+  return invoke<Op>("renumber_wormhole_op", { a, b });
+}
+
 /** The labelled fields of a kind; keys outside it render raw. */
 export function getEntitySchema(kind: EntityKind): Promise<EntitySchema> {
   return invoke<EntitySchema>("get_entity_schema", { kind });
