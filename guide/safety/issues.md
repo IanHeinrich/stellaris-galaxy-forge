@@ -1,7 +1,7 @@
 ---
 title: Issues
 description: What each problem in the Issues tab means and how to fix it.
-aliases: [issues, errors, warnings, validate, problems, broken lanes, isolated system, disconnected galaxy, fix map]
+aliases: [issues, errors, warnings, validate, problems, broken lanes, isolated system, disconnected galaxy, fix map, crash on load]
 ---
 # Issues <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -71,6 +71,22 @@ Your edits have broken the galaxy into more pieces than it had when the
 file opened. A fleet in one piece cannot reach the others. Click Join
 islands to reconnect the pieces with the shortest hyperlanes that don't
 cross any others. Or undo the edit that split them.
+
+## Wormholes and gateways
+
+### Wormhole or gateway the game cannot load
+
+A version of the editor before 0.27.4 gave this wormhole pair or gateway
+an id the game already uses, and the game crashes while it loads the
+save. The issue names the wormhole pair or the gateway.
+
+For a wormhole pair, click Renumber. The pair is written again in the
+same places with new ids, and the save loads.
+
+For a gateway or a hyper relay, delete it and add it again.
+
+The editor cannot repair any other kind yet. The issue says so when it
+names one.
 
 ## Positions and space
 

@@ -8,6 +8,15 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.8] - 2026-11-20
+
+### Fixed
+
+- Saves that crash on load because of a wormhole pair or gateway added
+  with Galaxy Forge before 0.27.4 show an error in the Issues tab.
+  - Renumber repairs a wormhole pair. A gateway or hyper relay needs
+    deleting and adding again.
+
 ## [0.27.7] - 2026-11-17
 
 ### Fixed

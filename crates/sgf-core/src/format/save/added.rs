@@ -258,6 +258,22 @@ fn rows_where(
     table: Table,
     keep: impl Fn(&[u8]) -> bool,
 ) -> Result<Vec<Row<'_>>, ProjectionError> {
+    let mut rows = Vec::new();
+    for (id, anchor) in statements(doc, table)? {
+        if doc.current(anchor).is_ok_and(|bytes| !keep(bytes)) {
+            continue;
+        }
+        rows.extend(row_at(doc, table, id, anchor)?);
+    }
+    Ok(rows)
+}
+
+/// The id and anchor of each statement of `table` in file order, unparsed: each one loaded
+/// that no op took out, tombstones among them, and each one an op wrote.
+pub(crate) fn statements(
+    doc: &Document,
+    table: Table,
+) -> Result<Vec<(u32, Anchor)>, ProjectionError> {
     let mut anchors: Vec<(u32, Anchor)> = doc.added().entries(table).collect();
     if let Some((index, key)) = table.loaded(doc)? {
         for entity in index.entities(key) {
@@ -270,14 +286,7 @@ fn rows_where(
         }
     }
     anchors.sort_by_key(|&(_, anchor)| anchor);
-    let mut rows = Vec::new();
-    for (id, anchor) in anchors {
-        if doc.current(anchor).is_ok_and(|bytes| !keep(bytes)) {
-            continue;
-        }
-        rows.extend(row_at(doc, table, id, anchor)?);
-    }
-    Ok(rows)
+    Ok(anchors)
 }
 
 /// Row `id` of `table` as it stands now; `None` when the save holds no such row, holds its
