@@ -135,6 +135,15 @@ describe("a save's wormhole pairs", () => {
     expect(await editor().unlinkWormholePair(1, 3)).toBe(false);
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
   });
+
+  it("renumberWormholePair applies the batch the shell builds for the pair", async () => {
+    const batch: Op = { type: "Batch", description: "Renumbered", ops: [] };
+    mockedIpc.renumberWormholeOp.mockResolvedValueOnce(batch);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    expect(await editor().renumberWormholePair(1, 140)).toBe(true);
+    expect(mockedIpc.renumberWormholeOp).toHaveBeenCalledWith(1, 140);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(batch);
+  });
 });
 
 describe("marauder clans", () => {

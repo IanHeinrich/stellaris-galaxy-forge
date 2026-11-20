@@ -41,7 +41,7 @@ use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::read;
 use crate::scan::{self, Value};
 use crate::session::Session;
-use crate::validate::Issue;
+use crate::validate::{self, Issue};
 use crate::views::{Capabilities, DocumentKind, MegastructureAdds, SaveMeta};
 
 pub(crate) struct Save;
@@ -396,8 +396,8 @@ impl Format for Save {
         false
     }
 
-    fn issues(&self, _doc: &Document, _graph: &GalaxyGraph) -> Vec<Issue> {
-        Vec::new()
+    fn issues(&self, doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
+        validate::bypasses::shared_bypass_slots(doc, graph)
     }
 
     fn curates_entities(&self) -> bool {

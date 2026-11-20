@@ -223,6 +223,12 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Open the system view and drag one along its orbit, or type a new angle on its planet page.",
     detail: true,
   },
+  bypass_slot_shared: {
+    title: "Wormhole or gateway the game cannot load",
+    why: "A version of the editor before 0.27.4 gave this wormhole pair or gateway an id the game already uses. The game crashes while it loads the save.",
+    fix: "For a wormhole pair, click Renumber, which writes the pair again at the same places with new ids. Delete a gateway or hyper relay and add it again. The editor cannot repair any other kind yet.",
+    detail: true,
+  },
 };
 
 export const ISSUE_CODES = Object.keys(COPY) as AppIssueCode[];

@@ -14,7 +14,7 @@ use crate::projections::read;
 use crate::session::Session;
 
 /// The bypass type of the one kind of natural wormhole that may be moved.
-pub(super) const WORMHOLE: &str = "wormhole";
+pub(crate) const WORMHOLE: &str = "wormhole";
 
 pub(crate) fn plan_move(
     plan: &mut Plan,

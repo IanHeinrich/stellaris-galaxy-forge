@@ -1,5 +1,5 @@
 //! Reading the open document: a system, one entity's bytes, search, and where save planets
-//! may move, and copies of them to paste.
+//! may move, and copies of them to paste, and the op that renumbers a wormhole pair.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
@@ -172,6 +172,22 @@ pub async fn paste_bodies_op<R: Runtime>(
         Ok(session
             .save("pasting planets")?
             .paste_bodies_op(system, &copies, at)?)
+    })
+    .await
+}
+
+/// The op that writes the save's wormhole pair between systems `a` and `b` again at fresh
+/// ids, for `apply_op`: see `SaveQueries::renumber_wormhole_op`.
+#[tauri::command]
+pub async fn renumber_wormhole_op<R: Runtime>(
+    app: AppHandle<R>,
+    a: u32,
+    b: u32,
+) -> Result<Op, SgfError> {
+    with_open(app, move |session| {
+        Ok(session
+            .save("renumbering a wormhole")?
+            .renumber_wormhole_op(a, b)?)
     })
     .await
 }

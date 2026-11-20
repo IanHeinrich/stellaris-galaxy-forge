@@ -1,12 +1,13 @@
 //! Reading a save's `bypasses` table through the systems that own each bypass.
 
-use crate::format::save::added::rows;
-use std::collections::{HashMap, HashSet};
+use crate::format::save::added::{row, rows, statements};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
+use crate::format::save::alloc::SLOT_MASK;
 use crate::keys;
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{BypassLink, ProjectionError, SystemNode};
@@ -194,4 +195,61 @@ pub(crate) fn natural_wormholes(
         });
     }
     Ok(found)
+}
+
+/// A live `bypasses` row in a slot another live row holds: see [`shared_slots`].
+#[derive(Debug, Clone)]
+pub(crate) struct SharedSlot {
+    pub(crate) id: u32,
+    /// Its `type`.
+    pub(crate) kind: String,
+    /// The system it stands in: its natural wormhole's origin, or the system listing it.
+    pub(crate) system: Option<u32>,
+    /// Its `linked_to`: the bypass of the other end of a wormhole.
+    pub(crate) linked_to: Option<u32>,
+    /// The system its `linked_to` stands in.
+    pub(crate) partner: Option<u32>,
+}
+
+/// The live `bypasses` rows that share a slot with a live row the game wrote, in id order.
+/// The lowest id in a shared slot is the game's, and every other one is not. Rows are
+/// parsed only once two share a slot.
+pub(crate) fn shared_slots(
+    doc: &Document,
+    systems: &HashMap<u32, SystemNode>,
+) -> Result<Vec<SharedSlot>, ProjectionError> {
+    let mut by_slot: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+    for (id, _) in statements(doc, Table::Bypass)? {
+        by_slot.entry(id & SLOT_MASK).or_default().push(id);
+    }
+    let mut found = Vec::new();
+    for ids in by_slot.into_values().filter(|ids| ids.len() > 1) {
+        let mut live = Vec::new();
+        for id in ids {
+            if let Some(row) = row(doc, Table::Bypass, id)? {
+                live.push(bypass(id, &row.node, row.src));
+            }
+        }
+        live.sort_unstable_by_key(|row| row.id);
+        found.extend(live.into_iter().skip(1));
+    }
+    if found.is_empty() {
+        return Ok(Vec::new());
+    }
+    found.sort_unstable_by_key(|row| row.id);
+    let ends = rows(doc, NATURAL)?
+        .iter()
+        .filter_map(|row| end(&row.node, row.src))
+        .collect::<Vec<_>>();
+    let owner = owners(systems, ends);
+    Ok(found
+        .into_iter()
+        .map(|row| SharedSlot {
+            id: row.id,
+            system: owner.get(&row.id).copied(),
+            partner: row.linked_to.and_then(|linked| owner.get(&linked).copied()),
+            linked_to: row.linked_to,
+            kind: row.kind,
+        })
+        .collect())
 }

@@ -50,3 +50,46 @@ pub fn system_text(session: &Session, id: u32) -> String {
 pub fn planet_text(session: &Session, id: u32) -> String {
     entity_text(session, EntityKind::Planet, id)
 }
+
+/// `from` in `text`, which must hold it once, made `to`.
+#[track_caller]
+pub fn replace_once(text: &mut String, from: &str, to: &str) {
+    assert_eq!(text.matches(from).count(), 1, "{from:?}");
+    *text = text.replacen(from, to, 1);
+}
+
+/// The 4.5 sample's gamestate with bypass slot 1, its shroud tunnel, reused one generation
+/// on as `16777217`, the way a 4.5.2 save holds it, among slots up to 22.
+pub fn reuse_bypass_slot_1(gamestate: &mut String) {
+    let table = gamestate
+        .find("\nbypasses=\n{\n")
+        .expect("a bypasses table");
+    let key = "\n\t1=\n\t{\n\t\ttype=\"shroud_tunnel\"";
+    let at = table + gamestate[table..].find(key).expect("bypass 1");
+    gamestate.replace_range(at..at + "\n\t1=".len(), "\n\t16777217=");
+    replace_once(gamestate, "\t\tbypass=1\n", "\t\tbypass=16777217\n");
+    replace_once(
+        gamestate,
+        "\t\tbypasses=\n\t\t{\n\t\t\t1 \n",
+        "\t\tbypasses=\n\t\t{\n\t\t\t16777217 \n",
+    );
+}
+
+/// The top-level `bypasses` table `text` holds, from the newline before its key to the
+/// last line of its last row.
+pub fn bypass_table(text: &str) -> &str {
+    let start = text.find("\nbypasses=\n{\n").expect("a bypasses table");
+    let table = &text[start..];
+    &table[..table.find("\n}\n").expect("its end")]
+}
+
+/// The keys of the `bypasses` table as it stands, tombstones left out.
+pub fn bypass_ids(session: &Session) -> Vec<u32> {
+    let text = String::from_utf8(super::current(session)).expect("utf-8");
+    bypass_table(&text)
+        .lines()
+        .filter_map(|line| line.strip_prefix('\t'))
+        .filter(|line| !line.ends_with("=none"))
+        .filter_map(|line| line.split_once('=')?.0.parse().ok())
+        .collect()
+}
