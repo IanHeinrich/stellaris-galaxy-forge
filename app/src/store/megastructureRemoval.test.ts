@@ -5,7 +5,7 @@ vi.mock("../api/events");
 
 import type { EntityAddr } from "../generated/EntityAddr";
 import { mockedIpc } from "../test/ipc";
-import { colonyPage, megastructureTypeView, name, planetPage } from "../test/builders";
+import { colonyPage, megastructureTypeView, planetPage } from "../test/builders";
 import { openFixtureSave } from "./editorFixture";
 import { editResult, entityNode, entityView, scalar } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
@@ -15,13 +15,10 @@ import { deleteMegastructure } from "./megastructureRemoval";
 const NEXUS = 359;
 const WORLD = 517;
 
-/** Whether the planet's flags say a megastructure made it. */
-let madeIt = false;
-
 /** The file's bytes for a row it held; an added row has none. */
 let rowSpan: [number, number] = [1200, 1480];
 
-/** The megastructure row the core reads back: its type, its planet and its bypass. */
+/** The megastructure row the core reads back: its type, its planet, whose flags name a megastructure, and its bypass. */
 function armRow(kind: string, planet: number | null, bypass: number | null = null): void {
   const nodes = [
     entityNode("type", scalar(kind, "quoted")),
@@ -32,19 +29,8 @@ function armRow(kind: string, planet: number | null, bypass: number | null = nul
   mockedIpc.getEntity.mockImplementation(async (addr: EntityAddr) =>
     addr.kind === "megastructure"
       ? entityView("megastructure", { addr, nodes, span: rowSpan })
-      : entityView("planet", { addr, path: ["flags"], nodes: madeIt ? flags : [] }),
+      : entityView("planet", { addr, path: ["flags"], nodes: flags }),
   );
-}
-
-/** An inspector showing the system, the structure's page above it, and a colony's above that. */
-function onTheStructure(): void {
-  useInspectorStore.setState({
-    stack: [
-      { ref: { kind: "system", id: 338 }, label: "Ostiuq" },
-      { ref: { kind: "megastructure", id: NEXUS }, label: "Science Nexus" },
-      { ref: { kind: "colony", id: colonyPage().id }, label: "Colony #18" },
-    ],
-  });
 }
 
 const labels = () => useInspectorStore.getState().stack.map((e) => e.label);
@@ -53,7 +39,6 @@ const asked = () => mockedIpc.confirm.mock.calls[0]?.[0];
 beforeEach(async () => {
   await openFixtureSave();
   useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
-  madeIt = false;
   rowSpan = [1200, 1480];
   mockedIpc.confirm.mockResolvedValue(true);
   mockedIpc.deleteMegastructure.mockResolvedValue(editResult());
@@ -75,32 +60,12 @@ describe("deleting a megastructure", () => {
     );
   });
 
-  it("takes the colony first on a planet the megastructure made, and closes its page", async () => {
-    madeIt = true;
-    armRow("cosmogenesis_world", WORLD);
-    mockedIpc.getPlanetPage.mockResolvedValue(
-      planetPage({
-        id: WORLD,
-        name: name("Genesis"),
-        name_key: "Genesis",
-        colony: colonyPage(),
-        owner: 0,
-        flags: 1,
-      }),
-    );
-    onTheStructure();
-
-    expect(await deleteMegastructure(NEXUS, "Cosmogenesis World", 0)).toBe(true);
-
-    expect(asked()).toBe(
-      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. Game data isn't loaded, so the modifiers from building it stay.",
-    );
-    expect(mockedIpc.getEntity).toHaveBeenCalledWith({ kind: "planet", id: WORLD }, ["flags"]);
-    expect(labels()).toEqual(["Ostiuq"]);
-  });
-
-  it("leaves an ordinary colony with an Orbital Ring out of the confirm and its page open", async () => {
-    armRow("orbital_ring_tier_1", WORLD);
+  it.each([
+    ["orbital_ring_tier_1", "Orbital Ring"],
+    ["cosmogenesis_world_0", "Cosmogenesis World"],
+    ["galactic_halls_0_militarist", "Galactic Hall"],
+  ])("leaves the colony under %s out of the confirm and its page open", async (kind, title) => {
+    armRow(kind, WORLD);
     mockedIpc.getPlanetPage.mockResolvedValue(
       planetPage({ id: WORLD, colony: colonyPage(), owner: 0, flags: 2 }),
     );
@@ -108,10 +73,11 @@ describe("deleting a megastructure", () => {
       stack: [
         { ref: { kind: "system", id: 338 }, label: "Ostiuq" },
         { ref: { kind: "colony", id: colonyPage().id }, label: "Colony #18" },
+        { ref: { kind: "megastructure", id: NEXUS }, label: title },
       ],
     });
 
-    expect(await deleteMegastructure(NEXUS, "Orbital Ring", 0)).toBe(true);
+    expect(await deleteMegastructure(NEXUS, title, 0)).toBe(true);
 
     expect(asked()).not.toContain("colony");
     expect(labels()).toEqual(["Ostiuq", "Colony #18"]);

@@ -429,6 +429,14 @@ fn the_installs_types_are_offered_as_a_player_builds_them() {
     ] {
         assert!(!offered(key), "{key}");
     }
+    let halls: Vec<_> = gd
+        .megastructures
+        .iter()
+        .filter(|def| def.key.starts_with("galactic_halls_"))
+        .filter(|def| def.offer != hidden(HiddenWhy::NotOfferedYet))
+        .map(|def| &def.key)
+        .collect();
+    assert!(halls.is_empty(), "{halls:?}");
     assert_eq!(
         mega(gd, "think_tank_3").country_modifier,
         [("all_technology_research_speed".to_owned(), 0.15)]

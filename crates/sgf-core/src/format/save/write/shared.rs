@@ -1,13 +1,16 @@
 //! The helpers several writers share: an entry written in its slot, a country's culture, a
 //! body tied to its megastructure, and where a body stands about its centre.
 
-use crate::cst;
+use crate::Span;
+use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::emit::inline;
 use crate::format::save::alloc::{self, Slot, SlotTable};
+use crate::format::save::lists_planet_megastructures;
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::write::bodies::Stored;
 use crate::format::save::write::flags::add_flags;
+use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place::{self, insert_key};
 use crate::keys;
 use crate::ops::{Edit, Emitted, OpError, Plan};
@@ -66,11 +69,54 @@ pub(crate) fn culture_of(edit: &Edit) -> Result<Option<String>, OpError> {
 }
 
 /// Tie the body `edit` holds to row `id`, with the planet flags `flags`, each with its date.
-pub(crate) fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError> {
-    insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
-        format!("{}={id}", keys::MEGASTRUCTURE)
-    })?;
+pub(crate) fn tie(
+    doc: &Document,
+    edit: &mut Edit,
+    id: u32,
+    flags: &[(&str, String)],
+) -> Result<(), OpError> {
+    name_row(doc, edit, id)?;
     add_flags(edit, flags, &place::planet::FLAGS)
+}
+
+/// Have the planet `edit` holds name row `id`, in the form it names one in or else its save
+/// does. A list keeps its other ids, and one it has already; a `megastructure` key that names another row gives way,
+/// as it can name one the table no longer holds.
+pub(crate) fn name_row(doc: &Document, edit: &mut Edit, id: u32) -> Result<(), OpError> {
+    let planet = edit.entity()?;
+    if read::ids(planet, keys::MEGASTRUCTURES, &edit.buf).contains(&id) {
+        return Ok(());
+    }
+    let listed = planet.find(keys::MEGASTRUCTURES, &edit.buf).is_some();
+    let named = planet.find(keys::MEGASTRUCTURE, &edit.buf).is_some();
+    if named && !listed {
+        edit.set_scalar(&[keys::MEGASTRUCTURE], id.to_string())
+    } else if listed || lists_planet_megastructures(doc) {
+        append(edit, &place::planet::MEGASTRUCTURES, &[id])
+    } else {
+        insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
+            format!("{}={id}", keys::MEGASTRUCTURE)
+        })
+    }
+}
+
+/// Have the planet `edit` holds name none of rows `ids`, its list going with its last id.
+pub(crate) fn unname_rows(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
+    let gone: Vec<Span> = edit
+        .entity()?
+        .find_all(keys::MEGASTRUCTURE, &edit.buf)
+        .filter(|key| {
+            key.scalar_str(&edit.buf)
+                .and_then(|t| t.parse().ok())
+                .is_some_and(|id| ids.contains(&id))
+        })
+        .map(Node::span)
+        .collect();
+    for span in gone {
+        edit.bytes().remove_statement(span);
+    }
+    unlist(edit, keys::MEGASTRUCTURES, ids, Emptied::Drop)?;
+    Ok(())
 }
 
 /// Where `body` stands about the point a spec with `moon_of` places it from.

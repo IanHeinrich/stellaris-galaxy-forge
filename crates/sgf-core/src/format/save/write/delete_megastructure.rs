@@ -2,8 +2,7 @@
 //!
 //! A row goes as the game leaves one it destroys: `<id>=none` in its slot and its id out of
 //! the lists that name it. A row with `save_on_death=1` is logged in `dead_mega_structure`,
-//! which the timeline reads its type and system back from. A colony on a body the
-//! structure made goes first, as `RemoveColony` takes it; the body stays.
+//! which the timeline reads its type and system back from. The body and its colony stay.
 
 use crate::cst::Node;
 use crate::document::Document;
@@ -12,12 +11,9 @@ use crate::format::save::added::{Table, row};
 use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{
-    self, DELETED_BYPASS_KINDS, Tied, drop_bypass, unlink,
+    self, DELETED_BYPASS_KINDS, Tied, drop_bypass, unlink, unlist_elsewhere,
 };
-use crate::format::save::write::remove_planet::{SEGMENT_KEEPS_COLONY, check_segment};
 use crate::format::save::write::restore::{Saved, tombstoned};
-use crate::format::save::write::teardown::Teardown;
-use crate::format::save::{entity_at, planet_statement, planet_system};
 use crate::keys;
 use crate::ops::rules::named;
 use crate::ops::{
@@ -72,16 +68,13 @@ pub(crate) fn plan_delete(
         },
         None => None,
     };
-    let colony = made_colony(s, &tied)?;
 
     let mut saved = Saved::default();
-    if let Some(teardown) = &colony {
-        teardown.write(plan, s, &mut saved, true)?;
-    }
     saved.keep(doc, SavedTable::Megastructure, id, tied.anchor)?;
     let bytes = tombstoned(doc, tied.anchor, id)?;
     plan.replace(doc, Subject::Record(tied.anchor), tied.anchor, bytes)?;
     unlink(plan, s, &tied, Some(&mut saved))?;
+    unlist_elsewhere(plan, s, id, tied.planet, &mut saved)?;
     if let Some(bypass) = bypass {
         drop_bypass(plan, s, system, bypass, Some(&mut saved))?;
     }
@@ -95,50 +88,18 @@ pub(crate) fn plan_delete(
         None => TakenBack::default(),
     };
 
-    let with_colony = colony
-        .map(|teardown| format!(", with the colony on planet #{}", teardown.planet))
-        .unwrap_or_default();
     let with_bypass = bypass
         .map(|bypass| format!(", and its bypass #{bypass}"))
         .unwrap_or_default();
     Ok(Planned {
         description: format!(
-            "Deleted megastructure #{id} ({}) in {}{with_colony}{with_bypass}{}",
+            "Deleted megastructure #{id} ({}) in {}{with_bypass}{}",
             tied.kind,
             named(&s.graph, system),
             taken.what()
         ),
         inverse: saved.inverse(format!("Restored megastructure #{id} ({})", tied.kind)),
     })
-}
-
-/// The colony on the body row `tied` made, which goes with it: a body with the planet flag
-/// `megastructure`, such as a cosmogenesis world. A colony that `RemoveColony` would refuse
-/// for anything but the structure refuses the deletion.
-fn made_colony(s: &Session, tied: &Tied) -> Result<Option<Teardown>, OpError> {
-    let Some(planet) = tied.planet else {
-        return Ok(None);
-    };
-    let Some(anchor) = planet_statement(&s.doc, planet)? else {
-        return Ok(None);
-    };
-    let Some((node, src)) = entity_at(&s.doc, anchor)
-        .map_err(|e| Subject::Record(anchor).parse_error(e.offset, e.reason))?
-    else {
-        return Ok(None);
-    };
-    if !megastructure_links::made(&node, src)
-        || read::scalar_u32(&node, keys::COLONY, src).is_none()
-    {
-        return Ok(None);
-    }
-    let system = planet_system(&node, src, planet)?;
-    let refuse = |reason: String| OpError::ColonyKept {
-        body: planet,
-        reason,
-    };
-    check_segment(&node, src, SEGMENT_KEEPS_COLONY, refuse)?;
-    Teardown::read(s, planet, system, &node, src).map(Some)
 }
 
 /// Log row `tied` in `dead_mega_structure` as the game logs a row it destroys: a `map` line

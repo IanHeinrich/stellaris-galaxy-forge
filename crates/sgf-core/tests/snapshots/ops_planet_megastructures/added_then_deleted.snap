@@ -1,0 +1,62 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted megastructure #15 (think_tank_3) in Trabano #17
+inverse: RestoreEntities "Restored megastructure #15 (think_tank_3)"
+  System 17 (1028 bytes)
+  Planet 518 (726 bytes)
+  Megastructure 15 (211 bytes)
+
+--- gamestate
++++ gamestate
+@@ -19930,7 +19930,7 @@
+ 		}
+ 		megastructures=
+ 		{
+-			1 15 
++			1 
+ 		}
+ 		star_class="sc_trinary_3"
+ 		hyperlane=
+@@ -92019,15 +92019,7 @@
+ 			planet_orbitals=
+ 			{
+ 			}
+-			megastructures=
+-			{
+-				15 
+-			}
+ 			bombardment_damage=0
+-			flags=
+-			{
+-				has_megastructure=62808000
+-			}
+ 			entity=1
+ 			deposits=
+ 			{
+@@ -1038088,23 +1038080,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
+-	15=
+-	{
+-		type="think_tank_3"
+-		coordinate=
+-		{
+-			x=-44.79799
+-			y=154.28386
+-			origin=17
+-		}
+-		planet=518
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
++	15=none
+ }
+ bypasses=
+ {

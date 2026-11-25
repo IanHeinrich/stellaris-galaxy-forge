@@ -10,7 +10,10 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, round_trip_step, snapshot_step};
-use common::edit::{insert_after, megastructure_row, open_4_5_edited};
+use common::edit::{
+    HALL_FLAGS, galactic_hall, insert_after, megastructure_row, open_4_5_edited,
+    structure_at_colony,
+};
 use common::examples::{ADDED_MEGASTRUCTURE, save_4_5_with_added_megastructure};
 use common::{assert_refusals, entity_text, open_4_5};
 
@@ -545,36 +548,98 @@ fn a_hidden_planet_without_the_furnace_flag_keeps_its_row_off_a_star() {
 }
 
 #[test]
-fn a_structure_on_the_body_it_made_is_refused() {
-    let mut session = open_4_5_edited(|text| {
-        body_key(text, 517, 16);
-        insert_after(
-            text,
-            &["\n\t\t517=\n\t\t{\n", "\t\t\tflags=\n\t\t\t{\n"],
-            "\t\t\t\tmegastructure=62808000\n",
-        );
-        megastructure_row(text, 16, "cosmogenesis_world_0", 174, "\t\tplanet=517\n");
-    });
-    let details = session.details().expect("details");
-    let made = details
+fn a_hall_takes_its_flags_to_the_new_planet() {
+    let hall = || open_4_5_edited(galactic_hall);
+    let mut session = hall();
+    let made = session
+        .details()
+        .expect("details")
         .resolve(174, &HeuristicResolver, false)
         .expect("Vinh's details")
         .megastructures
         .into_iter()
         .find(|row| row.id == 16)
-        .expect("row 16");
-    assert!(made.made_body, "the details say it made its planet");
-    assert_refusals(
-        &mut session,
-        [
-            (
-                to_body(16, 516),
-                "megastructure 16 cannot be moved: building it created Vinh III #517, so it stays with that planet",
-            ),
-            (
-                beside(16, 517, 10.0, 10.0),
-                "megastructure 16 cannot be moved: building it created Vinh III #517, so it stays with that planet",
-            ),
-        ],
-    );
+        .expect("row 16")
+        .made_body;
+    assert!(!made, "the details say it made its planet");
+    session.apply(to_body(16, 516)).expect("the move");
+    let old = entity_text(&session, EntityKind::Planet, 517);
+    assert!(old.contains("colony=18"), "{old}");
+    assert!(!old.contains("megastructure"), "{old}");
+    let new = entity_text(&session, EntityKind::Planet, 516);
+    for flag in HALL_FLAGS {
+        assert!(new.contains(&format!("\t{flag}=62808000")), "{flag}: {new}");
+    }
+    round_trip(hall(), to_body(16, 516));
+}
+
+#[test]
+fn a_hall_leaves_its_flags_on_a_planet_another_row_names() {
+    let mut session = open_4_5_edited(|text| {
+        galactic_hall(text);
+        shared(text);
+    });
+    session.apply(to_body(16, 516)).expect("the move");
+    for planet in [516, 517] {
+        let planet = entity_text(&session, EntityKind::Planet, planet);
+        for flag in HALL_FLAGS {
+            assert!(
+                planet.contains(&format!("\t{flag}=62808000")),
+                "{flag}: {planet}"
+            );
+        }
+    }
+}
+
+/// A habitat has `megastructure` of its own, which a Hall there takes along, as the game's own
+/// move of one does.
+#[test]
+fn a_hall_moves_off_a_habitat_and_back() {
+    let flags = [&["habitat"][..], &HALL_FLAGS].concat();
+    let mut session = open_4_5_edited(|text| {
+        structure_at_colony(text, "galactic_halls_0_militarist", "pc_habitat", &flags);
+    });
+    round_trip_step(&mut session, "off the habitat", to_body(16, 516));
+    let habitat = entity_text(&session, EntityKind::Planet, 517);
+    assert!(habitat.contains("colony=18"), "{habitat}");
+    assert!(habitat.contains("\thabitat=62808000"), "{habitat}");
+    assert!(!habitat.contains("megastructure"), "{habitat}");
+    round_trip_step(&mut session, "back to the habitat", to_body(16, 517));
+    let habitat = entity_text(&session, EntityKind::Planet, 517);
+    for flag in flags {
+        assert!(habitat.contains(&format!("\t{flag}=62808000")), "{habitat}");
+    }
+    let planet = entity_text(&session, EntityKind::Planet, 516);
+    assert!(!planet.contains("megastructure"), "{planet}");
+}
+
+/// A structure whose planet has the planet flag `megastructure`, as one it made has and a
+/// Grand Archive's planet too.
+#[test]
+fn a_structure_on_a_body_with_the_flag_is_refused() {
+    for (kind, flags) in [
+        ("cosmogenesis_world_0", &["megastructure"][..]),
+        ("grand_archive_0", &["megastructure", "has_megastructure"]),
+    ] {
+        let mut session =
+            open_4_5_edited(|text| structure_at_colony(text, kind, "pc_tropical", flags));
+        let made = session
+            .details()
+            .expect("details")
+            .resolve(174, &HeuristicResolver, false)
+            .expect("Vinh's details")
+            .megastructures
+            .into_iter()
+            .find(|row| row.id == 16)
+            .expect("row 16");
+        assert!(made.made_body, "{kind}: the details say it made its planet");
+        let refusal = "megastructure 16 cannot be moved: building it created Vinh III #517, so it stays with that planet";
+        assert_refusals(
+            &mut session,
+            [
+                (to_body(16, 516), refusal),
+                (beside(16, 517, 10.0, 10.0), refusal),
+            ],
+        );
+    }
 }

@@ -41,6 +41,45 @@ pub fn megastructure_row(text: &mut String, id: u32, kind: &str, system: u32, ti
     );
 }
 
+/// The planet flags the game sets on the body under a Galactic Hall.
+pub const HALL_FLAGS: [&str; 3] = [
+    "has_galactic_hall_megastructure",
+    "megastructure",
+    "has_megastructure",
+];
+
+/// Row 16 of type `kind` and country 11 at planet 517 of Vinh (174), which holds colony 18,
+/// made `class` and given the planet flags `flags`.
+pub fn structure_at_colony(text: &mut String, kind: &str, class: &str, flags: &[&str]) {
+    let planet = "\n\t\t517=\n\t\t{\n";
+    replace_once(
+        text,
+        &format!("{planet}\t\t\tcolony=18\n\t\t\tplanet_class=\"pc_tropical\"\n"),
+        &format!("{planet}\t\t\tcolony=18\n\t\t\tplanet_class=\"{class}\"\n"),
+    );
+    insert_after(
+        text,
+        &[planet, "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n"],
+        "\t\t\tmegastructure=16\n",
+    );
+    let flags: String = flags
+        .iter()
+        .map(|flag| format!("\t\t\t\t{flag}=62808000\n"))
+        .collect();
+    insert_after(text, &[planet, "\t\t\tflags=\n\t\t\t{\n"], &flags);
+    megastructure_row(text, 16, kind, 174, "\t\towner=11\n\t\tplanet=517\n");
+}
+
+/// A Galactic Hall as [`structure_at_colony`] puts one.
+pub fn galactic_hall(text: &mut String) {
+    structure_at_colony(
+        text,
+        "galactic_halls_0_militarist",
+        "pc_tropical",
+        &HALL_FLAGS,
+    );
+}
+
 /// System `id`'s text as it stands.
 pub fn system_text(session: &Session, id: u32) -> String {
     entity_text(session, EntityKind::System, id)

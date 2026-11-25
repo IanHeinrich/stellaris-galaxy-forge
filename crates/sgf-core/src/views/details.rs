@@ -845,8 +845,8 @@ pub struct MegastructureSummary {
     /// The graphical culture its model is drawn in: the row's `graphical_culture`, else its
     /// owner's; `None` when neither names one.
     pub culture: Option<String>,
-    /// Its planet has the planet flag `megastructure`: the structure made the planet, as a
-    /// cosmogenesis world's did, and stays on it.
+    /// Its planet has the planet flag `megastructure`, and not from a Galactic Hall: the
+    /// structure made the planet, as a cosmogenesis world's did, and stays on it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[ts(optional, as = "Option<bool>")]
     pub made_body: bool,

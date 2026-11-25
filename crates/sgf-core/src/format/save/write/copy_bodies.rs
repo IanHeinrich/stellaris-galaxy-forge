@@ -7,15 +7,16 @@ use crate::cst::Node;
 use crate::format::save::read_spec::belts;
 use crate::format::save::write::add_body::{moon_spec_of, spec_of};
 use crate::format::save::write::bodies::frame;
-use crate::format::save::write::megastructure_links;
 use crate::format::save::write::move_planet::normalised_set;
 use crate::format::save::write::planet_entry::{body_is_star, star_refused};
 use crate::format::save::write::remove_planet::{check_planet, check_segment_stays};
 use crate::format::save::write::shared::placement;
 use crate::format::save::{planet_entity, planet_system};
+use crate::keys;
 use crate::ops::rules::named;
 use crate::ops::{NewBody, NewMoon, Op, OpError, StarEdit};
 use crate::projections::geometry::system_reach;
+use crate::projections::read;
 use crate::session::Session;
 use crate::views::OrbitPlacement;
 
@@ -118,7 +119,7 @@ fn outer_reach(s: &Session, system: u32) -> Result<f64, OpError> {
 fn copyable(s: &Session, body: u32, node: &Node, src: &[u8]) -> Result<(), OpError> {
     check_segment_stays(node, src, body)?;
     check_planet(s, body, node, src, |_| OpError::MegastructurePlanet(body))?;
-    match megastructure_links::made(node, src) {
+    match read::has_flag(node, src, keys::MEGASTRUCTURE) {
         true => Err(OpError::MegastructurePlanet(body)),
         false => Ok(()),
     }
