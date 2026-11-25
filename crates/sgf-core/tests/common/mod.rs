@@ -34,6 +34,11 @@ pub const SAMPLE_4_5: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.5-day-one.sav"
 );
+/// A Stellaris 4.6.0 save on its first day, whose planets list their megastructures.
+pub const SAMPLE_4_6: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/4.6-day-one.sav"
+);
 /// A Stellaris 3.4.5 save, which writes each block's opening brace on its key's line.
 pub const SAMPLE_3_4: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
 
@@ -47,12 +52,14 @@ pub const NEW_NEBULA: (f64, f64, f64) = (-57.5, -305.0, 40.0);
 /// Each sample save read and indexed once per test binary, for its opener to clone.
 static SAMPLE_DOCUMENT: OnceLock<Document> = OnceLock::new();
 static SAMPLE_4_5_DOCUMENT: OnceLock<Document> = OnceLock::new();
+static SAMPLE_4_6_DOCUMENT: OnceLock<Document> = OnceLock::new();
 static SAMPLE_3_4_DOCUMENT: OnceLock<Document> = OnceLock::new();
 
 /// Every cached sample with its path, for [`issues_at_open`] to recognise.
-static CACHED: [(&OnceLock<Document>, &str); 3] = [
+static CACHED: [(&OnceLock<Document>, &str); 4] = [
     (&SAMPLE_DOCUMENT, SAMPLE),
     (&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5),
+    (&SAMPLE_4_6_DOCUMENT, SAMPLE_4_6),
     (&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4),
 ];
 
@@ -69,6 +76,10 @@ pub fn load_4_5() -> Document {
     cached(&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5).clone()
 }
 
+pub fn load_4_6() -> Document {
+    cached(&SAMPLE_4_6_DOCUMENT, SAMPLE_4_6).clone()
+}
+
 pub fn load_3_4() -> Document {
     cached(&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4).clone()
 }
@@ -83,7 +94,8 @@ fn slot(cache: &'static OnceLock<Document>) -> usize {
 
 /// A copy of the session the sample opens to, which each binary builds once.
 fn open_cached(cache: &'static OnceLock<Document>, path: &str) -> Session {
-    static OPENED: [OnceLock<Mutex<Session>>; 3] = [const { OnceLock::new() }; 3];
+    static OPENED: [OnceLock<Mutex<Session>>; CACHED.len()] =
+        [const { OnceLock::new() }; CACHED.len()];
     let session = OPENED[slot(cache)].get_or_init(|| {
         let doc = cached(cache, path).clone();
         let session = Session::from_document(Some(PathBuf::from(path)), doc)
@@ -102,6 +114,10 @@ pub fn open() -> Session {
 
 pub fn open_4_5() -> Session {
     open_cached(&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5)
+}
+
+pub fn open_4_6() -> Session {
+    open_cached(&SAMPLE_4_6_DOCUMENT, SAMPLE_4_6)
 }
 
 pub fn open_3_4() -> Session {

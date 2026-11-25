@@ -152,6 +152,10 @@ pub(crate) mod planet {
         before: &[keys::BOMBARDMENT_DAMAGE],
         last: true,
     };
+    pub(crate) const MEGASTRUCTURES: Place = Place {
+        key: keys::MEGASTRUCTURES,
+        ..MEGASTRUCTURE
+    };
     pub(crate) const FLAGS: Place = Place {
         key: keys::FLAGS,
         after: &[keys::TIMED_MODIFIER, keys::BOMBARDMENT_DAMAGE],

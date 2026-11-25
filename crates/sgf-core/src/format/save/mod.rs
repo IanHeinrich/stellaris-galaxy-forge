@@ -486,19 +486,35 @@ pub const WHOLE_ENTRIES_FROM_MAJOR: u32 = 4;
 /// and more that nothing here writes. The version is `Cygnus v4.5.0` or a bare `4.5.0`;
 /// one whose major number cannot be read is refused too.
 pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
-    let version = archive::parse_meta(doc.meta())
-        .map(|meta| meta.version)
-        .unwrap_or_default();
-    let major = version
-        .split_whitespace()
-        .next_back()
-        .map(|number| number.trim_start_matches(['v', 'V']))
-        .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
+    let version = version(doc);
+    let major = version_numbers(&version).next();
     match major {
         Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
         Some(_) => Err(OpError::VersionTooOld(version)),
         None => Err(OpError::UnknownVersion(version)),
     }
+}
+
+/// Whether the save's version has a planet list its rows in `megastructures`, as 4.6 does.
+pub(crate) fn lists_planet_megastructures(doc: &Document) -> bool {
+    version_numbers(&version(doc)).ge([4, 6])
+}
+
+fn version(doc: &Document) -> String {
+    archive::parse_meta(doc.meta())
+        .map(|meta| meta.version)
+        .unwrap_or_default()
+}
+
+/// The leading numbers of `version`: 4, 5 and 0 of `Cygnus v4.5.0`.
+fn version_numbers(version: &str) -> impl Iterator<Item = u32> {
+    version
+        .split_whitespace()
+        .next_back()
+        .unwrap_or_default()
+        .trim_start_matches(['v', 'V'])
+        .split('.')
+        .map_while(|number| number.parse().ok())
 }
 
 /// The statement of country `id`, refused when the save holds no such country.

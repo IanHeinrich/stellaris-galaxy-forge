@@ -1,17 +1,24 @@
 //! Deleting a save megastructure: each row's diff on the 4.5 sample, the bypass it takes
-//! along, the dead table a `save_on_death` row is logged in, the colony on a body the
-//! structure made, byte-exact undo and what is refused.
+//! along, the dead table a `save_on_death` row is logged in, the colony and the flags its planet
+//! keeps, byte-exact undo and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::{MegastructureDismantle, Op, VariableStep};
+use sgf_core::ops::{
+    MegastructureDismantle, MegastructurePlace, NewMegastructure, NewMegastructurePlace, Op,
+    VariableStep,
+};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
-use common::edit::{insert_after, megastructure_row, open_4_5_edited};
+use common::diff::{round_trip, round_trip_step, snapshot_step};
+use common::edit::{
+    HALL_FLAGS, galactic_hall, insert_after, megastructure_row, open_4_5_edited,
+    structure_at_colony,
+};
 use common::{
-    SAMPLE, assert_refusals, current, entity_text, holds, open_4_5, open_edited_sample, text,
+    SAMPLE, assert_refusals, current, entity_text, holds, open_4_5, open_edited_sample, reopened,
+    text,
 };
 
 fn delete(megastructure: u32) -> Op {
@@ -88,56 +95,184 @@ fn an_empty_dead_table_gets_both_blocks() {
     snapshot_step(&mut session, "logged_in_an_empty_table", delete(11));
 }
 
-/// The 4.5 sample with a cosmogenesis world row 16 tied to planet 517, which holds colony
-/// 18; with `made`, the planet has the flag a body the structure made has.
-fn on_colony(made: bool) -> Session {
-    open_4_5_edited(|text| {
+/// The 4.5 sample with row 16 of type `kind` at planet 517, a colony made `class` with the
+/// planet flags `flags`.
+fn at_colony(kind: &str, class: &str, flags: &[&str]) -> Session {
+    open_4_5_edited(|text| structure_at_colony(text, kind, class, flags))
+}
+
+/// Whether planet 517 has `flag`.
+fn flagged(session: &Session, flag: &str) -> bool {
+    entity_text(session, EntityKind::Planet, 517).contains(&format!("\t{flag}=62808000\n"))
+}
+
+#[test]
+fn a_colony_stays_whatever_its_planet_is() {
+    let habitat = ["megastructure", "habitat"];
+    let made = ["megastructure"];
+    for (kind, class, flags) in [
+        ("orbital_ring_tier_1", "pc_tropical", &[][..]),
+        ("spy_orb_4", "pc_habitat", &habitat),
+        ("mega_art_installation_4", "pc_habitat", &habitat),
+        ("interstellar_assembly_4", "pc_habitat", &habitat),
+        ("strategic_coordination_center_3", "pc_habitat", &habitat),
+        ("katzen_forge_1", "pc_habitat", &habitat),
+        ("spy_orb_4", "pc_ringworld_habitable", &made),
+        ("cosmogenesis_world_0", "pc_cosmogenesis_world", &made),
+        (
+            "planetary_drive_yard_1_fortress",
+            "pc_giga_maginot_world",
+            &made,
+        ),
+        ("galactic_halls_0_militarist", "pc_tropical", &HALL_FLAGS),
+        ("galactic_halls_0_militarist", "pc_habitat", &HALL_FLAGS),
+    ] {
+        let opened = at_colony(kind, class, flags);
+        let mut session = at_colony(kind, class, flags);
+        let result = round_trip_step(&mut session, kind, delete(16));
+        assert_eq!(
+            result.entry.description,
+            format!("Deleted megastructure #16 ({kind}) in Vinh #174")
+        );
+        let planet = entity_text(&session, EntityKind::Planet, 517);
+        assert!(planet.contains("colony=18"), "{kind}: {planet}");
+        assert_eq!(
+            entity_text(&session, EntityKind::Colony, 18),
+            entity_text(&opened, EntityKind::Colony, 18),
+            "{kind}"
+        );
+        round_trip(at_colony(kind, class, flags), delete(16));
+    }
+}
+
+/// A Spy Orb added to a habitat and saved is a row the file holds.
+#[test]
+fn a_colony_stays_when_an_added_row_is_deleted_after_a_save() {
+    let mut session = open_4_5_edited(|text| {
         insert_after(
             text,
-            &[
-                "\n\t\t517=\n\t\t{\n",
-                "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
-            ],
-            "\t\t\tmegastructure=16\n",
+            &["\n\t\t517=\n\t\t{\n", "\t\t\tflags=\n\t\t\t{\n"],
+            "\t\t\t\tmegastructure=62808000\n\t\t\t\thabitat=62808000\n",
         );
-        if made {
+    });
+    session
+        .apply(Op::AddMegastructure {
+            system: 174,
+            spec: NewMegastructure {
+                kind: "spy_orb_4".to_owned(),
+                at: MegastructurePlace::Body { body: 517 }.into(),
+                ..NewMegastructure::default()
+            },
+        })
+        .expect("the orb");
+    let mut session = reopened(&mut session);
+    session.apply(delete(16)).expect("the orb");
+    let planet = entity_text(&session, EntityKind::Planet, 517);
+    assert!(planet.contains("colony=18"), "{planet}");
+    assert!(flagged(&session, "megastructure"), "{planet}");
+}
+
+/// The flag a habitat has of its own is not a Science Nexus's to take.
+#[test]
+fn a_habitat_keeps_its_own_flag() {
+    let nexus = || {
+        at_colony(
+            "think_tank_3",
+            "pc_habitat",
+            &["megastructure", "habitat", "has_megastructure"],
+        )
+    };
+    round_trip(nexus(), delete(16));
+    let mut session = nexus();
+    session.apply(delete(16)).expect("the Nexus");
+    let session = reopened(&mut session);
+    assert!(flagged(&session, "megastructure"));
+    assert!(flagged(&session, "habitat"));
+    assert!(!flagged(&session, "has_megastructure"));
+}
+
+#[test]
+fn a_grand_archives_planet_keeps_its_flag() {
+    let archive = || {
+        at_colony(
+            "grand_archive_0",
+            "pc_tropical",
+            &["megastructure", "has_megastructure"],
+        )
+    };
+    let mut session = archive();
+    session.apply(delete(16)).expect("the Archive");
+    assert!(flagged(&session, "megastructure"));
+    assert!(!flagged(&session, "has_megastructure"));
+    round_trip(archive(), delete(16));
+}
+
+#[test]
+fn a_hall_takes_its_flags() {
+    let hall = || open_4_5_edited(galactic_hall);
+    let mut session = hall();
+    session.apply(delete(16)).expect("the Hall");
+    let planet = entity_text(&session, EntityKind::Planet, 517);
+    assert!(planet.contains("fallen_empire_world=62808000"), "{planet}");
+    assert!(!planet.contains("megastructure"), "{planet}");
+    round_trip(hall(), delete(16));
+}
+
+#[test]
+fn a_hall_whose_planet_another_row_names_leaves_its_flags_for_that_row() {
+    let mut session = open_4_5_edited(|text| {
+        galactic_hall(text);
+        megastructure_row(text, 17, "habitat_minor_orbital", 174, "\t\tplanet=517\n");
+    });
+    session.apply(delete(16)).expect("the Hall");
+    for flag in HALL_FLAGS {
+        assert!(flagged(&session, flag), "{flag}");
+    }
+    session.apply(delete(17)).expect("the orbital");
+    let planet = entity_text(&session, EntityKind::Planet, 517);
+    assert!(planet.contains("colony=18"), "{planet}");
+    assert!(!planet.contains("megastructure"), "{planet}");
+}
+
+/// What 0.27.8 left of a Hall it deleted: an add there writes neither flag, so its inverse
+/// takes neither, and once saved its row takes both.
+#[test]
+fn an_added_row_leaves_a_halls_flags() {
+    let left = || {
+        open_4_5_edited(|text| {
             insert_after(
                 text,
                 &["\n\t\t517=\n\t\t{\n", "\t\t\tflags=\n\t\t\t{\n"],
-                "\t\t\t\tmegastructure=62808000\n",
+                "\t\t\t\thas_galactic_hall_megastructure=62808000\n\t\t\t\tmegastructure=62808000\n",
             );
-        }
-        megastructure_row(
-            text,
-            16,
-            "cosmogenesis_world_0",
-            174,
-            "\t\towner=11\n\t\tplanet=517\n",
-        );
-    })
-}
-
-#[test]
-fn the_colony_on_a_body_the_structure_made_goes_with_it() {
-    let mut session = on_colony(true);
-    let result = session.apply(delete(16)).expect("delete");
-    assert_eq!(
-        result.entry.description,
-        "Deleted megastructure #16 (cosmogenesis_world_0) in Vinh #174, with the colony on planet #517"
+        })
+    };
+    let add = Op::AddMegastructure {
+        system: 174,
+        spec: NewMegastructure {
+            kind: "think_tank_3".to_owned(),
+            at: NewMegastructurePlace::Body {
+                body: 517,
+                body_flags: vec!["has_megastructure".to_owned()],
+                star_only: false,
+            },
+            ..NewMegastructure::default()
+        },
+    };
+    round_trip(left(), add.clone());
+    let mut session = left();
+    let opened = current(&session);
+    let added = session.apply(add.clone()).expect("the Nexus");
+    session.apply_inverse(added.inverse).expect("its inverse");
+    assert!(
+        holds(&session, &opened),
+        "the inverse took the Hall's flags"
     );
-    assert!(!entity_text(&session, EntityKind::Planet, 517).contains("colony=18"));
-    round_trip(on_colony(true), delete(16));
-}
-
-#[test]
-fn a_colony_on_an_ordinary_planet_stays() {
-    let mut session = on_colony(false);
-    let result = session.apply(delete(16)).expect("delete");
-    assert_eq!(
-        result.entry.description,
-        "Deleted megastructure #16 (cosmogenesis_world_0) in Vinh #174"
-    );
-    assert!(entity_text(&session, EntityKind::Planet, 517).contains("colony=18"));
+    session.apply(add).expect("the Nexus");
+    let mut session = reopened(&mut session);
+    session.apply(delete(16)).expect("the Nexus");
+    let planet = entity_text(&session, EntityKind::Planet, 517);
+    assert!(!planet.contains("megastructure"), "{planet}");
 }
 
 #[test]

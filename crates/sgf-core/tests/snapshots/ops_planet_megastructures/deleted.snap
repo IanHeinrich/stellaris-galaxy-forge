@@ -1,0 +1,60 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted megastructure #1 (mega_art_installation_ruined) in Trabano #17
+inverse: RestoreEntities "Restored megastructure #1 (mega_art_installation_ruined)"
+  System 17 (1025 bytes)
+  Planet 511 (506 bytes)
+  Megastructure 1 (235 bytes)
+
+--- gamestate
++++ gamestate
+@@ -19928,10 +19928,6 @@
+ 		{
+ 			50 51 52 53 54 55 56 57 
+ 		}
+-		megastructures=
+-		{
+-			1 
+-		}
+ 		star_class="sc_trinary_3"
+ 		hyperlane=
+ 		{
+@@ -91648,10 +91644,6 @@
+ 			planet_orbitals=
+ 			{
+ 			}
+-			megastructures=
+-			{
+-				1 
+-			}
+ 			bombardment_damage=0
+ 			entity=0
+ 			deposits=
+@@ -1037814,24 +1037806,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
+-	1=
+-	{
+-		type="mega_art_installation_ruined"
+-		coordinate=
+-		{
+-			x=-26.11778
+-			y=0
+-			origin=17
+-			randomized=no
+-		}
+-		planet=511
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
++	1=none
+ 	2=
+ 	{
+ 		type="interstellar_assembly_ruined"
