@@ -30,7 +30,7 @@ use crate::format::save::write::planet_entry::{
     PlanetEntry, and_its_moons, named_planet, named_planet_as,
 };
 use crate::format::save::write::planet_entry::{is_star, role, star_refused};
-use crate::format::save::write::restore::{Saved, country_edit, tombstoned};
+use crate::format::save::write::restore::{Saved, country_edit, tombstone_planets};
 use crate::format::save::write::teardown::{Stationed, Teardown, fleet_records, some_id};
 use crate::format::save::write::{add_body, anomaly};
 use crate::format::save::{entity_at, planet_entity, planet_statement, system_statement};
@@ -229,17 +229,7 @@ impl Deletion {
         drop_flags(plan.edit(doc, self.system)?, |flag| {
             system_flags.contains(&flag) || (last_habitat && flag == HAS_HABITAT)
         })?;
-        for &id in &self.bodies {
-            let anchor = planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
-            saved.keep(doc, SavedTable::Planet, id, anchor)?;
-            let bytes = tombstoned(doc, anchor, id)?;
-            let subject = Subject::Planet {
-                id,
-                system: self.system,
-            };
-            plan.replace(doc, subject, anchor, bytes)?;
-        }
-        Ok(())
+        tombstone_planets(plan, doc, saved, self.system, &self.bodies)
     }
 
     /// Take the deleted bodies, their colonies, their orbital rings' starbases and fleets and

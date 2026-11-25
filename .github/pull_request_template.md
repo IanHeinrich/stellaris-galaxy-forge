@@ -31,6 +31,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A renamed AI empire shows its new name in game and keeps it after a government reform. The player's renamed empire shows its new name in game and on the load game screen. A pre-FTL civilisation shows the same age in the app as in game
 - [ ] An added system loads with its bodies, names and lanes; it can be surveyed, claimed and colonised, and survives a save and reload
 - [ ] With the middle one of three added systems removed, the save loads, the renumbered system keeps its lanes and bodies, and it survives a save and reload
+- [ ] In one 4.6 save the app wrote: a system the save already had deleted, one with a single lane and one in a nebula. The save loads, the systems and the lanes to them are gone from the galaxy map, and a month passes cleanly after a save and reload
 - [ ] A deposit added to an uncolonised planet shows on its page in game, a removed one is gone, and both hold after a save and reload
 - [ ] A deposit added to or removed from a colonised planet shows in game; districts over a lowered cap are demolished within a month, and a building or zone that needed a removed deposit goes
 - [ ] A planet given a new size loads drawn at that size and a month passes cleanly

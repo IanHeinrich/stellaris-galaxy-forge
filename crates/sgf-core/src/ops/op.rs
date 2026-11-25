@@ -204,6 +204,22 @@ pub enum Op {
     RemoveSystems {
         systems: Vec<u32>,
     },
+    /// A save system the file held when it was opened, deleted as the game's `remove_system`
+    /// leaves one: its entry and its planets' become tombstones, its lanes go from the other
+    /// ends and its id from every block of `clusters`. Every id the file held stays as it is,
+    /// and a system added later takes the id past the last, never the tombstone's. What else
+    /// names the system is left for the game: its deposits, survey lists, a nebula's member
+    /// lines, the rim. A system with an owner, a starbase, a colony, a fleet, a bypass, a
+    /// wormhole pair added since the file was opened, a megastructure, a cosmic storm on it or
+    /// headed through it, an astral rift, a psionic aura, a dig site, or an anomaly a country
+    /// has found is refused, and so is an empire's starting system and one a saved event target
+    /// or a fleet elsewhere names, because deleting one has not been tried in game. A system added since the file was opened
+    /// goes as [`Op::RemoveSystem`] takes it, with that op's inverse. Otherwise the inverse
+    /// is the [`Op::RestoreEntities`] that writes back every entity it rewrote. Save
+    /// documents from Stellaris 4.6 only.
+    DeleteSystem {
+        system: u32,
+    },
     /// A system's name. In a scenario, the `name` of its `system` statement; empty takes
     /// the statement away, and the game names the system. In a save, only a system
     /// [`Op::AddSystemFromSpec`] added since the file was opened: its own name and the
@@ -807,8 +823,8 @@ pub enum Op {
     },
     /// Save entities written back whole, each over whatever stands for it now: what
     /// [`Op::RemoveColony`], [`Op::DeleteBody`], [`Op::DeleteMegastructure`],
-    /// [`Op::MoveMegastructure`] and [`Op::DeleteRingWorld`] invert to. Each text must be one
-    /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
+    /// [`Op::MoveMegastructure`], [`Op::DeleteRingWorld`] and [`Op::DeleteSystem`] invert to.
+    /// Each text must be one statement keyed by its id, the entity or its tombstone. Only an inverse: the session
     /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
     /// bytes. The inverse carries the texts displaced. In a scenario, each entity is a whole
     /// `system` statement, [`SavedTable::System`] by its id: what a scenario's
@@ -1211,6 +1227,8 @@ impl Op {
             Self::RemoveSystem { .. } | Self::RemoveSystems { .. } => {
                 OpReach::of(BOTH).details(Bodies).reclassifies()
             }
+            // It writes tombstones, not entries, and names the version it needs itself.
+            Self::DeleteSystem { .. } => OpReach::of(SAVE).details(Bodies).reclassifies(),
             // A scenario's lanes carry no length: the game measures them from the two ends.
             // It holds no global flags, countries or planets either: the game rolls the
             // outcome and creates the empires when it starts, and its stars and bodies come

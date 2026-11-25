@@ -15,6 +15,8 @@ pub(crate) struct EventTarget {
     pub name: String,
     /// `None` for a type [`crate::ops::Op::AddEventTarget`] does not write, such as a fleet.
     pub target: Option<EventTargetOf>,
+    /// The ambient object it names, when that is its type.
+    pub ambient_object: Option<u32>,
 }
 
 /// Whether `bytes` open a `saved_event_target=` statement, which is how a save tells the
@@ -50,7 +52,8 @@ pub(crate) fn targets(doc: &Document) -> Vec<(Anchor, EventTarget)> {
             let (node, src) = entity_at(doc, anchor).ok().flatten()?;
             let name = read::scalar(&node, keys::NAME, src)?.to_owned();
             let id = read::scalar_u32(&node, keys::ID, src);
-            let target = match (read::scalar(&node, keys::TYPE, src), id) {
+            let kind = read::scalar(&node, keys::TYPE, src);
+            let target = match (kind, id) {
                 (Some(keys::PLANET), Some(body)) => Some(EventTargetOf::Body { body }),
                 (Some(keys::GALACTIC_OBJECT), Some(system)) => {
                     Some(EventTargetOf::System { system })
@@ -58,7 +61,12 @@ pub(crate) fn targets(doc: &Document) -> Vec<(Anchor, EventTarget)> {
                 (Some(keys::COUNTRY), Some(country)) => Some(EventTargetOf::Country { country }),
                 _ => None,
             };
-            Some((anchor, EventTarget { name, target }))
+            let target = EventTarget {
+                name,
+                target,
+                ambient_object: id.filter(|_| kind == Some(keys::AMBIENT_OBJECT)),
+            };
+            Some((anchor, target))
         })
         .collect()
 }

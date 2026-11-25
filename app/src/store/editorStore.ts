@@ -84,14 +84,15 @@ export interface LaneRef {
 export type SelectionMode = "replace" | "add";
 
 /**
- * What Delete removes: the selected nebula, the selected lane, the selected systems, or the
- * systems of the selection a save added this session.
+ * What Delete removes: the selected nebula, the selected lane, the selected systems, the
+ * systems of the selection a save added this session, or one system the save already had.
  */
 export type Deletable =
   | { kind: "nebula"; index: number }
   | { kind: "lane"; lane: LaneRef }
   | { kind: "systems"; ids: number[] }
-  | { kind: "added"; ids: number[] };
+  | { kind: "added"; ids: number[] }
+  | { kind: "held"; ids: number[] };
 
 export interface EditorState {
   /** Selected system ids in selection order, no duplicates; at most one of a non-empty `selection`, `selectedLane` and `selectedNebula` is set. */
@@ -326,8 +327,9 @@ export interface EditorState {
   /**
    * Removes what `deletableSystems` takes of `ids` and every lane touching them in one edit, once
    * the user has confirmed: under the global symmetry their counterparts too, and on a save the
-   * ones it added, which the core alone checks when the edit runs. The ids are followed through
-   * the edits queued before it.
+   * ones it added, which the core alone checks when the edit runs. One system a save already had
+   * is asked about only once the core would delete it, and its refusal shown. The ids are
+   * followed through the edits queued before it.
    */
   removeSystems(ids: readonly number[]): Promise<boolean>;
   /**
@@ -577,6 +579,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
           return;
         case "systems":
         case "added":
+        case "held":
           await get().removeSystems(get().selection);
           return;
         case "lane": {

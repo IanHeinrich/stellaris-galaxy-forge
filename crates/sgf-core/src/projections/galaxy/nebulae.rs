@@ -114,11 +114,13 @@ pub(super) fn set_turbulence(
     changed
 }
 
-/// Point each system at the nebula listing it (the last one in file order wins).
-/// Returns the systems whose membership changed, ascending.
-pub(super) fn assign(systems: &mut HashMap<u32, SystemNode>, nebulae: &[Nebula]) -> Vec<u32> {
+/// Drop each nebula's members `systems` does not hold and point each system at the nebula
+/// listing it (the last one in file order wins). Returns the systems whose membership
+/// changed, ascending.
+pub(super) fn assign(systems: &mut HashMap<u32, SystemNode>, nebulae: &mut [Nebula]) -> Vec<u32> {
     let mut listed: HashMap<u32, usize> = HashMap::new();
-    for (i, nebula) in nebulae.iter().enumerate() {
+    for (i, nebula) in nebulae.iter_mut().enumerate() {
+        nebula.systems.retain(|id| systems.contains_key(id));
         for &id in &nebula.systems {
             listed.insert(id, i);
         }

@@ -2,10 +2,10 @@ import { useDeletion, type DeletionTarget } from "../../inspector/entity/useDele
 import { RefusableMenuItem } from "./MenuItem";
 
 /** Deletes `target` (its whole ring world where it belongs to one), or says why it cannot: offered once the core has answered. */
-export function DeleteItem({ target }: { target: DeletionTarget }) {
+export function DeleteItem({ target, className }: { target: DeletionTarget; className?: string }) {
   const { label, refusal, run } = useDeletion(target);
   return (
-    <RefusableMenuItem refusal={refusal} run={run}>
+    <RefusableMenuItem refusal={refusal} run={run} className={className}>
       {label}
     </RefusableMenuItem>
   );

@@ -148,6 +148,12 @@ pub enum OpError {
     NoMapColors(u32),
     #[error("this edit needs a save from Stellaris 4.0 or later, not {0}")]
     VersionTooOld(String),
+    #[error(
+        "this edit needs a save from Stellaris {}.{} or later, not {version}",
+        needed.0,
+        needed.1
+    )]
+    VersionBefore { needed: (u32, u32), version: String },
     #[error("the save's version {0:?} names no major version, so it cannot take this edit")]
     UnknownVersion(String),
     #[error("the save has no `{0}`")]
@@ -286,6 +292,8 @@ pub enum OpError {
     },
     #[error("planet {0} has no colony")]
     NoColony(u32),
+    #[error("system {system} cannot be deleted: {reason}")]
+    SystemKept { system: u32, reason: String },
     #[error("planet {body} cannot be deleted: {reason}")]
     PlanetKept { body: u32, reason: String },
     #[error("the colony on planet {body} cannot be removed: {reason}")]
@@ -390,6 +398,7 @@ impl OpError {
             | Self::AnomalyAbsent { .. }
             | Self::NoMapColors { .. }
             | Self::VersionTooOld { .. }
+            | Self::VersionBefore { .. }
             | Self::UnknownVersion { .. }
             | Self::MissingKey { .. }
             | Self::SystemIdsNotDense { .. }
@@ -432,6 +441,7 @@ impl OpError {
             | Self::BodyHasMoons { .. }
             | Self::PlanetOccupied { .. }
             | Self::NoColony { .. }
+            | Self::SystemKept { .. }
             | Self::PlanetKept { .. }
             | Self::ColonyKept { .. }
             | Self::MegastructureKept { .. }

@@ -27,9 +27,9 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::save::write::{
     add_body, add_habitat, add_megastructure, add_ring_world, add_system, anomaly, belts, bodies,
-    bulk, delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, event_target,
-    flag, lanes, lgate, map_colors, move_megastructure, move_planet, move_system, nebula,
-    planet_class, planet_entity, planet_modifier, planet_ring, planet_size, remove_planet,
+    bulk, delete_megastructure, delete_ring_world, delete_system, deposits, dig_site, empire_name,
+    event_target, flag, lanes, lgate, map_colors, move_megastructure, move_planet, move_system,
+    nebula, planet_class, planet_entity, planet_modifier, planet_ring, planet_size, remove_planet,
     remove_system, rename_planet, rename_system, replace_system, restore, spawned_planet,
     star_class, swap_system, system_height, wormhole, wormhole_pair,
 };
@@ -50,10 +50,10 @@ impl Format for Save {
     fn next_systems(
         &self,
         doc: &Document,
-        graph: &GalaxyGraph,
+        _graph: &GalaxyGraph,
         n: usize,
     ) -> Result<Vec<u32>, OpError> {
-        let first = crate::format::save::alloc::next_system(doc, graph)?;
+        let first = crate::format::save::alloc::next_system(doc)?;
         Ok((first..).take(n).collect())
     }
 
@@ -98,14 +98,18 @@ impl Format for Save {
         let nebulae = touched.iter().any(|s| matches!(s, Subject::Nebula(_)));
         doc.refresh_save(slots, nebulae);
         let mut bodies = BTreeSet::new();
+        // A nebula goes on listing a deleted system, so which members it has follows both.
+        let mut came_or_went = false;
         for &subject in touched {
             match subject {
                 Subject::System(id) => {
-                    let Some(anchor) = system_statement(doc, id) else {
+                    let held = graph.systems.contains_key(&id);
+                    let Some((root, buf)) = live_system(doc, id)? else {
                         graph.drop_system(id);
+                        came_or_went |= held;
                         continue;
                     };
-                    let (root, buf) = parsed_statement(doc, subject, anchor)?;
+                    came_or_went |= !held;
                     // A system whose count of `planet` lines changed has its bodies read
                     // again: an undo of a removal brings back a system with none read yet,
                     // and a planet moved between systems leaves one list for another.
@@ -143,17 +147,24 @@ impl Format for Save {
         if writes_bypasses(doc, touched) {
             graph.refresh_bypasses(doc)?;
         }
-        let reassigned = if nebulae {
-            graph.refresh_nebulae(doc)?
-        } else {
-            Vec::new()
-        };
+        let mut subjects = Vec::new();
+        if nebulae || came_or_went {
+            let before = graph.nebulae.clone();
+            subjects.extend(graph.refresh_nebulae(doc)?.into_iter().map(Subject::System));
+            let relisted = before.iter().zip(&graph.nebulae).enumerate();
+            if !nebulae {
+                subjects.extend(
+                    relisted
+                        .filter(|(_, (was, now))| was.systems != now.systems)
+                        .map(|(index, _)| Subject::Nebula(index)),
+                );
+            }
+        }
         // A member's modifiers alone can change how turbulent its nebula reads, and the
         // map only takes the nebulae again when a subject names one.
         let turbulence = graph.refresh_turbulence();
         let moved: Vec<u32> = touched.iter().filter_map(|s| s.system()).collect();
         graph.refresh_stale(&moved);
-        let mut subjects: Vec<Subject> = reassigned.into_iter().map(Subject::System).collect();
         if !nebulae {
             subjects.extend(turbulence.into_iter().map(Subject::Nebula));
         }
@@ -240,6 +251,7 @@ impl Format for Save {
             Op::RemoveEventTarget { name } => event_target::plan_remove(plan, s, name),
             Op::RemoveSystem { system } => remove_system::plan_remove(plan, s, &[*system]),
             Op::RemoveSystems { systems } => remove_system::plan_remove(plan, s, systems),
+            Op::DeleteSystem { system } => delete_system::plan_delete(plan, s, *system),
             Op::ReplaceSystemFromSpec { system, spec } => {
                 replace_system::plan_strip(plan, s, *system, spec)
             }
@@ -428,6 +440,7 @@ impl Format for Save {
             precursors: true,
             waylines: true,
             added_systems: whole_entries,
+            delete_systems: check_delete_systems(doc).is_ok(),
             bulk_add_systems: whole_entries,
             bodies: true,
             deposits: whole_entries,
@@ -473,6 +486,15 @@ fn writes_bypasses(doc: &Document, touched: &[Subject]) -> bool {
     })
 }
 
+/// System `id`'s entity as it stands now; `None` for one the save does not hold, or holds
+/// as a tombstone.
+fn live_system(doc: &Document, id: u32) -> Result<Option<(Node, &[u8])>, OpError> {
+    let Some(anchor) = system_statement(doc, id) else {
+        return Ok(None);
+    };
+    entity_at(doc, anchor).map_err(|e| Subject::System(id).parse_error(e.offset, e.reason))
+}
+
 /// The bytes standing at `anchor`, `subject`'s statement, parsed whole.
 fn parsed_statement(
     doc: &Document,
@@ -487,23 +509,54 @@ fn parsed_statement(
 /// The first major version whose saves take the ops that write whole entries.
 pub const WHOLE_ENTRIES_FROM_MAJOR: u32 = 4;
 
-/// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
-/// and more that nothing here writes. The version is `Cygnus v4.5.0` or a bare `4.5.0`;
-/// one whose major number cannot be read is refused too.
-pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
-    let version = archive::parse_meta(doc.meta())
+/// The first major and minor version whose game removes a system whole, and so loads a save
+/// with one removed.
+const DELETE_SYSTEMS_FROM: (u32, u32) = (4, 6);
+
+/// The save's version as written, `Cygnus v4.5.0` or a bare `4.5.0`.
+fn version_text(doc: &Document) -> String {
+    archive::parse_meta(doc.meta())
         .map(|meta| meta.version)
-        .unwrap_or_default();
-    let major = version
+        .unwrap_or_default()
+}
+
+/// The save's major and minor version, 0 for a minor that cannot be read; refused when the
+/// major number cannot be.
+fn version(doc: &Document) -> Result<(u32, u32), OpError> {
+    let version = version_text(doc);
+    let mut numbers = version
         .split_whitespace()
         .next_back()
         .map(|number| number.trim_start_matches(['v', 'V']))
-        .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
-    match major {
-        Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
-        Some(_) => Err(OpError::VersionTooOld(version)),
+        .unwrap_or_default()
+        .split('.')
+        .map(|number| number.parse::<u32>().ok());
+    match numbers.next().flatten() {
+        Some(major) => Ok((major, numbers.next().flatten().unwrap_or(0))),
         None => Err(OpError::UnknownVersion(version)),
     }
+}
+
+/// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
+/// and more that nothing here writes.
+pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
+    let (major, _) = version(doc)?;
+    if major < WHOLE_ENTRIES_FROM_MAJOR {
+        return Err(OpError::VersionTooOld(version_text(doc)));
+    }
+    Ok(())
+}
+
+/// Only a save of [`DELETE_SYSTEMS_FROM`] or later takes [`Op::DeleteSystem`] of a system it
+/// held when it was opened.
+pub(crate) fn check_delete_systems(doc: &Document) -> Result<(), OpError> {
+    if version(doc)? < DELETE_SYSTEMS_FROM {
+        return Err(OpError::VersionBefore {
+            needed: DELETE_SYSTEMS_FROM,
+            version: version_text(doc),
+        });
+    }
+    Ok(())
 }
 
 /// The statement of country `id`, refused when the save holds no such country.

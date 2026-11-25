@@ -58,12 +58,15 @@ pub(crate) fn plan_restore(
 }
 
 /// Whether `text` is one statement standing for entity `id` of `table`: the entity or its
-/// tombstone, the dead megastructure table whole, or nothing for a bypass row a deletion
+/// tombstone, the dead megastructure table or the clusters whole, or nothing for a bypass row a deletion
 /// emptied.
 fn holds(table: SavedTable, id: u32, text: &str) -> bool {
     match table {
         SavedTable::DeadMegastructures => {
             id == 0 && statement_key(text, false).as_deref() == Some(keys::DEAD_MEGA_STRUCTURE)
+        }
+        SavedTable::Clusters => {
+            id == 0 && statement_key(text, false).as_deref() == Some(keys::CLUSTERS)
         }
         SavedTable::Bypass if text.is_empty() => true,
         _ => statement_key(text, true).and_then(|key| key.parse().ok()) == Some(id),
@@ -168,12 +171,8 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
                 .get(EntityKind::Deposit, id)
                 .or_else(|| entry(doc.index(), keys::DEPOSIT, id)));
         }
-        SavedTable::DeadMegastructures => {
-            return Ok(doc
-                .index()
-                .section(keys::DEAD_MEGA_STRUCTURE)
-                .map(|section| Anchor::Original(section.stmt)));
-        }
+        SavedTable::DeadMegastructures => return Ok(whole(doc, keys::DEAD_MEGA_STRUCTURE)),
+        SavedTable::Clusters => return Ok(whole(doc, keys::CLUSTERS)),
         SavedTable::Country => keys::COUNTRY,
         SavedTable::Colony => keys::COLONY,
         SavedTable::PopGroup => keys::POP_GROUPS,
@@ -186,6 +185,12 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
         SavedTable::Ship => keys::SHIPS,
     };
     Ok(entry(doc.index(), section, id))
+}
+
+/// The top-level statement `key`.
+fn whole(doc: &Document, key: &str) -> Option<Anchor> {
+    let section = doc.index().section(key)?;
+    Some(Anchor::Original(section.stmt))
 }
 
 /// The statement of entity `id` in `index`'s section `section`.
@@ -262,6 +267,24 @@ pub(crate) fn country_edit<'p>(
         locate(doc, SavedTable::Country, country)?.ok_or(OpError::UnknownCountry(country))?;
     saved.keep(doc, SavedTable::Country, country, anchor)?;
     plan.edit_country(doc, country)
+}
+
+/// Write each of `bodies`, planets of `system`, as its tombstone, keeping what stood there for
+/// the inverse.
+pub(crate) fn tombstone_planets(
+    plan: &mut Plan,
+    doc: &Document,
+    saved: &mut Saved,
+    system: u32,
+    bodies: &[u32],
+) -> Result<(), OpError> {
+    for &id in bodies {
+        let anchor = planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
+        saved.keep(doc, SavedTable::Planet, id, anchor)?;
+        let bytes = tombstoned(doc, anchor, id)?;
+        plan.replace(doc, Subject::Planet { id, system }, anchor, bytes)?;
+    }
+    Ok(())
 }
 
 /// Write each of `dead` as its tombstone, keeping what stood there for the inverse.

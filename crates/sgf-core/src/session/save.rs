@@ -104,7 +104,7 @@ impl SaveQueries<'_> {
     /// spawns a system to another, or to one of `points` before it, or outside the galaxy.
     pub fn place_refusals(&self, points: &[(f64, f64)]) -> Result<Vec<Option<OpError>>, OpError> {
         let s = self.session;
-        let first = alloc::next_system(&s.doc, &s.graph)?;
+        let first = alloc::next_system(&s.doc)?;
         Ok(add_system::place_refusals(&s.graph, first, points))
     }
 

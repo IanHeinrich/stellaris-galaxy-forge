@@ -318,6 +318,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   IsolateSystems: (op) => isolate(op, op.systems),
   RemoveSystem: (op) => remove(op, [op.system]),
   RemoveSystems: (op) => remove(op, op.systems),
+  DeleteSystem: null,
   SetInitializer: (op) => entriesOp(op, [[op.system, op.initializer]], initializers, "initializer"),
   SetSpawnWeight: (op) => entriesOp(op, [[op.system, op.base]], weights, "spawn weight"),
   SetSpawnScript: (op) => entriesOp(op, [[op.system, op.script]], scripts, "seat", sameSeat),

@@ -187,7 +187,9 @@ impl GalaxyGraph {
             refreshed.bodies = previous.bodies.take();
         }
         if self.systems.insert(id, refreshed).is_none() {
-            self.order.push(id);
+            // A save lists its systems by id, where an undone deletion puts one back.
+            let at = self.order.partition_point(|&held| held < id);
+            self.order.insert(at, id);
         }
         Ok(())
     }
@@ -223,8 +225,8 @@ impl GalaxyGraph {
         Ok(())
     }
 
-    /// Forget system `id`, which the document no longer holds: an undo took back the op
-    /// that added it.
+    /// Forget system `id`, which the document no longer holds: an op deleted it, or an undo
+    /// took back the op that added it.
     pub(crate) fn drop_system(&mut self, id: u32) {
         if self.systems.remove(&id).is_some() {
             self.order.retain(|&held| held != id);

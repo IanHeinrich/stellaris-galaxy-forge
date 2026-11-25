@@ -50,7 +50,7 @@ pub(crate) fn plan_add(
 ) -> Result<Planned, OpError> {
     check_spec(spec)?;
     check_capped(s, spec, None)?;
-    let id = alloc::next_system(&s.doc, &s.graph)?;
+    let id = alloc::next_system(&s.doc)?;
     let (x, y) = (rounded(spec.x), rounded(spec.y));
     check_place(&s.graph, x, y)?;
     let lanes = lane_lengths(&s.graph, id, x, y, &spec.lanes)?;

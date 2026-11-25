@@ -60,10 +60,10 @@ Deleting the lane removes both copies.
 
 Nothing links this system to the rest of the galaxy. Fleets can reach it
 only through a bypass, such as a wormhole or a gateway, or with a jump
-drive. Draw a hyperlane to a neighbour, or leave it if you meant it. In
-a scenario, or for a system you added since you opened the save, you
-can also
-[delete the system](../edit/add-systems.md#delete-systems).
+drive. Draw a hyperlane to a neighbour, or leave it if you meant it. You
+can also [delete the system](../edit/add-systems.md#delete-systems) in a
+scenario, in a save from Stellaris 4.6 or later, or if you added it since
+you opened the save.
 
 ### Galaxy split into unconnected pieces
 

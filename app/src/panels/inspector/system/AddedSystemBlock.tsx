@@ -1,11 +1,17 @@
 import { useEffect, useMemo } from "react";
 import type { Arrangement } from "../../../generated/Arrangement";
 import type { SystemNode } from "../../../generated/SystemNode";
-import { ADDED_THIS_SESSION, NEEDS_GAME_DATA } from "../../../lib/addSystem";
+import {
+  ADDED_THIS_SESSION,
+  DELETABLE_UNTIL_REOPENED,
+  NEEDS_GAME_DATA,
+} from "../../../lib/addSystem";
 import { isStarBody, singleStarClasses } from "../../../lib/details/starBody";
+import { DELETE_SYSTEM } from "../../../lib/details/systemRemoval";
 import { arrangementOf, fitSlots } from "../../../lib/multiStar";
 import { nodeName } from "../../../lib/names";
 import { useEditorStore } from "../../../store/editorStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { specialFor, starsKey, useGeneratorStore } from "../../../store/generatorStore";
 import { spareStar } from "../../../store/starBuilderStore";
@@ -15,8 +21,6 @@ import { useGeneratorData, useStarData } from "../../useGeneratorData";
 import { StarRowIcon, StarTriggerIcon } from "../../StarIcon";
 import { MapIconPicker, StarSlot } from "../../StarPickers";
 
-const DELETABLE_UNTIL_REOPENED = "You can delete it until the file is reopened.";
-export const ADDED_CHIP_TITLE = `Added since you opened this file. ${DELETABLE_UNTIL_REOPENED}`;
 const REPLACES_BODIES =
   "Changing the class or rerolling replaces the bodies. The name, position and lanes stay.";
 const REBUILDS_STARS =
@@ -72,6 +76,7 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
   const rebuildSystem = useEditorStore((s) => s.rebuildSystem);
   const renameAddedSystem = useEditorStore((s) => s.renameAddedSystem);
   const removeSystems = useEditorStore((s) => s.removeSystems);
+  const deletesHeld = useCanEdit("delete_systems");
   const views = useGameDataStore((s) => s.starClasses);
   const names = useGameDataStore((s) => s.names);
   const { gameData, picks, stars: classes } = useGeneratorData();
@@ -253,9 +258,9 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
           className="ins-danger"
           onClick={() => void removeSystems([system.id])}
         >
-          Delete system
+          {DELETE_SYSTEM}
         </button>
-        <span className="muted">{DELETABLE_UNTIL_REOPENED}</span>
+        {!deletesHeld && <span className="muted">{DELETABLE_UNTIL_REOPENED}</span>}
       </div>
     </EditBlock>
   );

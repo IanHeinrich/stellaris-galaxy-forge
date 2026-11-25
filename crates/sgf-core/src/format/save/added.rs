@@ -253,7 +253,7 @@ pub(crate) fn rows_containing<'d>(
 }
 
 /// [`rows`] whose bytes `keep` accepts.
-fn rows_where(
+pub(crate) fn rows_where(
     doc: &Document,
     table: Table,
     keep: impl Fn(&[u8]) -> bool,

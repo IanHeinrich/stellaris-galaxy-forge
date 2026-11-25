@@ -21,6 +21,8 @@ import {
   isRingRow,
   isRingSegment,
 } from "../../../lib/details/ringWorldRemoval";
+import { DELETE_SYSTEM, deleteSystemOp } from "../../../lib/details/systemRemoval";
+import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { deleteMegastructure, removeRuin } from "../../../store/megastructureRemoval";
@@ -31,14 +33,15 @@ import { useOpCheck } from "../../useOpCheck";
 
 /**
  * What a page or a menu deletes, named `name`: a body of `system` with its class, the colony on a body, a megastructure whose `row` is its type key and whose system is null where no system
- * read so far lists it, or a ruin or an ambient object a scenario system's own block places.
+ * read so far lists it, a ruin or an ambient object a scenario system's own block places, or a system a save already had.
  */
 export type DeletionTarget =
   | { kind: "planet"; system: number; id: number; name: string; body: DeletedBody; class: string }
   | { kind: "colony"; system: number; id: number; name: string }
   | { kind: "megastructure"; system: number | null; id: number; name: string; row: string }
   | { kind: "ruin"; system: number; id: number; name: string }
-  | { kind: "ambientObject"; system: number; id: number; name: string };
+  | { kind: "ambientObject"; system: number; id: number; name: string }
+  | { kind: "system"; system: number; id: number; name: string };
 
 type Kind = DeletionTarget["kind"];
 
@@ -102,6 +105,11 @@ const DELETIONS: {
     label: DELETE_AMBIENT_OBJECT,
     op: removeAmbientObjectOp(t.id),
     run: () => removeAmbientObject(t.id, t.name, t.system),
+  }),
+  system: (t) => ({
+    label: DELETE_SYSTEM,
+    op: deleteSystemOp(t.id),
+    run: () => useEditorStore.getState().removeSystems([t.id]),
   }),
 };
 

@@ -728,6 +728,8 @@ pub enum SavedTable {
     /// The whole top-level `dead_mega_structure` statement, with id 0.
     DeadMegastructures,
     Deposit,
+    /// The whole top-level `clusters` statement, with id 0.
+    Clusters,
 }
 
 /// One system's destination in [`Op::MoveSystems`].

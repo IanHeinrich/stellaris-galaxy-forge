@@ -114,8 +114,9 @@ pub(crate) struct Applied {
     /// and deduplicated.
     pub touched: Vec<Subject>,
     /// The systems whose id the op changed, each as its id before and after, `None` after
-    /// for one it removed; read together, not in turn. Only a save's removal of a system
-    /// added in the session renumbers the systems added after it, so that ids stay dense.
+    /// for one it removed; read together, not in turn. A save's removal of a system added
+    /// in the session renumbers the systems added after it, so that ids stay dense, and its
+    /// deletion of one the file held takes out that id alone.
     pub renumbered: Vec<(u32, Option<u32>)>,
     /// The save's `meta` before and after, when the op rewrote it.
     pub meta: Option<MetaEdit>,
