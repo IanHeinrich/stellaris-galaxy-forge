@@ -279,6 +279,17 @@ pub(crate) const OPTIONAL: &[&str] = &[
     // dead table is empty.
     MAP,
     SOLAR_SYSTEM,
+    // Written once something has happened to write them for, which nothing has in the 4.6
+    // sample, saved on day one.
+    ANOMALIES,
+    DESIGNATION,
+    DISCOVERY,
+    NEXT_TRANSPORT_FLEET_NUMBER,
+    TRADITION_CATEGORIES,
+    // Written on what the 4.6 sample's galaxy has none of.
+    PICTURE,
+    RUINED_ORBITAL_RING_PLANET,
+    SAVE_ON_DEATH,
 ];
 
 /// Written on a system while an empire claims it, which no sample save's system is.
@@ -296,6 +307,10 @@ pub(crate) const BUILD_MEGASTRUCTURE_FLEET_ORDER: &str = "build_megastructure_fl
 /// A planet flag an Arc Furnace sets on the planet it is built around, which no sample save
 /// has.
 pub(crate) const HAS_ARC_FURNACE: &str = "has_arc_furnace";
+
+/// A planet flag a Galactic Hall sets, from 4.6, on the planet it stands on, which no sample
+/// save has.
+pub(crate) const HAS_GALACTIC_HALL: &str = "has_galactic_hall_megastructure";
 
 /// The keys only the `meta` member writes, which the save-key test does not look for.
 pub(crate) mod meta {

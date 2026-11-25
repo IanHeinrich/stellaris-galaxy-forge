@@ -1,5 +1,5 @@
 //! A `megastructures` row and what names it: its system's `megastructures`, its owner's
-//! `owned_megastructures`, its body's `megastructure` key and flags, and the `bypasses` row
+//! `owned_megastructures`, what its body names and its flags, and the `bypasses` row
 //! it brings with it, which other bypasses name in their connections.
 //!
 //! A bypass row the file held is emptied rather than erased, so that its slot stays where
@@ -11,7 +11,7 @@ use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::megastructure::{MegastructureRow, megastructure_row};
-use crate::entity::facts::megastructure;
+use crate::entity::facts::{megastructure, planet};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows, rows_containing};
 use crate::format::save::alloc::SlotTable;
@@ -19,7 +19,7 @@ use crate::format::save::write::flags;
 use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place;
 use crate::format::save::write::restore::{Saved, live};
-use crate::format::save::write::shared::write_slot;
+use crate::format::save::write::shared::{unname_rows, write_slot};
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
 use crate::ops::rules::FURNACE_ENTITY;
@@ -58,6 +58,10 @@ pub(crate) const BODY_FLAGS: [&str; 4] = [
     HAS_ORBITAL,
 ];
 
+/// The planet flags the game sets with `has_megastructure` on the body under a Galactic Hall,
+/// and takes off with the Hall.
+const HALL_FLAGS: [&str; 2] = [keys::MEGASTRUCTURE, keys::HAS_GALACTIC_HALL];
+
 /// What refuses an add of megastructure type `kind`, for the reason it is given.
 pub(crate) fn refuse(kind: &str) -> impl Fn(String) -> OpError + '_ {
     move |reason| refused(kind, MegastructureRefusal::Other(reason))
@@ -71,11 +75,11 @@ pub(crate) fn refused(kind: &str, reason: MegastructureRefusal) -> OpError {
     }
 }
 
-/// What holds a body, for each op to choose what it refuses. Whether a structure made the
-/// body is [`made`].
+/// What holds a body, for each op to choose what it refuses.
 #[derive(Debug)]
 pub(crate) struct Holders {
-    /// The row the body's `megastructure` key names, unless it names the null id.
+    /// The row the body's `megastructure` key names, unless it names the null id. A
+    /// `megastructures` list holds a body only through `rows`.
     pub(crate) key: Option<u32>,
     /// The live rows whose `planet` is the body, in table order.
     pub(crate) rows: Vec<u32>,
@@ -107,6 +111,20 @@ impl Holders {
     }
 }
 
+/// Whether body `body`, whose entry is `node`, names a row that holds it: a `megastructure` key,
+/// whatever it names, or a list with the id of a live row on the body. 0.27.8 left ids of rows
+/// it deleted or moved away in the list.
+pub(crate) fn names_holder(
+    doc: &Document,
+    body: u32,
+    node: &Node,
+    src: &[u8],
+) -> Result<bool, OpError> {
+    let listed = read::ids(node, keys::MEGASTRUCTURES, src);
+    Ok(node.find(keys::MEGASTRUCTURE, src).is_some()
+        || (!listed.is_empty() && rows_on(doc, body)?.iter().any(|id| listed.contains(id))))
+}
+
 /// The live rows whose `planet` is body `body`, in table order.
 fn rows_on(doc: &Document, body: u32) -> Result<Vec<u32>, OpError> {
     // A row's planet is written in decimal, so a row without the body's digits is not on it.
@@ -118,10 +136,20 @@ fn rows_on(doc: &Document, body: u32) -> Result<Vec<u32>, OpError> {
         .collect())
 }
 
-/// Whether the body `node` has the planet flag `megastructure`, which a structure that made
-/// the body leaves on it, such as a cosmogenesis world.
-pub(crate) fn made(node: &Node, src: &[u8]) -> bool {
-    read::has_flag(node, src, keys::MEGASTRUCTURE)
+/// The flags of body `node` that go with rows `ids`, the last on it: [`BODY_FLAGS`], and
+/// [`HALL_FLAGS`] from under a Hall unless the rows were added since the file was opened. An
+/// add writes neither of those, so taking its row out again leaves a Hall's on the body.
+pub(crate) fn left_flags(
+    doc: &Document,
+    node: &Node,
+    src: &[u8],
+    ids: &[u32],
+) -> impl Fn(&str) -> bool + use<> {
+    let hall = read::has_flag(node, src, keys::HAS_GALACTIC_HALL)
+        && ids
+            .iter()
+            .any(|&id| doc.added().get(EntityKind::Megastructure, id).is_none());
+    move |flag| BODY_FLAGS.contains(&flag) || (hall && HALL_FLAGS.contains(&flag))
 }
 
 /// One live `megastructures` row and what it names.
@@ -225,9 +253,8 @@ pub(crate) fn write_rows(
 }
 
 /// Take row `tied`'s id out of its system's `megastructures` and its owner's
-/// `owned_megastructures`, each list going with its last id, and its body's `megastructure`
-/// key away. Unless another live row names the body, the body also loses the flags the
-/// structure left and an Arc Furnace's hiding model. The row itself is the caller's. With
+/// `owned_megastructures`, each list going with its last id, and what its body names. Unless
+/// another live row names the body, the body also loses the flags the structure left and an Arc Furnace's hiding model. The row itself is the caller's. With
 /// `saved`, each entity rewritten is kept for the inverse.
 pub(crate) fn unlink(
     plan: &mut Plan,
@@ -291,6 +318,31 @@ pub(crate) fn unlink_all(
     Ok(())
 }
 
+/// Take row `id` out of the list of every planet but `planet` that names it, keeping each in
+/// `saved`: 0.27.8 left the id behind when it moved a row.
+pub(crate) fn unlist_elsewhere(
+    plan: &mut Plan,
+    s: &Session,
+    id: u32,
+    planet: Option<u32>,
+    saved: &mut Saved,
+) -> Result<(), OpError> {
+    let doc = &s.doc;
+    let planets = Table::Entity(EntityKind::Planet);
+    for row in rows_containing(doc, planets, b"\tmegastructures=")? {
+        if Some(row.id) == planet
+            || !read::ids(&row.node, keys::MEGASTRUCTURES, row.src).contains(&id)
+        {
+            continue;
+        }
+        let system = planet_system(&row.node, row.src, row.id)?;
+        saved.keep(doc, SavedTable::Planet, row.id, row.anchor)?;
+        let edit = plan.edit_planet(doc, row.id, system)?;
+        unlist(edit, keys::MEGASTRUCTURES, &[id], Emptied::Drop)?;
+    }
+    Ok(())
+}
+
 /// The ids `pick` reads from `rows`, each once, in order.
 fn distinct(rows: &[Tied], pick: fn(&Tied) -> Option<u32>) -> Vec<u32> {
     let mut ids: Vec<u32> = rows.iter().filter_map(pick).collect();
@@ -299,8 +351,8 @@ fn distinct(rows: &[Tied], pick: fn(&Tied) -> Option<u32>) -> Vec<u32> {
     ids
 }
 
-/// Take the keys rows `named` left on `planet` away; the flags and model too unless a live
-/// row other than those `going` names it.
+/// Have `planet` name none of rows `named`; their flags and model go too unless a live row
+/// other than those `going` names it.
 pub(crate) fn unlink_body(
     plan: &mut Plan,
     s: &Session,
@@ -320,37 +372,30 @@ pub(crate) fn unlink_body(
     };
     let system = planet_system(&node, src, planet)?;
     let alone = rows_on(doc, planet)?.iter().all(|id| going.contains(id));
-    let spans = body_keys(&node, src, named, alone);
-    if spans.is_empty() {
+    let spans = match alone {
+        true => marks(doc, &node, src, named),
+        false => Vec::new(),
+    };
+    let names = planet::megastructures(&node, src)
+        .iter()
+        .any(|id| named.contains(id));
+    if !names && spans.is_empty() {
         return Ok(());
     }
     keep(saved, doc, SavedTable::Planet, planet, anchor)?;
     let edit = plan.edit_planet(doc, planet, system)?;
+    unname_rows(edit, named)?;
     for span in spans {
         edit.bytes().remove_statement(span);
     }
     Ok(())
 }
 
-/// The statements of planet `node` that name one of rows `ids`: its `megastructure` keys,
-/// and when `alone`, the flags a structure leaves (the whole `flags` block when nothing else
-/// is in it) and an Arc Furnace's hiding model.
-fn body_keys(node: &Node, src: &[u8], ids: &[u32], alone: bool) -> Vec<Span> {
-    let mut spans: Vec<Span> = node
-        .find_all(keys::MEGASTRUCTURE, src)
-        .filter(|key| {
-            key.scalar_str(src)
-                .and_then(|t| t.parse().ok())
-                .is_some_and(|id| ids.contains(&id))
-        })
-        .map(Node::span)
-        .collect();
-    if !alone {
-        return spans;
-    }
-    spans.extend(flags::flag_spans(node, src, |flag| {
-        BODY_FLAGS.contains(&flag)
-    }));
+/// The statements of planet `node` that mark it as rows `ids`': the flags they leave (the whole
+/// `flags` block when nothing else is in it) and an Arc Furnace's hiding model.
+fn marks(doc: &Document, node: &Node, src: &[u8], ids: &[u32]) -> Vec<Span> {
+    let left = left_flags(doc, node, src, ids);
+    let mut spans = flags::flag_spans(node, src, left);
     spans.extend(
         node.find_all(keys::ENTITY_NAME, src)
             .filter(|name| name.scalar_str(src) == Some(FURNACE_ENTITY))

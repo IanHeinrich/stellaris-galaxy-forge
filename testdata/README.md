@@ -8,6 +8,8 @@ git-lfs, so run `git lfs install` once after cloning.
 - `4.4-early.sav`: Stellaris 4.4, early game.
 - `4.5-day-one.sav`: Stellaris 4.5.0, day one. The player empire has
   Independent Map Color on.
+- `4.6-day-one.sav`: Stellaris 4.6.0, day one, with Willpower. Three
+  planets have a megastructure, in 4.6's list form.
 - `3.4.sav`: Stellaris 3.4.5, for lane edits on the brace shape 3.4 to
   3.9 write.
 - `issues.sav` and `issues.paint.txt` are built to raise as many findings

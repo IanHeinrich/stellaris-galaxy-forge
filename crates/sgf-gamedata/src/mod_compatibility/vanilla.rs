@@ -5,9 +5,10 @@ use super::{HeldBack, Shaders};
 
 const CRISIS: &str = "built on the crisis path";
 const LAID: &str = "a story structure: an egg a Behemoth lays";
+const HALL: &str = "an added one has no ideology and no modules";
 
 /// The base game's megastructure families the add dialog leaves out for now.
-pub const HELD_BACK: [HeldBack; 9] = [
+pub const HELD_BACK: [HeldBack; 18] = [
     ("crisis_sphere_0", CRISIS),
     ("galactic_crucible_0", CRISIS),
     ("cosmogenesis_needle", CRISIS),
@@ -20,6 +21,15 @@ pub const HELD_BACK: [HeldBack; 9] = [
         "waystation_megastructure",
         "a nomad waystation, which makes a starbase",
     ),
+    ("galactic_halls_0_empty", HALL),
+    ("galactic_halls_0_militarist", HALL),
+    ("galactic_halls_0_pacifist", HALL),
+    ("galactic_halls_0_xenophile", HALL),
+    ("galactic_halls_0_xenophobe", HALL),
+    ("galactic_halls_0_materialist", HALL),
+    ("galactic_halls_0_spiritualist", HALL),
+    ("galactic_halls_0_authoritarian", HALL),
+    ("galactic_halls_0_egalitarian", HALL),
 ];
 
 /// How the base game's shaders draw. `PdxMeshAlphaBlend` is alpha tested, whatever its name
