@@ -7,6 +7,7 @@
 //! several habitats, each new one placed as far round it from the others as it can be.
 
 use crate::cst::Node;
+use crate::entity::facts::planet;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
@@ -17,7 +18,7 @@ use crate::format::save::write::megastructure_links::{
 };
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::body_is_star;
-use crate::format::save::write::shared::{culture_of, tie};
+use crate::format::save::write::shared::{culture_of, tie, unname_rows};
 use crate::format::save::write::spawned_planet::{self, Spawned, add_round};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
@@ -88,7 +89,7 @@ pub(crate) fn plan_add(
     match orbital {
         Some(orbital) => {
             host_flags.push((HAS_ORBITAL, date.clone()));
-            tie(host_edit, orbital, &host_flags)?;
+            tie(&s.doc, host_edit, orbital, &host_flags)?;
         }
         None => add_flags(host_edit, &host_flags, &place::planet::FLAGS)?,
     }
@@ -263,24 +264,23 @@ pub(crate) fn hosted(s: &Session, habitat: u32, host: u32) -> Result<bool, OpErr
     Ok(read::has_flag(&node, src, &format!("{HABITAT}{habitat}")))
 }
 
-/// The orbital that goes with the last habitat added round `host`: the row the host names in
-/// `megastructure`, when the host has `has_orbital`, names no more than one habitat added
-/// since the file was opened, the row was added since then too and it is one of the habitat
+/// The orbital that goes with the last habitat added round `host`: the row the host names, when
+/// the host has `has_orbital`, names no more than one habitat added since the file was opened, the row was added since then too and it is one of the habitat
 /// orbital types. An add writes the orbital only round a host that had neither the flag nor
 /// a megastructure, so it stays while another habitat added with or after it stands.
 pub(crate) fn orbital_of(s: &Session, host: u32) -> Result<Option<Tied>, OpError> {
     let (node, src) = planet_entity(&s.doc, host)?;
-    let Some(id) = read::scalar_u32(&node, keys::MEGASTRUCTURE, src) else {
+    let named = planet::megastructures(&node, src)
+        .into_iter()
+        .find(|&id| s.doc.added().get(EntityKind::Megastructure, id).is_some());
+    let Some(id) = named else {
         return Ok(None);
     };
     let added = habitat_ids(&node, src)
         .into_iter()
         .filter(|&habitat| s.doc.added().get(EntityKind::Planet, habitat).is_some())
         .count();
-    if added > 1
-        || !read::has_flag(&node, src, HAS_ORBITAL)
-        || s.doc.added().get(EntityKind::Megastructure, id).is_none()
-    {
+    if added > 1 || !read::has_flag(&node, src, HAS_ORBITAL) {
         return Ok(None);
     }
     Ok(megastructure_links::read(&s.doc, id)?
@@ -289,8 +289,8 @@ pub(crate) fn orbital_of(s: &Session, host: u32) -> Result<Option<Tied>, OpError
 
 /// Take habitat `habitat` off its host `host` and its system: the host's `habitat<id>` flag,
 /// and the system's `has_habitat` when none of the system's other bodies is a habitat. With
-/// `orbital`, its row goes too, out of its system's and its owner's lists, and the host loses
-/// its `megastructure` key and `has_orbital`.
+/// `orbital`, its row goes too, out of its system's and its owner's lists, and the host no longer
+/// names it and loses `has_orbital`.
 pub(crate) fn untie(
     plan: &mut Plan,
     s: &Session,
@@ -306,17 +306,7 @@ pub(crate) fn untie(
         f == flag || (orbital.is_some() && f == HAS_ORBITAL)
     })?;
     if let Some(orbital) = orbital {
-        let links: Vec<_> = host_edit
-            .entity()?
-            .find_all(keys::MEGASTRUCTURE, &host_edit.buf)
-            .filter(|key| {
-                key.scalar_str(&host_edit.buf).and_then(|t| t.parse().ok()) == Some(orbital.id)
-            })
-            .map(Node::span)
-            .collect();
-        for span in links {
-            host_edit.bytes().remove_statement(span);
-        }
+        unname_rows(host_edit, &[orbital.id])?;
         let mut table = SlotTable::megastructures(&s.doc)?;
         let anchor = orbital.anchor;
         table.free(plan, &s.doc, Subject::Record(anchor), orbital.id, anchor)?;

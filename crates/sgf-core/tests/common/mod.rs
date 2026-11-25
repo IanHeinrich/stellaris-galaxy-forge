@@ -34,7 +34,7 @@ pub const SAMPLE_4_5: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.5-day-one.sav"
 );
-/// A Stellaris 4.6.0 save on its first day.
+/// A Stellaris 4.6.0 save on its first day, whose planets list their megastructures.
 pub const SAMPLE_4_6: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.6-day-one.sav"
@@ -76,6 +76,10 @@ pub fn load_4_5() -> Document {
     cached(&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5).clone()
 }
 
+pub fn load_4_6() -> Document {
+    cached(&SAMPLE_4_6_DOCUMENT, SAMPLE_4_6).clone()
+}
+
 pub fn load_3_4() -> Document {
     cached(&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4).clone()
 }
@@ -90,7 +94,8 @@ fn slot(cache: &'static OnceLock<Document>) -> usize {
 
 /// A copy of the session the sample opens to, which each binary builds once.
 fn open_cached(cache: &'static OnceLock<Document>, path: &str) -> Session {
-    static OPENED: [OnceLock<Mutex<Session>>; 4] = [const { OnceLock::new() }; 4];
+    static OPENED: [OnceLock<Mutex<Session>>; CACHED.len()] =
+        [const { OnceLock::new() }; CACHED.len()];
     let session = OPENED[slot(cache)].get_or_init(|| {
         let doc = cached(cache, path).clone();
         let session = Session::from_document(Some(PathBuf::from(path)), doc)

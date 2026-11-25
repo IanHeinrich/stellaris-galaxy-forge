@@ -447,14 +447,13 @@ pub(super) fn megastructures(
     Ok(())
 }
 
-/// Whether planet `id` has the planet flag `megastructure`, which a body a megastructure made
-/// has.
+/// Whether a megastructure made planet `id`.
 fn made_by_megastructure(doc: &Document, id: u32) -> Result<bool, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(false);
     };
     Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
-        .is_some_and(|(node, src)| read::has_flag(&node, src, keys::MEGASTRUCTURE)))
+        .is_some_and(|(node, src)| facts::planet::made_by_structure(&node, src)))
 }
 
 /// Every site of `archaeological_sites.sites` the save now holds on a planet, the ones an op

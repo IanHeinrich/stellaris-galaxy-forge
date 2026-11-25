@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::NULL_ID;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::MOON_FLAG;
@@ -47,6 +48,23 @@ pub(crate) struct PlanetFacts {
     pub entity_name: Option<String>,
     /// `shipclass_orbital_station`: the mining or research station's fleet.
     pub station: Option<u32>,
+}
+
+/// The `megastructures` rows the planet names, the null id aside: one `megastructure` key up to
+/// 4.5.4, a `megastructures` list from 4.6.
+pub(crate) fn megastructures(node: &Node, src: &[u8]) -> Vec<u32> {
+    node.find_all(keys::MEGASTRUCTURE, src)
+        .filter_map(|key| key.scalar_str(src)?.parse().ok())
+        .chain(read::ids(node, keys::MEGASTRUCTURES, src))
+        .filter(|&id| id != NULL_ID)
+        .collect()
+}
+
+/// Whether a structure is taken to have made the planet, such as a cosmogenesis world: it has
+/// the planet flag `megastructure`, and not from a Galactic Hall standing on it.
+pub(crate) fn made_by_structure(node: &Node, src: &[u8]) -> bool {
+    read::has_flag(node, src, keys::MEGASTRUCTURE)
+        && !read::has_flag(node, src, keys::HAS_GALACTIC_HALL)
 }
 
 pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {

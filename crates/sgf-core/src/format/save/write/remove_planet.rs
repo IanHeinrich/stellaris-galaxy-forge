@@ -412,12 +412,12 @@ pub(crate) const SEGMENT_GOES_WHOLE: &str =
     "it is a ring world section, so delete the whole ring world instead";
 
 /// Why a ring world segment keeps its colony.
-pub(crate) const SEGMENT_KEEPS_COLONY: &str =
+const SEGMENT_KEEPS_COLONY: &str =
     "removing a colony from a ring world section hasn't been tested in game";
 
 /// What refuses a colony's removal and a copy: a ring world segment, and a megastructure on
-/// or around the body, which is a live row naming it. The body's own `megastructure` key can
-/// name a row the save no longer holds, and then refuses nothing. A habitat is a planet class
+/// or around the body, which is a live row naming it. The body itself can name a row the
+/// save no longer holds, and then refuses nothing. A habitat is a planet class
 /// with no megastructure entry of its own, so it passes.
 pub(crate) fn check_planet(
     s: &Session,

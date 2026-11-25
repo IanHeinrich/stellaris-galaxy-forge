@@ -755,32 +755,29 @@ pub enum Op {
     DeleteBody {
         body: u32,
     },
-    /// A `megastructures` row the file held, as the game leaves one it destroys: the row
-    /// becomes `<id>=none`, and its id leaves its system's `megastructures` and its owner's
-    /// `owned_megastructures`, each list going with its last id. Its body loses the
-    /// `megastructure` key, and unless another row names the body, the planet flags
-    /// `has_megastructure`, `has_arc_furnace`, `ruined_orbital_ring_planet` and `has_orbital`
-    /// and an Arc Furnace's `entity_name="invisible_turret_entity"`. A row with `save_on_death=1` is
-    /// logged in `dead_mega_structure` as the game logs it: a `map` line from its id to a new
-    /// `objects` entry holding its type and system. A row with a `gateway` or `relay_bypass`
-    /// bypass takes it along: the bypass row is emptied, and its id leaves the system's
-    /// `bypasses` and every other bypass's `connections`, `active_connections` and
-    /// `linked_to`. Each country's `usable_bypasses` and a fleet's `bypass_from` and
-    /// `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves them. When
-    /// the body has the planet flag `megastructure`, which a body the structure made has, its
-    /// colony goes first as [`Op::RemoveColony`] takes it, and the body stays. The system's
-    /// and owner's flags stay. With `dismantle`, what the type's dismantle takes back goes
-    /// too: each `timed_modifier` item of the system and its bodies naming one of its
-    /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and
-    /// leaves its body's `deposits`, and each owner variable it lowers, unless that would
-    /// take the variable below 0. A row upgrading goes with its `upgrade` block. A row
-    /// standing in no system, a ring world's row, which goes with the whole ring as
-    /// [`Op::DeleteRingWorld`] takes it, a bypass of any other kind, any colony
-    /// [`Op::RemoveColony`]
-    /// refuses for a reason other than the structure, and a modifier, deposit type or
-    /// variable that is not an identifier are refused. The inverse is the
-    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. A row
-    /// [`Op::AddMegastructure`] added since the file was opened goes as
+    /// A `megastructures` row the file held, as the game leaves one it destroys: the row becomes
+    /// `<id>=none`, and its id leaves its system's `megastructures` and its owner's
+    /// `owned_megastructures`, each list going with its last id. Its body no longer names it, in
+    /// its `megastructure` key or, from Stellaris 4.6, its `megastructures` list, nor does any
+    /// other planet whose list kept its id, and unless another row names the body, it loses the
+    /// planet flags `has_megastructure`, `has_arc_furnace`, `ruined_orbital_ring_planet` and
+    /// `has_orbital`, with a Galactic Hall's `has_galactic_hall_megastructure` that flag and
+    /// `megastructure`, and an Arc Furnace's `entity_name="invisible_turret_entity"`. The body and
+    /// its colony stay. A row with `save_on_death=1` is logged in `dead_mega_structure` as the game
+    /// logs it: a `map` line from its id to a new `objects` entry holding its type and system. A
+    /// row with a `gateway` or `relay_bypass` bypass takes it along: the bypass row is emptied, and
+    /// its id leaves the system's `bypasses` and every other bypass's `connections`,
+    /// `active_connections` and `linked_to`. Each country's `usable_bypasses` and a fleet's
+    /// `bypass_from` and `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves
+    /// them. The system's and owner's flags stay. With `dismantle`, what the type's dismantle takes
+    /// back goes too: each `timed_modifier` item of the system and its bodies naming one of its
+    /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and leaves
+    /// its body's `deposits`, and each owner variable it lowers, unless that would take the
+    /// variable below 0. A row upgrading goes with its `upgrade` block. A row standing in no
+    /// system, a ring world's row, which goes with the whole ring as [`Op::DeleteRingWorld`] takes
+    /// it, a bypass of any other kind, and a modifier, deposit type or variable that is not an
+    /// identifier are refused. The inverse is the [`Op::RestoreEntities`] that writes back every
+    /// entity it rewrote. A row [`Op::AddMegastructure`] added since the file was opened goes as
     /// [`Op::RemoveMegastructure`] takes it. Stellaris 4.x save documents only.
     DeleteMegastructure {
         megastructure: u32,
@@ -869,7 +866,7 @@ pub enum Op {
     /// at the radius and angle it stood at. An added habitat goes with its host's `habitat<id>`
     /// flag, and with its system's `has_habitat` flag once no habitat is left in it. The
     /// orbital added with the host's habitats goes with the last of them added since the file
-    /// was opened: the host's `megastructure` row added since then, when the host has
+    /// was opened: the row the host names, added since then, when the host has
     /// `has_orbital`, with that flag. Its inverse is the [`Op::AddHabitat`] that adds it back
     /// at the angle it stood at, [`HabitatPlacement::AtAngle`]. Any other planet that orbits a
     /// body without the moon bit, as [`Op::AddMegastructure`] spawns one, inverts to the
@@ -890,12 +887,13 @@ pub enum Op {
     /// when it loads. With `habitat.orbital`, as a restored Habitat Central Complex leaves
     /// one, a finished `megastructures` row of that type also stands at `body`'s coordinates,
     /// named with the system's name, with the owner and its culture: the system and the
-    /// owner list it, and `body` gets `megastructure=<id>` and the flag `has_orbital`. A body
-    /// that has a megastructure already gets the habitat without the orbital, since a planet
-    /// holds one. A body that orbits a planet, as a moon or a habitat does, a placement that is
-    /// not finite or not past 0, a size of 0, and a class, name, variable, model, type or flag
-    /// that cannot be written are refused. The inverse is [`Op::RemoveBody`], batched
-    /// with the old inner radius when it grew. Stellaris 4.x save documents only.
+    /// owner list it, and `body` names it in `megastructure=<id>`, or from 4.6 its
+    /// `megastructures` list, and gets the flag `has_orbital`. A body that has a megastructure
+    /// already gets the habitat without the orbital. A body that orbits a planet, as a moon or a
+    /// habitat does, a placement that is not finite or not past 0, a size of 0, and a class,
+    /// name, variable, model, type or flag that cannot be written are refused. The inverse is
+    /// [`Op::RemoveBody`], batched with the old inner radius when it grew. Stellaris 4.x save
+    /// documents only.
     AddHabitat {
         body: u32,
         habitat: NewHabitat,
@@ -1007,8 +1005,8 @@ pub enum Op {
     /// owner lists it in `owned_megastructures`; on load the game gives every row to the
     /// owner of its system, whatever the row names. A row on a [`NewMegastructurePlace::Body`]
     /// stands at the body's point and names it, one [`NewMegastructurePlace::Beside`] a body at
-    /// its own point, and the body gets `megastructure=<id>` and the place's `body_flags`. The
-    /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
+    /// its own point, and the body names it in `megastructure=<id>`, or from 4.6 its
+    /// `megastructures` list, and gets the place's `body_flags`. The system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
     /// new row is written past the highest, connected both ways to the relays of the systems
     /// a lane joins to `system` or to every other gateway, and to nothing for an L-Gate, which
     /// the game links when it opens. The system lists it in `bypasses`, and for an L-Gate gets
@@ -1056,8 +1054,9 @@ pub enum Op {
     /// file was opened, taken out again: it gives its slot back as an added body does, and it
     /// is unlinked as
     /// [`Op::DeleteMegastructure`] unlinks a row: its id leaves the system's
-    /// `megastructures`, the owner's `owned_megastructures` and the body's `megastructure`,
-    /// and unless another row names the body, the body loses the flags a structure leaves.
+    /// `megastructures`, the owner's `owned_megastructures` and the body's `megastructure` or
+    /// `megastructures`, and unless another row names the body, the body loses the flags an add
+    /// writes.
     /// The row's bypass is erased, and its id leaves the system's `bypasses` and every other
     /// bypass's lists; an L-Gate's system loses the flag `lgate` unless it had the flag when the
     /// file was opened. What the add's construction wrote goes too, as much of it as is still
@@ -1096,11 +1095,10 @@ pub enum Op {
     /// body goes to [`MegastructurePlace::Body`], at the body's point, or to
     /// [`MegastructurePlace::Beside`], at a point of its own; the game keeps either point.
     /// Its own body again only changes its coordinate. Another body of the system becomes the
-    /// row's `planet`: the old body loses the row's `megastructure` key, and unless another row
-    /// names it, the planet flags `has_megastructure`, `has_arc_furnace` and
-    /// `ruined_orbital_ring_planet` and an Arc Furnace's
-    /// `entity_name="invisible_turret_entity"`. The new body gets the key, in place of one
-    /// naming a row the table no longer holds, each of those flags with its date unless it has
+    /// row's `planet`: the old body loses the row's `megastructure` key or its place in the
+    /// `megastructures` list, and unless another row names it, the flags and the model
+    /// [`Op::DeleteMegastructure`] takes. The new body gets the key, in place of one naming a
+    /// row the table no longer holds, or a place last in the list, each of those flags with its date unless it has
     /// that flag already, and an Arc Furnace's model in place of any of its own, unless the
     /// new body is a star, which keeps its model. An Arc Furnace is a row whose planet has that
     /// model and the flag `has_arc_furnace`, or on a star the flag alone. Which types the game
@@ -1108,8 +1106,8 @@ pub enum Op {
     /// a star, are the caller's to know. A row with no system, a ring world's row, a bypass
     /// other than a gateway, a relay or an L-Gate, a row at a point sent to a body or a row on a
     /// body sent to a free point, a row on the body it made, which has the planet flag
-    /// `megastructure`, a row whose planet has the furnace's model without its flag sent to a
-    /// star, a body outside the system, a body another row names, a point that is not
+    /// `megastructure` without `has_galactic_hall_megastructure`, a row whose planet has the
+    /// furnace's model without its flag sent to a star, a body outside the system, a body another row names, a point that is not
     /// finite and the place it stands at already are refused. The inverse is the
     /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
     /// documents.

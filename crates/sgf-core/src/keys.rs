@@ -322,6 +322,10 @@ pub(crate) const BUILD_MEGASTRUCTURE_FLEET_ORDER: &str = "build_megastructure_fl
 /// has.
 pub(crate) const HAS_ARC_FURNACE: &str = "has_arc_furnace";
 
+/// A planet flag a Galactic Hall sets, from 4.6, on the planet it stands on, which no sample
+/// save has.
+pub(crate) const HAS_GALACTIC_HALL: &str = "has_galactic_hall_megastructure";
+
 /// The keys only the `meta` member writes, which the save-key test does not look for.
 pub(crate) mod meta {
     pub(crate) const DATE: &str = "date";

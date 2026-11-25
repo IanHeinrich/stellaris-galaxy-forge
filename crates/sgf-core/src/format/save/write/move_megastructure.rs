@@ -2,23 +2,25 @@
 //! within its system, to a point of its own or onto another body.
 //!
 //! The game keeps whatever x and y a row is given, and a row tied to a body stands at the
-//! body's point. What marks a tied structure on its body, the `megastructure` key, the flags
-//! a structure leaves and an Arc Furnace's hiding model, goes to the new body with it; a star
+//! body's point. What marks a tied structure on its body, the row the body names, the flags a
+//! structure leaves and an Arc Furnace's hiding model, goes to the new body with it; a star
 //! keeps its own model.
 
 use crate::cst::Node;
+use crate::entity::facts::planet;
 use crate::format::save::added::{Table, row};
 use crate::format::save::write::add_megastructure::same_point;
 use crate::format::save::write::bodies::frame;
 use crate::format::save::write::flags::add_flags;
 use crate::format::save::write::megastructure_links::{
-    self, BODY_FLAGS, BYPASS_KINDS, Holders, Tied, unlink_body,
+    self, BYPASS_KINDS, Holders, Tied, left_flags, unlink_body,
 };
 use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::write::place::{self, insert_key};
+use crate::format::save::write::place;
 use crate::format::save::write::planet_entity::write_entity_name;
 use crate::format::save::write::planet_entry::{body_is_star, named_entity, named_planet};
 use crate::format::save::write::restore::Saved;
+use crate::format::save::write::shared::name_row;
 use crate::format::save::{planet_entity, planet_statement, planet_system};
 use crate::keys;
 use crate::ops::rules::{FURNACE_ENTITY, FURNACE_FLAG, named, polar};
@@ -163,7 +165,7 @@ fn to_body(
     let to_at = read::coordinate(&target, src)
         .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
     let (old, old_src) = planet_entity(doc, from)?;
-    if megastructure_links::made(&old, old_src) {
+    if planet::made_by_structure(&old, old_src) {
         return Err(refused(
             id,
             format!(
@@ -186,15 +188,13 @@ fn to_body(
     }
     let target_flags = flags_of(&target, src);
     let target_model = read::scalar(&target, keys::ENTITY_NAME, src).map(str::to_owned);
-    let stale_key = target.find(keys::MEGASTRUCTURE, src).is_some();
 
-    let carried: Vec<(&str, String)> = flags_of(&old, old_src)
-        .into_iter()
-        .filter_map(|(flag, date)| {
-            let known = BODY_FLAGS.iter().find(|&&known| known == flag)?;
-            Some((*known, date))
-        })
-        .filter(|(flag, _)| !target_flags.iter().any(|(held, _)| held == flag))
+    let left = left_flags(doc, &old, old_src, &[id]);
+    let old_flags = flags_of(&old, old_src);
+    let carried: Vec<(&str, String)> = old_flags
+        .iter()
+        .map(|(flag, date)| (flag.as_str(), date.clone()))
+        .filter(|(flag, _)| left(flag) && !target_flags.iter().any(|(held, _)| held == flag))
         .collect();
     let stored = frame(s, system)?;
     let onto_star = body_is_star(s, &stored, body)?;
@@ -222,14 +222,7 @@ fn to_body(
     let anchor = planet_statement(doc, body)?.ok_or(OpError::UnknownPlanet(body))?;
     saved.keep(doc, SavedTable::Planet, body, anchor)?;
     let edit = plan.edit_planet(doc, body, system)?;
-    // A planet's key can name a row the table no longer holds; the new row takes its place.
-    if stale_key {
-        edit.set_scalar(&[keys::MEGASTRUCTURE], id.to_string())?;
-    } else {
-        insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
-            format!("{}={id}", keys::MEGASTRUCTURE)
-        })?;
-    }
+    name_row(doc, edit, id)?;
     add_flags(edit, &carried, &place::planet::FLAGS)?;
     if hides && target_model.as_deref() != Some(FURNACE_ENTITY) {
         write_entity_name(edit, Some(FURNACE_ENTITY))?;

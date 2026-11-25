@@ -8,6 +8,19 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.27.9] - 2026-11-25
+
+### Fixed
+
+- Deleting a megastructure no longer deletes the colony on its planet. A
+  Galactic Hall, or a structure on a colonised habitat, used to delete the
+  colony too.
+- Galactic Halls no longer appear in Add megastructure. One added from there
+  had no Ideology and no modules.
+- In Stellaris 4.6 saves, deleting a megastructure clears it from its
+  planet. Galaxy Forge will refuse to move a planet with a megastructure
+  or change its class (for now).
+
 ## [0.27.8] - 2026-11-20
 
 ### Fixed

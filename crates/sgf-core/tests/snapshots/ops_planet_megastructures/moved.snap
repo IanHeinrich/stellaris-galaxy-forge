@@ -1,0 +1,50 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved megastructure #1 (mega_art_installation_ruined) in Trabano #17 from star Trabano #511 to Trabano I #514
+inverse: RestoreEntities "Undid: Moved megastructure #1 (mega_art_installation_ruined) in Trabano #17 from star Trabano #511 to Trabano I #514"
+  Planet 511 (506 bytes)
+  Planet 514 (586 bytes)
+  Megastructure 1 (235 bytes)
+
+--- gamestate
++++ gamestate
+@@ -91648,10 +91648,6 @@
+ 			planet_orbitals=
+ 			{
+ 			}
+-			megastructures=
+-			{
+-				1 
+-			}
+ 			bombardment_damage=0
+ 			entity=0
+ 			deposits=
+@@ -91785,6 +91781,10 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			megastructures=
++			{
++				1 
++			}
+ 			bombardment_damage=0
+ 			entity=0
+ 		}
+@@ -1037819,12 +1037819,12 @@
+ 		type="mega_art_installation_ruined"
+ 		coordinate=
+ 		{
+-			x=-26.11778
+-			y=0
++			x=-91.30818
++			y=42.04585
+ 			origin=17
+ 			randomized=no
+ 		}
+-		planet=511
++		planet=514
+ 		orbitals=
+ 		{
+ 		}

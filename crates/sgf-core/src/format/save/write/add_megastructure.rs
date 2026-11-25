@@ -212,7 +212,7 @@ pub(crate) fn plan_add(
                 Ok((flag.as_str(), date))
             })
             .collect::<Result<Vec<_>, OpError>>()?;
-        tie(plan.edit_planet(&s.doc, body, system)?, id, &flags)?;
+        tie(&s.doc, plan.edit_planet(&s.doc, body, system)?, id, &flags)?;
     }
     let mut with: Vec<String> = bypass_id
         .map(|bypass| format!("bypass #{bypass}"))

@@ -513,50 +513,59 @@ pub const WHOLE_ENTRIES_FROM_MAJOR: u32 = 4;
 /// with one removed.
 const DELETE_SYSTEMS_FROM: (u32, u32) = (4, 6);
 
-/// The save's version as written, `Cygnus v4.5.0` or a bare `4.5.0`.
-fn version_text(doc: &Document) -> String {
-    archive::parse_meta(doc.meta())
-        .map(|meta| meta.version)
-        .unwrap_or_default()
-}
-
-/// The save's major and minor version, 0 for a minor that cannot be read; refused when the
-/// major number cannot be.
-fn version(doc: &Document) -> Result<(u32, u32), OpError> {
-    let version = version_text(doc);
-    let mut numbers = version
-        .split_whitespace()
-        .next_back()
-        .map(|number| number.trim_start_matches(['v', 'V']))
-        .unwrap_or_default()
-        .split('.')
-        .map(|number| number.parse::<u32>().ok());
-    match numbers.next().flatten() {
-        Some(major) => Ok((major, numbers.next().flatten().unwrap_or(0))),
+/// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
+/// and more that nothing here writes. The version is `Cygnus v4.5.0` or a bare `4.5.0`;
+/// one whose major number cannot be read is refused too.
+pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
+    let version = version(doc);
+    let major = version_numbers(&version).next();
+    match major {
+        Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
+        Some(_) => Err(OpError::VersionTooOld(version)),
         None => Err(OpError::UnknownVersion(version)),
     }
-}
-
-/// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
-/// and more that nothing here writes.
-pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
-    let (major, _) = version(doc)?;
-    if major < WHOLE_ENTRIES_FROM_MAJOR {
-        return Err(OpError::VersionTooOld(version_text(doc)));
-    }
-    Ok(())
 }
 
 /// Only a save of [`DELETE_SYSTEMS_FROM`] or later takes [`Op::DeleteSystem`] of a system it
 /// held when it was opened.
 pub(crate) fn check_delete_systems(doc: &Document) -> Result<(), OpError> {
-    if version(doc)? < DELETE_SYSTEMS_FROM {
-        return Err(OpError::VersionBefore {
+    let version = version(doc);
+    let found = {
+        let mut numbers = version_numbers(&version);
+        numbers
+            .next()
+            .map(|major| (major, numbers.next().unwrap_or(0)))
+    };
+    match found {
+        Some(found) if found >= DELETE_SYSTEMS_FROM => Ok(()),
+        Some(_) => Err(OpError::VersionBefore {
             needed: DELETE_SYSTEMS_FROM,
-            version: version_text(doc),
-        });
+            version,
+        }),
+        None => Err(OpError::UnknownVersion(version)),
     }
-    Ok(())
+}
+
+/// Whether the save's version has a planet list its rows in `megastructures`, as 4.6 does.
+pub(crate) fn lists_planet_megastructures(doc: &Document) -> bool {
+    version_numbers(&version(doc)).ge([4, 6])
+}
+
+fn version(doc: &Document) -> String {
+    archive::parse_meta(doc.meta())
+        .map(|meta| meta.version)
+        .unwrap_or_default()
+}
+
+/// The leading numbers of `version`: 4, 5 and 0 of `Cygnus v4.5.0`.
+fn version_numbers(version: &str) -> impl Iterator<Item = u32> {
+    version
+        .split_whitespace()
+        .next_back()
+        .unwrap_or_default()
+        .trim_start_matches(['v', 'V'])
+        .split('.')
+        .map_while(|number| number.parse().ok())
 }
 
 /// The statement of country `id`, refused when the save holds no such country.

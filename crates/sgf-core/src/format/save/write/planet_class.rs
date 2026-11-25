@@ -6,6 +6,7 @@
 
 use crate::NULL_ID;
 use crate::emit::quoted;
+use crate::format::save::write::megastructure_links::names_holder;
 use crate::format::save::write::planet_entity::write_entity_name;
 use crate::format::save::write::planet_entry::{PlanetEntry, named_entity, named_planet};
 use crate::keys;
@@ -43,7 +44,7 @@ pub(crate) fn plan_set(
             return Err(OpError::FixedPlanetClass(rule.class.clone()));
         }
     }
-    if node.find(keys::MEGASTRUCTURE, src).is_some() {
+    if names_holder(&s.doc, id, &node, src)? {
         return Err(OpError::MegastructureClass(id));
     }
     let colonised = read::scalar_u32(&node, keys::COLONY, src).is_some_and(|c| c != NULL_ID);

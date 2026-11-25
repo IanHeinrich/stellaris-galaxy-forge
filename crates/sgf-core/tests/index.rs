@@ -7,7 +7,7 @@ use sgf_core::scan::key_name;
 use sgf_core::validate::{Severity, validate};
 
 use crate::common;
-use common::{load, load_3_4, load_4_5};
+use common::{load, load_3_4, load_4_5, load_4_6};
 
 /// Each sample save, with the version and date its meta holds and how many issues the
 /// validator raises on it, none of them an error. The save reports its progress as it
@@ -18,6 +18,7 @@ fn each_sample_is_partitioned_with_no_residue_and_saves_back_byte_for_byte() {
     for (doc, version, date, raised) in [
         (load(), "Pegasus v4.4.6", "2206.11.16", 3),
         (load_4_5(), "Cygnus v4.5.0", "2201.03.25", 3),
+        (load_4_6(), "Corona Borealis v4.6.0", "2200.01.01", 2),
         (load_3_4(), "Cepheus v3.4.5", "2200.04.11", 3),
     ] {
         let gaps = doc.index().coverage_gaps(doc.original());

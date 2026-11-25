@@ -1,6 +1,6 @@
 # Stellaris save format notes
 
-Notes on the `.sav` format as Stellaris 4.4 and 4.5 write it, with
+Notes on the `.sav` format as Stellaris 4.4 to 4.6 write it, with
 examples from the sample saves in `testdata/`. The install is covered in
 [game-data-notes.md](game-data-notes.md).
 
@@ -741,6 +741,19 @@ for planets or deposits.
   gets `megastructure=<id>`. The planet's `megastructure=` can name an
   id the table no longer holds (a 4.5.2 save), so the tie is read from
   the row's `planet`.
+- From 4.6 a planet lists the rows tied to it in
+  `megastructures={ 1 }`, where 4.5.4 and earlier write one
+  `megastructure=<id>`, at the same place. The 4.6 sample has three lists
+  (stars 511, 569 and 848) and no `megastructure=<id>`. 4.6.0 reads the
+  old form: a copy of the sample with `megastructure=15` added to star
+  512 came back with `megastructures={ 15 }`, and with `randomized=no` in
+  row 15's `coordinate`, and the structure stayed through a month. The
+  planet flag `megastructure` is something else.
+- The editor keeps the form a planet has, and gives a planet with
+  neither the list in a save of 4.6 or later. A list keeps its other ids
+  and goes with its last. Galaxy Forge 0.27.8 left the id of a row it
+  deleted or moved in the list, so a listed id counts only when a live
+  row names the planet.
 - A layout's `spawn_megastructure` that names no place writes its row at
   (0, 0) with `planet=4294967295`: the 4.5 sample's ruined Dyson Sphere
   from `dyson_sphere_init_01`. One with `planet = star` or
@@ -762,10 +775,10 @@ for planets or deposits.
   tied to a body keeps its `planet` and gets new x and y when it moves
   beside its body. On another body it gets that body's `planet`, and its
   coordinate is the body's or the point it was dropped at. The old
-  body's `megastructure` key, the flags a structure leaves and an Arc
-  Furnace's hiding model go to the new body, each flag with its date. A
-  `megastructure` key on the new body that names a row the table no
-  longer holds takes the moved row's id.
+  body's `megastructure` key or its place in the list, the flags a
+  structure leaves and an Arc Furnace's hiding model go to the new body,
+  each flag with its date. A `megastructure` key on the new body that
+  names a row the table no longer holds takes the moved row's id.
 - A row's `bypass=<id>` and that bypass's `owner={ type=6 id=<row> }`
   agree in all 299 bypass rows of a 4.5.1 save. Natural wormholes and the
   Shroud tunnel have `owner={ type=7 … }`.
@@ -787,10 +800,19 @@ for planets or deposits.
   to `entity_name="invisible_turret_entity"`. The furnace's
   `on_dismantle_complete` takes both flags off and gives the planet its
   model back. A ruined orbital ring's planet has the flag
-  `ruined_orbital_ring_planet`. A body the structure made, such as a
-  cosmogenesis world, has the planet flag `megastructure`. A habitat
-  orbital's body has `has_orbital`. When the editor deletes a row, its
-  body loses these flags unless another row names it.
+  `ruined_orbital_ring_planet`. A habitat orbital's body has
+  `has_orbital`. When the editor deletes a row, its body loses these
+  flags unless another row names it.
+- The planet flag `megastructure` is on a body a structure made (a
+  cosmogenesis world, a ring world segment, a habitat) and on one under a
+  Grand Archive or a Galactic Crucible. From 4.6 a Galactic Hall sets it
+  too, with `has_megastructure` and `has_galactic_hall_megastructure`,
+  on any colony, a habitat or a segment included, and the game's
+  `on_galactic_hall_deleted` takes all three off. No row of a base game
+  save names the body it made, because the row goes when the body
+  stands. So a deleted row's body and colony always stay. The editor
+  takes `megastructure` off only with a Hall's flag, and not with a row
+  added since the file was opened, as an add writes neither.
 - The table is not sorted by id. In a 4.5.2 late-game save 32 of 375
   rows stand out of numeric order, and 47 are past generation 0. A test
   row added at the slot past the highest, with `owner=0`, no culture and
@@ -941,7 +963,7 @@ for planets or deposits.
   restored complex's orbital yet. When the editor deletes the habitat, its
   orbital goes too. A body that has a megastructure, or the flag
   `has_megastructure` or `has_orbital` without one, gets the habitat
-  without the orbital, since a planet names one row in `megastructure`.
+  without the orbital.
 - A ring world's quadrants, as the game's build chain leaves them and as
   the editor adds them. Quadrants A to D stand at save angles 180, 270,
   0 and 90, the game's `orbit_angle` 0, 90, 180 and 270. A finished

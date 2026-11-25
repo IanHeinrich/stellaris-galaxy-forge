@@ -103,6 +103,7 @@ Select a greyed-out megastructure to read why.
 | Later stages of the Quantum Catapult | Not in the list, not supported yet |
 | Arkships, repaired Gigastructural Engineering warships | Not in the list, because they are ships. The wrecked warships are listed. |
 | Galactic Crucible, Behemoth egg, Shroud Seal | Not in the list, because they are crisis and event structures |
+| Galactic Hall | Not in the list, because an added one has no ideology and no modules |
 
 ## Add an Equatorial Shipyard
 
@@ -212,10 +213,8 @@ Galaxy Forge asks first, and one undo puts it all back.
 - The modifiers and deposits it added go with it, as when it is
   dismantled in the game. Load the game data first, or they stay.
 - Relay and gateway links go with it.
-- Its planet stays, with any colony, and can take a new
+- Its planet always stays, with any colony, and can take a new
   megastructure, such as a new Orbital Ring in place of a ruined one.
-- Deleting a Cosmogenesis World, or another megastructure that made its
-  planet, also removes the colony there. The confirmation lists it.
 - Anything else it did stays. Planets a Dyson Sphere froze stay frozen.
 
 An L-Gate the save already had can't be deleted, and the menu says why.
