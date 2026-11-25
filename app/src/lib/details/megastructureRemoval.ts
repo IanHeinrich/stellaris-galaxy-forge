@@ -8,14 +8,9 @@ import type { EntityView } from "../../generated/EntityView";
 import type { MegastructureDismantle } from "../../generated/MegastructureDismantle";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
-import type { PlanetPage } from "../../generated/PlanetPage";
 import type { RowOrigin } from "../../generated/RowOrigin";
-import { colonyParts } from "./planetRemoval";
 
 export const DELETE_MEGASTRUCTURE = "Delete megastructure";
-
-/** The planet flag the game sets on a planet a megastructure made, such as a cosmogenesis world. */
-export const MADE_BY_MEGASTRUCTURE = "megastructure";
 
 export function deleteMegastructureOp(megastructure: number): Op {
   return { type: "DeleteMegastructure", megastructure };
@@ -69,8 +64,6 @@ export function systemOfMegastructure(
 /** What a megastructure row says of itself that its deletion takes along. */
 export interface MegastructureRow {
   kind: string;
-  /** The planet it stands on or around, or null. */
-  planet: number | null;
   /** Whether it has a bypass: a hyper relay's link or a gateway's. */
   bypass: boolean;
 }
@@ -88,7 +81,6 @@ export function megastructureRow(nodes: readonly EntityNode[]): MegastructureRow
   const type = nodes.find((n) => n.key === "type");
   return {
     kind: type?.value.kind === "scalar" ? type.value.text : "",
-    planet: reference(nodes, "planet"),
     bypass: reference(nodes, "bypass") !== null,
   };
 }
@@ -98,18 +90,11 @@ export function addedThisSession(view: EntityView): boolean {
   return view.span[0] === view.span[1];
 }
 
-/** Whether a planet's `flags` say a megastructure made it. */
-export function madeByMegastructure(flags: readonly EntityNode[]): boolean {
-  return flags.some((n) => n.key === MADE_BY_MEGASTRUCTURE);
-}
-
 /** What a deletion takes besides the row: read before the confirm asks. */
 export interface MegastructureLoss {
   row: MegastructureRow;
   /** The row was added since the file was opened, so its removal takes back what its add wrote. */
   added: boolean;
-  /** The planet a megastructure made, with the colony on it that goes first; null otherwise. */
-  colony: { planet: string; page: PlanetPage } | null;
   /** What the game data says its dismantle takes back; null without game data. */
   dismantle: MegastructureDismantle | null;
 }
@@ -128,15 +113,11 @@ export const EMPTY_DISMANTLE: MegastructureDismantle = {
 export function deleteMegastructureQuestion(
   name: string,
   system: string | null,
-  { colony, dismantle, added }: MegastructureLoss,
+  { dismantle, added }: MegastructureLoss,
 ): string {
-  const settled =
-    colony === null
-      ? ""
-      : ` The colony on ${colony.planet} goes with it: ${colonyParts(colony.page)}. The planet stays.`;
   const kept =
     dismantle === null && !added
       ? " Game data isn't loaded, so the modifiers from building it stay."
       : "";
-  return `${deleteOpening(name, system, "save")}${settled}${kept}`;
+  return `${deleteOpening(name, system, "save")}${kept}`;
 }

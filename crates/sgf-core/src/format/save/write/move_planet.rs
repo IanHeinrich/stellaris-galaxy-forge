@@ -14,6 +14,7 @@ use crate::format::save::write::belts;
 use crate::format::save::write::bodies::{Stored, frame, frame_bodies, grow};
 use crate::format::save::write::fleets::{move_fleet, stationed};
 use crate::format::save::write::id_list::{Emptied, append, list_planets, unlist, unlist_planets};
+use crate::format::save::write::megastructure_links::names_holder;
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{
@@ -402,7 +403,7 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
     for &id in &moved {
         let (node, src) = planet_entity(&s.doc, id)?;
         check_segment_stays(&node, src, id)?;
-        if node.find(keys::MEGASTRUCTURE, src).is_some() {
+        if names_holder(&s.doc, id, &node, src)? {
             return Err(OpError::MegastructurePlanet(id));
         }
         check_controller(&node, src, id)?;

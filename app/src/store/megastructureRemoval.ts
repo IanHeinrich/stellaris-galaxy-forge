@@ -4,12 +4,10 @@
  */
 import * as ipc from "../api/ipc";
 import type { MegastructureDismantle } from "../generated/MegastructureDismantle";
-import { bodyName } from "../lib/details/labels";
 import {
   addedThisSession,
   deleteMegastructureQuestion,
   EMPTY_DISMANTLE,
-  madeByMegastructure,
   megastructureRow,
   removeRuinOp,
   type MegastructureLoss,
@@ -21,22 +19,11 @@ import { useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 
-/**
- * What deleting megastructure `id` takes besides its row: a bypass, and the colony on a planet
- * the megastructure made. The colony goes first only there; an ordinary colony stays.
- */
+/** What the confirm for deleting megastructure `id` says of it. */
 async function lossOf(id: number): Promise<MegastructureLoss> {
   const view = await ipc.getEntity({ kind: "megastructure", id });
   const row = megastructureRow(view.nodes);
-  const added = addedThisSession(view);
-  const dismantle = dismantleOf(row.kind);
-  if (row.planet === null) return { row, added, colony: null, dismantle };
-  const page = await ipc.getPlanetPage(row.planet);
-  if (page.colony === null || page.flags === 0) return { row, added, colony: null, dismantle };
-  const flags = await ipc.getEntity({ kind: "planet", id: row.planet }, ["flags"]);
-  if (!madeByMegastructure(flags.nodes)) return { row, added, colony: null, dismantle };
-  const planet = bodyName(page, useGameDataStore.getState().names);
-  return { row, added, colony: { planet, page }, dismantle };
+  return { row, added: addedThisSession(view), dismantle: dismantleOf(row.kind) };
 }
 
 /** What the loaded game data says a megastructure of `kind` takes back when deleted; null without it. */
@@ -64,10 +51,7 @@ export function deleteMegastructure(
       return deleteMegastructureQuestion(name, where, loss);
     },
     apply: () => useEditorStore.getState().deleteMegastructure(id),
-    gone: (loss) => ({
-      megastructures: [id],
-      colonies: loss.colony?.page.colony ? [loss.colony.page.colony.id] : [],
-    }),
+    gone: () => ({ megastructures: [id] }),
   });
 }
 

@@ -86,6 +86,7 @@ mod ops_nebula_footprint;
 mod ops_nebula_names;
 mod ops_planet_class;
 mod ops_planet_entity;
+mod ops_planet_megastructures;
 mod ops_planet_modifier;
 mod ops_planet_ring;
 mod ops_planet_size;

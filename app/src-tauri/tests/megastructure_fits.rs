@@ -16,7 +16,7 @@ use tauri::test::MockRuntime;
 use crate::common;
 use common::{SAMPLE_45, SCENARIO, invoke, open, webview, with_game_data};
 
-const ON_ANY_BODY: [&str; 32] = [
+const ON_ANY_BODY: [&str; 41] = [
     "arkship_civilian_dummy",
     "arkship_military_dummy",
     "arkship_ruined",
@@ -40,6 +40,15 @@ const ON_ANY_BODY: [&str; 32] = [
     "crisis_sphere_4",
     "crisis_sphere_ruined",
     "galactic_crucible_dummy",
+    "galactic_halls_0_authoritarian",
+    "galactic_halls_0_egalitarian",
+    "galactic_halls_0_empty",
+    "galactic_halls_0_materialist",
+    "galactic_halls_0_militarist",
+    "galactic_halls_0_pacifist",
+    "galactic_halls_0_spiritualist",
+    "galactic_halls_0_xenophile",
+    "galactic_halls_0_xenophobe",
     "habitat_central_complex",
     "habitat_central_complex_restored",
     "habitat_central_complex_ruined",
