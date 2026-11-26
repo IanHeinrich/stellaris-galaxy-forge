@@ -124,6 +124,10 @@ pub struct HabitatOrbital {
     /// The country that owns it, whose graphical culture it takes; `None` for none.
     #[serde(default)]
     pub owner: Option<u32>,
+    /// The graphical culture it is drawn in, in place of its owner's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub culture: Option<String>,
     /// The localisation key of its name, `TARGET_ORBITAL_NAME`; `None` for no name.
     #[serde(default)]
     pub name: Option<String>,
@@ -243,7 +247,7 @@ pub struct RingRow {
     pub name: Option<String>,
     /// The row takes the ring's owner.
     pub owned: bool,
-    /// The graphical culture it is drawn in, written when it has an owner.
+    /// The graphical culture it is drawn in; `None` for none.
     #[serde(default)]
     pub culture: Option<String>,
 }
@@ -459,6 +463,11 @@ pub struct NewMegastructure {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub owner: Option<u32>,
+    /// The graphical culture it is drawn in, in place of its owner's: what a row with no owner
+    /// needs when its model is only defined per culture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub culture: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub bypass: Option<NewBypass>,

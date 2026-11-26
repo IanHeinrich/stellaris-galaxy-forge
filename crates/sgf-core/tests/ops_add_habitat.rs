@@ -1,6 +1,7 @@
 //! Adding a habitat round a body of the 4.5 sample and deleting it again: the diff, the
 //! flags the host and the system take and give back, and what is refused.
 
+use sgf_core::entity::views::EntityKind;
 use sgf_core::ops::{
     HabitatOrbital, HabitatPlacement, NewHabitat, NewMegastructurePlace, NewPlanet, Op,
 };
@@ -10,7 +11,9 @@ use crate::common;
 use common::diff::snapshot_step;
 use common::edit::{ALARI, open_4_5_edited, planet_text, system_text};
 use common::examples::{ADDED_MEGASTRUCTURE, sol_habitat, sol_nexus};
-use common::{SAMPLE_4_5, assert_refusals, current, open_4_5, open_edited_sample, text};
+use common::{
+    SAMPLE_4_5, assert_refusals, current, entity_text, open_4_5, open_edited_sample, text,
+};
 
 /// Ithomes Gate, whose three habitats the event that made them left with no `habitat<id>`
 /// flag on their hosts and no `has_habitat` on the system. Habitat 6268 orbits gas giant
@@ -49,6 +52,7 @@ fn restored(body: u32) -> Op {
             orbital: Some(HabitatOrbital {
                 kind: "habitat_major_orbital".to_owned(),
                 owner: Some(0),
+                culture: None,
                 name: Some("TARGET_ORBITAL_NAME".to_owned()),
                 system_name: Some("prevprev.GetName".to_owned()),
             }),
@@ -372,6 +376,52 @@ fn a_restored_habitat_has_its_orbital() {
     );
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(current(&session), session.doc().original());
+}
+
+/// [`restored`] round planet 4 with nobody owning the orbital, whose row names `culture`.
+fn restored_unowned(culture: Option<&str>) -> Op {
+    let Op::AddHabitat { body, mut habitat } = restored(4) else {
+        unreachable!("an AddHabitat");
+    };
+    let orbital = habitat.orbital.as_mut().expect("the major orbital");
+    orbital.owner = None;
+    orbital.culture = culture.map(str::to_owned);
+    add(body, habitat)
+}
+
+/// An orbital nobody owns is written in the culture the add gives it and with no owner, and
+/// taking the habitat out reads the culture back.
+#[test]
+fn an_unowned_orbital_is_written_in_its_own_culture() {
+    for culture in [Some("reptilian_01"), None] {
+        let mut session = open_4_5();
+        let added = session.apply(restored_unowned(culture)).expect("the add");
+        let [orbital] = added.created.megastructures[..] else {
+            panic!("one orbital: {:?}", added.created);
+        };
+        let row = entity_text(&session, EntityKind::Megastructure, orbital);
+        let named = culture.map(|c| format!("\t\tgraphical_culture=\"{c}\"\n"));
+        assert_eq!(
+            row.contains("graphical_culture"),
+            culture.is_some(),
+            "{row}"
+        );
+        assert!(row.contains(&named.unwrap_or_default()), "{row}");
+        assert!(!row.contains("owner="), "{row}");
+        let id = added_id(&added);
+        let removed = session
+            .apply(Op::DeleteBody { body: id })
+            .expect("the removal");
+        assert_eq!(current(&session), session.doc().original());
+        assert_eq!(removed.inverse, restored_unowned(culture));
+    }
+    assert_refusals(
+        &mut open_4_5(),
+        [(
+            restored_unowned(Some("two words")),
+            "\"two words\" cannot be written as a graphical culture",
+        )],
+    );
 }
 
 /// Deleting a restored complex's habitat takes its orbital row, the lists naming it and the

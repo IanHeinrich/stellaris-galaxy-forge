@@ -249,15 +249,38 @@ impl Assets {
         if cultures.iter().any(|c| c == NO_CULTURE) && self.entities.contains_key(entity) {
             return Some(entity.to_owned());
         }
-        let fallback =
-            (!cultures.iter().any(|c| c == FALLBACK_CULTURE)).then_some(FALLBACK_CULTURE);
-        cultures
-            .iter()
-            .map(String::as_str)
-            .chain(fallback)
-            .map(|culture| format!("{culture}_{entity}"))
-            .chain([entity.to_owned()])
-            .find(|name| self.entities.contains_key(name))
+        let cultures = cultures.iter().map(String::as_str);
+        self.drawn_in(cultures.chain([FALLBACK_CULTURE]), entity)
+            .map(|culture| cultured(culture, entity))
+            .or_else(|| {
+                self.entities
+                    .contains_key(entity)
+                    .then(|| entity.to_owned())
+            })
+    }
+
+    /// The culture a row nobody owns has to name for its model `entity` to be drawn:
+    /// [`FALLBACK_CULTURE`] when it has a `<culture>_<entity>`, else the first of `cultures`
+    /// that has one. `None` when `<entity>` itself is defined, which the game draws for no
+    /// culture, and when none has one.
+    pub(crate) fn unowned_culture<'c>(
+        &self,
+        cultures: impl Iterator<Item = &'c str>,
+        entity: &str,
+    ) -> Option<&'c str> {
+        if self.entities.contains_key(entity) {
+            return None;
+        }
+        self.drawn_in([FALLBACK_CULTURE].into_iter().chain(cultures), entity)
+    }
+
+    /// The first of `cultures` whose `<culture>_<entity>` an `.asset` file defines.
+    fn drawn_in<'c>(
+        &self,
+        mut cultures: impl Iterator<Item = &'c str>,
+        entity: &str,
+    ) -> Option<&'c str> {
+        cultures.find(|culture| self.entities.contains_key(&cultured(culture, entity)))
     }
 
     /// `name` as the last `.asset` file to define it writes it.
@@ -400,6 +423,11 @@ impl Assets {
 /// `own`, or what the cloned entity has when `own` is empty.
 fn or_inherited<T: Clone>(own: &[T], source: &[T]) -> Vec<T> {
     if own.is_empty() { source } else { own }.to_vec()
+}
+
+/// The entity that draws `entity` in `culture`.
+fn cultured(culture: &str, entity: &str) -> String {
+    format!("{culture}_{entity}")
 }
 
 /// The `.asset`, `.gfx` and `.dds` files under `gfx/models` in the layers of `layout`, each

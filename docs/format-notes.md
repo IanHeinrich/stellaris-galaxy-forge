@@ -1077,8 +1077,20 @@ for planets or deposits.
 - `graphical_culture` on a row is the culture its model is drawn in. It
   is missing on ruins, L-Gates and most rows without an owner. Where a
   row has both, it matches its owner country's `graphical_culture`,
-  except on Hyper Relays, which keep their builder's. A row that names
-  none is assumed to use its owner's. That hasn't been checked in game.
+  except on Hyper Relays, which keep their builder's. A row with an owner
+  that names none is assumed to use its owner's. That hasn't been checked
+  in game. A row with neither is drawn with the bare entity its type names.
+  Most built types have no such entity, only one per culture:
+  `think_tank_3` names `thinktank_phase_03_entity`, and the install defines
+  only `<culture>_thinktank_phase_03_entity`, for 21 cultures. An unowned
+  `think_tank_3` row with no culture was flat black in 4.6.0. The game
+  doesn't give the row a culture on load or over a month, and
+  `set_graphical_culture = mammalian_01` in the console gave it its textures.
+  Ruins and L-Gates name a bare entity that exists, and the rows of them the
+  game writes have no culture.
+  Unowned rows written with `mammalian_01` for a Science Nexus, a gateway
+  and a Hyper Relay had their textures in 4.6.0, as did an owned Science
+  Nexus beside them.
 - A starbase's position is its station fleet's
   `movement_manager={ coordinate={ x y origin } }`, reached as
   `starbase_mgr.starbases.<id>.station` → `ships.<id>.fleet` → `fleet`.

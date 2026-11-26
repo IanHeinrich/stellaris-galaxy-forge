@@ -494,8 +494,8 @@ fn extras(
     let refused = |why| GenerateError::Unsupported(init.name.clone(), why);
     let structures = layout_structures(gd, init).map_err(refused)?;
     let mut extras = SystemExtras::default();
-    for (def, at) in structures.rows {
-        let body = match at {
+    for row in structures.rows {
+        let body = match row.at {
             SpawnedAt::Star => Some(SpecBody::Star),
             SpawnedAt::Saved(token) => saved
                 .iter()
@@ -505,7 +505,9 @@ fn extras(
                 .ok_or_else(|| refused(Unsupported::Megastructure))?,
             SpawnedAt::Centre => None,
         };
-        extras.megastructures.push(spawned_row(def, body));
+        extras
+            .megastructures
+            .push(spawned_row(gd, row.def, body, row.culture));
     }
     extras.ring_world = structures.ring.map(|(_, ring)| ring);
     for (body, star, planted) in planted {

@@ -22,6 +22,6 @@ name: string | null,
  */
 owned: boolean, 
 /**
- * The graphical culture it is drawn in, written when it has an owner.
+ * The graphical culture it is drawn in; `None` for none.
  */
 culture: string | null, };

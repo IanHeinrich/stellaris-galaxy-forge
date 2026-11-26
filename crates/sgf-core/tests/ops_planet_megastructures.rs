@@ -383,6 +383,7 @@ fn a_habitats_orbital_is_listed_by_its_host() {
             orbital: Some(HabitatOrbital {
                 kind: "habitat_major_orbital".to_owned(),
                 owner: None,
+                culture: None,
                 name: None,
                 system_name: None,
             }),

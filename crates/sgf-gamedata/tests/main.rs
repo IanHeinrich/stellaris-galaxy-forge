@@ -41,6 +41,7 @@ mod load_progress;
 mod localisation;
 mod look_only_classes;
 mod megastructure_construction;
+mod megastructure_cultures;
 mod megastructure_host_planet;
 mod megastructure_inline_scripts;
 mod megastructure_layouts;

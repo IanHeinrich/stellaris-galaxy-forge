@@ -101,6 +101,32 @@ fn a_mixed_ring_with_the_planets_left_in_place() {
     );
 }
 
+/// A ring nobody owns is written with no owner, each row in the culture it names, and taking
+/// it out leaves the save as it was opened.
+#[test]
+fn an_unowned_rings_rows_are_written_in_their_own_cultures() {
+    let mut session = open_4_5();
+    let added = session.apply(chors_ring(None)).expect("the add");
+    let details = session.details().expect("details");
+    let rows: Vec<_> = details
+        .raw(CHORS_COMPASS)
+        .expect("the system")
+        .megastructures
+        .iter()
+        .map(|row| (row.kind.as_str(), row.owner, row.culture.as_deref()))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("ring_world_2", None, Some("mammalian_01")),
+            ("ring_world_ruined", None, None),
+        ]
+    );
+    let removed = session.apply_inverse(added.inverse).expect("the removal");
+    assert_eq!(current(&session), session.doc().original());
+    assert_eq!(removed.inverse, chors_ring(None));
+}
+
 /// Taking out a ring world added this session leaves the save as it was opened, and its
 /// inverse adds the same ring again.
 #[test]

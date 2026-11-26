@@ -868,7 +868,8 @@ pub enum Op {
     /// orbital added with the host's habitats goes with the last of them added since the file
     /// was opened: the row the host names, added since then, when the host has
     /// `has_orbital`, with that flag. Its inverse is the [`Op::AddHabitat`] that adds it back
-    /// at the angle it stood at, [`HabitatPlacement::AtAngle`]. Any other planet that orbits a
+    /// at the angle it stood at, [`HabitatPlacement::AtAngle`], with the orbital's culture when
+    /// that is not its owner's. Any other planet that orbits a
     /// body without the moon bit, as [`Op::AddMegastructure`] spawns one, inverts to the
     /// [`Op::AddSpawnedPlanet`] that writes it back round that body as it stood.
     /// Stellaris 4.x save documents only.
@@ -886,14 +887,14 @@ pub enum Op {
     /// inner radius grows when the habitat lies past it. The game builds its construction queue
     /// when it loads. With `habitat.orbital`, as a restored Habitat Central Complex leaves
     /// one, a finished `megastructures` row of that type also stands at `body`'s coordinates,
-    /// named with the system's name, with the owner and its culture: the system and the
-    /// owner list it, and `body` names it in `megastructure=<id>`, or from 4.6 its
-    /// `megastructures` list, and gets the flag `has_orbital`. A body that has a megastructure
-    /// already gets the habitat without the orbital. A body that orbits a planet, as a moon or a
-    /// habitat does, a placement that is not finite or not past 0, a size of 0, and a class,
-    /// name, variable, model, type or flag that cannot be written are refused. The inverse is
-    /// [`Op::RemoveBody`], batched with the old inner radius when it grew. Stellaris 4.x save
-    /// documents only.
+    /// named with the system's name, with its owner and its own culture or else the owner's:
+    /// the system and the owner list it, and `body` names it in `megastructure=<id>`, or from
+    /// 4.6 its `megastructures` list, and gets the flag `has_orbital`. A body that has a
+    /// megastructure already gets the habitat without the orbital. A body that orbits a planet,
+    /// as a moon or a habitat does, a placement that is not finite or not past 0, a size of 0,
+    /// and a class, name, variable, model, type, culture or flag that cannot be written are
+    /// refused. The inverse is [`Op::RemoveBody`], batched with the old inner radius when it
+    /// grew. Stellaris 4.x save documents only.
     AddHabitat {
         body: u32,
         habitat: NewHabitat,
@@ -921,8 +922,8 @@ pub enum Op {
     /// system's centre with no `moon_of`, no owner and no colony, its flags dated the save's
     /// date and the habitable section's megastructure icon bit set; each frame or ruined
     /// section a `megastructures` row as [`Op::AddMegastructure`] writes one, at its point and
-    /// on no body, with its name, owned by `owner` when the row takes the owner and in the
-    /// owner's `graphical_culture` when it takes the culture. The system lists the planets
+    /// on no body, with its name, owned by `owner` when the row takes the owner and in its
+    /// `graphical_culture` when it has one. The system lists the planets
     /// after its last `planet=` line and the rows in `megastructures`, the owner lists its rows
     /// in `owned_megastructures`, and the system gets each of `ring.system_flags` it lacks,
     /// each of `ring.system_variables` at its value, and the star each of `ring.star_flags`
@@ -1003,10 +1004,12 @@ pub enum Op {
     /// at the slot past the highest the table has used, at generation 0, with no
     /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
     /// owner lists it in `owned_megastructures`; on load the game gives every row to the
-    /// owner of its system, whatever the row names. A row on a [`NewMegastructurePlace::Body`]
-    /// stands at the body's point and names it, one [`NewMegastructurePlace::Beside`] a body at
-    /// its own point, and the body names it in `megastructure=<id>`, or from 4.6 its
-    /// `megastructures` list, and gets the place's `body_flags`. The system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
+    /// owner of its system, whatever the row names. With a `culture`, the row names that
+    /// `graphical_culture` in place of the owner's, owned or not. A row on a
+    /// [`NewMegastructurePlace::Body`] stands at the body's point and names it, one
+    /// [`NewMegastructurePlace::Beside`] a body at its own point, and the body names it in
+    /// `megastructure=<id>`, or from 4.6 its `megastructures` list, and gets the place's
+    /// `body_flags`. The system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
     /// new row is written past the highest, connected both ways to the relays of the systems
     /// a lane joins to `system` or to every other gateway, and to nothing for an L-Gate, which
     /// the game links when it opens. The system lists it in `bypasses`, and for an L-Gate gets
@@ -1027,9 +1030,9 @@ pub enum Op {
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
     /// is not a star for a `star_only` type, a body flag that is not one a megastructure
     /// leaves or that is listed twice, a bypass other than a gateway, a relay or an L-Gate, a
-    /// second bypass of that kind in the system, a type that is not an identifier, a point that is
-    /// not finite and a save before Stellaris 4.0 are refused, and so are a construction modifier the entity has already or that
-    /// is listed twice, one that lasts no days, a construction body outside the system, a
+    /// second bypass of that kind in the system, a type or culture that is not an identifier, a
+    /// point that is not finite and a save before Stellaris 4.0 are refused, and so are a
+    /// construction modifier the entity has already or that is listed twice, one that lasts no days, a construction body outside the system, a
     /// variable with no owner or raised by 0, and a modifier, deposit type or variable that
     /// is not an identifier. With a planet, a point of its own with no body, a body that
     /// orbits a planet, a size of 0, a placement that is not finite or not past 0, a modifier
@@ -1043,8 +1046,8 @@ pub enum Op {
     /// [`MegastructurePlace::Body`] naming [`STAR_BODY`](crate::format::scenario::placed::STAR_BODY),
     /// as `planet = star`, or at a free point about the centre as its distance and the game's
     /// angle with `random_pos = no`. Its id is read from where it stands, as
-    /// [`crate::format::scenario::placed`] says. An owner, a bypass, a construction, a
-    /// planet, a name, body flags, any other body, a place beside a body, a second ruin on
+    /// [`crate::format::scenario::placed`] says. An owner, a culture, a bypass, a construction,
+    /// a planet, a name, body flags, any other body, a place beside a body, a second ruin on
     /// the star and a system holding as many ruins as take an id are refused.
     AddMegastructure {
         system: u32,
@@ -1065,7 +1068,8 @@ pub enum Op {
     /// lowered, its line going at 0 and the owner's `variables` with its last line when the
     /// file held neither.
     /// A row the file held is refused. The inverse is the [`Op::AddMegastructure`] that adds
-    /// it back as it stood: its type, name, place, owner and bypass, the body flags it left,
+    /// it back as it stood: its type, name, place, owner, its culture when that is not the
+    /// owner's, and bypass, the body flags it left,
     /// what was taken back as its construction, and `left_out`. Stellaris 4.x save documents.
     ///
     /// A scenario's ruin the editor writes is taken out of its `effect` block, with the block

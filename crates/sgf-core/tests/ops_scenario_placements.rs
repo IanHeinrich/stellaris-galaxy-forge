@@ -248,6 +248,10 @@ fn an_add_refuses_what_a_scenarios_ruin_cannot_carry() {
             ..NewMegastructure::default()
         }),
         with(NewMegastructure {
+            culture: Some("mammalian_01".to_owned()),
+            ..NewMegastructure::default()
+        }),
+        with(NewMegastructure {
             bypass: Some(NewBypass {
                 kind: "gateway".to_owned(),
                 active: true,

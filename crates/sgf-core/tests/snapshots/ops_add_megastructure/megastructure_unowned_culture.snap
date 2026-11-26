@@ -1,0 +1,53 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (think_tank_3) in Xu Nur #1
+inverse: RemoveMegastructure { megastructure: 16, construction: None, left_out: 0 }
+
+--- gamestate
++++ gamestate
+@@ -28940,6 +28940,10 @@
+ 		planet=589
+ 		planet=590
+ 		planet=591
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -110113,6 +110117,7 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			megastructure=16
+ 			bombardment_damage=0
+ 			entity=2
+ 		}
+@@ -1400882,6 +1400887,24 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="think_tank_3"
++		coordinate=
++		{
++			x=57.3027
++			y=30.7229
++			origin=1
++		}
++		graphical_culture="mammalian_01"
++		planet=585
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {

@@ -18,8 +18,8 @@ pub struct MegastructureRow<'a> {
     /// Relative to the system's centre.
     pub at: (f64, f64),
     pub system: u32,
-    /// The owner and its `graphical_culture`, when it names one.
-    pub owner: Option<(u32, Option<&'a str>)>,
+    pub owner: Option<u32>,
+    pub culture: Option<&'a str>,
     /// The body it stands on or around; the null id for none.
     pub planet: u32,
     pub bypass: Option<u32>,
@@ -34,11 +34,11 @@ pub fn megastructure_row(indent: &[u8], row: &MegastructureRow<'_>) -> Vec<u8> {
     }
     w.pair(1, keys::TYPE, &quoted(row.kind));
     w.coordinate(1, row.at, row.system, None);
-    if let Some((owner, culture)) = row.owner {
+    if let Some(owner) = row.owner {
         w.pair(1, keys::OWNER, &owner.to_string());
-        if let Some(culture) = culture {
-            w.pair(1, keys::GRAPHICAL_CULTURE, &quoted(culture));
-        }
+    }
+    if let Some(culture) = row.culture {
+        w.pair(1, keys::GRAPHICAL_CULTURE, &quoted(culture));
     }
     w.pair(1, keys::PLANET, &row.planet.to_string());
     if let Some(bypass) = row.bypass {

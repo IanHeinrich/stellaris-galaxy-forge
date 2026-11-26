@@ -1,8 +1,8 @@
 //! The save's side of an added megastructure: the op that adds a finished row of any type the
 //! install defines, the habitat a type finishes as, or a whole ring world to a system of a
-//! save. Each is owned by the system's owner and drawn in that owner's graphical culture. The
-//! add dialog asks [`megastructure_fits`] which types go at a spot, and why the save would
-//! refuse each.
+//! save. Each is owned by the system's owner and drawn in that owner's graphical culture, or
+//! in [`unowned_culture`]'s where nobody owns the system. The add dialog asks
+//! [`megastructure_fits`] which types go at a spot, and why the save would refuse each.
 
 use std::borrow::Cow;
 
@@ -242,6 +242,7 @@ fn habitat_op_at(
         .ok_or_else(|| Refusal::NoHabitat(gd.loc.name_or_readable(kind)))?;
     if let Some(orbital) = &mut habitat.orbital {
         orbital.owner = owner;
+        orbital.culture = own_culture(gd, &orbital.kind, owner);
     }
     Ok(Planned::whole(Op::AddHabitat { body, habitat }))
 }
@@ -279,12 +280,14 @@ fn ring_world_op_at(
     let owner = owner(session, system);
     let culture = culture(session, owner);
     let site = site_or_read(save, system, site)?;
-    let ring = ring_world(gd, kind, stages, culture.as_deref(), &site.flags).map_err(|reason| {
-        Refusal::NoRingWorld {
-            name: gd.loc.name_or_readable(kind),
-            reason,
-        }
-    })?;
+    let mut ring =
+        ring_world(gd, kind, stages, culture.as_deref(), &site.flags).map_err(|reason| {
+            Refusal::NoRingWorld {
+                name: gd.loc.name_or_readable(kind),
+                reason,
+            }
+        })?;
+    culture_unowned_rows(gd, &mut ring, owner);
     Ok(Planned::whole(
         save.ring_world_op(system, owner, ring, clear)?,
     ))
@@ -617,6 +620,38 @@ fn culture(session: &Session, owner: Option<u32>) -> Option<String> {
         .and_then(|country| country.graphical_culture.clone())
 }
 
+/// The graphical culture a row of type `kind` that nobody owns names. The game gives such a
+/// row no culture of its own, and draws black a model only defined per culture, so it takes
+/// `named`, the culture a script gives it, or failing that the culture the game's own scripts
+/// give one. `None` for a type whose model the game draws with no culture.
+fn unowned_culture(gd: &GameData, kind: &str, named: Option<&str>) -> Option<String> {
+    let entity = gd.megastructures.get(kind)?.entity.as_deref()?;
+    let cultures = gd.graphical_cultures.iter().map(|c| c.key.as_str());
+    let needed = gd.models.unowned_culture(cultures, entity)?;
+    Some(named.unwrap_or(needed).to_owned())
+}
+
+/// The graphical culture a row of type `kind` names in place of `owner`'s: none when it has an
+/// owner, else its [`unowned_culture`].
+fn own_culture(gd: &GameData, kind: &str, owner: Option<u32>) -> Option<String> {
+    match owner {
+        Some(_) => None,
+        None => unowned_culture(gd, kind, None),
+    }
+}
+
+/// Give each row of `ring`, a ring world of country `owner`, that takes no owner its
+/// [`unowned_culture`].
+fn culture_unowned_rows(gd: &GameData, ring: &mut NewRingWorld, owner: Option<u32>) {
+    for quadrant in &mut ring.quadrants {
+        if let RingQuadrant::Frame { row } | RingQuadrant::Ruined { row } = quadrant
+            && !(row.owned && owner.is_some())
+        {
+            row.culture = unowned_culture(gd, &row.kind, row.culture.as_deref());
+        }
+    }
+}
+
 /// `add` with planet `body` given the class and size `change` names and its moons `moons`
 /// deleted, as one edit. The class and size go first: the core changes no class of a planet
 /// that has a megastructure, and the planet ends the same either way. The moons go before the
@@ -738,6 +773,7 @@ fn add_op(
             name: None,
             at,
             owner,
+            culture: own_culture(gd, &def.key, owner),
             bypass,
             construction: (!construction.is_empty()).then_some(construction),
             planet: None,
@@ -747,8 +783,14 @@ fn add_op(
 }
 
 /// The row a layout's `spawn_megastructure` of type `def` leaves on `body` of the spec, or at
-/// the centre for none, with the body flags and star rule [`add_op`] gives a row of that type.
-pub(crate) fn spawned_row(def: &MegastructureDef, body: Option<SpecBody>) -> SpecMegastructure {
+/// the centre for none, with the body flags and star rule [`add_op`] gives a row of that type,
+/// in the [`unowned_culture`] for `culture`, the one the spawn names.
+pub(crate) fn spawned_row(
+    gd: &GameData,
+    def: &MegastructureDef,
+    body: Option<SpecBody>,
+    culture: Option<&str>,
+) -> SpecMegastructure {
     let at = match body {
         Some(body) => SpecMegastructurePlace::Body {
             body,
@@ -760,6 +802,7 @@ pub(crate) fn spawned_row(def: &MegastructureDef, body: Option<SpecBody>) -> Spe
     SpecMegastructure {
         kind: def.key.clone(),
         at,
+        culture: unowned_culture(gd, &def.key, culture),
     }
 }
 
@@ -825,10 +868,19 @@ pub(crate) enum SpawnedAt<'i> {
     Centre,
 }
 
+/// One row a layout's script spawns.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SpawnedRow<'g, 'i> {
+    pub def: &'g MegastructureDef,
+    pub at: SpawnedAt<'i>,
+    /// The graphical culture the spawn names.
+    pub culture: Option<&'i str>,
+}
+
 /// The megastructures a layout's script spawns, as an add writes them.
 #[derive(Debug, Default)]
 pub(crate) struct LayoutStructures<'g, 'i> {
-    pub rows: Vec<(&'g MegastructureDef, SpawnedAt<'i>)>,
+    pub rows: Vec<SpawnedRow<'g, 'i>>,
     /// The ring world its rows round the star make, with the type of those rows.
     pub ring: Option<(&'g MegastructureDef, NewRingWorld)>,
 }
@@ -837,7 +889,7 @@ impl<'g> LayoutStructures<'g, '_> {
     /// The type of each row, in the order the script spawns them, the ring's last.
     pub(crate) fn types(&self) -> impl Iterator<Item = &'g MegastructureDef> + '_ {
         let ring = self.ring.iter().map(|(def, _)| *def);
-        self.rows.iter().map(|(def, _)| *def).chain(ring)
+        self.rows.iter().map(|row| row.def).chain(ring)
     }
 }
 
@@ -884,7 +936,11 @@ pub(crate) fn layout_structures<'g, 'i>(
             }
             _ => return Err(LayoutRefusal::Megastructure),
         };
-        out.rows.push((def, at));
+        out.rows.push(SpawnedRow {
+            def,
+            at,
+            culture: spawn.culture.as_deref(),
+        });
     }
     if let Some(&(def, _)) = ring_rows.first() {
         let ring = ruined_ring(gd, def, &ring_rows).ok_or(LayoutRefusal::Megastructure)?;
@@ -939,5 +995,6 @@ fn ruined_ring(
     ring.system_flags.clear();
     ring.system_variables.clear();
     ring.star_flags.clear();
+    culture_unowned_rows(gd, &mut ring, None);
     Some(ring)
 }
