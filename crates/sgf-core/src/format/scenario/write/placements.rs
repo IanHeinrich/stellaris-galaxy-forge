@@ -109,6 +109,7 @@ pub(super) fn add_megastructure(
     };
     let save_only = [
         (spec.owner.is_some(), "a scenario's ruin has no owner"),
+        (spec.culture.is_some(), "a scenario's ruin names no culture"),
         (spec.bypass.is_some(), "a scenario's ruin spawns no bypass"),
         (
             spec.construction.is_some() || spec.left_out > 0,

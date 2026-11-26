@@ -17,7 +17,12 @@ kind: string,
  * The row's name, written first as the game writes one; filled only by the inverse
  * of [`Op::RemoveMegastructure`] for a row that had one.
  */
-name?: NameTemplate, at: NewMegastructurePlace, owner?: number, bypass?: NewBypass, construction?: MegastructureConstruction, 
+name?: NameTemplate, at: NewMegastructurePlace, owner?: number, 
+/**
+ * The graphical culture it is drawn in, in place of its owner's: what a row with no owner
+ * needs when its model is only defined per culture.
+ */
+culture?: string, bypass?: NewBypass, construction?: MegastructureConstruction, 
 /**
  * The planet its completion spawns round the body it stands at.
  */

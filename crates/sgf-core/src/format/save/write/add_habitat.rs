@@ -18,7 +18,7 @@ use crate::format::save::write::megastructure_links::{
 };
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::body_is_star;
-use crate::format::save::write::shared::{culture_of, tie, unname_rows};
+use crate::format::save::write::shared::{check_culture, row_culture, tie, unname_rows};
 use crate::format::save::write::spawned_planet::{self, Spawned, add_round};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
@@ -130,6 +130,7 @@ fn check(habitat: &NewHabitat) -> Result<(), OpError> {
     }
     if let Some(orbital) = &habitat.orbital {
         check_text("a megastructure type", &orbital.kind, Form::Bare)?;
+        check_culture(orbital.culture.as_deref())?;
         if let Some(name) = &orbital.name {
             check_text("a name key", name, Form::Bare)?;
         }
@@ -191,15 +192,13 @@ fn add_orbital(
         )?),
         None => None,
     };
-    let culture = match orbital.owner {
-        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
-        None => None,
-    };
+    let culture = row_culture(plan, &s.doc, orbital.owner, orbital.culture.as_deref())?;
     let row = NewRow {
         name: name.as_ref(),
         kind: &orbital.kind,
         at,
-        owner: orbital.owner.map(|owner| (owner, culture.as_deref())),
+        owner: orbital.owner,
+        culture: culture.as_deref(),
         planet: Some(body),
         bypass: None,
     };
@@ -341,6 +340,7 @@ pub(crate) fn orbital_back(s: &Session, orbital: &Tied) -> Result<HabitatOrbital
     Ok(HabitatOrbital {
         kind: orbital.kind.clone(),
         owner: orbital.owner,
+        culture: orbital.own_culture(&s.doc)?,
         system_name: name
             .as_ref()
             .and_then(|name| name.variables.first())

@@ -19,6 +19,7 @@ use crate::format::save::write::megastructure_links::{
 };
 use crate::format::save::write::place::{self};
 use crate::format::save::write::planet_entry::{body_is_star, named_entity};
+use crate::format::save::write::shared::check_culture;
 use crate::format::save::write::spawned_planet::{self, Spawned};
 use crate::format::save::write::teardown::some_id;
 use crate::format::save::write::variables;
@@ -133,9 +134,8 @@ pub(crate) fn plan_add(
             name: name.as_ref(),
             kind: &row.kind,
             at: *at,
-            owner: owner
-                .filter(|_| row.owned)
-                .map(|owner| (owner, row.culture.as_deref())),
+            owner: owner.filter(|_| row.owned),
+            culture: row.culture.as_deref(),
             planet: None,
             bypass: None,
         })
@@ -485,9 +485,7 @@ fn check(ring: &NewRingWorld) -> Result<(), OpError> {
 
 fn check_row(row: &RingRow) -> Result<(), OpError> {
     check_text("a megastructure type", &row.kind, Form::Bare)?;
-    if let Some(culture) = &row.culture {
-        check_text("a graphical culture", culture, Form::Bare)?;
-    }
+    check_culture(row.culture.as_deref())?;
     check_placement(row.at.radius, row.at.angle)?;
     if let Some(name) = &row.name {
         check_text("a name key", name, Form::Quoted)?;

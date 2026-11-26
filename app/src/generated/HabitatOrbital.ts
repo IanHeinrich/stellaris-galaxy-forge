@@ -14,6 +14,10 @@ kind: string,
  */
 owner: number | null, 
 /**
+ * The graphical culture it is drawn in, in place of its owner's.
+ */
+culture?: string, 
+/**
  * The localisation key of its name, `TARGET_ORBITAL_NAME`; `None` for no name.
  */
 name: string | null, 

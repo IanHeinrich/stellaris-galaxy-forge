@@ -169,6 +169,7 @@ fn planted(
                 let spec = NewMegastructure {
                     kind: row.kind.clone(),
                     at,
+                    culture: row.culture.clone(),
                     ..NewMegastructure::default()
                 };
                 ops.push(Op::AddMegastructure { system, spec });

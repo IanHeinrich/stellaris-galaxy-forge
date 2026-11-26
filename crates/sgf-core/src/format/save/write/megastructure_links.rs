@@ -162,10 +162,29 @@ pub(crate) struct Tied {
     /// `coordinate.origin`; `None` when the row names no system.
     pub(crate) system: Option<u32>,
     pub(crate) owner: Option<u32>,
+    /// `graphical_culture`.
+    pub(crate) culture: Option<String>,
     pub(crate) planet: Option<u32>,
     pub(crate) bypass: Option<u32>,
     /// `save_on_death=1`: the game logs the row in `dead_mega_structure` when it goes.
     pub(crate) save_on_death: bool,
+}
+
+impl Tied {
+    /// Its `graphical_culture`, unless that is its owner's.
+    pub(crate) fn own_culture(&self, doc: &Document) -> Result<Option<String>, OpError> {
+        let owner = match self.owner {
+            Some(owner) => live(doc, SavedTable::Country, owner)?,
+            None => None,
+        };
+        let owners = owner
+            .as_ref()
+            .and_then(|owner| read::scalar(&owner.node, keys::GRAPHICAL_CULTURE, owner.src));
+        Ok(self
+            .culture
+            .clone()
+            .filter(|culture| owners != Some(culture.as_str())))
+    }
 }
 
 /// Row `id` as the bytes now standing for it hold it; `None` when the save holds no such
@@ -181,6 +200,7 @@ pub(crate) fn read(doc: &Document, id: u32) -> Result<Option<Tied>, OpError> {
         kind: facts.kind,
         system: facts.origin,
         owner: facts.owner,
+        culture: facts.graphical_culture,
         planet: facts.planet,
         bypass: facts.bypass,
         save_on_death: read::scalar(&row.node, keys::SAVE_ON_DEATH, row.src) == Some("1"),
@@ -192,8 +212,8 @@ pub(crate) struct NewRow<'a> {
     pub(crate) name: Option<&'a NameTemplate>,
     pub(crate) kind: &'a str,
     pub(crate) at: (f64, f64),
-    /// The owner and the `graphical_culture` it names.
-    pub(crate) owner: Option<(u32, Option<&'a str>)>,
+    pub(crate) owner: Option<u32>,
+    pub(crate) culture: Option<&'a str>,
     pub(crate) planet: Option<u32>,
     pub(crate) bypass: Option<u32>,
 }
@@ -219,6 +239,7 @@ pub(crate) fn write_rows(
             at: new.at,
             system,
             owner: new.owner,
+            culture: new.culture,
             planet: new.planet.unwrap_or(NULL_ID),
             bypass: new.bypass,
         };
@@ -232,15 +253,14 @@ pub(crate) fn write_rows(
         &place::system::MEGASTRUCTURES,
         &ids,
     )?;
-    let owner_of = |new: &NewRow| new.owner.map(|(owner, _)| owner);
-    let mut owners: Vec<u32> = rows.iter().filter_map(owner_of).collect();
+    let mut owners: Vec<u32> = rows.iter().filter_map(|new| new.owner).collect();
     owners.sort_unstable();
     owners.dedup();
     for owner in owners {
         let owned: Vec<u32> = rows
             .iter()
             .zip(&ids)
-            .filter(|(new, _)| owner_of(new) == Some(owner))
+            .filter(|(new, _)| new.owner == Some(owner))
             .map(|(_, &id)| id)
             .collect();
         append(

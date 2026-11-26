@@ -25,6 +25,7 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
     let major = HabitatOrbital {
         kind: "habitat_major_orbital".to_owned(),
         owner: None,
+        culture: None,
         name: Some("TARGET_ORBITAL_NAME".to_owned()),
         system_name: Some("prevprev.GetName".to_owned()),
     };
@@ -403,6 +404,7 @@ mod_orbital = {
             orbital: Some(HabitatOrbital {
                 kind: "mod_orbital".to_owned(),
                 owner: None,
+                culture: None,
                 name: None,
                 system_name: None,
             }),

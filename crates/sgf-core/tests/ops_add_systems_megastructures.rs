@@ -24,6 +24,7 @@ fn on(at: SpecBody, kind: &str) -> SpecMegastructure {
             body_flags: Vec::new(),
             star_only: false,
         },
+        culture: None,
     }
 }
 
@@ -59,6 +60,7 @@ fn with_rows() -> SystemAdd {
     let dyson = SpecMegastructure {
         kind: "dyson_sphere_ruined".to_owned(),
         at: SpecMegastructurePlace::Free { x: 0.0, y: 0.0 },
+        culture: None,
     };
     SystemAdd {
         spec,
@@ -98,6 +100,23 @@ fn a_row_on_a_missing_body_is_refused() {
         "Rows #601 has no planet 3 for what its layout plants there"
     );
     assert!(!session.doc().is_dirty());
+}
+
+/// A row in a culture is added in it, with no owner.
+#[test]
+fn a_row_is_written_in_the_culture_its_spec_names() {
+    let mut session = open_4_5();
+    let mut add = with_rows();
+    add.extras.megastructures[1].culture = Some("reptilian_01".to_owned());
+    let op = built(&session, add, true).expect("the op");
+    session.apply(op).expect("the add");
+    let rows = session.details().expect("details");
+    let rows = &rows.raw(SAMPLE_4_5.id).expect("the system").megastructures;
+    let cultured: Vec<_> = rows
+        .iter()
+        .filter_map(|row| Some((row.kind.as_str(), row.owner, row.culture.as_deref()?)))
+        .collect();
+    assert_eq!(cultured, [("think_tank_ruined", None, "reptilian_01")]);
 }
 
 /// Without extras the system goes in alone, its rows and ring left out.

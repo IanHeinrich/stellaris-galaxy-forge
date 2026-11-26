@@ -132,6 +132,7 @@ fn orbital(gd: &GameData, section: &Section, on_star: bool) -> Option<HabitatOrb
     Some(HabitatOrbital {
         kind: row.kind.clone(),
         owner: None,
+        culture: None,
         name: row.name.clone(),
         system_name: row.system_name.clone(),
     })

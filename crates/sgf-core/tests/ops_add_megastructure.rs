@@ -259,6 +259,75 @@ fn a_dyson_sphere_on_a_star_round_trips() {
     assert_eq!((sphere[0].owner, sphere[0].at), (None, Some((0.0, 0.0))));
 }
 
+/// [`on_body`] for a Science Nexus owned by `owner` in the culture `culture`.
+fn nexus_in(system: u32, body: u32, owner: Option<u32>, culture: &str) -> Op {
+    add(
+        system,
+        NewMegastructure {
+            owner,
+            culture: Some(culture.to_owned()),
+            ..on("think_tank_3", body)
+        },
+    )
+}
+
+/// A Nexus on planet 585 of Xu Nur (1), which nobody owns, names the culture its add gives
+/// it and no owner. Taking it out reads the culture back, and so does the delete's inverse.
+#[test]
+fn an_unowned_row_is_written_in_the_culture_its_add_names() {
+    let mut session = open_4_5();
+    let op = nexus_in(1, 585, None, "mammalian_01");
+    let result = snapshot_step(&mut session, "megastructure_unowned_culture", op.clone());
+    assert_eq!(result.inverse, remove(16));
+    let nexus = megastructures(&session, 1);
+    assert_eq!(nexus[0].owner, None);
+    assert_eq!(nexus[0].culture.as_deref(), Some("mammalian_01"));
+    for removal in [
+        remove(16),
+        Op::DeleteMegastructure {
+            megastructure: 16,
+            dismantle: None,
+        },
+    ] {
+        let mut session = open_4_5();
+        session.apply(op.clone()).expect("the add");
+        let removed = session.apply(removal.clone()).expect("the removal");
+        assert_eq!(current(&session), session.doc().original(), "{removal:?}");
+        assert_eq!(removed.inverse, op, "{removal:?}");
+    }
+
+    let mut session = open_4_5();
+    session.apply(on_body(1, "think_tank_3", 585)).expect("add");
+    let row = entity_text(&session, EntityKind::Megastructure, 16);
+    assert!(!row.contains("graphical_culture"), "{row}");
+}
+
+/// A Nexus of country 0, whose culture is `mammalian_01`, in a culture of its own names that
+/// one, and in country 0's is the Nexus that names none.
+#[test]
+fn an_owned_rows_own_culture_goes_before_its_owners() {
+    let mut session = open_4_5();
+    let op = nexus_in(ALARI, 6, Some(0), "reptilian_01");
+    session.apply(op.clone()).expect("the add");
+    let row = entity_text(&session, EntityKind::Megastructure, 16);
+    assert!(
+        row.contains("\t\towner=0\n\t\tgraphical_culture=\"reptilian_01\"\n"),
+        "{row}"
+    );
+    let removed = session.apply(remove(16)).expect("the removal");
+    assert_eq!(removed.inverse, op);
+
+    let owners = nexus_in(ALARI, 6, Some(0), "mammalian_01");
+    session.apply(owners).expect("the add");
+    let removed = session.apply(remove(16)).expect("the removal");
+    let none = NewMegastructure {
+        owner: Some(0),
+        ..on("think_tank_3", 6)
+    };
+    assert_eq!(removed.inverse, add(ALARI, none));
+    assert_eq!(current(&session), session.doc().original());
+}
+
 #[test]
 fn an_added_row_gives_its_slot_back() {
     let mut session = open_4_5();
@@ -314,6 +383,7 @@ fn what_an_add_and_a_removal_refuse() {
             ..on("think_tank_3", 6)
         },
     );
+    let two_words = nexus_in(ALARI, 6, None, "two words");
     let nan = add(
         1,
         NewMegastructure {
@@ -353,6 +423,10 @@ fn what_an_add_and_a_removal_refuse() {
                 "a lgate_base cannot be added there: Gaping Maw #4 already has a lgate",
             ),
             (owned, "country 999 does not exist"),
+            (
+                two_words,
+                "\"two words\" cannot be written as a graphical culture",
+            ),
             (
                 on_body(1, "think_tank_3", 6),
                 "planet 6 is not a body of system 1",

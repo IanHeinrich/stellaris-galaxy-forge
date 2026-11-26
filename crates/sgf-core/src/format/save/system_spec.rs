@@ -204,6 +204,8 @@ impl SystemExtras {
 pub struct SpecMegastructure {
     pub kind: String,
     pub at: SpecMegastructurePlace,
+    /// The graphical culture it is drawn in; `None` for none.
+    pub culture: Option<String>,
 }
 
 /// Where a [`SpecMegastructure`] stands.

@@ -27,7 +27,7 @@ use crate::format::save::write::megastructure_links::{
 };
 use crate::format::save::write::place;
 use crate::format::save::write::planet_entry::{body_is_star, named_entity};
-use crate::format::save::write::shared::{culture_of, tie};
+use crate::format::save::write::shared::{check_culture, row_culture, tie};
 use crate::format::save::write::spawned_planet::{self, Spawned, add_round};
 use crate::format::save::{entity_in, planet_entity, planet_system, system_statement};
 use crate::keys;
@@ -55,6 +55,7 @@ pub(crate) fn plan_add(
     if let Some(name) = &new.name {
         check_name(name)?;
     }
+    check_culture(new.culture.as_deref())?;
     if let Some(planet) = &new.planet {
         spawned_planet::check(planet, Form::Quoted)?;
     }
@@ -157,10 +158,7 @@ pub(crate) fn plan_add(
     if let Some(built) = &new.construction {
         construction::check(s, &new.kind, system, new.owner, built)?;
     }
-    let culture = match new.owner {
-        Some(owner) => culture_of(plan.edit_country(&s.doc, owner)?)?,
-        None => None,
-    };
+    let culture = row_culture(plan, &s.doc, new.owner, new.culture.as_deref())?;
 
     // The planet goes first, so that the system lists it with its other bodies, before a
     // `megastructures` block the row adds.
@@ -181,7 +179,8 @@ pub(crate) fn plan_add(
         name: new.name.as_ref(),
         kind: &new.kind,
         at,
-        owner: new.owner.map(|owner| (owner, culture.as_deref())),
+        owner: new.owner,
+        culture: culture.as_deref(),
         planet: body,
         bypass: bypass_id,
     };
@@ -361,6 +360,7 @@ pub(crate) fn plan_remove(
             name,
             at,
             owner: tied.owner,
+            culture: tied.own_culture(&s.doc)?,
             bypass,
             construction: (!taken.is_empty()).then(|| taken.clone()),
             planet: None,

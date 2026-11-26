@@ -1,4 +1,4 @@
-//! The helpers several writers share: an entry written in its slot, a country's culture, a
+//! The helpers several writers share: an entry written in its slot, a new row's culture, a
 //! body tied to its megastructure, and where a body stands about its centre.
 
 use crate::Span;
@@ -13,6 +13,7 @@ use crate::format::save::write::flags::add_flags;
 use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place::{self, insert_key};
 use crate::keys;
+use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Emitted, OpError, Plan};
 use crate::overlay::Anchor;
 use crate::projections::geometry::{Body, drawn_radius};
@@ -62,10 +63,30 @@ pub(crate) fn write_slot(
     }
 }
 
-/// The `graphical_culture` the country `edit` holds names, when it names one.
-pub(crate) fn culture_of(edit: &Edit) -> Result<Option<String>, OpError> {
-    let country = edit.entity()?;
-    Ok(read::scalar(country, keys::GRAPHICAL_CULTURE, &edit.buf).map(str::to_owned))
+/// Refuse a `graphical_culture` that cannot be written bare.
+pub(crate) fn check_culture(culture: Option<&str>) -> Result<(), OpError> {
+    match culture {
+        Some(culture) => check_text("a graphical culture", culture, Form::Bare),
+        None => Ok(()),
+    }
+}
+
+/// The `graphical_culture` a new row of country `owner` names: `own`, or the country's when
+/// that is `None`. An unknown country is refused.
+pub(crate) fn row_culture(
+    plan: &mut Plan,
+    doc: &Document,
+    owner: Option<u32>,
+    own: Option<&str>,
+) -> Result<Option<String>, OpError> {
+    let owners = match owner {
+        Some(owner) => {
+            let edit = plan.edit_country(doc, owner)?;
+            read::scalar(edit.entity()?, keys::GRAPHICAL_CULTURE, &edit.buf).map(str::to_owned)
+        }
+        None => None,
+    };
+    Ok(own.map(str::to_owned).or(owners))
 }
 
 /// Tie the body `edit` holds to row `id`, with the planet flags `flags`, each with its date.
