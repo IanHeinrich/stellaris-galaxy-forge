@@ -1,6 +1,8 @@
 //! Deleting a 4.6 system with what stands in it: each kind of contents written as the game
 //! leaves it a month after its own removal, and undone byte for byte.
 
+use sgf_core::entity::views::EntityKind;
+
 use crate::common;
 use crate::ops_delete_system::{HOMEWORLD, OCCIDAN, TWO_STARBASES, delete, open_4_6_edited};
 use common::diff::{round_trip, round_trip_step, snapshot_step};
@@ -407,4 +409,73 @@ fn an_observation_station_leaves_its_owners_lists() {
         !sensors.split_whitespace().any(|id| id == "130"),
         "{sensors}"
     );
+}
+
+/// The sample with `insert` written before system `system`'s `outer_radius`.
+fn in_system(text: &mut String, system: u32, insert: &str) {
+    let at = text.find("\ngalactic_object=\n").expect("the systems");
+    let at = at
+        + text[at..]
+            .find(&format!("\n\t{system}=\n"))
+            .expect("the system");
+    let at = at + text[at..].find("\t\touter_radius=").expect("its radius");
+    text.insert_str(at, insert);
+}
+
+/// Two rows saved on death, listed out of id order, are logged in one `map` and one `objects`
+/// block of the empty dead table, the `map` lines in id order.
+#[test]
+fn rows_saved_on_death_are_logged_in_one_block() {
+    let mut session = open_4_6_edited(|text| {
+        for id in [11, 12] {
+            insert_after(
+                text,
+                &["\nmegastructures=\n{\n", &format!("\n\t{id}=\n\t{{\n")],
+                "\t\tsave_on_death=1\n",
+            );
+        }
+        let at = text.find("\ngalactic_object=\n").expect("the systems");
+        let at = at + text[at..].find("\n\t457=\n").expect("the system");
+        let at = at + text[at..].find("\t\t\t11 12 \n").expect("its rows");
+        text.replace_range(at..at + 9, "\t\t\t12 11 ");
+    });
+    round_trip_step(&mut session, "logged", delete(457));
+    let object = "\t\t{\n\t\t\ttype=\"ring_world_ruined\"\n\t\t\tsolar_system=457\n\t\t}\n";
+    let dead = format!(
+        "\ndead_mega_structure=\n{{\n\tmap=\n\t{{\n\t\t11=1\n\t\t12=0\n\t}}\n\tobjects=\n\t{{\n\t\t0=\n{object}\t\t1=\n{object}\t}}\n}}\n"
+    );
+    let text = common::text(&session);
+    let at = text
+        .find("\ndead_mega_structure=\n")
+        .expect("the dead table");
+    assert!(text[at..].starts_with(&dead), "{}", &text[at..at + 300]);
+}
+
+/// A system in two psionic auras, the second the system's own, keeps only the first.
+#[test]
+fn a_system_in_two_auras_keeps_the_other() {
+    let mut session = open_4_6_edited(|text| {
+        insert_after(
+            text,
+            &["\npsionic_auras=\n{\n\tpsionic_auras=\n\t{\n"],
+            "\t\t0=\n\t\t{\n\t\t\tcountry=0\n\t\t\tsystem=77\n\t\t}\n\t\t1=\n\t\t{\n\t\t\tcountry=0\n\t\t\tsystem=516\n\t\t}\n\t\t2=none\n",
+        );
+        in_system(text, 562, "\t\tpsionic_aura=0\n\t\tpsionic_aura=1\n");
+    });
+    round_trip_step(&mut session, "aura", delete(OCCIDAN));
+    let other = common::entity_text(&session, EntityKind::System, 562);
+    assert!(other.contains("\tpsionic_aura=0\n"), "{other}");
+    assert!(!other.contains("psionic_aura=1"), "{other}");
+}
+
+/// A storm whose current step is the system, last on its path, stands on the step before.
+#[test]
+fn a_storm_on_its_last_step_steps_back() {
+    let storm = "\t\t0=\n\t\t{\n\t\t\ttype=\"gravity_storm\"\n\t\t\tstorm_current_path_index=2\n\t\t\tpath=\n\t\t\t{\n\t\t\t\t562 77 516 \n\t\t\t}\n\t\t}\n\t\t1=none\n";
+    let mut session = open_4_6_edited(|text| {
+        insert_after(text, &["\nstorms=\n{\n\tstorms=\n\t{\n"], storm);
+    });
+    round_trip_step(&mut session, "storm", delete(OCCIDAN));
+    let text = common::text(&session);
+    assert!(text.contains("\t\t\tstorm_current_path_index=1\n"));
 }

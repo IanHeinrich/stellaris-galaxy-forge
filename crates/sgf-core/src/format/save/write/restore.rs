@@ -4,6 +4,8 @@
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 
+use memchr::memmem::Finder;
+
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
@@ -237,6 +239,22 @@ fn inner_entry(
     id: u32,
 ) -> Result<Option<Anchor>, OpError> {
     Ok(doc.inner_index(section)?.and_then(|i| entry(i, key, id)))
+}
+
+/// A line `key=<id>` per id, which passes over a row whose original bytes name none of the ids
+/// before it is parsed. With `key` empty, a line matches the id under any key.
+pub(crate) struct IdLines(Vec<Finder<'static>>);
+
+impl IdLines {
+    pub(crate) fn new(key: &str, ids: &[u32]) -> Self {
+        let line = |id| Finder::new(format!("{key}={id}\n").as_bytes()).into_owned();
+        Self(ids.iter().map(line).collect())
+    }
+
+    /// Whether `bytes` hold one of the lines.
+    pub(crate) fn found_in(&self, bytes: &[u8]) -> bool {
+        self.0.iter().any(|finder| finder.find(bytes).is_some())
+    }
 }
 
 /// The live rows of `table`, one the file held and no op wrote, standing under `key` in

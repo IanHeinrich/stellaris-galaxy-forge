@@ -1,14 +1,12 @@
 //! A colony taken down as the game's `destroy_colony` takes it, and a station at a deleted
 //! body taken with it.
 
-use memchr::memmem::Finder;
-
 use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::format::save::write::id_list::{Emptied, unlist};
 use crate::format::save::write::restore::{
-    Found, Gone, Saved, country_edit, entry, live, queue_index, tombstone_all,
+    Found, Gone, IdLines, Saved, country_edit, entry, live, queue_index, tombstone_all,
 };
 use crate::format::save::{entity_at, planet_statement, system_statement};
 use crate::keys;
@@ -477,27 +475,14 @@ fn station_of(doc: &Document, ships: &[u32]) -> Result<Option<Station>, OpError>
     let Some(inner) = doc.inner_index(keys::STARBASE_MGR)? else {
         return Ok(None);
     };
-    let lines: Vec<String> = ships
-        .iter()
-        .map(|ship| {
-            format!(
-                "{}={ship}
-",
-                keys::STATION
-            )
-        })
-        .collect();
-    let finders: Vec<Finder> = lines
-        .iter()
-        .map(|line| Finder::new(line.as_bytes()))
-        .collect();
+    let lines = IdLines::new(keys::STATION, ships);
     let src = doc.original();
     for starbase in inner.entities(keys::STARBASES) {
         let Ok(id) = u32::try_from(starbase.id) else {
             continue;
         };
         let bytes = starbase.stmt.slice(src);
-        if !finders.iter().any(|finder| finder.find(bytes).is_some()) {
+        if !lines.found_in(bytes) {
             continue;
         }
         let anchor = Anchor::Original(starbase.stmt);

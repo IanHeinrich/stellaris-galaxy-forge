@@ -3,16 +3,14 @@
 //! situations and the spy networks on it or of it tombstones too, and the other countries'
 //! relations with it gone. Their intel on it is the game's to let stand.
 
-use memchr::memmem::Finder;
-
-use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, rows_where};
+use crate::format::save::write::id_list::{drop_statements_naming, statements_naming};
 use crate::format::save::write::leaders::{drop_leaders, leaders};
 use crate::format::save::write::restore::{
-    Saved, country_edit, live, live_where, tombstone_all, tombstoned,
+    IdLines, Saved, country_edit, live, live_where, tombstone_all, tombstoned,
 };
 use crate::format::save::write::teardown::some_id;
 use crate::keys;
@@ -78,17 +76,13 @@ fn naming(
     country: u32,
     keys: &[&str],
 ) -> Result<Vec<(SavedTable, u32, Anchor)>, OpError> {
-    let digits = format!(
-        "={country}
-"
-    );
-    let finder = Finder::new(digits.as_bytes());
+    let lines = IdLines::new("", &[country]);
     let rows = live_where(
         doc,
         table,
         index,
         section,
-        |bytes| finder.find(bytes).is_some(),
+        |bytes| lines.found_in(bytes),
         |node, src| {
             keys.iter()
                 .any(|key| some_id(node, key, src) == Some(country))
@@ -108,10 +102,9 @@ fn leave_relations(
     country: u32,
 ) -> Result<(), OpError> {
     let doc = &s.doc;
-    let line = format!("{}={country}\n", keys::COUNTRY);
-    let finder = Finder::new(line.as_bytes());
+    let lines = IdLines::new(keys::COUNTRY, &[country]);
     let others = rows_where(doc, Table::Entity(EntityKind::Country), |bytes| {
-        finder.find(bytes).is_some()
+        lines.found_in(bytes)
     })?;
     for other in others {
         if other.id == country {
@@ -120,27 +113,26 @@ fn leave_relations(
         let related = other
             .node
             .find(keys::RELATIONS_MANAGER, other.src)
-            .is_some_and(|manager| !relations(manager, other.src, country).is_empty());
+            .is_some_and(|manager| {
+                !statements_naming(manager, other.src, keys::RELATION, &[country], related_to)
+                    .is_empty()
+            });
         if !related {
             continue;
         }
         let edit = country_edit(plan, doc, saved, other.id)?;
-        let spans = match edit.entity()?.find(keys::RELATIONS_MANAGER, &edit.buf) {
-            Some(manager) => relations(manager, &edit.buf, country),
-            None => Vec::new(),
-        };
-        for span in spans {
-            edit.bytes().remove_statement(span);
+        if let Some(manager) = edit
+            .entity()?
+            .find(keys::RELATIONS_MANAGER, &edit.buf)
+            .cloned()
+        {
+            drop_statements_naming(edit, &manager, keys::RELATION, &[country], related_to);
         }
     }
     Ok(())
 }
 
-/// The `relation` blocks of `manager` with country `country`.
-fn relations(manager: &Node, src: &[u8], country: u32) -> Vec<Span> {
-    manager
-        .find_all(keys::RELATION, src)
-        .filter(|relation| read::scalar_u32(relation, keys::COUNTRY, src) == Some(country))
-        .map(Node::span)
-        .collect()
+/// The country a `relation` block is with.
+fn related_to(relation: &Node, src: &[u8]) -> Option<u32> {
+    read::scalar_u32(relation, keys::COUNTRY, src)
 }

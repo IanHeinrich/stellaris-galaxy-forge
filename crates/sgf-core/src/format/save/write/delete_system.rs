@@ -18,6 +18,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use memchr::memmem::Finder;
 
+use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
@@ -29,14 +30,17 @@ use crate::format::save::write::anomaly;
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::delete_megastructure::write_rows;
 use crate::format::save::write::fleets::{fleet_owners, present_fleets};
-use crate::format::save::write::id_list::{Emptied, items, unlist, unlist_in};
+use crate::format::save::write::id_list::{
+    Emptied, drop_statements_naming, items, own_id, statements_naming, unlist, unlist_in,
+};
 use crate::format::save::write::leaders::{drop_leaders, leaders, ship_leaders};
 use crate::format::save::write::megastructure_links::{self, Tied};
 use crate::format::save::write::pre_ftl::{drop_dependents, tombstone_country};
 use crate::format::save::write::remove_planet::{Deletion, Scope};
 use crate::format::save::write::remove_system;
 use crate::format::save::write::restore::{
-    Gone, Saved, country_edit, live, live_where, tombstone_all, tombstone_planets, tombstoned,
+    Gone, IdLines, Saved, country_edit, live, live_where, tombstone_all, tombstone_planets,
+    tombstoned,
 };
 use crate::format::save::write::system_kept::{self, capitals, system_rows};
 use crate::format::save::write::teardown::{
@@ -216,9 +220,13 @@ impl Contents {
         let standing = natural_wormholes(doc, &s.graph.systems)?;
         let mut ends: Vec<NaturalWormhole> = Vec::new();
         for end in standing.iter().filter(|end| end.system == system) {
-            let partner = standing
-                .iter()
-                .find(|other| other.id != end.id && end.linked_to == Some(other.bypass));
+            let partner = (end.kind != SHROUD_TUNNEL)
+                .then(|| {
+                    standing
+                        .iter()
+                        .find(|other| other.id != end.id && end.linked_to == Some(other.bypass))
+                })
+                .flatten();
             for end in std::iter::once(end).chain(partner) {
                 if !ends.iter().any(|taken| taken.id == end.id) {
                     ends.push(end.clone());
@@ -354,17 +362,8 @@ impl Contents {
             let anchor = system_statement(doc, other).ok_or(OpError::UnknownSystem(other))?;
             saved.keep(doc, SavedTable::System, other, anchor)?;
             let edit = plan.edit(doc, other)?;
-            let spans: Vec<_> = edit
-                .entity()?
-                .find_all(keys::PSIONIC_AURA, &edit.buf)
-                .filter(|key| {
-                    key.scalar_str(&edit.buf).and_then(|id| id.parse().ok()) == Some(aura)
-                })
-                .map(Node::span)
-                .collect();
-            for span in spans {
-                edit.bytes().remove_statement(span);
-            }
+            let entity = edit.entity()?.clone();
+            drop_statements_naming(edit, &entity, keys::PSIONIC_AURA, &[aura], own_id);
         }
         tombstone_all(plan, doc, saved, &self.rifts)?;
         for &(id, anchor) in &self.networks {
@@ -458,7 +457,8 @@ fn storms(doc: &Document, system: u32) -> Result<Vec<(u32, Anchor)>, OpError> {
 }
 
 /// Take system `system` out of a storm's cluster `objects`, as 4.6.0 does, and off its `path`,
-/// lowering `storm_current_path_index` by each step taken out before it.
+/// lowering `storm_current_path_index` by each step taken out before it, and to the last step
+/// left when it stood past them.
 fn leave_storm(edit: &mut crate::ops::Edit, system: u32) -> Result<(), OpError> {
     let storm = edit.entity()?.clone();
     if let Some(objects) = storm
@@ -475,16 +475,12 @@ fn leave_storm(edit: &mut crate::ops::Edit, system: u32) -> Result<(), OpError> 
     let index = read::scalar_u32(&storm, keys::STORM_CURRENT_PATH_INDEX, &edit.buf);
     unlist_in(edit, &path, &[system], Emptied::Keep);
     if let Some(index) = index {
-        let before = steps
-            .iter()
-            .take(index as usize)
-            .filter(|&&(id, _)| id == system)
-            .count() as u32;
-        if before > 0 {
-            edit.set_scalar(
-                &[keys::STORM_CURRENT_PATH_INDEX],
-                (index - before).to_string(),
-            )?;
+        let taken = |steps: &[(u32, Span)]| steps.iter().filter(|&&(id, _)| id == system).count();
+        let before = taken(&steps[..steps.len().min(index as usize)]);
+        let last = (steps.len() - taken(&steps)).saturating_sub(1);
+        let left = (index as usize - before).min(last) as u32;
+        if left != index {
+            edit.set_scalar(&[keys::STORM_CURRENT_PATH_INDEX], left.to_string())?;
         }
     }
     Ok(())
@@ -497,14 +493,13 @@ fn auras(
     doc: &Document,
     system: u32,
 ) -> Result<(Vec<(Dead, Option<u32>)>, Vec<(u32, u32)>), OpError> {
-    let line = format!("{}={system}\n", keys::SYSTEM);
-    let finder = Finder::new(line.as_bytes());
+    let lines = IdLines::new(keys::SYSTEM, &[system]);
     let rows = live_where(
         doc,
         SavedTable::PsionicAura,
         doc.inner_index(keys::PSIONIC_AURAS)?,
         keys::PSIONIC_AURAS,
-        |bytes| finder.find(bytes).is_some(),
+        |bytes| lines.found_in(bytes),
         |aura, src| read::scalar_u32(aura, keys::SYSTEM, src) == Some(system),
     )?;
     let mut auras = Vec::new();
@@ -514,8 +509,9 @@ fn auras(
         auras.push(((SavedTable::PsionicAura, id, aura.anchor), country));
         let key = format!("{}={id}\n", keys::PSIONIC_AURA);
         for other in rows_containing(doc, Table::Entity(EntityKind::System), key.as_bytes())? {
-            if other.id != system && some_id(&other.node, keys::PSIONIC_AURA, other.src) == Some(id)
-            {
+            let naming =
+                statements_naming(&other.node, other.src, keys::PSIONIC_AURA, &[id], own_id);
+            if other.id != system && !naming.is_empty() {
                 in_auras.push((other.id, id));
             }
         }

@@ -1,13 +1,11 @@
 //! A leader who goes as the game takes one whose ship or country is gone: a tombstone in
 //! `leaders`, out of the country's `owned_leaders`, and off any council position.
 
-use memchr::memmem::Finder;
-
-use crate::Span;
-use crate::cst::Node;
 use crate::document::Document;
-use crate::format::save::write::id_list::{Emptied, unlist};
-use crate::format::save::write::restore::{Saved, country_edit, live, locate, tombstone_all};
+use crate::format::save::write::id_list::{Emptied, drop_statements_naming, own_id, unlist};
+use crate::format::save::write::restore::{
+    IdLines, Saved, country_edit, live, locate, tombstone_all,
+};
 use crate::format::save::write::teardown::some_id;
 use crate::keys;
 use crate::ops::{OpError, Plan, SavedTable};
@@ -70,21 +68,14 @@ fn leave_council(
     let Some(inner) = doc.inner_index(keys::COUNCIL_POSITIONS)? else {
         return Ok(());
     };
-    let lines: Vec<String> = leaders
-        .iter()
-        .map(|id| format!("{}={id}\n", keys::LEADER))
-        .collect();
-    let finders: Vec<Finder> = lines
-        .iter()
-        .map(|line| Finder::new(line.as_bytes()))
-        .collect();
+    let lines = IdLines::new(keys::LEADER, leaders);
     let src = doc.original();
     let seated: Vec<u32> = inner
         .entities(keys::COUNCIL_POSITIONS)
         .iter()
         .filter(|seat| {
             let bytes = seat.stmt.slice(src);
-            finders.iter().any(|finder| finder.find(bytes).is_some())
+            lines.found_in(bytes)
         })
         .filter_map(|seat| u32::try_from(seat.id).ok())
         .collect();
@@ -94,19 +85,8 @@ fn leave_council(
         };
         saved.keep(doc, SavedTable::CouncilPosition, id, anchor)?;
         let edit = plan.edit_record(doc, anchor)?;
-        let spans: Vec<Span> = edit
-            .entity()?
-            .find_all(keys::LEADER, &edit.buf)
-            .filter(|line| {
-                line.scalar_str(&edit.buf)
-                    .and_then(|id| id.parse().ok())
-                    .is_some_and(|id: u32| leaders.contains(&id))
-            })
-            .map(Node::span)
-            .collect();
-        for span in spans {
-            edit.bytes().remove_statement(span);
-        }
+        let seat = edit.entity()?.clone();
+        drop_statements_naming(edit, &seat, keys::LEADER, leaders, own_id);
     }
     Ok(())
 }

@@ -1,8 +1,6 @@
 //! Why a system the file held is not deleted: an empire's capital or starting system is in
 //! it, or it holds a row added since the file was opened, which undo could not put back.
 
-use memchr::memmem::Finder;
-
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
@@ -10,6 +8,7 @@ use crate::format::save::added::{Table, row, rows_containing, rows_where};
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
 use crate::format::save::write::fleets::present_fleets;
 use crate::format::save::write::megastructure_links::MEGASTRUCTURES;
+use crate::format::save::write::restore::IdLines;
 use crate::format::save::write::teardown::{StarbaseTeardown, some_id, some_ids};
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;
@@ -113,16 +112,9 @@ pub(crate) fn capitals(doc: &Document, colonies: &[u32]) -> Result<Vec<(u32, boo
     if colonies.is_empty() {
         return Ok(Vec::new());
     }
-    let lines: Vec<String> = colonies
-        .iter()
-        .map(|colony| format!("{}={colony}", keys::CAPITAL))
-        .collect();
-    let finders: Vec<Finder> = lines
-        .iter()
-        .map(|line| Finder::new(line.as_bytes()))
-        .collect();
+    let lines = IdLines::new(keys::CAPITAL, colonies);
     let countries = rows_where(doc, Table::Entity(EntityKind::Country), |bytes| {
-        finders.iter().any(|finder| finder.find(bytes).is_some())
+        lines.found_in(bytes)
     })?;
     Ok(countries
         .iter()

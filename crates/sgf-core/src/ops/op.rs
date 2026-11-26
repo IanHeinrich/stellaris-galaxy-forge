@@ -781,18 +781,19 @@ pub enum Op {
     /// logs it: a `map` line from its id to a new `objects` entry holding its type and system. A
     /// row with a `gateway`, `relay_bypass`, `lgate` or `quantum_catapult` bypass takes it along:
     /// the bypass row is emptied, and its id leaves the system's `bypasses` and every other
-    /// bypass's `connections`, `active_connections` and `linked_to`. Each country's `usable_bypasses` and a fleet's
-    /// `bypass_from` and `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves
-    /// them. The system's and owner's flags stay. With `dismantle`, what the type's dismantle takes
-    /// back goes too: each `timed_modifier` item of the system and its bodies naming one of its
-    /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and leaves
-    /// its body's `deposits`, and each owner variable it lowers, unless that would take the
-    /// variable below 0. A row upgrading goes with its `upgrade` block. A row standing in no
-    /// system, a ring world's row, which goes with the whole ring as [`Op::DeleteRingWorld`] takes
-    /// it, a bypass of any other kind, and a modifier, deposit type or variable that is not an
-    /// identifier are refused. The inverse is the [`Op::RestoreEntities`] that writes back every
-    /// entity it rewrote. A row [`Op::AddMegastructure`] added since the file was opened goes as
-    /// [`Op::RemoveMegastructure`] takes it. Stellaris 4.x save documents only.
+    /// bypass's `connections`, `active_connections` and `linked_to`. Each country's
+    /// `usable_bypasses` and a fleet's `bypass_from` and `bypass_to` are left for the game, as
+    /// [`Op::RemoveWormholePair`] leaves them. The system's and owner's flags stay. With
+    /// `dismantle`, what the type's dismantle takes back goes too: each `timed_modifier` item of
+    /// the system and its bodies naming one of its modifiers, each deposit of its types on those
+    /// bodies, which becomes a tombstone and leaves its body's `deposits`, and each owner variable
+    /// it lowers, unless that would take the variable below 0. A row upgrading goes with its
+    /// `upgrade` block. A row standing in no system, a ring world's row, which goes with the whole
+    /// ring as [`Op::DeleteRingWorld`] takes it, a bypass of any other kind, and a modifier,
+    /// deposit type or variable that is not an identifier are refused. The inverse is the
+    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. A row
+    /// [`Op::AddMegastructure`] added since the file was opened goes as [`Op::RemoveMegastructure`]
+    /// takes it. Stellaris 4.x save documents only.
     DeleteMegastructure {
         megastructure: u32,
         #[serde(default, skip_serializing_if = "Option::is_none")]

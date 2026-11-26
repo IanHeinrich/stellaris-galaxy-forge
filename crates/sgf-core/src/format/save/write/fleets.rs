@@ -3,13 +3,12 @@
 
 use std::collections::HashMap;
 
-use memchr::memmem::Finder;
-
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, rows_containing, rows_where};
 use crate::format::save::galaxy::fleets::{position, record};
+use crate::format::save::write::restore::IdLines;
 use crate::format::save::{entity, entity_at, system_statement};
 use crate::keys;
 use crate::ops::{Edit, OpError, Plan, Subject};
@@ -61,22 +60,9 @@ pub(crate) fn fleet_owners(s: &Session, fleets: &[u32]) -> Result<HashMap<u32, u
     if fleets.is_empty() {
         return Ok(owners);
     }
-    let lines: Vec<String> = fleets
-        .iter()
-        .map(|fleet| {
-            format!(
-                "{}={fleet}
-",
-                keys::FLEET
-            )
-        })
-        .collect();
-    let finders: Vec<Finder> = lines
-        .iter()
-        .map(|line| Finder::new(line.as_bytes()))
-        .collect();
+    let lines = IdLines::new(keys::FLEET, fleets);
     let countries = rows_where(&s.doc, Table::Entity(EntityKind::Country), |bytes| {
-        finders.iter().any(|finder| finder.find(bytes).is_some())
+        lines.found_in(bytes)
     })?;
     for country in countries {
         let owned = country
