@@ -1,0 +1,597 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Occidan #516 and 1 lane
+inverse: RestoreEntities "Restored Occidan #516 and 1 lane"
+  System 516 (755 bytes)
+  System 562 (726 bytes)
+  Planet 5439 (464 bytes)
+  Planet 5440 (535 bytes)
+  Planet 5441 (533 bytes)
+  Planet 5442 (536 bytes)
+  Planet 5443 (534 bytes)
+  Planet 5444 (570 bytes)
+  Planet 5445 (566 bytes)
+  Planet 5446 (547 bytes)
+  Planet 5447 (586 bytes)
+  Planet 5448 (551 bytes)
+  Clusters 0 (5538 bytes)
+  AstralRift 0 (50 bytes)
+
+--- gamestate
++++ gamestate
+@@ -53914,69 +53914,7 @@
+ 		index=57
+ 		storm=4294967295
+ 	}
+-	516=
+-	{
+-		coordinate=
+-		{
+-			x=106.93
+-			y=222.88
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Occidan"
+-		}
+-		planet=5439
+-		planet=5440
+-		planet=5441
+-		planet=5442
+-		planet=5443
+-		planet=5444
+-		planet=5445
+-		planet=5446
+-		planet=5447
+-		planet=5448
+-		star_class="sc_g"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=562
+-				length=19
+-			}
+- 
+-		}
+-		asteroid_belts=
+-		{
+-			
+-			{
+-				type="icy_asteroid_belt"
+-				inner_radius=120
+-			}
+- 
+-		}
+-		flags=
+-		{
+-			precursor_inetian=62808000
+-			resource_region_rare_crystals_rich=62808000
+-		}
+-		initializer="basic_init_04"
+-		inner_radius=250
+-		outer_radius=350
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=61
+-		storm_influence_fields=
+-		{
+-			0 
+-		}
+-		storm=4294967295
+-	}
++	516=none
+ 	517=
+ 	{
+ 		coordinate=
+@@ -57039,11 +56977,6 @@
+ 				length=43
+ 			}
+  
+-			{
+-				to=516
+-				length=19
+-			}
+- 
+ 		}
+ 		flags=
+ 		{
+@@ -345564,457 +345497,16 @@
+ 			planet_modifier="pm_mineral_poor"
+ 			entity=1
+ 		}
+-		5439=
+-		{
+-			planet_class="pc_g_star"
+-			planet_size=26
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Occidan"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				2522 
+-			}
+-		}
+-		5440=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="CR9-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="572"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=82.3272
+-				y=-87.3156
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		5441=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="944-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="111"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=48.786
+-				y=109.698
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		5442=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="J999-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="411"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-102.9648
+-				y=-61.68
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		5443=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="ZI3-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="572"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-45.93
+-				y=110.9364
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		5444=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="SSD-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="193"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-40.2504
+-				y=-113.1468
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				2523 
+-			}
+-		}
+-		5445=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="TE9-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="37"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-76.578
+-				y=92.4012
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				2524 
+-			}
+-		}
+-		5446=
+-		{
+-			planet_class="pc_molten"
+-			planet_size=19
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Occidan"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=59.5554
+-				y=-8.3706
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=60
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		5447=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=14
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Occidan"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="II"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-129.4218
+-				y=-125.1144
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=180
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				2525 
+-			}
+-		}
+-		5448=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=17
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Occidan"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="III"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=214.9378
+-				y=48.4814
+-				origin=516
+-				randomized=no
+-			}
+-			orbit=220
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
++		5439=none
++		5440=none
++		5441=none
++		5442=none
++		5443=none
++		5444=none
++		5445=none
++		5446=none
++		5447=none
++		5448=none
+ 		5449=
+ 		{
+ 			planet_class="pc_f_star"
+@@ -391968,13 +391460,7 @@
+ {
+ 	rifts=
+ 	{
+-		0=
+-		{
+-			coordinate=
+-			{
+-				origin=516
+-			}
+-		}
++		0=none
+ 		1=none
+ 	}
+ 	astral_rift_event_pool=
+@@ -1042604,7 +1042090,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			6 12 29 32 49 57 64 70 71 83 90 91 92 94 97 109 111 113 115 126 130 134 137 138 145 154 156 157 181 197 208 213 224 225 236 237 238 240 252 254 255 266 275 293 295 310 317 318 323 330 336 343 344 345 349 369 385 408 410 411 412 413 432 437 442 443 445 446 447 459 460 467 471 475 477 484 486 493 494 503 516 519 527 536 538 549 550 557 562 563 581 584 595 
++			6 12 29 32 49 57 64 70 71 83 90 91 92 94 97 109 111 113 115 126 130 134 137 138 145 154 156 157 181 197 208 213 224 225 236 237 238 240 252 254 255 266 275 293 295 310 317 318 323 330 336 343 344 345 349 369 385 408 410 411 412 413 432 437 442 443 445 446 447 459 460 467 471 475 477 484 486 493 494 503 519 527 536 538 549 550 557 562 563 581 584 595 
+ 		}
+ 	}

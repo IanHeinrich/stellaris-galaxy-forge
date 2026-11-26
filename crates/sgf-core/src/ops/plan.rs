@@ -172,6 +172,22 @@ impl Plan {
         Ok(())
     }
 
+    /// [`Self::replace`], dropping what earlier writers planned in the statement: an entity a
+    /// deletion takes whole, such as a pre-FTL country, may already have been edited as an
+    /// owner or a controller.
+    pub fn supersede(
+        &mut self,
+        doc: &Document,
+        subject: Subject,
+        anchor: Anchor,
+        bytes: Vec<u8>,
+    ) -> Result<(), OpError> {
+        if let Some(edit) = self.edits.get_mut(&subject) {
+            edit.splices.clear();
+        }
+        self.replace(doc, subject, anchor, bytes)
+    }
+
     /// The save's `meta`, parsed on first use, and the splices to make in it once the
     /// gamestate edits are in.
     pub fn edit_meta(&mut self, doc: &Document) -> Result<(&Node, BufEdit<'_>), OpError> {

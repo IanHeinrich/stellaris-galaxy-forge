@@ -1,9 +1,14 @@
 //! The fleets standing in a system, and moving one with its ships from one system to
 //! another.
 
+use std::collections::HashMap;
+
+use memchr::memmem::Finder;
+
+use crate::cst::Node;
 use crate::emit::coord;
 use crate::entity::views::EntityKind;
-use crate::format::save::added::{Table, rows_containing};
+use crate::format::save::added::{Table, rows_containing, rows_where};
 use crate::format::save::galaxy::fleets::{position, record};
 use crate::format::save::{entity, entity_at, system_statement};
 use crate::keys;
@@ -48,6 +53,45 @@ pub(crate) fn parked(s: &Session, system: u32, bodies: &[u32]) -> Result<Vec<(u3
         }
     }
     Ok(parked)
+}
+
+/// The country owning each of `fleets` that a country's `fleets_manager.owned_fleets` lists.
+pub(crate) fn fleet_owners(s: &Session, fleets: &[u32]) -> Result<HashMap<u32, u32>, OpError> {
+    let mut owners = HashMap::new();
+    if fleets.is_empty() {
+        return Ok(owners);
+    }
+    let lines: Vec<String> = fleets
+        .iter()
+        .map(|fleet| {
+            format!(
+                "{}={fleet}
+",
+                keys::FLEET
+            )
+        })
+        .collect();
+    let finders: Vec<Finder> = lines
+        .iter()
+        .map(|line| Finder::new(line.as_bytes()))
+        .collect();
+    let countries = rows_where(&s.doc, Table::Entity(EntityKind::Country), |bytes| {
+        finders.iter().any(|finder| finder.find(bytes).is_some())
+    })?;
+    for country in countries {
+        let owned = country
+            .node
+            .find(keys::FLEETS_MANAGER, country.src)
+            .and_then(|manager| manager.find(keys::OWNED_FLEETS, country.src));
+        for entry in owned.map(Node::children).into_iter().flatten() {
+            if let Some(fleet) = read::scalar_u32(entry, keys::FLEET, country.src)
+                && fleets.contains(&fleet)
+            {
+                owners.insert(fleet, country.id);
+            }
+        }
+    }
+    Ok(owners)
 }
 
 /// The fleets system `id`'s `fleet_presence` lists.

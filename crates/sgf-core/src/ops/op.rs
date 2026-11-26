@@ -205,17 +205,31 @@ pub enum Op {
         systems: Vec<u32>,
     },
     /// A save system the file held when it was opened, deleted as the game's `remove_system`
-    /// leaves one: its entry and its planets' become tombstones, its lanes go from the other
-    /// ends and its id from every block of `clusters`. Every id the file held stays as it is,
-    /// and a system added later takes the id past the last, never the tombstone's. What else
-    /// names the system is left for the game: its deposits, survey lists, a nebula's member
-    /// lines, the rim. A system with an owner, a starbase, a colony, a fleet, a bypass, a
-    /// wormhole pair added since the file was opened, a megastructure, a cosmic storm on it or
-    /// headed through it, an astral rift, a psionic aura, a dig site, or an anomaly a country
-    /// has found is refused, and so is an empire's starting system and one a saved event target
-    /// or a fleet elsewhere names, because deleting one has not been tried in game. A system added since the file was opened
-    /// goes as [`Op::RemoveSystem`] takes it, with that op's inverse. Otherwise the inverse
-    /// is the [`Op::RestoreEntities`] that writes back every entity it rewrote. Save
+    /// leaves one a month on: its entry and its planets' become tombstones, its lanes go from
+    /// the other ends and its id from every block of `clusters`, its sector's `systems`, each
+    /// cosmic storm's cluster `objects` and `path` (the storm's `storm_current_path_index`
+    /// lowered past it) and the countries' anomaly lists. Every id the file held stays as it
+    /// is, and a system added later takes the id past the last, never the tombstone's. What
+    /// stands in it goes first: each colony as [`Op::RemoveColony`] takes one, an ownerless one
+    /// too, its armies aboard a ship elsewhere leaving the ship's `army`; each station; each
+    /// starbase with its station ship, fleet and queues, out of waystation networks; every
+    /// other fleet in it with its ships, the armies aboard them and their leaders, who leave
+    /// `owned_leaders` and any council seat; each fleet out of its owner's `owned_fleets` and
+    /// `sensor_range_fleets`; each megastructure row as [`Op::DeleteMegastructure`] takes one;
+    /// each natural wormhole with its other end, and a shroud tunnel's one end, their rows
+    /// emptied; each dig site on its planets, astral rift in it and psionic aura it is the
+    /// source of as tombstones, an aura leaving its country's list and the other systems in it;
+    /// and a pre-FTL country whose homeworld it holds, with its leaders, situations, spy
+    /// networks and the other countries' relations with it. What else names the system is
+    /// left for the game, as 4.6.0 leaves it: deposits, survey lists, intel, saved event
+    /// targets, fleets elsewhere headed there, a sector's capital, a nebula's member lines, the
+    /// rim. An empire's capital, a nomad empire's capital arkship (a starbase of type
+    /// `sarkship_capital`, listed or standing there through its station's fleet), and a
+    /// wormhole or megastructure added since the file was opened, which undo could not put
+    /// back, are refused, and so is an empire's starting
+    /// system, because deleting one has not been tried in game. A system added since the file
+    /// was opened goes as [`Op::RemoveSystem`] takes it, with that op's inverse. Otherwise the
+    /// inverse is the [`Op::RestoreEntities`] that writes back every entity it rewrote. Save
     /// documents from Stellaris 4.6 only.
     DeleteSystem {
         system: u32,
@@ -765,9 +779,9 @@ pub enum Op {
     /// `megastructure`, and an Arc Furnace's `entity_name="invisible_turret_entity"`. The body and
     /// its colony stay. A row with `save_on_death=1` is logged in `dead_mega_structure` as the game
     /// logs it: a `map` line from its id to a new `objects` entry holding its type and system. A
-    /// row with a `gateway` or `relay_bypass` bypass takes it along: the bypass row is emptied, and
-    /// its id leaves the system's `bypasses` and every other bypass's `connections`,
-    /// `active_connections` and `linked_to`. Each country's `usable_bypasses` and a fleet's
+    /// row with a `gateway`, `relay_bypass`, `lgate` or `quantum_catapult` bypass takes it along:
+    /// the bypass row is emptied, and its id leaves the system's `bypasses` and every other
+    /// bypass's `connections`, `active_connections` and `linked_to`. Each country's `usable_bypasses` and a fleet's
     /// `bypass_from` and `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves
     /// them. The system's and owner's flags stay. With `dismantle`, what the type's dismantle takes
     /// back goes too: each `timed_modifier` item of the system and its bodies naming one of its

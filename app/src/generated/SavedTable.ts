@@ -3,4 +3,4 @@
 /**
  * The id-keyed save tables [`SavedEntity`] names.
  */
-export type SavedTable = "System" | "Planet" | "Country" | "Colony" | "PopGroup" | "PopJob" | "District" | "Zone" | "Building" | "Army" | "Starbase" | "Fleet" | "Ship" | "ConstructionQueue" | "ConstructionItem" | "Megastructure" | "Bypass" | "DeadMegastructures" | "Deposit" | "Clusters";
+export type SavedTable = "System" | "Planet" | "Country" | "Colony" | "PopGroup" | "PopJob" | "District" | "Zone" | "Building" | "Army" | "Starbase" | "Fleet" | "Ship" | "ConstructionQueue" | "ConstructionItem" | "Megastructure" | "Bypass" | "DeadMegastructures" | "Deposit" | "Clusters" | "Leader" | "CouncilPosition" | "Sector" | "NaturalWormhole" | "Situation" | "SpyNetwork" | "DigSite" | "Storm" | "PsionicAura" | "AstralRift" | "WaystationNetwork";

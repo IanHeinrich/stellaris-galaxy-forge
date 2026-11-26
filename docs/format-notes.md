@@ -256,6 +256,28 @@ for planets or deposits.
 - A removed system's `<id>=none` is not a gap. Its id must leave every
   `clusters` block's `objects`, or the game crashes on load. Tested on
   4.6.0 only.
+- 4.6.0's `remove_system` at once tombstones the system and its planets
+  and cuts its lanes and bypass links, but leaves its starbases, fleets,
+  colonies and megastructures live with their owners' lists. Reloading
+  that state crashes when a normal empire's starbase, stations or owned
+  megastructure are left. A month on, the game has tombstoned or erased
+  the colony and its pops, jobs, districts, armies and queues, every
+  starbase with its station ship and fleet, every fleet in the system with
+  its ships and their leaders, each megastructure row and its bypass, a
+  natural wormhole's bypass and its partner's, and a pre-FTL country whose
+  homeworld it held, with that country's leaders, situations and spy
+  networks. The owners lose the ids from `owned_planets`,
+  `controlled_colonies`, `controlled_planets`, `owned_armies`,
+  `owned_fleets`, `sensor_range_fleets`, `owned_megastructures` and
+  `owned_leaders`, a council seat loses a gone leader's `leader`, other
+  countries lose their `relation` with the gone country, and its sector
+  loses the id. A dig site on its planets becomes a tombstone, and a cosmic
+  storm's cluster `objects` lose the id (its `path` did not name it).
+  Deposits lose their holder; intel, survey lists, `hyperlane_systems` and
+  `usable_bypasses` catch up later. Saved event targets naming what went
+  stay as they are, and a fleet elsewhere headed there, or whose last jump
+  came from it, keeps its course until the game turns it back within the
+  month.
 - A player reported a save with 1667 systems and
   `last_created_system=4294967295`, the null id. What wrote it is unknown:
   none of 981 saves from 3.4 to 4.5.2 here has it. The game takes the id

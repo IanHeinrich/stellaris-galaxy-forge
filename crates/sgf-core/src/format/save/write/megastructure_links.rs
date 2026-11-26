@@ -18,7 +18,7 @@ use crate::format::save::alloc::SlotTable;
 use crate::format::save::write::flags;
 use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place;
-use crate::format::save::write::restore::{Saved, live};
+use crate::format::save::write::restore::{Gone, Saved, live};
 use crate::format::save::write::shared::{unname_rows, write_slot};
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
@@ -34,12 +34,13 @@ pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure
 
 /// The bypass types a row the editor adds or moves may stand for: those tried in game.
 pub const BYPASS_KINDS: [&str; 3] = [GATEWAY, RELAY, LGATE];
-/// The bypass types a row the editor deletes may stand for: deleting an L-Gate has not been
-/// tried in game.
-pub(crate) const DELETED_BYPASS_KINDS: [&str; 2] = [GATEWAY, RELAY];
+/// The bypass types a row the editor deletes may stand for: those whose row links nothing
+/// but the row, or a gateway's or relay's partners.
+pub(crate) const DELETED_BYPASS_KINDS: [&str; 4] = [GATEWAY, RELAY, LGATE, QUANTUM_CATAPULT];
 pub(crate) const GATEWAY: &str = "gateway";
 pub(crate) const RELAY: &str = "relay_bypass";
 pub(crate) const LGATE: &str = "lgate";
+pub(crate) const QUANTUM_CATAPULT: &str = "quantum_catapult";
 
 /// The system flag a system needs for a bypass of type `kind` in it to work.
 pub(crate) fn system_flag(kind: &str) -> Option<&'static str> {
@@ -291,7 +292,18 @@ pub(crate) fn unlink_all(
     plan: &mut Plan,
     s: &Session,
     rows: &[Tied],
+    saved: Option<&mut Saved>,
+) -> Result<(), OpError> {
+    unlink_beside(plan, s, rows, saved, Gone::default())
+}
+
+/// [`unlink_all`] but for the lists of what `gone` takes whole.
+pub(crate) fn unlink_beside(
+    plan: &mut Plan,
+    s: &Session,
+    rows: &[Tied],
     mut saved: Option<&mut Saved>,
+    gone: Gone,
 ) -> Result<(), OpError> {
     let doc = &s.doc;
     let naming = |pick: fn(&Tied) -> Option<u32>, id: u32| -> Vec<u32> {
@@ -301,6 +313,9 @@ pub(crate) fn unlink_all(
             .collect()
     };
     for system in distinct(rows, |tied| tied.system) {
+        if gone.system == Some(system) {
+            continue;
+        }
         let anchor = system_statement(doc, system).ok_or(OpError::UnknownSystem(system))?;
         keep(&mut saved, doc, SavedTable::System, system, anchor)?;
         unlist(
@@ -332,25 +347,30 @@ pub(crate) fn unlink_all(
     }
     let going: Vec<u32> = rows.iter().map(|tied| tied.id).collect();
     for planet in distinct(rows, |tied| tied.planet) {
+        if gone.planets.contains(&planet) {
+            continue;
+        }
         let named = naming(|tied| tied.planet, planet);
         unlink_body(plan, s, &named, &going, planet, &mut saved)?;
     }
     Ok(())
 }
 
-/// Take row `id` out of the list of every planet but `planet` that names it, keeping each in
-/// `saved`: 0.27.8 left the id behind when it moved a row.
+/// Take row `id` out of the list of every planet but `planet` and those `gone` takes that
+/// names it, keeping each in `saved`: 0.27.8 left the id behind when it moved a row.
 pub(crate) fn unlist_elsewhere(
     plan: &mut Plan,
     s: &Session,
     id: u32,
     planet: Option<u32>,
     saved: &mut Saved,
+    gone: Gone,
 ) -> Result<(), OpError> {
     let doc = &s.doc;
     let planets = Table::Entity(EntityKind::Planet);
     for row in rows_containing(doc, planets, b"\tmegastructures=")? {
         if Some(row.id) == planet
+            || gone.planets.contains(&row.id)
             || !read::ids(&row.node, keys::MEGASTRUCTURES, row.src).contains(&id)
         {
             continue;
@@ -435,7 +455,19 @@ pub(crate) fn drop_bypass(
     s: &Session,
     system: u32,
     bypass: u32,
+    saved: Option<&mut Saved>,
+) -> Result<(), OpError> {
+    drop_bypass_beside(plan, s, system, bypass, saved, Gone::default())
+}
+
+/// [`drop_bypass`] but for the other rows and the system's list that `gone` takes whole.
+pub(crate) fn drop_bypass_beside(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    bypass: u32,
     mut saved: Option<&mut Saved>,
+    gone: Gone,
 ) -> Result<(), OpError> {
     let doc = &s.doc;
     if let Some(own) = row(doc, Table::Bypass, bypass)? {
@@ -447,7 +479,10 @@ pub(crate) fn drop_bypass(
         }
     }
     for other in rows(doc, Table::Bypass)? {
-        if other.id == bypass || !names_bypass(&other.node, other.src, bypass) {
+        if other.id == bypass
+            || gone.bypasses.contains(&other.id)
+            || !names_bypass(&other.node, other.src, bypass)
+        {
             continue;
         }
         keep(&mut saved, doc, SavedTable::Bypass, other.id, other.anchor)?;
@@ -463,6 +498,9 @@ pub(crate) fn drop_bypass(
         for span in linked {
             edit.bytes().remove_statement(span);
         }
+    }
+    if gone.system == Some(system) {
+        return Ok(());
     }
     let anchor = system_statement(doc, system).ok_or(OpError::UnknownSystem(system))?;
     keep(&mut saved, doc, SavedTable::System, system, anchor)?;

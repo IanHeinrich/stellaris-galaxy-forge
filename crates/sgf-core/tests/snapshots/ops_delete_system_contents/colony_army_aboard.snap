@@ -1,0 +1,2631 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Kuhlehm #86 and 2 lanes, with 1 colony and 1 pre-FTL country
+inverse: RestoreEntities "Restored Kuhlehm #86 and 2 lanes"
+  System 27 (781 bytes)
+  System 86 (659 bytes)
+  System 573 (616 bytes)
+  Planet 1168 (462 bytes)
+  Planet 1169 (546 bytes)
+  Planet 1170 (928 bytes)
+  Planet 1171 (870 bytes)
+  Planet 1172 (602 bytes)
+  Planet 1173 (874 bytes)
+  Country 234881050 (18612 bytes)
+  Colony 14 (2620 bytes)
+  PopGroup 106 (714 bytes)
+  PopGroup 107 (716 bytes)
+  PopGroup 108 (550 bytes)
+  PopJob 402 (194 bytes)
+  PopJob 403 (193 bytes)
+  PopJob 404 (198 bytes)
+  PopJob 405 (198 bytes)
+  PopJob 406 (201 bytes)
+  PopJob 407 (209 bytes)
+  PopJob 408 (192 bytes)
+  PopJob 409 (201 bytes)
+  PopJob 410 (209 bytes)
+  PopJob 411 (193 bytes)
+  PopJob 412 (274 bytes)
+  PopJob 413 (197 bytes)
+  PopJob 414 (197 bytes)
+  PopJob 415 (204 bytes)
+  PopJob 416 (215 bytes)
+  PopJob 417 (274 bytes)
+  PopJob 418 (274 bytes)
+  PopJob 419 (277 bytes)
+  PopJob 420 (273 bytes)
+  PopJob 421 (204 bytes)
+  PopJob 422 (204 bytes)
+  District 93 (77 bytes)
+  Army 240 (411 bytes)
+  Army 241 (400 bytes)
+  Army 242 (400 bytes)
+  Ship 653 (1752 bytes)
+  ConstructionQueue 88 (119 bytes)
+  ConstructionQueue 89 (117 bytes)
+  Clusters 0 (5538 bytes)
+  Leader 234881082 (779 bytes)
+  Situation 1 (344 bytes)
+
+--- gamestate
++++ gamestate
+@@ -8890,149 +8890,9 @@
+ 		}
+ 		habitability=1
+ 	}
+-	106=
+-	{
+-		can_crossbreed=yes
+-		can_fill_worker_job=yes
+-		can_fill_specialist_job=yes
+-		can_fill_ruler_job=yes
+-		can_follow_ideology=yes
+-		key=
+-		{
+-			species=234881063
+-			category="worker"
+-		}
+-		planet=14
+-		ethos=
+-		{
+-			ethics=
+-			{
+-				"ethic_xenophobe"
+-				"ethic_materialist"
+-			}
+-			pops=
+-			{
+-				654 546 
+-			}
+-		}
+-		factions=
+-		{
+-		}
+-		wanted_factions=
+-		{
+-		}
+-		size=1200
+-		last_month_growth=0
+-		month_start_size=1200
+-		last_month_growth_details=
+-		{
+-			key="GROWTH_CAT_PROMOTION"
+-			value=0
+-		}
+-		current_month_growth_details=
+-		{
+-			key="GROWTH_CAT_PROMOTION"
+-			value=0
+-		}
+-		total_attraction=7.35
+-		ethics_attraction=
+-		{
+-			0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.35 0 
+-		}
+-		habitability=1
+-	}
+-	107=
+-	{
+-		can_crossbreed=yes
+-		can_fill_worker_job=yes
+-		can_fill_specialist_job=yes
+-		can_fill_ruler_job=yes
+-		can_follow_ideology=yes
+-		key=
+-		{
+-			species=234881063
+-			category="specialist"
+-		}
+-		planet=14
+-		ethos=
+-		{
+-			ethics=
+-			{
+-				"ethic_xenophobe"
+-				"ethic_materialist"
+-			}
+-			pops=
+-			{
+-				164 136 
+-			}
+-		}
+-		factions=
+-		{
+-		}
+-		wanted_factions=
+-		{
+-		}
+-		size=300
+-		last_month_growth=0
+-		month_start_size=300
+-		last_month_growth_details=
+-		{
+-			key="GROWTH_CAT_PROMOTION"
+-			value=0
+-		}
+-		current_month_growth_details=
+-		{
+-			key="GROWTH_CAT_PROMOTION"
+-			value=0
+-		}
+-		total_attraction=7.35
+-		ethics_attraction=
+-		{
+-			0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.35 0 
+-		}
+-		habitability=1
+-	}
+-	108=
+-	{
+-		can_crossbreed=yes
+-		can_fill_worker_job=yes
+-		can_fill_specialist_job=yes
+-		can_fill_ruler_job=yes
+-		can_follow_ideology=yes
+-		key=
+-		{
+-			species=234881063
+-			category="ruler"
+-		}
+-		planet=14
+-		ethos=
+-		{
+-			ethics=
+-			{
+-				"ethic_xenophobe"
+-				"ethic_materialist"
+-			}
+-			pops=
+-			{
+-				55 45 
+-			}
+-		}
+-		factions=
+-		{
+-		}
+-		wanted_factions=
+-		{
+-		}
+-		size=100
+-		last_month_growth=0
+-		month_start_size=100
+-		total_attraction=7.35
+-		ethics_attraction=
+-		{
+-			0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.35 0 
+-		}
+-		habitability=1
+-	}
++	106=none
++	107=none
++	108=none
+ 	109=
+ 	{
+ 		can_crossbreed=yes
+@@ -16010,298 +15870,27 @@
+ 		planet=1
+ 		pop_group=4294967295
+ 	}
+-	402=
+-	{
+-		type="civilian"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	403=
+-	{
+-		type="servant"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	404=
+-	{
+-		type="crisis_purge"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	405=
+-	{
+-		type="assimilation"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	406=
+-	{
+-		type="fotd_protectors"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	407=
+-	{
+-		type="bio_trophy_unemployment"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	408=
+-	{
+-		type="squire"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	409=
+-	{
+-		type="hunter_gatherer"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	410=
+-	{
+-		type="hunter_gatherer_lithoid"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	411=
+-	{
+-		type="peasant"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	412=
+-	{
+-		type="peasant_lithoid"
+-		automated_workforce=-1
+-		workforce=1199
+-		max_workforce=-1
+-		bonus_workforce=61
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		pop_groups=
+-		{
+-			
+-			{
+-				pop_group=106
+-				amount=1200
+-			}
+-		}
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	413=
+-	{
+-		type="event_purge"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	414=
+-	{
+-		type="neural_chip"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	415=
+-	{
+-		type="disconnected_drone"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	416=
+-	{
+-		type="cruise_passenger_unemployment"
+-		automated_workforce=-1
+-		workforce=-1
+-		max_workforce=-1
+-		bonus_workforce=1
+-		workforce_limit=-1
+-		automated_workforce_limit=-1
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	417=
+-	{
+-		type="primitive_warrior"
+-		automated_workforce=0
+-		workforce=100
+-		max_workforce=100
+-		bonus_workforce=0
+-		workforce_limit=100
+-		automated_workforce_limit=99
+-		pop_groups=
+-		{
+-			
+-			{
+-				pop_group=107
+-				amount=100
+-			}
+-		}
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	418=
+-	{
+-		type="primitive_noble"
+-		automated_workforce=0
+-		workforce=100
+-		max_workforce=100
+-		bonus_workforce=-20
+-		workforce_limit=100
+-		automated_workforce_limit=99
+-		pop_groups=
+-		{
+-			
+-			{
+-				pop_group=108
+-				amount=100
+-			}
+-		}
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	419=
+-	{
+-		type="primitive_researcher"
+-		automated_workforce=0
+-		workforce=100
+-		max_workforce=100
+-		bonus_workforce=0
+-		workforce_limit=100
+-		automated_workforce_limit=99
+-		pop_groups=
+-		{
+-			
+-			{
+-				pop_group=107
+-				amount=100
+-			}
+-		}
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	420=
+-	{
+-		type="primitive_priest"
+-		automated_workforce=0
+-		workforce=100
+-		max_workforce=100
+-		bonus_workforce=0
+-		workforce_limit=100
+-		automated_workforce_limit=99
+-		pop_groups=
+-		{
+-			
+-			{
+-				pop_group=107
+-				amount=100
+-			}
+-		}
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	421=
+-	{
+-		type="primitive_laborer"
+-		automated_workforce=0
+-		workforce=0
+-		max_workforce=200
+-		bonus_workforce=0
+-		workforce_limit=200
+-		automated_workforce_limit=199
+-		planet=14
+-		pop_group=4294967295
+-	}
+-	422=
+-	{
+-		type="primitive_miner"
+-		automated_workforce=0
+-		workforce=0
+-		max_workforce=1000
+-		bonus_workforce=0
+-		workforce_limit=1000
+-		automated_workforce_limit=999
+-		planet=14
+-		pop_group=4294967295
+-	}
++	402=none
++	403=none
++	404=none
++	405=none
++	406=none
++	407=none
++	408=none
++	409=none
++	410=none
++	411=none
++	412=none
++	413=none
++	414=none
++	415=none
++	416=none
++	417=none
++	418=none
++	419=none
++	420=none
++	421=none
++	422=none
+ 	423=
+ 	{
+ 		type="civilian"
+@@ -20671,11 +20260,6 @@
+ 			{
+ 				to=565
+ 				length=39
+-			}
+- 
+-			{
+-				to=86
+-				length=19
+ 			}
+  
+ 		}
+@@ -24795,62 +24379,7 @@
+ 		}
+ 		storm=4294967295
+ 	}
+-	86=
+-	{
+-		coordinate=
+-		{
+-			x=241.43
+-			y=-12.56
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Kuhlehm"
+-		}
+-		planet=1168
+-		planet=1169
+-		planet=1170
+-		planet=1171
+-		planet=1172
+-		planet=1173
+-		star_class="sc_b"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=573
+-				length=28
+-			}
+- 
+-			{
+-				to=27
+-				length=19
+-			}
+- 
+-		}
+-		flags=
+-		{
+-			primitive_system=62808000
+-			precursor_zroni_1=62808000
+-			resource_region_not_resource_rich=62808000
+-		}
+-		initializer="pre_ftl_init_01"
+-		inner_radius=150
+-		outer_radius=250
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=55
+-		colonies=
+-		{
+-			14 
+-		}
+-		storm=4294967295
+-	}
++	86=none
+ 	87=
+ 	{
+ 		coordinate=
+@@ -57743,11 +57272,6 @@
+ 		{
+ 			
+ 			{
+-				to=86
+-				length=28
+-			}
+- 
+-			{
+ 				to=100
+ 				length=24
+ 			}
+@@ -62905,7 +62429,8 @@
+ 			reference=333
+ 		}
+ 	}
+-	14=
++	14=none
++	15=
+ 	{
+ 		automation=
+ 		{
+@@ -62929,67 +62454,67 @@
+ 		}
+ 		pop_groups=
+ 		{
+-			108 106 107 
++			74 73 75 
+ 		}
+ 		pop_jobs=
+ 		{
+-			402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 419 420 421 422 
++			324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 
+ 		}
+ 		kill_pop=		"0.01.01"
+ 		districts=
+ 		{
+-			93 
++			94 
+ 		}
+ 		last_building_changed="building_colony_shelter"
+-		army_build_queue=89
++		army_build_queue=91
+ 		army=
+ 		{
+-			240 241 242 
++			243 244 245 246 247 248 
+ 		}
+ 		spawned_armies=
+ 		{
+-			240 241 242 
++			243 244 245 246 247 248 
+ 		}
+-		stability=70
++		stability=72
+ 		crime=0
+-		amenities=2940
++		amenities=3100
+ 		amenities_usage=500
+-		free_amenities=2440
+-		free_housing=3700
+-		total_housing=3700
++		free_amenities=2600
++		free_housing=3900
++		total_housing=3900
+ 		housing_usage=0
+-		num_pops=1600
+-		num_sapient_pops=1600
+-		num_potential_followers=1600
++		num_pops=2200
++		num_sapient_pops=2200
++		num_potential_followers=2200
+ 		manual_designation_changed_date=		"0.01.01"
+-		final_designation="col_pre_ftl_steam"
++		final_designation="col_pre_ftl_stone"
+ 		ascension_tier=0
+ 		species_information=
+ 		{
+-			234881063=
++			234881066=
+ 			{
+-				num_pops=1600
++				num_pops=2200
+ 			}
+ 		}
+ 		buildings_cache=
+ 		{
+-			172 169 170 171 
++			178 174 175 176 177 179 
+ 		}
+ 		last_month_growth_data=
+ 		{
+ 			growth_and_size=
+ 			{
+-				month_start_size=1600
++				month_start_size=2200
+ 				growth=0
+ 			}
+ 			species=
+ 			{
+-				key=234881063
++				key=234881066
+ 				value=
+ 				{
+ 					growth_and_size=
+ 					{
+-						month_start_size=1600
++						month_start_size=2200
+ 						growth=0
+ 					}
+ 					categories=
+@@ -62997,19 +62522,19 @@
+ 						key="ruler"
+ 						value=
+ 						{
+-							month_start_size=100
++							month_start_size=200
+ 							growth=0
+ 						}
+ 						key="specialist"
+ 						value=
+ 						{
+-							month_start_size=300
++							month_start_size=600
+ 							growth=0
+ 						}
+ 						key="worker"
+ 						value=
+ 						{
+-							month_start_size=1200
++							month_start_size=1400
+ 							growth=0
+ 						}
+ 					}
+@@ -63020,17 +62545,17 @@
+ 		{
+ 			growth_and_size=
+ 			{
+-				month_start_size=1600
++				month_start_size=2200
+ 				growth=0
+ 			}
+ 			species=
+ 			{
+-				key=234881063
++				key=234881066
+ 				value=
+ 				{
+ 					growth_and_size=
+ 					{
+-						month_start_size=1600
++						month_start_size=2200
+ 						growth=0
+ 					}
+ 					categories=
+@@ -63038,19 +62563,19 @@
+ 						key="ruler"
+ 						value=
+ 						{
+-							month_start_size=100
++							month_start_size=200
+ 							growth=0
+ 						}
+ 						key="specialist"
+ 						value=
+ 						{
+-							month_start_size=300
++							month_start_size=600
+ 							growth=0
+ 						}
+ 						key="worker"
+ 						value=
+ 						{
+-							month_start_size=1200
++							month_start_size=1400
+ 							growth=0
+ 						}
+ 					}
+@@ -63065,10 +62590,10 @@
+ 		carrier=
+ 		{
+ 			type=planet
+-			reference=1170
++			reference=1646
+ 		}
+ 	}
+-	15=
++	16=
+ 	{
+ 		automation=
+ 		{
+@@ -63092,51 +62617,52 @@
+ 		}
+ 		pop_groups=
+ 		{
+-			74 73 75 
++			112 109 110 111 
+ 		}
+ 		pop_jobs=
+ 		{
+-			324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 
++			423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 
+ 		}
+ 		kill_pop=		"0.01.01"
+ 		districts=
+ 		{
+-			94 
++			95 
+ 		}
+ 		last_building_changed="building_colony_shelter"
+-		army_build_queue=91
++		army_build_queue=93
+ 		army=
+ 		{
+-			243 244 245 246 247 248 
++			249 250 251 252 253 254 
+ 		}
+ 		spawned_armies=
+ 		{
+-			243 244 245 246 247 248 
++			249 250 251 252 253 254 
+ 		}
+-		stability=72
++		stability=70
+ 		crime=0
+-		amenities=3100
++		amenities=3800
+ 		amenities_usage=500
+-		free_amenities=2600
++		free_amenities=3300
+ 		free_housing=3900
+ 		total_housing=3900
+ 		housing_usage=0
+ 		num_pops=2200
++		civilian=600
+ 		num_sapient_pops=2200
+ 		num_potential_followers=2200
+ 		manual_designation_changed_date=		"0.01.01"
+-		final_designation="col_pre_ftl_stone"
++		final_designation="col_pre_ftl_industrial"
+ 		ascension_tier=0
+ 		species_information=
+ 		{
+-			234881066=
++			45=
+ 			{
+ 				num_pops=2200
+ 			}
+ 		}
+ 		buildings_cache=
+ 		{
+-			178 174 175 176 177 179 
++			184 180 181 182 183 185 
+ 		}
+ 		last_month_growth_data=
+ 		{
+@@ -63147,7 +62673,7 @@
+ 			}
+ 			species=
+ 			{
+-				key=234881066
++				key=45
+ 				value=
+ 				{
+ 					growth_and_size=
+@@ -63157,6 +62683,12 @@
+ 					}
+ 					categories=
+ 					{
++						key="civilian"
++						value=
++						{
++							month_start_size=600
++							growth=0
++						}
+ 						key="ruler"
+ 						value=
+ 						{
+@@ -63166,13 +62698,13 @@
+ 						key="specialist"
+ 						value=
+ 						{
+-							month_start_size=600
++							month_start_size=1000
+ 							growth=0
+ 						}
+ 						key="worker"
+ 						value=
+ 						{
+-							month_start_size=1400
++							month_start_size=400
+ 							growth=0
+ 						}
+ 					}
+@@ -63188,7 +62720,7 @@
+ 			}
+ 			species=
+ 			{
+-				key=234881066
++				key=45
+ 				value=
+ 				{
+ 					growth_and_size=
+@@ -63198,6 +62730,12 @@
+ 					}
+ 					categories=
+ 					{
++						key="civilian"
++						value=
++						{
++							month_start_size=600
++							growth=0
++						}
+ 						key="ruler"
+ 						value=
+ 						{
+@@ -63207,13 +62745,13 @@
+ 						key="specialist"
+ 						value=
+ 						{
+-							month_start_size=600
++							month_start_size=1000
+ 							growth=0
+ 						}
+ 						key="worker"
+ 						value=
+ 						{
+-							month_start_size=1400
++							month_start_size=400
+ 							growth=0
+ 						}
+ 					}
+@@ -63228,10 +62766,10 @@
+ 		carrier=
+ 		{
+ 			type=planet
+-			reference=1646
++			reference=2843
+ 		}
+ 	}
+-	16=
++	17=
+ 	{
+ 		automation=
+ 		{
+@@ -63255,90 +62793,63 @@
+ 		}
+ 		pop_groups=
+ 		{
+-			112 109 110 111 
++			113 
+ 		}
+ 		pop_jobs=
+ 		{
+-			423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 
++			445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 
+ 		}
+ 		kill_pop=		"0.01.01"
+ 		districts=
+ 		{
+-			95 
++			96 
+ 		}
+ 		last_building_changed="building_colony_shelter"
+-		army_build_queue=93
+-		army=
+-		{
+-			249 250 251 252 253 254 
+-		}
+-		spawned_armies=
+-		{
+-			249 250 251 252 253 254 
+-		}
+-		stability=70
++		army_build_queue=95
++		stability=67.2
+ 		crime=0
+-		amenities=3800
++		amenities=930
+ 		amenities_usage=500
+-		free_amenities=3300
+-		free_housing=3900
+-		total_housing=3900
++		free_amenities=430
++		free_housing=1400
++		total_housing=1400
+ 		housing_usage=0
+-		num_pops=2200
+-		civilian=600
+-		num_sapient_pops=2200
+-		num_potential_followers=2200
++		num_pops=400
++		num_sapient_pops=400
++		num_potential_followers=400
+ 		manual_designation_changed_date=		"0.01.01"
+-		final_designation="col_pre_ftl_industrial"
++		final_designation="col_pre_ftl_stone"
+ 		ascension_tier=0
+ 		species_information=
+ 		{
+-			45=
++			234881070=
+ 			{
+-				num_pops=2200
++				num_pops=400
+ 			}
+ 		}
+ 		buildings_cache=
+ 		{
+-			184 180 181 182 183 185 
++			186 
+ 		}
+ 		last_month_growth_data=
+ 		{
+ 			growth_and_size=
+ 			{
+-				month_start_size=2200
++				month_start_size=400
+ 				growth=0
+ 			}
+ 			species=
+ 			{
+-				key=45
++				key=234881070
+ 				value=
+ 				{
+ 					growth_and_size=
+ 					{
+-						month_start_size=2200
++						month_start_size=400
+ 						growth=0
+ 					}
+ 					categories=
+ 					{
+-						key="civilian"
+-						value=
+-						{
+-							month_start_size=600
+-							growth=0
+-						}
+-						key="ruler"
+-						value=
+-						{
+-							month_start_size=200
+-							growth=0
+-						}
+-						key="specialist"
+-						value=
+-						{
+-							month_start_size=1000
+-							growth=0
+-						}
+ 						key="worker"
+ 						value=
+ 						{
+@@ -63353,39 +62864,21 @@
+ 		{
+ 			growth_and_size=
+ 			{
+-				month_start_size=2200
++				month_start_size=400
+ 				growth=0
+ 			}
+ 			species=
+ 			{
+-				key=45
++				key=234881070
+ 				value=
+ 				{
+ 					growth_and_size=
+ 					{
+-						month_start_size=2200
++						month_start_size=400
+ 						growth=0
+ 					}
+ 					categories=
+ 					{
+-						key="civilian"
+-						value=
+-						{
+-							month_start_size=600
+-							growth=0
+-						}
+-						key="ruler"
+-						value=
+-						{
+-							month_start_size=200
+-							growth=0
+-						}
+-						key="specialist"
+-						value=
+-						{
+-							month_start_size=1000
+-							growth=0
+-						}
+ 						key="worker"
+ 						value=
+ 						{
+@@ -63395,19 +62888,14 @@
+ 					}
+ 				}
+ 			}
+-			current_month_growth_details=
+-			{
+-				key="GROWTH_CAT_PROMOTION"
+-				value=0
+-			}
+ 		}
+ 		carrier=
+ 		{
+ 			type=planet
+-			reference=2843
++			reference=3618
+ 		}
+ 	}
+-	17=
++	18=
+ 	{
+ 		automation=
+ 		{
+@@ -63431,132 +62919,6 @@
+ 		}
+ 		pop_groups=
+ 		{
+-			113 
+-		}
+-		pop_jobs=
+-		{
+-			445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 
+-		}
+-		kill_pop=		"0.01.01"
+-		districts=
+-		{
+-			96 
+-		}
+-		last_building_changed="building_colony_shelter"
+-		army_build_queue=95
+-		stability=67.2
+-		crime=0
+-		amenities=930
+-		amenities_usage=500
+-		free_amenities=430
+-		free_housing=1400
+-		total_housing=1400
+-		housing_usage=0
+-		num_pops=400
+-		num_sapient_pops=400
+-		num_potential_followers=400
+-		manual_designation_changed_date=		"0.01.01"
+-		final_designation="col_pre_ftl_stone"
+-		ascension_tier=0
+-		species_information=
+-		{
+-			234881070=
+-			{
+-				num_pops=400
+-			}
+-		}
+-		buildings_cache=
+-		{
+-			186 
+-		}
+-		last_month_growth_data=
+-		{
+-			growth_and_size=
+-			{
+-				month_start_size=400
+-				growth=0
+-			}
+-			species=
+-			{
+-				key=234881070
+-				value=
+-				{
+-					growth_and_size=
+-					{
+-						month_start_size=400
+-						growth=0
+-					}
+-					categories=
+-					{
+-						key="worker"
+-						value=
+-						{
+-							month_start_size=400
+-							growth=0
+-						}
+-					}
+-				}
+-			}
+-		}
+-		current_month_growth_data=
+-		{
+-			growth_and_size=
+-			{
+-				month_start_size=400
+-				growth=0
+-			}
+-			species=
+-			{
+-				key=234881070
+-				value=
+-				{
+-					growth_and_size=
+-					{
+-						month_start_size=400
+-						growth=0
+-					}
+-					categories=
+-					{
+-						key="worker"
+-						value=
+-						{
+-							month_start_size=400
+-							growth=0
+-						}
+-					}
+-				}
+-			}
+-		}
+-		carrier=
+-		{
+-			type=planet
+-			reference=3618
+-		}
+-	}
+-	18=
+-	{
+-		automation=
+-		{
+-			enabled=no
+-			settings=
+-			{
+-				"planet_automation_deficit_restriction"
+-				"planet_automation_designation_construction"
+-				"planet_automation_upgrade_buildings"
+-				"planet_automation_amenities"
+-				"planet_automation_rare_resources"
+-				"planet_automation_pop_assembly"
+-				"planet_automation_housing"
+-				"planet_automation_crime"
+-				"planet_automation_clear_blockers"
+-				"planet_automation_biotrophy_management"
+-				"planet_automation_worm"
+-				"planet_automation_permanent_employment_center"
+-				"planet_automation_psi_corps_building"
+-			}
+-		}
+-		pop_groups=
+-		{
+ 			116 114 115 
+ 		}
+ 		pop_jobs=
+@@ -124954,346 +124316,12 @@
+ 				849 
+ 			}
+ 		}
+-		1168=
+-		{
+-			planet_class="pc_b_star"
+-			planet_size=20
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Kuhlehm"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=86
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				850 
+-			}
+-		}
+-		1169=
+-		{
+-			planet_class="pc_molten"
+-			planet_size=22
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Kuhlehm"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=33.3468
+-				y=-22.102
+-				origin=86
+-				randomized=no
+-			}
+-			orbit=40
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		1170=
+-		{
+-			colony=14
+-			planet_class="pc_arid"
+-			planet_size=17
+-			colonize_date=			"2200.01.01"
+-			original_owner=234881050
+-			carrier_binary_flags=3
+-			build_queue=88
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Kuhlehm"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="II"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=72
+-			coordinate=
+-			{
+-				x=-4.0968
+-				y=60.0594
+-				origin=86
+-				randomized=no
+-			}
+-			orbit=60
+-			last_bombardment=			"0.01.01"
+-			owner=234881050
+-			controller=234881050
+-			moons=
+-			{
+-				1171 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			flags=
+-			{
+-				pre_ftl_default=62808000
+-				3_year_owner_change_flag=
+-				{
+-					flag_date=62808000
+-					flag_days=1080
+-				}
+-			}
+-			entity=1
+-			deposits=
+-			{
+-				852 853 854 855 856 857 858 859 860 
+-			}
+-		}
+-		1171=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=7
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Kuhlehm"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="II"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=10.09395
+-				y=55.161
+-				origin=86
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=1170
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		1172=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=28
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Kuhlehm"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="III"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=29.6584
+-				y=-74.3528
+-				origin=86
+-				randomized=no
+-			}
+-			orbit=80
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				1173 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=3
+-		}
+-		1173=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=8
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Kuhlehm"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="III"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=44.61535
+-				y=-75.94625
+-				origin=86
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=1172
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
++		1168=none
++		1169=none
++		1170=none
++		1171=none
++		1172=none
++		1173=none
+ 		1174=
+ 		{
+ 			planet_class="pc_k_star"
+@@ -424417,731 +423445,7 @@
+ 		{
+ 		}
+ 	}
+-	234881050=
+-	{
+-		has_advisor=no
+-		initialized=yes
+-		flag=
+-		{
+-			icon=
+-			{
+-				category="pre_ftl"
+-				file="preftl_steam_age.dds"
+-				scenario=no
+-			}
+-			background=
+-			{
+-				category="backgrounds"
+-				file="new_dawn.dds"
+-				scenario=no
+-			}
+-			colors=
+-			{
+-				"orange"
+-				"red"
+-				"null"
+-				"null"
+-				"null"
+-				"null"
+-			}
+-		}
+-		name=
+-		{
+-			key="%ADJECTIVE%"
+-			variables=
+-			{
+-				
+-				{
+-					key="adjective"
+-					value=
+-					{
+-						key="SPEC_Bhiir"
+-					}
+-				}
+- 
+-				{
+-					key="1"
+-					value=
+-					{
+-						key="Civilization"
+-					}
+-				}
+- 
+-			}
+-		}
+-		adjective=
+-		{
+-			key="%ADJECTIVE%"
+-			variables=
+-			{
+-				
+-				{
+-					key="adjective"
+-					value=
+-					{
+-						key="SPEC_Bhiir"
+-					}
+-				}
+- 
+-			}
+-		}
+-		tech_status=
+-		{
+-			technology="tech_solar_panel_network"
+-			level=1
+-			technology="tech_starbase_1"
+-			level=1
+-			technology="tech_starbase_2"
+-			level=1
+-			technology="tech_assault_armies"
+-			level=1
+-			technology="tech_ship_armor_1"
+-			level=1
+-			technology="tech_thrusters_1"
+-			level=1
+-			technology="tech_space_defense_station_1"
+-			level=1
+-			technology="tech_basic_industry"
+-			level=1
+-			technology="tech_mechanized_mining"
+-			level=1
+-			technology="tech_space_construction"
+-			level=1
+-			technology="tech_mass_drivers_1"
+-			level=1
+-			technology="tech_flak_batteries_1"
+-			level=1
+-			technology="tech_missiles_1"
+-			level=1
+-			technology="tech_space_exploration"
+-			level=1
+-			technology="tech_fission_power"
+-			level=1
+-			technology="tech_reactor_boosters_1"
+-			level=1
+-			technology="tech_shields_1"
+-			level=1
+-			technology="tech_power_plant_1"
+-			level=1
+-			technology="tech_hyper_drive_1"
+-			level=1
+-			technology="tech_lasers_1"
+-			level=1
+-			technology="tech_pd_tracking_1"
+-			level=1
+-			technology="tech_planetary_defenses"
+-			level=1
+-			technology="tech_interplanetary_commerce"
+-			level=1
+-			technology="tech_industrial_farming"
+-			level=1
+-			technology="tech_hydroponics"
+-			level=1
+-			technology="tech_colonization_1"
+-			level=1
+-			technology="tech_holo_entertainment"
+-			level=1
+-			stored_techpoints=
+-			{
+-				0 0 0 
+-			}
+-			alternatives=
+-			{
+-				physics=
+-				{
+-					"tech_basic_science_lab_1"
+-					"tech_power_plant_2"
+-					"tech_space_science_1"
+-				}
+-				society=
+-				{
+-					"tech_genome_mapping"
+-					"tech_doctrine_fleet_size_1"
+-					"tech_doctrine_navy_size_1"
+-				}
+-				engineering=
+-				{
+-					"tech_corvettes"
+-					"tech_afterburners_1"
+-					"tech_space_mining_1"
+-				}
+-			}
+-			auto_researching_physics=no
+-			auto_researching_society=no
+-			auto_researching_engineering=no
+-		}
+-		timeline_events=
+-		{
+-			
+-			{
+-				date=				"2200.01.01"
+-				definition="timeline_origin_default"
+-			}
+- 
+-			{
+-				date=				"2200.01.01"
+-				definition="timeline_event_year"
+-			}
+- 
+-		}
+-		last_date_was_human=		"0.01.01"
+-		last_date_war_lost=		"0.01.01"
+-		last_date_at_war=		"2200.01.01"
+-		budget=
+-		{
+-			current_month=
+-			{
+-				income=
+-				{
+-					country_power_projection=
+-					{
+-						influence=0.225
+-					}
+-					planet_jobs=
+-					{
+-						unity=0.56
+-					}
+-					planet_farmers=
+-					{
+-						minerals=28.224
+-					}
+-					planet_politicians=
+-					{
+-						unity=0.896
+-					}
+-					planet_researchers=
+-					{
+-						physics_research=0.56
+-						society_research=0.56
+-						engineering_research=0.56
+-					}
+-				}
+-				expenses=
+-				{
+-					planet_districts_cities=
+-					{
+-						energy=2
+-					}
+-					planet_pops_traits=
+-					{
+-						minerals=16
+-					}
+-				}
+-				balance=
+-				{
+-					planet_districts_cities=
+-					{
+-						energy=-2
+-					}
+-					country_power_projection=
+-					{
+-						influence=0.225
+-					}
+-					planet_jobs=
+-					{
+-						unity=0.56
+-					}
+-					planet_farmers=
+-					{
+-						minerals=28.224
+-					}
+-					planet_politicians=
+-					{
+-						unity=0.896
+-					}
+-					planet_researchers=
+-					{
+-						physics_research=0.56
+-						society_research=0.56
+-						engineering_research=0.56
+-					}
+-					planet_pops_traits=
+-					{
+-						minerals=-16
+-					}
+-				}
+-				trade_income=
+-				{
+-				}
+-				trade_expenses=
+-				{
+-				}
+-				trade_balance=
+-				{
+-				}
+-			}
+-			last_month=
+-			{
+-				income=
+-				{
+-				}
+-				expenses=
+-				{
+-				}
+-				balance=
+-				{
+-				}
+-				trade_income=
+-				{
+-				}
+-				trade_expenses=
+-				{
+-				}
+-				trade_balance=
+-				{
+-				}
+-			}
+-			current_month_commercial_pacts=0
+-			last_month_commercial_pacts=0
+-			income_high_water_mark=
+-			{
+-				current=
+-				{
+-					minerals=28.224
+-					physics_research=0.56
+-					society_research=0.56
+-					engineering_research=0.56
+-					influence=0.225
+-					unity=1.456
+-				}
+-				length=2
+-				history=
+-				{
+-				}
+-			}
+-		}
+-		tracking=
+-		{
+-			mission=
+-			{
+-			}
+-		}
+-		events=
+-		{
+-			situations=
+-			{
+-				1 
+-			}
+-		}
+-		terra_incognita=
+-		{
+-			size=256
+-			data=
+-			{
+-				0 65536 
+-			}
+-			systems=
+-			{
+-				0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269 270 271 272 273 274 275 276 277 278 279 280 281 282 283 284 285 286 287 288 289 290 291 292 293 294 295 296 297 298 299 300 301 302 303 304 305 306 307 308 309 310 311 312 313 314 315 316 317 318 319 320 321 322 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 347 348 349 350 351 352 353 354 355 356 357 358 359 360 361 362 363 364 365 366 367 368 369 370 371 372 373 374 375 376 377 378 379 380 381 382 383 384 385 386 387 388 389 390 391 392 393 394 395 396 397 398 399 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 419 420 421 422 423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 460 461 462 463 464 465 466 467 468 469 470 471 472 473 474 475 476 477 478 479 480 481 482 483 484 485 486 487 488 489 490 491 492 493 494 495 496 497 498 499 500 501 502 503 504 505 506 507 508 509 510 511 512 513 514 515 516 517 518 519 520 521 522 523 524 525 526 527 528 529 530 531 532 533 534 535 536 537 538 539 540 541 542 543 544 545 546 547 548 549 550 551 552 553 554 555 556 557 558 559 560 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 581 582 583 584 585 586 587 588 589 590 591 592 593 594 595 596 597 598 599 
+-			}
+-		}
+-		military_power=0.00000
+-		economy_power=1.00000
+-		victory_rank=45
+-		victory_score=5141.375
+-		tech_power=237.50000
+-		fleet_size=0
+-		used_naval_capacity=0
+-		empire_size=50
+-		new_colonies=0
+-		num_sapient_pops=1600
+-		num_potential_followers=1600
+-		navy_coverage=0
+-		graphical_culture="preindustrial_01"
+-		room="observation_post_room"
+-		capital=14
+-		founder_species_ref=234881063
+-		ethos=
+-		{
+-			ethics=
+-			{
+-				"ethic_fanatic_xenophobe"
+-				"ethic_materialist"
+-			}
+-		}
+-		fleet_template_manager=
+-		{
+-		}
+-		government=
+-		{
+-			type="gov_feudal_realms"
+-			authority="auth_imperial"
+-			civics=
+-			{
+-				"civic_landed_nobility"
+-				"civic_flat_world_theory"
+-			}
+-			origin="origin_default_pre_ftl"
+-			unlocked_civic_council_slots=0
+-		}
+-		personality="pre_ftl_splintered"
+-		next_election=		"0.01.01"
+-		government_date=		"2200.01.01"
+-		surveyed_deposit_holders=
+-		{
+-			
+-			{
+-				type=0
+-				id=1170
+-			}
+- 
+-		}
+-		visited_objects=
+-		{
+-			0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269 270 271 272 273 274 275 276 277 278 279 280 281 282 283 284 285 286 287 288 289 290 291 292 293 294 295 296 297 298 299 300 301 302 303 304 305 306 307 308 309 310 311 312 313 314 315 316 317 318 319 320 321 322 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 347 348 349 350 351 352 353 354 355 356 357 358 359 360 361 362 363 364 365 366 367 368 369 370 371 372 373 374 375 376 377 378 379 380 381 382 383 384 385 386 387 388 389 390 391 392 393 394 395 396 397 398 399 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 419 420 421 422 423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 460 461 462 463 464 465 466 467 468 469 470 471 472 473 474 475 476 477 478 479 480 481 482 483 484 485 486 487 488 489 490 491 492 493 494 495 496 497 498 499 500 501 502 503 504 505 506 507 508 509 510 511 512 513 514 515 516 517 518 519 520 521 522 523 524 525 526 527 528 529 530 531 532 533 534 535 536 537 538 539 540 541 542 543 544 545 546 547 548 549 550 551 552 553 554 555 556 557 558 559 560 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 581 582 583 584 585 586 587 588 589 590 591 592 593 594 595 596 597 598 599 
+-		}
+-		intel_level=
+-		{
+-			2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+-		}
+-		highest_intel_level=
+-		{
+-			2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+-		}
+-		default_planet_automation_settings=
+-		{
+-			"planet_automation_deficit_restriction"
+-			"planet_automation_designation_construction"
+-			"planet_automation_upgrade_buildings"
+-			"planet_automation_amenities"
+-			"planet_automation_rare_resources"
+-			"planet_automation_pop_assembly"
+-			"planet_automation_housing"
+-			"planet_automation_crime"
+-			"planet_automation_clear_blockers"
+-			"planet_automation_biotrophy_management"
+-			"planet_automation_worm"
+-			"planet_automation_permanent_employment_center"
+-			"planet_automation_psi_corps_building"
+-		}
+-		flags=
+-		{
+-			was_recently_targeted_by_voidworms=
+-			{
+-				flag_date=62808000
+-				flag_days=12600
+-			}
+-			steam_age=62808000
+-		}
+-		trade_conversions=
+-		{
+-			energy=0.5
+-			trade=0.5
+-		}
+-		faction=
+-		{
+-			properties=914
+-			aggro_range_measure_from=self
+-		}
+-		name_list="LITHOID3"
+-		ruler=234881082
+-		active_policies=
+-		{
+-			
+-			{
+-				policy="diplomatic_stance"
+-				selected="diplo_stance_ignorant"
+-			}
+- 
+-			{
+-				policy="orbital_bombardment_accept_surrender"
+-				selected="orbital_bombardment_surrender_allowed"
+-			}
+- 
+-			{
+-				policy="resettlement"
+-				selected="resettlement_allowed"
+-			}
+- 
+-			{
+-				policy="first_contact_protocol"
+-				selected="first_contact_attack_allowed"
+-			}
+- 
+-			{
+-				policy="border_policy"
+-				selected="border_policy_open"
+-			}
+- 
+-			{
+-				policy="economic_policy"
+-				selected="economic_policy_balanced"
+-			}
+- 
+-			{
+-				policy="trade_policy"
+-				selected="trade_policy_default"
+-			}
+- 
+-			{
+-				policy="robot_pop_policy"
+-				selected="robot_pops_allowed"
+-			}
+- 
+-			{
+-				policy="population_controls"
+-				selected="population_controls_allowed"
+-			}
+- 
+-			{
+-				policy="slavery"
+-				selected="slavery_allowed"
+-			}
+- 
+-			{
+-				policy="purge"
+-				selected="purge_allowed"
+-			}
+- 
+-			{
+-				policy="nomad_border_policy"
+-				selected="nomad_border_policy_open"
+-			}
+- 
+-			{
+-				policy="nomad_deterrence"
+-				selected="nomad_deterrence_purge_pops"
+-			}
+- 
+-			{
+-				policy="defense_platform_protocols"
+-				selected="defense_platform_standard"
+-			}
+- 
+-		}
+-		policy_flags=
+-		{
+-			"diplo_stance_ignorant"
+-			"orbital_bombardment_surrender_allowed"
+-			"resettlement_allowed"
+-			"first_contact_attack_allowed"
+-			"border_policy_open"
+-			"robots_allowed"
+-			"population_controls_allowed"
+-			"slavery_allowed"
+-			"purge_allowed"
+-			"nomad_border_policy_open"
+-			"arkship_raid_purge_pops"
+-		}
+-		owned_leaders=
+-		{
+-			234881082 
+-		}
+-		owned_armies=
+-		{
+-			240 241 242 
+-		}
+-		owned_planets=
+-		{
+-			14 
+-		}
+-		controlled_colonies=
+-		{
+-			14 
+-		}
+-		controlled_planets=
+-		{
+-			1170 
+-		}
+-		ship_design_collection=
+-		{
+-			ship_design=
+-			{
+-				1268 1269 1270 1271 1272 1273 1274 1275 1276 1277 1278 1279 1280 1281 1282 1283 1284 1285 1286 1287 1288 1289 1290 1291 1292 1293 1294 1295 1296 1297 1298 1299 1300 1301 1302 1303 1304 1305 1306 1307 1308 1309 1310 1311 1312 1313 
+-			}
+-		}
+-		type="primitive"
+-		modules=
+-		{
+-			standard_event_module=
+-			{
+-				delayed_event=
+-				{
+-					event="cyber.7017"
+-					days=3
+-					scope=
+-					{
+-						type=country
+-						id=234881050
+-						opener_id=4294967295
+-						random={ 0 1860378687 }
+-						random_allowed=yes
+-						from=
+-						{
+-							type=country
+-							id=234881050
+-							opener_id=4294967295
+-							random={ 0 3602120733 }
+-							random_allowed=yes
+-						}
+-					}
+-				}
+-				delayed_event=
+-				{
+-					event="cyber.7017"
+-					days=3
+-					scope=
+-					{
+-						type=country
+-						id=234881050
+-						opener_id=4294967295
+-						random={ 0 103543252 }
+-						random_allowed=yes
+-						from=
+-						{
+-							type=country
+-							id=234881050
+-							opener_id=4294967295
+-							random={ 0 4252375879 }
+-							random_allowed=yes
+-						}
+-					}
+-				}
+-			}
+-			exclusive_diplomacy_module=
+-			{
+-				contact_rule=on_action_only
+-				can_receive=
+-				{
+-					"action_improve_relation"
+-					"action_harm_relation"
+-					"action_reveal_presence"
+-					"action_build_spy_network"
+-					"action_manage_spy_network"
+-					"action_societal_enlightenment"
+-					"action_stop_societal_enlightenment"
+-					"action_open_technological_enlightenment"
+-					"action_stop_open_technological_enlightenment"
+-					"action_stratified_technological_enlightenment"
+-					"action_stop_stratified_technological_enlightenment"
+-					"action_pre_ftl_trade"
+-					"action_stop_pre_ftl_trade"
+-					"action_open_pre_ftl_homeworld"
+-				}
+-			}
+-			basic_technology_module=
+-			{
+-			}
+-		}
+-		espionage_manager=
+-		{
+-		}
+-		intel_manager=
+-		{
+-		}
+-		fleets_manager=
+-		{
+-		}
+-		customization="default"
+-		preftl_age="steam_age"
+-		last_changed_country_type=		"2200.01.01"
+-		usable_bypasses=
+-		{
+-			10 11 12 13 
+-		}
+-		hyperlane_systems=
+-		{
+-			86 573 27 
+-		}
+-		sectors=
+-		{
+-		}
+-		given_value=0
+-		starbase_capacity_used=0
+-		starbase_capacity=3
+-		ethics_attraction=
+-		{
+-			0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.1 0 
+-		}
+-		pops_with_ethic=1600
+-		ethics_distribution=
+-		{
+-			0 0 0 0 0 0 0 0 873 0 0 0 0 0 0 0 0 0 0 0 0 0 0 727 0 
+-		}
+-		pops_ethics_attraction=
+-		{
+-			0 0 0 0 0 0 0 0 6400 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5360 0 
+-		}
+-		pops_ethics_on_colonies=
+-		{
+-			
+-			{
+-				colony=14
+-				num_pops=
+-				{
+-					0 0 0 0 0 0 0 0 873 0 0 0 0 0 0 0 0 0 0 0 0 0 0 727 0 
+-				}
+-			}
+- 
+-		}
+-		first_contact=
+-		{
+-		}
+-		fog_machine=
+-		{
+-		}
+-		num_cosmic_storms_encountered=0
+-		focus=
+-		{
+-			active=
+-			{
+-				130 131 132 133 134 
+-			}
+-			next_dismiss_date=			"0.01.01"
+-			priority=
+-			{
+-				priorities=
+-				{
+-					
+-					{
+-						category="core_focus"
+-					}
+- 
+-					{
+-						category="exploration"
+-					}
+- 
+-					{
+-						category="conquest"
+-					}
+- 
+-					{
+-						category="development"
+-					}
+- 
+-				}
+-				current="exploration"
+-				next_change_date=				"0.01.01"
+-			}
+-			reward=
+-			{
+-				rewards=
+-				{
+-					
+-					{
+-						category="conquest"
+-						current="conquest_rewards_1"
+-					}
+- 
+-					{
+-						category="development"
+-						current="development_rewards_1"
+-					}
+- 
+-					{
+-						category="exploration"
+-						current="exploration_rewards_1"
+-					}
+- 
+-				}
+-			}
+-		}
+-		last_completed_special_project=""
+-		last_nb_species=1
+-		waystation_networks_manager=
+-		{
+-		}
+-	}
++	234881050=none
+ 	27=
+ 	{
+ 		custom_name=yes
+@@ -437639,7 +435943,7 @@
+ 			}
+ 			88=
+ 			{
+-				owner=234881050
++				owner=4294967295
+ 				location=
+ 				{
+ 					type=2
+@@ -437650,7 +435954,7 @@
+ 			}
+ 			89=
+ 			{
+-				owner=234881050
++				owner=4294967295
+ 				location=
+ 				{
+ 					type=2
+@@ -440811,62 +439115,7 @@
+ 		level=5
+ 		bonus_skill_level=0
+ 	}
+-	234881082=
+-	{
+-		name=
+-		{
+-			full_names=
+-			{
+-				key="%LEADER_2%"
+-				variables=
+-				{
+-					
+-					{
+-						key="1"
+-						value=
+-						{
+-							key="LITHOID3_CHR_Thunn"
+-						}
+-					}
+- 
+-					{
+-						key="2"
+-						value=
+-						{
+-							key="LITHOID3_CHR_Tunn-laaws"
+-						}
+-					}
+- 
+-				}
+-			}
+-			use_full_regnal_name=yes
+-		}
+-		species=234881063
+-		portrait="lith10"
+-		gender=female
+-		country=234881050
+-		creator=234881050
+-		class="official"
+-		tier="leader_tier_default"
+-		date=		"2156.01.01"
+-		recruitment_date=		"2200.01.01"
+-		age=0
+-		variables=
+-		{
+-			ruler_age_mod=6
+-		}
+-		job="clerk"
+-		ethic="ethic_materialist"
+-		background_planet=
+-		{
+-			type=planet
+-			reference=1170
+-		}
+-		traits="trait_ruler_eye_for_talent"
+-		traits="trait_imperial_heir"
+-		level=1
+-		bonus_skill_level=0
+-	}
++	234881082=none
+ 	234881083=
+ 	{
+ 		name=
+@@ -541563,7 +539812,7 @@
+ 	{
+ 		army=
+ 		{
+-			240 
++			
+ 		}
+ 		fleet=130
+ 		reserve=0
+@@ -733481,115 +731730,9 @@
+ 		spawning_colony=13
+ 		morale=250
+ 	}
+-	240=
+-	{
+-		ship=653
+-		name=
+-		{
+-			key="%SEQ%"
+-			variables=
+-			{
+-				
+-				{
+-					key="fmt"
+-					value=
+-					{
+-						key="LITHOID3_KAARNLHONNSK"
+-					}
+-				}
+- 
+-				{
+-					key="num"
+-					value=
+-					{
+-						key="1"
+-					}
+-				}
+- 
+-			}
+-		}
+-		type="primitive_army"
+-		health=100
+-		max_health=100
+-		jump_drive_cooldown=		"0.01.01"
+-		owner=234881050
+-		species=234881063
+-		colony=14
+-		spawning_colony=14
+-		morale=160
+-	}
+-	241=
+-	{
+-		name=
+-		{
+-			key="%SEQ%"
+-			variables=
+-			{
+-				
+-				{
+-					key="fmt"
+-					value=
+-					{
+-						key="LITHOID3_KAARNLHONNSK"
+-					}
+-				}
+- 
+-				{
+-					key="num"
+-					value=
+-					{
+-						key="2"
+-					}
+-				}
+- 
+-			}
+-		}
+-		type="primitive_army"
+-		health=100
+-		max_health=100
+-		jump_drive_cooldown=		"0.01.01"
+-		owner=234881050
+-		species=234881063
+-		colony=14
+-		spawning_colony=14
+-		morale=160
+-	}
+-	242=
+-	{
+-		name=
+-		{
+-			key="%SEQ%"
+-			variables=
+-			{
+-				
+-				{
+-					key="fmt"
+-					value=
+-					{
+-						key="LITHOID3_KAARNLHONNSK"
+-					}
+-				}
+- 
+-				{
+-					key="num"
+-					value=
+-					{
+-						key="3"
+-					}
+-				}
+- 
+-			}
+-		}
+-		type="primitive_army"
+-		health=100
+-		max_health=100
+-		jump_drive_cooldown=		"0.01.01"
+-		owner=234881050
+-		species=234881063
+-		colony=14
+-		spawning_colony=14
+-		morale=160
+-	}
++	240=none
++	241=none
++	242=none
+ 	243=
+ 	{
+ 		name=
+@@ -1040156,15 +1038299,7 @@
+ 		type="district_farming"
+ 		level=2
+ 	}
+-	93=
+-	{
+-		zone_slots=
+-		{
+-			94 95 96 
+-		}
+-		type="district_city"
+-		level=1
+-	}
++	93=none
+ 	94=
+ 	{
+ 		zone_slots=
+@@ -1042553,7 +1040688,7 @@
+ 		radius=120
+ 		objects=
+ 		{
+-			1 3 9 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 
++			1 3 9 17 25 27 34 50 78 81 84 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 
+ 		}
+ 	}
+  
+@@ -1042585,7 +1040720,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			1 3 9 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 13 14 18 20 36 42 60 63 79 95 102 103 106 108 110 129 150 166 167 169 176 182 189 204 215 227 264 272 279 281 282 290 292 298 308 324 335 337 340 341 347 362 367 372 381 382 386 391 395 396 428 430 435 463 472 483 492 496 540 556 561 580 594 
++			1 3 9 17 25 27 34 50 78 81 84 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 13 14 18 20 36 42 60 63 79 95 102 103 106 108 110 129 150 166 167 169 176 182 189 204 215 227 264 272 279 281 282 290 292 298 308 324 335 337 340 341 347 362 367 372 381 382 386 391 395 396 428 430 435 463 472 483 492 496 540 556 561 580 594 
+ 		}
+ 	}
+  
+@@ -1042681,7 +1040816,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			1 2 3 4 5 9 17 25 27 34 39 40 55 62 67 69 73 78 80 81 84 86 89 93 96 99 100 121 142 155 162 173 174 178 180 188 190 191 194 196 206 211 222 228 229 247 249 268 269 270 276 286 289 300 306 312 320 322 327 348 354 358 366 370 390 393 394 399 402 406 417 422 426 452 454 457 461 465 474 478 497 511 512 515 517 523 530 531 533 537 551 565 573 575 582 585 597 
++			1 2 3 4 5 9 17 25 27 34 39 40 55 62 67 69 73 78 80 81 84 89 93 96 99 100 121 142 155 162 173 174 178 180 188 190 191 194 196 206 211 222 228 229 247 249 268 269 270 276 286 289 300 306 312 320 322 327 348 354 358 366 370 390 393 394 399 402 406 417 422 426 452 454 457 461 465 474 478 497 511 512 515 517 523 530 531 533 537 551 565 573 575 582 585 597 
+ 		}
+ 	}
+  
+@@ -1043297,33 +1041432,7 @@
+ 			}
+ 			stage=0
+ 		}
+-		1=
+-		{
+-			country=234881050
+-			target=
+-			{
+-				type=none
+-				id=0
+-				opener_id=4294967295
+-			}
+-			type="pre_ftl_tech_progress_situation"
+-			progress=101
+-			last_month_progress=0
+-			approach="approach_revolt_do_nothing"
+-			stage_durations=
+-			{
+-				
+-				{
+-					start=0
+-					end=1920
+-				}
+-			}
+-			stage_flags=
+-			{
+-				yes 
+-			}
+-			stage=0
+-		}
++		1=none
+ 		2=
+ 		{
+ 			country=469762077

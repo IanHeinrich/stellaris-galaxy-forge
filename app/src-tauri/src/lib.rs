@@ -77,6 +77,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::prepare_apply,
             commands::sibling_scenario_names,
             commands::check_op,
+            commands::describe_op,
             commands::undo,
             commands::redo,
             commands::save,

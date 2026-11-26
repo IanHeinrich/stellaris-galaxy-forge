@@ -9,6 +9,7 @@ use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, SlotTable};
+use crate::format::save::galaxy::bypasses::NATURAL;
 use crate::format::save::write::megastructure_links::MEGASTRUCTURES;
 use crate::format::save::{
     entity_at, entity_in, planet_statement, planet_system, system_statement,
@@ -58,8 +59,8 @@ pub(crate) fn plan_restore(
 }
 
 /// Whether `text` is one statement standing for entity `id` of `table`: the entity or its
-/// tombstone, the dead megastructure table or the clusters whole, or nothing for a bypass row a deletion
-/// emptied.
+/// tombstone, the dead megastructure table or the clusters whole, or nothing for a bypass or
+/// natural wormhole row a deletion emptied.
 fn holds(table: SavedTable, id: u32, text: &str) -> bool {
     match table {
         SavedTable::DeadMegastructures => {
@@ -68,7 +69,7 @@ fn holds(table: SavedTable, id: u32, text: &str) -> bool {
         SavedTable::Clusters => {
             id == 0 && statement_key(text, false).as_deref() == Some(keys::CLUSTERS)
         }
-        SavedTable::Bypass if text.is_empty() => true,
+        SavedTable::Bypass | SavedTable::NaturalWormhole if text.is_empty() => true,
         _ => statement_key(text, true).and_then(|key| key.parse().ok()) == Some(id),
     }
 }
@@ -92,6 +93,17 @@ fn statement_key(text: &str, tombstone: bool) -> Option<String> {
 fn planet_origin(bytes: &[u8], id: u32) -> Option<u32> {
     let node = entity_in(bytes).ok()??;
     planet_system(&node, bytes, id).ok()
+}
+
+/// What a system's deletion takes whole, which the shared writers leave alone rather than
+/// edit before it becomes a tombstone: the system, its planets and the bypasses and ships it
+/// takes. A country that goes with it is written last, over whatever the writers edited.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Gone<'a> {
+    pub(crate) system: Option<u32>,
+    pub(crate) planets: &'a [u32],
+    pub(crate) bypasses: &'a [u32],
+    pub(crate) ships: &'a [u32],
 }
 
 /// The whole statement of each entity an op rewrites, as it stood before, keyed by table
@@ -134,7 +146,11 @@ impl Saved {
 }
 
 /// Where entity `id` of `table` stands now, a tombstone included.
-fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, OpError> {
+pub(crate) fn locate(
+    doc: &Document,
+    table: SavedTable,
+    id: u32,
+) -> Result<Option<Anchor>, OpError> {
     let section = match table {
         SavedTable::System => return Ok(system_statement(doc, id)),
         SavedTable::Planet => {
@@ -171,6 +187,28 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
                 .get(EntityKind::Deposit, id)
                 .or_else(|| entry(doc.index(), keys::DEPOSIT, id)));
         }
+        SavedTable::NaturalWormhole => {
+            return Ok(doc
+                .added()
+                .get(NATURAL, id)
+                .or_else(|| entry(doc.index(), keys::NATURAL_WORMHOLES, id)));
+        }
+        SavedTable::DigSite => {
+            if let Some(anchor) = doc.added().get(Table::DigSite, id) {
+                return Ok(Some(anchor));
+            }
+            let inner = doc.inner_index(keys::ARCHAEOLOGICAL_SITES)?;
+            return Ok(inner.and_then(|i| entry(i, keys::SITES, id)));
+        }
+        SavedTable::CouncilPosition => {
+            return inner_entry(doc, keys::COUNCIL_POSITIONS, keys::COUNCIL_POSITIONS, id);
+        }
+        SavedTable::Situation => return inner_entry(doc, keys::SITUATIONS, keys::SITUATIONS, id),
+        SavedTable::Storm => return inner_entry(doc, keys::STORMS, keys::STORMS, id),
+        SavedTable::PsionicAura => {
+            return inner_entry(doc, keys::PSIONIC_AURAS, keys::PSIONIC_AURAS, id);
+        }
+        SavedTable::AstralRift => return inner_entry(doc, keys::ASTRAL_RIFTS, keys::RIFTS, id),
         SavedTable::DeadMegastructures => return Ok(whole(doc, keys::DEAD_MEGA_STRUCTURE)),
         SavedTable::Clusters => return Ok(whole(doc, keys::CLUSTERS)),
         SavedTable::Country => keys::COUNTRY,
@@ -183,8 +221,53 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
         SavedTable::Army => keys::ARMY,
         SavedTable::Fleet => keys::FLEET,
         SavedTable::Ship => keys::SHIPS,
+        SavedTable::Leader => keys::LEADERS,
+        SavedTable::Sector => keys::SECTORS,
+        SavedTable::SpyNetwork => keys::SPY_NETWORKS,
+        SavedTable::WaystationNetwork => keys::WAYSTATION_NETWORKS,
     };
     Ok(entry(doc.index(), section, id))
+}
+
+/// The statement of row `id` under `key` in the top-level section `section`.
+fn inner_entry(
+    doc: &Document,
+    section: &str,
+    key: &str,
+    id: u32,
+) -> Result<Option<Anchor>, OpError> {
+    Ok(doc.inner_index(section)?.and_then(|i| entry(i, key, id)))
+}
+
+/// The live rows of `table`, one the file held and no op wrote, standing under `key` in
+/// `index`, whose original bytes `bytes` accepts and whose current entity `keep` accepts.
+pub(crate) fn live_where<'d>(
+    doc: &'d Document,
+    table: SavedTable,
+    index: Option<&Index>,
+    key: &str,
+    bytes: impl Fn(&[u8]) -> bool,
+    keep: impl Fn(&Node, &[u8]) -> bool,
+) -> Result<Vec<(u32, Found<'d>)>, OpError> {
+    let Some(index) = index else {
+        return Ok(Vec::new());
+    };
+    let src = doc.original();
+    let mut found = Vec::new();
+    for entity in index.entities(key) {
+        let Ok(id) = u32::try_from(entity.id) else {
+            continue;
+        };
+        if !bytes(entity.stmt.slice(src)) {
+            continue;
+        }
+        if let Some(row) = live(doc, table, id)?
+            && keep(&row.node, row.src)
+        {
+            found.push((id, row));
+        }
+    }
+    Ok(found)
 }
 
 /// The top-level statement `key`.

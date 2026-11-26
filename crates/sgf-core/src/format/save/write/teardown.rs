@@ -1,12 +1,14 @@
 //! A colony taken down as the game's `destroy_colony` takes it, and a station at a deleted
 //! body taken with it.
 
+use memchr::memmem::Finder;
+
 use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::format::save::write::id_list::{Emptied, unlist};
 use crate::format::save::write::restore::{
-    Found, Saved, country_edit, entry, live, queue_index, tombstone_all,
+    Found, Gone, Saved, country_edit, entry, live, queue_index, tombstone_all,
 };
 use crate::format::save::{entity_at, planet_statement, system_statement};
 use crate::keys;
@@ -70,14 +72,19 @@ pub(crate) struct Stationed {
     pub(crate) fleet: u32,
     /// The country the station makes the body's controller.
     pub(crate) controller: Option<u32>,
+    /// The country whose `owned_fleets` lists the fleet, which need not be the controller:
+    /// another empire's observation station watches a pre-FTL world.
+    pub(crate) owner: Option<u32>,
     /// The fleet and its ships.
     pub(crate) dead: Vec<(SavedTable, u32, Anchor)>,
 }
 
 impl Stationed {
-    /// Tombstone the fleet and its ships, and take them out of the controller's
-    /// `owned_fleets` and `controlled_planets`. The system's `fleet_presence` is the
-    /// caller's, which takes every station of a deletion out of it at once.
+    /// Tombstone the fleet and its ships, take the fleet out of its owner's and the
+    /// controller's `owned_fleets` and `sensor_range_fleets`, and the body out of the
+    /// controller's `controlled_planets`. The system's
+    /// `fleet_presence` is the caller's, which takes every station of a deletion out of it at
+    /// once.
     pub(crate) fn write(
         &self,
         plan: &mut Plan,
@@ -86,6 +93,9 @@ impl Stationed {
     ) -> Result<(), OpError> {
         let doc = &s.doc;
         tombstone_all(plan, doc, saved, &self.dead)?;
+        if let Some(owner) = self.owner.filter(|&owner| self.controller != Some(owner)) {
+            unlist_fleet(country_edit(plan, doc, saved, owner)?, self.fleet)?;
+        }
         if let Some(country) = self.controller {
             let edit = country_edit(plan, doc, saved, country)?;
             unlist_fleet(edit, self.fleet)?;
@@ -116,9 +126,13 @@ pub(crate) struct Teardown {
     pub(crate) armies: Vec<u32>,
     /// The orbital ring's starbase and fleet.
     pub(crate) ring: Option<(u32, u32)>,
+    /// Its armies aboard a ship, each with the ship, which only a system's deletion takes.
+    pub(crate) aboard: Vec<(u32, u32)>,
 }
 
 impl Teardown {
+    /// The colony on `planet` of `system`, whose entity is `node`, refused when the planet has
+    /// no owner or an army of the colony is aboard a ship.
     pub(crate) fn read(
         s: &Session,
         planet: u32,
@@ -126,15 +140,41 @@ impl Teardown {
         node: &Node,
         src: &[u8],
     ) -> Result<Self, OpError> {
+        Self::read_in(s, planet, system, node, src, false)
+    }
+
+    /// [`Self::read`] for a colony whose whole system goes, which nothing refuses: an
+    /// ownerless colony goes with nobody's lists, and an army aboard a ship goes with it and
+    /// leaves the ship's `army`.
+    pub(crate) fn read_whole(
+        s: &Session,
+        planet: u32,
+        system: u32,
+        node: &Node,
+        src: &[u8],
+    ) -> Result<Self, OpError> {
+        Self::read_in(s, planet, system, node, src, true)
+    }
+
+    fn read_in(
+        s: &Session,
+        planet: u32,
+        system: u32,
+        node: &Node,
+        src: &[u8],
+        whole: bool,
+    ) -> Result<Self, OpError> {
         let doc = &s.doc;
         let refuse = |reason: String| OpError::ColonyKept {
             body: planet,
             reason,
         };
         let colony = read::scalar_u32(node, keys::COLONY, src).ok_or(OpError::NoColony(planet))?;
-        let owner = some_id(node, keys::OWNER, src)
-            .ok_or_else(|| refuse("the planet has no owner".to_owned()))?;
-        let mut countries = vec![owner];
+        let owner = some_id(node, keys::OWNER, src);
+        if owner.is_none() && !whole {
+            return Err(refuse("the planet has no owner".to_owned()));
+        }
+        let mut countries: Vec<u32> = owner.into_iter().collect();
         countries.extend(some_id(node, keys::CONTROLLER, src));
         let entity = live(doc, SavedTable::Colony, colony)?
             .ok_or_else(|| refuse(format!("colony #{colony} is not in the save")))?;
@@ -162,9 +202,13 @@ impl Teardown {
         }
         found(SavedTable::Building, &buildings)?;
         let armies = some_ids(col, keys::ARMY, csrc);
-        for army in found(SavedTable::Army, &armies)? {
-            if army.node.find(keys::SHIP, army.src).is_some() {
-                return Err(refuse("one of its armies is aboard a ship".to_owned()));
+        let mut aboard = Vec::new();
+        for (id, army) in armies.iter().zip(found(SavedTable::Army, &armies)?) {
+            if let Some(ship) = some_id(&army.node, keys::SHIP, army.src) {
+                if !whole {
+                    return Err(refuse("one of its armies is aboard a ship".to_owned()));
+                }
+                aboard.push((*id, ship));
             }
             countries.extend(some_id(&army.node, keys::OWNER, army.src));
         }
@@ -199,12 +243,9 @@ impl Teardown {
                 station_of(doc, &some_ids(&entity.node, keys::SHIPS, entity.src))?
             && station.level.starts_with(ORBITAL_RING_LEVEL)
         {
-            dead.push((SavedTable::Starbase, station.id, station.anchor));
-            dead.extend(fleet_records(doc, fleet)?);
-            for id in station.queues {
-                dead.extend(queue_records(doc, id)?);
-            }
-            ring = Some((station.id, fleet));
+            let starbase = StarbaseTeardown::of(doc, station, Some(fleet))?;
+            ring = Some((starbase.starbase, fleet));
+            dead.extend(starbase.dead);
         }
         Ok(Self {
             planet,
@@ -216,6 +257,7 @@ impl Teardown {
             pops,
             armies,
             ring,
+            aboard,
         })
     }
 
@@ -269,34 +311,7 @@ impl Teardown {
         keep_planet: bool,
     ) -> Result<(), OpError> {
         let doc = &s.doc;
-        tombstone_all(plan, doc, saved, &self.dead)?;
-        for &(id, anchor) in &self.orphaned {
-            saved.keep(doc, SavedTable::ConstructionQueue, id, anchor)?;
-            plan.edit_record(doc, anchor)?
-                .set_scalar(&[keys::OWNER], NULL_ID.to_string())?;
-        }
-
-        for &country in &self.countries {
-            let edit = country_edit(plan, doc, saved, country)?;
-            unlist(edit, keys::OWNED_PLANETS, &[self.colony], Emptied::Keep)?;
-            unlist(
-                edit,
-                keys::CONTROLLED_COLONIES,
-                &[self.colony],
-                Emptied::Keep,
-            )?;
-            unlist(
-                edit,
-                keys::CONTROLLED_PLANETS,
-                &[self.planet],
-                Emptied::Keep,
-            )?;
-            unlist(edit, keys::OWNED_ARMIES, &self.armies, Emptied::Keep)?;
-            if let Some((_, fleet)) = self.ring {
-                unlist_fleet(edit, fleet)?;
-            }
-        }
-
+        self.write_dependents(plan, s, saved, Gone::default())?;
         if keep_planet {
             let anchor =
                 planet_statement(doc, self.planet)?.ok_or(OpError::UnknownPlanet(self.planet))?;
@@ -324,14 +339,137 @@ impl Teardown {
         }
         Ok(())
     }
+
+    /// The tombstones, the orphaned queues, the lists of each of the countries and the
+    /// `army` of each ship an army is aboard, but those `gone` takes whole.
+    pub(crate) fn write_dependents(
+        &self,
+        plan: &mut Plan,
+        s: &Session,
+        saved: &mut Saved,
+        gone: Gone,
+    ) -> Result<(), OpError> {
+        let doc = &s.doc;
+        tombstone_all(plan, doc, saved, &self.dead)?;
+        for &(id, anchor) in &self.orphaned {
+            saved.keep(doc, SavedTable::ConstructionQueue, id, anchor)?;
+            plan.edit_record(doc, anchor)?
+                .set_scalar(&[keys::OWNER], NULL_ID.to_string())?;
+        }
+        for &(army, ship) in self.aboard.iter().filter(|(_, s)| !gone.ships.contains(s)) {
+            if let Some(found) = live(doc, SavedTable::Ship, ship)? {
+                saved.keep(doc, SavedTable::Ship, ship, found.anchor)?;
+                unlist(
+                    plan.edit_record(doc, found.anchor)?,
+                    keys::ARMY,
+                    &[army],
+                    Emptied::Keep,
+                )?;
+            }
+        }
+        for &country in &self.countries {
+            let edit = country_edit(plan, doc, saved, country)?;
+            unlist(edit, keys::OWNED_PLANETS, &[self.colony], Emptied::Keep)?;
+            unlist(
+                edit,
+                keys::CONTROLLED_COLONIES,
+                &[self.colony],
+                Emptied::Keep,
+            )?;
+            unlist(
+                edit,
+                keys::CONTROLLED_PLANETS,
+                &[self.planet],
+                Emptied::Keep,
+            )?;
+            unlist(edit, keys::OWNED_ARMIES, &self.armies, Emptied::Keep)?;
+            if let Some((_, fleet)) = self.ring {
+                unlist_fleet(edit, fleet)?;
+            }
+        }
+        Ok(())
+    }
 }
 
-/// A starbase: its id, statement, level and construction queues.
+/// A starbase taken down whole: its entry, its station's fleet and ships, and its
+/// construction queues with the items they list.
+pub(crate) struct StarbaseTeardown {
+    pub(crate) starbase: u32,
+    /// Its `type`, such as `sarkship_capital`; empty when it has none.
+    pub(crate) kind: String,
+    pub(crate) fleet: Option<u32>,
+    pub(crate) dead: Vec<(SavedTable, u32, Anchor)>,
+}
+
+impl StarbaseTeardown {
+    /// Starbase `id`, its fleet found through its station's ship; `None` for one the save
+    /// does not hold.
+    pub(crate) fn read(doc: &Document, id: u32) -> Result<Option<Self>, OpError> {
+        let Some(found) = live(doc, SavedTable::Starbase, id)? else {
+            return Ok(None);
+        };
+        let station = Station::read(id, found.anchor, &found.node, found.src);
+        let fleet = match some_id(&found.node, keys::STATION, found.src) {
+            Some(ship) => live(doc, SavedTable::Ship, ship)?
+                .and_then(|ship| some_id(&ship.node, keys::FLEET, ship.src)),
+            None => None,
+        };
+        Self::of(doc, station, fleet).map(Some)
+    }
+
+    /// The starbase whose station is a ship of fleet `fleet`, wherever the starbase is listed;
+    /// `None` when no starbase's station is in it.
+    pub(crate) fn of_fleet(doc: &Document, fleet: u32) -> Result<Option<Self>, OpError> {
+        let Some(found) = live(doc, SavedTable::Fleet, fleet)? else {
+            return Ok(None);
+        };
+        let ships = some_ids(&found.node, keys::SHIPS, found.src);
+        match station_of(doc, &ships)? {
+            Some(station) => Self::of(doc, station, Some(fleet)).map(Some),
+            None => Ok(None),
+        }
+    }
+
+    fn of(doc: &Document, station: Station, fleet: Option<u32>) -> Result<Self, OpError> {
+        let mut dead = vec![(SavedTable::Starbase, station.id, station.anchor)];
+        if let Some(fleet) = fleet {
+            dead.extend(fleet_records(doc, fleet)?);
+        }
+        for id in station.queues {
+            dead.extend(queue_records(doc, id)?);
+        }
+        Ok(Self {
+            starbase: station.id,
+            kind: station.kind,
+            fleet,
+            dead,
+        })
+    }
+}
+
+/// A starbase: its id, statement, level, type and construction queues.
 struct Station {
     id: u32,
     anchor: Anchor,
     level: String,
+    kind: String,
     queues: Vec<u32>,
+}
+
+impl Station {
+    fn read(id: u32, anchor: Anchor, node: &Node, src: &[u8]) -> Self {
+        let queues = [keys::BUILD_QUEUE, keys::SHIPYARD_BUILD_QUEUE]
+            .into_iter()
+            .filter_map(|key| some_id(node, key, src))
+            .collect();
+        Self {
+            id,
+            anchor,
+            level: read::text(node, keys::LEVEL, src),
+            kind: read::text(node, keys::TYPE, src),
+            queues,
+        }
+    }
 }
 
 /// The starbase whose station is one of `ships`.
@@ -339,32 +477,44 @@ fn station_of(doc: &Document, ships: &[u32]) -> Result<Option<Station>, OpError>
     let Some(inner) = doc.inner_index(keys::STARBASE_MGR)? else {
         return Ok(None);
     };
+    let lines: Vec<String> = ships
+        .iter()
+        .map(|ship| {
+            format!(
+                "{}={ship}
+",
+                keys::STATION
+            )
+        })
+        .collect();
+    let finders: Vec<Finder> = lines
+        .iter()
+        .map(|line| Finder::new(line.as_bytes()))
+        .collect();
+    let src = doc.original();
     for starbase in inner.entities(keys::STARBASES) {
         let Ok(id) = u32::try_from(starbase.id) else {
             continue;
         };
+        let bytes = starbase.stmt.slice(src);
+        if !finders.iter().any(|finder| finder.find(bytes).is_some()) {
+            continue;
+        }
         let anchor = Anchor::Original(starbase.stmt);
         let Ok(Some((node, src))) = entity_at(doc, anchor) else {
             continue;
         };
         if some_id(&node, keys::STATION, src).is_some_and(|station| ships.contains(&station)) {
-            let queues = [keys::BUILD_QUEUE, keys::SHIPYARD_BUILD_QUEUE]
-                .into_iter()
-                .filter_map(|key| some_id(&node, key, src))
-                .collect();
-            return Ok(Some(Station {
-                id,
-                anchor,
-                level: read::text(&node, keys::LEVEL, src),
-                queues,
-            }));
+            return Ok(Some(Station::read(id, anchor, &node, src)));
         }
     }
     Ok(None)
 }
 
-/// Take fleet `fleet`'s entry out of the country's `fleets_manager.owned_fleets`.
-fn unlist_fleet(edit: &mut Edit, fleet: u32) -> Result<(), OpError> {
+/// Take fleet `fleet` out of the country's `fleets_manager.owned_fleets` and
+/// `sensor_range_fleets`.
+pub(crate) fn unlist_fleet(edit: &mut Edit, fleet: u32) -> Result<(), OpError> {
+    unlist(edit, keys::SENSOR_RANGE_FLEETS, &[fleet], Emptied::Keep)?;
     let Some(list) = edit
         .entity()?
         .find(keys::FLEETS_MANAGER, &edit.buf)

@@ -1,0 +1,535 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Pulcor #307 and 3 lanes, with 1 wormhole pair
+inverse: RestoreEntities "Restored Pulcor #307 and 3 lanes"
+  System 171 (886 bytes)
+  System 186 (861 bytes)
+  System 307 (804 bytes)
+  System 421 (845 bytes)
+  System 588 (902 bytes)
+  Planet 3380 (463 bytes)
+  Planet 3381 (534 bytes)
+  Planet 3382 (533 bytes)
+  Planet 3383 (569 bytes)
+  Planet 3384 (571 bytes)
+  Planet 3385 (549 bytes)
+  Bypass 10 (228 bytes)
+  Bypass 11 (228 bytes)
+  Clusters 0 (5538 bytes)
+  NaturalWormhole 1 (129 bytes)
+  NaturalWormhole 2 (130 bytes)
+
+--- gamestate
++++ gamestate
+@@ -30717,11 +30717,6 @@
+ 			}
+  
+ 			{
+-				to=307
+-				length=33
+-			}
+- 
+-			{
+ 				to=421
+ 				length=27
+ 			}
+@@ -31712,12 +31707,6 @@
+ 			}
+  
+ 			{
+-				to=307
+-				length=38
+-				bridge=yes
+-			}
+- 
+-			{
+ 				to=448
+ 				length=22
+ 				bridge=yes
+@@ -39749,80 +39738,7 @@
+ 		index=23
+ 		storm=4294967295
+ 	}
+-	307=
+-	{
+-		coordinate=
+-		{
+-			x=-115.39
+-			y=-296.36
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Pulcor"
+-		}
+-		planet=3380
+-		planet=3381
+-		planet=3382
+-		planet=3383
+-		planet=3384
+-		planet=3385
+-		star_class="sc_g"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=421
+-				length=34
+-			}
+- 
+-			{
+-				to=171
+-				length=33
+-			}
+- 
+-			{
+-				to=186
+-				length=38
+-				bridge=yes
+-			}
+- 
+-		}
+-		natural_wormholes=
+-		{
+-			2 
+-		}
+-		bypasses=
+-		{
+-			11 
+-		}
+-		asteroid_belts=
+-		{
+-			
+-			{
+-				type="icy_asteroid_belt"
+-				inner_radius=120
+-			}
+- 
+-		}
+-		flags=
+-		{
+-			precursor_5=62808000
+-			resource_region_not_resource_rich=62808000
+-		}
+-		initializer="basic_init_04"
+-		inner_radius=190
+-		outer_radius=290
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=45
+-		storm=4294967295
+-	}
++	307=none
+ 	308=
+ 	{
+ 		coordinate=
+@@ -47554,11 +47470,6 @@
+ 			}
+  
+ 			{
+-				to=307
+-				length=34
+-			}
+- 
+-			{
+ 				to=171
+ 				length=27
+ 			}
+@@ -58753,14 +58664,6 @@
+ 				length=27
+ 			}
+  
+-		}
+-		natural_wormholes=
+-		{
+-			1 
+-		}
+-		bypasses=
+-		{
+-			10 
+ 		}
+ 		flags=
+ 		{
+@@ -239561,275 +239464,12 @@
+ 			planet_modifier="pm_carbon_world"
+ 			entity=0
+ 		}
+-		3380=
+-		{
+-			planet_class="pc_g_star"
+-			planet_size=27
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Pulcor"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=307
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				1799 
+-			}
+-		}
+-		3381=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="B9-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="6498"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=24.936
+-				y=-117.582
+-				origin=307
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		3382=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="A-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="59-C"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=7.6308
+-				y=120.1644
+-				origin=307
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		3383=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="B9-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="Y71"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-115.1748
+-				y=-34.1376
+-				origin=307
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				1800 
+-			}
+-		}
+-		3384=
+-		{
+-			planet_class="pc_ice_asteroid"
+-			planet_size=5
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="ASTEROID_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="prefix"
+-						value=
+-						{
+-							key="QT1-"
+-						}
+-					}
+- 
+-					{
+-						key="suffix"
+-						value=
+-						{
+-							key="109-D"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-30.9432
+-				y=116.0952
+-				origin=307
+-				randomized=no
+-			}
+-			orbit=120
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				1801 
+-			}
+-		}
+-		3385=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=12
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Pulcor"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=124.9376
+-				y=-99.9744
+-				origin=307
+-				randomized=no
+-			}
+-			orbit=160
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
++		3380=none
++		3381=none
++		3382=none
++		3383=none
++		3384=none
++		3385=none
+ 		3386=
+ 		{
+ 			planet_class="pc_m_star"
+@@ -1038225,50 +1037865,8 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	10=
+-	{
+-		type="wormhole"
+-		active=yes
+-		linked_to=11
+-		connections=
+-		{
+-			11 
+-		}
+-		active_connections=
+-		{
+-			11 
+-		}
+-		owner=
+-		{
+-			type=7
+-			id=1
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
+-	11=
+-	{
+-		type="wormhole"
+-		active=yes
+-		linked_to=10
+-		connections=
+-		{
+-			10 
+-		}
+-		active_connections=
+-		{
+-			10 
+-		}
+-		owner=
+-		{
+-			type=7
+-			id=2
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
++	
++	
+ 	12=
+ 	{
+ 		type="wormhole"
+@@ -1038328,30 +1037926,8 @@
+ 		bypass=1
+ 		graphics_entity_name=""
+ 	}
+-	1=
+-	{
+-		coordinate=
+-		{
+-			x=23.06877
+-			y=-431.94478
+-			origin=588
+-			randomized=no
+-		}
+-		bypass=10
+-		graphics_entity_name=""
+-	}
+-	2=
+-	{
+-		coordinate=
+-		{
+-			x=-161.53159
+-			y=209.93174
+-			origin=307
+-			randomized=no
+-		}
+-		bypass=11
+-		graphics_entity_name=""
+-	}
++	
++	
+ 	3=
+ 	{
+ 		coordinate=
+@@ -1042644,7 +1042220,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			8 22 30 33 43 44 51 53 59 68 74 88 107 117 124 127 128 132 133 140 148 163 170 171 177 179 184 186 195 198 205 212 217 218 221 223 226 232 244 253 256 263 271 273 280 301 303 304 305 307 314 316 339 346 351 356 357 371 374 375 376 377 378 379 397 404 407 421 425 429 433 436 441 448 449 453 456 464 466 470 473 482 490 491 509 510 514 520 525 535 552 553 558 559 569 578 593 
++			8 22 30 33 43 44 51 53 59 68 74 88 107 117 124 127 128 132 133 140 148 163 170 171 177 179 184 186 195 198 205 212 217 218 221 223 226 232 244 253 256 263 271 273 280 301 303 304 305 314 316 339 346 351 356 357 371 374 375 376 377 378 379 397 404 407 421 425 429 433 436 441 448 449 453 456 464 466 470 473 482 490 491 509 510 514 520 525 535 552 553 558 559 569 578 593 
+ 		}
+ 	}

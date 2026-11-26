@@ -324,6 +324,21 @@ pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<St
     .await
 }
 
+/// What the history would say of `op` once applied, or the refusal as an `op` error; the session
+/// is left as it was.
+#[tauri::command]
+pub async fn describe_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<String, SgfError> {
+    op.check_sendable()?;
+    let gd = app.state::<GameDataState>().loaded();
+    with_open(app, move |session| {
+        let op = GameData::with_class_rules(gd.as_deref(), op)?;
+        session
+            .describe_op(&op)
+            .map_err(|refusal| SgfError::new(ErrorKind::Op, refusal))
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
     with_open_mut(app, |session| {

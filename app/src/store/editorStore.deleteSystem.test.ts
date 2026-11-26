@@ -33,7 +33,8 @@ describe("deleting a system the save already had", () => {
     await editor().setSelection([1], "replace");
   });
 
-  it("asks the core and then the user, and sends one DeleteSystem", async () => {
+  it("asks the core once and then the user, and sends one DeleteSystem", async () => {
+    mockedIpc.describeOp.mockResolvedValueOnce("Deleted Alpha Centauri and 4 lanes");
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: CUT, removed: [1], renumbered: [[1, null]] } }),
     );
@@ -43,9 +44,10 @@ describe("deleting a system the save already had", () => {
     run("deleteSelection", false, effects);
 
     await until(() => expect(useGalaxyStore.getState().systems.has(1)).toBe(false));
-    expect(mockedIpc.checkOp.mock.calls).toEqual([[{ type: "DeleteSystem", system: 1 }]]);
+    expect(mockedIpc.describeOp.mock.calls).toEqual([[{ type: "DeleteSystem", system: 1 }]]);
+    expect(mockedIpc.checkOp).not.toHaveBeenCalled();
     expect(mockedIpc.confirm.mock.calls).toEqual([
-      ["Delete Alpha Centauri and its 4 lanes?", { title: "Alpha Centauri", kind: "warning" }],
+      ["Delete Alpha Centauri and 4 lanes?", { title: "Alpha Centauri", kind: "warning" }],
     ]);
     expect(mockedIpc.applyOp.mock.calls).toEqual([[{ type: "DeleteSystem", system: 1 }]]);
     expect(mockedIpc.removeAddedSystems).not.toHaveBeenCalled();
@@ -53,7 +55,39 @@ describe("deleting a system the save already had", () => {
     expect(editor().selection).toEqual([]);
   });
 
+  it("puts what goes with the system in the question the core describes", async () => {
+    mockedIpc.describeOp.mockResolvedValueOnce(
+      "Deleted Alpha Centauri and 4 lanes, with 2 colonies, 3 starbases and 5 fleets",
+    );
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: CUT, removed: [1], renumbered: [[1, null]] } }),
+    );
+
+    expect(await editor().removeSystems([1])).toBe(true);
+
+    expect(mockedIpc.confirm.mock.calls).toEqual([
+      [
+        "Delete Alpha Centauri and 4 lanes, with 2 colonies, 3 starbases and 5 fleets?",
+        { title: "Alpha Centauri", kind: "warning" },
+      ],
+    ]);
+  });
+
+  it("asks with the lane count when the description is not a deletion's", async () => {
+    mockedIpc.describeOp.mockResolvedValueOnce("Removed Alpha Centauri");
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: CUT, removed: [1], renumbered: [[1, null]] } }),
+    );
+
+    expect(await editor().removeSystems([1])).toBe(true);
+
+    expect(mockedIpc.confirm.mock.calls).toEqual([
+      ["Delete Alpha Centauri and its 4 lanes?", { title: "Alpha Centauri", kind: "warning" }],
+    ]);
+  });
+
   it("comes back with its lanes on undo", async () => {
+    mockedIpc.describeOp.mockResolvedValueOnce("Deleted Alpha Centauri and 4 lanes");
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: CUT, removed: [1], renumbered: [[1, null]] } }),
     );
@@ -71,7 +105,7 @@ describe("deleting a system the save already had", () => {
   });
 
   it("shows the core's refusal and asks nothing", async () => {
-    mockedIpc.checkOp.mockResolvedValueOnce(REFUSAL);
+    mockedIpc.describeOp.mockRejectedValueOnce({ kind: "op", message: REFUSAL });
 
     expect(await editor().removeSystems([1])).toBe(false);
 
@@ -81,7 +115,7 @@ describe("deleting a system the save already had", () => {
   });
 
   it("shows why the core could not be asked, and asks nothing", async () => {
-    mockedIpc.checkOp.mockRejectedValueOnce({ kind: "no_session", message: "no file is open" });
+    mockedIpc.describeOp.mockRejectedValueOnce({ kind: "no_session", message: "no file is open" });
 
     expect(await editor().removeSystems([1])).toBe(false);
 
@@ -90,6 +124,7 @@ describe("deleting a system the save already had", () => {
   });
 
   it("sends nothing when declined", async () => {
+    mockedIpc.describeOp.mockResolvedValueOnce("Deleted Alpha Centauri and 4 lanes");
     mockedIpc.confirm.mockResolvedValueOnce(false);
 
     expect(await editor().removeSystems([1])).toBe(false);

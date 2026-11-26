@@ -1,8 +1,7 @@
 ### Added
 
-- Delete a system your save already had. Its planets go with it, and so do
-  the hyperlanes to it.
-  - The save must be from Stellaris 4.6 or later.
-  - The system can't have an owner, a starbase, a colony, a fleet, a
-    megastructure, or a bypass such as a wormhole or gateway. The menu
-    names anything else that stops it.
+- Delete a system your Stellaris 4.6 save already had, along with
+  everything in it: planets, colonies, starbases, fleets, megastructures
+  and wormholes. The confirmation lists what goes.
+  - An empire's capital or starting system can't be deleted.
+- Delete an L-Gate or a quantum catapult on its own in the system view.

@@ -497,6 +497,7 @@ describe("Delete system on a system the save already had", () => {
     expect(ipc.checkOp).toHaveBeenCalledWith({ type: "DeleteSystem", system: 1 });
     await until(() => expect(deleteSystem(menu())).not.toContain("disabled="));
 
+    vi.mocked(ipc.describeOp).mockResolvedValue("Deleted Alpha Centauri and 4 lanes");
     vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
     drawnBy(menu);
     drawnButton("Delete system").onClick();

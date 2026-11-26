@@ -739,6 +739,28 @@ pub enum SavedTable {
     Deposit,
     /// The whole top-level `clusters` statement, with id 0.
     Clusters,
+    /// `leaders`.
+    Leader,
+    /// `council_positions.council_positions`.
+    CouncilPosition,
+    /// `sectors`.
+    Sector,
+    /// `natural_wormholes`.
+    NaturalWormhole,
+    /// `situations.situations`.
+    Situation,
+    /// `spy_networks`.
+    SpyNetwork,
+    /// `archaeological_sites.sites`.
+    DigSite,
+    /// `storms.storms`.
+    Storm,
+    /// `psionic_auras.psionic_auras`.
+    PsionicAura,
+    /// `astral_rifts.rifts`.
+    AstralRift,
+    /// `waystation_networks`.
+    WaystationNetwork,
 }
 
 /// One system's destination in [`Op::MoveSystems`].

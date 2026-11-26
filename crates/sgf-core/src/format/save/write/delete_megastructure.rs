@@ -11,9 +11,9 @@ use crate::format::save::added::{Table, row};
 use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{
-    self, DELETED_BYPASS_KINDS, Tied, drop_bypass, unlink, unlist_elsewhere,
+    self, DELETED_BYPASS_KINDS, Tied, drop_bypass_beside, unlink_beside, unlist_elsewhere,
 };
-use crate::format::save::write::restore::{Saved, tombstoned};
+use crate::format::save::write::restore::{Gone, Saved, tombstoned};
 use crate::keys;
 use crate::ops::rules::named;
 use crate::ops::{
@@ -55,32 +55,24 @@ pub(crate) fn plan_delete(
     let system = tied
         .system
         .ok_or_else(|| refuse("it isn't in any system".to_owned()))?;
-    let bypass = match tied.bypass {
-        Some(bypass) => match row(doc, Table::Bypass, bypass)? {
-            Some(found) => {
-                let kind = read::text(&found.node, keys::TYPE, found.src);
-                if !DELETED_BYPASS_KINDS.contains(&kind.as_str()) {
-                    return Err(refuse("deleting it hasn't been tested in game".to_owned()));
-                }
-                Some(bypass)
-            }
-            None => None,
-        },
-        None => None,
-    };
+    let bypass = live_bypass(doc, &tied)?;
+    if bypass
+        .as_ref()
+        .is_some_and(|(_, kind)| !DELETED_BYPASS_KINDS.contains(&kind.as_str()))
+    {
+        return Err(refuse("deleting it hasn't been tested in game".to_owned()));
+    }
+    let bypass = bypass.map(|(bypass, _)| bypass);
 
     let mut saved = Saved::default();
-    saved.keep(doc, SavedTable::Megastructure, id, tied.anchor)?;
-    let bytes = tombstoned(doc, tied.anchor, id)?;
-    plan.replace(doc, Subject::Record(tied.anchor), tied.anchor, bytes)?;
-    unlink(plan, s, &tied, Some(&mut saved))?;
-    unlist_elsewhere(plan, s, id, tied.planet, &mut saved)?;
-    if let Some(bypass) = bypass {
-        drop_bypass(plan, s, system, bypass, Some(&mut saved))?;
-    }
-    if tied.save_on_death {
-        log_death(plan, doc, &mut saved, &tied, system)?;
-    }
+    write_rows(
+        plan,
+        s,
+        &mut saved,
+        std::slice::from_ref(&tied),
+        system,
+        Gone::default(),
+    )?;
     let taken = match dismantle {
         Some(dismantle) => {
             dismantle::take_back(plan, s, &mut saved, system, tied.owner, dismantle)?
@@ -102,15 +94,58 @@ pub(crate) fn plan_delete(
     })
 }
 
+/// Row `tied`'s bypass the save holds, with its `type`.
+pub(crate) fn live_bypass(doc: &Document, tied: &Tied) -> Result<Option<(u32, String)>, OpError> {
+    let Some(bypass) = tied.bypass else {
+        return Ok(None);
+    };
+    Ok(row(doc, Table::Bypass, bypass)?
+        .map(|found| (bypass, read::text(&found.node, keys::TYPE, found.src))))
+}
+
+/// Delete `rows` of system `system`, each as the game destroys one: its tombstone, its id out
+/// of the lists that name it, its bypass taken out and its death logged, leaving alone what
+/// `gone` takes whole.
+pub(crate) fn write_rows(
+    plan: &mut Plan,
+    s: &Session,
+    saved: &mut Saved,
+    rows: &[Tied],
+    system: u32,
+    gone: Gone,
+) -> Result<(), OpError> {
+    let doc = &s.doc;
+    for tied in rows {
+        saved.keep(doc, SavedTable::Megastructure, tied.id, tied.anchor)?;
+        let bytes = tombstoned(doc, tied.anchor, tied.id)?;
+        plan.replace(doc, Subject::Record(tied.anchor), tied.anchor, bytes)?;
+    }
+    unlink_beside(plan, s, rows, Some(&mut *saved), gone)?;
+    let mut logged = 0;
+    for tied in rows {
+        unlist_elsewhere(plan, s, tied.id, tied.planet, saved, gone)?;
+        if let Some((bypass, _)) = live_bypass(doc, tied)? {
+            drop_bypass_beside(plan, s, system, bypass, Some(&mut *saved), gone)?;
+        }
+        if tied.save_on_death {
+            log_death(plan, doc, saved, tied, system, logged)?;
+            logged += 1;
+        }
+    }
+    Ok(())
+}
+
 /// Log row `tied` in `dead_mega_structure` as the game logs a row it destroys: a `map` line
 /// from its id to a new `objects` entry, in numeric order of the ids, and the entry last in
-/// `objects`, numbered one past the highest there.
+/// `objects`, numbered one past the highest there, or past the `logged` rows the same op
+/// logged before it.
 fn log_death(
     plan: &mut Plan,
     doc: &Document,
     saved: &mut Saved,
     tied: &Tied,
     system: u32,
+    logged: u32,
 ) -> Result<(), OpError> {
     let anchor = doc
         .index()
@@ -131,7 +166,7 @@ fn log_death(
             .map(|(key, _)| key + 1)
             .max()
             .unwrap_or(0)
-    });
+    }) + logged;
     let line = format!("{}={entry}", tied.id);
     let object = |indent: &[u8]| {
         let mut w = crate::emit::Lines::new(indent);

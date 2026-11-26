@@ -664,6 +664,7 @@ describe("a system the save already had, where it can be deleted", () => {
     expect(html.indexOf(">Position<")).toBeLessThan(html.indexOf(">Delete system<"));
     const button = drawnButton("Delete system");
     expect(button.disabled).toBe(false);
+    mockedIpc.describeOp.mockResolvedValue("Deleted Alpha Centauri and 4 lanes");
     mockedIpc.applyOp.mockResolvedValue(editResult());
     button.onClick();
     await vi.advanceTimersByTimeAsync(0);

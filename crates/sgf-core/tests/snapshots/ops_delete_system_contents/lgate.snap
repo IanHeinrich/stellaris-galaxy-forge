@@ -1,0 +1,257 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Iskanders Pride #321 and 2 lanes, with 1 megastructure
+inverse: RestoreEntities "Restored Iskanders Pride #321 and 2 lanes"
+  System 135 (774 bytes)
+  System 219 (680 bytes)
+  System 321 (669 bytes)
+  Planet 3516 (476 bytes)
+  Planet 3517 (580 bytes)
+  Megastructure 8 (240 bytes)
+  Bypass 5 (141 bytes)
+  Clusters 0 (5538 bytes)
+
+--- gamestate
++++ gamestate
+@@ -28196,11 +28196,6 @@
+ 		{
+ 			
+ 			{
+-				to=321
+-				length=37
+-			}
+- 
+-			{
+ 				to=193
+ 				length=33
+ 				bridge=yes
+@@ -33964,11 +33959,6 @@
+ 		{
+ 			
+ 			{
+-				to=321
+-				length=35
+-			}
+- 
+-			{
+ 				to=424
+ 				length=30
+ 			}
+@@ -40745,63 +40735,7 @@
+ 		index=55
+ 		storm=4294967295
+ 	}
+-	321=
+-	{
+-		coordinate=
+-		{
+-			x=-189.61
+-			y=224.12
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Iskanders_Pride"
+-		}
+-		planet=3516
+-		planet=3517
+-		megastructures=
+-		{
+-			8 
+-		}
+-		star_class="sc_black_hole"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=135
+-				length=37
+-			}
+- 
+-			{
+-				to=219
+-				length=35
+-			}
+- 
+-		}
+-		bypasses=
+-		{
+-			5 
+-		}
+-		flags=
+-		{
+-			hostile_system=62808000
+-			lgate=62808000
+-			precursor_2=62808000
+-			resource_region_exotic_gases_rich=62808000
+-		}
+-		initializer="distantstars_init_00"
+-		inner_radius=150
+-		outer_radius=250
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=35
+-		storm=4294967295
+-	}
++	321=none
+ 	322=
+ 	{
+ 		coordinate=
+@@ -246533,92 +246467,8 @@
+ 			bombardment_damage=0
+ 			entity=0
+ 		}
+-		3516=
+-		{
+-			planet_class="pc_black_hole"
+-			planet_size=21
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Iskanders_Pride"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=321
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				1862 
+-			}
+-		}
+-		3517=
+-		{
+-			planet_class="pc_broken"
+-			planet_size=15
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Iskanders_Pride"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=72
+-			coordinate=
+-			{
+-				x=-56.09617
+-				y=-51.13383
+-				origin=321
+-				randomized=no
+-			}
+-			orbit=75.9
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
++		3516=none
++		3517=none
+ 		3518=
+ 		{
+ 			planet_class="pc_pulsar"
+@@ -1037945,25 +1037795,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
+-	8=
+-	{
+-		type="lgate_base"
+-		coordinate=
+-		{
+-			x=21.2148
+-			y=21.2142
+-			origin=321
+-			randomized=no
+-		}
+-		planet=4294967295
+-		bypass=5
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
++	8=none
+ 	9=
+ 	{
+ 		type="lgate_base"
+@@ -1038160,19 +1037992,7 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	5=
+-	{
+-		type="lgate"
+-		active=no
+-		owner=
+-		{
+-			type=6
+-			id=8
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
++	
+ 	6=
+ 	{
+ 		type="lgate"
+@@ -1042612,7 +1042432,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			0 7 10 14 15 21 26 41 46 48 52 58 63 72 82 85 98 105 106 108 122 123 125 135 141 146 153 164 167 168 169 172 192 193 199 200 201 202 219 230 231 233 235 241 243 250 260 261 262 264 265 274 277 278 282 290 294 309 311 315 319 321 324 329 331 333 342 350 361 363 373 381 387 388 389 392 403 405 414 416 419 424 427 431 434 440 444 458 463 479 480 481 499 501 505 506 521 524 532 539 545 548 560 566 570 576 588 591 596 
++			0 7 10 14 15 21 26 41 46 48 52 58 63 72 82 85 98 105 106 108 122 123 125 135 141 146 153 164 167 168 169 172 192 193 199 200 201 202 219 230 231 233 235 241 243 250 260 261 262 264 265 274 277 278 282 290 294 309 311 315 319 324 329 331 333 342 350 361 363 373 381 387 388 389 392 403 405 414 416 419 424 427 431 434 440 444 458 463 479 480 481 499 501 505 506 521 524 532 539 545 548 560 566 570 576 588 591 596 
+ 		}
+ 	}

@@ -4,7 +4,7 @@ use serde_json::json;
 use sgf_core::ops::Op;
 use sgf_core::views::{EditResult, ErrorKind};
 
-use crate::common::{SAMPLE_45, invoke, kind, opened};
+use crate::common::{SAMPLE_45, SAMPLE_46, invoke, kind, opened};
 
 /// Gas giant 99 of system 140 has two bare moons; 0 is a star; colony 18 on planet 517 is
 /// a fallen empire's; 2445 is a ring world segment. The dry run answers the core's refusal
@@ -65,4 +65,36 @@ fn a_restore_and_a_batch_are_refused() {
         checked.is_some(),
         "a batch is answered with a reason, not checked op by op"
     );
+}
+
+/// The delete-system confirmation asks the core what goes with the system: system 12 is
+/// described as a deletion, and 459, a capital and an empire's starting system, comes back as
+/// the refusal. The session is left as it was.
+#[test]
+fn a_system_delete_is_described_or_refused() {
+    let w = opened(SAMPLE_46);
+    let described: String = invoke(
+        &w,
+        "describe_op",
+        json!({ "op": Op::DeleteSystem { system: 12 } }),
+    )
+    .expect("system 12 can be deleted");
+    assert!(described.starts_with("Deleted "), "{described}");
+
+    let refused: Result<String, _> = invoke(
+        &w,
+        "describe_op",
+        json!({ "op": Op::DeleteSystem { system: 459 } }),
+    );
+    let error = refused.expect_err("system 459 is a capital");
+    assert_eq!(error.kind, ErrorKind::Op);
+    assert!(!error.message.is_empty());
+
+    let still: Option<String> = invoke(
+        &w,
+        "check_op",
+        json!({ "op": Op::DeleteSystem { system: 12 } }),
+    )
+    .expect("check");
+    assert_eq!(still, None, "describing applied nothing");
 }

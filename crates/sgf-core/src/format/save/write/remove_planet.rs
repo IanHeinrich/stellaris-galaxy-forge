@@ -24,13 +24,14 @@ use crate::format::save::ring_world;
 use crate::format::save::write::add_habitat::{HABITAT, HAS_HABITAT, is_habitat};
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::flags::drop_flags;
+use crate::format::save::write::fleets::fleet_owners;
 use crate::format::save::write::id_list::{Emptied, unlist, unlist_planets};
 use crate::format::save::write::megastructure_links::Holders;
 use crate::format::save::write::planet_entry::{
     PlanetEntry, and_its_moons, named_planet, named_planet_as,
 };
 use crate::format::save::write::planet_entry::{is_star, role, star_refused};
-use crate::format::save::write::restore::{Saved, country_edit, tombstone_planets};
+use crate::format::save::write::restore::{Gone, Saved, country_edit, tombstone_planets};
 use crate::format::save::write::teardown::{Stationed, Teardown, fleet_records, some_id};
 use crate::format::save::write::{add_body, anomaly};
 use crate::format::save::{entity_at, planet_entity, planet_statement, system_statement};
@@ -81,7 +82,7 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     let deleted: Vec<u32> = std::iter::once(planet)
         .chain(moons.iter().copied())
         .collect();
-    let deletion = Deletion::read(s, system, &bodies, deleted, Segments::Refused, &[])?;
+    let deletion = Deletion::read(s, system, &bodies, deleted, Scope::Body, &[])?;
     let mut saved = Saved::default();
     deletion.write(plan, s, &mut saved, &[])?;
 
@@ -102,15 +103,17 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     })
 }
 
-/// Whether a deletion takes ring world segments.
+/// What a deletion of bodies is part of.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Segments {
-    /// A segment refuses the deletion: it goes only with its whole ring.
-    Refused,
-    /// The deletion is the whole ring's. An uncolonised segment a starbase orbits goes too:
-    /// a fallen empire's deep-space citadels orbit its home ring, and the ring's deletion
-    /// points them at the star.
-    Taken,
+pub(crate) enum Scope {
+    /// A body and its moons. A segment refuses the deletion: it goes only with its whole ring.
+    Body,
+    /// A whole ring world. An uncolonised segment a starbase orbits goes too: a fallen
+    /// empire's deep-space citadels orbit its home ring, and the ring's deletion points them
+    /// at the star.
+    Ring,
+    /// A whole system, its stars and every body a starbase orbits with it.
+    System,
 }
 
 /// Bodies of one system the file held, deleted together as [`plan_delete`] deletes a body
@@ -129,16 +132,16 @@ pub(crate) struct Deletion {
 }
 
 impl Deletion {
-    /// `bodies` of `system`, whose bodies are `frame`, refused for a star, a megastructure
-    /// row other than those in `going` on or around one, an uncolonised body a starbase
-    /// orbits and a segment unless `segments` takes segments, and any colony the teardown
-    /// refuses.
+    /// `bodies` of `system`, whose bodies are `frame`, refused for a star unless `scope` is
+    /// the system, a megastructure row other than those in `going` on or around one, an
+    /// uncolonised body a starbase orbits and a segment when `scope` is a body, and any
+    /// colony the teardown refuses.
     pub(crate) fn read(
         s: &Session,
         system: u32,
         frame: &[Body],
         bodies: Vec<u32>,
-        segments: Segments,
+        scope: Scope,
         going: &[u32],
     ) -> Result<Self, OpError> {
         let mut teardowns = Vec::new();
@@ -149,17 +152,18 @@ impl Deletion {
             let (node, src) = planet_entity(&s.doc, id)?;
             let refuse = |reason: String| OpError::PlanetKept { body: id, reason };
             let primary = frame.first().is_some_and(|primary| primary.id == id);
-            if is_star(role(&node, src, primary, s.star_classes())) {
+            if scope != Scope::System && is_star(role(&node, src, primary, s.star_classes())) {
                 return Err(star_refused(&node, src, id, StarEdit::Delete));
             }
             if read::scalar_u32(&node, keys::COLONY, src).is_some() {
-                teardowns.push(Teardown::read(s, id, system, &node, src)?);
-            } else if segments == Segments::Refused
-                && some_id(&node, keys::ORBITAL_DEFENCE, src).is_some()
-            {
+                teardowns.push(match scope {
+                    Scope::System => Teardown::read_whole(s, id, system, &node, src)?,
+                    Scope::Body | Scope::Ring => Teardown::read(s, id, system, &node, src)?,
+                });
+            } else if scope == Scope::Body && some_id(&node, keys::ORBITAL_DEFENCE, src).is_some() {
                 return Err(refuse("a starbase orbits it".to_owned()));
             }
-            if segments == Segments::Refused {
+            if scope == Scope::Body {
                 check_segment(&node, src, SEGMENT_GOES_WHOLE, refuse)?;
             }
             check_megastructures(&s.doc, id, &node, src, going, refuse)?;
@@ -169,6 +173,7 @@ impl Deletion {
                     planet: id,
                     fleet,
                     controller,
+                    owner: None,
                     dead: fleet_records(&s.doc, fleet)?,
                 });
             } else if let Some(country) = controller
@@ -176,6 +181,11 @@ impl Deletion {
             {
                 controlled.push((country, id));
             }
+        }
+        let fleets: Vec<u32> = stations.iter().map(|station| station.fleet).collect();
+        let owners = fleet_owners(s, &fleets)?;
+        for station in &mut stations {
+            station.owner = owners.get(&station.fleet).copied();
         }
         Ok(Self {
             system,
@@ -200,16 +210,7 @@ impl Deletion {
         system_flags: &[&str],
     ) -> Result<(), OpError> {
         let doc = &s.doc;
-        for teardown in &self.teardowns {
-            teardown.write_unlisted(plan, s, saved, false)?;
-        }
-        for station in &self.stations {
-            station.write(plan, s, saved)?;
-        }
-        for &(country, body) in &self.controlled {
-            let edit = country_edit(plan, doc, saved, country)?;
-            unlist(edit, keys::CONTROLLED_PLANETS, &[body], Emptied::Keep)?;
-        }
+        self.write_dependents(plan, s, saved, Gone::default())?;
         // A site goes as `RemoveDigSite` takes it, the entry alone: the game drops an
         // excavating fleet's order on its first day.
         for (anchor, _) in &self.sites {
@@ -232,6 +233,29 @@ impl Deletion {
         tombstone_planets(plan, doc, saved, self.system, &self.bodies)
     }
 
+    /// Write the colonies, the stations and the controllers' `controlled_planets`, leaving
+    /// alone what `gone` takes whole.
+    pub(crate) fn write_dependents(
+        &self,
+        plan: &mut Plan,
+        s: &Session,
+        saved: &mut Saved,
+        gone: Gone,
+    ) -> Result<(), OpError> {
+        let doc = &s.doc;
+        for teardown in &self.teardowns {
+            teardown.write_dependents(plan, s, saved, gone)?;
+        }
+        for station in &self.stations {
+            station.write(plan, s, saved)?;
+        }
+        for &(country, body) in &self.controlled {
+            let edit = country_edit(plan, doc, saved, country)?;
+            unlist(edit, keys::CONTROLLED_PLANETS, &[body], Emptied::Keep)?;
+        }
+        Ok(())
+    }
+
     /// Take the deleted bodies, their colonies, their orbital rings' starbases and fleets and
     /// their stations' fleets out of the system's lists, each list once, so that a list
     /// left with none goes as the game writes it.
@@ -252,6 +276,27 @@ impl Deletion {
             Emptied::Drop,
         )?;
         Ok(())
+    }
+
+    /// The starbases of the orbital rings that go.
+    pub(crate) fn ring_starbases(&self) -> Vec<u32> {
+        self.teardowns
+            .iter()
+            .filter_map(|t| t.ring.map(|(starbase, _)| starbase))
+            .collect()
+    }
+
+    /// The rows the colonies and stations make tombstones.
+    pub(crate) fn dead(&self) -> impl Iterator<Item = &(SavedTable, u32, Anchor)> {
+        self.teardowns
+            .iter()
+            .flat_map(|t| &t.dead)
+            .chain(self.stations.iter().flat_map(|station| &station.dead))
+    }
+
+    /// How many stations go.
+    pub(crate) fn station_count(&self) -> usize {
+        self.stations.len()
     }
 
     /// The fleets that go: the orbital rings' and the stations'.

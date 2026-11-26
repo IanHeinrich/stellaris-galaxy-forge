@@ -258,9 +258,56 @@ impl GalaxyGraph {
         }
     }
 
-    /// Re-read country `id` from `node`, its `<id>=` entity node as it now stands.
-    pub fn refresh_country(&mut self, id: u32, node: &Node, src: &[u8]) {
-        countries::refresh(&mut self.countries, read::country(id, node, src));
+    /// Re-read country `id` from `node`, its `<id>=` entity node as it now stands. One the
+    /// graph had dropped as a tombstone goes back in file order, its capital's system read
+    /// from the planets.
+    pub(crate) fn refresh_country(
+        &mut self,
+        doc: &Document,
+        id: u32,
+        node: &Node,
+        src: &[u8],
+    ) -> Result<(), ProjectionError> {
+        let raw = read::country(id, node, src);
+        if self.countries.iter().any(|c| c.id == id) {
+            countries::refresh(&mut self.countries, raw);
+            return Ok(());
+        }
+        let capital = raw.capital.filter(|&c| c != NULL_ID);
+        let (mut back, _) = countries::extract(vec![raw]);
+        let Some(mut country) = back.pop() else {
+            return Ok(());
+        };
+        if let Some(capital) = capital {
+            let wanted = std::iter::once(capital).collect();
+            country.capital_system = countries::colony_systems(doc, &wanted)?
+                .get(&capital)
+                .copied();
+        }
+        let owned = self
+            .systems
+            .values()
+            .filter(|s| s.owner == Some(id))
+            .count();
+        country.system_count = u32::try_from(owned).unwrap_or(u32::MAX);
+        let at = |country: u32| {
+            doc.index()
+                .entity(keys::COUNTRY, u64::from(country))
+                .map(|e| e.stmt.start)
+        };
+        let here = at(id);
+        let position = self
+            .countries
+            .iter()
+            .position(|c| at(c.id) > here)
+            .unwrap_or(self.countries.len());
+        self.countries.insert(position, country);
+        Ok(())
+    }
+
+    /// Forget country `id`, which the document now holds as a tombstone.
+    pub(crate) fn drop_country(&mut self, id: u32) {
+        self.countries.retain(|country| country.id != id);
     }
 }
 

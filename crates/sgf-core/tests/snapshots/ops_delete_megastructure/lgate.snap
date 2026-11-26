@@ -1,0 +1,81 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted megastructure #0 (lgate_base) in Gaping Maw #4, and its bypass #0
+inverse: RestoreEntities "Restored megastructure #0 (lgate_base)"
+  System 4 (731 bytes)
+  Megastructure 0 (221 bytes)
+  Bypass 0 (141 bytes)
+
+--- gamestate
++++ gamestate
+@@ -29130,10 +29130,6 @@
+ 		}
+ 		planet=616
+ 		planet=617
+-		megastructures=
+-		{
+-			0 
+-		}
+ 		star_class="sc_black_hole"
+ 		hyperlane=
+ 		{
+@@ -29154,10 +29150,6 @@
+ 			}
+  
+ 		}
+-		bypasses=
+-		{
+-			0 
+-		}
+ 		arm=0
+ 		flags=
+ 		{
+@@ -1400628,24 +1400620,7 @@
+ }
+ megastructures=
+ {
+-	0=
+-	{
+-		type="lgate_base"
+-		coordinate=
+-		{
+-			x=21.2148
+-			y=21.2142
+-			origin=4
+-		}
+-		planet=4294967295
+-		bypass=0
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
++	0=none
+ 	1=
+ 	{
+ 		type="strategic_coordination_center_ruined"
+@@ -1400885,19 +1400860,7 @@
+ }
+ bypasses=
+ {
+-	0=
+-	{
+-		type="lgate"
+-		active=no
+-		owner=
+-		{
+-			type=6
+-			id=0
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
++	
+ 	1=
+ 	{
+ 		type="shroud_tunnel"

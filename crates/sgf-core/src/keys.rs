@@ -31,7 +31,6 @@ save_keys! {
     ASTEROID_POSTFIX = "asteroid_postfix",
     ASTEROID_PREFIX = "asteroid_prefix",
     ATTACH = "attach",
-    AUTO_MOVE_TARGET = "auto_move_target",
     BACKGROUND = "background",
     BINARY_FLAGS = "binary_flags",
     BLACK_HOLE_NAMES = "black_hole_names",
@@ -69,6 +68,7 @@ save_keys! {
     COSMIC_STORM_MID_GAME_SPAWN_CHANCE_SCALE = "cosmic_storm_mid_game_spawn_chance_scale",
     COSMIC_STORM_MID_GAME_SPAWN_MAX_CAP = "cosmic_storm_mid_game_spawn_max_cap",
     COSMIC_STORM_SPAWN_COOLDOWN_SCALE = "cosmic_storm_spawn_cooldown_scale",
+    COUNCIL_POSITIONS = "council_positions",
     COUNT = "count",
     COUNTRY = "country",
     CRISES = "crises",
@@ -136,7 +136,9 @@ save_keys! {
     LAST_CREATED_SYSTEM = "last_created_system",
     LAST_EXCAVATOR_COUNTRY = "last_excavator_country",
     LAST_ROLL = "last_roll",
+    LEADERS = "leaders",
     LENGTH = "length",
+    LEADER = "leader",
     LEVEL = "level",
     LINKED_TO = "linked_to",
     LITERAL = "literal",
@@ -204,6 +206,8 @@ save_keys! {
     RADIUS = "radius",
     RANDOMIZED = "randomized",
     RANDOM_NAME_DATABASE = "random_name_database",
+    RELATION = "relation",
+    RELATIONS_MANAGER = "relations_manager",
     REQUIRED_DLCS = "required_dlcs",
     RESOURCE_ABUNDANCE = "resource_abundance",
     RESOURCES = "resources",
@@ -213,7 +217,6 @@ save_keys! {
     SAVE_ON_DEATH = "save_on_death",
     SCALE = "scale",
     SCALING = "scaling",
-    SCOPE = "scope",
     SECTOR = "sector",
     SECTORS = "sectors",
     SENSOR_RANGE_FLEETS = "sensor_range_fleets",
@@ -234,6 +237,7 @@ save_keys! {
     SOLAR_SYSTEM = "solar_system",
     SPECIES_DB = "species_db",
     SPECIES_INFORMATION = "species_information",
+    SPY_NETWORKS = "spy_networks",
     STARBASES = "starbases",
     STARBASE_MGR = "starbase_mgr",
     STAR_CLASS = "star_class",
@@ -246,7 +250,9 @@ save_keys! {
     SURVEYED_BY = "surveyed_by",
     SURVEYED_DEPOSIT_HOLDERS = "surveyed_deposit_holders",
     SWAP_TYPE = "swap_type",
+    SYSTEMS = "systems",
     SYSTEM_INITIALIZER_COUNTER = "system_initializer_counter",
+    TARGET = "target",
     TARGET_COORDINATE = "target_coordinate",
     TEMPLATE = "template",
     TIMED_MODIFIER = "timed_modifier",
@@ -310,6 +316,8 @@ pub(crate) const PSIONIC_AURA: &str = "psionic_aura";
 pub(crate) const SYSTEM: &str = "system";
 /// Written on a cosmic storm, which no sample save has.
 pub(crate) const CLUSTER: &str = "cluster";
+/// The step of a cosmic storm's `path` it is on; no sample save has a storm.
+pub(crate) const STORM_CURRENT_PATH_INDEX: &str = "storm_current_path_index";
 
 /// Written on a planet while it terraforms, which no sample save's planet does, so the
 /// save-key test cannot look for it.
