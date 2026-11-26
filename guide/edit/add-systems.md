@@ -216,7 +216,8 @@ deleted with the system:
 - every fleet in it, with the armies and leaders aboard
 - its megastructures, including gateways, Hyper Relays, L-Gates and
   quantum catapults
-- a natural wormhole, together with its other end, and a shroud tunnel
+- a natural wormhole, with its other end
+- a shroud tunnel
 - a pre-FTL civilisation whose homeworld it is
 - its dig sites
 - a psionic aura or astral rift it holds
