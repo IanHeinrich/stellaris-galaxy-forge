@@ -13,6 +13,7 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import {
   CLEAR_AROUND_LABEL,
+  CLOSE_LABEL,
   FAITHFUL_PLAIN,
   lineText,
   NO_FALLEN_EMPIRES,
@@ -544,6 +545,65 @@ describe("the setup screen", () => {
     expect(page).toContain(">Components<");
     expect(page).toContain(`<span class="ins-sec-title">${PREPARE_TITLE}</span>`);
     expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(true);
+  });
+
+  describe("the footer", () => {
+    const withPreview = (changes: number, current = true) =>
+      usePrepareStore.setState({
+        preview: {
+          profile: "plain",
+          rows: PREPARE_ROWS.map((row) => ({ row, systems: [] })),
+          changes,
+          kept_clear: [],
+          cut_off: [],
+          new_seats: [],
+          new_zones: [],
+        },
+        current,
+      });
+
+    it("offers Close in place of Apply and Not now when the choices change nothing", async () => {
+      await open("scenario", true);
+      withPreview(0);
+      const html = drawnBy(galaxy);
+      expect(html).toContain(`>${CLOSE_LABEL}</button>`);
+      expect(html).not.toContain(">Apply</button>");
+      expect(html).not.toContain(">Not now</button>");
+      const close = drawnButton(CLOSE_LABEL);
+      expect(close.disabled).toBe(false);
+
+      close.onClick();
+      expect(usePrepareStore.getState().dismissed).toBe(true);
+      expect(galaxy()).not.toContain("prep-setup");
+    });
+
+    it("keeps Apply and Not now when the choices change something", async () => {
+      await open("scenario", true);
+      withPreview(2);
+      const html = drawnBy(galaxy);
+      expect(html).toContain(">Apply</button>");
+      expect(html).toContain(">Not now</button>");
+      expect(html).not.toContain(`>${CLOSE_LABEL}</button>`);
+      expect(drawnButton("Apply").disabled).toBe(false);
+    });
+
+    it("keeps Apply disabled while the changes are being counted", async () => {
+      await open("scenario", true);
+      withPreview(0, false);
+      const html = drawnBy(galaxy);
+      expect(html).toContain(">Apply</button>");
+      expect(html).toContain(">Not now</button>");
+      expect(html).not.toContain(`>${CLOSE_LABEL}</button>`);
+      expect(drawnButton("Apply").disabled).toBe(true);
+    });
+
+    it("keeps Apply disabled outside the setup screen when nothing changes", async () => {
+      await open("scenario");
+      withPreview(0);
+      const html = drawnBy(galaxy);
+      expect(html).not.toContain(`>${CLOSE_LABEL}</button>`);
+      expect(drawnButton("Apply").disabled).toBe(true);
+    });
   });
 
   it("comes back when undo takes the Apply back", async () => {
