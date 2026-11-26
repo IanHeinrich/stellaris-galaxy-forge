@@ -8,6 +8,34 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-26
+
+### Added
+
+- Delete a system your Stellaris 4.6 save already had, along with
+  everything in it: planets, colonies, starbases, fleets, megastructures
+  and wormholes. The confirmation lists what goes.
+  - An empire's capital or starting system can't be deleted.
+- Add ruined megastructures, ambient objects such as derelict ships, and
+  system modifiers to a scenario's systems.
+  - Drag a ruin or an ambient object to move it, or type its Distance and
+    Angle.
+- Move a megastructure that stands at its own point in a save, such as a
+  Hyper Relay or a Gateway, by typing its Distance and Angle.
+- Delete an L-Gate or a quantum catapult on its own in the system view.
+- The user guide has a page for mod authors who write scenarios by hand,
+  and a Roadmap page.
+
+### Fixed
+
+- The setup screen for a scenario made from a save has a Close button when
+  your choices change nothing, where Apply was greyed out.
+- A scenario system with two effect blocks shows and edits the last one,
+  the one the game runs.
+- Some megastructures added to a system nobody owns, such as a Science
+  Nexus, were black in game. Delete one and add it again to fix it in a
+  save.
+
 ## [0.27.9] - 2026-11-25
 
 ### Fixed
