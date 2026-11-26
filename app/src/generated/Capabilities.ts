@@ -49,6 +49,10 @@ waylines: boolean,
  */
 added_systems: boolean, 
 /**
+ * A system the document held when it was opened can be deleted.
+ */
+delete_systems: boolean, 
+/**
  * Systems can be added many at once, a shape's as one step: a scenario's as statements,
  * a 4.x save's rolled together.
  */

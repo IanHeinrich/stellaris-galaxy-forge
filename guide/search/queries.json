@@ -107,6 +107,8 @@
   {"q": "shuffle special cluster", "expect": "edit/add-systems#add-a-special-system"},
   {"q": "special system has no hyperlanes", "expect": "edit/add-systems#add-a-special-system"},
   {"q": "delete system", "expect": "edit/add-systems#delete-systems"},
+  {"q": "delete a system from a save", "expect": "edit/add-systems#delete-systems"},
+  {"q": "delete existing system", "expect": "edit/add-systems#delete-systems"},
   {"q": "spawn point", "expect": "scenario/spawn-points"},
   {"q": "fallen empire", "expect": "scenario/fallen-empires-marauders-lgates#add-a-fallen-empire-zone"},
   {"q": "fallen empire territory", "expect": "scenario/fallen-empires-marauders-lgates#see-a-fallen-empire-s-territory"},

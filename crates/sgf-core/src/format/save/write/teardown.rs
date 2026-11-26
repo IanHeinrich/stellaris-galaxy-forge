@@ -57,7 +57,7 @@ pub(crate) fn some_id(node: &Node, key: &str, src: &[u8]) -> Option<u32> {
 }
 
 /// `node.<key>` as a list of ids, the null id left out.
-fn some_ids(node: &Node, key: &str, src: &[u8]) -> Vec<u32> {
+pub(crate) fn some_ids(node: &Node, key: &str, src: &[u8]) -> Vec<u32> {
     read::ids(node, key, src)
         .into_iter()
         .filter(|&id| id != NULL_ID)

@@ -253,6 +253,9 @@ for planets or deposits.
   raises the generation by one.
 - System ids have no generation and no gaps. A gap crashes the game on
   load, so a new system takes `last_created_system`+1.
+- A removed system's `<id>=none` is not a gap. Its id must leave every
+  `clusters` block's `objects`, or the game crashes on load. Tested on
+  4.6.0 only.
 - A player reported a save with 1667 systems and
   `last_created_system=4294967295`, the null id. What wrote it is unknown:
   none of 981 saves from 3.4 to 4.5.2 here has it. The game takes the id

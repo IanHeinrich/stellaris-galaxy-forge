@@ -1,4 +1,5 @@
 import { documentCapabilities } from "../../../lib/capabilities";
+import { DELETE_SYSTEM } from "../../../lib/details/systemRemoval";
 import { linkToZoneLabel } from "../../../lib/feLinks";
 import { addFeZoneRefusal } from "../../../lib/feZone";
 import { clanOf, REMOVE_CLAN_HINT } from "../../../lib/marauder";
@@ -18,6 +19,7 @@ import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializerEntry";
 import { MarauderClanButton } from "../../BulkActions";
 import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
+import { DeleteItem } from "./DeleteItem";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem, RefusableMenuItem } from "./MenuItem";
 import { PasteItem } from "./PlanetMoveItems";
@@ -59,12 +61,13 @@ export function SystemMenu({
 
   const system = systems.get(target.id);
   const inSelection = selection.includes(target.id);
+  const inBulk = inSelection && selection.length > 1;
   const canIsolate = (system?.lanes.length ?? 0) > 0;
   const connectable = unlinkedTo(systems, target.id, selection).length;
   const cuttable = linkedTo(systems, target.id, selection).length;
   const preventable = unpreventedTo(systems, target.id, selection).length;
   const allowable = preventedTo(systems, target.id, selection).length;
-  const initializerTargets = selection.length > 1 && inSelection ? selection : [target.id];
+  const initializerTargets = inBulk ? selection : [target.id];
   // Only a system with an initializer can carry a weight, so a mixed selection weighs the rest.
   const weighable = spawnTargets(initializerTargets, systems, paint);
   const weighted =
@@ -76,13 +79,13 @@ export function SystemMenu({
   const clanInBulk = inSelection && selection.length === 3;
   const clanItem = canCreate && role === null && !clanInBulk ? clanMembers : null;
   const link = linkItem(selected, system);
-  const deletable = deletableSystems([target.id], capabilities, systems) !== null;
+  const deletable = deletableSystems([target.id], capabilities, systems)?.kind ?? null;
   return (
     <MenuFrame {...frame} label={name}>
       <div className="context-menu-header">{name}</div>
       <PasteItem system={target.id} className="context-menu-lead" />
       {enterable && <MenuItem run={() => enterSystem(target.id)}>Open system view</MenuItem>}
-      {selection.length > 1 && inSelection ? (
+      {inBulk ? (
         <SelectionItems dismiss={closeContextMenu} />
       ) : (
         <>
@@ -166,9 +169,15 @@ export function SystemMenu({
           <span className="muted">{REMOVE_CLAN_HINT}</span>
         </MenuItem>
       )}
-      {deletable && (
+      {deletable === "held" && !inBulk && (
+        <DeleteItem
+          className="context-menu-separated"
+          target={{ kind: "system", system: target.id, id: target.id, name }}
+        />
+      )}
+      {(deletable === "systems" || deletable === "added") && (
         <MenuItem className="context-menu-separated" run={() => removeSystems([target.id])}>
-          Delete system
+          {DELETE_SYSTEM}
         </MenuItem>
       )}
     </MenuFrame>

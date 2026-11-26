@@ -10,7 +10,7 @@ import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { OPEN_RESULT, SCENARIO_RESULT, detailOf, node } from "../../store/fixture";
+import { OPEN_RESULT, SCENARIO_RESULT, detailOf, editResult, node } from "../../store/fixture";
 import type { MarauderRole } from "../../generated/MarauderRole";
 import { newFeZone } from "../../lib/feZone";
 import { clanOf } from "../../lib/marauder";
@@ -20,8 +20,9 @@ import { useInitializerBrowserStore } from "../../store/initializerBrowserStore"
 import { useSpecialPickerStore } from "../../store/specialPickerStore";
 import { drawnBy, drawnButton } from "../../test/drawn";
 import { armSession, resetStores } from "../../store/storeFixture";
-import { buttons } from "../../test/elements";
+import { buttons, escaped } from "../../test/elements";
 import { openWith } from "../../test/session";
+import { until } from "../../test/wait";
 import { ContextMenu } from "./ContextMenu";
 
 bindStores();
@@ -475,5 +476,47 @@ describe("the add system item", () => {
 
     useGalaxyStore.getState().applyDelta({ systems: [{ ...sol, added: true }] });
     expect(menu()).toContain(">Delete system</button>");
+  });
+});
+
+describe("Delete system on a system the save already had", () => {
+  const REFUSAL =
+    "system 1 cannot be deleted: it has an owner, and that hasn't been tested in game";
+  const deleteSystem = (html: string) => html.match(/<button[^>]*>Delete system.*?<\/button>/)?.[0];
+  const openOn = (id: number) =>
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id }, x: 0, y: 0 });
+
+  beforeEach(async () => {
+    const capabilities = { ...OPEN_RESULT.capabilities, delete_systems: true };
+    await openWith(OPEN_RESULT, { capabilities });
+    openOn(1);
+  });
+
+  it("waits for the core, then deletes it once confirmed", async () => {
+    expect(deleteSystem(menu())).toContain("disabled=");
+    expect(ipc.checkOp).toHaveBeenCalledWith({ type: "DeleteSystem", system: 1 });
+    await until(() => expect(deleteSystem(menu())).not.toContain("disabled="));
+
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    drawnBy(menu);
+    drawnButton("Delete system").onClick();
+    await until(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteSystem", system: 1 }),
+    );
+    expect(useMapChromeStore.getState().contextMenu).toBeNull();
+  });
+
+  it("is disabled with the core's reason under it", async () => {
+    vi.mocked(ipc.checkOp).mockResolvedValue(REFUSAL);
+    menu();
+    await until(() => expect(deleteSystem(menu())).toContain(escaped(REFUSAL)));
+    expect(deleteSystem(menu())).toContain("disabled=");
+  });
+
+  it("is left off for a selection of several", async () => {
+    await useEditorStore.getState().setSelection([0, 1], "replace");
+    expect(deleteSystem(menu())).toBeUndefined();
+    await useEditorStore.getState().setSelection([0, 2], "replace");
+    expect(deleteSystem(menu())).toBeDefined();
   });
 });

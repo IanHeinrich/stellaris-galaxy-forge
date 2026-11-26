@@ -386,7 +386,8 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
 }
 
 /// Every op that writes whole entries is refused on the 3.4 sample, with nothing written,
-/// and no other op is refused for its version. The capabilities of those ops are off there.
+/// and no other op is refused for its version but `DeleteSystem`, which needs 4.6. The
+/// capabilities of those ops are off there.
 #[test]
 fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
     for example in one_of_each() {
@@ -404,17 +405,24 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             );
             assert!(!session.doc().is_dirty(), "{name}");
         } else if let Err(error) = applied {
-            assert!(
-                !matches!(
-                    error,
-                    OpError::VersionTooOld(_) | OpError::UnknownVersion(_)
-                ),
-                "{name}: {error:?}"
+            let refused = matches!(
+                error,
+                OpError::VersionTooOld(_)
+                    | OpError::UnknownVersion(_)
+                    | OpError::VersionBefore { .. }
             );
+            assert_eq!(refused, name == "DeleteSystem", "{name}: {error:?}");
         }
     }
     let four = Capabilities::of(common::open().doc());
     assert_eq!(four, Capabilities::of(common::open_4_5().doc()));
+    assert_eq!(
+        Capabilities::of(common::open_4_6().doc()),
+        Capabilities {
+            delete_systems: true,
+            ..four
+        }
+    );
     assert_eq!(
         Capabilities::of(common::open_3_4().doc()),
         Capabilities {

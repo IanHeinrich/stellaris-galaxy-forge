@@ -31,6 +31,7 @@ save_keys! {
     ASTEROID_POSTFIX = "asteroid_postfix",
     ASTEROID_PREFIX = "asteroid_prefix",
     ATTACH = "attach",
+    AUTO_MOVE_TARGET = "auto_move_target",
     BACKGROUND = "background",
     BINARY_FLAGS = "binary_flags",
     BLACK_HOLE_NAMES = "black_hole_names",
@@ -46,6 +47,7 @@ save_keys! {
     CARRIER_BINARY_FLAGS = "carrier_binary_flags",
     CATEGORY = "category",
     CLUES = "clues",
+    CLUSTERS = "clusters",
     COLONIZE_DATE = "colonize_date",
     COLONIES = "colonies",
     COLONY = "colony",
@@ -182,6 +184,7 @@ save_keys! {
     OWNED_MEGASTRUCTURES = "owned_megastructures",
     OWNED_PLANETS = "owned_planets",
     OWNER = "owner",
+    PATH = "path",
     PICTURE = "picture",
     PLANET = "planet",
     PLANETS = "planets",
@@ -195,6 +198,7 @@ save_keys! {
     PREFTL_AGE = "preftl_age",
     PRIMITIVE = "primitive",
     PROPERTIES = "properties",
+    PSIONIC_AURAS = "psionic_auras",
     QUEUES = "queues",
     QUEUE_MGR = "queue_mgr",
     RADIUS = "radius",
@@ -203,11 +207,13 @@ save_keys! {
     REQUIRED_DLCS = "required_dlcs",
     RESOURCE_ABUNDANCE = "resource_abundance",
     RESOURCES = "resources",
+    RIFTS = "rifts",
     RUINED_ORBITAL_RING_PLANET = "ruined_orbital_ring_planet",
     SAVED_EVENT_TARGET = "saved_event_target",
     SAVE_ON_DEATH = "save_on_death",
     SCALE = "scale",
     SCALING = "scaling",
+    SCOPE = "scope",
     SECTOR = "sector",
     SECTORS = "sectors",
     SENSOR_RANGE_FLEETS = "sensor_range_fleets",
@@ -232,9 +238,11 @@ save_keys! {
     STARBASE_MGR = "starbase_mgr",
     STAR_CLASS = "star_class",
     STAR_NAMES = "star_names",
+    STARTING_SYSTEM = "starting_system",
     STATE = "state",
     STATION = "station",
     STORM = "storm",
+    STORMS = "storms",
     SURVEYED_BY = "surveyed_by",
     SURVEYED_DEPOSIT_HOLDERS = "surveyed_deposit_holders",
     SWAP_TYPE = "swap_type",
@@ -296,6 +304,12 @@ pub(crate) const OPTIONAL: &[&str] = &[
 pub(crate) const CLAIMS: &str = "claims";
 /// Written on a system holding an astral rift, which no sample save's system holds.
 pub(crate) const ASTRAL_RIFTS: &str = "astral_rifts";
+/// Written on a system in a psionic aura, which no sample save's system is.
+pub(crate) const PSIONIC_AURA: &str = "psionic_aura";
+/// The system a psionic aura is in; no sample save has an aura.
+pub(crate) const SYSTEM: &str = "system";
+/// Written on a cosmic storm, which no sample save has.
+pub(crate) const CLUSTER: &str = "cluster";
 
 /// Written on a planet while it terraforms, which no sample save's planet does, so the
 /// save-key test cannot look for it.

@@ -6,9 +6,10 @@ import type { Op } from "../generated/Op";
 import type { SystemNode } from "../generated/SystemNode";
 import { addedAmong } from "../lib/addSystem";
 import { documentCapabilities } from "../lib/capabilities";
+import { deleteSystemOp } from "../lib/details/systemRemoval";
 import { PairSet } from "../lib/geometry/pairs";
 import { counted } from "../lib/text";
-import { systems, withTrackedSystems, type RunEdit } from "./editorEdits";
+import { refuseOr, systems, withTrackedSystems, type RunEdit } from "./editorEdits";
 import type { Deletable, EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -24,20 +25,25 @@ export function removeActions(
   return {
     async removeSystems(ids) {
       const target = deletableSystems(ids.filter((id) => systems().has(id)));
-      if (target === null || (target.kind !== "systems" && target.kind !== "added")) return false;
-      const save = target.kind === "added";
+      if (target === null) return false;
+      const held = target.kind === "held";
+      const save = target.kind !== "systems";
       const chosen = save ? target.ids : symmetricIds(target.ids);
-      const one = ids.length === 1 && chosen.length === 1;
+      const one = held || (ids.length === 1 && chosen.length === 1);
       return withTrackedSystems(chosen, async (tracked) => {
-        if (!(await confirm(...question(chosen, save, one)))) return false;
-        const description = `Deleted ${counted(chosen.length, "system")}`;
-        const result = await runEdit(async () => {
-          const now = tracked.flatMap((t) => t.id ?? []);
-          if (now.length === 0) return null;
-          if (one) return ipc.applyOp({ type: "RemoveSystem", system: now[0] });
-          return save ? ipc.removeAddedSystems(now) : ipc.applyOp(removeAll(now, description));
+        const refusal = held ? await refusalOf(deleteSystemOp(chosen[0])) : null;
+        return refuseOr(refusal, async () => {
+          if (!(await confirm(...question(chosen, save, one)))) return false;
+          const description = `Deleted ${counted(chosen.length, "system")}`;
+          const result = await runEdit(async () => {
+            const now = tracked.flatMap((t) => t.id ?? []);
+            if (now.length === 0) return null;
+            if (held) return ipc.applyOp(deleteSystemOp(now[0]));
+            if (one) return ipc.applyOp({ type: "RemoveSystem", system: now[0] });
+            return save ? ipc.removeAddedSystems(now) : ipc.applyOp(removeAll(now, description));
+          });
+          return result !== null;
         });
-        return result !== null;
       });
     },
 
@@ -53,20 +59,31 @@ export function removeActions(
   };
 }
 
+/** Why the core would refuse `op`, or could not be asked; null when it would apply. */
+async function refusalOf(op: Op): Promise<string | null> {
+  try {
+    return await ipc.checkOp(op);
+  } catch (e) {
+    return ipc.errorMessage(e);
+  }
+}
+
 /**
  * Which of `ids` Delete would remove, or null for none: all of them where the document makes
- * and deletes systems, the ones added this session on a document that adds them.
+ * and deletes systems, the ones added this session on a document that adds them, or the only
+ * one where the document deletes a system it already had.
  */
 export function deletableSystems(
   ids: readonly number[],
   capabilities: Capabilities = documentCapabilities(useFileSessionStore.getState()),
   held: ReadonlyMap<number, SystemNode> = systems(),
-): Deletable | null {
+): Extract<Deletable, { ids: number[] }> | null {
   if (ids.length === 0) return null;
   if (capabilities.create_systems) return { kind: "systems", ids: [...ids] };
-  if (!capabilities.added_systems) return null;
-  const added = addedAmong(held, ids);
-  return added.length === 0 ? null : { kind: "added", ids: added };
+  const added = capabilities.added_systems ? addedAmong(held, ids) : [];
+  if (added.length > 0) return { kind: "added", ids: added };
+  if (!capabilities.delete_systems || ids.length > 1 || !held.has(ids[0])) return null;
+  return { kind: "held", ids: [...ids] };
 }
 
 /**

@@ -14,6 +14,14 @@ export { SPAWN_BUFFER };
 export const NEEDS_GAME_DATA = needsGameData("add a system");
 export const NEEDS_STELLARIS_4 = "Adding systems needs a Stellaris 4 save";
 export const ADDED_THIS_SESSION = "Added this session";
+export const DELETABLE_UNTIL_REOPENED = "You can delete it until the file is reopened.";
+const ADDED_SINCE_OPENED = "Added since you opened this file.";
+
+/** What the added chip says on hover; a document that deletes any system sets no limit on deleting it. */
+export function addedChipTitle(deletesHeld: boolean): string {
+  return deletesHeld ? ADDED_SINCE_OPENED : `${ADDED_SINCE_OPENED} ${DELETABLE_UNTIL_REOPENED}`;
+}
+
 /** What the placing rules read about the open save and the spot. */
 export interface PlaceFacts {
   meta: SaveMeta | null;

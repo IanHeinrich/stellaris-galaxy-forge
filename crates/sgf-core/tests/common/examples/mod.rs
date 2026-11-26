@@ -59,6 +59,15 @@ impl Example {
         }
     }
 
+    /// A save example only the 4.6 sample takes.
+    fn save_4_6(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: super::open_4_6,
+        }
+    }
+
     /// A save example that needs a body added to the 4.5 sample in the session.
     fn added_body(op: Op) -> Self {
         Self {

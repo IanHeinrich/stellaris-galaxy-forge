@@ -155,7 +155,7 @@ pub fn reprojected(session: &Session) -> GalaxyGraph {
 
 /// The issues the session's document raised as it was opened.
 pub fn issues_at_open(session: &Session) -> Vec<Issue> {
-    static SAMPLE_ISSUES: [OnceLock<Vec<Issue>>; 3] = [const { OnceLock::new() }; 3];
+    static SAMPLE_ISSUES: [OnceLock<Vec<Issue>>; 4] = [const { OnceLock::new() }; 4];
     let original = session.doc().original();
     for ((cache, path), issues) in CACHED.into_iter().zip(&SAMPLE_ISSUES) {
         if cache
@@ -225,7 +225,7 @@ pub fn warmed() -> MutexGuard<'static, Session> {
 /// `session` with its details built. A sample as it opened, with nothing applied or undone, is
 /// swapped for a copy of that sample warmed once per binary.
 pub fn warm(mut session: Session) -> Session {
-    static WARM: [OnceLock<Mutex<Session>>; 3] = [const { OnceLock::new() }; 3];
+    static WARM: [OnceLock<Mutex<Session>>; 4] = [const { OnceLock::new() }; 4];
     let original = session.doc().original();
     let sample = CACHED.into_iter().find(|(cache, _)| {
         cache

@@ -1,15 +1,18 @@
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemNode } from "../../../generated/SystemNode";
+import { addedChipTitle } from "../../../lib/addSystem";
+import { documentCapabilities } from "../../../lib/capabilities";
 import { planetCountValue, starValue } from "../../../lib/details/scenarioValues";
 import { capabilityFor } from "../../../lib/entities";
 import { nodeName } from "../../../lib/names";
 import { kindLabel } from "../../../lib/special";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useEditorStore } from "../../../store/editorStore";
-import { useCanEdit } from "../../../store/fileSessionStore";
-import { useCountryName } from "../../../store/browserRows";
+import { deletableSystems, useEditorStore } from "../../../store/editorStore";
+import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCountryName, useSystemName } from "../../../store/browserRows";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { RemovalAction } from "../entity/PlanetRemoval";
 import { useOpenEntity } from "../entity/useEntity";
 import { ASSUMED_CLAIM_TITLE } from "../../../lib/ownership";
 import { useOwnership } from "../../../store/ownership";
@@ -18,7 +21,7 @@ import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, SourceChip } from "../../parts";
 import { DrillLink, Swatch } from "../parts";
 import { StateValue } from "../states";
-import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
+import { AddedSystemBlock } from "./AddedSystemBlock";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
 import { HeightRow } from "./SystemHeight";
@@ -136,6 +139,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
   // Where systems name their initializers, the initializer's line shows what stands here.
   const scripted = useCanEdit("scripts");
   const rolled = useCanEdit("rolled_layout");
+  const deletesHeld = useCanEdit("delete_systems");
   const details = useDetailsStore((s) => s.details.get(system.id));
   const capital = details?.planets.some((p) => p.capital && p.owner === system.owner) ?? false;
   const countPlanets = usePlanetCounter();
@@ -204,7 +208,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
       {!scripted && (kinds.length > 0 || system.added) && (
         <div className="ins-chips">
           {system.added && (
-            <Chip added title={ADDED_CHIP_TITLE}>
+            <Chip added title={addedChipTitle(deletesHeld)}>
               + added this session
             </Chip>
           )}
@@ -219,13 +223,23 @@ export function Header({ detail }: { detail: SystemDetail }) {
   );
 }
 
-/** What every overview opens with: what the system is, and where it sits. */
+/** Deleting a system the save already had, where the save allows it. */
+function HeldSystemRemoval({ system }: { system: number }) {
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const systems = useGalaxyStore((s) => s.systems);
+  const name = useSystemName(system);
+  if (deletableSystems([system], capabilities, systems)?.kind !== "held") return null;
+  return <RemovalAction target={{ kind: "system", system, id: system, name }} />;
+}
+
+/** What every overview opens with: what the system is, where it sits, and its removal from a save. */
 export function OverviewHead({ detail }: { detail: SystemDetail }) {
   return (
     <>
       <Header detail={detail} />
       {detail.system.added && <AddedSystemBlock key={detail.system.id} system={detail.system} />}
       <PositionBlock system={detail.system} />
+      <HeldSystemRemoval system={detail.system.id} />
     </>
   );
 }

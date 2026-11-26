@@ -63,6 +63,8 @@ mod ops_body_parents;
 mod ops_copy_planet;
 mod ops_delete_megastructure;
 mod ops_delete_ring_world;
+mod ops_delete_system;
+mod ops_delete_system_refusals;
 mod ops_deposit_slots;
 mod ops_deposits;
 mod ops_dig_site;

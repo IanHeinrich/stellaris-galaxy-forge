@@ -191,6 +191,7 @@ pub(super) fn examples() -> Vec<Example> {
                 systems: vec![10, 11],
             },
         ),
+        Example::save_4_6(Op::DeleteSystem { system: 516 }),
         Example::each_added(
             Op::RenameSystem {
                 system: 791,

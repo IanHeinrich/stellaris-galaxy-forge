@@ -1,7 +1,8 @@
 //! Which id a new save entity takes, and where its statement goes.
 //!
 //! Systems are numbered densely from 0: a new one takes `last_created_system + 1`, and
-//! a gap crashes the game. Planets and deposits live in slot tables: an id is
+//! a gap crashes the game. A removed system keeps its slot as a tombstone, whose id no
+//! system takes again. Planets and deposits live in slot tables: an id is
 //! `slot | generation << 24`, the table is sorted by slot, and a dead slot keeps its last
 //! id as a tombstone, `<id>=none`. A new entity takes the lowest dead slot one generation
 //! on, written in place of its tombstone, and once none is left the slot past the highest
@@ -29,7 +30,7 @@ use crate::format::save::added::Table;
 use crate::keys;
 use crate::ops::{OpError, Plan, Subject};
 use crate::overlay::Anchor;
-use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
+use crate::projections::galaxy::ProjectionError;
 use crate::scan::{self, Entity, Value};
 use crate::{Span, as_u32};
 
@@ -85,17 +86,35 @@ pub(crate) fn counter(doc: &Document, key: &'static str) -> Result<Counter, OpEr
     Ok(Counter { key, anchor, last })
 }
 
-/// The id a new system takes, refused unless the systems the save holds are exactly the
-/// ids below it. A save can hold the null id in the counter: the systems alone say the id
-/// then.
-pub(crate) fn next_system(doc: &Document, graph: &GalaxyGraph) -> Result<u32, OpError> {
-    let count = graph.systems.len();
+/// Every id `galactic_object` holds an entry for, a system's or a tombstone's, loaded or
+/// added.
+fn system_ids(doc: &Document) -> BTreeSet<u64> {
+    let loaded = doc.index().entities(keys::GALACTIC_OBJECT).iter();
+    let added = doc.added().entries(EntityKind::System);
+    loaded
+        .map(|entity| entity.id)
+        .chain(added.map(|(id, _)| u64::from(id)))
+        .collect()
+}
+
+/// How many entries `galactic_object` holds, tombstones included.
+pub(crate) fn system_count(doc: &Document) -> usize {
+    system_ids(doc).len()
+}
+
+/// The id a new system takes, refused unless the entries the save holds, tombstones
+/// included, are exactly the ids below it. A save can hold the null id in the counter: the
+/// entries alone say the id then.
+pub(crate) fn next_system(doc: &Document) -> Result<u32, OpError> {
+    let ids = system_ids(doc);
+    let count = ids.len();
     let last = match system_counter(doc)?.last {
         crate::NULL_ID => as_u32(count).saturating_sub(1),
         last => last,
     };
     let next = last.checked_add(1).filter(|&next| {
-        usize::try_from(next).is_ok_and(|n| n == count) && graph.systems.keys().all(|&id| id < next)
+        usize::try_from(next).is_ok_and(|n| n == count)
+            && ids.last().is_none_or(|&highest| highest < u64::from(next))
     });
     next.ok_or(OpError::SystemIdsNotDense { last, count })
 }

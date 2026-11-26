@@ -9,7 +9,9 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
+import { useGalaxyStore } from "../../store/galaxyStore";
+import { SYSTEMS } from "../../store/fixture";
+import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { EditMenuItems } from "./EditMenu";
 
 let dismiss: ReturnType<typeof vi.fn<() => void>>;
@@ -24,6 +26,7 @@ beforeEach(() => {
   dismiss = vi.fn<() => void>();
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
+  useGalaxyStore.getState().clear();
 });
 
 describe("the Edit menu", () => {
@@ -68,5 +71,18 @@ describe("the Edit menu", () => {
 
     item("Delete").props.onClick();
     expect(deleteSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes one system a save already had where the save allows it, and not several", () => {
+    const systems = new Map(SYSTEMS.map((s) => [s.id, s]));
+    useGalaxyStore.setState({ systems });
+    useEditorStore.setState({ selection: [1] });
+    useFileSessionStore.setState({ capabilities: SAVE_CAPABILITIES });
+    expect(html("Delete")).toContain("disabled=");
+
+    useFileSessionStore.setState({ capabilities: { ...SAVE_CAPABILITIES, delete_systems: true } });
+    expect(html("Delete")).not.toContain("disabled=");
+    useEditorStore.setState({ selection: [1, 2] });
+    expect(html("Delete")).toContain("disabled=");
   });
 });

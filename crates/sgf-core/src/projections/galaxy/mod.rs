@@ -263,10 +263,11 @@ impl Galaxy {
         }
     }
 
-    /// Point each system at the nebula listing it. Returns the systems whose membership
+    /// Drop each nebula's members the map does not hold, as a removal leaves them listed,
+    /// and point each system at the nebula listing it. Returns the systems whose membership
     /// changed, ascending.
     pub(crate) fn assign_nebulae(&mut self) -> Vec<u32> {
-        nebulae::assign(&mut self.systems, &self.nebulae)
+        nebulae::assign(&mut self.systems, &mut self.nebulae)
     }
 
     /// Read each nebula's [`Turbulence`] again from its members, as a save needs after any

@@ -8,9 +8,11 @@ vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { StarbaseSummary } from "../../../generated/StarbaseSummary";
+import { SAVE_CAPABILITIES } from "../../../lib/capabilities";
 import { NO_MEGASTRUCTURES } from "../../../lib/details/placedRows";
 import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useGeneratorStore, type FiledClass } from "../../../store/generatorStore";
@@ -31,7 +33,7 @@ import { armStarClasses } from "../../../store/storeFixture";
 import { buttons, shown } from "../../../test/elements";
 import { mockedIpc } from "../../../test/ipc";
 import { arrangement, starType } from "../../../test/builders";
-import { lastDrawn } from "../../../test/drawn";
+import { drawnBy, drawnButton, lastDrawn } from "../../../test/drawn";
 import { until } from "../../../test/wait";
 
 bindStores();
@@ -624,6 +626,58 @@ describe("a system added this session", () => {
     expect(html).not.toContain("Added this session");
     expect(html).not.toContain("added this session");
     expect(html).not.toContain("Delete system");
+  });
+
+  it("says it can be deleted until the file is reopened, only where the save's own can't be", async () => {
+    await open("save");
+    expect(overview()).toContain("You can delete it until the file is reopened.</span>");
+    expect(overview()).toContain(
+      'title="Added since you opened this file. You can delete it until the file is reopened."',
+    );
+
+    deletesSystems();
+    expect(overview()).not.toContain("until the file is reopened");
+    expect(overview()).toContain('title="Added since you opened this file."');
+    expect(overview()).toContain(">Delete system</button>");
+  });
+});
+
+/** Opens the save as one whose own systems can be deleted. */
+function deletesSystems(): void {
+  const capabilities = { ...SAVE_CAPABILITIES, delete_systems: true };
+  useFileSessionStore.setState({ capabilities });
+}
+
+describe("a system the save already had, where it can be deleted", () => {
+  beforeEach(async () => {
+    await open("save");
+    deletesSystems();
+  });
+
+  it("has Delete system under its position, off until the core answers", async () => {
+    drawnBy(overview);
+    expect(drawnButton("Delete system").disabled).toBe(true);
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "DeleteSystem", system: SYSTEM });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const html = drawnBy(overview);
+    expect(html.indexOf(">Position<")).toBeLessThan(html.indexOf(">Delete system<"));
+    const button = drawnButton("Delete system");
+    expect(button.disabled).toBe(false);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    button.onClick();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "DeleteSystem", system: SYSTEM });
+  });
+
+  it("is off with the core's reason beside it", async () => {
+    const refusal = "system 1 cannot be deleted: it has an owner";
+    mockedIpc.checkOp.mockResolvedValue(refusal);
+    overview();
+    await vi.advanceTimersByTimeAsync(0);
+    const html = drawnBy(overview);
+    expect(drawnButton("Delete system").disabled).toBe(true);
+    expect(html).toContain(`<span class="muted">${refusal}</span>`);
   });
 });
 

@@ -62,8 +62,9 @@ to continue the same campaign.
   Sirius are placed as one edit. "Join to nearby systems" connects what
   you place to its neighbours.
 - **Delete systems.** Remove systems you added, either individually or as
-  a selection. Systems that were already present in the save cannot be
-  deleted.
+  a selection. In a save from Stellaris 4.6 or later, also delete
+  systems the save already had, one at a time, if they are empty enough:
+  no owner, starbase, colony, fleet, bypass or megastructure, for example.
 - **Raise and sink systems.** Set a system's height above or below the
   galaxy plane, or paint heights with the Height brush (H). The Tilt
   slider tilts the map so you can see them, and the Heights layer marks
@@ -267,7 +268,7 @@ keys.
 | System positions | editable | editable |
 | Hyperlanes: add, cut, isolate | editable | editable |
 | Lane lengths | editable | not in the file |
-| Systems: add, rename, remove | add, then reroll, rename or delete the ones you added until you reopen the file | editable |
+| Systems: add, rename, remove | add, then reroll, rename or delete the ones you added until you reopen the file. On a save from 4.6 or later, delete empty ones it already had | editable |
 | The game's unique and special systems and clusters | add, with their anomalies, dig sites and ruins | add from the Special list, or set as a system's initializer |
 | Binary and trinary systems | add, rolled or built from the stars you choose | from the initializer |
 | System heights | editable | not in the file |

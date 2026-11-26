@@ -120,6 +120,8 @@ pub struct Capabilities {
     /// Systems can be added to the save, and the ones added this session rerolled, renamed
     /// and deleted.
     pub added_systems: bool,
+    /// A system the document held when it was opened can be deleted.
+    pub delete_systems: bool,
     /// Systems can be added many at once, a shape's as one step: a scenario's as statements,
     /// a 4.x save's rolled together.
     pub bulk_add_systems: bool,

@@ -80,7 +80,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
             .checked_sub(as_u32(removed.len()))
             .ok_or(OpError::SystemIdsNotDense {
                 last: counter.last,
-                count: s.graph.systems.len(),
+                count: alloc::system_count(&s.doc),
             })?
     };
     counter.set(plan, &s.doc, last)?;
@@ -143,7 +143,7 @@ fn renumbering(
 ) -> Result<BTreeMap<u32, u32>, OpError> {
     let not_dense = || OpError::SystemIdsNotDense {
         last,
-        count: s.graph.systems.len(),
+        count: alloc::system_count(&s.doc),
     };
     let (Some(&first), Some(&highest)) = (removed.first(), removed.last()) else {
         return Ok(BTreeMap::new());
@@ -214,7 +214,7 @@ pub(crate) fn erase_bodies(
 
 /// Every surviving system's lanes: an entry to a removed system goes, and one to a
 /// renumbered system names its new id. A renumbered system's own key changes too.
-fn rewrite_lanes(
+pub(crate) fn rewrite_lanes(
     plan: &mut Plan,
     s: &Session,
     removed: &BTreeSet<u32>,
@@ -427,7 +427,23 @@ fn describe(s: &Session, removed: &BTreeSet<u32>, renumber: &BTreeMap<u32, u32>)
             format!("{} ({})", plural(ids.len(), "system"), listed.join(", "))
         }
     };
-    let lanes: BTreeSet<(u32, u32)> = removed
+    let mut text = format!(
+        "Removed {what} and {}",
+        plural(lane_count(s, removed), "lane")
+    );
+    if !renumber.is_empty() {
+        let moves: Vec<String> = renumber
+            .iter()
+            .map(|(old, new)| format!("{old} to {new}"))
+            .collect();
+        text.push_str(&format!("; renumbered {}", moves.join(", ")));
+    }
+    text
+}
+
+/// How many lanes the systems `ids` list, one between two of them counted once.
+pub(crate) fn lane_count(s: &Session, ids: &BTreeSet<u32>) -> usize {
+    let lanes: BTreeSet<(u32, u32)> = ids
         .iter()
         .filter_map(|id| s.graph.systems.get(id))
         .flat_map(|system| {
@@ -437,15 +453,7 @@ fn describe(s: &Session, removed: &BTreeSet<u32>, renumber: &BTreeMap<u32, u32>)
                 .map(move |lane| (system.id.min(lane.to), system.id.max(lane.to)))
         })
         .collect();
-    let mut text = format!("Removed {what} and {}", plural(lanes.len(), "lane"));
-    if !renumber.is_empty() {
-        let moves: Vec<String> = renumber
-            .iter()
-            .map(|(old, new)| format!("{old} to {new}"))
-            .collect();
-        text.push_str(&format!("; renumbered {}", moves.join(", ")));
-    }
-    text
+    lanes.len()
 }
 
 /// The op that adds the removed systems back: each read back as a spec, in id order, at
@@ -461,7 +469,7 @@ fn restoring(
     removed: &BTreeSet<u32>,
     renumber: &BTreeMap<u32, u32>,
 ) -> Result<Op, OpError> {
-    let staying = as_u32(s.graph.systems.len() - removed.len());
+    let staying = as_u32(alloc::system_count(&s.doc) - removed.len());
     let readded: HashMap<u32, u32> = removed
         .iter()
         .enumerate()

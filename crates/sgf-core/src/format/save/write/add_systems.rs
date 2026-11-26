@@ -51,7 +51,7 @@ pub(crate) fn add_op(
             cap: BULK_ADD_CAP,
         });
     }
-    let first = alloc::next_system(&s.doc, &s.graph)?;
+    let first = alloc::next_system(&s.doc)?;
     let points: Vec<(f64, f64)> = systems.iter().map(|add| (add.spec.x, add.spec.y)).collect();
     check_places(&s.graph, first, &points)?;
     let id = |end: LaneEnd| match end {

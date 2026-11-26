@@ -180,7 +180,7 @@ fn add_and_remove(session: &mut Session, name: &str) -> Option<(u128, u128)> {
     if !Capabilities::of(session.doc()).added_systems {
         return None;
     }
-    let id = u32::try_from(session.graph().systems.len()).expect("a system count");
+    let id = session.next_system_ids(1).expect("an id")[0];
     let home = &session.graph().systems[&0];
     let (x0, y0) = (home.x, home.y);
     let spots = (1..=8).flat_map(|ring| {

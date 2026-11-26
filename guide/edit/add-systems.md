@@ -195,13 +195,32 @@ To add many at once, use the [Paint systems brush](brushes.md#paint-and-erase-sy
 
 ## Delete systems
 
-In a save, you can delete only the systems you added since you opened
-the file. To delete one, select it and press
+In a save, you can delete the systems you added since you opened the
+file. To delete one, select it and press
 <kbd>Delete</kbd>, or right-click it and select "Delete system". To
 delete several, select them and click "Delete N added systems" at the
 bottom of the Inspector, or right-click one and select "Delete N added
 systems".
-Systems the save already had can't be deleted.
+
+In a save from Stellaris 4.6 or later, you can also delete a system the
+save already had, one at a time. Its planets and moons are deleted with
+it, and its neighbours are no longer linked to it. Select it and press
+<kbd>Delete</kbd>, right-click it and select "Delete system", or click
+"Delete system" on its page.
+
+You can't delete a system the save already had while it has any of
+these, because I haven't tested that in game. The menu and the page say
+which one it is:
+
+- an owner, a starbase or a colony
+- a fleet in it, or one that has it in its orders
+- a wormhole, gateway or other bypass
+- a megastructure
+- a cosmic storm, an astral rift or a psionic aura
+- a dig site, or an anomaly an empire has found
+- something an event has saved for later
+
+An empire's starting system can't be deleted either.
 
 In a scenario, select systems and press <kbd>Delete</kbd>, or click
 "Delete N systems" at the bottom of the Inspector, to remove
