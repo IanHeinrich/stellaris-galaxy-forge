@@ -1,0 +1,764 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Majek #9 and 3 lanes, with 1 starbase and 1 shroud tunnel
+inverse: RestoreEntities "Restored Majek #9 and 3 lanes"
+  System 9 (881 bytes)
+  System 25 (837 bytes)
+  System 78 (775 bytes)
+  System 228 (665 bytes)
+  Planet 454 (445 bytes)
+  Planet 455 (661 bytes)
+  Country 7 (20253 bytes)
+  Starbase 39 (318 bytes)
+  Fleet 128 (1741 bytes)
+  Ship 651 (3169 bytes)
+  ConstructionQueue 77 (112 bytes)
+  ConstructionQueue 78 (109 bytes)
+  Bypass 1 (150 bytes)
+  Clusters 0 (5538 bytes)
+  NaturalWormhole 0 (122 bytes)
+
+--- gamestate
++++ gamestate
+@@ -19376,79 +19376,7 @@
+ 		index=47
+ 		storm=4294967295
+ 	}
+-	9=
+-	{
+-		coordinate=
+-		{
+-			x=320.83
+-			y=4.27
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Majek"
+-		}
+-		planet=454
+-		planet=455
+-		ambient_object=
+-		{
+-			49 
+-		}
+-		star_class="sc_b"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=25
+-				length=28
+-			}
+- 
+-			{
+-				to=78
+-				length=22
+-			}
+- 
+-			{
+-				to=228
+-				length=39
+-			}
+- 
+-		}
+-		natural_wormholes=
+-		{
+-			0 
+-		}
+-		bypasses=
+-		{
+-			1 
+-		}
+-		flags=
+-		{
+-			shroudwalker_enclave_system=62808000
+-			enclave=62808000
+-			shroud_tunnel_nexus=62808000
+-			precursor_zroni_1=62808000
+-			precursor_3=62808000
+-			resource_region_not_resource_rich=62808000
+-			resource_region_volatile_motes_rich=62808000
+-		}
+-		initializer="shroudwalker_enclave_init_01"
+-		fleet_presence=
+-		{
+-			128 
+-		}
+-		inner_radius=175
+-		outer_radius=275
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=56
+-		storm=4294967295
+-	}
++	9=none
+ 	10=
+ 	{
+ 		coordinate=
+@@ -20508,11 +20436,6 @@
+ 		{
+ 			
+ 			{
+-				to=9
+-				length=28
+-			}
+- 
+-			{
+ 				to=327
+ 				length=17
+ 			}
+@@ -24232,11 +24155,6 @@
+ 				length=23
+ 			}
+  
+-			{
+-				to=9
+-				length=22
+-			}
+- 
+ 		}
+ 		asteroid_belts=
+ 		{
+@@ -34523,11 +34441,6 @@
+ 		{
+ 			
+ 			{
+-				to=9
+-				length=39
+-			}
+- 
+-			{
+ 				to=565
+ 				length=35
+ 				bridge=yes
+@@ -60247,25 +60160,8 @@
+ 			orbitals=
+ 			{
+ 			}
+-		}
+-		39=
+-		{
+-			level="starbase_level_enclave_shroudwalker_station"
+-			build_queue=77
+-			shipyard_build_queue=78
+-			ship_design_implementation=
+-			{
+-				design=421
+-				upgrade=4294967295
+-				growth_stage=0
+-			}
+-			design_required_components=2
+-			station=651
+-			orbitals=
+-			{
+-			}
+-			construction_type=starbase_shipyard
+ 		}
++		39=none
+ 		40=
+ 		{
+ 			level="starbase_level_enclave_shroudwalker_station"
+@@ -88549,99 +88445,10 @@
+ 			deposits=
+ 			{
+ 				376 
+-			}
+-		}
+-		454=
+-		{
+-			planet_class="pc_b_star"
+-			planet_size=27
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Majek"
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=72
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=9
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		455=
+-		{
+-			planet_class="pc_shrouded"
+-			planet_size=25
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Majek"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=328
+-			coordinate=
+-			{
+-				x=10.13115
+-				y=145.12325
+-				origin=9
+-				randomized=no
+-			}
+-			orbit=145
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			flags=
+-			{
+-				shroudwalker_enclave_planet=62808000
+-			}
+-			entity=0
+-			deposits=
+-			{
+-				378 
+ 			}
+ 		}
++		454=none
++		455=none
+ 		456=
+ 		{
+ 			planet_class="pc_g_star"
+@@ -409033,7 +408840,7 @@
+ 		}
+ 		sensor_range_fleets=
+ 		{
+-			128 154 168 169 171 192 232 233 234 
++			154 168 169 171 192 232 233 234 
+ 		}
+ 		faction=
+ 		{
+@@ -409321,10 +409128,6 @@
+ 			{
+ 				
+ 				{
+-					fleet=128
+-				}
+- 
+-				{
+ 					fleet=154
+ 				}
+  
+@@ -437516,28 +437319,8 @@
+ 				simultaneous=1
+ 				type=starbase
+ 			}
+-			77=
+-			{
+-				owner=7
+-				location=
+-				{
+-					type=0
+-					id=651
+-				}
+-				simultaneous=1
+-				type=starbase
+-			}
+-			78=
+-			{
+-				owner=7
+-				location=
+-				{
+-					type=0
+-					id=651
+-				}
+-				simultaneous=4
+-				type=ships
+-			}
++			77=none
++			78=none
+ 			79=
+ 			{
+ 				owner=7
+@@ -541045,224 +540828,10 @@
+ 		}
+ 		combat_action=1
+ 		upgradable=no
+-		construction_date=		"2200.01.01"
+-		maturation_date=		"0.01.01"
+-	}
+-	651=
+-	{
+-		fleet=128
+-		name=
+-		{
+-			key="NECROID1_SHIP_Hoybourne"
+-		}
+-		reserve=0
+-		ship_design_implementation=
+-		{
+-			design=421
+-			upgrade=4294967295
+-			growth_stage=0
+-		}
+-		graphical_culture="mammalian_01"
+-		section=
+-		{
+-			design="station_enclave_shroudwalker_01_key"
+-			slot="mid"
+-			weapon=
+-			{
+-				index=36
+-				template="ARC_EMITTER_2"
+-				component_slot="EXTRA_LARGE_01"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=37
+-				template="ARC_EMITTER_2"
+-				component_slot="EXTRA_LARGE_02"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=38
+-				template="ARC_EMITTER_2"
+-				component_slot="EXTRA_LARGE_03"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=39
+-				template="LARGE_UV_LASER"
+-				component_slot="LARGE_GUN_01"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=40
+-				template="LARGE_UV_LASER"
+-				component_slot="LARGE_GUN_02"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=41
+-				template="LARGE_UV_LASER"
+-				component_slot="LARGE_GUN_03"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=42
+-				template="LARGE_UV_LASER"
+-				component_slot="LARGE_GUN_04"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=43
+-				template="LARGE_UV_LASER"
+-				component_slot="LARGE_GUN_05"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=44
+-				template="LARGE_UV_LASER"
+-				component_slot="LARGE_GUN_06"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=45
+-				template="SMALL_NV_WEAPON"
+-				component_slot="MEDIUM_GUN_01"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=46
+-				template="SMALL_NV_WEAPON"
+-				component_slot="MEDIUM_GUN_02"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=47
+-				template="SMALL_NV_WEAPON"
+-				component_slot="MEDIUM_GUN_03"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=48
+-				template="POINT_DEFENCE_3"
+-				component_slot="PD_01"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=49
+-				template="POINT_DEFENCE_3"
+-				component_slot="PD_02"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=50
+-				template="POINT_DEFENCE_3"
+-				component_slot="PD_03"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=51
+-				template="POINT_DEFENCE_3"
+-				component_slot="PD_04"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=52
+-				template="POINT_DEFENCE_3"
+-				component_slot="PD_05"
+-				targeting_module=
+-				{
+-				}
+-			}
+-			weapon=
+-			{
+-				index=53
+-				template="POINT_DEFENCE_3"
+-				component_slot="PD_06"
+-				targeting_module=
+-				{
+-				}
+-			}
+-		}
+-		coordinate=
+-		{
+-			x=-9.95945
+-			y=145.12325
+-			origin=9
+-			randomized=no
+-		}
+-		target_coordinate=
+-		{
+-			x=-9.95945
+-			y=145.12325
+-			origin=9
+-			randomized=no
+-		}
+-		post_move_angle=0
+-		hitpoints=40000
+-		shield_hitpoints=18000
+-		armor_hitpoints=14400
+-		max_hitpoints=40000
+-		max_shield_hitpoints=18000
+-		max_armor_hitpoints=14400
+-		rotation=0
+-		forward_x=0
+-		forward_y=1
+-		upgrade_progress=0
+-		next_weapon_index=54
+-		targeting_module=
+-		{
+-		}
+-		combat_action=1
+ 		construction_date=		"2200.01.01"
+ 		maturation_date=		"0.01.01"
+ 	}
++	651=none
+ 	652=
+ 	{
+ 		fleet=129
+@@ -679594,148 +679163,13 @@
+ 		hit_points=30000.00000
+ 		military_power=2773.75781
+ 		diplomacy_weight=2773.75781
+-		cached_killed_ships=0
+-		cached_disabled_ships=0
+-		cached_disengaged_ships=0
+-		cached_combined_removed_ships=0
+-		commanding_armada=none
+-	}
+-	128=
+-	{
+-		name=
+-		{
+-			key="NAME_Shroud_Teachers"
+-		}
+-		ships=
+-		{
+-			651 
+-		}
+-		combat=
+-		{
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=4294967295
+-				randomized=no
+-			}
+-			formation_pos=
+-			{
+-				x=0
+-				y=0
+-				speed=0
+-				rotation=0
+-				forward_x=0
+-				forward_y=0
+-			}
+-			formation=
+-			{
+-				root=-1
+-			}
+-			start_coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=4294967295
+-				randomized=no
+-			}
+-			start_date=			"0.01.01"
+-		}
+-		fleet_stats=
+-		{
+-			combat_stats=
+-			{
+-				fleet=
+-				{
+-				}
+-				date=				"0.01.01"
+-			}
+-		}
+-		ground_support_stance="selective"
+-		ship_class=shipclass_starbase
+-		space_fauna_growth_stance=excessive
+-		mia_from=
+-		{
+-			x=0
+-			y=0
+-			origin=4294967295
+-			randomized=no
+-		}
+-		movement_manager=
+-		{
+-			formation=
+-			{
+-				scale=1
+-				angle=0
+-				type=circle
+-			}
+-			coordinate=
+-			{
+-				x=-9.95945
+-				y=145.12325
+-				origin=9
+-				randomized=no
+-			}
+-			target=
+-			{
+-				coordinate=
+-				{
+-					x=0
+-					y=0
+-					origin=4294967295
+-					randomized=no
+-				}
+-			}
+-			target_coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=4294967295
+-				randomized=no
+-			}
+-			state=move_idle
+-			path=
+-			{
+-				date=				"0.01.01"
+-			}
+-			orbit=
+-			{
+-			}
+-			last_ftl_jump=
+-			{
+-				from=
+-				{
+-					x=0
+-					y=0
+-					origin=4294967295
+-					randomized=no
+-				}
+-				fleet=4294967295
+-				jump_method=jump_count
+-				bypass_from=4294967295
+-				bypass_to=4294967295
+-			}
+-		}
+-		properties=
+-		{
+-			station=yes
+-			weapon=yes
+-			valid_for_combat=yes
+-			dirty_cloaking_strength=yes
+-		}
+-		settings=
+-		{
+-			spawn_debris=no
+-		}
+-		hit_points=40000.00000
+-		military_power=16797.70312
+-		diplomacy_weight=16797.70312
+ 		cached_killed_ships=0
+ 		cached_disabled_ships=0
+ 		cached_disengaged_ships=0
+ 		cached_combined_removed_ships=0
+ 		commanding_armada=none
+ 	}
++	128=none
+ 	129=
+ 	{
+ 		name=
+@@ -1038082,19 +1037516,7 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	1=
+-	{
+-		type="shroud_tunnel"
+-		active=yes
+-		owner=
+-		{
+-			type=7
+-			id=0
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
++	
+ 	2=
+ 	{
+ 		type="gateway"
+@@ -1038302,18 +1037724,7 @@
+ }
+ natural_wormholes=
+ {
+-	0=
+-	{
+-		coordinate=
+-		{
+-			x=-190.855
+-			y=0.2261
+-			origin=9
+-			randomized=no
+-		}
+-		bypass=1
+-		graphics_entity_name=""
+-	}
++	
+ 	1=
+ 	{
+ 		coordinate=
+@@ -1042534,7 +1041945,7 @@
+ 		radius=120
+ 		objects=
+ 		{
+-			1 3 9 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 
++			1 3 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 
+ 		}
+ 	}
+  
+@@ -1042566,7 +1041977,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			1 3 9 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 13 14 18 20 36 42 60 63 79 95 102 103 106 108 110 129 150 166 167 169 176 182 189 204 215 227 264 272 279 281 282 290 292 298 308 324 335 337 340 341 347 362 367 372 381 382 386 391 395 396 428 430 435 463 472 483 492 496 540 556 561 580 594 
++			1 3 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 13 14 18 20 36 42 60 63 79 95 102 103 106 108 110 129 150 166 167 169 176 182 189 204 215 227 264 272 279 281 282 290 292 298 308 324 335 337 340 341 347 362 367 372 381 382 386 391 395 396 428 430 435 463 472 483 492 496 540 556 561 580 594 
+ 		}
+ 	}
+  
+@@ -1042662,7 +1042073,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			1 2 3 4 5 9 17 25 27 34 39 40 55 62 67 69 73 78 80 81 84 86 89 93 96 99 100 121 142 155 162 173 174 178 180 188 190 191 194 196 206 211 222 228 229 247 249 268 269 270 276 286 289 300 306 312 320 322 327 348 354 358 366 370 390 393 394 399 402 406 417 422 426 452 454 457 461 465 474 478 497 511 512 515 517 523 530 531 533 537 551 565 573 575 582 585 597 
++			1 2 3 4 5 17 25 27 34 39 40 55 62 67 69 73 78 80 81 84 86 89 93 96 99 100 121 142 155 162 173 174 178 180 188 190 191 194 196 206 211 222 228 229 247 249 268 269 270 276 286 289 300 306 312 320 322 327 348 354 358 366 370 390 393 394 399 402 406 417 422 426 452 454 457 461 465 474 478 497 511 512 515 517 523 530 531 533 537 551 565 573 575 582 585 597 
+ 		}
+ 	}

@@ -23,6 +23,11 @@ pub const SAMPLE_45: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.5-day-one.sav"
 );
+/// The Stellaris 4.6 sample, a save that deletes systems it already had.
+pub const SAMPLE_46: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/4.6-day-one.sav"
+);
 pub const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/scenario_grammar.txt"

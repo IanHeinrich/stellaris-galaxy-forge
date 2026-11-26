@@ -131,9 +131,16 @@ impl Format for Save {
                     let (flags, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
                     graph.refresh_lgate(&flags, buf);
                 }
+                // A pre-FTL country goes with its homeworld's system as a tombstone, and an undo
+                // brings it back.
                 Subject::Country(id) => {
-                    let (country, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
-                    graph.refresh_country(id, &country, buf);
+                    let anchor = self.statement(doc, subject)?;
+                    match entity_at(doc, anchor)
+                        .map_err(|e| subject.parse_error(e.offset, e.reason))?
+                    {
+                        Some((country, buf)) => graph.refresh_country(doc, id, &country, buf)?,
+                        None => graph.drop_country(id),
+                    }
                 }
                 Subject::Statement { .. } | Subject::Header(_) | Subject::Record(_) => {}
             }

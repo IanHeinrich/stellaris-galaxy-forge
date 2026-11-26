@@ -6,7 +6,7 @@ import type { Op } from "../generated/Op";
 import type { SystemNode } from "../generated/SystemNode";
 import { addedAmong } from "../lib/addSystem";
 import { documentCapabilities } from "../lib/capabilities";
-import { deleteSystemOp } from "../lib/details/systemRemoval";
+import { deleteQuestion, deleteSystemOp } from "../lib/details/systemRemoval";
 import { PairSet } from "../lib/geometry/pairs";
 import { counted } from "../lib/text";
 import { refuseOr, systems, withTrackedSystems, type RunEdit } from "./editorEdits";
@@ -31,9 +31,10 @@ export function removeActions(
       const chosen = save ? target.ids : symmetricIds(target.ids);
       const one = held || (ids.length === 1 && chosen.length === 1);
       return withTrackedSystems(chosen, async (tracked) => {
-        const refusal = held ? await refusalOf(deleteSystemOp(chosen[0])) : null;
-        return refuseOr(refusal, async () => {
-          if (!(await confirm(...question(chosen, save, one)))) return false;
+        const described = held ? await describedAs(deleteSystemOp(chosen[0])) : null;
+        return refuseOr(described?.refusal ?? null, async () => {
+          const said = described?.question ?? null;
+          if (!(await confirm(...question(chosen, save, one, said)))) return false;
           const description = `Deleted ${counted(chosen.length, "system")}`;
           const result = await runEdit(async () => {
             const now = tracked.flatMap((t) => t.id ?? []);
@@ -59,12 +60,15 @@ export function removeActions(
   };
 }
 
-/** Why the core would refuse `op`, or could not be asked; null when it would apply. */
-async function refusalOf(op: Op): Promise<string | null> {
+/**
+ * Asks the core once what deleting with `op` would do: the confirm question, null when the
+ * description is not a deletion's, or the refusal, or why the core could not be asked.
+ */
+async function describedAs(op: Op): Promise<{ question: string | null; refusal: string | null }> {
   try {
-    return await ipc.checkOp(op);
+    return { question: deleteQuestion(await ipc.describeOp(op)), refusal: null };
   } catch (e) {
-    return ipc.errorMessage(e);
+    return { question: null, refusal: ipc.errorMessage(e) };
   }
 }
 
@@ -111,16 +115,19 @@ export function canDelete(
 
 /**
  * The confirm dialog's question and options for deleting `ids`, the added systems of a save when
- * `save`; `one` names the one system asked about.
+ * `save`; `one` names the one system asked about, and `said` is the core's question for it when
+ * it gave one.
  */
 function question(
   ids: readonly number[],
   save: boolean,
   one: boolean,
+  said: string | null,
 ): [string, { title: string; kind: "warning" }] {
   const lanes = distinctLanes(ids);
   if (one) {
     const name = useGalaxyStore.getState().systemName(ids[0]);
+    if (said !== null) return [said, { title: name, kind: "warning" }];
     const what = lanes === 0 ? name : `${name} and its ${counted(lanes, "lane")}`;
     return [`Delete ${what}?`, { title: name, kind: "warning" }];
   }

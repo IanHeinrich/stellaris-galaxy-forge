@@ -203,24 +203,35 @@ bottom of the Inspector, or right-click one and select "Delete N added
 systems".
 
 In a save from Stellaris 4.6 or later, you can also delete a system the
-save already had, one at a time. Its planets and moons are deleted with
-it, and its neighbours are no longer linked to it. Select it and press
+save already had, one at a time. Select it and press
 <kbd>Delete</kbd>, right-click it and select "Delete system", or click
 "Delete system" on its page.
 
-You can't delete a system the save already had while it has any of
-these, because I haven't tested that in game. The menu and the page say
-which one it is:
+The confirmation lists what goes with the system, so check it before you
+agree. An empire that owns the system loses everything in it. These are
+deleted with the system:
 
-- an owner, a starbase or a colony
-- a fleet in it, or one that has it in its orders
-- a wormhole, gateway or other bypass
-- a megastructure
-- a cosmic storm, an astral rift or a psionic aura
-- a dig site, or an anomaly an empire has found
-- something an event has saved for later
+- its planets and moons, with their colonies and pops
+- its starbases, and its mining and research stations
+- every fleet in it, with the armies and leaders aboard
+- its megastructures, including gateways, Hyper Relays, L-Gates and
+  quantum catapults
+- a natural wormhole, with its other end
+- a shroud tunnel
+- a pre-FTL civilisation whose homeworld it is
+- its dig sites
+- a psionic aura or astral rift it holds
+- its hyperlanes
 
-An empire's starting system can't be deleted either.
+You can't delete:
+
+- an empire's capital system, because the game would leave that empire
+  without a capital
+- an empire's starting system
+- a system with a wormhole or a megastructure you added since you opened
+  the file. Delete the wormhole or megastructure first.
+
+The menu and the page say which one stops it.
 
 In a scenario, select systems and press <kbd>Delete</kbd>, or click
 "Delete N systems" at the bottom of the Inspector, to remove

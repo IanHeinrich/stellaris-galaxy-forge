@@ -12,7 +12,7 @@ use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::flags::{drop_flags, flag_spans};
 use crate::format::save::write::fleets::present_fleets;
 use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, Tied, unlink_all};
-use crate::format::save::write::remove_planet::{Deletion, Segments, dug};
+use crate::format::save::write::remove_planet::{Deletion, Scope, dug};
 use crate::format::save::write::restore::{Saved, live, tombstoned};
 use crate::format::save::{entity, planet_entity, planet_statement, system_statement};
 use crate::keys;
@@ -56,7 +56,7 @@ pub(crate) fn plan_delete(
     let standing = rings_left(s, system, &frame, &bodies, &going)?;
     let flags = rings_flags(s, system, rings, (&frame, &bodies, &going), standing)?;
     let flags: Vec<&str> = flags.iter().map(String::as_str).collect();
-    let deletion = Deletion::read(s, system, &frame, bodies, Segments::Taken, &going)?;
+    let deletion = Deletion::read(s, system, &frame, bodies, Scope::Ring, &going)?;
 
     let mut saved = Saved::default();
     for tied in &rows {

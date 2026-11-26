@@ -59,6 +59,22 @@ impl Session {
     /// after the first would be planned against a session none of them had changed, and so
     /// is an op with a second step, which is planned against its first.
     pub fn check_op(&self, op: &Op) -> Option<String> {
+        self.unchecked(op)
+            .or_else(|| self.refusal(op).map(|error| error.to_string()))
+    }
+
+    /// The description the history would give `op`, or why it would be refused, as
+    /// [`Self::check_op`] says: the op is planned against the session and dropped, so nothing
+    /// is written.
+    pub fn describe_op(&self, op: &Op) -> Result<String, String> {
+        if let Some(refused) = self.unchecked(op) {
+            return Err(refused);
+        }
+        self.planned(op).map_err(|error| error.to_string())
+    }
+
+    /// Why [`Self::check_op`] refuses `op` before planning it.
+    fn unchecked(&self, op: &Op) -> Option<String> {
         if matches!(op, Op::Batch { .. }) {
             return Some("a batch cannot be checked: check each of its ops".to_owned());
         }
@@ -74,7 +90,7 @@ impl Session {
                 op.name()
             ));
         }
-        self.refusal(op).map(|error| error.to_string())
+        None
     }
 
     /// The error the format refuses `op` with, planned against the session as it is, or
@@ -82,10 +98,25 @@ impl Session {
     /// op it is given, so a caller checking a batch or a two-step op owns what that means.
     /// An op made of others is refused for its own reasons or for the first of its ops'.
     pub fn refusal(&self, op: &Op) -> Option<OpError> {
+        self.planned(op).err()
+    }
+
+    /// The description `op` would be given, planned against the session as it is, or the
+    /// error the format refuses it with. Nothing is written. An op made of others is refused
+    /// for its own reasons or for the first of its ops'.
+    fn planned(&self, op: &Op) -> Result<String, OpError> {
         match ops::composed(&self.graph, op) {
-            Some(Ok((_, members))) => members.iter().find_map(|member| self.refusal(member)),
-            Some(Err(error)) => Some(error),
-            None => self.format().write(&mut Plan::new(), self, op).err(),
+            Some(Ok((description, members))) => {
+                match members.iter().find_map(|member| self.refusal(member)) {
+                    Some(error) => Err(error),
+                    None => Ok(description),
+                }
+            }
+            Some(Err(error)) => Err(error),
+            None => self
+                .format()
+                .write(&mut Plan::new(), self, op)
+                .map(|planned| planned.description),
         }
     }
 }

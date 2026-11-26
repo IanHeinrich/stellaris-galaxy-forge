@@ -1,0 +1,634 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Birana #54 and 2 lanes, with 1 megastructure
+inverse: RestoreEntities "Restored Birana #54 and 2 lanes"
+  System 54 (789 bytes)
+  System 75 (628 bytes)
+  System 175 (848 bytes)
+  Planet 848 (464 bytes)
+  Planet 849 (547 bytes)
+  Planet 850 (604 bytes)
+  Planet 851 (870 bytes)
+  Planet 852 (547 bytes)
+  Planet 853 (549 bytes)
+  Planet 854 (576 bytes)
+  Planet 855 (869 bytes)
+  Planet 856 (554 bytes)
+  Megastructure 5 (229 bytes)
+  Clusters 0 (5538 bytes)
+
+--- gamestate
++++ gamestate
+@@ -22615,70 +22615,7 @@
+ 		}
+ 		storm=4294967295
+ 	}
+-	54=
+-	{
+-		coordinate=
+-		{
+-			x=111.7
+-			y=-124.66
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Birana"
+-		}
+-		planet=848
+-		planet=849
+-		planet=850
+-		planet=851
+-		planet=852
+-		planet=853
+-		planet=854
+-		planet=855
+-		planet=856
+-		ambient_object=
+-		{
+-			91 92 93 94 
+-		}
+-		megastructures=
+-		{
+-			5 
+-		}
+-		star_class="sc_pulsar"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=75
+-				length=33
+-			}
+- 
+-			{
+-				to=175
+-				length=23
+-			}
+- 
+-		}
+-		flags=
+-		{
+-			ruined_catapult_system=62808000
+-			galactic_landmark_system=62808000
+-			precursor_1=62808000
+-			resource_region_not_resource_rich=62808000
+-		}
+-		initializer="quantum_catapult_init_01"
+-		inner_radius=195
+-		outer_radius=295
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=19
+-		storm=4294967295
+-	}
++	54=none
+ 	55=
+ 	{
+ 		coordinate=
+@@ -24049,11 +23986,6 @@
+ 		{
+ 			
+ 			{
+-				to=54
+-				length=33
+-			}
+- 
+-			{
+ 				to=47
+ 				length=25
+ 			}
+@@ -31013,11 +30945,6 @@
+ 		hyperlane=
+ 		{
+ 			
+-			{
+-				to=54
+-				length=23
+-			}
+- 
+ 			{
+ 				to=47
+ 				length=17
+@@ -108326,464 +108253,15 @@
+ 				681 
+ 			}
+ 		}
+-		848=
+-		{
+-			planet_class="pc_pulsar"
+-			planet_size=21
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			megastructures=
+-			{
+-				5 
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		849=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=24
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-41.626
+-				y=49.9291
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=65
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		850=
+-		{
+-			planet_class="pc_toxic"
+-			planet_size=14
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="II"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=8.0869
+-				y=-84.864
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=85
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				851 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-			deposits=
+-			{
+-				683 
+-			}
+-		}
+-		851=
+-		{
+-			planet_class="pc_molten"
+-			planet_size=10
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Birana"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="II"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=22.99915
+-				y=-82.9308
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=850
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		852=
+-		{
+-			planet_class="pc_toxic"
+-			planet_size=21
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="III"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-31.0212
+-				y=100.422
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=105
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		853=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=29
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="IV"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-105.66375
+-				y=-66.825
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=125
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		854=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=24
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="V"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=92.6434
+-				y=-111.5601
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=145
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				855 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		855=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=8
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Birana"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="V"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=104.1451
+-				y=-121.1907
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=854
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		856=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=16
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Birana"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VI"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-133.4322
+-				y=97.09425
+-				origin=54
+-				randomized=no
+-			}
+-			orbit=165
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
++		848=none
++		849=none
++		850=none
++		851=none
++		852=none
++		853=none
++		854=none
++		855=none
++		856=none
+ 		857=
+ 		{
+ 			planet_class="pc_g_star"
+@@ -1037882,24 +1037360,6 @@
+ 		owner=234881046
+ 		graphical_culture="mindwarden_01"
+ 		planet=4294967295
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
+-	5=
+-	{
+-		type="quantum_catapult_ruined"
+-		coordinate=
+-		{
+-			x=-1.00453
+-			y=0
+-			origin=54
+-			randomized=no
+-		}
+-		planet=848
+ 		orbitals=
+ 		{
+ 		}
+@@ -1037907,6 +1037367,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
++	5=none
+ 	6=
+ 	{
+ 		type="gateway_ruined"
+@@ -1042660,7 +1042121,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			11 16 19 31 35 38 47 50 54 56 65 66 75 77 87 101 104 114 116 119 120 131 136 139 143 144 147 149 151 158 159 160 165 175 183 185 207 209 214 220 234 239 245 257 258 259 267 283 284 285 287 291 297 302 325 326 328 332 334 338 352 359 360 364 365 368 380 383 384 401 409 415 418 438 439 451 462 468 469 476 488 489 495 500 502 504 507 508 513 518 522 526 528 529 541 544 546 547 554 555 564 567 571 572 574 577 579 589 590 592 
++			11 16 19 31 35 38 47 50 56 65 66 75 77 87 101 104 114 116 119 120 131 136 139 143 144 147 149 151 158 159 160 165 175 183 185 207 209 214 220 234 239 245 257 258 259 267 283 284 285 287 291 297 302 325 326 328 332 334 338 352 359 360 364 365 368 380 383 384 401 409 415 418 438 439 451 462 468 469 476 488 489 495 500 502 504 507 508 513 518 522 526 528 529 541 544 546 547 554 555 564 567 571 572 574 577 579 589 590 592 
+ 		}
+ 	}

@@ -23,6 +23,10 @@ pub(crate) const BESIDE: u32 = 562;
 pub(crate) const CROSSROADS: u32 = 533;
 /// A member of the second nebula of one lane.
 pub(crate) const IN_NEBULA: u32 = 547;
+/// A pre-FTL country's homeworld.
+pub(crate) const HOMEWORLD: u32 = 86;
+/// A system with two starbases, their defence platforms and stations.
+pub(crate) const TWO_STARBASES: u32 = 67;
 /// The id a system added to the sample takes.
 pub(crate) const NEXT: u32 = 600;
 

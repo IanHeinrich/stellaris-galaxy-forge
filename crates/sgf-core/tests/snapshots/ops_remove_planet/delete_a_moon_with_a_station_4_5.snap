@@ -85,6 +85,15 @@ inverse: Restored moon #8
  		9=
  		{
  			planet_class="pc_barren"
+@@ -417736,7 +417699,7 @@
+ 		}
+ 		sensor_range_fleets=
+ 		{
+-			0 1 2 3 362 363 364 365 366 
++			0 1 2 3 362 363 364 365 
+ 		}
+ 		faction=
+ 		{
 @@ -417944,7 +417907,7 @@
  		}
  		controlled_planets=
@@ -94,17 +103,17 @@ inverse: Restored moon #8
  		}
  		ship_design_collection=
  		{
-@@ -418227,10 +418190,6 @@
- 					fleet=365
- 				}
+@@ -418225,10 +418188,6 @@
   
--				{
--					fleet=366
+ 				{
+ 					fleet=365
 -				}
 - 
+-				{
+-					fleet=366
+ 				}
+  
  			}
- 		}
- 		customization="default"
 @@ -932320,67 +932279,7 @@
  		construction_date=		"2200.01.01"
  		maturation_date=		"0.01.01"

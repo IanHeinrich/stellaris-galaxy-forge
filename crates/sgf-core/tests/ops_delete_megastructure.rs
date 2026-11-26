@@ -275,15 +275,18 @@ fn an_added_row_leaves_a_halls_flags() {
     assert!(!planet.contains("megastructure"), "{planet}");
 }
 
+/// An L-Gate goes with its bypass, which links nothing else.
+#[test]
+fn an_lgate_goes_with_its_bypass() {
+    let mut session = open_4_5();
+    snapshot_step(&mut session, "lgate", delete(0));
+}
+
 #[test]
 fn what_is_refused() {
     assert_refusals(
         &mut open_4_5(),
         [
-            (
-                delete(0),
-                "megastructure 0 cannot be deleted: deleting it hasn't been tested in game",
-            ),
             (delete(14), "Megastructure 14 does not exist"),
             (delete(999), "Megastructure 999 does not exist"),
         ],

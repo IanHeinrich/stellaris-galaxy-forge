@@ -1,0 +1,1295 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Trabano #17 and 4 lanes, with 1 megastructure
+inverse: RestoreEntities "Restored Trabano #17 and 4 lanes"
+  System 17 (1025 bytes)
+  System 268 (789 bytes)
+  System 338 (985 bytes)
+  System 474 (729 bytes)
+  System 512 (746 bytes)
+  Planet 511 (506 bytes)
+  Planet 512 (480 bytes)
+  Planet 513 (478 bytes)
+  Planet 514 (586 bytes)
+  Planet 515 (1025 bytes)
+  Planet 516 (712 bytes)
+  Planet 517 (555 bytes)
+  Planet 518 (638 bytes)
+  Planet 519 (909 bytes)
+  Planet 520 (614 bytes)
+  Planet 521 (876 bytes)
+  Planet 522 (574 bytes)
+  Planet 523 (584 bytes)
+  Planet 524 (874 bytes)
+  Planet 525 (579 bytes)
+  Planet 526 (608 bytes)
+  Megastructure 1 (235 bytes)
+  Clusters 0 (5538 bytes)
+
+--- gamestate
++++ gamestate
+@@ -19894,88 +19894,7 @@
+ 		index=52
+ 		storm=4294967295
+ 	}
+-	17=
+-	{
+-		coordinate=
+-		{
+-			x=322.46
+-			y=-62.56
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Trabano"
+-		}
+-		planet=511
+-		planet=512
+-		planet=513
+-		planet=514
+-		planet=515
+-		planet=516
+-		planet=517
+-		planet=518
+-		planet=519
+-		planet=520
+-		planet=521
+-		planet=522
+-		planet=523
+-		planet=524
+-		planet=525
+-		planet=526
+-		ambient_object=
+-		{
+-			50 51 52 53 54 55 56 57 
+-		}
+-		megastructures=
+-		{
+-			1 
+-		}
+-		star_class="sc_trinary_3"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=338
+-				length=47
+-			}
+- 
+-			{
+-				to=268
+-				length=36
+-			}
+- 
+-			{
+-				to=512
+-				length=26
+-			}
+- 
+-			{
+-				to=474
+-				length=29
+-				bridge=yes
+-			}
+- 
+-		}
+-		flags=
+-		{
+-			ruined_mega_art_installation_system=62808000
+-			galactic_landmark_system=62808000
+-			precursor_zroni_1=62808000
+-			resource_region_not_resource_rich=62808000
+-		}
+-		initializer="megacorp_mega_art_installation_init_01"
+-		inner_radius=290.48
+-		outer_radius=390.48
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=54
+-		storm=4294967295
+-	}
++	17=none
+ 	18=
+ 	{
+ 		coordinate=
+@@ -37272,11 +37191,6 @@
+ 			}
+  
+ 			{
+-				to=17
+-				length=36
+-			}
+- 
+-			{
+ 				to=289
+ 				length=34
+ 			}
+@@ -41940,11 +41854,6 @@
+ 		{
+ 			
+ 			{
+-				to=17
+-				length=47
+-			}
+- 
+-			{
+ 				to=268
+ 				length=40
+ 			}
+@@ -51008,12 +50917,6 @@
+ 			{
+ 				to=3
+ 				length=23
+-			}
+- 
+-			{
+-				to=17
+-				length=29
+-				bridge=yes
+ 			}
+  
+ 		}
+@@ -53695,11 +53598,6 @@
+ 			}
+  
+ 			{
+-				to=17
+-				length=26
+-			}
+- 
+-			{
+ 				to=25
+ 				length=35
+ 				bridge=yes
+@@ -91434,673 +91332,23 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=24.3432
+-				y=-96.87065
+-				origin=16
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=506
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		508=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=23
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Lin-Tigr"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="III"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=-100.47345
+-				y=30.8553
+-				origin=16
+-				randomized=no
+-			}
+-			orbit=105
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-			deposits=
+-			{
+-				418 
+-			}
+-		}
+-		509=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=12
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Lin-Tigr"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="IV"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=125.535
+-				y=1.25625
+-				origin=16
+-				randomized=no
+-			}
+-			orbit=125
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				510 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		510=
+-		{
+-			planet_class="pc_toxic"
+-			planet_size=9
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Lin-Tigr"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="IV"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=140.46045
+-				y=3.09585
+-				origin=16
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=509
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=3
+-		}
+-		511=
+-		{
+-			planet_class="pc_k_star"
+-			planet_size=28
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_3"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-25.11325
+-				y=0
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=25
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			megastructures=
+-			{
+-				1 
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				419 
+-			}
+-		}
+-		512=
+-		{
+-			planet_class="pc_f_star"
+-			planet_size=25
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_2_OF_3"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=14.88684
+-				y=-25.77721
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=29.76
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				420 
+-			}
+-		}
+-		513=
+-		{
+-			planet_class="pc_g_star"
+-			planet_size=30
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_3_OF_3"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=17.72332
+-				y=30.7459
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=35.48
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				421 
+-			}
+-		}
+-		514=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=26
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-91.30818
+-				y=42.04585
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=100.48
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				515 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		515=
+-		{
+-			planet_class="pc_molten"
+-			planet_size=12
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Trabano"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="I"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=-77.80833
+-				y=35.4937
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=514
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="mineral_poor"
+-						days=-1
+-					}
+- 
+-				}
+-			}
+-			planet_modifier="pm_mineral_poor"
+-			entity=1
+-		}
+-		516=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=24
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="II"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=67.48205
+-				y=99.82852
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=120.48
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="carbon_world"
+-						days=-1
+-					}
+- 
+-				}
+-			}
+-			planet_modifier="pm_carbon_world"
+-			entity=2
+-		}
+-		517=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=22
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="III"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=83.61931
+-				y=-112.90096
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=140.48
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		518=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=21
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="IV"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=-44.79799
+-				y=154.28386
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=160.48
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				519 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-			deposits=
+-			{
+-				422 
+-			}
+-		}
+-		519=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=9
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Trabano"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="IV"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=-35.78809
+-				y=142.28941
+-				origin=17
++				x=24.3432
++				y=-96.87065
++				origin=16
+ 				randomized=no
+ 			}
+ 			orbit=15
+ 			last_bombardment=			"0.01.01"
+-			moon_of=518
++			moon_of=506
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				423 
+-			}
++			entity=2
+ 		}
+-		520=
++		508=
+ 		{
+-			planet_class="pc_barren"
++			planet_class="pc_gas_giant"
+ 			planet_size=23
+ 			carrier_binary_flags=3
+ 			name=
+@@ -92113,7 +91361,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Trabano"
++							key="Lin-Tigr"
+ 						}
+ 					}
+  
+@@ -92121,154 +91369,37 @@
+ 						key="NUMERAL"
+ 						value=
+ 						{
+-							key="V"
++							key="III"
+ 							literal=yes
+ 						}
+ 					}
+  
+ 				}
+ 			}
++			binary_flags=320
+ 			coordinate=
+ 			{
+-				x=158.81518
+-				y=-85.84531
+-				origin=17
++				x=-100.47345
++				y=30.8553
++				origin=16
+ 				randomized=no
+ 			}
+-			orbit=180.48
++			orbit=105
+ 			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				521 
+-			}
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=1
++			entity=2
+ 			deposits=
+ 			{
+-				424 
++				418 
+ 			}
+ 		}
+-		521=
++		509=
+ 		{
+ 			planet_class="pc_barren_cold"
+-			planet_size=7
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Trabano"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="V"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=162.30838
+-				y=-71.23576
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=520
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		522=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=24
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VI"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=4.2201
+-				y=201.26187
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=200.48
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=3
+-		}
+-		523=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=13
++			planet_size=12
+ 			carrier_binary_flags=1
+ 			name=
+ 			{
+@@ -92280,7 +91411,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Trabano"
++							key="Lin-Tigr"
+ 						}
+ 					}
+  
+@@ -92288,7 +91419,7 @@
+ 						key="NUMERAL"
+ 						value=
+ 						{
+-							key="VII"
++							key="IV"
+ 							literal=yes
+ 						}
+ 					}
+@@ -92297,16 +91428,16 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=98.51707
+-				y=-197.33621
+-				origin=17
++				x=125.535
++				y=1.25625
++				origin=16
+ 				randomized=no
+ 			}
+-			orbit=220.48
++			orbit=125
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+-				524 
++				510 
+ 			}
+ 			planet_orbitals=
+ 			{
+@@ -92314,10 +91445,10 @@
+ 			bombardment_damage=0
+ 			entity=2
+ 		}
+-		524=
++		510=
+ 		{
+-			planet_class="pc_frozen"
+-			planet_size=6
++			planet_class="pc_toxic"
++			planet_size=9
+ 			carrier_binary_flags=1
+ 			name=
+ 			{
+@@ -92337,7 +91468,7 @@
+ 									key="PARENT"
+ 									value=
+ 									{
+-										key="Trabano"
++										key="Lin-Tigr"
+ 									}
+ 								}
+  
+@@ -92345,7 +91476,7 @@
+ 									key="NUMERAL"
+ 									value=
+ 									{
+-										key="VII"
++										key="IV"
+ 										literal=yes
+ 									}
+ 								}
+@@ -92368,116 +91499,36 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=103.60177
+-				y=-211.46021
+-				origin=17
++				x=140.46045
++				y=3.09585
++				origin=16
+ 				randomized=no
+ 			}
+ 			orbit=15
+ 			last_bombardment=			"0.01.01"
+-			moon_of=523
++			moon_of=509
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=2
+-		}
+-		525=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=24
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VIII"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=-239.55655
+-				y=27.42914
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=240.48
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		526=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=22
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Trabano"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="IX"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=208.4413
+-				y=156.25413
+-				origin=17
+-				randomized=no
+-			}
+-			orbit=260.48
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-			deposits=
+-			{
+-				425 
+-			}
++			entity=3
+ 		}
++		511=none
++		512=none
++		513=none
++		514=none
++		515=none
++		516=none
++		517=none
++		518=none
++		519=none
++		520=none
++		521=none
++		522=none
++		523=none
++		524=none
++		525=none
++		526=none
+ 		527=
+ 		{
+ 			planet_class="pc_k_star"
+@@ -1037807,24 +1036858,6 @@
+ 		}
+ 		planet=4294967295
+ 		bypass=0
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
+-	1=
+-	{
+-		type="mega_art_installation_ruined"
+-		coordinate=
+-		{
+-			x=-26.11778
+-			y=0
+-			origin=17
+-			randomized=no
+-		}
+-		planet=511
+ 		orbitals=
+ 		{
+ 		}
+@@ -1037832,6 +1036865,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
++	1=none
+ 	2=
+ 	{
+ 		type="interstellar_assembly_ruined"
+@@ -1042548,7 +1041582,7 @@
+ 		radius=120
+ 		objects=
+ 		{
+-			1 3 9 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 
++			1 3 9 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 
+ 		}
+ 	}
+  
+@@ -1042580,7 +1041614,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			1 3 9 17 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 13 14 18 20 36 42 60 63 79 95 102 103 106 108 110 129 150 166 167 169 176 182 189 204 215 227 264 272 279 281 282 290 292 298 308 324 335 337 340 341 347 362 367 372 381 382 386 391 395 396 428 430 435 463 472 483 492 496 540 556 561 580 594 
++			1 3 9 25 27 34 50 78 81 84 86 96 99 100 121 142 155 162 173 174 178 190 209 222 228 270 286 287 306 320 322 327 328 358 360 370 390 393 399 406 417 422 439 452 454 457 469 474 478 504 512 518 523 533 537 565 573 582 13 14 18 20 36 42 60 63 79 95 102 103 106 108 110 129 150 166 167 169 176 182 189 204 215 227 264 272 279 281 282 290 292 298 308 324 335 337 340 341 347 362 367 372 381 382 386 391 395 396 428 430 435 463 472 483 492 496 540 556 561 580 594 
+ 		}
+ 	}
+  
+@@ -1042676,7 +1041710,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			1 2 3 4 5 9 17 25 27 34 39 40 55 62 67 69 73 78 80 81 84 86 89 93 96 99 100 121 142 155 162 173 174 178 180 188 190 191 194 196 206 211 222 228 229 247 249 268 269 270 276 286 289 300 306 312 320 322 327 348 354 358 366 370 390 393 394 399 402 406 417 422 426 452 454 457 461 465 474 478 497 511 512 515 517 523 530 531 533 537 551 565 573 575 582 585 597 
++			1 2 3 4 5 9 25 27 34 39 40 55 62 67 69 73 78 80 81 84 86 89 93 96 99 100 121 142 155 162 173 174 178 180 188 190 191 194 196 206 211 222 228 229 247 249 268 269 270 276 286 289 300 306 312 320 322 327 348 354 358 366 370 390 393 394 399 402 406 417 422 426 452 454 457 461 465 474 478 497 511 512 515 517 523 530 531 533 537 551 565 573 575 582 585 597 
+ 		}
+ 	}

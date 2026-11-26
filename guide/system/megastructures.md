@@ -212,12 +212,14 @@ Galaxy Forge asks first, and one undo puts it all back.
 
 - The modifiers and deposits it added go with it, as when it is
   dismantled in the game. Load the game data first, or they stay.
-- Relay and gateway links go with it.
+- Its links go with it, such as a Hyper Relay's, a gateway's, an L-Gate's
+  or a quantum catapult's.
 - Its planet always stays, with any colony, and can take a new
   megastructure, such as a new Orbital Ring in place of a ruined one.
 - Anything else it did stays. Planets a Dyson Sphere froze stay frozen.
 
-An L-Gate the save already had can't be deleted, and the menu says why.
+You can delete an L-Gate or a quantum catapult the save already had on
+its own, the same way.
 
 ## Delete a ring world
 

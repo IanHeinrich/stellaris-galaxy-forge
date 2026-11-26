@@ -15,12 +15,14 @@ use crate::format::save::alloc::{TableEnd, next_id};
 use crate::format::save::galaxy::bypasses::{
     NATURAL, NaturalWormhole, natural_wormholes, shared_slots,
 };
+use crate::format::save::system_statement;
 use crate::format::save::write::id_list::{Emptied, append, unlist};
 use crate::format::save::write::place;
+use crate::format::save::write::restore::{Gone, Saved};
 use crate::format::save::write::wormhole::WORMHOLE;
 use crate::keys;
 use crate::ops::rules::named;
-use crate::ops::{Emitted, Op, OpError, PairPoints, Plan, Planned, Subject};
+use crate::ops::{Emitted, Op, OpError, PairPoints, Plan, Planned, SavedTable, Subject};
 use crate::projections::geometry::point;
 use crate::session::Session;
 
@@ -225,6 +227,39 @@ fn outside(plan: &mut Plan, s: &Session, id: u32, angle: f64) -> Result<(f64, f6
         .parse()
         .map_err(|_| edit.parse_error(span.start, "inner_radius is not a number"))?;
     Ok(point((0.0, 0.0), radius + PAST_INNER_RADIUS, angle))
+}
+
+/// Empty one end's `natural_wormholes` and `bypasses` rows, keeping each in `saved`, and take
+/// their ids out of its system's lists unless `gone` takes the system. The rows are emptied
+/// rather than erased, so that the inverse writes them back where they stood.
+pub(crate) fn empty_end(
+    plan: &mut Plan,
+    s: &Session,
+    saved: &mut Saved,
+    end: &NaturalWormhole,
+    gone: Gone,
+) -> Result<(), OpError> {
+    let doc = &s.doc;
+    saved.keep(doc, SavedTable::NaturalWormhole, end.id, end.anchor)?;
+    plan.replace(doc, Subject::Record(end.anchor), end.anchor, Vec::new())?;
+    if let Some(bypass) = row(doc, Table::Bypass, end.bypass)? {
+        saved.keep(doc, SavedTable::Bypass, end.bypass, bypass.anchor)?;
+        plan.replace(
+            doc,
+            Subject::Record(bypass.anchor),
+            bypass.anchor,
+            Vec::new(),
+        )?;
+    }
+    if gone.system == Some(end.system) {
+        return Ok(());
+    }
+    let anchor = system_statement(doc, end.system).ok_or(OpError::UnknownSystem(end.system))?;
+    saved.keep(doc, SavedTable::System, end.system, anchor)?;
+    let edit = plan.edit(doc, end.system)?;
+    unlist(edit, keys::NATURAL_WORMHOLES, &[end.id], Emptied::Drop)?;
+    unlist(edit, keys::BYPASSES, &[end.bypass], Emptied::Drop)?;
+    Ok(())
 }
 
 /// Erase one end's `natural_wormholes` and `bypasses` entries, and take their ids out of

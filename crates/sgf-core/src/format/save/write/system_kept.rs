@@ -1,168 +1,156 @@
-//! Why a system the file held is not deleted: it holds something, or something else in the
-//! save names it or a planet in it, that no deletion has been tried with in game.
-
-use memchr::memmem::Finder;
+//! Why a system the file held is not deleted: an empire's capital or starting system is in
+//! it, or it holds a row added since the file was opened, which undo could not put back.
 
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows_containing, rows_where};
-use crate::format::save::dig_sites::{self, PLANET_LOCATION};
-use crate::format::save::event_targets;
-use crate::format::save::galaxy::bypasses::natural_wormholes;
+use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
 use crate::format::save::write::fleets::present_fleets;
 use crate::format::save::write::megastructure_links::MEGASTRUCTURES;
-use crate::format::save::write::teardown::{some_id, some_ids};
+use crate::format::save::write::restore::IdLines;
+use crate::format::save::write::teardown::{StarbaseTeardown, some_id, some_ids};
 use crate::format::save::{entity, planet_entity, system_statement};
 use crate::keys;
-use crate::ops::{EventTargetOf, OpError, Subject};
+use crate::ops::{OpError, Subject};
 use crate::projections::read;
 use crate::scan::{self, Value};
 use crate::session::Session;
 
-const OWNED: &str = "it has an owner";
-const STARBASE: &str = "it has a starbase";
-const COLONY: &str = "it has a colony";
-const FLEET: &str = "it has a fleet in it";
-const BYPASS: &str = "it has a wormhole, gateway or other bypass";
-const MEGASTRUCTURE: &str = "it has a megastructure";
-const STORM: &str = "a cosmic storm is on it or has it on its path";
-const RIFT: &str = "it has an astral rift";
-const AURA: &str = "it has a psionic aura";
+/// The `type` of a pre-FTL country, which goes with its homeworld.
+pub(crate) const PRIMITIVE: &str = "primitive";
+
+const CAPITAL: &str = "it holds an empire's capital";
+const ADDED_WORMHOLE: &str =
+    "it has a wormhole added since the file was opened, so remove the wormhole first";
+const ADDED_MEGASTRUCTURE: &str =
+    "it has a megastructure added since the file was opened, so remove it first";
 const START: &str = "it is an empire's starting system";
-const SITE: &str = "it has a dig site";
-const ANOMALY: &str = "a country has found an anomaly in it";
-const TARGET: &str = "a saved event target names it or something in it";
-const COURSE: &str = "a fleet outside it has it in its course, its orders or its past";
+/// The starbase `type` of a nomad empire's capital arkship.
+const CAPITAL_ARKSHIP: &str = "sarkship_capital";
+
+/// Why a system is kept.
+enum Kept {
+    /// Deleting it would leave the save broken, or undo could not put it back.
+    Refused(&'static str),
+    /// No deletion of a system holding it has been tried in game.
+    Untried(&'static str),
+}
 
 /// Refuse the deletion of system `system`, whose planets are `planets`.
 pub(crate) fn check(s: &Session, system: u32, planets: &[u32]) -> Result<(), OpError> {
-    match holds(s, system, planets)? {
-        Some(holds) => Err(OpError::SystemKept {
-            system,
-            reason: format!("{holds}, and that hasn't been tested in game"),
-        }),
-        None => Ok(()),
-    }
+    let reason = match holds(s, system, planets)? {
+        Some(Kept::Refused(reason)) => reason.to_owned(),
+        Some(Kept::Untried(reason)) => format!("{reason}, and that hasn't been tested in game"),
+        None => return Ok(()),
+    };
+    Err(OpError::SystemKept { system, reason })
 }
 
 /// What system `system` holds, or what names it, that keeps it.
-fn holds(s: &Session, system: u32, planets: &[u32]) -> Result<Option<&'static str>, OpError> {
+fn holds(s: &Session, system: u32, planets: &[u32]) -> Result<Option<Kept>, OpError> {
     let doc = &s.doc;
-    let held = s.graph.systems.get(&system);
     let anchor = system_statement(doc, system).ok_or(OpError::UnknownSystem(system))?;
     let (node, src) = entity(doc, Subject::System(system), anchor)?;
-    let owner = held.and_then(|system| system.owner);
-    if owner.is_some() || some_id(&node, keys::SECTOR, src).is_some() {
-        return Ok(Some(OWNED));
+    let colonies = colonies(doc, planets)?;
+    if capitals(doc, &colonies)?
+        .iter()
+        .any(|&(_, primitive)| !primitive)
+        || holds_capital_arkship(s, system, &some_ids(&node, keys::STARBASES, src))?
+    {
+        return Ok(Some(Kept::Refused(CAPITAL)));
     }
-    if !some_ids(&node, keys::STARBASES, src).is_empty() {
-        return Ok(Some(STARBASE));
+    let naturals = natural_wormholes(doc, &s.graph.systems)?;
+    let added = |id| doc.added().get(NATURAL, id).is_some();
+    if naturals
+        .iter()
+        .any(|end| end.system == system && added(end.id))
+    {
+        return Ok(Some(Kept::Refused(ADDED_WORMHOLE)));
     }
-    for &planet in planets {
-        let (planet, src) = planet_entity(doc, planet)?;
-        if read::scalar(&planet, keys::COLONY, src).is_some() {
-            return Ok(Some(COLONY));
-        }
-    }
-    if !present_fleets(s, system)?.is_empty() {
-        return Ok(Some(FLEET));
-    }
-    let listed = held.is_some_and(|system| !system.bypass_ids.is_empty());
-    // A pair added this session is in no system's `bypasses` until the game loads it.
-    let mut naturals = natural_wormholes(doc, &s.graph.systems)?.into_iter();
-    if listed || naturals.any(|wormhole| wormhole.system == system) {
-        return Ok(Some(BYPASS));
-    }
-    if holds_megastructure(doc, system, &node, src)? {
-        return Ok(Some(MEGASTRUCTURE));
-    }
-    if some_id(&node, keys::STORM, src).is_some() || stormed(doc, system)? {
-        return Ok(Some(STORM));
-    }
-    if !some_ids(&node, keys::ASTRAL_RIFTS, src).is_empty() || rifted(doc, system)? {
-        return Ok(Some(RIFT));
-    }
-    if some_id(&node, keys::PSIONIC_AURA, src).is_some() || in_aura(doc, system)? {
-        return Ok(Some(AURA));
+    let rows = system_rows(doc, system, &node, src)?;
+    if rows
+        .iter()
+        .any(|&id| doc.added().get(MEGASTRUCTURES, id).is_some())
+    {
+        return Ok(Some(Kept::Refused(ADDED_MEGASTRUCTURE)));
     }
     if starts_an_empire(doc, system) {
-        return Ok(Some(START));
-    }
-    let sites = dig_sites::sites(doc)?;
-    let dug = |site: &dig_sites::DigSite| site.planet.is_some_and(|p| planets.contains(&p));
-    if sites.iter().any(|(_, site)| dug(site)) {
-        return Ok(Some(SITE));
-    }
-    if planets.iter().any(|&p| !doc.anomaly_finders(p).is_empty()) {
-        return Ok(Some(ANOMALY));
-    }
-    if targeted(doc, system, planets)? {
-        return Ok(Some(TARGET));
-    }
-    if named_by_a_fleet(doc, system, planets)? {
-        return Ok(Some(COURSE));
+        return Ok(Some(Kept::Untried(START)));
     }
     Ok(None)
 }
 
-/// Whether system `system`, whose entry is `node`, lists a megastructure or a live row
-/// stands in it.
-fn holds_megastructure(
+/// Whether a nomad empire's capital arkship stands in system `system`: one of its listed
+/// `starbases`, or a starbase whose station's fleet is in its `fleet_presence`.
+fn holds_capital_arkship(s: &Session, system: u32, starbases: &[u32]) -> Result<bool, OpError> {
+    let doc = &s.doc;
+    let mut found = Vec::new();
+    for &id in starbases {
+        found.extend(StarbaseTeardown::read(doc, id)?);
+    }
+    for fleet in present_fleets(s, system)? {
+        found.extend(StarbaseTeardown::of_fleet(doc, fleet)?);
+    }
+    Ok(found
+        .iter()
+        .any(|starbase| starbase.kind == CAPITAL_ARKSHIP))
+}
+
+/// The colonies on `planets`.
+fn colonies(doc: &Document, planets: &[u32]) -> Result<Vec<u32>, OpError> {
+    let mut colonies = Vec::new();
+    for &planet in planets {
+        let (node, src) = planet_entity(doc, planet)?;
+        colonies.extend(some_id(&node, keys::COLONY, src));
+    }
+    Ok(colonies)
+}
+
+/// The countries whose `capital` is one of `colonies`, each with whether it is pre-FTL.
+pub(crate) fn capitals(doc: &Document, colonies: &[u32]) -> Result<Vec<(u32, bool)>, OpError> {
+    if colonies.is_empty() {
+        return Ok(Vec::new());
+    }
+    let lines = IdLines::new(keys::CAPITAL, colonies);
+    let countries = rows_where(doc, Table::Entity(EntityKind::Country), |bytes| {
+        lines.found_in(bytes)
+    })?;
+    Ok(countries
+        .iter()
+        .filter(|country| {
+            some_id(&country.node, keys::CAPITAL, country.src)
+                .is_some_and(|c| colonies.contains(&c))
+        })
+        .map(|country| {
+            let kind = read::text(&country.node, keys::TYPE, country.src);
+            (country.id, kind == PRIMITIVE)
+        })
+        .collect())
+}
+
+/// The live `megastructures` rows of system `system`, whose entry is `node`: those its list
+/// names and those whose origin is the system.
+pub(crate) fn system_rows(
     doc: &Document,
     system: u32,
     node: &Node,
     src: &[u8],
-) -> Result<bool, OpError> {
-    if !some_ids(node, keys::MEGASTRUCTURES, src).is_empty() {
-        return Ok(true);
+) -> Result<Vec<u32>, OpError> {
+    let mut ids: Vec<u32> = Vec::new();
+    for id in some_ids(node, keys::MEGASTRUCTURES, src) {
+        if row(doc, MEGASTRUCTURES, id)?.is_some() {
+            ids.push(id);
+        }
     }
     // A row's origin is written in decimal, so a row without the system's digits is not there.
     let digits = system.to_string();
-    Ok(rows_containing(doc, MEGASTRUCTURES, digits.as_bytes())?
-        .iter()
-        .any(|row| read::origin(&row.node, row.src) == Some(system)))
-}
-
-/// Whether any row of the table `inner` in the top-level `section`, which no op writes,
-/// answers `test`.
-fn any_row(
-    doc: &Document,
-    section: &'static str,
-    inner: &str,
-    test: impl Fn(&Node, &[u8]) -> bool,
-) -> Result<bool, OpError> {
-    let Some(found) = doc.index().section(section) else {
-        return Ok(false);
-    };
-    let src = doc.original();
-    let root = read::section_node(section, found, src)?;
-    let table = root.find(inner, src);
-    Ok(table.is_some_and(|table| table.children().iter().any(|row| test(row, src))))
-}
-
-/// Whether a cosmic storm lists the system in its cluster or on its path.
-fn stormed(doc: &Document, system: u32) -> Result<bool, OpError> {
-    any_row(doc, keys::STORMS, keys::STORMS, |storm, src| {
-        let cluster = storm.find(keys::CLUSTER, src);
-        cluster.is_some_and(|c| read::ids(c, keys::OBJECTS, src).contains(&system))
-            || read::ids(storm, keys::PATH, src).contains(&system)
-    })
-}
-
-fn rifted(doc: &Document, system: u32) -> Result<bool, OpError> {
-    any_row(doc, keys::ASTRAL_RIFTS, keys::RIFTS, |rift, src| {
-        read::origin(rift, src) == Some(system)
-    })
-}
-
-fn in_aura(doc: &Document, system: u32) -> Result<bool, OpError> {
-    any_row(
-        doc,
-        keys::PSIONIC_AURAS,
-        keys::PSIONIC_AURAS,
-        |aura, src| read::scalar_u32(aura, keys::SYSTEM, src) == Some(system),
-    )
+    for found in rows_containing(doc, MEGASTRUCTURES, digits.as_bytes())? {
+        if read::origin(&found.node, found.src) == Some(system) && !ids.contains(&found.id) {
+            ids.push(found.id);
+        }
+    }
+    Ok(ids)
 }
 
 /// Whether a country's `starting_system`, which no op writes, is the system.
@@ -177,79 +165,3 @@ fn starts_an_empire(doc: &Document, system: u32) -> bool {
         matches!(start, Some(Value::Scalar(id)) if id.slice(src) == system.to_string().as_bytes())
     })
 }
-
-/// Whether a global event target is the system, a planet in it or an ambient object in it.
-fn targeted(doc: &Document, system: u32, planets: &[u32]) -> Result<bool, OpError> {
-    for (_, target) in event_targets::targets(doc) {
-        let named = match target.target {
-            Some(EventTargetOf::System { system: named }) => named == system,
-            Some(EventTargetOf::Body { body }) => planets.contains(&body),
-            Some(EventTargetOf::Country { .. }) | None => false,
-        };
-        if named {
-            return Ok(true);
-        }
-        if let Some(object) = target.ambient_object
-            && let Some(object) = row(doc, Table::AmbientObject, object)?
-            && read::origin(&object.node, object.src) == Some(system)
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// Whether a fleet's entry names the system or a planet in it. Fleets standing in the system
-/// are in its `fleet_presence`, so any found here is elsewhere.
-fn named_by_a_fleet(doc: &Document, system: u32, planets: &[u32]) -> Result<bool, OpError> {
-    // Ids are written in decimal, so a fleet with none of their digits names none of them.
-    let digits: Vec<String> = std::iter::once(&system)
-        .chain(planets)
-        .map(u32::to_string)
-        .collect();
-    let finders: Vec<Finder> = digits.iter().map(|id| Finder::new(id.as_bytes())).collect();
-    let fleets = rows_where(doc, Table::Entity(EntityKind::Fleet), |bytes| {
-        finders.iter().any(|finder| finder.find(bytes).is_some())
-    })?;
-    Ok(fleets
-        .iter()
-        .any(|fleet| names(&fleet.node, fleet.src, system, planets)))
-}
-
-/// Whether the block `node` of a fleet's entry, or any block in it, names the system or a
-/// planet in it: as the `origin` of a coordinate, the `to` of the last jump, a `planet`, the
-/// planet the fleet moves to by itself, or the `id` of a target of a planet's type. The
-/// scopes a fleet's script runs in are left out, since the game looks those up as it uses
-/// them.
-fn names(node: &Node, src: &[u8], system: u32, planets: &[u32]) -> bool {
-    node.children().iter().any(|child| {
-        let Some(key) = child.key_str(src) else {
-            return false;
-        };
-        let Some(id) = child.scalar_str(src) else {
-            return key != keys::SCOPE && names(child, src, system, planets);
-        };
-        let Ok(id) = id.parse::<u32>() else {
-            return false;
-        };
-        match key {
-            keys::ORIGIN | keys::TO => id == system,
-            keys::PLANET => planets.contains(&id),
-            keys::AUTO_MOVE_TARGET => {
-                planets.contains(&id)
-                    && read::scalar(node, keys::TYPE, src) == Some(AUTO_MOVE_PLANET)
-            }
-            keys::ID => {
-                let kind = read::scalar(node, keys::TYPE, src);
-                planets.contains(&id)
-                    && (kind == Some(PLANET_LOCATION) || kind == Some(PLANET_HOLDER))
-            }
-            _ => false,
-        }
-    })
-}
-
-/// `auto_movement.type` of a fleet on its way to a planet by itself.
-const AUTO_MOVE_PLANET: &str = "auto_move_planet";
-/// `deposit_holder.type` of an order on a planet's deposits.
-const PLANET_HOLDER: &str = "0";

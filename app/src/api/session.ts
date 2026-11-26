@@ -76,6 +76,11 @@ export function checkOp(op: Op): Promise<string | null> {
   return invoke<string | null>("check_op", { op });
 }
 
+/** What the history would say of `op`: the `describe_op` command. Rejects with the refusal, as `check_op` words it. */
+export function describeOp(op: Op): Promise<string> {
+  return invoke<string>("describe_op", { op });
+}
+
 /** Apply one edit to the session. Rejects with `SgfError` (kind `op`) when a precondition fails. */
 export function applyOp(op: Op): Promise<EditResult> {
   return invoke<EditResult>("apply_op", { op });

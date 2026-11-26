@@ -123,22 +123,42 @@ pub(crate) fn statement(indent: &[u8], key: &str, ids: &[u32]) -> String {
     inline(indent, &w.into_bytes())
 }
 
-/// The system's `planet=` statements naming one of `ids`.
-fn planet_statements(edit: &Edit, ids: &[u32]) -> Result<Vec<Span>, OpError> {
-    let entity = edit.entity()?;
-    Ok(entity
-        .find_all(keys::PLANET, &edit.buf)
-        .filter(|n| {
-            n.scalar_str(&edit.buf)
-                .and_then(|t| t.parse().ok())
-                .is_some_and(|id: u32| ids.contains(&id))
-        })
+/// The `key` statements of `block` whose id, as `id_of` reads it, is one of `ids`.
+pub(crate) fn statements_naming(
+    block: &Node,
+    src: &[u8],
+    key: &str,
+    ids: &[u32],
+    id_of: impl Fn(&Node, &[u8]) -> Option<u32>,
+) -> Vec<Span> {
+    block
+        .find_all(key, src)
+        .filter(|statement| id_of(statement, src).is_some_and(|id| ids.contains(&id)))
         .map(Node::span)
-        .collect())
+        .collect()
+}
+
+/// Take out each `key` statement of `block` whose id, as `id_of` reads it, is one of `ids`.
+pub(crate) fn drop_statements_naming(
+    edit: &mut Edit,
+    block: &Node,
+    key: &str,
+    ids: &[u32],
+    id_of: impl Fn(&Node, &[u8]) -> Option<u32>,
+) {
+    for span in statements_naming(block, &edit.buf, key, ids, id_of) {
+        edit.bytes().remove_statement(span);
+    }
+}
+
+/// The id a statement such as `leader=12` holds.
+pub(crate) fn own_id(statement: &Node, src: &[u8]) -> Option<u32> {
+    statement.scalar_str(src)?.parse().ok()
 }
 
 pub(crate) fn unlist_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
-    for span in planet_statements(edit, ids)? {
+    let spans = statements_naming(edit.entity()?, &edit.buf, keys::PLANET, ids, own_id);
+    for span in spans {
         edit.require_alone_on_line(span, "a planet statement")?;
         edit.bytes().remove_lines(span);
     }

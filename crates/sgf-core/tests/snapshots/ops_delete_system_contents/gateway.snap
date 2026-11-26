@@ -1,0 +1,1223 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted Aruz #32 and 4 lanes, with 1 megastructure
+inverse: RestoreEntities "Restored Aruz #32 and 4 lanes"
+  System 32 (948 bytes)
+  System 90 (875 bytes)
+  System 252 (717 bytes)
+  System 345 (823 bytes)
+  System 447 (866 bytes)
+  Planet 655 (464 bytes)
+  Planet 656 (542 bytes)
+  Planet 657 (545 bytes)
+  Planet 658 (739 bytes)
+  Planet 659 (868 bytes)
+  Planet 660 (581 bytes)
+  Planet 661 (897 bytes)
+  Planet 662 (600 bytes)
+  Planet 663 (732 bytes)
+  Planet 664 (869 bytes)
+  Planet 665 (548 bytes)
+  Planet 666 (550 bytes)
+  Planet 667 (573 bytes)
+  Planet 668 (602 bytes)
+  Megastructure 3 (247 bytes)
+  Bypass 2 (174 bytes)
+  Bypass 3 (174 bytes)
+  Bypass 4 (174 bytes)
+  Clusters 0 (5538 bytes)
+
+--- gamestate
++++ gamestate
+@@ -21017,89 +21017,7 @@
+ 		index=49
+ 		storm=4294967295
+ 	}
+-	32=
+-	{
+-		coordinate=
+-		{
+-			x=53.6
+-			y=321.05
+-			origin=4294967295
+-			randomized=yes
+-			visual_height=3.65056
+-		}
+-		name=
+-		{
+-			key="Aruz"
+-		}
+-		planet=655
+-		planet=656
+-		planet=657
+-		planet=658
+-		planet=659
+-		planet=660
+-		planet=661
+-		planet=662
+-		planet=663
+-		planet=664
+-		planet=665
+-		planet=666
+-		planet=667
+-		planet=668
+-		megastructures=
+-		{
+-			3 
+-		}
+-		star_class="sc_m_giant"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=447
+-				length=36
+-			}
+- 
+-			{
+-				to=90
+-				length=30
+-			}
+- 
+-			{
+-				to=252
+-				length=30
+-			}
+- 
+-			{
+-				to=345
+-				length=27
+-			}
+- 
+-		}
+-		bypasses=
+-		{
+-			2 
+-		}
+-		flags=
+-		{
+-			abandoned_gateway=62808000
+-			galactic_landmark_system=62808000
+-			precursor_inetian=62808000
+-			resource_region_rare_crystals_rich=62808000
+-		}
+-		initializer="abandoned_gateways_01"
+-		inner_radius=275
+-		outer_radius=375
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=62
+-		storm_influence_fields=
+-		{
+-			0 
+-		}
+-		storm=4294967295
+-	}
++	32=none
+ 	33=
+ 	{
+ 		coordinate=
+@@ -25082,11 +25000,6 @@
+ 				length=34
+ 			}
+  
+-			{
+-				to=32
+-				length=30
+-			}
+- 
+ 		}
+ 		flags=
+ 		{
+@@ -36091,11 +36004,6 @@
+ 			}
+  
+ 			{
+-				to=32
+-				length=30
+-			}
+- 
+-			{
+ 				to=557
+ 				length=27
+ 				bridge=yes
+@@ -42420,11 +42328,6 @@
+ 			{
+ 				to=447
+ 				length=32
+-			}
+- 
+-			{
+-				to=32
+-				length=27
+ 			}
+  
+ 		}
+@@ -49205,11 +49108,6 @@
+ 		{
+ 			
+ 			{
+-				to=32
+-				length=36
+-			}
+- 
+-			{
+ 				to=90
+ 				length=34
+ 			}
+@@ -98973,666 +98871,25 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=114.63619
+-				y=-254.79584
+-				origin=31
+-				randomized=no
+-			}
+-			orbit=20.28
+-			last_bombardment=			"0.01.01"
+-			moon_of=651
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		653=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=8
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Guwartan"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="III"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="b"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=127.66437
+-				y=-285.77299
+-				origin=31
+-				randomized=no
+-			}
+-			orbit=44.92
+-			last_bombardment=			"0.01.01"
+-			moon_of=651
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-			deposits=
+-			{
+-				534 
+-			}
+-		}
+-		654=
+-		{
+-			planet_class="pc_nuked"
+-			planet_size=14
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Guwartan"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="III"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="c"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=163.47524
+-				y=-305.10613
+-				origin=31
+-				randomized=no
+-			}
+-			orbit=72.92
+-			last_bombardment=			"0.01.01"
+-			moon_of=651
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			flags=
+-			{
+-				ancient_history_planet=62808000
+-			}
+-			entity=0
+-			deposits=
+-			{
+-				535 536 537 538 539 540 541 542 543 
+-			}
+-		}
+-		655=
+-		{
+-			planet_class="pc_m_giant_star"
+-			planet_size=26
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				544 
+-			}
+-		}
+-		656=
+-		{
+-			planet_class="pc_molten"
+-			planet_size=28
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=1.352
+-				y=-65.25415
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=65
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		657=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=12
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="II"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-56.16885
+-				y=63.8044
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=85
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		658=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=20
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="III"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-22.62645
+-				y=-102.70155
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=105
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				659 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="carbon_world"
+-						days=-1
+-					}
+- 
+-				}
+-			}
+-			planet_modifier="pm_carbon_world"
+-			entity=2
+-		}
+-		659=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=8
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Aruz"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="III"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=-7.9548
+-				y=-99.46905
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=658
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		660=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=19
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="IV"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-1.57375
+-				y=125.52625
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=125
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				661 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		661=
+-		{
+-			planet_class="pc_toxic"
+-			planet_size=8
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Aruz"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="IV"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=13.4894
+-				y=125.3437
+-				origin=32
++				x=114.63619
++				y=-254.79584
++				origin=31
+ 				randomized=no
+ 			}
+-			orbit=15
++			orbit=20.28
+ 			last_bombardment=			"0.01.01"
+-			moon_of=660
++			moon_of=651
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=1
+-			deposits=
+-			{
+-				545 
+-			}
++			entity=0
+ 		}
+-		662=
++		653=
+ 		{
+ 			planet_class="pc_gas_giant"
+-			planet_size=23
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="V"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=-125.744
+-				y=-72.2738
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=145
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-			deposits=
+-			{
+-				546 
+-			}
+-		}
+-		663=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=19
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VI"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=161.87655
+-				y=-33.36465
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=165
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				664 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="mineral_poor"
+-						days=-1
+-					}
+- 
+-				}
+-			}
+-			planet_modifier="pm_mineral_poor"
+-			entity=0
+-		}
+-		664=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=10
+-			carrier_binary_flags=1
++			planet_size=8
++			carrier_binary_flags=3
+ 			name=
+ 			{
+ 				key="SUBPLANET_NAME_FORMAT"
+@@ -99651,7 +98908,7 @@
+ 									key="PARENT"
+ 									value=
+ 									{
+-										key="Aruz"
++										key="Guwartan"
+ 									}
+ 								}
+  
+@@ -99659,7 +98916,7 @@
+ 									key="NUMERAL"
+ 									value=
+ 									{
+-										key="VI"
++										key="III"
+ 										literal=yes
+ 									}
+ 								}
+@@ -99672,7 +98929,7 @@
+ 						key="NUMERAL"
+ 						value=
+ 						{
+-							key="a"
++							key="b"
+ 							literal=yes
+ 						}
+ 					}
+@@ -99682,73 +98939,32 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=166.4589
+-				y=-19.06695
+-				origin=32
++				x=127.66437
++				y=-285.77299
++				origin=31
+ 				randomized=no
+ 			}
+-			orbit=15
++			orbit=44.92
+ 			last_bombardment=			"0.01.01"
+-			moon_of=663
++			moon_of=651
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=1
+-		}
+-		665=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=15
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VII"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-185.40885
+-				y=9.68845
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=185
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
++			entity=2
++			deposits=
+ 			{
++				534 
+ 			}
+-			bombardment_damage=0
+-			entity=2
+ 		}
+-		666=
++		654=
+ 		{
+-			planet_class="pc_frozen"
+-			planet_size=24
++			planet_class="pc_nuked"
++			planet_size=14
+ 			carrier_binary_flags=1
+ 			name=
+ 			{
+-				key="PLANET_NAME_FORMAT"
++				key="SUBPLANET_NAME_FORMAT"
+ 				variables=
+ 				{
+ 					
+@@ -99756,52 +98972,28 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Aruz"
+-						}
+-					}
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Guwartan"
++									}
++								}
+  
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VIII"
+-							literal=yes
+-						}
+-					}
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="III"
++										literal=yes
++									}
++								}
+  
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=145.61355
+-				y=-144.3159
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=205
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-		}
+-		667=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=22
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
++							}
+ 						}
+ 					}
+  
+@@ -99809,79 +99001,52 @@
+ 						key="NUMERAL"
+ 						value=
+ 						{
+-							key="IX"
++							key="c"
+ 							literal=yes
+ 						}
+ 					}
+  
+ 				}
+ 			}
+-			binary_flags=320
++			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=-162.75825
+-				y=-155.37375
+-				origin=32
++				x=163.47524
++				y=-305.10613
++				origin=31
+ 				randomized=no
+ 			}
+-			orbit=225
++			orbit=72.92
+ 			last_bombardment=			"0.01.01"
++			moon_of=651
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=2
+-		}
+-		668=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=24
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Aruz"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="X"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=320
+-			coordinate=
+-			{
+-				x=169.77765
+-				y=-176.6597
+-				origin=32
+-				randomized=no
+-			}
+-			orbit=245
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
++			flags=
+ 			{
++				ancient_history_planet=62808000
+ 			}
+-			bombardment_damage=0
+-			entity=3
++			entity=0
+ 			deposits=
+ 			{
+-				547 
++				535 536 537 538 539 540 541 542 543 
+ 			}
+ 		}
++		655=none
++		656=none
++		657=none
++		658=none
++		659=none
++		660=none
++		661=none
++		662=none
++		663=none
++		664=none
++		665=none
++		666=none
++		667=none
++		668=none
+ 		669=
+ 		{
+ 			planet_class="pc_b_star"
+@@ -1037843,25 +1037008,6 @@
+ 			randomized=no
+ 		}
+ 		planet=569
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
+-	3=
+-	{
+-		type="gateway_ruined"
+-		coordinate=
+-		{
+-			x=-65.62362
+-			y=333.05871
+-			origin=32
+-			randomized=no
+-		}
+-		planet=4294967295
+-		bypass=2
+ 		orbitals=
+ 		{
+ 		}
+@@ -1037869,6 +1037015,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
++	3=none
+ 	4=
+ 	{
+ 		type="shroud_seal"
+@@ -1038109,30 +1037256,14 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	2=
+-	{
+-		type="gateway"
+-		active=no
+-		connections=
+-		{
+-			3 4 
+-		}
+-		owner=
+-		{
+-			type=6
+-			id=3
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
++	
+ 	3=
+ 	{
+ 		type="gateway"
+ 		active=no
+ 		connections=
+ 		{
+-			2 4 
++			4 
+ 		}
+ 		owner=
+ 		{
+@@ -1038149,7 +1037280,7 @@
+ 		active=no
+ 		connections=
+ 		{
+-			2 3 
++			3 
+ 		}
+ 		owner=
+ 		{
+@@ -1042596,7 +1041727,7 @@
+ 		radius=0
+ 		objects=
+ 		{
+-			6 12 29 32 49 57 64 70 71 83 90 91 92 94 97 109 111 113 115 126 130 134 137 138 145 154 156 157 181 197 208 213 224 225 236 237 238 240 252 254 255 266 275 293 295 310 317 318 323 330 336 343 344 345 349 369 385 408 410 411 412 413 432 437 442 443 445 446 447 459 460 467 471 475 477 484 486 493 494 503 516 519 527 536 538 549 550 557 562 563 581 584 595 
++			6 12 29 49 57 64 70 71 83 90 91 92 94 97 109 111 113 115 126 130 134 137 138 145 154 156 157 181 197 208 213 224 225 236 237 238 240 252 254 255 266 275 293 295 310 317 318 323 330 336 343 344 345 349 369 385 408 410 411 412 413 432 437 442 443 445 446 447 459 460 467 471 475 477 484 486 493 494 503 516 519 527 536 538 549 550 557 562 563 581 584 595 
+ 		}
+ 	}

@@ -131,10 +131,18 @@ pub struct Document {
 }
 
 /// An empty cell for each section [`Document::inner_index`] answers for: those an entity
-/// address is reached through, and `archaeological_sites`, which only a projection reads.
+/// address is reached through, `archaeological_sites`, which only a projection reads, and
+/// the tables a system's deletion takes rows out of.
 fn inner_cells() -> HashMap<&'static str, OnceLock<Option<Index>>> {
     inner_sections()
-        .chain([keys::ARCHAEOLOGICAL_SITES])
+        .chain([
+            keys::ARCHAEOLOGICAL_SITES,
+            keys::COUNCIL_POSITIONS,
+            keys::SITUATIONS,
+            keys::STORMS,
+            keys::PSIONIC_AURAS,
+            keys::ASTRAL_RIFTS,
+        ])
         .map(|name| (name, OnceLock::new()))
         .collect()
 }

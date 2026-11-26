@@ -11,9 +11,9 @@ use crate::format::save::added::{Table, row};
 use crate::format::save::write::add_megastructure;
 use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{
-    self, DELETED_BYPASS_KINDS, Tied, drop_bypass, unlink, unlist_elsewhere,
+    self, DELETED_BYPASS_KINDS, Tied, drop_bypass_beside, unlink_beside, unlist_elsewhere,
 };
-use crate::format::save::write::restore::{Saved, tombstoned};
+use crate::format::save::write::restore::{Gone, Saved, tombstoned};
 use crate::keys;
 use crate::ops::rules::named;
 use crate::ops::{
@@ -55,32 +55,24 @@ pub(crate) fn plan_delete(
     let system = tied
         .system
         .ok_or_else(|| refuse("it isn't in any system".to_owned()))?;
-    let bypass = match tied.bypass {
-        Some(bypass) => match row(doc, Table::Bypass, bypass)? {
-            Some(found) => {
-                let kind = read::text(&found.node, keys::TYPE, found.src);
-                if !DELETED_BYPASS_KINDS.contains(&kind.as_str()) {
-                    return Err(refuse("deleting it hasn't been tested in game".to_owned()));
-                }
-                Some(bypass)
-            }
-            None => None,
-        },
-        None => None,
-    };
+    let bypass = live_bypass(doc, &tied)?;
+    if bypass
+        .as_ref()
+        .is_some_and(|(_, kind)| !DELETED_BYPASS_KINDS.contains(&kind.as_str()))
+    {
+        return Err(refuse("deleting it hasn't been tested in game".to_owned()));
+    }
+    let bypass = bypass.map(|(bypass, _)| bypass);
 
     let mut saved = Saved::default();
-    saved.keep(doc, SavedTable::Megastructure, id, tied.anchor)?;
-    let bytes = tombstoned(doc, tied.anchor, id)?;
-    plan.replace(doc, Subject::Record(tied.anchor), tied.anchor, bytes)?;
-    unlink(plan, s, &tied, Some(&mut saved))?;
-    unlist_elsewhere(plan, s, id, tied.planet, &mut saved)?;
-    if let Some(bypass) = bypass {
-        drop_bypass(plan, s, system, bypass, Some(&mut saved))?;
-    }
-    if tied.save_on_death {
-        log_death(plan, doc, &mut saved, &tied, system)?;
-    }
+    write_rows(
+        plan,
+        s,
+        &mut saved,
+        std::slice::from_ref(&tied),
+        system,
+        Gone::default(),
+    )?;
     let taken = match dismantle {
         Some(dismantle) => {
             dismantle::take_back(plan, s, &mut saved, system, tied.owner, dismantle)?
@@ -102,22 +94,63 @@ pub(crate) fn plan_delete(
     })
 }
 
-/// Log row `tied` in `dead_mega_structure` as the game logs a row it destroys: a `map` line
-/// from its id to a new `objects` entry, in numeric order of the ids, and the entry last in
-/// `objects`, numbered one past the highest there.
-fn log_death(
+/// Row `tied`'s bypass the save holds, with its `type`.
+pub(crate) fn live_bypass(doc: &Document, tied: &Tied) -> Result<Option<(u32, String)>, OpError> {
+    let Some(bypass) = tied.bypass else {
+        return Ok(None);
+    };
+    Ok(row(doc, Table::Bypass, bypass)?
+        .map(|found| (bypass, read::text(&found.node, keys::TYPE, found.src))))
+}
+
+/// Delete `rows` of system `system`, each as the game destroys one: its tombstone, its id out
+/// of the lists that name it, its bypass taken out and its death logged, leaving alone what
+/// `gone` takes whole.
+pub(crate) fn write_rows(
+    plan: &mut Plan,
+    s: &Session,
+    saved: &mut Saved,
+    rows: &[Tied],
+    system: u32,
+    gone: Gone,
+) -> Result<(), OpError> {
+    let doc = &s.doc;
+    for tied in rows {
+        saved.keep(doc, SavedTable::Megastructure, tied.id, tied.anchor)?;
+        let bytes = tombstoned(doc, tied.anchor, tied.id)?;
+        plan.replace(doc, Subject::Record(tied.anchor), tied.anchor, bytes)?;
+    }
+    unlink_beside(plan, s, rows, Some(&mut *saved), gone)?;
+    for tied in rows {
+        unlist_elsewhere(plan, s, tied.id, tied.planet, saved, gone)?;
+        if let Some((bypass, _)) = live_bypass(doc, tied)? {
+            drop_bypass_beside(plan, s, system, bypass, Some(&mut *saved), gone)?;
+        }
+    }
+    let dead: Vec<&Tied> = rows.iter().filter(|tied| tied.save_on_death).collect();
+    log_deaths(plan, doc, saved, &dead, system)
+}
+
+/// Log `rows` in `dead_mega_structure` as the game logs the rows it destroys: a `map` line
+/// from each id to a new `objects` entry, the lines in numeric order of the ids, and the
+/// entries last in `objects`, in the order of `rows`, numbered on from one past the highest
+/// there.
+fn log_deaths(
     plan: &mut Plan,
     doc: &Document,
     saved: &mut Saved,
-    tied: &Tied,
+    rows: &[&Tied],
     system: u32,
 ) -> Result<(), OpError> {
+    let Some(first) = rows.first() else {
+        return Ok(());
+    };
     let anchor = doc
         .index()
         .section(keys::DEAD_MEGA_STRUCTURE)
         .map(|section| Anchor::Original(section.stmt))
         .ok_or_else(|| OpError::MegastructureKept {
-            megastructure: tied.id,
+            megastructure: first.id,
             edit: MegastructureEdit::Delete,
             reason: "the save has no dead_mega_structure table to log it in".to_owned(),
         })?;
@@ -126,23 +159,30 @@ fn log_death(
     let table = edit.entity()?.clone();
     let map = table.find(keys::MAP, &edit.buf).cloned();
     let objects = table.find(keys::OBJECTS, &edit.buf).cloned();
-    let entry = objects.as_ref().map_or(0, |objects| {
+    let next = objects.as_ref().map_or(0, |objects| {
         keyed(objects, &edit.buf)
             .map(|(key, _)| key + 1)
             .max()
             .unwrap_or(0)
     });
-    let line = format!("{}={entry}", tied.id);
-    let object = |indent: &[u8]| {
+    let mut lines: Vec<(u32, u32)> = rows
+        .iter()
+        .zip(next..)
+        .map(|(tied, entry)| (tied.id, entry))
+        .collect();
+    lines.sort_unstable();
+    let entries = |indent: &[u8]| {
         let mut w = crate::emit::Lines::new(indent);
-        w.open(0, &entry.to_string());
-        w.pair(1, keys::TYPE, &crate::emit::quoted(&tied.kind));
-        w.pair(1, keys::SOLAR_SYSTEM, &system.to_string());
-        w.close(0);
+        for (tied, entry) in rows.iter().zip(next..) {
+            w.open(0, &entry.to_string());
+            w.pair(1, keys::TYPE, &crate::emit::quoted(&tied.kind));
+            w.pair(1, keys::SOLAR_SYSTEM, &system.to_string());
+            w.close(0);
+        }
         w.into_bytes()
     };
     match map {
-        Some(map) => log_in_map(edit, &map, tied.id, &line),
+        Some(map) => log_in_map(edit, &map, &lines),
         None => {
             let (at, indent) = match &objects {
                 Some(objects) => {
@@ -153,7 +193,9 @@ fn log_death(
             };
             let mut w = crate::emit::Lines::new(&indent);
             w.open(0, keys::MAP);
-            w.line(1, &line);
+            for (id, entry) in &lines {
+                w.line(1, &format!("{id}={entry}"));
+            }
             w.close(0);
             edit.insert(at, w.into_bytes());
         }
@@ -161,13 +203,13 @@ fn log_death(
     match objects {
         Some(objects) => {
             let (at, indent) = edit.before_close(&objects);
-            edit.insert(at, object(&indent));
+            edit.insert(at, entries(&indent));
         }
         None => {
             let (at, indent) = edit.before_close(&table);
             let mut w = crate::emit::Lines::new(&indent);
             w.open(0, keys::OBJECTS);
-            w.bytes(&object(w.indent(1).as_bytes()));
+            w.bytes(&entries(w.indent(1).as_bytes()));
             w.close(0);
             edit.insert(at, w.into_bytes());
         }
@@ -175,17 +217,27 @@ fn log_death(
     Ok(())
 }
 
-/// Write `line`, row `id`'s `map` line, before the first line of `map` keyed past `id`, or
-/// last.
-fn log_in_map(edit: &mut Edit, map: &Node, id: u32, line: &str) {
-    let next = keyed(map, &edit.buf)
-        .find(|&(key, _)| key > id)
-        .map(|(_, next)| next.span().start);
-    let (at, indent) = match next {
-        Some(next) => (edit.line_start(next), edit.indent(next)),
-        None => edit.before_close(map),
-    };
-    edit.insert(at, [&indent[..], line.as_bytes(), b"\n"].concat());
+/// Write `lines`, `map` lines from an id to an entry in order of the ids, each before the
+/// first line of `map` keyed past its id, or last.
+fn log_in_map(edit: &mut Edit, map: &Node, lines: &[(u32, u32)]) {
+    let mut inserts: Vec<(usize, Vec<u8>)> = Vec::new();
+    for &(id, entry) in lines {
+        let next = keyed(map, &edit.buf)
+            .find(|&(key, _)| key > id)
+            .map(|(_, next)| next.span().start);
+        let (at, indent) = match next {
+            Some(next) => (edit.line_start(next), edit.indent(next)),
+            None => edit.before_close(map),
+        };
+        let line = [&indent[..], format!("{id}={entry}").as_bytes(), b"\n"].concat();
+        match inserts.last_mut() {
+            Some((last, bytes)) if *last == at => bytes.extend(line),
+            _ => inserts.push((at, line)),
+        }
+    }
+    for (at, bytes) in inserts {
+        edit.insert(at, bytes);
+    }
 }
 
 /// The children of `block` keyed by a number, with that number.
