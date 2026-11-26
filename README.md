@@ -152,6 +152,9 @@ a save. Scenarios also let you:
 - Choose what each system spawns using the initializer browser. It lists
   everything defined by your Stellaris installation and enabled mods, and
   shows what each initializer places.
+- Add ruined megastructures, ambient objects such as derelict ships, and
+  system modifiers to a system. Drag a ruin or an ambient object to move
+  it, or type its Distance and Angle.
 - Set spawn points and their weights, and mark hyperlanes that the game
   must never generate.
 - Place marauder clans. On a map for Paint a Galaxy you can also place
@@ -278,7 +281,7 @@ keys.
 | The initializer itself (its star, planets, resources) | shown | shown, never written: initializers belong to the game and mod files |
 | System layout: orbits, belts, rings | editable in the system view | from the initializer |
 | Planets and moons: add, delete, copy, move, rename, resize, class, look | editable | shown, from the initializer |
-| Megastructures, ring worlds included: add, move, delete | editable, at any construction stage or ruined | shown in the system view, from the initializer |
+| Megastructures, ring worlds included: add, move, delete | editable, at any construction stage or ruined | shown in the system view, from the initializer; ruins can be added, moved and deleted |
 | Deposits, blockers, modifiers | editable on any planet, colonies included, and rolled for the systems and planets you add | shown, from the initializer |
 | Anomalies, dig sites | editable | not in the file |
 | Colonies | shown, with their pops, and a colony can be removed | shown, from the initializer |
