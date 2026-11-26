@@ -73,6 +73,7 @@ export const PREPARE_NEEDS_GAME_DATA = needsGameData("sort this scenario's syste
 export const PREPARE_MENU_ITEM = "Prepare for a new game…";
 export const APPLY_LABEL = "Apply";
 export const NOT_NOW_LABEL = "Not now";
+export const CLOSE_LABEL = "Close";
 export const ONE_STEP = "One step to undo.";
 export const NOTHING_TO_CHANGE = "Nothing to change.";
 export const COUNTING = "Counting the changes…";

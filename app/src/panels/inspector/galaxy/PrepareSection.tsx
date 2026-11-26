@@ -9,6 +9,7 @@ import {
   choiceLabel,
   CLEAR_AROUND_LABEL,
   CLEAR_AROUND_STATES,
+  CLOSE_LABEL,
   COUNTING,
   CURRENT_MARK,
   customLine,
@@ -389,13 +390,17 @@ function RowByRow({
   );
 }
 
-/** How many systems Apply changes, and Apply; on the setup screen, Not now besides. */
+/**
+ * How many systems Apply changes, and Apply; on the setup screen, Not now besides, and Close in
+ * place of both once the choices change nothing.
+ */
 function Footer({ setup }: { setup: boolean }) {
   const changes = usePrepareStore((s) => s.preview?.changes ?? null);
   const current = usePrepareStore((s) => s.current);
   const applying = usePrepareStore((s) => s.applying);
   const apply = usePrepareStore((s) => s.apply);
   const dismiss = usePrepareStore((s) => s.dismiss);
+  const closes = setup && current && changes === 0;
   return (
     <div className="prep-footer">
       <div className="prep-apply">
@@ -408,18 +413,26 @@ function Footer({ setup }: { setup: boolean }) {
                 ? NOTHING_TO_CHANGE
                 : `${changesLine(changes)} ${ONE_STEP}`}
         </span>
-        {setup && (
-          <button type="button" className="link" onClick={() => dismiss()}>
-            {NOT_NOW_LABEL}
+        {closes ? (
+          <button type="button" disabled={applying} onClick={() => dismiss()}>
+            {CLOSE_LABEL}
           </button>
+        ) : (
+          <>
+            {setup && (
+              <button type="button" className="link" onClick={() => dismiss()}>
+                {NOT_NOW_LABEL}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={applying || !current || changes === null || changes === 0}
+              onClick={() => void apply()}
+            >
+              {APPLY_LABEL}
+            </button>
+          </>
         )}
-        <button
-          type="button"
-          disabled={applying || !current || changes === null || changes === 0}
-          onClick={() => void apply()}
-        >
-          {APPLY_LABEL}
-        </button>
       </div>
     </div>
   );

@@ -34,7 +34,8 @@ before you click Export.
 
 After "Open as scenario", the Galaxy page opens this section on its own.
 The Apply button stays in view at the bottom. Click "Not now" to see the
-whole Galaxy page instead. On any scenario, use File → "Prepare for a
+whole Galaxy page instead. When your choices change nothing, the button
+reads "Close" and does the same. On any scenario, use File → "Prepare for a
 new game…", or select nothing and open the section on the Galaxy page.
 It needs game data from your Stellaris install to sort the systems into
 rows.
